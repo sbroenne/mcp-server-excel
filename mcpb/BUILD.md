@@ -91,7 +91,7 @@ The manifest follows MCPB version 0.3 specification:
 
 ## Tool Annotations
 
-All 22 MCP tools include the `Destructive = true` annotation since they can modify Excel files:
+Mutation-capable MCP tools carry the `Destructive = true` annotation. Read-only tools can use non-destructive annotations; mixed-action tools should be interpreted from their action schema and documentation:
 
 ```csharp
 [McpServerTool(Name = "range", Title = "Excel Range Operations", Destructive = true)]

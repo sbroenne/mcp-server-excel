@@ -56,6 +56,9 @@ $excelMcpConfig = @{
         "-File",
         $WrapperPath
     )
+    env = @{
+        EXCELMCP_TOOL_PROFILE = "copilot-compact"
+    }
 }
 
 $config.mcpServers | Add-Member -MemberType NoteProperty -Name "excel-mcp" -Value $excelMcpConfig -Force

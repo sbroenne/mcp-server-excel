@@ -46,6 +46,8 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
 
     protected virtual TimeSpan ServerReadyTimeout => TimeSpan.FromSeconds(15);
 
+    protected virtual IReadOnlyList<string> ServerArguments => [];
+
     public async Task InitializeAsync()
     {
         CaptureBaselineExcelProcesses();
@@ -56,7 +58,8 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
                 _clientToServerPipe,
                 _serverToClientPipe,
                 TestCancellationToken,
-                _clientName);
+                _clientName,
+                ServerArguments);
 
             await InitializeTestAsync();
         }

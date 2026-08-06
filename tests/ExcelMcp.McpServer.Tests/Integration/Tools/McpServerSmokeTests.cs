@@ -122,14 +122,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// Comprehensive smoke test that exercises all 12 MCP tools via the SDK client.
+    /// Representative MCP tool smoke workflow through the SDK client.
     /// This validates the complete E2E flow: MCP protocol → DI → Tool → Core → Excel COM.
     /// </summary>
     [Fact]
     public async Task SmokeTest_AllTools_E2EWorkflow()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
-        _output.WriteLine("Testing all 26 tools via MCP protocol with real Excel...\n");
+        _output.WriteLine("Testing a representative MCP workflow with real Excel...\n");
 
         // =====================================================================
         // STEP 1: CREATE AND OPEN SESSION
@@ -520,7 +520,7 @@ in
         // FINAL SUMMARY
         // =====================================================================
         _output.WriteLine("\n=== E2E SMOKE TEST COMPLETE ===");
-        _output.WriteLine("✅ All 12 MCP tools tested via SDK client");
+        _output.WriteLine("✅ Representative MCP tools tested via SDK client");
         _output.WriteLine("✅ Full MCP protocol stack validated");
         _output.WriteLine("✅ DI pipeline exercised (same as Program.cs)");
         _output.WriteLine("✅ Real Excel operations verified");

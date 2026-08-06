@@ -603,6 +603,58 @@ public class SessionManagerTests : IDisposable
         Assert.Equal("Test Value", value);
     }
 
+    [Fact]
+    public async Task ExclusiveLease_AllowsOwnerReentry_BlocksOutsideAndClose()
+    {
+        var testFile = CreateTestFile(nameof(ExclusiveLease_AllowsOwnerReentry_BlocksOutsideAndClose));
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(testFile);
+
+        using var lease = await manager.AcquireExclusiveOperationAsync(sessionId);
+        using var owner = lease.EnterOwnerScope();
+        Assert.True(manager.TryBeginOperation(sessionId, out var ownerBatch, out _));
+        Assert.NotNull(ownerBatch);
+        manager.EndOperation(sessionId);
+
+        Task<string?> outsideTask;
+        using (ExecutionContext.SuppressFlow())
+        {
+            outsideTask = Task.Run(() => manager.TryBeginOperation(sessionId, out _, out var error) ? null : error);
+        }
+
+        var outside = await outsideTask;
+        Assert.Contains("exclusively leased", outside, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Throws<InvalidOperationException>(() => manager.CloseSession(sessionId));
+        owner.Dispose();
+        lease.Dispose();
+        Assert.True(manager.CloseSession(sessionId));
+    }
+
+    [Fact]
+    public async Task ExclusiveLease_CancellationWhileWaiting_ReleasesPublishedLease()
+    {
+        var testFile = CreateTestFile(nameof(ExclusiveLease_CancellationWhileWaiting_ReleasesPublishedLease));
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(testFile);
+        Assert.True(manager.TryBeginOperation(sessionId, out _, out _));
+
+        using var cancellation = new CancellationTokenSource();
+        var acquisition = manager.AcquireExclusiveOperationAsync(sessionId, cancellation.Token);
+
+        Assert.False(manager.TryBeginOperation(sessionId, out _, out var blockedError));
+        Assert.Contains("exclusively leased", blockedError, StringComparison.OrdinalIgnoreCase);
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => acquisition);
+        manager.EndOperation(sessionId);
+
+        Assert.True(manager.TryBeginOperation(sessionId, out var followUpBatch, out _));
+        Assert.NotNull(followUpBatch);
+        manager.EndOperation(sessionId);
+        Assert.True(manager.CloseSession(sessionId));
+    }
+
     #endregion
 }
 

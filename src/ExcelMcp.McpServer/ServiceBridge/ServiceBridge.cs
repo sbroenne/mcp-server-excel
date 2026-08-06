@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Service.Workflow;
 
 namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 
@@ -25,8 +26,10 @@ internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : 
 public static class ServiceBridge
 {
     private static readonly SemaphoreSlim _initLock = new(1, 1);
+    private static WorkflowRuntimeManifest _workflowRuntimeManifest = WorkflowRuntimeManifest.CreateServiceDefault();
     private static readonly Func<IServiceBridgeBackend> DefaultServiceFactory =
-        static () => new ExcelMcpServiceBackend(new Service.ExcelMcpService());
+        static () => new ExcelMcpServiceBackend(
+            new Service.ExcelMcpService(Volatile.Read(ref _workflowRuntimeManifest)));
 
     private static IServiceBridgeBackend? _service;
     private static Func<IServiceBridgeBackend> _serviceFactory = DefaultServiceFactory;
@@ -339,11 +342,23 @@ public static class ServiceBridge
         _serviceFactory = serviceFactory;
     }
 
+    /// <summary>
+    /// Configures the identity the next in-process service instance reports through
+    /// <c>workflow.capabilities</c>. The MCP host calls this before registering tools.
+    /// </summary>
+    internal static void ConfigureWorkflowRuntimeManifest(WorkflowRuntimeManifest workflowRuntimeManifest)
+    {
+        ArgumentNullException.ThrowIfNull(workflowRuntimeManifest);
+        Dispose();
+        Volatile.Write(ref _workflowRuntimeManifest, workflowRuntimeManifest);
+    }
+
     internal static void ResetForTests()
     {
         Dispose();
         Interlocked.Exchange(ref _pendingTestOwnerToken, 0);
         _serviceFactory = DefaultServiceFactory;
+        Volatile.Write(ref _workflowRuntimeManifest, WorkflowRuntimeManifest.CreateServiceDefault());
     }
 
     private static string BuildServiceStartupErrorMessage(Exception? exception)

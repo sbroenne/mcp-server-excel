@@ -22,6 +22,14 @@ public static class ActionExtensions
         _ => throw new ArgumentException($"Unknown FileAction: {action}")
     };
 
+    public static string ToActionString(this WorkflowAction action) => action switch
+    {
+        WorkflowAction.Capabilities => "capabilities",
+        WorkflowAction.OpenAndDescribe => "open-and-describe",
+        WorkflowAction.ExecutePlan => "execute-plan",
+        _ => throw new ArgumentException($"Unknown WorkflowAction: {action}")
+    };
+
     // NOTE: PowerQueryAction.ToActionString() is now generated in ServiceRegistry.PowerQuery.ToActionString()
     // NOTE: SheetAction.ToActionString() is now generated in ServiceRegistry.Sheet.ToActionString()
     // NOTE: SheetStyleAction.ToActionString() is now generated in ServiceRegistry.SheetStyle.ToActionString()

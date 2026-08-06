@@ -14,7 +14,8 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
         new ReadFastPathScenario(),
         new IdempotencyScenario(),
         new DurableJournalCheckpointScenario(),
-        new PreciseProcessTrackingScenario()
+        new PreciseProcessTrackingScenario(),
+        new PromptToCompletionSpeedScenario()
     ];
 
     public async Task<BenchmarkRunReport> RunAsync(CancellationToken cancellationToken)
@@ -29,13 +30,13 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
         foreach (var scenario in _scenarios.Where(item => options.SelectedPlans.Contains(item.PlanId)))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Console.WriteLine($"[{scenario.PlanId}/09] {scenario.Name}...");
+            Console.WriteLine($"[{scenario.PlanId}/{BenchmarkPlanCatalog.All.Count:D2}] {scenario.Name}...");
             try
             {
                 var result = await scenario.RunAsync(context, cancellationToken);
                 BenchmarkContractValidator.ValidateScenario(result);
                 results.Add(result);
-                Console.WriteLine($"[{scenario.PlanId}/09] {result.Status}: {result.Observations.Count} observations");
+                Console.WriteLine($"[{scenario.PlanId}/{BenchmarkPlanCatalog.All.Count:D2}] {result.Status}: {result.Observations.Count} observations");
             }
             catch (OperationCanceledException)
             {
@@ -53,7 +54,7 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
                     "Scenario setup or execution failed before a complete baseline could be captured.",
                     [exception.StackTrace ?? "No stack trace was available."],
                     status: "error"));
-                Console.WriteLine($"[{scenario.PlanId}/09] ERROR: {exception.GetType().Name}: {exception.Message}");
+                Console.WriteLine($"[{scenario.PlanId}/{BenchmarkPlanCatalog.All.Count:D2}] ERROR: {exception.GetType().Name}: {exception.Message}");
             }
 
             WriteProgressReport(runId, startedAt, environment, results);

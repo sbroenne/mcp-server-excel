@@ -128,6 +128,8 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
     private readonly ConcurrentDictionary<string, bool> _autoSaveOnDispose = new();
+    private readonly ConcurrentDictionary<string, ExclusiveSessionLease> _exclusiveSessions = new(StringComparer.Ordinal);
+    internal static readonly AsyncLocal<ExclusiveSessionLease?> CurrentExclusiveLease = new();
     private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
     private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
@@ -447,6 +449,7 @@ public sealed class SessionManager : IDisposable
         }
 
         _activeOperationCounts.TryRemove(sessionId, out _);
+        _exclusiveSessions.TryRemove(sessionId, out _);
         _closingSessions.TryRemove(sessionId, out _);
         _showExcelFlags.TryRemove(sessionId, out _);
         _sessionOrigins.TryRemove(sessionId, out _);
@@ -509,6 +512,14 @@ public sealed class SessionManager : IDisposable
             if (!_activeSessions.TryGetValue(sessionId, out batch))
             {
                 errorMessage = $"Session '{sessionId}' not found";
+                return false;
+            }
+
+            if (_exclusiveSessions.TryGetValue(sessionId, out var exclusiveLease) &&
+                !ReferenceEquals(CurrentExclusiveLease.Value, exclusiveLease))
+            {
+                batch = null;
+                errorMessage = $"Session '{sessionId}' is exclusively leased by an active workflow";
                 return false;
             }
 
@@ -595,6 +606,114 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Acquires an exclusive lease for a multi-operation workflow. New operations
+    /// from other callers are rejected while the lease waits for existing work to
+    /// drain; nested operations on the owning async flow are allowed to re-enter.
+    /// </summary>
+    public async Task<ExclusiveSessionLease> AcquireExclusiveOperationAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ArgumentException("sessionId is required", nameof(sessionId));
+        }
+
+        var sessionLock = GetSessionLock(sessionId);
+        ExclusiveSessionLease lease;
+        lock (sessionLock)
+        {
+            if (!_activeSessions.TryGetValue(sessionId, out var batch))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' not found");
+            }
+
+            if (_closingSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' is closing");
+            }
+
+            if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' is quarantined after a failed close: {teardownFailure}");
+            }
+
+            if (!batch.IsExcelProcessAlive())
+            {
+                CleanupDeadSession(sessionId, batch);
+                throw new InvalidOperationException($"Excel process for session '{sessionId}' has died");
+            }
+
+            if (batch.HasTimedOutOperation)
+            {
+                throw new InvalidOperationException(
+                    $"A previous operation on session '{sessionId}' timed out or was cancelled; close and reopen the workbook before retrying.");
+            }
+
+            if (_exclusiveSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' already has an exclusive workflow lease");
+            }
+
+            lease = new ExclusiveSessionLease(this, sessionId);
+            // Publish before waiting so outside callers fail closed rather than
+            // slipping in while the workflow waits for an older operation.
+            _exclusiveSessions[sessionId] = lease;
+        }
+
+        try
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (sessionLock)
+                {
+                    if (!_activeSessions.ContainsKey(sessionId))
+                    {
+                        throw new InvalidOperationException($"Session '{sessionId}' was closed while acquiring its workflow lease");
+                    }
+
+                    if (GetActiveOperationCount(sessionId) == 0)
+                    {
+                        _activeOperationCounts[sessionId] = 1;
+                        return lease;
+                    }
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            lock (sessionLock)
+            {
+                _exclusiveSessions.TryRemove(new KeyValuePair<string, ExclusiveSessionLease>(sessionId, lease));
+            }
+
+            throw;
+        }
+    }
+
+    internal void ReleaseExclusiveLease(ExclusiveSessionLease lease)
+    {
+        if (ReferenceEquals(CurrentExclusiveLease.Value, lease))
+        {
+            CurrentExclusiveLease.Value = null;
+        }
+
+        var sessionLock = GetSessionLock(lease.SessionId);
+        lock (sessionLock)
+        {
+            _exclusiveSessions.TryRemove(new KeyValuePair<string, ExclusiveSessionLease>(lease.SessionId, lease));
+            if (_activeOperationCounts.TryGetValue(lease.SessionId, out var count) && count > 0)
+            {
+                _activeOperationCounts[lease.SessionId] = count - 1;
+            }
+        }
+    }
+
+    /// <summary>
     /// Controls whether a session is automatically saved during manager shutdown.
     /// Explicit session close/save behavior is unchanged.
     /// </summary>
@@ -647,6 +766,12 @@ public sealed class SessionManager : IDisposable
                 $"Cannot close: {activeOps} operation(s) still running. Wait for operations to complete before closing.");
         }
 
+        if (_exclusiveSessions.ContainsKey(sessionId))
+        {
+            return new CloseValidationResult(true, isVisible, 0,
+                "Cannot close: an exclusive workflow lease is active or waiting to acquire the session.");
+        }
+
         return new CloseValidationResult(true, isVisible, 0, null);
     }
 
@@ -690,6 +815,14 @@ public sealed class SessionManager : IDisposable
         IExcelBatch batch;
         lock (sessionLock)
         {
+            if (_exclusiveSessions.TryGetValue(sessionId, out var exclusiveLease) &&
+                (!force || !ReferenceEquals(CurrentExclusiveLease.Value, exclusiveLease)))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot close session '{sessionId}' while an exclusive workflow is active. " +
+                    "Only the lease owner may force-close an interrupted workflow session.");
+            }
+
             // Check for running operations (unless force is true)
             if (!force)
             {
@@ -902,6 +1035,7 @@ public sealed class SessionManager : IDisposable
         _activeSessions.Clear();
         _activeFilePaths.Clear();
         _sessionFilePaths.Clear();
+        _exclusiveSessions.Clear();
         _autoSaveOnDispose.Clear();
 
         foreach (var sessionEntry in sessions)
@@ -933,6 +1067,58 @@ public sealed class SessionManager : IDisposable
             catch (Exception)
             {
                 // Best-effort cleanup — continue with remaining sessions
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Exclusive workflow lease for one session. Dispose releases the lease and the
+/// owner's operation slot; disposal is idempotent.
+/// </summary>
+public sealed class ExclusiveSessionLease : IDisposable
+{
+    private readonly SessionManager _manager;
+    private int _disposed;
+
+    internal ExclusiveSessionLease(SessionManager manager, string sessionId)
+    {
+        _manager = manager;
+        SessionId = sessionId;
+    }
+
+    /// <summary>Session protected by this lease.</summary>
+    public string SessionId { get; }
+
+    /// <summary>
+    /// Enters the owner scope for this lease. The scope must surround all nested
+    /// session operations; an unrelated async flow remains fail-closed.
+    /// </summary>
+    public IDisposable EnterOwnerScope()
+    {
+        ExclusiveSessionLease? previous = SessionManager.CurrentExclusiveLease.Value;
+        SessionManager.CurrentExclusiveLease.Value = this;
+        return new OwnerScope(previous);
+    }
+
+    /// <summary>Releases the lease.</summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _manager.ReleaseExclusiveLease(this);
+        }
+    }
+
+    private sealed class OwnerScope(ExclusiveSessionLease? previous) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                SessionManager.CurrentExclusiveLease.Value = previous;
             }
         }
     }
@@ -982,5 +1168,5 @@ public sealed record CloseValidationResult(
     /// <summary>
     /// Whether the session can be closed (no blocking conditions).
     /// </summary>
-    public bool CanClose => SessionExists && ActiveOperationCount == 0;
+    public bool CanClose => SessionExists && ActiveOperationCount == 0 && BlockingReason is null;
 }

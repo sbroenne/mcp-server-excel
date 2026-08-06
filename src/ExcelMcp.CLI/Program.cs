@@ -2,6 +2,7 @@ using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Service.Workflow;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -265,7 +266,7 @@ internal sealed class Program
         Service.ExcelMcpService? service = null;
         try
         {
-            service = new Service.ExcelMcpService();
+            service = new Service.ExcelMcpService(CreateWorkflowRuntimeManifest());
 
             // Capture the UI synchronization context after Application starts
             SynchronizationContext? uiContext = null;
@@ -327,5 +328,12 @@ internal sealed class Program
             daemonMutex.Dispose();
         }
     }
+
+    internal static WorkflowRuntimeManifest CreateWorkflowRuntimeManifest() => WorkflowRuntimeManifest.Create(
+        typeof(Program).Assembly,
+        "excelcli",
+        "cli",
+        ["workflow"],
+        toolProfileVersion: "1");
 }
 

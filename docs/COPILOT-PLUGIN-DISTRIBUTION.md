@@ -6,7 +6,7 @@ This document outlines how the Excel MCP Server and Excel CLI are distributed as
 
 ExcelMcp is published as **two complementary plugins** in the GitHub Copilot plugin marketplace:
 
-- **`excel-mcp`** — MCP Server with 26 tools (239 operations) for conversational AI (Claude Desktop, Copilot chat)
+- **`excel-mcp`** — MCP Server with a full profile of 29 tools (246 operations), plus a Copilot compact profile for lower-context clients (9 tools; live `tools/list` is authoritative)
 - **`excel-cli`** — CLI-only skill for coding agents (token-efficient, `--help` discoverable)
 
 Both plugins are maintained in a separate published repository and auto-synced from this source repo.
@@ -63,13 +63,13 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 
 ### Excel MCP Plugin
 
-Provides the full MCP Server with 26 tools (239 operations) for conversational AI:
+Provides the full MCP Server with 29 tools (246 operations) for conversational AI. The bundled Copilot plugin selects the compact 9-tool profile (file, workflow, worksheet, range, range_edit, range_format, worksheet_style, layout, calculation_mode); live `tools/list` is authoritative.
 
 ```powershell
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 ```
 
-Best for: Claude Desktop, Copilot chat, conversational interfaces.
+Best for: Claude Desktop, Copilot chat, conversational interfaces. The full MCP Server with 29 tools (246 operations) is available with `EXCELMCP_TOOL_PROFILE=full` when a client needs the complete surface.
 
 ### Excel CLI Plugin
 

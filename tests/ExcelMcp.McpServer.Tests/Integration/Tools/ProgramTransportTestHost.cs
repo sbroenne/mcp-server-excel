@@ -18,11 +18,12 @@ internal static class ProgramTransportTestHost
         Pipe clientToServerPipe,
         Pipe serverToClientPipe,
         CancellationToken cancellationToken,
-        string clientName)
+        string clientName,
+        IReadOnlyList<string>? serverArguments = null)
     {
         Program.ConfigureTestTransport(clientToServerPipe, serverToClientPipe);
 
-        var serverTask = Program.Main([]);
+        var serverTask = Program.Main(serverArguments?.ToArray() ?? []);
         var client = await ConnectClientWithRetryAsync(clientToServerPipe, serverToClientPipe, cancellationToken, clientName);
 
         return (client, serverTask);

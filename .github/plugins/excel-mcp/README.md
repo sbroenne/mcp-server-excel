@@ -53,7 +53,7 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**26 specialized tools with 239 operations** for comprehensive Excel automation:
+**29 specialized tools with 246 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
@@ -80,6 +80,7 @@ pwsh -ExecutionPolicy Bypass -File `
 ### File Operations
 
 - **Session Management** (11 ops) — Create, open, close, preflight, safety configuration, journals, and recovery
+- **Optimized Workflows** (3 ops) — Runtime capability proof, one-call open and discovery, and ordered plan execution
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for authentication
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)

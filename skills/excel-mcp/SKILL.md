@@ -11,18 +11,45 @@ description: >
 
 # Excel MCP Server Skill
 
-Provides 239 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 246 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+
+## Copilot compact profile
+
+The Copilot plugin starts the `copilot-compact` profile: 9 tools (`file`, `workflow`, `worksheet`, `range`, `range_edit`, `range_format`, `worksheet_style`, `layout`, and `calculation_mode`). The full profile is 29 tools/246 operations; compact intentionally omits those domain tools and adds the `layout` facade for deterministic report formatting and outlines. Treat live `tools/list` and `workflow(capabilities)` as authoritative.
+
+In compact mode, use `workflow(open-and-describe)` to open and inspect, then `workflow(execute-plan)` for two or more compatible edits. A plan may request one checkpoint (`checkpoint_mode: once`); it is ordered, non-atomic, and stops at the first error. Prefer the bounded verification receipt returned by the workflow or mutation, scoped to the reported ranges, instead of broad readbacks. If the receipt is partial or layout is visual, use the targeted range or screenshot tool that is available.
+
+Reuse an idempotency key only when the prior result is known and the command is unchanged. A timeout, cancellation, process death, or connection loss after dispatch has an unknown outcome—inspect the workbook or recovery evidence before retrying. Keep MCP session IDs separate from CLI session IDs. On failure, inspect the failed plan index and receipt, recover from the checkpoint when configured, and close with an explicit save choice.
 
 ## Workflow Checklist
 
 | Step | Tool | Action | When |
 |------|------|--------|------|
-| 1. Open file | `file` | `open` or `create` | Always first |
-| 2. Create sheets | `worksheet` | `create`, `rename` | If needed |
-| 3. Write data | `range` | `set-values` | Always (2D arrays) |
-| 4. Format | `range` | `set-number-format` | After writing |
-| 5. Structure | `table` | `create` | Convert data to tables |
-| 6. Save & close | `file` | `close` with `save: true` | Always last |
+| 1. Confirm runtime | `workflow` | `capabilities` | Once, only when `workflow` is in `tools/list` |
+| 2. Open and inspect | `workflow` or `file` | `open-and-describe`, else `open` | Start of workbook work |
+| 3. Create sheets | `worksheet` | `create`, `rename` | If needed |
+| 4. Write and format | `workflow` or domain tools | `execute-plan`, or direct actions | Batch 2+ compatible edits; use direct tools for one-offs |
+| 5. Structure | `table` | `create` | Convert tabular data to tables |
+| 6. Verify | relevant read tool or `screenshot` | targeted readback | Before claiming completion |
+| 7. Save & close | `file` | `close` with explicit `save` | Always last |
+
+## Copilot MCP Runtime Truth
+
+Treat the current MCP `tools/list` response as authoritative. Repository source, this skill's version, and an installed plugin do not prove which binary the client loaded. Use `workflow` only when it appears in `tools/list`; then call `workflow(action: 'capabilities')` once and record `workflowInterfaceVersion`, `serverVersion`, `buildFingerprint`, and `toolProfile`. If it is absent, use `file` plus the domain tools.
+
+When available, `workflow(action: 'open-and-describe')` opens a workbook and returns a fresh, bounded workbook manifest plus a session ID in one call. It replaces the common open/list/used-range discovery sequence. The returned session is still open and must later be closed explicitly.
+
+Use `workflow(action: 'execute-plan')` for two or more compatible ordered commands. Each item contains a service `command` such as `range.set-values` and an `args` object keyed by that command's service parameter names. Use direct domain tools when the command arguments are uncertain or the task is a single operation.
+
+`execute-plan` is ordered and stops on the first error by default. It is not atomic, does not roll back earlier successful steps, and does not include save/close. Inspect its results and failed index, verify the workbook, then call `file(action: 'close')` with an explicit save choice.
+
+## Safety, Retry, and Session Discipline
+
+- Use review, checkpoint, journal, verification, and idempotency features only when the loaded schema exposes them and the session is configured for them.
+- `review_only` is a machine-readable review step. A review ID does not prove a human approved the action; use a genuine host/user interaction when human consent is required.
+- A timeout, cancellation, Excel process death, or connection loss after dispatch has an unknown outcome. Never blindly replay it, even with an idempotency key; inspect the workbook or recovery evidence first.
+- Trust a verification result only for its exact reported scope and status. Read back cells/formulas, or use a screenshot when visual layout matters, for anything not fully covered.
+- MCP and CLI sessions are separate. Never pass a session ID from one interface to the other.
 
 ## Preconditions
 
@@ -45,18 +72,18 @@ Use `calculation_mode` for **bulk write performance optimization**. When writing
 
 ## CRITICAL: Execution Rules (MUST FOLLOW)
 
-### Rule 1: NEVER Ask Clarifying Questions
+### Rule 1: Discover Before Asking; Ask When Required
 
-**STOP.** If you're about to ask "Which file?", "What table?", "Where should I put this?" - DON'T.
+Discover active sessions and workbook structure before asking questions the tools can answer. Ask when a required workbook path, irreversible choice, credential step, or genuine human approval is missing; never guess those inputs.
 
 | Bad (Asking) | Good (Discovering) |
 |--------------|-------------------|
-| "Which Excel file should I use?" | `file(list)` → use the open session |
+| "Which Excel file should I use?" | `file(list)` → use the unambiguous open session; otherwise ask for a path |
 | "What's the table name?" | `table(list)` → discover tables |
 | "Which sheet has the data?" | `worksheet(list)` → check all sheets |
 | "Should I create a PivotTable?" | YES - create it on a new sheet |
 
-**You have tools to answer your own questions. USE THEM.**
+Use discovery tools for workbook facts; reserve questions for information or authority the tools cannot supply.
 
 ### Rule 2: Always End With a Text Summary
 
@@ -152,6 +179,9 @@ Error responses include actionable hints:
 | Task | Tool | Key Action |
 |------|------|------------|
 | Create/open/save workbooks | `file` | open, create, close |
+| Confirm loaded optimized surface | `workflow` | capabilities |
+| Open and inspect in one call | `workflow` | open-and-describe |
+| Run compatible ordered edits | `workflow` | execute-plan |
 | Write/read cell data | `range` | set-values, get-values |
 | Format cells | `range` | set-number-format |
 | Create tables from data | `table` | create |

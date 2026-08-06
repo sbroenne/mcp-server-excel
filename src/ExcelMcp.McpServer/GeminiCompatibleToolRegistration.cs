@@ -90,13 +90,15 @@ internal static class GeminiCompatibleToolRegistration
     /// </summary>
     public static IMcpServerBuilder WithGeminiCompatibleToolsFromAssembly(
         this IMcpServerBuilder builder,
-        Assembly? toolAssembly = null)
+        Assembly? toolAssembly = null,
+        McpToolProfile profile = McpToolProfile.Full)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         toolAssembly ??= Assembly.GetCallingAssembly();
 
         var tools = new List<McpServerTool>();
+        var discoveredToolNames = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var toolType in toolAssembly.GetTypes())
         {
@@ -111,7 +113,20 @@ internal static class GeminiCompatibleToolRegistration
 
             foreach (var method in toolType.GetMethods(methodFlags))
             {
-                if (method.GetCustomAttribute<McpServerToolAttribute>() is null)
+                if (method.GetCustomAttribute<McpServerToolAttribute>() is not { } toolAttribute)
+                {
+                    continue;
+                }
+
+                var toolName = string.IsNullOrWhiteSpace(toolAttribute.Name)
+                    ? method.Name
+                    : toolAttribute.Name;
+                if (!discoveredToolNames.Add(toolName))
+                {
+                    throw new InvalidOperationException($"Duplicate MCP tool name discovered: {toolName}");
+                }
+
+                if (!McpToolProfileCatalog.Includes(profile, toolName))
                 {
                     continue;
                 }
@@ -137,6 +152,63 @@ internal static class GeminiCompatibleToolRegistration
             }
         }
 
+        if (profile == McpToolProfile.CopilotCompact)
+        {
+            var missingTools = McpToolProfileCatalog.CompactTools
+                .Where(toolName => !discoveredToolNames.Contains(toolName))
+                .ToArray();
+            if (missingTools.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Copilot compact tool profile references unavailable tools: {string.Join(", ", missingTools)}");
+            }
+        }
+
         return builder.WithTools(tools);
+    }
+
+    /// <summary>
+    /// Discovers the exact tool names exposed by a profile without constructing MCP tool objects.
+    /// Hosts use this list to publish a deterministic runtime manifest alongside the protocol
+    /// server identity.
+    /// </summary>
+    internal static IReadOnlyList<string> DiscoverActiveToolNames(
+        Assembly toolAssembly,
+        McpToolProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(toolAssembly);
+
+        var discoveredToolNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var toolType in toolAssembly.GetTypes())
+        {
+            if (toolType.GetCustomAttribute<McpServerToolTypeAttribute>() is null)
+            {
+                continue;
+            }
+
+            const BindingFlags methodFlags = BindingFlags.Public | BindingFlags.NonPublic |
+                                             BindingFlags.Static | BindingFlags.Instance |
+                                             BindingFlags.DeclaredOnly;
+            foreach (var method in toolType.GetMethods(methodFlags))
+            {
+                if (method.GetCustomAttribute<McpServerToolAttribute>() is not { } toolAttribute)
+                {
+                    continue;
+                }
+
+                var toolName = string.IsNullOrWhiteSpace(toolAttribute.Name)
+                    ? method.Name
+                    : toolAttribute.Name;
+                if (!discoveredToolNames.Add(toolName))
+                {
+                    throw new InvalidOperationException($"Duplicate MCP tool name discovered: {toolName}");
+                }
+            }
+        }
+
+        return discoveredToolNames
+            .Where(toolName => McpToolProfileCatalog.Includes(profile, toolName))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
     }
 }

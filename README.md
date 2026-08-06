@@ -13,7 +13,7 @@
 
 **Automate Excel with AI** — A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (26 tools with 239 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (29 tools with 246 operations).
 
 **⚡ Powered by the real Excel engine** — ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
 
@@ -32,7 +32,9 @@
 
 ## 🎯 What You Can Do
 
-**26 specialized tools with 239 operations:**
+**29 specialized tools with 246 operations:**
+
+- **Optimized Workflows** (1 tool, 3 ops) - Runtime capability proof, one-call open and workbook discovery, and ordered multi-operation execution
 
 - 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
@@ -48,10 +50,11 @@
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 4 ops) - Add, inspect, and clear rules, including visual rule types
+- 🐍 **Python in Excel** (1 tool, 2 ops) - Write and inspect cloud-backed `=PY()` formulas
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 239 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 246 operations
 
 ### Opt-in safety workflow
 
@@ -163,7 +166,7 @@ copilot plugin install excel-cli@mcp-server-excel-plugins      # For scripting /
 |--------|-----|------------|--------|
 | **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
 
-**Key insight:** MCP sends 26 tool schemas to the LLM on each request (~100K+ tokens).
+**Key insight:** A full MCP discovery response exposes 27 tool schemas to the client. How often those schemas enter model context depends on the client, so measure the actual MCP wire payload and the target client's behavior instead of assuming a fixed token cost.
 
 </details>
 

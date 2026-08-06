@@ -83,6 +83,166 @@ public sealed class ServiceBatchRequest
 }
 
 /// <summary>
+/// Workflow-only plan envelope. This is intentionally separate from
+/// <see cref="ServiceBatchRequest"/> so the legacy <c>session.batch</c> wire
+/// contract remains unchanged.
+/// </summary>
+public sealed class WorkflowPlanRequest
+{
+    /// <summary>Ordered plan operations.</summary>
+    public List<ServiceBatchOperation> Operations { get; init; } = [];
+    /// <summary>Stop after the first failed operation.</summary>
+    public bool StopOnError { get; init; } = true;
+    /// <summary>Plan-level checkpoint policy.</summary>
+    public WorkflowCheckpointMode CheckpointMode { get; init; } = WorkflowCheckpointMode.Inherit;
+    /// <summary>
+    /// Use one queued STA work item when the complete plan is compatible. Incompatible
+    /// plans fall back to the normal sequential executor before any step is dispatched.
+    /// </summary>
+    public bool FastMode { get; init; } = true;
+    /// <summary>
+    /// Exact worksheet to inspect after the plan. Must be supplied together with
+    /// <see cref="VerifyRangeAddress"/>.
+    /// </summary>
+    public string? VerifySheetName { get; init; }
+    /// <summary>
+    /// Exact rectangular range to inspect after the plan. Must be supplied together with
+    /// <see cref="VerifySheetName"/>. The service never infers this from selection or UsedRange.
+    /// </summary>
+    public string? VerifyRangeAddress { get; init; }
+}
+
+/// <summary>Plan-level checkpoint policy for optimized workflow execution.</summary>
+public enum WorkflowCheckpointMode
+{
+    /// <summary>Use the configured session policy.</summary>
+    [JsonStringEnumMemberName("inherit")]
+    Inherit,
+
+    /// <summary>Do not create a plan checkpoint.</summary>
+    [JsonStringEnumMemberName("off")]
+    Off,
+
+    /// <summary>Create one checkpoint before the first mutation.</summary>
+    [JsonStringEnumMemberName("once")]
+    Once,
+}
+
+/// <summary>Compact aggregate receipt outcome for one workflow plan.</summary>
+public enum WorkflowPlanOutcome
+{
+    /// <summary>Every attempted step completed.</summary>
+    [JsonStringEnumMemberName("completed")]
+    Completed,
+
+    /// <summary>The plan failed with a known outcome.</summary>
+    [JsonStringEnumMemberName("failed")]
+    Failed,
+
+    /// <summary>The plan may have partially committed and must be reconciled.</summary>
+    [JsonStringEnumMemberName("unknown")]
+    Unknown,
+}
+
+/// <summary>Compact, replayable receipt for one workflow plan.</summary>
+public sealed record WorkflowPlanReceipt
+{
+    /// <summary>Stable plan operation identifier.</summary>
+    public string? PlanId { get; init; }
+    /// <summary>Aggregate plan outcome.</summary>
+    public WorkflowPlanOutcome Outcome { get; init; }
+    /// <summary>Total requested operations.</summary>
+    public int OperationCount { get; init; }
+    /// <summary>Operations that started execution.</summary>
+    public int AttemptedCount { get; init; }
+    /// <summary>Operations that completed successfully.</summary>
+    public int CompletedCount { get; init; }
+    /// <summary>First failed or unknown operation index.</summary>
+    public int? FailedIndex { get; init; }
+    /// <summary>Shared plan checkpoint reference, when created.</summary>
+    public WorkflowCheckpointReceipt? Checkpoint { get; init; }
+    /// <summary>Compact ordered step statuses.</summary>
+    public List<WorkflowStepReceipt> Steps { get; init; } = [];
+    /// <summary>Execution path: fast, standard, or sequential-fallback.</summary>
+    public string ExecutionMode { get; init; } = "standard";
+    /// <summary>Whether the caller requested automatic fast execution.</summary>
+    public bool FastModeRequested { get; init; }
+    /// <summary>Whether the compatible one-STA executor was used.</summary>
+    public bool FastModeUsed { get; init; }
+    /// <summary>Why a requested fast plan used the sequential fallback.</summary>
+    public string? FastModeFallbackReason { get; init; }
+    /// <summary>Actual queued STA work items started while the plan ran, when available.</summary>
+    public long? StaDispatchCount { get; init; }
+    /// <summary>
+    /// Bounded read-back of the caller-selected final range. Null when no verification
+    /// scope was requested.
+    /// </summary>
+    public WorkflowRangeVerificationReceipt? Verification { get; init; }
+}
+
+/// <summary>
+/// Compact, bounded verification of one explicit worksheet range after a workflow plan.
+/// Counts and the fingerprint describe the inspected range; when <see cref="Status"/> is
+/// <c>partiallyVerified</c>, <see cref="CellCount"/> remains the full requested size while
+/// <see cref="InspectedCellCount"/> and <see cref="InspectedRangeAddress"/> disclose the sample.
+/// </summary>
+public sealed record WorkflowRangeVerificationReceipt
+{
+    /// <summary>verified, partiallyVerified, or notVerified.</summary>
+    public string Status { get; init; } = "notVerified";
+    /// <summary>Requested worksheet name.</summary>
+    public string SheetName { get; init; } = string.Empty;
+    /// <summary>Excel-canonical address of the full requested range when resolved.</summary>
+    public string RangeAddress { get; init; } = string.Empty;
+    /// <summary>Rows in the full requested range.</summary>
+    public int? RowCount { get; init; }
+    /// <summary>Columns in the full requested range.</summary>
+    public int? ColumnCount { get; init; }
+    /// <summary>Cells in the full requested range.</summary>
+    public long? CellCount { get; init; }
+    /// <summary>Cells actually inspected and included in the fingerprint.</summary>
+    public int? InspectedCellCount { get; init; }
+    /// <summary>Excel-canonical address of the inspected sample.</summary>
+    public string? InspectedRangeAddress { get; init; }
+    /// <summary>Non-empty cells in the inspected scope.</summary>
+    public int? NonEmptyCellCount { get; init; }
+    /// <summary>Formula cells in the inspected scope.</summary>
+    public int? FormulaCellCount { get; init; }
+    /// <summary>SHA-256 of the normalized values and formulas in the inspected scope.</summary>
+    public string? Fingerprint { get; init; }
+    /// <summary>At most two rows by four columns of normalized cell values.</summary>
+    public IReadOnlyList<IReadOnlyList<object?>>? Preview { get; init; }
+    /// <summary>Honest scope or failure limitation when verification was not complete.</summary>
+    public string? Limitation { get; init; }
+}
+
+/// <summary>Compact checkpoint reference.</summary>
+public sealed record WorkflowCheckpointReceipt
+{
+    /// <summary>Recovery identifier.</summary>
+    public string RecoveryId { get; init; } = string.Empty;
+    /// <summary>Checkpoint path relative to the safety root.</summary>
+    public string RelativePath { get; init; } = string.Empty;
+    /// <summary>SHA-256 of the checkpoint file.</summary>
+    public string Sha256 { get; init; } = string.Empty;
+    /// <summary>Checkpoint file size.</summary>
+    public long Size { get; init; }
+}
+
+/// <summary>Compact status for one plan step.</summary>
+public sealed record WorkflowStepReceipt
+{
+    /// <summary>Zero-based step index.</summary>
+    public int Index { get; init; }
+    /// <summary>Service command name.</summary>
+    public string Command { get; init; } = string.Empty;
+    /// <summary>Step status.</summary>
+    public string Status { get; init; } = string.Empty;
+    /// <summary>Structured error category, when failed.</summary>
+    public string? ErrorCategory { get; init; }
+}
+
+/// <summary>
 /// One operation inside a server-side batch.
 /// </summary>
 public sealed class ServiceBatchOperation

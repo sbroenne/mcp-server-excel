@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchDispatchDiagnostics
 {
     internal const int WorkQueueCapacity = 64;
     internal const BoundedChannelFullMode WorkQueueFullMode = BoundedChannelFullMode.Wait;
@@ -47,6 +47,8 @@ internal sealed class ExcelBatch : IExcelBatch
     private OwnedProcessIdentity? _excelProcessIdentity;
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
     private bool _startupDetectedIrmProtectedWorkbook;
+    private int _staExecutionDepth; // STA-thread-owned reentrancy depth
+    private long _staDispatchCount; // Actual queued work items started on the STA
 
     /// <summary>
     /// When true, suppresses the "start visible during open" behavior.
@@ -765,6 +767,19 @@ internal sealed class ExcelBatch : IExcelBatch
                 "Please close this session and create a new one.");
         }
 
+        // A workflow may deliberately submit one outer work item and invoke existing
+        // command methods inside it. Those command methods call Execute again. Queueing
+        // that nested call would make the STA wait on work only the same STA can drain.
+        // Inline execution is allowed only while this exact batch already owns a queued
+        // callback on its dedicated STA; unrelated callers still take the queue path.
+        if (Environment.CurrentManagedThreadId == _staThread.ManagedThreadId && _staExecutionDepth > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return operation(
+                _context ?? throw new InvalidOperationException("Excel context is not initialized."),
+                cancellationToken);
+        }
+
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         var lifecycle = new ExcelOperationLifecycle();
         using var sessionTimeoutCts = cancellationToken.CanBeCanceled
@@ -791,14 +806,22 @@ internal sealed class ExcelBatch : IExcelBatch
                         return Task.CompletedTask;
                     }
 
-                    // STRUCTURAL SAFETY: Suppress ScreenUpdating for every operation.
-                    // Restores on completion or exception. Reduces COM callbacks and
-                    // improves performance for bulk operations.
-                    using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
+                    Interlocked.Increment(ref _staDispatchCount);
+                    _staExecutionDepth++;
+                    try
+                    {
+                        // STRUCTURAL SAFETY: Suppress ScreenUpdating for every queued
+                        // operation. Nested same-STA Execute calls reuse this guard.
+                        using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
 
-                    var result = operation(_context!, cancellationToken);
-                    lifecycle.MarkCompleted();
-                    tcs.TrySetResult(result);
+                        var result = operation(_context!, cancellationToken);
+                        lifecycle.MarkCompleted();
+                        tcs.TrySetResult(result);
+                    }
+                    finally
+                    {
+                        _staExecutionDepth--;
+                    }
                 }
                 catch (OperationCanceledException oce)
                 {
@@ -1210,6 +1233,9 @@ internal sealed class ExcelBatch : IExcelBatch
 
         _logger.LogDebug("[Thread {CallingThread}] Dispose COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
     }
+
+    /// <inheritdoc />
+    public long StaDispatchCount => Interlocked.Read(ref _staDispatchCount);
 #pragma warning restore CS8629
 
 }

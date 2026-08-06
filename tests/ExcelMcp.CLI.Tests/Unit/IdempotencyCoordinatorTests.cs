@@ -249,6 +249,116 @@ public sealed class IdempotencyCoordinatorTests
     }
 
     [Fact]
+    public async Task WorkflowPlan_ExactRetryReplaysReceiptAndChangedPlanConflicts()
+    {
+        var coordinator = new IdempotencyCoordinator();
+        var executions = 0;
+        var original = CreateWorkflowPlanRequest("workflow-retry", "{\"operations\":[{\"command\":\"range.set-values\",\"args\":{\"rangeAddress\":\"A1\",\"values\":[[1]]}}],\"checkpointMode\":\"once\"}");
+        var equivalent = CreateWorkflowPlanRequest("workflow-retry", "{\"checkpointMode\":\"once\",\"operations\":[{\"command\":\"range.set-values\",\"args\":{\"values\":[[1]],\"rangeAddress\":\"A1\"}}]}");
+        var changed = CreateWorkflowPlanRequest("workflow-retry", "{\"operations\":[{\"command\":\"range.set-values\",\"args\":{\"rangeAddress\":\"A1\",\"values\":[[2]]}}],\"checkpointMode\":\"once\"}");
+
+        Task<ServiceResponse> ExecuteAsync()
+        {
+            Interlocked.Increment(ref executions);
+            return Task.FromResult(new ServiceResponse { Success = true, Result = "{\"outcome\":\"completed\"}" });
+        }
+
+        var first = await coordinator.ExecuteAsync(original, ExecuteAsync);
+        var replay = await coordinator.ExecuteAsync(equivalent, ExecuteAsync);
+        var conflict = await coordinator.ExecuteAsync(changed, ExecuteAsync);
+
+        Assert.Equal(1, executions);
+        Assert.Equal(first.Result, replay.Result);
+        Assert.Equal("IdempotencyConflict", conflict.ErrorCategory);
+    }
+
+    [Fact]
+    public async Task WorkflowPlan_UnknownOutcomeReturnsReceiptButNeverDispatchesRetry()
+    {
+        var coordinator = new IdempotencyCoordinator();
+        var executions = 0;
+        var request = CreateWorkflowPlanRequest("workflow-unknown", "{\"operations\":[{\"command\":\"range.set-values\"}],\"checkpointMode\":\"once\"}");
+
+        Task<ServiceResponse> ExecuteAsync()
+        {
+            Interlocked.Increment(ref executions);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "UnknownOutcome",
+                Result = "{\"outcome\":\"unknown\",\"failedIndex\":0}"
+            });
+        }
+
+        var first = await coordinator.ExecuteAsync(request, ExecuteAsync);
+        var retry = await coordinator.ExecuteAsync(request, ExecuteAsync);
+
+        Assert.Equal(1, executions);
+        Assert.Equal("UnknownOutcome", first.ErrorCategory);
+        Assert.Equal("IdempotencyUnknownOutcome", retry.ErrorCategory);
+        Assert.Equal(first.Result, retry.Result);
+    }
+
+    [Fact]
+    public async Task WorkflowPlan_ReviewUnavailableBeforeExecution_AllowsSameKeyToRetry()
+    {
+        var coordinator = new IdempotencyCoordinator();
+        var executions = 0;
+        var request = CreateWorkflowPlanRequest(
+            "workflow-review-unavailable",
+            "{\"operations\":[{\"command\":\"range.set-values\"}]}");
+
+        Task<ServiceResponse> ExecuteAsync()
+        {
+            int attempt = Interlocked.Increment(ref executions);
+            return Task.FromResult(attempt == 1
+                ? new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "PlanReviewUnavailable",
+                    ErrorMessage = "Plan review is unavailable."
+                }
+                : new ServiceResponse { Success = true, Result = "{\"outcome\":\"completed\"}" });
+        }
+
+        var first = await coordinator.ExecuteAsync(request, ExecuteAsync);
+        var retry = await coordinator.ExecuteAsync(request, ExecuteAsync);
+
+        Assert.Equal("PlanReviewUnavailable", first.ErrorCategory);
+        Assert.True(retry.Success);
+        Assert.Equal(2, executions);
+    }
+
+    [Fact]
+    public async Task WorkflowPlan_PartialKnownFailure_ReplaysReceiptWithoutDispatchingAgain()
+    {
+        var coordinator = new IdempotencyCoordinator();
+        var executions = 0;
+        var request = CreateWorkflowPlanRequest(
+            "workflow-partial-failure",
+            "{\"operations\":[{\"command\":\"range.set-values\"},{\"command\":\"range.set-values\"}]}");
+
+        Task<ServiceResponse> ExecuteAsync()
+        {
+            Interlocked.Increment(ref executions);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "PlanFailed",
+                ErrorMessage = "A later step failed after an earlier mutation.",
+                Result = "{\"outcome\":\"failed\",\"completedCount\":1,\"failedIndex\":1}"
+            });
+        }
+
+        var first = await coordinator.ExecuteAsync(request, ExecuteAsync);
+        var retry = await coordinator.ExecuteAsync(request, ExecuteAsync);
+
+        Assert.Equal(1, executions);
+        Assert.Equal("PlanFailed", first.ErrorCategory);
+        Assert.Equal(ServiceProtocol.Serialize(first), ServiceProtocol.Serialize(retry));
+    }
+
+    [Fact]
     public void ProtocolRoundTrip_PreservesKeysAndOldRequestsRemainCompatible()
     {
         var request = CreateRequest("request-key", "session-a", "{}");
@@ -274,6 +384,15 @@ public sealed class IdempotencyCoordinatorTests
         SessionId = sessionId,
         Args = args,
         ReviewId = "review-1",
+        Source = "test",
+        IdempotencyKey = key
+    };
+
+    private static ServiceRequest CreateWorkflowPlanRequest(string key, string args) => new()
+    {
+        Command = "workflow.execute-plan",
+        SessionId = "session-workflow",
+        Args = args,
         Source = "test",
         IdempotencyKey = key
     };

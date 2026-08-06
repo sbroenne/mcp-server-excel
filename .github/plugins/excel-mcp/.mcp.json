@@ -7,7 +7,10 @@
         "Bypass",
         "-File",
         "{pluginDir}\\bin\\start-mcp.ps1"
-      ]
+      ],
+      "env": {
+        "EXCELMCP_TOOL_PROFILE": "copilot-compact"
+      }
     }
   }
 }

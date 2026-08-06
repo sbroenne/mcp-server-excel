@@ -63,7 +63,7 @@ if (-not $PluginTemplateDir) {
 # Validate template directory exists
 if (-not (Test-Path $PluginTemplateDir)) {
     Write-Error @"
-❌ Plugin template directory not found: $PluginTemplateDir
+[error] Plugin template directory not found: $PluginTemplateDir
 
 Expected: ../mcp-server-excel-plugins/plugins/
 This directory contains the published marketplace repo's validated plugin implementations.
@@ -214,10 +214,10 @@ if (-not (Test-Path $RefsDir)) {
 $SharedFiles = Get-ChildItem -Path $SharedDir -Filter "*.md"
 foreach ($file in $SharedFiles) {
     Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
-    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
+    Write-Host "    [ok] $($file.Name)" -ForegroundColor DarkGray
 }
 
-Write-Host "✅ excel-mcp plugin built" -ForegroundColor Green
+Write-Host "[ok] excel-mcp plugin built" -ForegroundColor Green
 
 # =============================================================================
 # Build: excel-cli Plugin
@@ -265,10 +265,10 @@ $CliReferencesDir = Join-Path $SkillsDir "excel-cli\references"
 $CliReferenceFiles = Get-ChildItem -Path $CliReferencesDir -Filter "*.md"
 foreach ($file in $CliReferenceFiles) {
     Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
-    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
+    Write-Host "    [ok] $($file.Name)" -ForegroundColor DarkGray
 }
 
-Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
+Write-Host "[ok] excel-cli plugin built" -ForegroundColor Green
 
 # =============================================================================
 # Summary

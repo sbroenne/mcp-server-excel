@@ -31,8 +31,9 @@ of these help, open a [GitHub issue](https://github.com/sbroenne/mcp-server-exce
     the work.
 
 ??? question "CLI or MCP Server — which should I install?"
-    Both expose the **same 239 operations**. Use the **MCP Server** for
-    conversational AI (Claude Desktop, VS Code Chat); use the **CLI**
+    Both expose the same **239 core Excel operations**; the MCP Server also has
+    3 optimized-workflow operations. Use the **MCP Server** for conversational
+    AI (Claude Desktop, VS Code Chat); use the **CLI**
     (`excelcli`) for coding agents and scripting, where it uses ~64% fewer
     tokens. You can install both. See [Installation](installation.md).
 

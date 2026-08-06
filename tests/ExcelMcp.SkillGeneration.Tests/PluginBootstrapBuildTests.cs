@@ -18,6 +18,40 @@ public sealed class PluginBootstrapBuildTests
     private static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
 
     [Fact]
+    [Trait("Feature", "PluginBootstrap")]
+    public void CopilotMcpConfig_RequestsTheCompactToolProfile()
+    {
+        var configPath = Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", ".mcp.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(configPath));
+
+        Assert.Equal(
+            "copilot-compact",
+            document.RootElement
+                .GetProperty("mcpServers")
+                .GetProperty("excel-mcp")
+                .GetProperty("env")
+                .GetProperty("EXCELMCP_TOOL_PROFILE")
+                .GetString());
+    }
+
+    [Fact]
+    [Trait("Feature", "PluginBootstrap")]
+    public void GlobalInstallHelper_PreservesTheCompactToolProfile()
+    {
+        var scriptPath = Path.Combine(
+            RepoRoot,
+            ".github",
+            "plugins",
+            "excel-mcp",
+            "bin",
+            "install-global.ps1");
+        var script = File.ReadAllText(scriptPath);
+
+        Assert.Contains("EXCELMCP_TOOL_PROFILE", script, StringComparison.Ordinal);
+        Assert.Contains("copilot-compact", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_PreservesCurrentBootstrapAssetsAndDropsLegacyBootstrapFiles()
@@ -39,7 +73,10 @@ public sealed class PluginBootstrapBuildTests
                     "-OutputDir", outputDir
                 ]);
 
-            Assert.Equal(0, result.ExitCode);
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            Assert.True(
+                Directory.Exists(Path.Combine(outputDir, "excel-cli")),
+                $"Build reported success without producing excel-cli.{Environment.NewLine}{result.CombinedOutput}");
 
             AssertBootstrapAssetSet(
                 Path.Combine(outputDir, "excel-mcp"),
@@ -680,7 +717,10 @@ public sealed class PluginBootstrapBuildTests
 
     private static string CreateSandbox(string name)
     {
-        var sandbox = Path.Combine(RepoRoot, "scratch", "plugin-bootstrap-test", $"{name}-{Guid.NewGuid():N}");
+        // Windows PowerShell 5.1 still uses legacy path limits. Keep the test root
+        // short so deeply nested packaged skill/reference paths stay below MAX_PATH.
+        _ = name;
+        var sandbox = Path.Combine(RepoRoot, "scratch", "pbt", Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(sandbox);
         return sandbox;
     }
@@ -858,16 +898,9 @@ public sealed class PluginBootstrapBuildTests
         Dictionary<string, string>? environmentVariables = null,
         int timeoutMs = 30000)
     {
-        var escapedScriptPath = scriptPath.Replace("'", "''");
-        var escapedArguments = arguments
-            .Select(argument => argument.Length > 0 && argument[0] == '-'
-                ? argument
-                : $"'{argument.Replace("'", "''")}'");
-        var commandText = $"& '{escapedScriptPath}' {string.Join(" ", escapedArguments)}";
-
         var startInfo = new ProcessStartInfo
         {
-            FileName = "pwsh",
+            FileName = ResolvePowerShellExecutable(),
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -878,8 +911,12 @@ public sealed class PluginBootstrapBuildTests
         startInfo.ArgumentList.Add("-NoProfile");
         startInfo.ArgumentList.Add("-ExecutionPolicy");
         startInfo.ArgumentList.Add("Bypass");
-        startInfo.ArgumentList.Add("-Command");
-        startInfo.ArgumentList.Add(commandText);
+        startInfo.ArgumentList.Add("-File");
+        startInfo.ArgumentList.Add(scriptPath);
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
 
         if (environmentVariables != null)
         {
@@ -925,6 +962,35 @@ public sealed class PluginBootstrapBuildTests
         }
 
         return new ProcessResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+    }
+
+    private static string ResolvePowerShellExecutable()
+    {
+        var pathExecutable = OperatingSystem.IsWindows() ? "pwsh.exe" : "pwsh";
+        foreach (var pathEntry in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var candidate = Path.Combine(pathEntry, pathExecutable);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var windowsPowerShell = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell",
+                "v1.0",
+                "powershell.exe");
+            if (File.Exists(windowsPowerShell))
+            {
+                return windowsPowerShell;
+            }
+        }
+
+        return pathExecutable;
     }
 
     private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr)

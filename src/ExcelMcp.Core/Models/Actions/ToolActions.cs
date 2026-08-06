@@ -46,6 +46,25 @@ public enum FileAction
     Recover
 }
 
+/// <summary>
+/// Actions available for the high-level workflow tool.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowAction>))]
+public enum WorkflowAction
+{
+    /// <summary>Returns the optimized workflow capabilities supported by this server.</summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("capabilities")]
+    Capabilities,
+
+    /// <summary>Opens a workbook and returns a compact, bounded manifest in one call.</summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("open-and-describe")]
+    OpenAndDescribe,
+
+    /// <summary>Executes an ordered plan through one MCP tool call.</summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("execute-plan")]
+    ExecutePlan,
+}
+
 // NOTE: PowerQueryAction is now generated from IPowerQueryCommands interface
 // See Sbroenne.ExcelMcp.Generated.PowerQueryAction in ServiceRegistry.PowerQuery.g.cs
 

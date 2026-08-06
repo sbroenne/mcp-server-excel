@@ -1,4 +1,4 @@
-# First-nine benchmark matrix
+# First-ten benchmark matrix
 
 | Plan | Controlled workload | Primary comparison | Non-negotiable gate | Current baseline limitation / future hook |
 |---:|---|---|---|---|
@@ -11,6 +11,7 @@
 | 07 | Review, execute one table append, exact retry, changed-argument retry, and semantic row counts. | First/retry/conflict p95, duplicate executions, receipt bytes. | Execute once, same receipt, conflict, unknown outcome never auto-replayed. | Review ID is only a surrogate; true idempotency request field and unknown-outcome injection are future seams. |
 | 08 | Required checkpoint mutation, hash/size verification, journal order, restart/recovery, and unavailable checkpoint directory. | Checkpoint/journal/restart/recovery p95 and checkpoint bytes. | Parseable journal, ordered transitions, valid hash, fail-closed outage, exact recovered state. | Add kill-at-each-transition and durable-flush hooks for power-loss claims. |
 | 09 | Two isolated real Excel processes; close target and continuously prove sentinel survives. | Exit p95, orphan/wrong-kill counts, cleanup rate, mismatch detection time. | Sentinel survives, no wrong kill/orphan, identity mismatch fails closed. | Current PID-only implementation cannot inject reused PID/start-time mismatch, so that gate intentionally remains red. |
+| 10 | Three fresh public MCP clients: legacy open/list/describe/eight writes, execute-plan-only, and execute-plan plus open-and-describe; all verify values through MCP and close without saving. | Prompt-to-completion/open-describe/execution/verification p95, tool calls, total bytes/token estimate, and bidirectional initialize/tools-list/tools-call bytes. | Exact values with no loss or duplication, valid summary, known outcome, and successful public MCP transport. | Each case captures its own initialize and one `tools/list`; the fixture workbook is setup outside timing. This measures the server wire protocol, not Copilot prompt packing or tokenizer behavior. |
 
 ## Decision rule
 

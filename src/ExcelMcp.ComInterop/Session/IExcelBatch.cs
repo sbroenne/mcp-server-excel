@@ -147,5 +147,15 @@ public interface IExcelBatch : IDisposable
 
 }
 
+/// <summary>
+/// Optional diagnostics for counting actual queued STA work-item starts. Reentrant
+/// calls made by an already-running STA work item do not increment this counter.
+/// </summary>
+public interface IExcelBatchDispatchDiagnostics
+{
+    /// <summary>Total queued work items that have started on this batch's STA thread.</summary>
+    long StaDispatchCount { get; }
+}
+
 
 

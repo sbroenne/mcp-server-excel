@@ -74,7 +74,8 @@ internal sealed class IdempotencyCoordinator
         }
 
         var descriptor = ServiceRegistry.GetSafetyDescriptor(request.Command);
-        if (!descriptor.ExplicitlyClassified || !descriptor.IsMutation)
+        bool isWorkflowPlan = string.Equals(request.Command.Trim(), "workflow.execute-plan", StringComparison.OrdinalIgnoreCase);
+        if (!isWorkflowPlan && (!descriptor.ExplicitlyClassified || !descriptor.IsMutation))
         {
             return CreateFailure(
                 request,
@@ -161,7 +162,28 @@ internal sealed class IdempotencyCoordinator
                 }
             }
 
-            return replay ?? CreateFailure(request, errorCategory!, errorMessage!);
+            if (replay != null)
+            {
+                return replay;
+            }
+
+            var failure = CreateFailure(request, errorCategory!, errorMessage!);
+            if (entry.State == EntryState.Unknown && entry.Response?.Result is not null)
+            {
+                // Preserve the compact plan receipt as reconciliation evidence while
+                // still refusing to dispatch the mutation again.
+                failure = new ServiceResponse
+                {
+                    Success = failure.Success,
+                    Command = failure.Command,
+                    SessionId = failure.SessionId,
+                    ErrorCategory = failure.ErrorCategory,
+                    ErrorMessage = failure.ErrorMessage,
+                    Result = entry.Response.Result
+                };
+            }
+
+            return failure;
         }
 
         try
@@ -226,7 +248,8 @@ internal sealed class IdempotencyCoordinator
             "AbortedUnknown" or "IdempotencyUnknownOutcome" or "JournalPersistenceFailed";
 
     private static bool IsKnownNotExecuted(ServiceResponse response) =>
-        response.ErrorCategory is "TimeoutBeforeExecution" or "CancelledBeforeExecution" or "CheckpointFailed";
+        response.ErrorCategory is "TimeoutBeforeExecution" or "CancelledBeforeExecution" or "CheckpointFailed" or
+            "PlanNotExecuted" or "PlanSafetyConflict" or "PlanOptionConflict" or "PlanReviewUnavailable";
 
     private static bool IsValidKey(string key)
     {

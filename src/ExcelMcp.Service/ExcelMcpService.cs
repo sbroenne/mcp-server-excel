@@ -9,6 +9,7 @@ using ServiceBatchOperation = Sbroenne.ExcelMcp.ComInterop.ServiceClient.Service
 using ServiceBatchOperationResult = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchOperationResult;
 using ServiceBatchRequest = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchRequest;
 using ServiceBatchResponse = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchResponse;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -16,9 +17,12 @@ using Sbroenne.ExcelMcp.Core.Commands.Diag;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Commands.ReportFormat;
+using Sbroenne.ExcelMcp.Core.Commands.Outline;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using Sbroenne.ExcelMcp.Service.Idempotency;
 using Sbroenne.ExcelMcp.Service.Safety;
+using Sbroenne.ExcelMcp.Service.Workflow;
 using StreamJsonRpc;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
@@ -65,20 +69,38 @@ public sealed class ExcelMcpService : IDisposable
     private readonly DiagCommands _diagCommands = new();
     private readonly WindowCommands _windowCommands = new();
     private readonly PythonInExcelCommands _pythonInExcelCommands = new();
+    private readonly ReportFormatCommands _reportFormatCommands = new();
+    private readonly OutlineCommands _outlineCommands = new();
     private readonly WorkbookSafetyCoordinator _safetyCoordinator;
     private readonly IdempotencyCoordinator _idempotencyCoordinator = new();
+    private readonly WorkflowRuntimeManifest _workflowRuntimeManifest;
 
-    public ExcelMcpService() : this(null)
+    public ExcelMcpService() : this(safetyStateRoot: null, workflowRuntimeManifest: null)
     {
     }
 
     /// <summary>
     /// Creates the service with an optional durable safety-state root.
     /// </summary>
-    public ExcelMcpService(string? safetyStateRoot)
+    public ExcelMcpService(string? safetyStateRoot) : this(safetyStateRoot, workflowRuntimeManifest: null)
+    {
+    }
+
+    /// <summary>
+    /// Creates the service with a host-owned workflow runtime manifest. Hosts that expose
+    /// <c>workflow.capabilities</c> should pass their own executable assembly to the manifest.
+    /// </summary>
+    public ExcelMcpService(WorkflowRuntimeManifest workflowRuntimeManifest)
+        : this(safetyStateRoot: null, workflowRuntimeManifest: workflowRuntimeManifest)
+    {
+    }
+
+    /// <summary>Creates the service with optional safety state and host runtime identity.</summary>
+    public ExcelMcpService(string? safetyStateRoot, WorkflowRuntimeManifest? workflowRuntimeManifest)
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _safetyCoordinator = new WorkbookSafetyCoordinator(safetyStateRoot);
+        _workflowRuntimeManifest = workflowRuntimeManifest ?? WorkflowRuntimeManifest.CreateServiceDefault();
         _sessionManager.DeadSessionCleanupStarting += HandleDeadSessionCleanupStarting;
     }
 
@@ -276,6 +298,7 @@ public sealed class ExcelMcpService : IDisposable
             ServiceResponse response = category switch
             {
                 "service" => HandleServiceCommand(action),
+                "workflow" => await HandleWorkflowCommandAsync(action, request),
                 "session" => string.Equals(action, "batch", StringComparison.Ordinal)
                     ? await HandleSessionBatchAsync(request)
                     : HandleSessionCommand(action, request),
@@ -329,6 +352,12 @@ public sealed class ExcelMcpService : IDisposable
                     ServiceRegistry.Screenshot.TryParseAction,
                     (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_screenshotCommands, a, batch, request.Args)),
                 "window" => await DispatchWindowAsync(action, request),
+                "reportformat" => await DispatchSimpleAsync<ReportFormatAction>(action, request,
+                    ServiceRegistry.ReportFormat.TryParseAction,
+                    (a, batch) => ServiceRegistry.ReportFormat.DispatchToCore(_reportFormatCommands, a, batch, request.Args)),
+                "outline" => await DispatchSimpleAsync<OutlineAction>(action, request,
+                    ServiceRegistry.Outline.TryParseAction,
+                    (a, batch) => ServiceRegistry.Outline.DispatchToCore(_outlineCommands, a, batch, request.Args)),
                 "diag" => DispatchSessionless(action, request),
                 "pythoninexcel" => await DispatchSimpleAsync<PythonInExcelAction>(action, request,
                     ServiceRegistry.PythonInExcel.TryParseAction,
@@ -377,6 +406,798 @@ public sealed class ExcelMcpService : IDisposable
     }
 
     // === SESSION COMMANDS ===
+
+    private Task<ServiceResponse> HandleWorkflowCommandAsync(string action, ServiceRequest request)
+    {
+        return action switch
+        {
+            "capabilities" => Task.FromResult(new ServiceResponse
+            {
+                Success = true,
+                Result = ServiceProtocol.Serialize(new
+                {
+                    success = true,
+                    workflowInterfaceVersion = WorkflowRuntimeManifest.InterfaceVersion,
+                    runtimeHost = _workflowRuntimeManifest.ServerName,
+                    serverVersion = _workflowRuntimeManifest.ServerVersion,
+                    buildFingerprint = _workflowRuntimeManifest.BuildFingerprint,
+                    toolProfile = _workflowRuntimeManifest.ToolProfile,
+                    toolProfileVersion = _workflowRuntimeManifest.ToolProfileVersion,
+                    toolProfileFallback = _workflowRuntimeManifest.ToolProfileFallback,
+                    toolProfileTools = _workflowRuntimeManifest.ToolProfileTools,
+                    toolProfileManifestHash = _workflowRuntimeManifest.ToolProfileManifestHash,
+                    executePlan = true,
+                    openAndDescribe = true,
+                    fastMode = true,
+                    fastModeVersion = "1",
+                    fastModeFallback = "sequential",
+                    fastModeCompatibleCategories = WorkflowFastPathPolicy.CompatibleCategories,
+                    fastModeReceipt = true,
+                    compactReceipts = true,
+                    planCheckpoint = true,
+                    planIdempotency = true,
+                    finalRangeVerification = true,
+                    planReview = false,
+                }),
+            }),
+            "open-and-describe" => Task.FromResult(HandleWorkflowOpenAndDescribe(request)),
+            "execute-plan" => HandleWorkflowPlanAsync(request),
+            _ => Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Unknown workflow action: {action}",
+            }),
+        };
+    }
+
+    private ServiceResponse HandleWorkflowOpenAndDescribe(ServiceRequest request)
+    {
+        WorkflowOpenAndDescribeArgs? args;
+        try
+        {
+            args = ServiceProtocol.Deserialize<WorkflowOpenAndDescribeArgs>(request.Args ?? "{}");
+        }
+        catch (JsonException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Invalid workflow.open-and-describe arguments: {ex.Message}",
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(args?.FilePath))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "filePath is required",
+            };
+        }
+
+        int previewRows = args.PreviewRows ?? WorkbookManifestReader.DefaultPreviewRows;
+        int previewColumns = args.PreviewColumns ?? WorkbookManifestReader.DefaultPreviewColumns;
+        if (previewRows is < 1 or > WorkbookManifestReader.MaximumPreviewRows)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"previewRows must be between 1 and {WorkbookManifestReader.MaximumPreviewRows}",
+            };
+        }
+
+        if (previewColumns is < 1 or > WorkbookManifestReader.MaximumPreviewColumns)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"previewColumns must be between 1 and {WorkbookManifestReader.MaximumPreviewColumns}",
+            };
+        }
+
+        if (args.TimeoutSeconds is <= 0)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "timeoutSeconds must be greater than zero",
+            };
+        }
+
+        string? sessionId = null;
+        try
+        {
+            TimeSpan? timeout = args.TimeoutSeconds.HasValue
+                ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
+                : null;
+            sessionId = _sessionManager.CreateSession(
+                args.FilePath,
+                show: args.Show,
+                operationTimeout: timeout,
+                origin: SessionOrigin.MCP);
+
+            var sessionError = TryBeginUsableSession(sessionId, out var batch);
+            if (sessionError != null)
+            {
+                CleanupOwnedWorkflowSession(sessionId);
+                return sessionError;
+            }
+
+            WorkbookManifest manifest;
+            try
+            {
+                manifest = WorkbookManifestReader.Read(batch!, sessionId, previewRows, previewColumns);
+            }
+            finally
+            {
+                _sessionManager.EndOperation(sessionId);
+            }
+
+            _knownSessionIds.TryAdd(sessionId, 0);
+            return new ServiceResponse
+            {
+                Success = true,
+                SessionId = sessionId,
+                Result = ServiceProtocol.Serialize(manifest),
+            };
+        }
+        catch (Exception ex)
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                CleanupOwnedWorkflowSession(sessionId);
+            }
+
+            return CreateErrorResponse(ex, request.Command);
+        }
+    }
+
+    private async Task<ServiceResponse> HandleWorkflowPlanAsync(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanNotExecuted", ErrorMessage = "sessionId is required" };
+        }
+
+        if (request.ReviewOnly)
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanReviewUnavailable", ErrorMessage = "Plan-level review is not available for workflow.execute-plan yet." };
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ReviewId))
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanReviewUnavailable", ErrorMessage = "Plan-level review is not available for workflow.execute-plan yet." };
+        }
+
+        WorkflowPlanRequest? plan;
+        try
+        {
+            plan = ServiceProtocol.Deserialize<WorkflowPlanRequest>(request.Args ?? "{}");
+        }
+        catch (JsonException ex)
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanNotExecuted", ErrorMessage = $"Invalid workflow.execute-plan arguments: {ex.Message}" };
+        }
+
+        if (plan?.Operations is not { Count: > 0 })
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanNotExecuted", ErrorMessage = "workflow.execute-plan requires at least one operation" };
+        }
+
+        if (plan.Operations.Count > MaximumBatchOperations)
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanNotExecuted", ErrorMessage = $"workflow.execute-plan accepts at most {MaximumBatchOperations} operations" };
+        }
+
+        bool hasVerificationSheet = !string.IsNullOrWhiteSpace(plan.VerifySheetName);
+        bool hasVerificationRange = !string.IsNullOrWhiteSpace(plan.VerifyRangeAddress);
+        if (hasVerificationSheet != hasVerificationRange)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "PlanNotExecuted",
+                ErrorMessage = "verifySheetName and verifyRangeAddress must be supplied together",
+            };
+        }
+
+        string? verificationSheetName = hasVerificationSheet ? plan.VerifySheetName!.Trim() : null;
+        string? verificationRangeAddress = hasVerificationRange ? plan.VerifyRangeAddress!.Trim() : null;
+        bool verificationRequested = verificationSheetName is not null;
+
+        var mutationSteps = new bool[plan.Operations.Count];
+        bool hasMutation = false;
+        for (int index = 0; index < plan.Operations.Count; index++)
+        {
+            var operation = plan.Operations[index];
+            string? validationError = ValidateBatchOperation(request.SessionId, operation);
+            if (validationError is not null)
+            {
+                return new ServiceResponse { Success = false, ErrorCategory = "PlanNotExecuted", ErrorMessage = $"Operation {index}: {validationError}" };
+            }
+
+            if (operation.ReviewOnly || operation.ReviewId is not null || operation.Checkpoint || operation.IdempotencyKey is not null)
+            {
+                return new ServiceResponse { Success = false, ErrorCategory = "PlanSafetyConflict", ErrorMessage = $"Operation {index} contains per-step safety options; use plan-level options instead." };
+            }
+
+            var descriptor = ServiceRegistry.GetSafetyDescriptor(operation.Command);
+            if (!descriptor.ExplicitlyClassified)
+            {
+                return new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "PlanSafetyConflict",
+                    ErrorMessage = $"Operation {index} command '{operation.Command}' has no explicit safety classification and cannot run inside an optimized plan."
+                };
+            }
+
+            mutationSteps[index] = descriptor.IsMutation;
+            hasMutation |= descriptor.IsMutation;
+        }
+
+        var safetyConfiguration = _safetyCoordinator.GetConfiguration(request.SessionId);
+        if (hasMutation && safetyConfiguration.ReviewMode == ReviewMode.Required)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "PlanReviewUnavailable",
+                ErrorMessage = "This session requires mutation review, but plan-level review is not available for workflow.execute-plan yet."
+            };
+        }
+
+        if (hasMutation && plan.CheckpointMode == WorkflowCheckpointMode.Off &&
+            safetyConfiguration.CheckpointMode == CheckpointMode.Required)
+        {
+            return new ServiceResponse { Success = false, ErrorCategory = "PlanOptionConflict", ErrorMessage = "checkpoint_mode=off cannot bypass the required session checkpoint policy." };
+        }
+
+        bool sharedCheckpointRequested = hasMutation &&
+            (plan.CheckpointMode == WorkflowCheckpointMode.Once ||
+             (plan.CheckpointMode == WorkflowCheckpointMode.Inherit &&
+              (request.Checkpoint || safetyConfiguration.CheckpointMode == CheckpointMode.Required)));
+
+        string planId = Guid.NewGuid().ToString("N");
+        DateTime planStartedAtUtc = DateTime.UtcNow;
+        var steps = new List<WorkflowStepReceipt>(plan.Operations.Count);
+        int attempted = 0;
+        int completed = 0;
+        int completedMutations = 0;
+        int? failedIndex = null;
+        ServiceResponse? firstFailure = null;
+        bool checkpointAttempted = false;
+        bool knownCheckpointFailure = false;
+        bool unknownOutcomeSeen = false;
+        IDisposable? requiredCheckpointScope = null;
+        WorkflowCheckpointReceipt? checkpointReceipt = null;
+        WorkflowRangeVerificationReceipt? verificationReceipt = null;
+        string? fastModeFallbackReason = plan.FastMode
+            ? WorkflowFastPathPolicy.GetFallbackReason(plan, safetyConfiguration, sharedCheckpointRequested)
+            : null;
+        bool fastModeUsed = plan.FastMode && fastModeFallbackReason is null;
+        string executionMode = fastModeUsed
+            ? "fast"
+            : plan.FastMode ? "sequential-fallback" : "standard";
+        long? staDispatchCount = null;
+
+        ServiceRequest CreateOperationRequest(ServiceBatchOperation operation, bool requestSharedCheckpoint) => new()
+        {
+            Command = operation.Command,
+            SessionId = request.SessionId,
+            Args = GetOperationArgsJson(operation.Args),
+            Source = request.Source,
+            ReviewOnly = false,
+            ReviewId = null,
+            Checkpoint = requestSharedCheckpoint,
+        };
+
+        bool RecordOperationResponse(
+            int index,
+            ServiceBatchOperation operation,
+            bool isMutation,
+            bool requestSharedCheckpoint,
+            ServiceResponse originalResponse)
+        {
+            var response = originalResponse;
+            bool terminalCheckpointFailure = false;
+            if (requestSharedCheckpoint)
+            {
+                checkpointReceipt = TryGetCheckpointReceipt(response.Result) ??
+                    TryGetLatestCheckpointReceipt(request.SessionId, planStartedAtUtc, operation.Command);
+                if (checkpointReceipt is not null)
+                {
+                    // A valid shared checkpoint now protects every later mutation in
+                    // this lease, including plans that continue after a known failure.
+                    requiredCheckpointScope ??= WorkbookSafetyCoordinator.SuppressRequiredCheckpoints(request.SessionId);
+                }
+                else if (string.Equals(response.ErrorCategory, "CheckpointFailed", StringComparison.Ordinal))
+                {
+                    knownCheckpointFailure = true;
+                    terminalCheckpointFailure = true;
+                }
+                else
+                {
+                    response = new ServiceResponse
+                    {
+                        Success = false,
+                        Command = operation.Command,
+                        SessionId = request.SessionId,
+                        ErrorCategory = "JournalPersistenceFailed",
+                        ErrorMessage = "The shared checkpoint could not be verified after dispatch. The workbook may have changed; reconcile it before retrying.",
+                    };
+                    terminalCheckpointFailure = true;
+                }
+            }
+
+            if (response.Success)
+            {
+                completed++;
+                if (isMutation)
+                {
+                    completedMutations++;
+                }
+                steps.Add(new WorkflowStepReceipt { Index = index, Command = operation.Command, Status = "completed" });
+                return false;
+            }
+
+            bool unknown = IsUnknownWorkflowOutcome(response.ErrorCategory);
+            unknownOutcomeSeen |= unknown;
+            failedIndex ??= index;
+            firstFailure ??= response;
+            steps.Add(new WorkflowStepReceipt
+            {
+                Index = index,
+                Command = operation.Command,
+                Status = unknown ? "unknown" : "failed",
+                ErrorCategory = response.ErrorCategory,
+            });
+            return plan.StopOnError || unknown || terminalCheckpointFailure;
+        }
+
+        void CaptureRequestedVerification(IExcelBatch batch)
+        {
+            if (!verificationRequested)
+            {
+                return;
+            }
+
+            if (unknownOutcomeSeen)
+            {
+                verificationReceipt = WorkflowRangeVerifier.NotVerified(
+                    verificationSheetName!,
+                    verificationRangeAddress!,
+                    "Verification was skipped because the plan outcome is unknown; do not inspect or replay this session until it is reconciled.");
+                return;
+            }
+
+            try
+            {
+                verificationReceipt = WorkflowRangeVerifier.Read(
+                    batch,
+                    verificationSheetName!,
+                    verificationRangeAddress!);
+            }
+            catch (Exception ex) when (
+                ex is not TimeoutException and not OperationCanceledException &&
+                !IsFatalExcelDisconnect(ex))
+            {
+                // A bad or unreadable caller-selected range does not make already-completed
+                // mutations ambiguous. Report the verification limitation without encouraging
+                // a replay of the plan.
+                verificationReceipt = WorkflowRangeVerifier.NotVerified(
+                    verificationSheetName!,
+                    verificationRangeAddress!,
+                    "The requested verification range could not be read. The plan receipt still describes the operation outcomes; do not replay completed mutations solely because verification failed.");
+            }
+        }
+
+        async Task RunSequentialPlanAsync()
+        {
+            for (int index = 0; index < plan.Operations.Count; index++)
+            {
+                var operation = plan.Operations[index];
+                attempted++;
+                bool isMutation = mutationSteps[index];
+                bool requestSharedCheckpoint = isMutation && sharedCheckpointRequested && !checkpointAttempted;
+                checkpointAttempted |= requestSharedCheckpoint;
+                var response = await ProcessAsync(CreateOperationRequest(operation, requestSharedCheckpoint)).ConfigureAwait(false);
+                if (RecordOperationResponse(index, operation, isMutation, requestSharedCheckpoint, response))
+                {
+                    break;
+                }
+            }
+        }
+
+        void RunFastPlan(IExcelBatch batch, ExclusiveSessionLease lease)
+        {
+            batch.Execute((_, _) =>
+            {
+                // AsyncLocal ownership is intentionally re-established on the channel's
+                // dedicated STA thread; ExecutionContext is not assumed to flow there.
+                using var staOwnerScope = lease.EnterOwnerScope();
+                for (int index = 0; index < plan.Operations.Count; index++)
+                {
+                    var operation = plan.Operations[index];
+                    attempted++;
+                    var response = DispatchWorkflowFastOperation(operation, batch, request.SessionId);
+                    if (RecordOperationResponse(index, operation, mutationSteps[index], false, response))
+                    {
+                        break;
+                    }
+                }
+
+                CaptureRequestedVerification(batch);
+
+                return 0;
+            });
+        }
+
+        try
+        {
+            using var lease = await _sessionManager.AcquireExclusiveOperationAsync(request.SessionId).ConfigureAwait(false);
+            using var ownerScope = lease.EnterOwnerScope();
+            var batch = _sessionManager.GetSession(request.SessionId)
+                ?? throw new InvalidOperationException($"Session '{request.SessionId}' was unavailable after acquiring its workflow lease.");
+            var dispatchDiagnostics = batch as IExcelBatchDispatchDiagnostics;
+            long dispatchesBefore = dispatchDiagnostics?.StaDispatchCount ?? 0;
+            try
+            {
+                if (fastModeUsed)
+                {
+                    RunFastPlan(batch, lease);
+                }
+                else
+                {
+                    await RunSequentialPlanAsync().ConfigureAwait(false);
+                    CaptureRequestedVerification(batch);
+                }
+            }
+            finally
+            {
+                if (dispatchDiagnostics is not null)
+                {
+                    staDispatchCount = dispatchDiagnostics.StaDispatchCount - dispatchesBefore;
+                }
+            }
+
+            if (fastModeUsed && firstFailure is not null && IsUnknownWorkflowOutcome(firstFailure.ErrorCategory))
+            {
+                if (string.Equals(firstFailure.ErrorCategory, "ExcelProcessDied", StringComparison.Ordinal))
+                {
+                    RecordAndCleanupDeadSession(request.SessionId);
+                }
+                else
+                {
+                    _ = _safetyCoordinator.RecordSessionInterruption(
+                        request.SessionId,
+                        "abortedUnknown",
+                        firstFailure.ErrorCategory ?? "UnknownOutcome");
+                    _ = CloseInterruptedSession(request.SessionId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (attempted > 0)
+            {
+                if (IsFatalExcelDisconnect(ex))
+                {
+                    RecordAndCleanupDeadSession(request.SessionId);
+                }
+                else
+                {
+                    string category = ex switch
+                    {
+                        TimeoutException => "Timeout",
+                        OperationCanceledException => "Cancelled",
+                        _ => "UnknownOutcome",
+                    };
+                    _ = _safetyCoordinator.RecordSessionInterruption(request.SessionId, "abortedUnknown", category);
+                    _ = CloseInterruptedSession(request.SessionId);
+                }
+            }
+
+            if (attempted == 0)
+            {
+                firstFailure = new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "PlanNotExecuted",
+                    ErrorMessage = ex.Message,
+                };
+            }
+            else
+            {
+                int interruptedIndex = Math.Max(0, attempted - 1);
+                failedIndex ??= interruptedIndex;
+                int existingStep = steps.FindIndex(step => step.Index == interruptedIndex);
+                if (existingStep >= 0)
+                {
+                    if (steps[existingStep].Status == "completed")
+                    {
+                        completed = Math.Max(0, completed - 1);
+                        if (mutationSteps[interruptedIndex])
+                        {
+                            completedMutations = Math.Max(0, completedMutations - 1);
+                        }
+                    }
+                    steps[existingStep] = new WorkflowStepReceipt
+                    {
+                        Index = interruptedIndex,
+                        Command = plan.Operations[interruptedIndex].Command,
+                        Status = "unknown",
+                        ErrorCategory = "UnknownOutcome",
+                    };
+                }
+                else
+                {
+                    steps.Add(new WorkflowStepReceipt
+                    {
+                        Index = interruptedIndex,
+                        Command = plan.Operations[interruptedIndex].Command,
+                        Status = "unknown",
+                        ErrorCategory = "UnknownOutcome",
+                    });
+                }
+
+                firstFailure ??= new ServiceResponse { ErrorCategory = "UnknownOutcome", ErrorMessage = ex.Message };
+                unknownOutcomeSeen = true;
+            }
+        }
+        finally
+        {
+            requiredCheckpointScope?.Dispose();
+        }
+
+        if (verificationRequested && verificationReceipt is null)
+        {
+            verificationReceipt = WorkflowRangeVerifier.NotVerified(
+                verificationSheetName!,
+                verificationRangeAddress!,
+                unknownOutcomeSeen
+                    ? "Verification was skipped because the plan outcome is unknown; do not inspect or replay this session until it is reconciled."
+                    : "Verification was skipped because the plan did not reach its final read-back stage.");
+        }
+
+        for (int index = steps.Count; index < plan.Operations.Count; index++)
+        {
+            steps.Add(new WorkflowStepReceipt { Index = index, Command = plan.Operations[index].Command, Status = "notStarted" });
+        }
+
+        var receipt = new WorkflowPlanReceipt
+        {
+            PlanId = planId,
+            Outcome = firstFailure is null ? WorkflowPlanOutcome.Completed :
+                (unknownOutcomeSeen || IsUnknownWorkflowOutcome(firstFailure.ErrorCategory)
+                    ? WorkflowPlanOutcome.Unknown : WorkflowPlanOutcome.Failed),
+            OperationCount = plan.Operations.Count,
+            AttemptedCount = attempted,
+            CompletedCount = completed,
+            FailedIndex = failedIndex,
+            Checkpoint = checkpointReceipt,
+            Steps = steps,
+            ExecutionMode = executionMode,
+            FastModeRequested = plan.FastMode,
+            FastModeUsed = fastModeUsed,
+            FastModeFallbackReason = fastModeFallbackReason,
+            StaDispatchCount = staDispatchCount,
+            Verification = verificationReceipt,
+        };
+        bool unknownOutcome = receipt.Outcome == WorkflowPlanOutcome.Unknown;
+        string? aggregateErrorCategory = firstFailure switch
+        {
+            null => null,
+            _ when unknownOutcome => "UnknownOutcome",
+            _ when attempted == 0 => "PlanNotExecuted",
+            _ when knownCheckpointFailure && completedMutations == 0 => "CheckpointFailed",
+            _ => "PlanFailed",
+        };
+        return new ServiceResponse
+        {
+            Success = firstFailure is null,
+            Command = request.Command,
+            SessionId = request.SessionId,
+            ErrorCategory = aggregateErrorCategory,
+            ErrorMessage = firstFailure?.ErrorMessage,
+            Result = ServiceProtocol.Serialize(receipt),
+        };
+    }
+
+    /// <summary>
+    /// Dispatches only commands admitted by <see cref="WorkflowFastPathPolicy"/>.
+    /// The caller already owns the session lease and the batch's queued STA work item,
+    /// so this deliberately bypasses per-step session admission and safety orchestration.
+    /// Fast-path selection requires the complete safety workflow to be off.
+    /// </summary>
+    private ServiceResponse DispatchWorkflowFastOperation(
+        ServiceBatchOperation operation,
+        IExcelBatch batch,
+        string sessionId)
+    {
+        var parts = operation.Command.Split('.', 2);
+        string action = parts.Length == 2 ? parts[1] : string.Empty;
+        string? args = GetOperationArgsJson(operation.Args);
+
+        try
+        {
+            switch (parts[0])
+            {
+                case "range" when ServiceRegistry.Range.TryParseAction(action, out var rangeAction):
+                    return WrapResult(ServiceRegistry.Range.DispatchToCore(_rangeCommands, rangeAction, batch, args));
+                case "rangeedit" when ServiceRegistry.RangeEdit.TryParseAction(action, out var rangeEditAction):
+                    return WrapResult(ServiceRegistry.RangeEdit.DispatchToCore(_rangeCommands, rangeEditAction, batch, args));
+                case "rangeformat" when ServiceRegistry.RangeFormat.TryParseAction(action, out var rangeFormatAction):
+                    return WrapResult(ServiceRegistry.RangeFormat.DispatchToCore(_rangeCommands, rangeFormatAction, batch, args));
+                case "rangelink" when ServiceRegistry.RangeLink.TryParseAction(action, out var rangeLinkAction):
+                    return WrapResult(ServiceRegistry.RangeLink.DispatchToCore(_rangeCommands, rangeLinkAction, batch, args));
+                case "sheet" when ServiceRegistry.Sheet.TryParseAction(action, out var sheetAction):
+                    return WrapResult(ServiceRegistry.Sheet.DispatchToCore(_sheetCommands, sheetAction, batch, args));
+                case "sheetstyle" when ServiceRegistry.SheetStyle.TryParseAction(action, out var sheetStyleAction):
+                    return WrapResult(ServiceRegistry.SheetStyle.DispatchToCore(_sheetCommands, sheetStyleAction, batch, args));
+                case "reportformat" when ServiceRegistry.ReportFormat.TryParseAction(action, out var reportFormatAction):
+                    return WrapResult(ServiceRegistry.ReportFormat.DispatchToCore(_reportFormatCommands, reportFormatAction, batch, args));
+                default:
+                    return new ServiceResponse
+                    {
+                        Success = false,
+                        Command = operation.Command,
+                        SessionId = sessionId,
+                        ErrorCategory = "PlanSafetyConflict",
+                        ErrorMessage = $"Command '{operation.Command}' is not available in the one-STA workflow executor."
+                    };
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = operation.Command,
+                SessionId = sessionId,
+                ErrorCategory = "Cancelled",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name,
+            };
+        }
+        catch (Exception ex) when (IsFatalExcelDisconnect(ex))
+        {
+            return CreateExcelDisconnectedResponse(
+                sessionId,
+                ex,
+                $"Excel disconnected during fast workflow command '{operation.Command}'. The session will be cleaned up; reopen the file before retrying.");
+        }
+        catch (Exception ex)
+        {
+            return CreateErrorResponse(ex, operation.Command, sessionId);
+        }
+    }
+
+    private static bool IsUnknownWorkflowOutcome(string? category) => category is
+        "Timeout" or "Cancelled" or "Canceled" or "ExcelProcessDied" or "UnknownOutcome" or
+        "AbortedUnknown" or "JournalPersistenceFailed" or "IdempotencyUnknownOutcome" or
+        "IdempotencyInProgress" or "SessionInterrupted" or "ServerShutdown";
+
+    private static WorkflowCheckpointReceipt? TryGetCheckpointReceipt(string? responseResult)
+    {
+        if (string.IsNullOrWhiteSpace(responseResult))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseResult);
+            return document.RootElement.TryGetProperty("checkpoint", out var checkpoint)
+                ? TryParseCheckpointReceipt(checkpoint)
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private WorkflowCheckpointReceipt? TryGetLatestCheckpointReceipt(
+        string sessionId,
+        DateTime planStartedAtUtc,
+        string command)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(_safetyCoordinator.GetJournal(sessionId).Result ?? "{}");
+            if (!document.RootElement.TryGetProperty("operations", out var operations) || operations.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            foreach (var operation in operations.EnumerateArray().Reverse())
+            {
+                if (!operation.TryGetProperty("createdAtUtc", out var createdAt) ||
+                    !DateTime.TryParse(createdAt.GetString(), out var createdAtUtc) ||
+                    createdAtUtc.ToUniversalTime() < planStartedAtUtc.ToUniversalTime())
+                {
+                    continue;
+                }
+                if (!operation.TryGetProperty("command", out var journalCommand) ||
+                    !string.Equals(journalCommand.GetString(), command, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (!operation.TryGetProperty("checkpoint", out var checkpoint) || checkpoint.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                if (TryParseCheckpointReceipt(checkpoint) is { } receipt)
+                {
+                    return receipt;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            // Receipt evidence is best effort; the operation journal remains authoritative.
+        }
+
+        return null;
+    }
+
+    private static WorkflowCheckpointReceipt? TryParseCheckpointReceipt(JsonElement checkpoint)
+    {
+        if (checkpoint.ValueKind != JsonValueKind.Object ||
+            !checkpoint.TryGetProperty("recoveryId", out var recoveryIdElement) ||
+            !checkpoint.TryGetProperty("relativePath", out var relativePathElement) ||
+            !checkpoint.TryGetProperty("sha256", out var sha256Element) ||
+            !checkpoint.TryGetProperty("size", out var sizeElement) ||
+            sizeElement.ValueKind != JsonValueKind.Number ||
+            !sizeElement.TryGetInt64(out long size))
+        {
+            return null;
+        }
+
+        string? recoveryId = recoveryIdElement.GetString();
+        string? relativePath = relativePathElement.GetString();
+        string? sha256 = sha256Element.GetString();
+        if (string.IsNullOrWhiteSpace(recoveryId) ||
+            string.IsNullOrWhiteSpace(relativePath) ||
+            sha256?.Length != 64 ||
+            !sha256.All(Uri.IsHexDigit) ||
+            size <= 0)
+        {
+            return null;
+        }
+
+        return new WorkflowCheckpointReceipt
+        {
+            RecoveryId = recoveryId,
+            RelativePath = relativePath,
+            Sha256 = sha256,
+            Size = size,
+        };
+    }
+
+    private void CleanupOwnedWorkflowSession(string sessionId)
+    {
+        try
+        {
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+        }
+        catch (Exception cleanupEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"Workflow session cleanup failed for {sessionId}: {cleanupEx.Message}");
+        }
+        finally
+        {
+            _safetyCoordinator.RemoveSession(sessionId);
+            _idempotencyCoordinator.RemoveSession(sessionId);
+        }
+    }
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
@@ -965,24 +1786,28 @@ public sealed class ExcelMcpService : IDisposable
         catch (TimeoutException ex)
         {
             _safetyCoordinator.RecordSessionInterruption(request.SessionId, "abortedUnknown", "Timeout");
-            CloseInterruptedSession(request.SessionId);
+            bool closed = CloseInterruptedSession(request.SessionId);
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Timeout",
-                ErrorMessage = $"Excel capability preflight timed out and the session has been closed: {ex.Message}",
+                ErrorMessage = closed
+                    ? $"Excel capability preflight timed out and the session has been closed: {ex.Message}"
+                    : $"Excel capability preflight timed out, but session closure could not be confirmed: {ex.Message} Do not reuse this session; close Excel and reopen the file.",
                 ExceptionType = ex.GetType().Name
             };
         }
         catch (OperationCanceledException)
         {
             _safetyCoordinator.RecordSessionInterruption(request.SessionId, "abortedUnknown", "Cancelled");
-            CloseInterruptedSession(request.SessionId);
+            bool closed = CloseInterruptedSession(request.SessionId);
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Cancelled",
-                ErrorMessage = "Excel capability preflight was cancelled and the session has been closed.",
+                ErrorMessage = closed
+                    ? "Excel capability preflight was cancelled and the session has been closed."
+                    : "Excel capability preflight was cancelled, but session closure could not be confirmed. Do not reuse this session; close Excel and reopen the file.",
                 ExceptionType = nameof(OperationCanceledException)
             };
         }
@@ -1278,20 +2103,14 @@ public sealed class ExcelMcpService : IDisposable
             // Operation timed out — Excel COM call is hung (IDispatch.Invoke stuck).
             // Force-close the session to trigger the force-kill path in ExcelBatch.Dispose(),
             // which will kill the hung Excel process and release the STA thread.
-            try
-            {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
-            }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+            bool closed = CloseInterruptedSession(sessionId);
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Timeout",
-                ErrorMessage = $"Excel operation timed out and the session has been closed: {ex.Message} " +
-                               "Please reopen the file with a new session.",
+                ErrorMessage = closed
+                    ? $"Excel operation timed out and the session has been closed: {ex.Message} Please reopen the file with a new session."
+                    : $"Excel operation timed out, but session closure could not be confirmed: {ex.Message} Do not reuse this session; close Excel and reopen the file.",
                 ExceptionType = ex.GetType().Name
             });
         }
@@ -1303,21 +2122,14 @@ public sealed class ExcelMcpService : IDisposable
             // on cancellation, but nobody calls Dispose() — the session stays alive with a
             // stuck STA thread, and all subsequent requests queue up and hang.
             // Force-close the session to kill the hung Excel process and release the STA thread.
-            try
-            {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
-            }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+            bool closed = CloseInterruptedSession(sessionId);
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Cancelled",
-                ErrorMessage = $"Operation was cancelled and the session has been closed. " +
-                               "The Excel COM thread may have been unresponsive. " +
-                               "Please reopen the file with a new session.",
+                ErrorMessage = closed
+                    ? "Operation was cancelled and the session has been closed. The Excel COM thread may have been unresponsive. Please reopen the file with a new session."
+                    : "Operation was cancelled, but session closure could not be confirmed. Do not reuse this session; close Excel and reopen the file.",
                 ExceptionType = nameof(OperationCanceledException)
             });
         }
@@ -1559,20 +2371,33 @@ public sealed class ExcelMcpService : IDisposable
         return null;
     }
 
-    private void CloseInterruptedSession(string sessionId)
+    private bool CloseInterruptedSession(string sessionId)
     {
+        bool closed = false;
         try
         {
-            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            closed = _sessionManager.CloseSession(sessionId, save: false, force: true) ||
+                _sessionManager.GetSession(sessionId) is null;
         }
         catch (Exception cleanupEx)
         {
             System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            try
+            {
+                closed = _sessionManager.GetSession(sessionId) is null;
+            }
+            catch (Exception verificationEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup verification failed for {sessionId}: {verificationEx.Message}");
+            }
         }
-        finally
+
+        if (closed)
         {
             _safetyCoordinator.RemoveSession(sessionId);
         }
+
+        return closed;
     }
 
     private static (string? ErrorCategory, string? JournalState) ClassifySessionBeginFailure(string? errorMessage)
@@ -1636,6 +2461,14 @@ public sealed class SessionOpenArgs
     public int? TimeoutSeconds { get; set; }
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
+public sealed class WorkflowOpenAndDescribeArgs
+{
+    public string? FilePath { get; set; }
+    public bool Show { get; set; }
+    public int? TimeoutSeconds { get; set; }
+    public int? PreviewRows { get; set; }
+    public int? PreviewColumns { get; set; }
+}
 public sealed class RecoveryArgs
 {
     public string? RecoveryId { get; set; }

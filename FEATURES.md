@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**26 specialized tools with 239 operations for comprehensive Excel automation**
+**29 specialized tools with 246 operations for comprehensive Excel automation**
 
 ---
 
@@ -36,6 +36,23 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **Journal:** Read the session's durable operation journal and verification evidence.
 - **Recoveries:** List available recovery checkpoints using privacy-safe summaries.
 - **Recover:** Open a recovery checkpoint as a new session without overwriting the original workbook.
+
+---
+
+## Optimized Workflows (3 operations)
+
+## Compact Layout Facade (4 operations)
+
+Compact-profile-only deterministic report formatting, outline, and freeze-pane actions. The full profile omits this facade; discover the active profile with `workflow(capabilities)`.
+
+Reduce prompt-to-completion round trips for common agent workflows while preserving the existing domain tools.
+
+**Operations:**
+- **Capabilities:** Report the loaded workflow interface version, server version, build fingerprint, tool profile, and optimized features that this runtime actually supports.
+- **Open and Describe:** Open a workbook and return its session ID plus a fresh, bounded sheet/used-range preview in one call.
+- **Execute Plan:** Run an ordered list of service commands in one MCP call, stopping at the first failure by default.
+
+`execute-plan` is currently an ordered transport optimization, not a transaction: it does not roll back earlier successful steps or prove that human approval occurred. Never automatically replay a call whose outcome is unknown after a timeout or lost Excel connection.
 
 ---
 

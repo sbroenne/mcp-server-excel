@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using OpenTelemetry.Metrics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Sbroenne.ExcelMcp.Service.Workflow;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -94,6 +95,7 @@ public class Program
         shutdownCts?.Dispose();
 
         ServiceBridge.ServiceBridge.ResetForTests();
+        McpToolProfileRuntime.Reset();
     }
 
     public static async Task<int> Main(string[] args)
@@ -153,6 +155,19 @@ public class Program
             .AddEnvironmentVariables()
             .AddCommandLine(args);
 
+        var toolProfile = McpToolProfileCatalog.Resolve(
+            builder.Configuration["tool-profile"] ??
+            builder.Configuration[McpToolProfileCatalog.EnvironmentVariable]);
+        McpToolProfileRuntime.Configure(toolProfile);
+        var runtimeManifest = WorkflowRuntimeManifest.Create(
+            typeof(Program).Assembly,
+            "excel-mcp",
+            McpToolProfileCatalog.GetId(toolProfile),
+            GeminiCompatibleToolRegistration.DiscoverActiveToolNames(typeof(Program).Assembly, toolProfile),
+            McpToolProfileCatalog.Version,
+            McpToolProfileCatalog.FullId);
+        ServiceBridge.ServiceBridge.ConfigureWorkflowRuntimeManifest(runtimeManifest);
+
         ConfigureStdioLogging(builder.Logging);
 
         // Configure Application Insights
@@ -164,12 +179,14 @@ public class Program
             {
                 options.ServerInfo = new()
                 {
-                    Name = "excel-mcp",
-                    Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0"
+                    Name = runtimeManifest.ServerName,
+                    Version = runtimeManifest.ServerVersion
                 };
 
                 // Server-wide instructions for LLMs - helps with tool selection and workflow understanding
-                options.ServerInstructions = """
+                options.ServerInstructions = toolProfile == McpToolProfile.CopilotCompact
+                    ? McpToolProfileCatalog.CompactServerInstructions
+                    : """
                     ExcelMCP automates Microsoft Excel via COM interop.
 
                     CRITICAL: File must be CLOSED in Excel desktop app (COM requires exclusive access).
@@ -218,7 +235,7 @@ public class Program
                     - Check visibility with window(action:'get-info') if unsure
                     """;
             })
-            .WithGeminiCompatibleToolsFromAssembly()
+            .WithGeminiCompatibleToolsFromAssembly(profile: toolProfile)
             .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
 
         if (testInputPipe != null && testOutputPipe != null)
@@ -438,7 +455,7 @@ public class Program
             Excel MCP Server v{version}
 
             An MCP (Model Context Protocol) server for Microsoft Excel automation.
-            Provides 22 tools with 195+ operations for AI assistants.
+            Provides 27 tools with 242 operations for AI assistants.
 
             Usage:
               mcp-excel.exe [options]
@@ -520,7 +537,15 @@ internal static class StdinPipeMonitor
     /// </summary>
     public static Timer? Start(IHostApplicationLifetime lifetime)
     {
-        var handle = GetStdHandle(StdInputHandle);
+        return Start(lifetime, GetStdHandle(StdInputHandle));
+    }
+
+    /// <summary>
+    /// Starts monitoring a supplied handle when it is a pipe. Split from the standard-input
+    /// lookup so pipe detection can be tested without depending on the test runner's own stdin.
+    /// </summary>
+    internal static Timer? Start(IHostApplicationLifetime lifetime, IntPtr handle)
+    {
         if (handle == IntPtr.Zero || handle == new IntPtr(-1))
             return null;
 

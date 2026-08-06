@@ -117,6 +117,63 @@ public class ExcelBatchTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Execute_NestedOnOwnedSta_RunsInlineAsOneQueuedWorkItem()
+    {
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            _testFileCopy!);
+        var diagnostics = Assert.IsAssignableFrom<IExcelBatchDispatchDiagnostics>(batch);
+        long dispatchesBefore = diagnostics.StaDispatchCount;
+
+        var result = batch.Execute((outerContext, outerCancellation) =>
+        {
+            int outerThread = Environment.CurrentManagedThreadId;
+            Assert.Equal(ApartmentState.STA, Thread.CurrentThread.GetApartmentState());
+
+            return batch.Execute((innerContext, innerCancellation) =>
+            {
+                Assert.Equal(outerThread, Environment.CurrentManagedThreadId);
+                Assert.Same(outerContext, innerContext);
+                return 42;
+            });
+        });
+
+        Assert.Equal(42, result);
+        Assert.Equal(1, diagnostics.StaDispatchCount - dispatchesBefore);
+        Assert.False(batch.HasTimedOutOperation);
+    }
+
+    [Fact]
+    public async Task Execute_UnrelatedCallerStillQueuesBehindOwnedStaWorkItem()
+    {
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        using var outerEntered = new ManualResetEventSlim();
+        using var releaseOuter = new ManualResetEventSlim();
+        var secondStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var outer = Task.Run(() => batch.Execute((ctx, ct) =>
+        {
+            outerEntered.Set();
+            Assert.True(releaseOuter.Wait(TimeSpan.FromSeconds(10)));
+            return 1;
+        }));
+        Assert.True(outerEntered.Wait(TimeSpan.FromSeconds(10)));
+
+        var second = Task.Run(() => batch.Execute((ctx, ct) =>
+        {
+            secondStarted.TrySetResult();
+            return 2;
+        }));
+
+        await Task.Delay(100);
+        Assert.False(secondStarted.Task.IsCompleted);
+        releaseOuter.Set();
+        Assert.Equal(1, await outer);
+        Assert.Equal(2, await second);
+    }
+
+    [Fact]
     public void Dispose_CleansUpComObjects_NoProcessLeak()
     {
         // Arrange

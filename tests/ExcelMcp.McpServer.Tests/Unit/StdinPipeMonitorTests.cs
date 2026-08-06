@@ -20,13 +20,12 @@ public sealed class StdinPipeMonitorTests
     private static extern bool CloseHandle(IntPtr hObject);
 
     [Fact]
-    public void Start_WhenStdinIsPipe_ReturnsTimer()
+    public void Start_WhenSuppliedHandleIsPipe_ReturnsTimer()
     {
-        // dotnet test spawns the test process with piped stdin,
-        // so Start() should detect the pipe and return a timer.
+        Assert.True(CreatePipe(out var readHandle, out var writeHandle, IntPtr.Zero, 0));
         var lifetime = new FakeHostApplicationLifetime();
 
-        var timer = StdinPipeMonitor.Start(lifetime);
+        var timer = StdinPipeMonitor.Start(lifetime, readHandle);
 
         try
         {
@@ -35,6 +34,8 @@ public sealed class StdinPipeMonitorTests
         finally
         {
             timer?.Dispose();
+            CloseHandle(readHandle);
+            CloseHandle(writeHandle);
         }
     }
 

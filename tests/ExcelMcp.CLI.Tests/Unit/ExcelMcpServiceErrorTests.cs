@@ -241,6 +241,103 @@ public sealed class ExcelMcpServiceErrorTests : IDisposable
         Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WorkflowPlan_InterruptedStep_ForceClosesSessionWhileLeaseIsActive(bool cancelled)
+    {
+        using var service = CreateService();
+        var batch = new FakeBatch
+        {
+            ExecuteException = cancelled
+                ? new OperationCanceledException("cancelled by test")
+                : new TimeoutException("timed out by test")
+        };
+        string sessionId = cancelled ? "workflow-cancelled" : "workflow-timeout";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "workflow.execute-plan",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new
+            {
+                operations = new[]
+                {
+                    new
+                    {
+                        command = "range.set-values",
+                        args = new
+                        {
+                            sheetName = "Sheet1",
+                            rangeAddress = "A1",
+                            values = new object?[][] { [1] },
+                        },
+                    },
+                },
+                fastMode = false,
+            }, ServiceProtocol.JsonOptions),
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("UnknownOutcome", response.ErrorCategory);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Equal(0, service.SessionCount);
+    }
+
+    [Fact]
+    public async Task WorkflowPlan_CheckpointFailure_StopsBeforeLaterMutationEvenWhenContinueWasRequested()
+    {
+        using var service = CreateService();
+        var batch = new FakeBatch { AllowNoOpExecutions = true };
+        const string sessionId = "workflow-checkpoint-failure";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "workflow.execute-plan",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new
+            {
+                operations = new object[]
+                {
+                    new
+                    {
+                        command = "range.set-values",
+                        args = new
+                        {
+                            sheetName = "Sheet1",
+                            rangeAddress = "A1",
+                            values = new object?[][] { [1] },
+                        },
+                    },
+                    new
+                    {
+                        command = "range.set-values",
+                        args = new
+                        {
+                            sheetName = "Sheet1",
+                            rangeAddress = "A2",
+                            values = new object?[][] { [2] },
+                        },
+                    },
+                },
+                stopOnError = false,
+                checkpointMode = "once",
+            }, ServiceProtocol.JsonOptions),
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("CheckpointFailed", response.ErrorCategory);
+        using var receipt = JsonDocument.Parse(response.Result!);
+        Assert.Equal(1, receipt.RootElement.GetProperty("attemptedCount").GetInt32());
+        Assert.Equal(0, receipt.RootElement.GetProperty("completedCount").GetInt32());
+        Assert.False(receipt.RootElement.TryGetProperty("checkpoint", out _));
+        var steps = receipt.RootElement.GetProperty("steps").EnumerateArray().ToArray();
+        Assert.Equal("failed", steps[0].GetProperty("status").GetString());
+        Assert.Equal("notStarted", steps[1].GetProperty("status").GetString());
+    }
+
     private static void RegisterSession(ExcelMcpService service, string sessionId, FakeBatch batch)
     {
         var sessionManager = GetPrivateField<SessionManager>(service, "_sessionManager");
@@ -291,6 +388,8 @@ public sealed class ExcelMcpServiceErrorTests : IDisposable
         public bool IsAlive { get; private set; } = true;
         public bool IsAliveAfterSaveException { get; init; } = true;
         public Exception? SaveException { get; init; }
+        public Exception? ExecuteException { get; init; }
+        public bool AllowNoOpExecutions { get; init; }
         public int ExecuteCalls { get; private set; }
         public int SaveCalls { get; private set; }
         public int DisposeCalls { get; private set; }
@@ -302,13 +401,31 @@ public sealed class ExcelMcpServiceErrorTests : IDisposable
         public void Execute(Action<ExcelContext, CancellationToken> operation, CancellationToken cancellationToken = default)
         {
             ExecuteCalls++;
-            throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            if (ExecuteException is not null)
+            {
+                throw ExecuteException;
+            }
+
+            if (!AllowNoOpExecutions)
+            {
+                throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            }
         }
 
         public T Execute<T>(Func<ExcelContext, CancellationToken, T> operation, CancellationToken cancellationToken = default)
         {
             ExecuteCalls++;
-            throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            if (ExecuteException is not null)
+            {
+                throw ExecuteException;
+            }
+
+            if (!AllowNoOpExecutions)
+            {
+                throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            }
+
+            return default!;
         }
 
         public void Save(CancellationToken cancellationToken = default)

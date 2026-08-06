@@ -129,7 +129,7 @@ hide:
 
 </div>
 
-[See all 26 tools and 239 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[See all 29 tools and 246 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## See it in action
 

@@ -1,6 +1,6 @@
 # Excel MCP baseline benchmark suite
 
-This opt-in suite establishes repeatable before/after evidence for the first nine improvement plans. It exercises four public seams: real Excel behavior, the service boundary, the in-memory MCP protocol boundary, and pure statistical/reporting logic.
+This opt-in suite establishes repeatable before/after evidence for the first ten improvement plans. It exercises four public seams: real Excel behavior, the service boundary, the in-memory MCP protocol boundary, and pure statistical/reporting logic.
 
 The benchmark projects are deliberately not part of the normal solution or CI path. Running the ordinary repository tests does not launch Excel or run performance workloads.
 
@@ -82,5 +82,6 @@ The MCP probe captures exact UTF-8 request/response bytes through the real in-me
 - PID reuse cannot be forced safely through the public seam. Plan 09 therefore keeps `identity_mismatch_fails_closed` red until a PID/start-time/identity seam exists.
 - Plan 07 uses the existing review ID as a retry surrogate and records `idempotency_key_supported = 0`; the receipt-replay acceptance check stays red until a true key contract exists.
 - Queue depth is inferred from load, latency, rejection count, and working-set growth because there is no public queue-depth counter.
+- Plan 10 reports three explicit public-MCP cases on every repetition: legacy calls, `workflow.execute-plan` with legacy open/describe, and `workflow.open-and-describe` plus `workflow.execute-plan`. Every case uses a fresh client, captures initialize, one `tools/list`, and bidirectional `tools/call` bytes, verifies values through MCP, and closes with `save:false`; it does not auto-probe or retry a workflow capability.
 
 See [BENCHMARK-MATRIX.md](BENCHMARK-MATRIX.md) for the exact workload and gate for each plan.

@@ -54,6 +54,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Added screenshot
     /// - Added window
     /// - Added pythoninexcel
+    /// - Added workflow
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
@@ -66,6 +67,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "datamodel_relationship",
         "file",
         "namedrange",
+        "outline",
         "pivottable",
         "pivottable_calc",
         "pivottable_field",
@@ -75,12 +77,14 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "range_edit",
         "range_format",
         "range_link",
+        "report_format",
         "screenshot",
         "slicer",
         "table",
         "table_column",
         "vba",
         "window",
+        "workflow",
         "worksheet",
         "worksheet_style"
     ];
@@ -113,7 +117,9 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
             .WithStreamServerTransport(
                 _clientToServerPipe.Reader.AsStream(),
                 _serverToClientPipe.Writer.AsStream())
-            .WithToolsFromAssembly(typeof(ExcelFileTool).Assembly);
+            .WithGeminiCompatibleToolsFromAssembly(
+                typeof(ExcelFileTool).Assembly,
+                McpToolProfile.Full);
 
         _serviceProvider = services.BuildServiceProvider(validateScopes: true);
 
@@ -184,7 +190,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that all 26 expected tools are discoverable via the MCP protocol.
+    /// Tests that every expected tool is discoverable via the MCP protocol.
     /// After token optimization (issue #341):
     /// - Original 12 tools split into focused tools for better token efficiency
     /// - range → range, range_edit, range_format, range_link
@@ -200,7 +206,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll26ExpectedTools()
+    public async Task ListTools_ReturnsEveryExpectedTool()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 

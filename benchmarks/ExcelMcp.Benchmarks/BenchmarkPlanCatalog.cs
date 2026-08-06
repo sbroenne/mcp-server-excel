@@ -84,6 +84,14 @@ internal static class BenchmarkPlanCatalog
             "Measures owned-process cleanup, orphan rate, and isolation from a separately owned sentinel Excel process.",
             "A candidate validates PID, start time, and Excel identity before termination, reaches zero wrong-process kills, and cleans every owned process.",
             ["owned_process_exit_ms", "orphan_process_count", "wrong_process_kill_count", "identity_mismatch_detection_ms", "cleanup_success_rate"],
-            ["sentinel_process_survives", "identity_mismatch_fails_closed", "no_wrong_process_kill", "no_owned_excel_orphan"])
+            ["sentinel_process_survives", "identity_mismatch_fails_closed", "no_wrong_process_kill", "no_owned_excel_orphan"]),
+        new(
+            "10",
+            "prompt-to-completion-speed",
+            "Complete a compact workbook-edit prompt",
+            "Measures three full public MCP workbook prompts: legacy calls, execute-plan-only, and execute-plan plus open-and-describe.",
+            "A workflow candidate reduces public MCP call and wire cost while preserving exact ordered values, a valid compact summary, and known outcomes.",
+            ["prompt_to_completion_ms", "open_describe_ms", "execution_ms", "verification_ms", "request_count", "payload_bytes", "token_estimate", "mcp_initialize_request_bytes", "mcp_initialize_response_bytes", "mcp_tools_list_request_bytes", "mcp_tools_list_response_bytes", "mcp_tool_call_request_bytes", "mcp_tool_call_response_bytes", "summary_payload_bytes", "operations_per_second"],
+            ["exact_values", "no_lost_or_duplicate_operations", "session_cleanup", "valid_compact_summary", "no_unknown_outcome", "mcp_transport"])
     ];
 }

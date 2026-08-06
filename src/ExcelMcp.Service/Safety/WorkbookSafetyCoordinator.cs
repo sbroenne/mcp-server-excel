@@ -23,6 +23,7 @@ internal sealed class WorkbookSafetyCoordinator : IDisposable
     private readonly ConcurrentDictionary<string, ReviewAuthorization> _activeReviews = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _terminalReviews = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _sessionGates = new(StringComparer.Ordinal);
+    private static readonly AsyncLocal<string?> SuppressRequiredCheckpointSession = new();
     private readonly DurableSafetyStore _store;
     private bool _disposed;
 
@@ -74,6 +75,23 @@ internal sealed class WorkbookSafetyCoordinator : IDisposable
                 configuration
             }, ServiceProtocol.JsonOptions)
         };
+    }
+
+    /// <summary>
+    /// Returns the effective safety policy for a session. Workflow execution uses
+    /// this to resolve plan-level checkpoint inheritance before dispatching steps.
+    /// </summary>
+    internal SessionSafetyConfiguration GetConfiguration(string sessionId) =>
+        _configurations.TryGetValue(sessionId, out var configured)
+            ? configured
+            : SessionSafetyConfiguration.Default;
+
+    /// <summary>Suppresses per-operation required checkpoints after a workflow has created its shared checkpoint.</summary>
+    internal static IDisposable SuppressRequiredCheckpoints(string sessionId)
+    {
+        string? previous = SuppressRequiredCheckpointSession.Value;
+        SuppressRequiredCheckpointSession.Value = sessionId;
+        return new DelegateDisposable(() => SuppressRequiredCheckpointSession.Value = previous);
     }
 
     public ServiceResponse Execute(
@@ -190,7 +208,9 @@ internal sealed class WorkbookSafetyCoordinator : IDisposable
         var sessionId = request.SessionId!;
         var normalizedArgs = SafetyFingerprint.NormalizeJson(request.Args);
         var workbookIdentity = GetWorkbookIdentity(batch.WorkbookPath);
-        var checkpointRequested = request.Checkpoint || configuration.CheckpointMode == CheckpointMode.Required;
+        var checkpointRequested = request.Checkpoint ||
+            (configuration.CheckpointMode == CheckpointMode.Required &&
+             !string.Equals(SuppressRequiredCheckpointSession.Value, sessionId, StringComparison.Ordinal));
 
         if (request.ReviewOnly)
         {
@@ -526,6 +546,18 @@ internal sealed class WorkbookSafetyCoordinator : IDisposable
         ErrorCategory = category,
         ErrorMessage = message
     };
+
+    private sealed class DelegateDisposable(Action action) : IDisposable
+    {
+        private int _disposed;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                action();
+            }
+        }
+    }
 
     private static string GetWorkbookIdentity(string workbookPath) =>
         SafetyFingerprint.Hash(Path.GetFullPath(workbookPath).ToUpperInvariant());
