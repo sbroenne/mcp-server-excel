@@ -124,7 +124,7 @@
   "action": "add-rule",
   "rangeAddress": "A1:D10",
   "ruleType": "expression",
-  "formula": "=$A1=\"Active\"",
+  "formula1": "=$A1=\"Active\"",
   "interiorColor": "#90EE90"
 }
 ```

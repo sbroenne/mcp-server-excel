@@ -9,10 +9,8 @@
 # bypasses the local hook (see Rule 31). The Excel-dependent gates — the CLI
 # workflow smoke test and the MCP smoke test — are intentionally NOT run here:
 # this job uses the GitHub-hosted `windows-latest` runner, which does not have
-# Microsoft Excel installed. Those two gates instead run in the
-# `.github/workflows/integration-tests.yml` workflow, on the self-hosted
-# [self-hosted, windows, excel] runner that does have Excel, alongside the
-# rest of the Excel integration test suite.
+# Microsoft Excel installed. Those two gates remain local prerequisites and are
+# explicitly attested in the pull request testing checklist.
 
 name: CI Gate
 
@@ -124,7 +122,7 @@ jobs:
         run: |
           Write-Host "Full Excel integration tests, the CLI workflow smoke test, and the MCP smoke test all require Microsoft Excel."
           Write-Host "This GitHub-hosted 'windows-latest' runner has no Excel, so this job does not run them."
-          Write-Host "They run in .github/workflows/integration-tests.yml on the self-hosted [self-hosted, windows, excel] runner instead."
+          Write-Host "Run '& .\scripts\Test-E2E.ps1' locally and attest the result in the pull request testing checklist."
 
       - name: Upload CLI build artifacts
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}

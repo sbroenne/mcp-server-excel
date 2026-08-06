@@ -96,18 +96,18 @@ Chart configuration - data source, series, type, title, axis labels, legend, and
 
 ### conditionalformat
 
-Conditional formatting - visual rules based on cell values. TYPES: cellValue (requires operatorType+formula1), expression (formula only). Both camelCase and kebab-case accepted. FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color. OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween. For 'between' and 'notBetween', both formula1 and formula2 are required.
+Conditional formatting - visual rules based on cell values. TYPES: cellValue, expression, colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition. Basic rules use operator/formula parameters; visual rules use their dedicated parameters. Both camelCase and kebab-case values are accepted.
 
-**Actions:** `add-rule`, `clear-rules`
+**Actions:** `add-rule`, `clear-rules`, `list-rules`, `list-worksheet-rules`
 
 | Parameter | Description |
 |-----------|-------------|
 | `--sheet-name` | Sheet name (empty for active sheet) |
 | `--range-address` | Range address (A1 notation or named range) |
 | `--rule-type` | Rule type: cellValue (or cell-value), expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage. Both camelCase and kebab-case accepted. |
-| `--operator-type` | XlFormatConditionOperator: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween |
-| `--formula1` | First formula/value for condition |
-| `--formula2` | Second formula/value (for between/notBetween) |
+| `--operator-type` | Required for cellValue rules: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween |
+| `--formula1` | Required for cellValue and expression rules |
+| `--formula2` | Required for between/notBetween cellValue rules |
 | `--interior-color` | Fill color (#RRGGBB or color index) |
 | `--interior-pattern` | Interior pattern (1=Solid, -4142=None, 9=Gray50, etc.) |
 | `--font-color` | Font color (#RRGGBB or color index) |
@@ -115,6 +115,39 @@ Conditional formatting - visual rules based on cell values. TYPES: cellValue (re
 | `--font-italic` | Italic font |
 | `--border-style` | Border style: none, continuous, dash, dot, etc. |
 | `--border-color` | Border color (#RRGGBB or color index) |
+| `--color-scale-min-type` | Minimum stop type: minimum, number, percent, percentile, formula |
+| `--color-scale-min-value` | Minimum stop value |
+| `--color-scale-min-color` | Minimum stop color (#RRGGBB) |
+| `--color-scale-mid-type` | Midpoint stop type; supply to create a 3-color scale |
+| `--color-scale-mid-value` | Midpoint stop value |
+| `--color-scale-mid-color` | Midpoint stop color (#RRGGBB) |
+| `--color-scale-max-type` | Maximum stop type: maximum, number, percent, percentile, formula |
+| `--color-scale-max-value` | Maximum stop value |
+| `--color-scale-max-color` | Maximum stop color (#RRGGBB) |
+| `--data-bar-color` | Data-bar fill color (#RRGGBB) |
+| `--data-bar-negative-color` | Negative-value bar color (#RRGGBB) |
+| `--data-bar-direction` | context, leftToRight, or rightToLeft |
+| `--data-bar-show-value` | Show the cell value alongside the bar |
+| `--data-bar-min-type` | Minimum point type |
+| `--data-bar-min-value` | Minimum point value |
+| `--data-bar-max-type` | Maximum point type |
+| `--data-bar-max-value` | Maximum point value |
+| `--icon-set-id` | Icon-set ID, such as 3Arrows, 3TrafficLights1, 4Ratings, or 5Quarters |
+| `--icon-set-reverse` | Reverse icon order |
+| `--icon-set-show-icon-only` | Hide the cell value and show only the icon |
+| `--icon-threshold1-type` | Threshold 1 type |
+| `--icon-threshold1-value` | Threshold 1 value |
+| `--icon-threshold2-type` | Threshold 2 type |
+| `--icon-threshold2-value` | Threshold 2 value |
+| `--icon-threshold3-type` | Threshold 3 type |
+| `--icon-threshold3-value` | Threshold 3 value |
+| `--icon-threshold4-type` | Threshold 4 type |
+| `--icon-threshold4-value` | Threshold 4 value |
+| `--rank` | Top/bottom rule rank |
+| `--top10-percent` | Treat rank as a percentage |
+| `--top-bottom` | top or bottom |
+| `--above-below` | Above/below-average selector |
+| `--date-period` | Time-period selector |
 
 
 

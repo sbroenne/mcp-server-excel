@@ -41,9 +41,9 @@ public interface IConditionalFormattingCommands
     /// <param name="sheetName">Sheet name (empty for active sheet)</param>
     /// <param name="rangeAddress">Range address (A1 notation or named range)</param>
     /// <param name="ruleType">Rule type: cellValue (or cell-value), expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage. Both camelCase and kebab-case accepted.</param>
-    /// <param name="operatorType">XlFormatConditionOperator: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween</param>
-    /// <param name="formula1">First formula/value for condition</param>
-    /// <param name="formula2">Second formula/value (for between/notBetween)</param>
+    /// <param name="operatorType">Required for cellValue rules. XlFormatConditionOperator: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween</param>
+    /// <param name="formula1">Required for cellValue and expression rules. First formula/value for condition</param>
+    /// <param name="formula2">Required for between/notBetween cellValue rules. Second formula/value</param>
     /// <param name="interiorColor">Fill color (#RRGGBB or color index)</param>
     /// <param name="interiorPattern">Interior pattern (1=Solid, -4142=None, 9=Gray50, etc.)</param>
     /// <param name="fontColor">Font color (#RRGGBB or color index)</param>
@@ -184,5 +184,4 @@ public interface IConditionalFormattingCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName);
 }
-
 

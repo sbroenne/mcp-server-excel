@@ -173,7 +173,11 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         try
         {
             var xlType = normalizedType == "expression" ? 2 : 1;
-            var xlOperator = ParseConditionalFormattingOperator(operatorType);
+            var xlOperator = ValidateAndParseBasicRuleArguments(
+                normalizedType,
+                operatorType,
+                formula1,
+                formula2);
 
             formatCondition = formatConditions.Add(
                 Type: xlType,
@@ -241,21 +245,28 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 // xlEdgeLeft(7)/xlEdgeTop(8)/xlEdgeBottom(9)/xlEdgeRight(10) constants.
                 // Item(7-10) on FormatCondition.Borders returns an unbound placeholder
                 // that can be read but throws COMException when its properties are set.
-                if (!string.IsNullOrEmpty(borderStyle))
+                var xlBorderStyle = !string.IsNullOrEmpty(borderStyle)
+                    ? FormattingHelpers.ParseBorderStyle(borderStyle)
+                    : (int?)null;
+                var color = !string.IsNullOrEmpty(borderColor)
+                    ? FormattingHelpers.ParseColor(borderColor)
+                    : (int?)null;
+
+                for (var borderIndex = 1; borderIndex <= 4; borderIndex++)
                 {
-                    var xlBorderStyle = FormattingHelpers.ParseBorderStyle(borderStyle);
-                    borders.Item(1).LineStyle = xlBorderStyle; // left
-                    borders.Item(2).LineStyle = xlBorderStyle; // top
-                    borders.Item(3).LineStyle = xlBorderStyle; // bottom
-                    borders.Item(4).LineStyle = xlBorderStyle; // right
-                }
-                if (!string.IsNullOrEmpty(borderColor))
-                {
-                    var color = FormattingHelpers.ParseColor(borderColor);
-                    borders.Item(1).Color = color; // left
-                    borders.Item(2).Color = color; // top
-                    borders.Item(3).Color = color; // bottom
-                    borders.Item(4).Color = color; // right
+                    dynamic? border = null;
+                    try
+                    {
+                        border = borders.Item(borderIndex);
+                        if (xlBorderStyle.HasValue)
+                            border.LineStyle = xlBorderStyle.Value;
+                        if (color.HasValue)
+                            border.Color = color.Value;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref border!);
+                    }
                 }
             }
         }
@@ -584,12 +595,43 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         or System.Runtime.InteropServices.COMException
         or System.InvalidCastException;
 
+    private static int ValidateAndParseBasicRuleArguments(
+        string normalizedType,
+        string? operatorType,
+        string? formula1,
+        string? formula2)
+    {
+        if (string.IsNullOrWhiteSpace(formula1))
+        {
+            throw new ArgumentException(
+                $"formula1 is required for {normalizedType} conditional formatting rules.",
+                nameof(formula1));
+        }
+
+        if (normalizedType == "expression")
+            return 3; // Operator is ignored by Excel for xlExpression.
+
+        if (string.IsNullOrWhiteSpace(operatorType))
+        {
+            throw new ArgumentException(
+                "operatorType is required for cellValue conditional formatting rules.",
+                nameof(operatorType));
+        }
+
+        var parsedOperator = ParseConditionalFormattingOperator(operatorType);
+        if (parsedOperator is 1 or 2 && string.IsNullOrWhiteSpace(formula2))
+        {
+            throw new ArgumentException(
+                $"formula2 is required when operatorType is '{operatorType}'.",
+                nameof(formula2));
+        }
+
+        return parsedOperator;
+    }
+
     private static int ParseConditionalFormattingOperator(string? operatorType)
     {
-        if (string.IsNullOrEmpty(operatorType))
-            return 3; // xlEqual (default)
-
-        return operatorType.ToLowerInvariant() switch
+        return operatorType!.ToLowerInvariant() switch
         {
             "between" => 1, // xlBetween
             "notbetween" => 2, // xlNotBetween
@@ -686,6 +728,5 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         };
     }
 }
-
 
 

@@ -31,7 +31,7 @@ This ADR documents our architectural decision and the reasoning behind our testi
 ✅ Write comprehensive integration tests against real Excel  
 ✅ Test every operation with actual Excel workbooks  
 ✅ Verify behavior through COM API interactions  
-✅ Run tests on CI/CD with Excel installed (Azure self-hosted runner)  
+✅ Run feature-specific integration tests and the canonical E2E smoke gates locally before merge
 
 ---
 
@@ -232,22 +232,21 @@ public async Task CreateWorksheet_ValidName_CreatesSheet()
 ### Negative
 
 ⚠️ **Slower tests** - 10-20 minutes vs seconds for unit tests  
-⚠️ **Requires Excel** - CI/CD needs Windows + Excel (Azure self-hosted runner)  
+⚠️ **Requires Excel** - Integration and E2E tests require a trusted local Windows machine with Excel
 ⚠️ **Resource intensive** - Each test opens/closes Excel COM instance  
 ⚠️ **Cannot run on Linux** - Excel COM is Windows-only  
 
 ### Mitigation Strategies
 
 **For slow tests**:
-- Run tests in parallel (xUnit parallelization)
-- Cache Excel instances where safe
+- Run only the feature-specific integration suite for changed behavior
 - Use OnDemand trait for expensive tests
-- Optimize CI/CD with dedicated Windows runners
+- Run the canonical CLI/MCP E2E smoke gates once before merge
 
 **For Excel dependency**:
-- Azure self-hosted runner with Office 365 installed
 - Local development requires Excel (documented in CONTRIBUTING.md)
-- Pre-commit hooks run quick validation only
+- GitHub-hosted CI runs Excel-free build and static-analysis gates
+- Pull requests attest local targeted integration and `& .\scripts\Test-E2E.ps1` results
 
 ---
 
@@ -372,9 +371,10 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 
 ### CI/CD Pipeline
-- **GitHub Actions**: Build verification only (no Excel)
-- **Azure Self-Hosted Runner**: All integration tests (Excel installed)
-- **Both must pass** before merge to main
+- **GitHub Actions**: Excel-free build and static-analysis checks
+- **Local targeted integration**: Run the changed feature with an explicit `Feature=<name>` filter
+- **Local E2E smoke**: Run `& .\scripts\Test-E2E.ps1` for the CLI workflow and MCP all-tools workflow
+- Record both local results in the pull request before merge
 
 ---
 

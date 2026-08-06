@@ -8,7 +8,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
 [Trait("Layer", "Core")]
-[Trait("Category", "Integration")]
+[Trait("Category", "Unit")]
 [Trait("Feature", "ConditionalFormat")]
 [Trait("Speed", "Fast")]
 [Trait("RequiresExcel", "false")]
@@ -49,9 +49,91 @@ public sealed class ConditionalFormatAddRuleDeserializationTests
         Assert.False(commands.IconSetShowIconOnly);
     }
 
+    [Fact]
+    public void DispatchToCore_AddRule_WithEmptySheetName_UsesActiveSheet()
+    {
+        var commands = new CapturingConditionalFormattingCommands();
+        var argsJson = JsonSerializer.Serialize(new
+        {
+            sheetName = "",
+            rangeAddress = "A1:A10",
+            ruleType = "expression",
+            formula1 = "=A1>0"
+        });
+
+        ServiceRegistry.ConditionalFormat.DispatchToCore(
+            commands,
+            ConditionalFormatAction.AddRule,
+            null!,
+            argsJson);
+
+        Assert.True(commands.AddRuleCalled);
+        Assert.Equal("", commands.SheetName);
+    }
+
+    [Fact]
+    public void DispatchToCore_ClearRules_WithEmptySheetName_UsesActiveSheet()
+    {
+        var commands = new CapturingConditionalFormattingCommands();
+        var argsJson = JsonSerializer.Serialize(new
+        {
+            sheetName = "",
+            rangeAddress = "A1:A10"
+        });
+
+        ServiceRegistry.ConditionalFormat.DispatchToCore(
+            commands,
+            ConditionalFormatAction.ClearRules,
+            null!,
+            argsJson);
+
+        Assert.True(commands.ClearRulesCalled);
+        Assert.Equal("", commands.SheetName);
+    }
+
+    [Fact]
+    public void DispatchToCore_ListRules_WithEmptySheetName_UsesActiveSheet()
+    {
+        var commands = new CapturingConditionalFormattingCommands();
+        var argsJson = JsonSerializer.Serialize(new
+        {
+            sheetName = "",
+            rangeAddress = "A1:A10"
+        });
+
+        ServiceRegistry.ConditionalFormat.DispatchToCore(
+            commands,
+            ConditionalFormatAction.ListRules,
+            null!,
+            argsJson);
+
+        Assert.True(commands.ListRulesCalled);
+        Assert.Equal("", commands.SheetName);
+    }
+
+    [Fact]
+    public void DispatchToCore_ListWorksheetRules_WithEmptySheetName_UsesActiveSheet()
+    {
+        var commands = new CapturingConditionalFormattingCommands();
+        var argsJson = JsonSerializer.Serialize(new { sheetName = "" });
+
+        ServiceRegistry.ConditionalFormat.DispatchToCore(
+            commands,
+            ConditionalFormatAction.ListWorksheetRules,
+            null!,
+            argsJson);
+
+        Assert.True(commands.ListWorksheetRulesCalled);
+        Assert.Equal("", commands.SheetName);
+    }
+
     private sealed class CapturingConditionalFormattingCommands : IConditionalFormattingCommands
     {
         public bool AddRuleCalled { get; private set; }
+        public bool ClearRulesCalled { get; private set; }
+        public bool ListRulesCalled { get; private set; }
+        public bool ListWorksheetRulesCalled { get; private set; }
+        public string? SheetName { get; private set; }
         public bool? FontBold { get; private set; }
         public bool? FontItalic { get; private set; }
         public bool? DataBarShowValue { get; private set; }
@@ -110,6 +192,7 @@ public sealed class ConditionalFormatAddRuleDeserializationTests
             string? datePeriod = null)
         {
             AddRuleCalled = true;
+            SheetName = sheetName;
             FontBold = fontBold;
             FontItalic = fontItalic;
             DataBarShowValue = dataBarShowValue;
@@ -120,13 +203,30 @@ public sealed class ConditionalFormatAddRuleDeserializationTests
             return new OperationResult { Success = true };
         }
 
-        public OperationResult ClearRules(IExcelBatch batch, string sheetName, string rangeAddress) =>
-            new() { Success = true };
+        public OperationResult ClearRules(IExcelBatch batch, string sheetName, string rangeAddress)
+        {
+            ClearRulesCalled = true;
+            SheetName = sheetName;
+            return new OperationResult { Success = true };
+        }
 
-        public ConditionalFormatListResult ListRules(IExcelBatch batch, string sheetName, string rangeAddress) =>
-            new() { Success = true, SheetName = sheetName, RangeAddress = rangeAddress };
+        public ConditionalFormatListResult ListRules(IExcelBatch batch, string sheetName, string rangeAddress)
+        {
+            ListRulesCalled = true;
+            SheetName = sheetName;
+            return new ConditionalFormatListResult
+            {
+                Success = true,
+                SheetName = sheetName,
+                RangeAddress = rangeAddress
+            };
+        }
 
-        public ConditionalFormatListResult ListWorksheetRules(IExcelBatch batch, string sheetName) =>
-            new() { Success = true, SheetName = sheetName };
+        public ConditionalFormatListResult ListWorksheetRules(IExcelBatch batch, string sheetName)
+        {
+            ListWorksheetRulesCalled = true;
+            SheetName = sheetName;
+            return new ConditionalFormatListResult { Success = true, SheetName = sheetName };
+        }
     }
 }
