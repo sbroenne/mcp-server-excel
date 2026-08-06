@@ -44,7 +44,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of tables with metadata</returns>
-    [ServiceAction("list-tables")]
+    [ServiceAction("list-tables", IsMutation = false)]
     DataModelTableListResult ListTables(IExcelBatch batch);
 
     /// <summary>
@@ -53,7 +53,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to list columns from</param>
     /// <returns>Result containing list of columns with metadata</returns>
-    [ServiceAction("list-columns")]
+    [ServiceAction("list-columns", IsMutation = false)]
     DataModelTableColumnsResult ListColumns(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
@@ -62,7 +62,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to get</param>
     /// <returns>Result containing complete table information</returns>
-    [ServiceAction("read-table")]
+    [ServiceAction("read-table", IsMutation = false)]
     DataModelTableViewResult ReadTable(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
@@ -70,7 +70,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing model metadata (table count, measure count, etc.)</returns>
-    [ServiceAction("read-info")]
+    [ServiceAction("read-info", IsMutation = false)]
     DataModelInfoResult ReadInfo(IExcelBatch batch);
 
     /// <summary>
@@ -79,7 +79,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>
     /// <returns>Result containing list of measures with formula previews</returns>
-    [ServiceAction("list-measures")]
+    [ServiceAction("list-measures", IsMutation = false)]
     DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
@@ -89,7 +89,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to get</param>
     /// <returns>Result containing complete measure information with DAX formula</returns>
-    [ServiceAction("read")]
+    [ServiceAction("read", IsMutation = false)]
     DataModelMeasureViewResult Read(IExcelBatch batch, [RequiredParameter] string measureName);
 
     /// <summary>

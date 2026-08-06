@@ -25,16 +25,16 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 public sealed class SessionManager : IDisposable
 {
-    private static readonly ConcurrentBag<int> _trackedExcelPids = new();
+    private static readonly ConcurrentDictionary<OwnedProcessIdentity, byte> _trackedExcelProcesses = new();
     private static int _processExitRegistered;
 
     /// <summary>
-    /// Registers an Excel process ID for cleanup on unexpected process exit.
-    /// Called from ExcelBatch when a PID is captured.
+    /// Registers a captured Excel process identity for cleanup on unexpected process exit.
+    /// Called from ExcelBatch after PID, start time, executable name, and path are verified.
     /// </summary>
-    public static void TrackExcelProcess(int processId)
+    internal static void TrackExcelProcess(OwnedProcessIdentity identity)
     {
-        _trackedExcelPids.Add(processId);
+        _trackedExcelProcesses.TryAdd(identity, 0);
 
         // Register handler exactly once (thread-safe)
         if (Interlocked.CompareExchange(ref _processExitRegistered, 1, 0) == 0)
@@ -44,15 +44,40 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
-    /// Marks an Excel process as no longer needing cleanup.
-    /// ConcurrentBag doesn't support removal, but ProcessExit handler checks HasExited before killing.
+    /// Compatibility overload for callers that previously registered a PID directly.
+    /// Tracking is fail-closed: the PID is accepted only when a complete, expected
+    /// EXCEL.EXE identity can be captured at registration time.
     /// </summary>
-#pragma warning disable IDE0060 // Intentional: parameter documents API intent; ConcurrentBag lacks Remove
-    public static void UntrackExcelProcess(int processId)
-#pragma warning restore IDE0060
+    public static void TrackExcelProcess(int processId)
     {
-        // ConcurrentBag doesn't support removal, but that's fine —
-        // ProcessExit handler checks HasExited before killing
+        if (OwnedProcessIdentityGuard.TryCapture(processId, out var identity) &&
+            OwnedProcessIdentityGuard.IsExpectedExecutable(identity, "EXCEL"))
+        {
+            TrackExcelProcess(identity);
+        }
+    }
+
+    /// <summary>
+    /// Marks an Excel process as no longer needing cleanup.
+    /// </summary>
+    internal static void UntrackExcelProcess(OwnedProcessIdentity identity)
+    {
+        _trackedExcelProcesses.TryRemove(identity, out _);
+    }
+
+    /// <summary>
+    /// Compatibility overload for callers that previously removed tracking by PID.
+    /// Removal is non-destructive and clears every captured identity for that PID.
+    /// </summary>
+    public static void UntrackExcelProcess(int processId)
+    {
+        foreach (var identity in _trackedExcelProcesses.Keys)
+        {
+            if (identity.ProcessId == processId)
+            {
+                _trackedExcelProcesses.TryRemove(identity, out _);
+            }
+        }
     }
 
     private static void OnProcessExit(object? sender, EventArgs e)
@@ -62,40 +87,33 @@ public sealed class SessionManager : IDisposable
         int alreadyExitedCount = 0;
         int failedCount = 0;
 
-        foreach (var pid in _trackedExcelPids)
+        foreach (var identity in _trackedExcelProcesses.Keys)
         {
             try
             {
-                using var proc = System.Diagnostics.Process.GetProcessById(pid);
-                if (!proc.HasExited)
+                if (OwnedProcessIdentityGuard.TryKill(identity))
                 {
-                    proc.Kill();
                     killedCount++;
                     // Note: Cannot use ILogger here - ProcessExit handler runs during AppDomain teardown
-                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed Excel process {pid}");
+                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed Excel process {identity.ProcessId}");
                 }
                 else
                 {
                     alreadyExitedCount++;
                 }
             }
-            catch (ArgumentException)
-            {
-                // Process already exited
-                alreadyExitedCount++;
-            }
             catch (Exception ex)
             {
                 // Process inaccessible
                 failedCount++;
-                SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {pid}: {ex.Message}");
+                SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {identity.ProcessId}: {ex.Message}");
             }
         }
 
         // Summary log
         if (killedCount > 0 || failedCount > 0)
         {
-            SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedExcelPids.Count}");
+            SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExitedOrMismatched={alreadyExitedCount}, Failed={failedCount}, Total={_trackedExcelProcesses.Count}");
         }
     }
 
@@ -109,9 +127,16 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
+    private readonly ConcurrentDictionary<string, bool> _autoSaveOnDispose = new();
     private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
     private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
+
+    /// <summary>
+    /// Raised synchronously immediately before a dead Excel session is removed.
+    /// Subscribers can persist recovery evidence while session tracking is intact.
+    /// </summary>
+    public event Action<string>? DeadSessionCleanupStarting;
 
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
@@ -144,13 +169,24 @@ public sealed class SessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!File.Exists(filePath))
+        var validation = ExcelFileValidator.Inspect(filePath);
+        if (!validation.IsWithinPathLimit)
         {
-            throw new FileNotFoundException($"Excel file not found: {filePath}. To create a new file, use the 'create' action instead of 'open'.", filePath);
+            throw new PathTooLongException(validation.Message);
+        }
+
+        if (!validation.Exists)
+        {
+            throw new FileNotFoundException($"Excel file not found: {validation.FilePath}. To create a new file, use the 'create' action instead of 'open'.", validation.FilePath);
+        }
+
+        if (!validation.IsOpenableExtension || !validation.IsWithinSizeLimit)
+        {
+            throw new ArgumentException(validation.Message, nameof(filePath));
         }
 
         // Normalize file path for comparison
-        string normalizedPath = Path.GetFullPath(filePath);
+        string normalizedPath = validation.FilePath;
 
         // Check if file is already open in another session
         if (_activeFilePaths.ContainsKey(normalizedPath))
@@ -238,7 +274,14 @@ public sealed class SessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        string normalizedPath = Path.GetFullPath(filePath);
+        var validation = ExcelFileValidator.Inspect(filePath);
+        if (!validation.IsWithinPathLimit || !validation.IsWithinCreatePathLimit)
+        {
+            throw new PathTooLongException(
+                $"File path exceeds Excel's practical SaveAs limit of {ExcelFileValidator.MaximumCreatePathLength} characters: {validation.FilePath.Length} characters.");
+        }
+
+        string normalizedPath = validation.FilePath;
 
         string? directory = Path.GetDirectoryName(normalizedPath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -248,10 +291,10 @@ public sealed class SessionManager : IDisposable
         }
 
         // Validate extension
-        string extension = Path.GetExtension(normalizedPath).ToLowerInvariant();
-        if (extension is not (".xlsx" or ".xlsm"))
+        string extension = validation.Extension;
+        if (!validation.IsSupportedExtension)
         {
-            throw new ArgumentException($"Invalid file extension '{extension}'. Only .xlsx and .xlsm are supported.");
+            throw new ArgumentException($"Invalid file extension '{extension}'. Only .xlsx and .xlsm are supported.", nameof(filePath));
         }
 
         // Check if file already exists
@@ -361,6 +404,18 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     private void CleanupDeadSession(string sessionId, IExcelBatch batch)
     {
+        try
+        {
+            DeadSessionCleanupStarting?.Invoke(sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(
+                ex,
+                "Dead-session cleanup observer failed for session {SessionId}; cleanup will continue",
+                sessionId);
+        }
+
         RemoveSessionTracking(sessionId, removeSessionLock: true);
 
         // Dispose the batch (best effort - process is already dead)
@@ -396,6 +451,7 @@ public sealed class SessionManager : IDisposable
         _showExcelFlags.TryRemove(sessionId, out _);
         _sessionOrigins.TryRemove(sessionId, out _);
         _sessionCreatedAt.TryRemove(sessionId, out _);
+        _autoSaveOnDispose.TryRemove(sessionId, out _);
         _teardownFailures.TryRemove(sessionId, out _);
 
         if (removeSessionLock)
@@ -539,6 +595,30 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Controls whether a session is automatically saved during manager shutdown.
+    /// Explicit session close/save behavior is unchanged.
+    /// </summary>
+    public bool SetAutoSaveOnDispose(string sessionId, bool autoSave)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (string.IsNullOrWhiteSpace(sessionId) || !_activeSessions.ContainsKey(sessionId))
+        {
+            return false;
+        }
+
+        if (autoSave)
+        {
+            _autoSaveOnDispose.TryRemove(sessionId, out _);
+        }
+        else
+        {
+            _autoSaveOnDispose[sessionId] = false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Validates whether a session can be closed safely.
     /// Returns information about blocking conditions.
     /// </summary>
@@ -581,7 +661,25 @@ public sealed class SessionManager : IDisposable
     /// <exception cref="InvalidOperationException">Save operation failed or operations still running</exception>
     public bool CloseSession(string sessionId, bool save = false, bool force = false)
     {
+        return CloseSession(sessionId, save, force, out _);
+    }
+
+    /// <summary>
+    /// Closes a session and reports whether Excel was already dead before cleanup began.
+    /// </summary>
+    /// <param name="sessionId">Session ID to close.</param>
+    /// <param name="save">Whether to save before closing.</param>
+    /// <param name="force">Whether to close while operations are active.</param>
+    /// <param name="excelProcessWasDead">True when the session was cleaned up after detecting an already-dead Excel process.</param>
+    /// <returns>True when the session was found and removed; otherwise false.</returns>
+    public bool CloseSession(
+        string sessionId,
+        bool save,
+        bool force,
+        out bool excelProcessWasDead)
+    {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        excelProcessWasDead = false;
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -607,6 +705,16 @@ public sealed class SessionManager : IDisposable
             if (!_activeSessions.TryGetValue(sessionId, out batch!))
             {
                 return false;
+            }
+
+            if (!batch.IsExcelProcessAlive())
+            {
+                excelProcessWasDead = true;
+                _logger?.LogWarning(
+                    "Session {SessionId} has a dead Excel process during explicit close; recording evidence before cleanup",
+                    sessionId);
+                CleanupDeadSession(sessionId, batch);
+                return true;
             }
 
             _closingSessions[sessionId] = 0;
@@ -786,17 +894,23 @@ public sealed class SessionManager : IDisposable
 
         // Close all active sessions SEQUENTIALLY to avoid COM threading issues
         // Excel COM objects must be disposed on their STA threads, parallel disposal causes deadlocks
-        var sessions = _activeSessions.Values.ToList();
+        var sessions = _activeSessions
+            .Select(pair => (
+                Batch: pair.Value,
+                AutoSave: !_autoSaveOnDispose.TryGetValue(pair.Key, out var autoSave) || autoSave))
+            .ToList();
         _activeSessions.Clear();
         _activeFilePaths.Clear();
         _sessionFilePaths.Clear();
+        _autoSaveOnDispose.Clear();
 
-        foreach (var session in sessions)
+        foreach (var sessionEntry in sessions)
         {
+            var session = sessionEntry.Batch;
             // Auto-save before disposal to prevent silent data loss.
             // This protects against the common scenario where the MCP client disconnects
             // or the service process exits, which would otherwise discard all unsaved work.
-            if (session.IsExcelProcessAlive())
+            if (sessionEntry.AutoSave && session.IsExcelProcessAlive())
             {
                 try
                 {

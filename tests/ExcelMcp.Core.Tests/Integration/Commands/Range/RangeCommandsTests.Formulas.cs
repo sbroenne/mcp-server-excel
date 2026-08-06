@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
 
@@ -557,6 +558,41 @@ public partial class RangeCommandsTests
     }
 
     // === FORMULA2 REGRESSION TESTS (implicit intersection @ operator) ===
+
+    [Fact]
+    public void CapabilityPreflight_ActiveBatch_ReportsFormulaModeAndWorkbookState()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+
+        var result = CapabilityPreflightCommands.Collect(batch, "core-preflight-test");
+
+        Assert.True(result.Success);
+        Assert.Equal("core-preflight-test", result.SessionId);
+        Assert.Equal(_fixture.TestFilePath, result.FilePath);
+        Assert.False(string.IsNullOrWhiteSpace(result.Excel.Version));
+        Assert.True(result.Excel.Build > 0);
+        Assert.True(new[] { "supported", "unsupported" }.Contains(result.Capabilities.Formula2.Status));
+        Assert.Equal(result.Capabilities.Formula2.Status == "supported", result.Capabilities.Formula2.DynamicArrays);
+        Assert.Equal("notDetermined", result.Capabilities.PythonInExcel.Status);
+        Assert.NotEqual(DateTime.MinValue, result.CollectedAtUtc);
+    }
+
+    [Fact]
+    public void SetFormulas_DynamicArrayFormula_PreservesSpillSemantics()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var result = _commands.SetFormulas(batch, sheetName, "A1", [["=SEQUENCE(3)"]]);
+        var formulas = _commands.GetFormulas(batch, sheetName, "A1");
+        var values = _commands.GetValues(batch, sheetName, "A1:A3");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("=SEQUENCE(3)", formulas.Formulas[0][0]);
+        Assert.Equal(1.0, Convert.ToDouble(values.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(2.0, Convert.ToDouble(values.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(3.0, Convert.ToDouble(values.Values[2][0], System.Globalization.CultureInfo.InvariantCulture));
+    }
 
     [Fact]
     public void SetFormulas_InExcelTable_DoesNotInjectImplicitIntersectionOperator()

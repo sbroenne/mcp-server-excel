@@ -56,6 +56,9 @@ public sealed class MethodInfo
     public string McpTool { get; }
     public List<ParameterInfo> Parameters { get; }
     public string? XmlDocSummary { get; }
+    public bool IsMutation { get; }
+    /// <summary>Whether this action requires an existing Excel session.</summary>
+    public bool RequiresSession { get; }
     /// <summary>Whether the original interface method has an IExcelBatch parameter.</summary>
     public bool HasBatchParameter { get; }
 
@@ -64,7 +67,7 @@ public sealed class MethodInfo
 
     public MethodInfo(string methodName, string actionName, string returnType, string mcpTool,
         List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true,
-        bool hasProgressParameter = false)
+        bool hasProgressParameter = false, bool isMutation = true, bool requiresSession = true)
     {
         MethodName = methodName;
         ActionName = actionName;
@@ -74,6 +77,8 @@ public sealed class MethodInfo
         XmlDocSummary = xmlDocSummary;
         HasBatchParameter = hasBatchParameter;
         HasProgressParameter = hasProgressParameter;
+        IsMutation = isMutation;
+        RequiresSession = requiresSession;
     }
 }
 

@@ -13,6 +13,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "McpProtocol")]
+[Trait("RequiresExcel", "false")]
 public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestBase
 {
     public GeneratedToolSchemaEnumRegressionTests(ITestOutputHelper output)
@@ -64,6 +65,28 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
         Assert.True(
             failures.Count == 0,
             "MCP schemas must not publish empty-string enum members. " + string.Join(Environment.NewLine, failures));
+    }
+
+    [Fact]
+    public async Task ListTools_EnumSurfaces_DoNotRetainNullableAfterNullMembersAreRemoved()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var enumSurfaces = new List<EnumSurface>();
+
+        foreach (var tool in tools)
+        {
+            CollectEnumSurfaces(tool.Name, tool.JsonSchema, "$", propertyName: null, enumSurfaces);
+        }
+
+        var failures = enumSurfaces
+            .Where(surface => surface.IsNullable)
+            .Select(surface => $"{surface.ToolName} {surface.SchemaPath} ({surface.PropertyName ?? "<unknown>"})")
+            .ToList();
+
+        Assert.True(
+            failures.Count == 0,
+            "Enum properties must be optional by omission and must not publish contradictory nullable metadata. " +
+            string.Join(Environment.NewLine, failures));
     }
 
     [Fact]
@@ -130,10 +153,13 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
             case JsonValueKind.Object:
                 if (node.TryGetProperty("enum", out var enumProperty) && enumProperty.ValueKind == JsonValueKind.Array)
                 {
+                    var isNullable = node.TryGetProperty("nullable", out var nullableProperty) &&
+                        nullableProperty.ValueKind == JsonValueKind.True;
                     enumSurfaces.Add(new EnumSurface(
                         toolName,
                         jsonPath,
                         propertyName,
+                        isNullable,
                         [.. enumProperty.EnumerateArray().Select(ToEnumValue)]));
                 }
 
@@ -163,7 +189,12 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
             : new EnumValue(element.ValueKind, null, element.GetRawText());
     }
 
-    private sealed record EnumSurface(string ToolName, string SchemaPath, string? PropertyName, IReadOnlyList<EnumValue> Values);
+    private sealed record EnumSurface(
+        string ToolName,
+        string SchemaPath,
+        string? PropertyName,
+        bool IsNullable,
+        IReadOnlyList<EnumValue> Values);
 
     private sealed record EnumValue(JsonValueKind Kind, string? StringValue, string RawText);
 }

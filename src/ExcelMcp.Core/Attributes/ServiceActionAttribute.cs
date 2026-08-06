@@ -18,6 +18,18 @@ public sealed class ServiceActionAttribute : Attribute
     public string Action { get; }
 
     /// <summary>
+    /// Whether the action may change Excel or external state. Defaults to true so new actions fail closed.
+    /// Read-only actions must explicitly set this to false.
+    /// </summary>
+    public bool IsMutation { get; set; } = true;
+
+    /// <summary>
+    /// Whether this action requires an existing Excel session. Defaults to true so new actions
+    /// fail closed. Set to false for self-contained atomic actions that manage their own files.
+    /// </summary>
+    public bool RequiresSession { get; set; } = true;
+
+    /// <summary>
     /// Creates a new ServiceActionAttribute.
     /// </summary>
     /// <param name="action">The action name in kebab-case (e.g., "get-load-config")</param>

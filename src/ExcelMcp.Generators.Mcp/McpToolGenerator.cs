@@ -184,6 +184,10 @@ public class McpToolGenerator : IIncrementalGenerator
         if (!info.NoSession)
         {
             sb.AppendLine($"    /// <param name=\"session_id\">Session ID from file 'open' action</param>");
+            sb.AppendLine("    /// <param name=\"review_only\">Return an exact mutation plan without changing Excel.</param>");
+            sb.AppendLine("    /// <param name=\"review_id\">Bound review identifier returned by a prior review-only request.</param>");
+            sb.AppendLine("    /// <param name=\"checkpoint\">Create a recoverable workbook checkpoint immediately before a mutation.</param>");
+            sb.AppendLine("    /// <param name=\"idempotency_key\">Client-generated key for safely retrying a mutation execution.</param>");
         }
         foreach (var p in mcpParams)
         {
@@ -226,6 +230,10 @@ public class McpToolGenerator : IIncrementalGenerator
             sb.Append("        [Description(\"Session ID from file 'open' action\")] string session_id");
             sb.Append(",");
             sb.AppendLine();
+            sb.AppendLine("        [Description(\"Return an exact mutation plan without changing Excel\")] bool review_only = false,");
+            sb.AppendLine("        [Description(\"Bound review identifier returned by a prior review-only request\")] string? review_id = null,");
+            sb.AppendLine("        [Description(\"Create a recoverable workbook checkpoint immediately before a mutation\")] bool checkpoint = false,");
+            sb.AppendLine("        [Description(\"Client-generated key for safely retrying a mutation execution\")] string? idempotency_key = null,");
         }
 
         // Exposed parameters are always optional at the MCP tool surface because each action
@@ -297,6 +305,10 @@ public class McpToolGenerator : IIncrementalGenerator
         var indent = hasProgress ? "            " : "        ";
 
         sb.AppendLine($"{indent}using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);");
+        if (!info.NoSession)
+        {
+            sb.AppendLine($"{indent}using var safetyScope = ExcelToolsBase.PushSafetyOptions(review_only, review_id, checkpoint, idempotency_key);");
+        }
         sb.AppendLine();
 
         sb.AppendLine($"{indent}return ExcelToolsBase.ExecuteToolAction(");

@@ -36,7 +36,7 @@ public interface IPivotTableCalcCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <returns>Values with headers, row/column labels, formatted numbers</returns>
-    [ServiceAction("get-data")]
+    [ServiceAction("get-data", IsMutation = false)]
     PivotTableDataResult GetData(IExcelBatch batch, string pivotTableName);
 
     /// <summary>
@@ -70,7 +70,7 @@ public interface IPivotTableCalcCommands
     /// NOTE: OLAP PivotTables do not support CalculatedFields.
     /// Use ListCalculatedMembers for OLAP PivotTables instead.
     /// </remarks>
-    [ServiceAction("list-calculated-fields")]
+    [ServiceAction("list-calculated-fields", IsMutation = false)]
     CalculatedFieldListResult ListCalculatedFields(IExcelBatch batch, string pivotTableName);
 
     /// <summary>
@@ -104,7 +104,7 @@ public interface IPivotTableCalcCommands
     /// - Set: Named set of members for filtering/grouping
     /// - Measure: DAX-like calculated measure for Data Model
     /// </remarks>
-    [ServiceAction("list-calculated-members")]
+    [ServiceAction("list-calculated-members", IsMutation = false)]
     CalculatedMemberListResult ListCalculatedMembers(IExcelBatch batch, string pivotTableName);
 
     /// <summary>

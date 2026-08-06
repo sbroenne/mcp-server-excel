@@ -85,6 +85,8 @@ public static class ServiceInfoExtractor
             if (member is IMethodSymbol method && method.MethodKind == MethodKind.Ordinary)
             {
                 var actionName = GetActionName(method);
+                var isMutation = GetIsMutation(method);
+                var requiresSession = !noSession && GetRequiresSession(method);
                 var methodMcpTool = GetMethodMcpTool(method) ?? mcpTool;
                 var xmlDoc = ExtractXmlDocumentation(method);
 
@@ -103,7 +105,9 @@ public static class ServiceInfoExtractor
                     parameters,
                     xmlDoc?.Summary,
                     hasBatchParameter,
-                    hasProgressParameter));
+                    hasProgressParameter,
+                    isMutation,
+                    requiresSession));
             }
         }
 
@@ -161,6 +165,52 @@ public static class ServiceInfoExtractor
 
         // Default: derive from method name
         return StringHelper.ToKebabCase(method.Name);
+    }
+
+    private static bool GetIsMutation(IMethodSymbol method)
+    {
+        foreach (var attr in method.GetAttributes())
+        {
+            if (attr.AttributeClass?.Name != "ServiceActionAttribute")
+            {
+                continue;
+            }
+
+            foreach (var namedArgument in attr.NamedArguments)
+            {
+                if (namedArgument.Key == "IsMutation" && namedArgument.Value.Value is bool isMutation)
+                {
+                    return isMutation;
+                }
+            }
+
+            return true;
+        }
+
+        return true;
+    }
+
+    private static bool GetRequiresSession(IMethodSymbol method)
+    {
+        foreach (var attr in method.GetAttributes())
+        {
+            if (attr.AttributeClass?.Name != "ServiceActionAttribute")
+            {
+                continue;
+            }
+
+            foreach (var namedArgument in attr.NamedArguments)
+            {
+                if (namedArgument.Key == "RequiresSession" && namedArgument.Value.Value is bool requiresSession)
+                {
+                    return requiresSession;
+                }
+            }
+
+            return true;
+        }
+
+        return true;
     }
 
     private static string? GetMethodMcpTool(IMethodSymbol method)

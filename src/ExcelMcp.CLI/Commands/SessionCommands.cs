@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
@@ -174,6 +175,195 @@ internal sealed class SessionListCommand : AsyncCommand
             Console.WriteLine(JsonSerializer.Serialize(new { sessions = Array.Empty<object>() }, ServiceProtocol.JsonOptions));
             return 0;
         }
+    }
+}
+
+internal sealed class SessionPreflightCommand : AsyncCommand<SessionPreflightCommand.Settings>
+{
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SessionId))
+        {
+            return CliErrorOutput.WriteError("Session ID is required.");
+        }
+
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = "session.preflight",
+            SessionId = settings.SessionId
+        }, cancellationToken);
+
+        if (response.Success)
+        {
+            Console.WriteLine(response.Result);
+            return 0;
+        }
+
+        return CliErrorOutput.WriteServiceError(response);
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandOption("--session-id <SESSION>")]
+        [Description("Session ID to inspect")]
+        public string SessionId { get; init; } = string.Empty;
+    }
+}
+
+internal sealed class SessionConfigureSafetyCommand : AsyncCommand<SessionConfigureSafetyCommand.Settings>
+{
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SessionId))
+        {
+            return CliErrorOutput.WriteError("Session ID is required.");
+        }
+
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = "session.configure-safety",
+            SessionId = settings.SessionId,
+            Args = JsonSerializer.Serialize(new SafetyConfigurationOptions
+            {
+                ReviewMode = settings.ReviewMode,
+                CheckpointMode = settings.CheckpointMode,
+                JournalMode = settings.JournalMode,
+                VerificationMode = settings.VerificationMode,
+                AbnormalShutdownPolicy = settings.AbnormalShutdownPolicy
+            }, ServiceProtocol.JsonOptions)
+        }, cancellationToken);
+
+        if (response.Success)
+        {
+            Console.WriteLine(response.Result);
+            return 0;
+        }
+
+        return CliErrorOutput.WriteServiceError(response);
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandOption("--session-id <SESSION>")]
+        [Description("Session ID to configure")]
+        public string SessionId { get; init; } = string.Empty;
+
+        [CommandOption("--review-mode <MODE>")]
+        [Description("Safety review mode: off, optional, required")]
+        public SafetyReviewMode? ReviewMode { get; init; }
+
+        [CommandOption("--checkpoint-mode <MODE>")]
+        [Description("Safety checkpoint mode: off, onRequest, required")]
+        public SafetyCheckpointMode? CheckpointMode { get; init; }
+
+        [CommandOption("--journal-mode <MODE>")]
+        [Description("Safety journal mode: off, on")]
+        public SafetyJournalMode? JournalMode { get; init; }
+
+        [CommandOption("--verification-mode <MODE>")]
+        [Description("Safety verification mode: off, on")]
+        public SafetyVerificationMode? VerificationMode { get; init; }
+
+        [CommandOption("--abnormal-shutdown-policy <POLICY>")]
+        [Description("Safety shutdown policy: legacyAutoSave, discardWithRecoveryEvidence")]
+        public SafetyAbnormalShutdownPolicy? AbnormalShutdownPolicy { get; init; }
+    }
+}
+
+internal sealed class SessionJournalCommand : AsyncCommand<SessionJournalCommand.Settings>
+{
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SessionId))
+        {
+            return CliErrorOutput.WriteError("Session ID is required.");
+        }
+
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = "session.journal",
+            SessionId = settings.SessionId
+        }, cancellationToken);
+
+        if (response.Success)
+        {
+            Console.WriteLine(response.Result);
+            return 0;
+        }
+
+        return CliErrorOutput.WriteServiceError(response);
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandOption("--session-id <SESSION>")]
+        [Description("Session ID whose durable operation journal to render")]
+        public string SessionId { get; init; } = string.Empty;
+    }
+}
+
+internal sealed class SessionRecoveriesCommand : AsyncCommand
+{
+    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    {
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest { Command = "recovery.list" }, cancellationToken);
+        if (response.Success)
+        {
+            Console.WriteLine(response.Result);
+            return 0;
+        }
+
+        return CliErrorOutput.WriteServiceError(response);
+    }
+}
+
+internal sealed class SessionRecoverCommand : AsyncCommand<SessionRecoverCommand.Settings>
+{
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RecoveryId))
+        {
+            return CliErrorOutput.WriteError("Recovery ID is required.");
+        }
+
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = "recovery.recover",
+            Args = JsonSerializer.Serialize(new
+            {
+                recoveryId = settings.RecoveryId,
+                show = settings.Show,
+                timeoutSeconds = settings.TimeoutSeconds
+            }, ServiceProtocol.JsonOptions)
+        }, cancellationToken);
+
+        if (response.Success)
+        {
+            Console.WriteLine(response.Result);
+            return 0;
+        }
+
+        return CliErrorOutput.WriteServiceError(response);
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandOption("--recovery-id <RECOVERY>")]
+        [Description("Recovery ID returned by session recoveries")]
+        public string RecoveryId { get; init; } = string.Empty;
+
+        [CommandOption("--show")]
+        [Description("Show the recovered Excel session")]
+        public bool Show { get; init; }
+
+        [CommandOption("--timeout <SECONDS>")]
+        [Description("Recovery session timeout in seconds (default: 120)")]
+        public int? TimeoutSeconds { get; init; }
     }
 }
 

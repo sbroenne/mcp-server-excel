@@ -33,6 +33,11 @@ public static partial class ExcelWorksheetTool
     /// <param name="target_sheet_name">Optional: New name for the copied sheet (default: keeps original name)</param>
     /// <param name="before_sheet">Optional: Position before this sheet</param>
     /// <param name="after_sheet">Optional: Position after this sheet</param>
+    /// <param name="review_only">Return an exact mutation plan without changing Excel.</param>
+    /// <param name="review_id">Bound review identifier returned by a prior review-only request.</param>
+    /// <param name="checkpoint">Create a recoverable workbook checkpoint immediately before a mutation.</param>
+    /// <param name="idempotency_key">Client-generated key for safely retrying a same-workbook mutation.</param>
+    /// <param name="cancellationToken">Cancellation token for the tool request.</param>
     [McpServerTool(Name = "worksheet", Title = "Worksheet Operations", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
@@ -76,17 +81,26 @@ public static partial class ExcelWorksheetTool
         [Description(
             "Optional position control for move, copy-to-file, or move-to-file: insert after this worksheet.")]
         string? after_sheet = null,
+        [Description("Return an exact mutation plan without changing Excel. Atomic cross-file actions reject safety options without changing either file.")]
+        bool review_only = false,
+        [Description("Bound review identifier returned by a prior review-only request.")]
+        string? review_id = null,
+        [Description("Create a recoverable workbook checkpoint immediately before a mutation.")]
+        bool checkpoint = false,
+        [Description("Client-generated key for safely retrying a same-workbook mutation.")]
+        string? idempotency_key = null,
         CancellationToken cancellationToken = default)
     {
         using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
+        using var safetyScope = ExcelToolsBase.PushSafetyOptions(review_only, review_id, checkpoint, idempotency_key);
 
         return ExcelToolsBase.ExecuteToolAction(
             "worksheet",
             ServiceRegistry.Sheet.ToActionString(action),
             () =>
             {
-                // Atomic operations don't require a session
-                if (action == SheetAction.CopyToFile || action == SheetAction.MoveToFile)
+                // Atomic operations don't require a session.
+                if (!ServiceRegistry.Sheet.RequiresSessionForAction(action))
                 {
                     return action switch
                     {

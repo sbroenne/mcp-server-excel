@@ -20,9 +20,14 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Layer", "Service")]
 [Trait("Category", "Unit")]
 [Trait("Feature", "ExcelMcpService")]
+[Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
-public sealed class ExcelMcpServiceErrorTests
+public sealed class ExcelMcpServiceErrorTests : IDisposable
 {
+    private readonly string _stateRoot = Path.Combine(
+        Path.GetTempPath(),
+        $"excelmcp-service-errors-{Guid.NewGuid():N}");
+
     /// <summary>
     /// REGRESSION TEST for Bug 5 (#482): When an unexpected exception escapes
     /// the ProcessAsync routing switch (e.g. NullReferenceException on null Command),
@@ -33,7 +38,7 @@ public sealed class ExcelMcpServiceErrorTests
     public async Task ProcessAsync_UnexpectedExceptionEscapesRouter_ErrorMessageIncludesTypeName()
     {
         // Arrange
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
 
         // null Command triggers NullReferenceException in parts = request.Command.Split(...)
         // This exercises the top-level catch (Exception ex) block in ProcessAsync
@@ -63,7 +68,7 @@ public sealed class ExcelMcpServiceErrorTests
     public async Task ProcessAsync_UnknownCategory_ReturnsNormalErrorWithoutTypeName()
     {
         // Arrange
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
         var request = new ServiceRequest { Command = "unknowncategory.someaction" };
 
         // Act
@@ -79,6 +84,35 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.DoesNotContain("Exception:", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ProcessAsync_FailedResponse_RedactsSensitiveDetailsAndPreservesContext()
+    {
+        const string email = "ada@example.com";
+        const string secret = "SuperSecretValue";
+        var sensitivePath = $@"C:\Users\Ada\Finance\{email}\Password={secret}\book.xlsx";
+
+        ServiceResponse response;
+        using (var service = CreateService())
+        {
+            response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.open",
+                Args = JsonSerializer.Serialize(new { filePath = sensitivePath }, ServiceProtocol.JsonOptions)
+            });
+        }
+
+        Assert.False(response.Success);
+        Assert.Equal("session.open", response.Command);
+        Assert.NotNull(response.ErrorMessage);
+        Assert.Contains("[REDACTED_PATH]", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain(sensitivePath, response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(email, response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(secret, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain(email, response.InnerError ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(secret, response.InnerError ?? string.Empty, StringComparison.Ordinal);
+
+    }
+
     /// <summary>
     /// Verifies that the WithSessionAsync exception handler (the catch at the bottom
     /// of ProcessAsync, covering session-level operations) also includes the type name.
@@ -87,7 +121,7 @@ public sealed class ExcelMcpServiceErrorTests
     public async Task ProcessAsync_SessionCommandWithInvalidSessionId_ReturnsUsableError()
     {
         // Arrange
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
 
         // Send a sheet.list command with a session ID that doesn't exist
         var request = new ServiceRequest
@@ -108,7 +142,7 @@ public sealed class ExcelMcpServiceErrorTests
     [Fact]
     public async Task ProcessAsync_SessionCommandOnTimedOutSession_FailsFastBeforeExecutingBatch()
     {
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
         var batch = new FakeBatch { HasTimedOutOperation = true };
         const string sessionId = "timed-out-sheet-list";
 
@@ -130,7 +164,7 @@ public sealed class ExcelMcpServiceErrorTests
     [Fact]
     public async Task ProcessAsync_SessionSaveOnTimedOutSession_FailsFastBeforeSaving()
     {
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
         var batch = new FakeBatch { HasTimedOutOperation = true };
         const string sessionId = "timed-out-save";
 
@@ -151,7 +185,7 @@ public sealed class ExcelMcpServiceErrorTests
     [Fact]
     public async Task ProcessAsync_SessionSaveOnHealthySession_StillSavesNormally()
     {
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
         var batch = new FakeBatch();
         const string sessionId = "healthy-save";
 
@@ -170,7 +204,7 @@ public sealed class ExcelMcpServiceErrorTests
     [Fact]
     public async Task ProcessAsync_SessionCloseSaveAfterRpcDisconnected_CleansSessionAndReturnsActionableError()
     {
-        using var service = new ExcelMcpService();
+        using var service = CreateService();
         var batch = new FakeBatch
         {
 #pragma warning disable CA2201
@@ -233,6 +267,19 @@ public sealed class ExcelMcpServiceErrorTests
         var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
         return (T)field!.GetValue(instance)!;
+    }
+
+    private ExcelMcpService CreateService() => new(_stateRoot);
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (Directory.Exists(_stateRoot))
+        {
+            Directory.Delete(_stateRoot, recursive: true);
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     private sealed class FakeBatch : IExcelBatch

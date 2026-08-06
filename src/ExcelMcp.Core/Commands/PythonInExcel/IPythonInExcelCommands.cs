@@ -59,7 +59,7 @@ public interface IPythonInExcelCommands
     /// <param name="rangeAddress">Cell address containing the PY() formula</param>
     /// <param name="maxWaitSeconds">Maximum seconds to poll for the cloud result before giving up (default: 30). Returns as soon as the result is ready.</param>
     /// <exception cref="InvalidOperationException">If the range cannot be resolved</exception>
-    [ServiceAction("get-result")]
+    [ServiceAction("get-result", IsMutation = false)]
     PythonInExcelResult GetResult(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,

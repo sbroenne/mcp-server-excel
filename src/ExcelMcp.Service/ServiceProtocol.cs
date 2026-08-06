@@ -41,6 +41,18 @@ public sealed class ServiceRequest
     /// <summary>Source of the request.</summary>
     public string? Source { get; init; }
 
+    /// <summary>Return a mutation review plan without executing the command.</summary>
+    public bool ReviewOnly { get; init; }
+
+    /// <summary>Bound review identifier authorizing a previously reviewed mutation.</summary>
+    public string? ReviewId { get; init; }
+
+    /// <summary>Create a recoverable checkpoint immediately before a mutation.</summary>
+    public bool Checkpoint { get; init; }
+
+    /// <summary>Client-generated key that makes an execution request safe to retry.</summary>
+    public string? IdempotencyKey { get; init; }
+
     /// <summary>
     /// Converts to shared request type for serialization.
     /// </summary>
@@ -49,7 +61,11 @@ public sealed class ServiceRequest
         Command = Command,
         SessionId = SessionId,
         Args = Args,
-        Source = Source ?? "cli"
+        Source = Source ?? "cli",
+        ReviewOnly = ReviewOnly,
+        ReviewId = ReviewId,
+        Checkpoint = Checkpoint,
+        IdempotencyKey = IdempotencyKey
     };
 }
 

@@ -144,7 +144,7 @@
       OutputPath="$(SkillOutputPath)"
       ManifestPath="$(SkillManifestPath)"
       ExcludeCommands="diag"
-      ExtraOperationCount="6"
+      ExtraOperationCount="11"
       ExtraToolCount="1" />
     <Message Text="Generated CLI Skill: $(SkillOutputPath)" Importance="high" />
   </Target>

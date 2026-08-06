@@ -111,6 +111,17 @@ public static class ExcelMcpTelemetry
     }
 
     /// <summary>
+    /// Gets whether the user disabled MCP telemetry for the current process.
+    /// </summary>
+    internal static bool IsOptedOut()
+    {
+        return string.Equals(
+            Environment.GetEnvironmentVariable("EXCELMCP_TELEMETRY_OPTOUT"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Tracks a tool invocation with usage and performance metrics.
     /// - TrackEvent: For tool usage analytics (customEvents table)
     /// - TrackRequest: For performance metrics (requests table, Performance blade)
@@ -182,16 +193,25 @@ public static class ExcelMcpTelemetry
     {
         if (_telemetryClient == null || exception == null) return;
 
-        // Redact sensitive data from exception
-        var (type, _, _) = SensitiveDataRedactor.RedactException(exception);
+        var telemetry = CreateUnhandledExceptionTelemetry(exception, source);
+        _telemetryClient.TrackException(telemetry);
+    }
 
-        // Track as exception in Application Insights (for Failures blade)
-        var telemetry = new ExceptionTelemetry(exception);
+    /// <summary>
+    /// Builds the exact exception telemetry payload emitted by <see cref="TrackUnhandledException"/>.
+    /// </summary>
+    internal static ExceptionTelemetry CreateUnhandledExceptionTelemetry(Exception exception, string source)
+    {
+        var (type, message, _) = SensitiveDataRedactor.RedactException(exception);
+
+        // ExceptionTelemetry captures the supplied Exception details. Never construct it from the
+        // original exception, because its message, stack, and inner exceptions may contain PII.
+        var telemetry = new ExceptionTelemetry(new InvalidOperationException(message));
         telemetry.Properties["Source"] = source;
         telemetry.Properties["ExceptionType"] = type;
         telemetry.Properties["AppVersion"] = GetVersion();
         ApplyContext(telemetry);
-        _telemetryClient.TrackException(telemetry);
+        return telemetry;
     }
 
     /// <summary>

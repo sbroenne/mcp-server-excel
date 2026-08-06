@@ -4,6 +4,9 @@ using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
+using ServiceBatchOperation = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchOperation;
+using ServiceBatchRequest = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchRequest;
+using ServiceBatchResponse = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchResponse;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -17,6 +20,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 {
+    internal const int MaximumServerBatchOperations = 256;
     internal sealed class Settings : CommandSettings
     {
         [CommandOption("-i|--input <FILE>")]
@@ -66,6 +70,20 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
 
         string? activeSession = settings.SessionId;
+        if (CanUseServerBatch(commands, activeSession))
+        {
+            int? serverBatchExitCode = await TryExecuteServerBatchAsync(
+                client,
+                commands,
+                activeSession!,
+                settings.StopOnError,
+                cancellationToken);
+            if (serverBatchExitCode.HasValue)
+            {
+                return serverBatchExitCode.Value;
+            }
+        }
+
         bool hasErrors = false;
 
         for (int i = 0; i < commands.Count; i++)
@@ -81,7 +99,11 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 Args = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
                     ? cmd.Args.Value.GetRawText()
                     : null,
-                Source = "cli-batch"
+                Source = "cli-batch",
+                ReviewOnly = cmd.ReviewOnly,
+                ReviewId = cmd.ReviewId,
+                Checkpoint = cmd.Checkpoint,
+                IdempotencyKey = cmd.IdempotencyKey
             };
 
             ServiceResponse response;
@@ -117,7 +139,10 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 Command = cmd.Command,
                 Success = response.Success,
                 Result = response.Success ? TryParseJsonElement(response.Result) : null,
-                Error = response.ErrorMessage
+                Error = response.ErrorMessage,
+                ErrorCategory = response.ErrorCategory,
+                ExceptionType = response.ExceptionType,
+                HResult = response.HResult,
             };
 
             Console.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
@@ -130,6 +155,212 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
 
         return hasErrors ? 1 : 0;
+    }
+
+    private static bool CanUseServerBatch(IReadOnlyList<BatchEntry> commands, string? activeSession)
+    {
+        if (string.IsNullOrWhiteSpace(activeSession) ||
+            commands.Count is < 1 or > MaximumServerBatchOperations)
+        {
+            return false;
+        }
+
+        foreach (var command in commands)
+        {
+            var effectiveSession = command.SessionId ?? activeSession;
+            if (!string.Equals(effectiveSession, activeSession, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var parts = command.Command.Split('.', 2);
+            if (parts.Length != 2 || !IsServerBatchCategory(parts[0], parts[1]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsServerBatchCategory(string category, string action) =>
+        ServerBatchCategories.Contains(category) ||
+        (category == "sheet" && action is not ("copy-to-file" or "move-to-file"));
+
+    internal static bool IsWithinServerBatchLimit(int commandCount) =>
+        commandCount is >= 1 and <= MaximumServerBatchOperations;
+
+    private static async Task<int?> TryExecuteServerBatchAsync(
+        ServiceClient client,
+        IReadOnlyList<BatchEntry> commands,
+        string sessionId,
+        bool stopOnError,
+        CancellationToken cancellationToken)
+    {
+        var batchRequest = new ServiceBatchRequest
+        {
+            StopOnError = stopOnError,
+            Operations = commands.Select(command => new ServiceBatchOperation
+            {
+                Command = command.Command,
+                SessionId = command.SessionId ?? sessionId,
+                Args = command.Args,
+                ReviewOnly = command.ReviewOnly,
+                ReviewId = command.ReviewId,
+                Checkpoint = command.Checkpoint,
+                IdempotencyKey = command.IdempotencyKey,
+            }).ToList(),
+        };
+        var request = new ServiceRequest
+        {
+            Command = "session.batch",
+            SessionId = sessionId,
+            Args = ServiceProtocol.Serialize(batchRequest),
+            Source = "cli-batch",
+        };
+
+        ServiceResponse response;
+        try
+        {
+            response = await client.SendAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            WriteBatchTransportFailure(ex.Message);
+            return 1;
+        }
+
+        // An older daemon has definitely rejected the batch before executing any
+        // nested command, so falling back is safe and preserves compatibility.
+        if (!response.Success &&
+            string.Equals(response.ErrorMessage, "Unknown session action: batch", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        ServiceBatchResponse? batchResponse = null;
+        if (!string.IsNullOrWhiteSpace(response.Result))
+        {
+            try
+            {
+                batchResponse = ServiceProtocol.Deserialize<ServiceBatchResponse>(response.Result);
+            }
+            catch (JsonException)
+            {
+                // An ambiguous or malformed response must never trigger a replay.
+            }
+        }
+
+        if (!TryValidateServerBatchResponse(batchResponse, commands.Count, out var protocolError) || batchResponse is null)
+        {
+            WriteBatchTransportFailure(protocolError ?? response.ErrorMessage ?? "The service returned an invalid batch response.");
+            return 1;
+        }
+
+        foreach (var result in batchResponse.Results)
+        {
+            string command = result.Command ??
+                (result.Index >= 0 && result.Index < commands.Count
+                    ? commands[result.Index].Command
+                    : "session.batch");
+            var output = new BatchResult
+            {
+                Index = result.Index,
+                Command = command,
+                Success = result.Success,
+                Result = result.Result,
+                Error = result.ErrorMessage,
+                ErrorCategory = result.ErrorCategory,
+                ExceptionType = result.ExceptionType,
+                HResult = result.HResult,
+            };
+            Console.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
+        }
+
+        return batchResponse.Success ? 0 : 1;
+    }
+
+    internal static bool TryValidateServerBatchResponse(
+        ServiceBatchResponse? batchResponse,
+        int commandCount,
+        out string? error)
+    {
+        error = null;
+        if (batchResponse is null)
+        {
+            error = "The service returned an invalid batch response.";
+            return false;
+        }
+
+        var results = batchResponse.Results;
+        if (results is null || results.Count is < 1 || results.Count > commandCount)
+        {
+            error = "The service returned an invalid batch response result count.";
+            return false;
+        }
+
+        // A pre-execution validation failure may be represented by a single
+        // result at the original operation position (for example, operation
+        // 3 can be rejected before operations 0-2 are dispatched).  Normal
+        // execution results are always contiguous from index 0.
+        int expectedStart = !batchResponse.Completed &&
+            batchResponse.FailedIndex is { } validationIndex &&
+            results.Count == 1 && results[0].Index == validationIndex
+            ? validationIndex
+            : 0;
+
+        for (int index = 0; index < results.Count; index++)
+        {
+            var result = results[index];
+            if (result is null || result.Index != expectedStart + index ||
+                result.Index < 0 || result.Index >= commandCount)
+            {
+                error = "The service returned non-sequential or out-of-range batch result indexes.";
+                return false;
+            }
+        }
+
+        if (batchResponse.Completed && results.Count != commandCount)
+        {
+            error = "The service marked the batch complete without returning every operation result.";
+            return false;
+        }
+
+        if (batchResponse.Success &&
+            (!batchResponse.Completed || results.Any(result => !result.Success)))
+        {
+            error = "The service returned a successful batch envelope with incomplete or failed operation results.";
+            return false;
+        }
+
+        if (!batchResponse.Success && results.All(result => result.Success))
+        {
+            error = "The service returned a failed batch envelope without a failed operation result.";
+            return false;
+        }
+
+        if (batchResponse.FailedIndex is { } failedIndex &&
+            (failedIndex < 0 || failedIndex >= commandCount ||
+             !results.Any(result => result.Index == failedIndex && !result.Success)))
+        {
+            error = "The service returned an invalid failed operation index.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void WriteBatchTransportFailure(string message)
+    {
+        var output = new BatchResult
+        {
+            Index = 0,
+            Command = "session.batch",
+            Success = false,
+            Error = $"Communication error: {message}",
+            ErrorCategory = "ServiceProtocol",
+        };
+        Console.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
     }
 
     /// <summary>
@@ -242,6 +473,34 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    private static readonly HashSet<string> ServerBatchCategories = new(StringComparer.Ordinal)
+    {
+        "sheetstyle",
+        "range",
+        "rangeedit",
+        "rangeformat",
+        "rangelink",
+        "table",
+        "tablecolumn",
+        "powerquery",
+        "pivottable",
+        "pivottablefield",
+        "pivottablecalc",
+        "chart",
+        "chartconfig",
+        "connection",
+        "calculation",
+        "namedrange",
+        "conditionalformat",
+        "vba",
+        "datamodel",
+        "datamodelrel",
+        "slicer",
+        "screenshot",
+        "window",
+        "pythoninexcel",
+    };
+
     // ── Models ──────────────────────────────────────────────────────
 
     private sealed class BatchEntry
@@ -254,6 +513,18 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
         [JsonPropertyName("args")]
         public JsonElement? Args { get; init; }
+
+        [JsonPropertyName("reviewOnly")]
+        public bool ReviewOnly { get; init; }
+
+        [JsonPropertyName("reviewId")]
+        public string? ReviewId { get; init; }
+
+        [JsonPropertyName("checkpoint")]
+        public bool Checkpoint { get; init; }
+
+        [JsonPropertyName("idempotencyKey")]
+        public string? IdempotencyKey { get; init; }
     }
 
     private sealed class BatchResult
@@ -272,5 +543,14 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
         [JsonPropertyName("error")]
         public string? Error { get; init; }
+
+        [JsonPropertyName("errorCategory")]
+        public string? ErrorCategory { get; init; }
+
+        [JsonPropertyName("exceptionType")]
+        public string? ExceptionType { get; init; }
+
+        [JsonPropertyName("hresult")]
+        public string? HResult { get; init; }
     }
 }

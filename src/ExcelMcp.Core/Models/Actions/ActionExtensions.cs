@@ -14,6 +14,11 @@ public static class ActionExtensions
         FileAction.Create => "create",
         FileAction.CloseWorkbook => "close-workbook",
         FileAction.Test => "test",
+        FileAction.Preflight => "preflight",
+        FileAction.ConfigureSafety => "configure-safety",
+        FileAction.Journal => "journal",
+        FileAction.Recoveries => "recoveries",
+        FileAction.Recover => "recover",
         _ => throw new ArgumentException($"Unknown FileAction: {action}")
     };
 

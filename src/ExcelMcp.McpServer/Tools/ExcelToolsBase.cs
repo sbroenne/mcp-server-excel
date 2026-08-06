@@ -18,6 +18,13 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static class ExcelToolsBase
 {
     private static readonly AsyncLocal<CancellationToken> CurrentCancellationToken = new();
+    private static readonly AsyncLocal<SafetyRequestContext?> CurrentSafetyRequest = new();
+
+    private sealed record SafetyRequestContext(
+        bool ReviewOnly,
+        string? ReviewId,
+        bool Checkpoint,
+        string? IdempotencyKey);
 
     private sealed class CancellationTokenScope : IDisposable
     {
@@ -38,6 +45,29 @@ public static class ExcelToolsBase
             }
 
             CurrentCancellationToken.Value = _previousToken;
+            _disposed = true;
+        }
+    }
+
+    private sealed class SafetyRequestScope : IDisposable
+    {
+        private readonly SafetyRequestContext? _previousContext;
+        private bool _disposed;
+
+        public SafetyRequestScope(SafetyRequestContext context)
+        {
+            _previousContext = CurrentSafetyRequest.Value;
+            CurrentSafetyRequest.Value = context;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            CurrentSafetyRequest.Value = _previousContext;
             _disposed = true;
         }
     }
@@ -80,6 +110,13 @@ public static class ExcelToolsBase
     internal static IDisposable PushCancellationToken(CancellationToken cancellationToken) =>
         new CancellationTokenScope(cancellationToken);
 
+    internal static IDisposable PushSafetyOptions(
+        bool reviewOnly,
+        string? reviewId,
+        bool checkpoint,
+        string? idempotencyKey = null) =>
+        new SafetyRequestScope(new SafetyRequestContext(reviewOnly, reviewId, checkpoint, idempotencyKey));
+
     /// <summary>
     /// Forwards a command to the ExcelMCP Service and returns the JSON response.
     /// This is the primary method for MCP tools to execute commands.
@@ -98,12 +135,17 @@ public static class ExcelToolsBase
         object? args = null,
         int? timeoutSeconds = null)
     {
+        var safetyRequest = CurrentSafetyRequest.Value;
         var response = ServiceBridge.ServiceBridge.SendAsync(
             command,
             sessionId,
             args,
             timeoutSeconds,
-            CurrentCancellationToken.Value).GetAwaiter().GetResult();
+            CurrentCancellationToken.Value,
+            reviewOnly: safetyRequest?.ReviewOnly ?? false,
+            reviewId: safetyRequest?.ReviewId,
+            checkpoint: safetyRequest?.Checkpoint ?? false,
+            idempotencyKey: safetyRequest?.IdempotencyKey).GetAwaiter().GetResult();
 
         if (!response.Success)
         {

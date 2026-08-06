@@ -21,6 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PythonInExcel;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PythonInExcel")]
+[Trait("Speed", "Slow")]
 [Trait("RunType", "OnDemand")]
 public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixture>
 {
@@ -199,6 +200,26 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
         Assert.NotNull(getResult.ErrorMessage);
     }
 
+    /// <summary>
+    /// A function whose name merely ends in "PY" is not a direct Python in Excel formula.
+    /// Its #NAME? result must therefore never be presented as a Python entitlement failure.
+    /// </summary>
+    [Fact]
+    public void GetResult_NonPythonFunctionEndingInPy_IsNotClassifiedAsPythonUnavailable()
+    {
+        using var batch = BeginBatch();
+        int startRow = _fixture.GetUniqueRowBlockStart();
+        string targetCell = $"D{startRow}";
+        var setResult = _rangeCommands.SetFormulas(batch, "Sheet1", targetCell, [["=NOTPY()"]]);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+
+        var getResult = _pythonCommands.GetResult(batch, "Sheet1", targetCell, maxWaitSeconds: 1);
+
+        Assert.False(getResult.Success);
+        Assert.False(getResult.IsPythonUnavailable);
+        Assert.Contains("does not contain a Python in Excel", getResult.ErrorMessage, StringComparison.Ordinal);
+    }
+
     /// <inheritdoc/>
     [Fact]
     public void SetFormula_WithReturnTypePythonObject_GetResultReportsObjectType()
@@ -251,4 +272,5 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
         Assert.Throws<ArgumentException>(
             () => _pythonCommands.SetFormula(batch, "Sheet1", targetCell, string.Empty));
     }
+
 }

@@ -164,7 +164,7 @@ public interface IConditionalFormattingCommands
     /// <param name="sheetName">Sheet name (empty for active sheet)</param>
     /// <param name="rangeAddress">Range address to read rules from (e.g., A1:G41)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
-    [ServiceAction("list-rules")]
+    [ServiceAction("list-rules", IsMutation = false)]
     ConditionalFormatListResult ListRules(
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName,
@@ -179,7 +179,7 @@ public interface IConditionalFormattingCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Sheet name (empty for active sheet)</param>
     /// <exception cref="InvalidOperationException">Sheet not found</exception>
-    [ServiceAction("list-worksheet-rules")]
+    [ServiceAction("list-worksheet-rules", IsMutation = false)]
     ConditionalFormatListResult ListWorksheetRules(
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName);

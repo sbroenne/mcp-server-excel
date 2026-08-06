@@ -17,6 +17,7 @@ public interface IDiagCommands
     /// and the CLI/MCP pipeline works end-to-end.
     /// </summary>
     /// <returns>Success result with timestamp</returns>
+    [ServiceAction("ping", IsMutation = false)]
     DiagResult Ping();
 
     /// <summary>
@@ -26,6 +27,7 @@ public interface IDiagCommands
     /// <param name="message">The message to echo back (required)</param>
     /// <param name="tag">Optional tag to include in the response</param>
     /// <returns>Result containing the echoed message and tag</returns>
+    [ServiceAction("echo", IsMutation = false)]
     DiagResult Echo(string message, string? tag = null);
 
     /// <summary>
@@ -38,6 +40,6 @@ public interface IDiagCommands
     /// <param name="label">Optional label parameter</param>
     /// <param name="verbose">Optional boolean flag (default: false)</param>
     /// <returns>Result containing all parsed parameter values</returns>
-    [ServiceAction("validate-params")]
+    [ServiceAction("validate-params", IsMutation = false)]
     DiagResult ValidateParams(string name, int count, string? label = null, bool verbose = false);
 }

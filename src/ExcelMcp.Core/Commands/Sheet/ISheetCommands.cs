@@ -28,7 +28,7 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, uses primary workbook.</param>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     WorksheetListResult List(IExcelBatch batch, string? filePath = null);
 
     /// <summary>
@@ -98,7 +98,7 @@ public interface ISheetCommands
     /// <param name="targetSheetName">Optional: New name for the copied sheet (default: keeps original name)</param>
     /// <param name="beforeSheet">Optional: Position before this sheet in target</param>
     /// <param name="afterSheet">Optional: Position after this sheet in target</param>
-    [ServiceAction("copy-to-file")]
+    [ServiceAction("copy-to-file", RequiresSession = false)]
     OperationResult CopyToFile(
         [RequiredParameter] string sourceFile,
         [RequiredParameter] string sourceSheet,
@@ -118,7 +118,7 @@ public interface ISheetCommands
     /// <param name="targetFile">Full path to the target workbook</param>
     /// <param name="beforeSheet">Optional: Position before this sheet in target</param>
     /// <param name="afterSheet">Optional: Position after this sheet in target</param>
-    [ServiceAction("move-to-file")]
+    [ServiceAction("move-to-file", RequiresSession = false)]
     OperationResult MoveToFile(
         [RequiredParameter] string sourceFile,
         [RequiredParameter] string sourceSheet,

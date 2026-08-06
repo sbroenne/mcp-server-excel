@@ -64,7 +64,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## What You Can Do
 
-**18 command categories with 234 operations** for comprehensive Excel automation:
+**18 command categories with 239 operations** for comprehensive Excel automation:
 
 - **Power Query** (12 ops) — Create, update, refresh queries; M code management
 - **Data Model/DAX** (19 ops) — Measures, relationships, EVALUATE queries
@@ -76,13 +76,13 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Worksheets** (16 ops) — Create, rename, copy, move between workbooks
 - **VBA** (6 ops) — Module management and execution
 - **Connections** (9 ops) — OLEDB/ODBC/Text/Web connection management
-- **Conditional Formatting** (2 ops) — Add rules, clear formatting
+- **Conditional Formatting** (4 ops) — Add, list by range or worksheet, and clear rules, including visual rule types
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation
 - **Python in Excel** (2 ops) — Set/get Python formulas and results
 - **Screenshot** (2 ops) — Capture ranges/sheets as PNG
-- **File & Session** (6 ops) — Create, open, close, session management
+- **File & Session** (11 ops) — Create, open, close, preflight, safety configuration, journals, and recovery
 - **Window Management** (9 ops) — Show/hide Excel, positioning
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)

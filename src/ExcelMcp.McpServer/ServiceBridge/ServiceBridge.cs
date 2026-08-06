@@ -82,7 +82,11 @@ public static class ServiceBridge
         string? sessionId = null,
         object? args = null,
         int? timeoutSeconds = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool reviewOnly = false,
+        string? reviewId = null,
+        bool checkpoint = false,
+        string? idempotencyKey = null)
     {
         if (!await EnsureServiceAsync(cancellationToken))
         {
@@ -101,7 +105,12 @@ public static class ServiceBridge
         {
             Command = command,
             SessionId = sessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, JsonOptions) : null
+            Args = args != null ? JsonSerializer.Serialize(args, JsonOptions) : null,
+            Source = "mcp",
+            ReviewOnly = reviewOnly,
+            ReviewId = reviewId,
+            Checkpoint = checkpoint,
+            IdempotencyKey = idempotencyKey
         };
 
         var service = _service!;

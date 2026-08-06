@@ -27,8 +27,17 @@ public partial class TableCommands
             dynamic? table = null;
             dynamic? sheet = null;
             dynamic? dataBodyRange = null;
+            dynamic? tableRange = null;
+            dynamic? writeRange = null;
+            dynamic? resizeRange = null;
+            dynamic? startCell = null;
+            dynamic? endCell = null;
+            dynamic? rollbackRange = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
+            bool resized = false;
+            bool appendSucceeded = false;
+            string? originalTableAddress = null;
 
             try
             {
@@ -64,8 +73,41 @@ public partial class TableCommands
                     }
                 }
 
+                tableRange = table.Range;
+                int tableRow = tableRange.Row;
+                int tableColumn = tableRange.Column;
+                originalTableAddress = Convert.ToString(
+                    tableRange.Address,
+                    CultureInfo.InvariantCulture);
                 int columnCount = table.ListColumns.Count;
                 int rowsToAdd = resolvedRows.Count;
+
+                for (int rowIndex = 0; rowIndex < rowsToAdd; rowIndex++)
+                {
+                    int actualColumnCount = resolvedRows[rowIndex].Count;
+                    if (actualColumnCount != columnCount)
+                    {
+                        throw new ArgumentException(
+                            $"Row {rowIndex + 1} column count ({actualColumnCount}) doesn't match table column count ({columnCount})",
+                            nameof(rows));
+                    }
+                }
+
+                // Excel COM accepts a whole rectangular block in one call. Build the
+                // 1-based SAFEARRAY before mutating the workbook so conversion errors
+                // cannot leave a partially appended table.
+                object[,] arrayValues = (object[,])Array.CreateInstance(
+                    typeof(object),
+                    [rowsToAdd, columnCount],
+                    [1, 1]);
+                for (int row = 1; row <= rowsToAdd; row++)
+                {
+                    for (int column = 1; column <= columnCount; column++)
+                    {
+                        arrayValues[row, column] = RangeHelpers.ConvertToCellValue(
+                            resolvedRows[row - 1][column - 1]);
+                    }
+                }
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
@@ -75,59 +117,51 @@ public partial class TableCommands
                     calculationChanged = true;
                 }
 
-                // Write data to cells below the table
-                for (int i = 0; i < resolvedRows.Count; i++)
-                {
-                    var rowValues = resolvedRows[i];
-                    for (int j = 0; j < Math.Min(rowValues.Count, columnCount); j++)
-                    {
-                        dynamic? cell = null;
-                        try
-                        {
-                            cell = sheet.Cells[currentRow + i, table.Range.Column + j];
-                            cell.Value2 = RangeHelpers.ConvertToCellValue(rowValues[j]);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref cell);
-                        }
-                    }
-                }
-
-                // Restore calculation before Resize (table operations may need recalculation)
-                if (calculationChanged && originalCalculation != -1)
-                {
-                    try
-                    {
-                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
-                        calculationChanged = false;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore errors restoring calculation mode
-                    }
-                }
-
-                // Resize table to include new rows
+                // Resize once, then write the new rows as one contiguous block. If a
+                // totals row is visible Excel moves it below the newly appended rows.
                 int newLastRow = currentRow + rowsToAdd - 1;
-                int newLastCol = table.Range.Column + columnCount - 1;
-                string newRangeAddress = $"{sheet.Cells[table.Range.Row, table.Range.Column].Address}:{sheet.Cells[newLastRow, newLastCol].Address}";
+                int newLastCol = tableColumn + columnCount - 1;
+                bool showTotals = table.ShowTotals;
 
-                dynamic? resizeRange = null;
-                try
-                {
-                    resizeRange = sheet.Range[newRangeAddress];
-                    table.Resize(resizeRange);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref resizeRange);
-                }
+                startCell = sheet.Cells[tableRow, tableColumn];
+                endCell = sheet.Cells[newLastRow + (showTotals ? 1 : 0), newLastCol];
+                string resizeAddress = $"{startCell.Address}:{endCell.Address}";
+                resizeRange = sheet.Range[resizeAddress];
+                table.Resize(resizeRange);
+                resized = true;
+
+                ComUtilities.Release(ref startCell);
+                ComUtilities.Release(ref endCell);
+
+                startCell = sheet.Cells[currentRow, tableColumn];
+                endCell = sheet.Cells[newLastRow, newLastCol];
+                string writeAddress = $"{startCell.Address}:{endCell.Address}";
+                writeRange = sheet.Range[writeAddress];
+                writeRange.Value2 = arrayValues;
+                appendSucceeded = true;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
+                if (!appendSucceeded && resized && !string.IsNullOrWhiteSpace(originalTableAddress))
+                {
+                    try
+                    {
+                        rollbackRange = sheet.Range[originalTableAddress];
+                        table.Resize(rollbackRange);
+                    }
+                    catch (Exception)
+                    {
+                        // Rollback is best effort. Preserve the original append failure
+                        // while ensuring the temporary range is released below.
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref rollbackRange);
+                    }
+                }
+
                 if (calculationChanged && originalCalculation != -1)
                 {
                     try
@@ -139,6 +173,11 @@ public partial class TableCommands
                         // Ignore errors restoring calculation mode
                     }
                 }
+                ComUtilities.Release(ref endCell);
+                ComUtilities.Release(ref startCell);
+                ComUtilities.Release(ref resizeRange);
+                ComUtilities.Release(ref writeRange);
+                ComUtilities.Release(ref tableRange);
                 ComUtilities.Release(ref dataBodyRange);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref table);

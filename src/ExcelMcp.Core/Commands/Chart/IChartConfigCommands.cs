@@ -126,7 +126,7 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="axis">Which axis to get format from</param>
-    [ServiceAction("get-axis-number-format")]
+    [ServiceAction("get-axis-number-format", IsMutation = false)]
     string GetAxisNumberFormat(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
@@ -220,7 +220,7 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="axis">Which axis to get scale settings from</param>
-    [ServiceAction("get-axis-scale")]
+    [ServiceAction("get-axis-scale", IsMutation = false)]
     AxisScaleResult GetAxisScale(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
@@ -253,7 +253,7 @@ public interface IChartConfigCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
-    [ServiceAction("get-gridlines")]
+    [ServiceAction("get-gridlines", IsMutation = false)]
     GridlinesResult GetGridlines(
         IExcelBatch batch,
         [RequiredParameter] string chartName);
@@ -306,7 +306,7 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="seriesIndex">1-based index of the series</param>
-    [ServiceAction("list-trendlines")]
+    [ServiceAction("list-trendlines", IsMutation = false)]
     TrendlineListResult ListTrendlines(
         IExcelBatch batch,
         [RequiredParameter] string chartName,

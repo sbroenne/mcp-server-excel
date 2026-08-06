@@ -25,6 +25,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Speed", "Slow")]
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "ExcelBatch")]
+[Trait("RequiresExcel", "true")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")]
 public class ExcelBatchTimeoutTests : IAsyncLifetime
@@ -431,6 +432,87 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         // Cleanup
         batch.Dispose();
         _output.WriteLine("✓ Subsequent Execute after timeout fails fast");
+    }
+
+    [Fact]
+    public async Task Execute_CallerCancelsWhileQueued_DoesNotRunOrPoisonSession()
+    {
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(10),
+            _testFileCopy!);
+        using var blockerEntered = new ManualResetEventSlim(false);
+        using var releaseBlocker = new ManualResetEventSlim(false);
+        using var blockerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var queuedCancellation = new CancellationTokenSource();
+        int queuedDelegateRuns = 0;
+
+        var blocker = Task.Run(() => batch.Execute((_, token) =>
+        {
+            blockerEntered.Set();
+            releaseBlocker.Wait(token);
+            return 1;
+        }, blockerCancellation.Token));
+
+        Assert.True(blockerEntered.Wait(TimeSpan.FromSeconds(5)));
+        var queued = Task.Run(() => Assert.Throws<ExcelOperationNotStartedCanceledException>(() =>
+            batch.Execute((_, _) =>
+            {
+                Interlocked.Increment(ref queuedDelegateRuns);
+                return 2;
+            }, queuedCancellation.Token)));
+
+        await Task.Delay(100);
+        queuedCancellation.Cancel();
+        var cancellation = await queued.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Contains("before", cancellation.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0, Volatile.Read(ref queuedDelegateRuns));
+
+        releaseBlocker.Set();
+        Assert.Equal(1, await blocker.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(42, batch.Execute(static (_, _) => 42));
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0, Volatile.Read(ref queuedDelegateRuns));
+    }
+
+    [Fact]
+    public async Task Execute_SessionDeadlineWhileQueued_DoesNotRunOrPoisonSession()
+    {
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(2),
+            _testFileCopy!);
+        using var blockerEntered = new ManualResetEventSlim(false);
+        using var releaseBlocker = new ManualResetEventSlim(false);
+        using var blockerCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        int queuedDelegateRuns = 0;
+
+        var blocker = Task.Run(() => batch.Execute((_, token) =>
+        {
+            blockerEntered.Set();
+            releaseBlocker.Wait(token);
+            return 1;
+        }, blockerCancellation.Token));
+
+        Assert.True(blockerEntered.Wait(TimeSpan.FromSeconds(5)));
+        var timeout = Assert.Throws<ExcelOperationNotStartedTimeoutException>(() =>
+            batch.Execute((_, _) =>
+            {
+                Interlocked.Increment(ref queuedDelegateRuns);
+                return 2;
+            }));
+
+        Assert.Contains("waiting to start", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0, Volatile.Read(ref queuedDelegateRuns));
+
+        releaseBlocker.Set();
+        Assert.Equal(1, await blocker.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(42, batch.Execute(static (_, _) => 42));
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0, Volatile.Read(ref queuedDelegateRuns));
     }
 
     /// <summary>

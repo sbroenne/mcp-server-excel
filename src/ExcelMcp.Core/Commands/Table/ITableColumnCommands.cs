@@ -62,7 +62,7 @@ public interface ITableColumnCommands
     /// Gets current filter state for all columns in a table
     /// </summary>
     /// <param name="tableName">Name of the Excel table</param>
-    [ServiceAction("get-filters")]
+    [ServiceAction("get-filters", IsMutation = false)]
     TableFilterResult GetFilters(IExcelBatch batch, string tableName);
 
     // === COLUMN OPERATIONS ===
@@ -104,7 +104,7 @@ public interface ITableColumnCommands
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="region">Table region: 'Data', 'Headers', 'Totals', or 'All'</param>
     /// <param name="columnName">Optional column name for column-specific reference</param>
-    [ServiceAction("get-structured-reference")]
+    [ServiceAction("get-structured-reference", IsMutation = false)]
     TableStructuredReferenceResult GetStructuredReference(IExcelBatch batch, string tableName, [FromString] TableRegion region, string? columnName = null);
 
     // === SORT OPERATIONS ===
@@ -137,7 +137,7 @@ public interface ITableColumnCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="tableName">Table name</param>
     /// <param name="columnName">Column name</param>
-    [ServiceAction("get-column-number-format")]
+    [ServiceAction("get-column-number-format", IsMutation = false)]
     RangeNumberFormatResult GetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName);
 
     /// <summary>

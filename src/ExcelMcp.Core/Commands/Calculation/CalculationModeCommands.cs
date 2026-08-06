@@ -80,7 +80,7 @@ public interface ICalculationModeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>Current calculation mode (automatic/manual/semi-automatic)</returns>
-    [ServiceAction("get-mode")]
+    [ServiceAction("get-mode", IsMutation = false)]
     CalculationModeResult GetMode(IExcelBatch batch);
 
     /// <summary>

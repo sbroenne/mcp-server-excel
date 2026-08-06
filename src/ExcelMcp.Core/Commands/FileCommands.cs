@@ -11,36 +11,21 @@ public class FileCommands : IFileCommands
     /// <inheritdoc />
     public FileValidationInfo Test(string filePath)
     {
-        filePath = Path.GetFullPath(filePath);
-
-        bool exists = File.Exists(filePath);
-        string extension = Path.GetExtension(filePath).ToLowerInvariant();
-        bool isValidExtension = extension is ".xlsx" or ".xlsm";
-
-        long size = 0;
-        DateTime lastModified = DateTime.MinValue;
-
-        if (exists)
-        {
-            var fileInfo = new FileInfo(filePath);
-            size = fileInfo.Length;
-            lastModified = fileInfo.LastWriteTime;
-        }
-
-        string? message = !exists
-            ? $"File not found: {filePath}"
-            : !isValidExtension ? $"Invalid file extension. Expected .xlsx or .xlsm, got {extension}" : null;
+        var validation = ExcelFileValidator.Inspect(filePath);
+        var lastModified = validation.Exists
+            ? new FileInfo(validation.FilePath).LastWriteTime
+            : DateTime.MinValue;
 
         return new FileValidationInfo
         {
-            FilePath = filePath,
-            Exists = exists,
-            Size = size,
-            Extension = extension,
+            FilePath = validation.FilePath,
+            Exists = validation.Exists,
+            Size = validation.Size,
+            Extension = validation.Extension,
             LastModified = lastModified,
-            IsValid = exists && isValidExtension,
-            IsIrmProtected = exists && FileAccessValidator.IsIrmProtected(filePath),
-            Message = message
+            IsValid = validation.IsValidExistingWorkbook,
+            IsIrmProtected = validation.Exists && FileAccessValidator.IsIrmProtected(validation.FilePath),
+            Message = validation.Message
         };
     }
 

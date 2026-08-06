@@ -75,7 +75,7 @@ public interface IWindowCommands
     /// Gets current window information (visibility, position, size, state).
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    [ServiceAction("get-info")]
+    [ServiceAction("get-info", IsMutation = false)]
     WindowInfoResult GetInfo(IExcelBatch batch);
 
     /// <summary>

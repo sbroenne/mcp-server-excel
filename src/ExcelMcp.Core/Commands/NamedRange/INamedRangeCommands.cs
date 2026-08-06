@@ -22,7 +22,7 @@ public interface INamedRangeCommands
     /// </summary>
     /// <returns>Structured result containing the list of named range information</returns>
     /// <exception cref="InvalidOperationException">If workbook access fails</exception>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     NamedRangeListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -45,7 +45,7 @@ public interface INamedRangeCommands
     /// <param name="name">Name of the named range</param>
     /// <returns>Named range value information</returns>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
-    [ServiceAction("read")]
+    [ServiceAction("read", IsMutation = false)]
     NamedRangeValue Read(
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name);

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -33,10 +34,16 @@ public static partial class ExcelFileTool
     /// </summary>
     /// <param name="action">The file operation to perform</param>
     /// <param name="path">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
-    /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
+    /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close, preflight, configure-safety, journal. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
-    /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    /// <param name="timeout_seconds">Maximum time in seconds for opening/creating the session and for operations in this session. Default: 120. Range: 10-3600. Used for: open, create</param>
+    /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation). Used for: open, create, recover.</param>
+    /// <param name="timeout_seconds">Maximum time in seconds for opening/creating/recovering the session and for operations in this session. Default: 120. Range: 10-3600. Used for: open, create, recover.</param>
+    /// <param name="recovery_id">Recovery ID returned by the recoveries action. Required for: recover.</param>
+    /// <param name="review_mode">Safety review mode: off, optional, required. Used for: configure-safety.</param>
+    /// <param name="checkpoint_mode">Safety checkpoint mode: off, onRequest, required. Used for: configure-safety.</param>
+    /// <param name="journal_mode">Safety journal mode: off, on. Used for: configure-safety.</param>
+    /// <param name="verification_mode">Safety verification mode: off, on. Used for: configure-safety.</param>
+    /// <param name="abnormal_shutdown_policy">Safety shutdown policy: legacyAutoSave, discardWithRecoveryEvidence. Used for: configure-safety.</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -47,6 +54,12 @@ public static partial class ExcelFileTool
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
         [DefaultValue(120)] int timeout_seconds,
+        [DefaultValue(null)] string? recovery_id = null,
+        [DefaultValue(null)] SafetyReviewMode? review_mode = null,
+        [DefaultValue(null)] SafetyCheckpointMode? checkpoint_mode = null,
+        [DefaultValue(null)] SafetyJournalMode? journal_mode = null,
+        [DefaultValue(null)] SafetyVerificationMode? verification_mode = null,
+        [DefaultValue(null)] SafetyAbnormalShutdownPolicy? abnormal_shutdown_policy = null,
         CancellationToken cancellationToken = default)
     {
         using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
@@ -79,6 +92,11 @@ public static partial class ExcelFileTool
                     FileAction.Create => CreateSessionAsync(path!, show, timeout),
                     FileAction.CloseWorkbook => CloseWorkbook(path!),
                     FileAction.Test => TestFileAsync(path!),
+                    FileAction.Preflight => PreflightSession(session_id!),
+                    FileAction.ConfigureSafety => ConfigureSafetySession(session_id!, review_mode, checkpoint_mode, journal_mode, verification_mode, abnormal_shutdown_policy),
+                    FileAction.Journal => GetSessionJournal(session_id!),
+                    FileAction.Recoveries => ListRecoveries(),
+                    FileAction.Recover => RecoverSession(recovery_id!, show, timeout),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -214,6 +232,85 @@ public static partial class ExcelFileTool
             session_id = sessionId,
             saved = save
         }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string PreflightSession(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ArgumentException("sessionId is required for 'preflight' action", nameof(sessionId));
+        }
+
+        var response = ServiceBridge.ServiceBridge.SendAsync("session.preflight", sessionId).GetAwaiter().GetResult();
+        if (!response.Success)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                session_id = sessionId,
+                error = response.ErrorMessage ?? "Failed to collect session preflight",
+                errorMessage = response.ErrorMessage ?? "Failed to collect session preflight",
+                errorCategory = response.ErrorCategory,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+
+        return response.Result ?? JsonSerializer.Serialize(new { success = true, sessionId }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ConfigureSafetySession(
+        string sessionId,
+        SafetyReviewMode? reviewMode,
+        SafetyCheckpointMode? checkpointMode,
+        SafetyJournalMode? journalMode,
+        SafetyVerificationMode? verificationMode,
+        SafetyAbnormalShutdownPolicy? abnormalShutdownPolicy)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ArgumentException("sessionId is required for 'configure-safety' action", nameof(sessionId));
+        }
+
+        return ExcelToolsBase.ForwardToService(
+            "session.configure-safety",
+            sessionId,
+            new SafetyConfigurationOptions
+            {
+                ReviewMode = reviewMode,
+                CheckpointMode = checkpointMode,
+                JournalMode = journalMode,
+                VerificationMode = verificationMode,
+                AbnormalShutdownPolicy = abnormalShutdownPolicy
+            });
+    }
+
+    private static string GetSessionJournal(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ArgumentException("sessionId is required for 'journal' action", nameof(sessionId));
+        }
+
+        return ExcelToolsBase.ForwardToService("session.journal", sessionId);
+    }
+
+    private static string ListRecoveries() => ExcelToolsBase.ForwardToServiceNoSession("recovery.list");
+
+    private static string RecoverSession(string recoveryId, bool show, TimeSpan timeout)
+    {
+        if (string.IsNullOrWhiteSpace(recoveryId))
+        {
+            throw new ArgumentException("recoveryId is required for 'recover' action", nameof(recoveryId));
+        }
+
+        var timeoutSeconds = (int)timeout.TotalSeconds;
+        return ExcelToolsBase.ForwardToServiceNoSession(
+            "recovery.recover",
+            new { recoveryId, show, timeoutSeconds },
+            timeoutSeconds);
     }
 
     /// <summary>

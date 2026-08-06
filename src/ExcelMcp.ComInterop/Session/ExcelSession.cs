@@ -73,22 +73,24 @@ public static class ExcelSession
         string[] fullPaths = new string[filePaths.Length];
         for (int i = 0; i < filePaths.Length; i++)
         {
-            string fullPath = Path.GetFullPath(filePaths[i]);
+            var validation = ExcelFileValidator.Inspect(filePaths[i]);
+            if (!validation.IsWithinPathLimit)
+            {
+                throw new PathTooLongException(validation.Message);
+            }
 
             // Validate file exists
-            if (!File.Exists(fullPath))
+            if (!validation.Exists)
             {
-                throw new FileNotFoundException($"Excel file not found: {fullPath}. To create a new file, use the 'create' action instead of 'open'.", fullPath);
+                throw new FileNotFoundException($"Excel file not found: {validation.FilePath}. To create a new file, use the 'create' action instead of 'open'.", validation.FilePath);
             }
 
-            // Security: Validate file extension
-            string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+            if (!validation.IsOpenableExtension || !validation.IsWithinSizeLimit)
             {
-                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+                throw new ArgumentException(validation.Message, nameof(filePaths));
             }
 
-            fullPaths[i] = fullPath;
+            fullPaths[i] = validation.FilePath;
         }
 
         // Create batch - it will create Excel/workbook on its own STA thread
@@ -126,15 +128,21 @@ public static class ExcelSession
         }
         try
         {
-            string fullPath = Path.GetFullPath(filePath);
-
-            // Validate path length BEFORE attempting Excel operations
-            // Excel's SaveAs has a practical limit of ~218 characters
-            if (fullPath.Length > 218)
+            var validation = ExcelFileValidator.Inspect(filePath);
+            if (!validation.IsWithinPathLimit || !validation.IsWithinCreatePathLimit)
             {
                 throw new PathTooLongException(
-                    $"File path exceeds Excel's maximum length (~218 characters): {fullPath.Length} characters");
+                    $"File path exceeds Excel's practical SaveAs limit of {ExcelFileValidator.MaximumCreatePathLength} characters: {validation.FilePath.Length} characters.");
             }
+
+            if (!validation.IsSupportedExtension)
+            {
+                throw new ArgumentException(
+                    $"Invalid file extension '{validation.Extension}'. Only .xlsx and .xlsm are supported.",
+                    nameof(filePath));
+            }
+
+            string fullPath = validation.FilePath;
 
             string? directory = Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))

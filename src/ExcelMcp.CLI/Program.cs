@@ -104,6 +104,16 @@ internal sealed class Program
                     .WithDescription("Close a session. Use --save to persist changes.");
                 branch.AddCommand<SessionListCommand>("list")
                     .WithDescription("List active sessions.");
+                branch.AddCommand<SessionPreflightCommand>("preflight")
+                    .WithDescription("Collect real-Excel compatibility and workbook-state evidence for an active session.");
+                branch.AddCommand<SessionConfigureSafetyCommand>("configure-safety")
+                    .WithDescription("Configure opt-in review, checkpoint, journal, verification, and shutdown safety for a session.");
+                branch.AddCommand<SessionJournalCommand>("journal")
+                    .WithDescription("Render the durable operation journal for a session.");
+                branch.AddCommand<SessionRecoveriesCommand>("recoveries")
+                    .WithDescription("List safe recovery summaries.");
+                branch.AddCommand<SessionRecoverCommand>("recover")
+                    .WithDescription("Open a recovery checkpoint as a new session without overwriting the original workbook.");
                 branch.AddCommand<SessionSaveCommand>("save")
                     .WithDescription("Save a session without closing it.");
             });

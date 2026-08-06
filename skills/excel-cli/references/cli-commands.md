@@ -96,9 +96,9 @@ Chart configuration - data source, series, type, title, axis labels, legend, and
 
 ### conditionalformat
 
-Conditional formatting - visual rules based on cell values. TYPES: cellValue (requires operatorType+formula1), expression (formula only). Both camelCase and kebab-case accepted. FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color. OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween. For 'between' and 'notBetween', both formula1 and formula2 are required.
+Conditional formatting - visual rules based on cell values. TYPES: cellValue (requires operatorType+formula1), expression (formula only), colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition. Both camelCase and kebab-case accepted. FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color. Visual rule types use dedicated parameters on add-rule and return their type-specific configuration from list-rules / list-worksheet-rules. OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween. For 'between' and 'notBetween', both formula1 and formula2 are required.
 
-**Actions:** `add-rule`, `clear-rules`
+**Actions:** `add-rule`, `clear-rules`, `list-rules`, `list-worksheet-rules`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -571,6 +571,18 @@ Control Excel window visibility, position, state, and status bar. Use to show/hi
 ### --timeout Must Be Greater Than Zero
 
 When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (120 seconds for session open/create and most operations).
+
+## Safety and recovery commands
+
+Safety controls are disabled by default. Configure an active session with `session configure-safety --session-id <id>` using `--review-mode off|optional|required`, `--checkpoint-mode off|onRequest|required`, `--journal-mode off|on`, `--verification-mode off|on`, and `--abnormal-shutdown-policy legacyAutoSave|discardWithRecoveryEvidence`.
+
+- `session preflight --session-id <id>` collects Excel/version/bitness/locale, Formula2/dynamic-array, Python, VBA/Power Pivot, protection, and constraint evidence.
+- `session journal --session-id <id>` renders the durable operation journal.
+- `session recoveries` lists sanitized recovery summaries.
+- `session recover --recovery-id <id>` opens a checkpoint as a new session without overwriting the original workbook.
+- Generated mutating commands accept `--review-only`, `--review-id <id>`, and `--checkpoint`.
+
+Lifecycle file/session mutations (open, create, save, close, and recovery) are outside the universal generated-command review handshake. Checkpoints are local, unencrypted full-workbook copies; SHA-256 detects accidental corruption but is not malicious-tamper proof, and recovery cannot restore unsaved in-memory state. Existing files are limited to 1 GiB, general paths to 32,767 characters, and Excel SaveAs creation to 218 characters. `test` accepts `.xlsx`/`.xlsm`; `open` accepts `.xlsx`/`.xlsm`/`.xls`; `create` writes `.xlsx`/`.xlsm`. Python preflight remains `notDetermined` without existing evidence and never performs a cloud probe.
 
 ### Power Query Operations Are Slow
 

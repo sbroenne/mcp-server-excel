@@ -41,7 +41,7 @@ public interface ISlicerCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Optional PivotTable name to filter slicers (null = all slicers)</param>
     /// <returns>List of slicers with names, fields, positions, and selections</returns>
-    [ServiceAction("list-slicers")]
+    [ServiceAction("list-slicers", IsMutation = false)]
     SlicerListResult ListSlicers(IExcelBatch batch, string? pivotTableName = null);
 
     /// <summary>
@@ -85,7 +85,7 @@ public interface ISlicerCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="tableName">Optional table name to filter slicers (null = all table slicers)</param>
     /// <returns>List of slicers with names, columns, positions, and selections</returns>
-    [ServiceAction("list-table-slicers")]
+    [ServiceAction("list-table-slicers", IsMutation = false)]
     SlicerListResult ListTableSlicers(IExcelBatch batch, string? tableName = null);
 
     /// <summary>

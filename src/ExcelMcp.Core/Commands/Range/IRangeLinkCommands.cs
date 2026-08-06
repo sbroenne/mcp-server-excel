@@ -53,7 +53,7 @@ public interface IRangeLinkCommands
     /// Excel COM: Worksheet.Hyperlinks collection
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
-    [ServiceAction("list-hyperlinks")]
+    [ServiceAction("list-hyperlinks", IsMutation = false)]
     RangeHyperlinkResult ListHyperlinks(IExcelBatch batch, string sheetName);
 
     /// <summary>
@@ -62,7 +62,7 @@ public interface IRangeLinkCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'A1')</param>
-    [ServiceAction("get-hyperlink")]
+    [ServiceAction("get-hyperlink", IsMutation = false)]
     RangeHyperlinkResult GetHyperlink(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
     // === CELL PROTECTION OPERATIONS ===
@@ -83,6 +83,6 @@ public interface IRangeLinkCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
-    [ServiceAction("get-cell-lock")]
+    [ServiceAction("get-cell-lock", IsMutation = false)]
     RangeLockInfoResult GetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }

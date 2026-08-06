@@ -2,10 +2,15 @@
 // Licensed under the MIT License.
 
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Generated;
+using Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 using Sbroenne.ExcelMcp.McpServer.Tools;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Xunit.Abstractions;
+using Bridge = Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -17,6 +22,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "File")]
+[Trait("RequiresExcel", "true")]
+[Collection("ProgramTransport")]
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
     private static readonly byte[] Ole2Signature =
@@ -165,6 +172,176 @@ public class ExcelFileToolTests(ITestOutputHelper output)
                 {
                     // Best-effort cleanup for a unique temp file created by this test.
                 }
+            }
+        }
+    }
+
+    [Fact]
+    public void Preflight_OpenSession_ReturnsRealExcelCapabilityContract()
+    {
+        var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileToolPreflight_{Guid.NewGuid():N}.xlsx");
+        string? sessionId = null;
+
+        try
+        {
+            var create = ExcelFileTool.ExcelFile(
+                FileAction.Create,
+                path: tempPath,
+                session_id: null,
+                save: false,
+                show: false,
+                timeout_seconds: 300);
+            using var createJson = JsonDocument.Parse(create);
+            Assert.True(
+                createJson.RootElement.GetProperty("success").GetBoolean(),
+                createJson.RootElement.TryGetProperty("errorMessage", out var createError)
+                    ? createError.GetString()
+                    : create);
+            sessionId = createJson.RootElement.GetProperty("session_id").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(sessionId));
+
+            var result = ExcelFileTool.ExcelFile(
+                FileAction.Preflight,
+                path: null,
+                session_id: sessionId,
+                save: false,
+                show: false,
+                timeout_seconds: 300);
+            using var json = JsonDocument.Parse(result);
+
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(sessionId, json.RootElement.GetProperty("sessionId").GetString());
+            Assert.Equal(tempPath, json.RootElement.GetProperty("filePath").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("excel").GetProperty("version").GetString()));
+            Assert.True(json.RootElement.GetProperty("excel").GetProperty("build").GetInt32() > 0);
+            Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("excel").GetProperty("bitness").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("excel").GetProperty("operatingSystem").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("excel").GetProperty("uiLocale").GetString()));
+            Assert.True(new[] { "supported", "unsupported" }.Contains(
+                json.RootElement.GetProperty("capabilities").GetProperty("formula2").GetProperty("status").GetString()));
+            Assert.Equal("notDetermined", json.RootElement.GetProperty("capabilities").GetProperty("pythonInExcel").GetProperty("status").GetString());
+            Assert.True(new[] { "supported", "blocked" }.Contains(
+                json.RootElement.GetProperty("capabilities").GetProperty("vbaTrust").GetProperty("status").GetString()));
+            Assert.True(new[] { "supported", "unsupported", "unavailable" }.Contains(
+                json.RootElement.GetProperty("capabilities").GetProperty("powerPivot").GetProperty("status").GetString()));
+            Assert.Equal(JsonValueKind.False, json.RootElement.GetProperty("workbook").GetProperty("readOnly").ValueKind);
+            Assert.Equal(JsonValueKind.Array, json.RootElement.GetProperty("constraints").ValueKind);
+            Assert.NotEqual(DateTime.MinValue, json.RootElement.GetProperty("collectedAtUtc").GetDateTime());
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                ExcelFileTool.ExcelFile(
+                    FileAction.Close,
+                    path: null,
+                    session_id: sessionId,
+                    save: false,
+                    show: false,
+                    timeout_seconds: 300);
+            }
+
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
+    [Fact]
+    public void SafetyReview_RangeMutation_TravelsThroughGeneratedToolAndRealExcel()
+    {
+        var tempRoot = Path.Join(Path.GetTempPath(), $"ExcelFileToolSafety_{Guid.NewGuid():N}");
+        var workbookPath = Path.Join(tempRoot, "review-forwarding.xlsx");
+        var stateRoot = Path.Join(tempRoot, "safety-state");
+        string? sessionId = null;
+
+        Directory.CreateDirectory(tempRoot);
+        Bridge.SetServiceFactoryForTests(
+            () => new ExcelMcpServiceBackend(new ExcelMcpService(stateRoot)));
+
+        try
+        {
+            using (var create = JsonDocument.Parse(ExcelFileTool.ExcelFile(
+                       FileAction.Create,
+                       workbookPath,
+                       session_id: null,
+                       save: false,
+                       show: false,
+                       timeout_seconds: 300)))
+            {
+                Assert.True(create.RootElement.GetProperty("success").GetBoolean());
+                sessionId = create.RootElement.GetProperty("session_id").GetString();
+                Assert.False(string.IsNullOrWhiteSpace(sessionId));
+            }
+
+            using (var configure = JsonDocument.Parse(ExcelFileTool.ExcelFile(
+                       FileAction.ConfigureSafety,
+                       path: null,
+                       session_id: sessionId,
+                       save: false,
+                       show: false,
+                       timeout_seconds: 300,
+                       review_mode: SafetyReviewMode.Required,
+                       checkpoint_mode: SafetyCheckpointMode.OnRequest,
+                       journal_mode: SafetyJournalMode.On,
+                       verification_mode: SafetyVerificationMode.On,
+                       abnormal_shutdown_policy: SafetyAbnormalShutdownPolicy.DiscardWithRecoveryEvidence)))
+            {
+                Assert.True(configure.RootElement.GetProperty("success").GetBoolean());
+            }
+
+            var values = new List<List<object?>> { new() { 42d } };
+            using var review = JsonDocument.Parse(ExcelRangeTool.ExcelRange(
+                RangeAction.SetValues,
+                sessionId!,
+                review_only: true,
+                checkpoint: true,
+                sheet_name: "Sheet1",
+                range_address: "A1",
+                values: values));
+            Assert.False(review.RootElement.GetProperty("executed").GetBoolean());
+            var reviewId = review.RootElement.GetProperty("reviewId").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(reviewId));
+
+            using var execution = JsonDocument.Parse(ExcelRangeTool.ExcelRange(
+                RangeAction.SetValues,
+                sessionId!,
+                review_id: reviewId,
+                checkpoint: true,
+                idempotency_key: "generated-safety-retry",
+                sheet_name: "Sheet1",
+                range_address: "A1",
+                values: values));
+            Assert.True(execution.RootElement.GetProperty("executed").GetBoolean());
+            Assert.Equal(
+                "verified",
+                execution.RootElement.GetProperty("verification").GetProperty("status").GetString());
+
+            using var readBack = JsonDocument.Parse(ExcelRangeTool.ExcelRange(
+                RangeAction.GetValues,
+                sessionId!,
+                sheet_name: "Sheet1",
+                range_address: "A1"));
+            Assert.Equal(42d, readBack.RootElement.GetProperty("values")[0][0].GetDouble());
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                _ = ExcelFileTool.ExcelFile(
+                    FileAction.Close,
+                    path: null,
+                    session_id: sessionId,
+                    save: false,
+                    show: false,
+                    timeout_seconds: 300);
+            }
+
+            Bridge.ResetForTests();
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
             }
         }
     }

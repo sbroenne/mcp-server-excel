@@ -33,7 +33,7 @@ public interface ITableCommands
     /// <summary>
     /// Lists all Excel Tables in the workbook
     /// </summary>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     TableListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -69,7 +69,7 @@ public interface ITableCommands
     /// Gets detailed information about an Excel Table
     /// </summary>
     /// <param name="tableName">Name of the table</param>
-    [ServiceAction("read")]
+    [ServiceAction("read", IsMutation = false)]
     TableInfoResult Read(IExcelBatch batch, string tableName);
 
     /// <summary>
@@ -118,7 +118,7 @@ public interface ITableCommands
     /// <param name="tableName">Name of the table to read data from</param>
     /// <param name="visibleOnly">True to return only visible (non-filtered) rows; false for all rows (default: false)</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
-    [ServiceAction("get-data")]
+    [ServiceAction("get-data", IsMutation = false)]
     TableDataResult GetData(IExcelBatch batch, string tableName, bool visibleOnly = false);
 
     /// <summary>

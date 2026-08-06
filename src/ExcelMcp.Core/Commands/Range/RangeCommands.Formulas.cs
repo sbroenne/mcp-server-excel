@@ -42,7 +42,7 @@ public partial class RangeCommands
                 // Get formulas and values - handle single cell case
                 // Use Formula2 (modern) instead of Formula (legacy) to avoid implicit intersection (@)
                 // operator being injected in Excel Table cells. Formula2 respects dynamic array semantics.
-                object formulaOrArray = range.Formula2;
+                object formulaOrArray = FormulaCompatibility.Read(batch, range);
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -187,6 +187,7 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            dynamic? areas = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
 
@@ -196,6 +197,19 @@ public partial class RangeCommands
                 if (range == null)
                 {
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
+                }
+
+                // Formula2/Formula SAFEARRAY assignment is no more reliable for a
+                // disjoint range than Value2 assignment. Reject it before changing
+                // calculation mode so formula-looking set-values input cannot bypass
+                // the same fail-closed guarantee.
+                areas = range.Areas;
+                var areaCount = Convert.ToInt32(areas.Count, System.Globalization.CultureInfo.InvariantCulture);
+                if (areaCount != 1)
+                {
+                    throw new ArgumentException(
+                        $"Range '{rangeAddress}' contains {areaCount} disjoint areas; set-formulas requires one contiguous rectangular area.",
+                        nameof(formulas));
                 }
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
@@ -231,7 +245,7 @@ public partial class RangeCommands
                     // Use Formula2 (modern) instead of Formula (legacy) to prevent Excel from
                     // injecting the @ implicit intersection operator in table cells, which causes
                     // #FIELD! errors with custom functions that return entity cards.
-                    range.Formula2 = arrayFormulas;
+                    FormulaCompatibility.Write(batch, range, arrayFormulas);
                 }
 
                 result.Success = true;
@@ -255,6 +269,7 @@ public partial class RangeCommands
                         // Ignore errors restoring calculation mode
                     }
                 }
+                ComUtilities.Release(ref areas);
                 ComUtilities.Release(ref range);
             }
         });

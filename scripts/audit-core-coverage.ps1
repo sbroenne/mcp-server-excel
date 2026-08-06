@@ -31,13 +31,23 @@ Write-Host ""
 
 # Function to count unique async method names in Core interface files (handles overloads)
 function Get-CoreMethodMatches {
-    param([string]$InterfacePath)
+    param([string]$InterfacePath, [string]$InterfaceName)
 
     if (-not (Test-Path $InterfacePath)) {
         return @()
     }
 
     $content = Get-Content $InterfacePath -Raw
+    # Comments can contain example object literals with braces, so remove them
+    # before isolating the interface body.
+    $content = [regex]::Replace($content, '(?s)/\*.*?\*/', '')
+    $content = [regex]::Replace($content, '(?m)//.*$', '')
+    $interfacePattern = "public\s+interface\s+$([regex]::Escape($InterfaceName))\b[^\{]*\{(?<body>[^}]*)\}"
+    $interfaceMatch = [regex]::Match($content, $interfacePattern)
+    if (-not $interfaceMatch.Success) {
+        throw "Could not parse interface '$InterfaceName' from $InterfacePath"
+    }
+    $content = $interfaceMatch.Groups['body'].Value
 
     # Match interface method signatures, e.g., "OperationResult Create(...)" or "Task<OperationResult> CreateAsync(...)"
     $pattern = '^[\s\t]*(?:[\w<>,\[\]\? ]+)\s+(?<name>\w+)\s*\([^;]*\)\s*;'
@@ -62,32 +72,24 @@ function Count-CoreMethods {
         return 0
     }
 
-    $methodNames = Get-CoreMethodMatches -InterfacePath $InterfacePath
+    $methodNames = Get-CoreMethodMatches -InterfacePath $InterfacePath -InterfaceName $InterfaceName
     return $methodNames.Count
 }
 
-# Function to count enum values
-function Count-EnumValues {
-    param([string]$EnumName, [string]$ToolActionsPath)
+# Locate the source file that declares an action enum.
+function Find-EnumSourceFile {
+    param([string]$EnumName, [string[]]$ActionEnumPaths)
 
-    if (-not (Test-Path $ToolActionsPath)) {
-        Write-Warning "ToolActions.cs not found: $ToolActionsPath"
-        return 0
+    $enumPattern = "public\s+enum\s+$([regex]::Escape($EnumName))\b"
+    $matches = @($ActionEnumPaths | Where-Object {
+        (Get-Content $_ -Raw) -match $enumPattern
+    })
+
+    if ($matches.Count -gt 1) {
+        throw "Action enum '$EnumName' is declared more than once: $($matches -join ', ')"
     }
 
-    $content = Get-Content $ToolActionsPath -Raw
-    # Find the enum definition
-    $enumPattern = "public\s+enum\s+$EnumName\s*\{([^}]+)\}"
-    if ($content -match $enumPattern) {
-        $enumBody = $Matches[1]
-        # Count non-empty, non-comment lines
-        $lines = $enumBody -split "`n" | Where-Object {
-            $_ -match '\S' -and $_ -notmatch '^\s*//'
-        }
-        return $lines.Count
-    }
-
-    return 0
+    return $matches | Select-Object -First 1
 }
 
 # Function to count enum values for a specific interface (handles cross-interface enum splits)
@@ -95,54 +97,44 @@ function Count-EnumValuesForInterface {
     param(
         [string]$EnumName,
         [string]$InterfaceName,
-        [string]$ToolActionsPath
+        [string[]]$ActionEnumPaths
     )
 
-    # Check if this enum has a cross-interface split defined
-    if ($Script:crossInterfaceEnumSplits -and $Script:crossInterfaceEnumSplits.ContainsKey($EnumName)) {
-        $splits = $Script:crossInterfaceEnumSplits[$EnumName]
-        if ($splits.ContainsKey($InterfaceName)) {
-            # Return count of values specific to this interface
-            return $splits[$InterfaceName].Count
-        }
+    $enumValues = @(Get-EnumValueNames -EnumName $EnumName -ActionEnumPaths $ActionEnumPaths)
+    if ($Script:enumCoverageExceptions.ContainsKey($EnumName)) {
+        $exceptions = $Script:enumCoverageExceptions[$EnumName]
+        $enumValues = @($enumValues | Where-Object { $exceptions -notcontains $_ })
     }
 
-    # No split defined - return full enum count
-    return Count-EnumValues -EnumName $EnumName -ToolActionsPath $ToolActionsPath
+    return $enumValues.Count
 }
 
 # Function to extract unique method names from Core interface (without "Async" suffix, handles overloads)
 function Get-CoreMethodNames {
-    param([string]$InterfacePath)
+    param([string]$InterfacePath, [string]$InterfaceName)
 
-    return Get-CoreMethodMatches -InterfacePath $InterfacePath
+    return Get-CoreMethodMatches -InterfacePath $InterfacePath -InterfaceName $InterfaceName
 }
 
 # Function to extract enum value names
 function Get-EnumValueNames {
-    param([string]$EnumName, [string]$ToolActionsPath)
+    param([string]$EnumName, [string[]]$ActionEnumPaths)
 
-    if (-not (Test-Path $ToolActionsPath)) {
+    $enumSource = Find-EnumSourceFile -EnumName $EnumName -ActionEnumPaths $ActionEnumPaths
+    if (-not $enumSource) {
         return @()
     }
 
-    $content = Get-Content $ToolActionsPath -Raw
-    $enumPattern = "public\s+enum\s+$EnumName\s*\{([^}]+)\}"
-    if ($content -match $enumPattern) {
-        $enumBody = $Matches[1]
-        $enumValues = @()
-        $lines = $enumBody -split "`n" | Where-Object {
-            $_ -match '^\s*(\w+)' -and $_ -notmatch '^\s*//'
-        }
-        foreach ($line in $lines) {
-            if ($line -match '^\s*(\w+)') {
-                $enumValues += $Matches[1]
-            }
-        }
-        return $enumValues
+    $content = Get-Content $enumSource -Raw
+    $enumPattern = "public\s+enum\s+$([regex]::Escape($EnumName))\s*(?::[^\{]+)?\{(?<body>[^}]*)\}"
+    $enumMatch = [regex]::Match($content, $enumPattern)
+    if (-not $enumMatch.Success) {
+        return @()
     }
 
-    return @()
+    $identifierPattern = '(?m)^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?:=\s*[^,\r\n]+)?\s*,?\s*(?://.*)?$'
+    return @([regex]::Matches($enumMatch.Groups['body'].Value, $identifierPattern) |
+        ForEach-Object { $_.Groups['name'].Value })
 }
 
 # Function to check naming consistency
@@ -151,11 +143,11 @@ function Check-NamingConsistency {
         [string]$InterfaceName,
         [string]$InterfacePath,
         [string]$EnumName,
-        [string]$ToolActionsPath
+        [string[]]$ActionEnumPaths
     )
 
-    $methodNames = Get-CoreMethodNames -InterfacePath $InterfacePath
-    $enumValues = Get-EnumValueNames -EnumName $EnumName -ToolActionsPath $ToolActionsPath
+    $methodNames = Get-CoreMethodNames -InterfacePath $InterfacePath -InterfaceName $InterfaceName
+    $enumValues = Get-EnumValueNames -EnumName $EnumName -ActionEnumPaths $ActionEnumPaths
 
     $mismatches = @()
 
@@ -178,22 +170,15 @@ function Check-NamingConsistency {
 
 # Discover all enum types from ToolActions.cs
 function Get-AllEnumTypes {
-    param([string]$ToolActionsPath)
+    param([string[]]$ActionEnumPaths)
 
-    if (-not (Test-Path $ToolActionsPath)) {
-        return @()
+    $enumTypes = foreach ($path in $ActionEnumPaths) {
+        $content = Get-Content $path -Raw
+        [regex]::Matches($content, 'public\s+enum\s+(\w+Action)\b') |
+            ForEach-Object { $_.Groups[1].Value }
     }
 
-    $content = Get-Content $ToolActionsPath -Raw
-    $enumPattern = "public\s+enum\s+(\w+Action)\s*\{"
-    $enumMatches = [regex]::Matches($content, $enumPattern)
-
-    $enumTypes = @()
-    foreach ($match in $enumMatches) {
-        $enumTypes += $match.Groups[1].Value
-    }
-
-    return $enumTypes
+    return @($enumTypes | Sort-Object -Unique)
 }
 
 # Discover interface files dynamically
@@ -203,60 +188,13 @@ function Find-InterfaceForEnum {
         [string]$CommandsPath
     )
 
-    # Map enum type to expected interface name
-    # Pattern: PowerQueryAction -> IPowerQueryCommands
-    # Special cases and sub-tool mappings
+    # Map enum type to expected interface name.
+    # Most generated enums follow {Name}Action -> I{Name}Commands.
 
     $enumToInterface = @{
-        # Known naming exceptions
-        "WorksheetAction" = "ISheetCommands"
+        # Known naming exceptions.
+        "CalculationAction" = "ICalculationModeCommands"
         "ConditionalFormatAction" = "IConditionalFormattingCommands"
-
-        # Sub-tool enums that map to parent interfaces
-        # Range sub-tools (all map to IRangeCommands)
-        "RangeEditAction" = "IRangeCommands"
-        "RangeFormatAction" = "IRangeCommands"
-        "RangeLinkAction" = "IRangeCommands"
-
-        # Worksheet sub-tools (all map to ISheetCommands)
-        "WorksheetStyleAction" = "ISheetCommands"
-
-        # DataModel sub-tools (all map to IDataModelCommands)
-        "DataModelRelAction" = "IDataModelCommands"
-
-        # Table sub-tools (all map to ITableCommands)
-        "TableColumnAction" = "ITableCommands"
-
-        # PivotTable sub-tools (all map to IPivotTableCommands)
-        "PivotTableFieldAction" = "IPivotTableCommands"
-        "PivotTableCalcAction" = "IPivotTableCommands"
-
-        # Cross-interface enums (cover methods from multiple interfaces)
-        # SlicerAction covers methods from BOTH IPivotTableCommands AND ITableCommands
-        # We map to IPivotTableCommands as primary, and add ITableCommands below in additionalEnumMappings
-        "SlicerAction" = "IPivotTableCommands"
-
-        # Chart sub-tools (all map to IChartCommands)
-        "ChartConfigAction" = "IChartCommands"
-    }
-
-    # Additional interface mappings for cross-interface enums
-    # These enums have methods implemented in multiple Core interfaces
-    # Format: "InterfaceName" = @("EnumName1", "EnumName2", ...)
-    $Script:additionalEnumMappings = @{
-        "ITableCommands" = @("SlicerAction")  # Table slicer methods exposed via SlicerAction
-    }
-
-    # Cross-interface enum value splits
-    # When an enum covers methods from MULTIPLE interfaces, specify which values belong to each
-    # Format: "EnumName" = @{ "InterfaceName" = @("Value1", "Value2", ...) }
-    $Script:crossInterfaceEnumSplits = @{
-        "SlicerAction" = @{
-            # PivotTable slicer actions (4 values)
-            "IPivotTableCommands" = @("CreateSlicer", "ListSlicers", "SetSlicerSelection", "DeleteSlicer")
-            # Table slicer actions (4 values)
-            "ITableCommands" = @("CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
-        }
     }
 
     if ($enumToInterface.ContainsKey($EnumType)) {
@@ -267,8 +205,15 @@ function Find-InterfaceForEnum {
         $interfaceName = "I${baseName}Commands"
     }
 
-    # Search recursively for interface file
+    # Prefer the conventional filename, then fall back to declaration search
+    # for interfaces that share a file with their implementation.
     $interfaceFiles = Get-ChildItem -Path $CommandsPath -Recurse -Filter "$interfaceName.cs"
+    if ($interfaceFiles.Count -eq 0) {
+        $interfacePattern = "public\s+interface\s+$([regex]::Escape($interfaceName))\b"
+        $interfaceFiles = @(Get-ChildItem -Path $CommandsPath -Recurse -Filter "*.cs" | Where-Object {
+            (Get-Content $_.FullName -Raw) -match $interfacePattern
+        })
+    }
 
     if ($interfaceFiles.Count -eq 0) {
         return $null
@@ -282,11 +227,44 @@ function Find-InterfaceForEnum {
     }
 }
 
-$toolActionsPath = "$rootDir/src/ExcelMcp.Core/Models/Actions/ToolActions.cs"
+$toolActionsPath = Join-Path $rootDir "src\ExcelMcp.Core\Models\Actions\ToolActions.cs"
+if (-not (Test-Path $toolActionsPath)) {
+    Write-Error "Manual action enum source not found: $toolActionsPath"
+    exit 1
+}
+
+$generatedActionsRoot = Join-Path $rootDir "src\ExcelMcp.Core\obj\GeneratedFiles"
+if (-not (Test-Path $generatedActionsRoot)) {
+    Write-Error "Generated action enums are absent. Run a build that emits compiler-generated files first."
+    exit 1
+}
+
+$generatedActionFiles = @(Get-ChildItem -Path $generatedActionsRoot -Recurse -Filter "ServiceRegistry.*.g.cs" |
+    Where-Object { (Get-Content $_.FullName -Raw) -match 'public\s+enum\s+\w+Action\b' })
+if ($generatedActionFiles.Count -eq 0) {
+    Write-Error "No emitted ServiceRegistry.*.g.cs action enums were found under $generatedActionsRoot. Run a build first."
+    exit 1
+}
+
+$actionEnumPaths = @($toolActionsPath) + @($generatedActionFiles.FullName)
+
+# FileAction contains ten service/session actions that intentionally do not map
+# to IFileCommands. Test is the one FileAction backed by the Core interface.
+$Script:enumCoverageExceptions = @{
+    "FileAction" = @(
+        "CloseWorkbook", "Open", "Close", "List", "Create",
+        "Preflight", "ConfigureSafety", "Journal", "Recoveries", "Recover"
+    )
+}
 
 # Dynamically discover all interfaces to check
 $commandsPath = Join-Path $rootDir "src\ExcelMcp.Core\Commands"
-$enumTypes = Get-AllEnumTypes -ToolActionsPath $toolActionsPath
+$enumTypes = @(Get-AllEnumTypes -ActionEnumPaths $actionEnumPaths)
+if ($enumTypes.Count -le 1) {
+    Write-Error "Action enum discovery was vacuous: found only $($enumTypes.Count) enum(s)."
+    exit 1
+}
+Write-Host "Loaded $($enumTypes.Count) action enums ($($generatedActionFiles.Count) generated, 1 manual)." -ForegroundColor DarkGray
 
 $interfaces = @()
 foreach ($enumType in $enumTypes) {
@@ -312,21 +290,6 @@ foreach ($interface in $interfaces) {
     $groupedInterfaces[$key].Enums += $interface.Enum
 }
 
-# Add additional enum mappings for cross-interface enums
-# This handles cases like SlicerAction which covers methods from both IPivotTableCommands and ITableCommands
-if ($Script:additionalEnumMappings) {
-    foreach ($interfaceName in $Script:additionalEnumMappings.Keys) {
-        if ($groupedInterfaces.ContainsKey($interfaceName)) {
-            $additionalEnums = $Script:additionalEnumMappings[$interfaceName]
-            foreach ($enumName in $additionalEnums) {
-                if ($groupedInterfaces[$interfaceName].Enums -notcontains $enumName) {
-                    $groupedInterfaces[$interfaceName].Enums += $enumName
-                }
-            }
-        }
-    }
-}
-
 # Track results
 $results = @()
 $totalCoreMethods = 0
@@ -342,8 +305,7 @@ foreach ($key in $groupedInterfaces.Keys) {
     $totalEnumValuesForInterface = 0
     $enumNames = @()
     foreach ($enumName in $interfaceGroup.Enums) {
-        # Use interface-aware counting for cross-interface enums (e.g., SlicerAction)
-        $enumCount = Count-EnumValuesForInterface -EnumName $enumName -InterfaceName $interfaceGroup.Name -ToolActionsPath $toolActionsPath
+        $enumCount = Count-EnumValuesForInterface -EnumName $enumName -InterfaceName $interfaceGroup.Name -ActionEnumPaths $actionEnumPaths
         $totalEnumValuesForInterface += $enumCount
         $enumNames += "$enumName($enumCount)"
     }
@@ -453,63 +415,16 @@ if ($CheckNaming) {
     Write-Host "===========================" -ForegroundColor Cyan
     Write-Host ""
 
-    # Sub-tool enums are intentionally subsets of parent interface - skip naming check
-    # These enums only contain a subset of the parent interface methods by design
-    $subToolEnums = @(
-        "RangeEditAction", "RangeFormatAction", "RangeLinkAction",  # IRangeCommands sub-tools
-        "WorksheetStyleAction",  # ISheetCommands sub-tools
-        "DataModelRelAction",  # IDataModelCommands sub-tools
-        "TableColumnAction",  # ITableCommands sub-tools
-        "PivotTableFieldAction", "PivotTableCalcAction", "SlicerAction",  # IPivotTableCommands sub-tools
-        "ChartConfigAction"  # IChartCommands sub-tools
-    )
-
-    # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
-    # Also includes methods that moved to sub-tool enums
-    $knownExceptions = @{
-        "TableAction" = @("ApplyFilterValues", "SortMulti", "ApplyFilter", "ClearFilters", "GetFilters",
-                          "AddColumn", "RemoveColumn", "RenameColumn", "GetStructuredReference", "Sort",
-                          "GetColumnNumberFormat", "SetColumnNumberFormat",
-                          # Table slicer methods exposed via SlicerAction (cross-interface enum)
-                          "CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
-        "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List", "Create")  # MCP-specific session actions
-        "RangeAction" = @("SetNumberFormatCustom", "InsertCells", "DeleteCells", "InsertRows", "DeleteRows",
-                          "InsertColumns", "DeleteColumns", "Find", "Replace", "Sort",
-                          "AddHyperlink", "RemoveHyperlink", "ListHyperlinks", "GetHyperlink",
-                          "SetStyle", "GetStyle", "FormatRange", "ValidateRange", "GetValidation", "RemoveValidation",
-                          "AutoFitColumns", "AutoFitRows", "MergeCells", "UnmergeCells", "GetMergeInfo",
-                          "SetCellLock", "GetCellLock")  # Methods moved to RangeEdit/RangeFormat/RangeLink tools
-        "WorksheetAction" = @("SetTabColor", "GetTabColor", "ClearTabColor", "SetVisibility", "GetVisibility",
-                              "Show", "Hide", "VeryHide")  # Methods moved to WorksheetStyleAction
-        "DataModelAction" = @("ListRelationships", "ReadRelationship", "DeleteRelationship",
-                              "CreateRelationship", "UpdateRelationship")  # Methods moved to DataModelRelAction
-        "PivotTableAction" = @("ListFields", "AddRowField", "AddColumnField", "AddValueField", "AddFilterField",
-                               "RemoveField", "SetFieldFunction", "SetFieldName", "SetFieldFormat", "GetData",
-                               "SetFieldFilter", "SortField", "GroupByDate", "GroupByNumeric",
-                               "CreateCalculatedField", "ListCalculatedFields", "DeleteCalculatedField",
-                               "SetLayout", "SetSubtotals", "SetGrandTotals",
-                               "ListCalculatedMembers", "CreateCalculatedMember", "DeleteCalculatedMember",
-                               "CreateSlicer", "ListSlicers", "SetSlicerSelection", "DeleteSlicer")  # Methods moved to PivotTableField/PivotTableCalc/Slicer
-        "ChartAction" = @("SetSourceRange", "AddSeries", "RemoveSeries", "SetChartType", "SetTitle",
-                          "SetAxisTitle", "GetAxisNumberFormat", "SetAxisNumberFormat", "ShowLegend", "SetStyle",
-                          "SetDataLabels", "GetAxisScale", "SetAxisScale", "GetGridlines", "SetGridlines", "SetSeriesFormat",
-                          "ListTrendlines", "AddTrendline", "DeleteTrendline", "SetTrendline", "SetPlacement")  # Methods moved to ChartConfigAction
-    }
+    $knownExceptions = $Script:enumCoverageExceptions
 
     $hasNamingIssues = $false
 
     foreach ($interface in $interfaces) {
-        # Skip sub-tool enums - they are intentionally subsets
-        if ($subToolEnums -contains $interface.Enum) {
-            Write-Host "$($interface.Name) -> $($interface.Enum): Skipped (sub-tool enum)" -ForegroundColor Gray
-            continue
-        }
-
         $mismatches = Check-NamingConsistency `
             -InterfaceName $interface.Name `
             -InterfacePath $interface.Path `
             -EnumName $interface.Enum `
-            -ToolActionsPath $toolActionsPath
+            -ActionEnumPaths $actionEnumPaths
 
         # Filter out known exceptions
         if ($knownExceptions.ContainsKey($interface.Enum)) {
@@ -546,7 +461,7 @@ if ($CheckNaming) {
             Write-Host "   $enumName`: " -NoNewline -ForegroundColor Gray
             Write-Host ($knownExceptions[$enumName] -join ", ") -ForegroundColor Gray
         }
-        Write-Host "   (Documented in CORE-METHOD-RENAMING-SUMMARY.md)" -ForegroundColor Gray
+        Write-Host "   (Manual service/session actions without Core interface methods)" -ForegroundColor Gray
     }
 
     if ($hasNamingIssues) {
@@ -577,7 +492,9 @@ Write-Host "Switch Statement Completeness Check" -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Function to extract handled enum values from switch statements
+# Function to extract handled enum values from switch statements. Hand-written
+# tools use expression arms (Enum.Value =>); generated dispatchers use
+# statement cases (case Enum.Value:).
 function Get-HandledEnumValues {
     param(
         [string]$ToolFilePath,
@@ -590,26 +507,13 @@ function Get-HandledEnumValues {
 
     $content = Get-Content $ToolFilePath -Raw
 
-    # Find switch statement on the enum type
-    # Pattern: "action switch" or "return action switch" where action is the enum parameter
-    # Match until we find the default case "_"
-    $switchPattern = "(?s)return\s+action\s+switch\s*\{(.*?)\s+_\s*=>"
+    $escapedEnum = [regex]::Escape($EnumTypeName)
+    $casePattern = "(?:case\s+)?$escapedEnum\.(?<name>\w+)\s*(?::|=>)"
+    $handledValues = @([regex]::Matches($content, $casePattern) |
+        ForEach-Object { $_.Groups['name'].Value } |
+        Sort-Object -Unique)
 
-    if ($content -match $switchPattern) {
-        $switchBody = $Matches[1]
-        $handledValues = @()
-
-        # Extract all case patterns: EnumType.Value =>
-        $casePattern = "$EnumTypeName\.(\w+)\s*=>"
-        $caseMatches = [regex]::Matches($switchBody, $casePattern)
-
-        foreach ($match in $caseMatches) {
-            $enumValue = $match.Groups[1].Value
-            if ($handledValues -notcontains $enumValue) {
-                $handledValues += $enumValue
-            }
-        }
-
+    if ($handledValues.Count -gt 0) {
         return $handledValues
     }
 
@@ -625,39 +529,19 @@ $hasSwitchIssues = $false
 $enumMappings = $interfaces
 
 foreach ($mapping in $enumMappings) {
-    $enumValues = Get-EnumValueNames -EnumName $mapping.Enum -ToolActionsPath $toolActionsPath
+    $enumValues = @(Get-EnumValueNames -EnumName $mapping.Enum -ActionEnumPaths $actionEnumPaths)
 
-    # Dynamically find the tool file that uses this enum type as the first 'action' parameter
-    # Look for: EnumType action, (as first parameter after method name)
-    # This avoids false positives from references to other enum types in the same file
-    $toolFiles = Get-ChildItem -Path $toolsPath -Filter "*.cs" | Where-Object {
-        $content = Get-Content $_.FullName -Raw
-        # Match the enum type as 'action' parameter in a method signature
-        # Simplified pattern: look for the enum type followed by 'action' parameter
-        # The method signature may span multiple lines and include 'partial' keyword
-        $content -match "(?s)\b$($mapping.Enum)\s+action\s*,"
-    }
-
-    if ($toolFiles.Count -eq 0) {
-        Write-Host "No tool file found for $($mapping.Enum)" -ForegroundColor Yellow
-        continue
-    }
-
-    if ($toolFiles.Count -gt 1) {
-        # Multiple files use this enum - pick the one with matching name pattern
-        # e.g., RangeAction -> RangeTool.cs or ExcelRangeTool.cs
-        $enumBase = $mapping.Enum -replace 'Action$', ''
-        $primaryTool = $toolFiles | Where-Object {
-            $_.Name -match "$enumBase`Tool\.cs"
-        } | Select-Object -First 1
-
-        if (-not $primaryTool) {
-            # Fallback to first file
-            $primaryTool = $toolFiles[0]
-        }
-        $toolFile = $primaryTool
+    if ($mapping.Enum -eq "FileAction") {
+        $toolFile = Get-Item (Join-Path $toolsPath "ExcelFileTool.cs")
     } else {
-        $toolFile = $toolFiles[0]
+        $enumSource = Find-EnumSourceFile -EnumName $mapping.Enum -ActionEnumPaths $actionEnumPaths
+        $dispatchPath = $enumSource -replace '\.g\.cs$', '.Dispatch.g.cs'
+        if (-not (Test-Path $dispatchPath)) {
+            $hasSwitchIssues = $true
+            Write-Host "Generated dispatcher missing for $($mapping.Enum): $dispatchPath" -ForegroundColor Red
+            continue
+        }
+        $toolFile = Get-Item $dispatchPath
     }
 
     $handledValues = Get-HandledEnumValues -ToolFilePath $toolFile.FullName -EnumTypeName $mapping.Enum

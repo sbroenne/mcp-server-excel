@@ -110,7 +110,7 @@ public interface IRangeEditCommands
     /// <param name="rangeAddress">Cell range address to search within (e.g., 'A1:D100')</param>
     /// <param name="searchValue">Text or value to search for</param>
     /// <param name="findOptions">Search options: matchCase (default: false), matchEntireCell (default: false), searchFormulas (default: true)</param>
-    [ServiceAction("find")]
+    [ServiceAction("find", IsMutation = false)]
     RangeFindResult Find(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string searchValue, FindOptions findOptions);
 
     /// <summary>

@@ -14,10 +14,19 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Layer", "Service")]
 [Trait("Category", "Unit")]
 [Trait("Feature", "StreamJsonRpc")]
+[Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
 public sealed class StreamJsonRpcTests : IDisposable
 {
-    private readonly ExcelMcpService _service = new();
+    private readonly string _stateRoot = Path.Combine(
+        Path.GetTempPath(),
+        $"excelmcp-rpc-tests-{Guid.NewGuid():N}");
+    private readonly ExcelMcpService _service;
+
+    public StreamJsonRpcTests()
+    {
+        _service = new ExcelMcpService(_stateRoot);
+    }
 
     /// <summary>
     /// Validates end-to-end RPC round-trip: client sends ServiceRequest through StreamJsonRpc,
@@ -170,5 +179,15 @@ public sealed class StreamJsonRpcTests : IDisposable
         }
     }
 
-    public void Dispose() => _service.Dispose();
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _service.Dispose();
+        if (Directory.Exists(_stateRoot))
+        {
+            Directory.Delete(_stateRoot, recursive: true);
+        }
+
+        GC.SuppressFinalize(this);
+    }
 }

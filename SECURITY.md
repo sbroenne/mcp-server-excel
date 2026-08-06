@@ -19,8 +19,14 @@ ExcelMcp includes several security measures:
 
 - **Path Traversal Protection**: All file paths are validated with `Path.GetFullPath()`
 - **File Size Limits**: 1GB maximum file size to prevent DoS attacks
-- **Extension Validation**: Only `.xlsx` and `.xlsm` files are accepted
-- **Path Length Validation**: Maximum 32,767 characters (Windows limit)
+- **Extension Validation**: `test` accepts existing `.xlsx`/`.xlsm`; `open` accepts `.xlsx`, `.xlsm`, and legacy `.xls`; `create` writes `.xlsx`/`.xlsm`
+- **Path Length Validation**: Maximum 32,767 characters for general paths; Excel SaveAs creation has a practical 218-character limit
+
+### Opt-in workbook safety
+
+Sessions can opt in to capability preflight, review-only plans, bound review IDs, pre-write checkpoints, durable journals, semantic verification, and recovery evidence. These controls are off by default. When any safety control is enabled and no abnormal-shutdown policy is supplied, shutdown defaults to discard-with-recovery-evidence; explicit legacy auto-save remains available. Lifecycle file/session mutations (open, create, save, close, and recovery) remain outside the universal generated-command review handshake. Atomic cross-file worksheet mutations reject review/checkpoint flags without changing either workbook. Checkpoints are local, unencrypted copies of the full workbook; SHA-256 detects accidental corruption but is not a malicious-tamper-proof boundary. Recovery cannot restore unsaved in-memory Excel state. Exact semantic verification is limited to inspected values/formulas; format-only and opaque mutations receive partial or not-verified receipts.
+
+The safety-state root rejects UNC paths, mapped network drives, and existing symbolic links, junctions, or other reparse points, with checks before and after directory creation. This is not an atomic boundary against a malicious process running as the same user and racing a path replacement. Keep `EXCELMCP_STATE_DIR` on a private local directory with user-only permissions.
 
 ### Code Analysis
 

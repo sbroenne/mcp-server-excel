@@ -37,7 +37,7 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Lists all Power Query queries in the workbook
     /// </summary>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     PowerQueryListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -45,7 +45,7 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to view</param>
-    [ServiceAction("view")]
+    [ServiceAction("view", IsMutation = false)]
     PowerQueryViewResult View(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
@@ -63,7 +63,7 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
-    [ServiceAction("get-load-config")]
+    [ServiceAction("get-load-config", IsMutation = false)]
     PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>

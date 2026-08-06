@@ -320,9 +320,14 @@ public class Program
     /// Uses AddApplicationInsightsTelemetryWorkerService() for proper host integration.
     /// Enables Users/Sessions/Funnels/User Flows analytics in Azure Portal.
     /// </summary>
-    private static void ConfigureTelemetry(HostApplicationBuilder builder)
+    internal static void ConfigureTelemetry(HostApplicationBuilder builder, string? configuredConnectionString = null)
     {
-        var connectionString = ExcelMcpTelemetry.GetConnectionString();
+        if (ExcelMcpTelemetry.IsOptedOut())
+        {
+            return;
+        }
+
+        var connectionString = configuredConnectionString ?? ExcelMcpTelemetry.GetConnectionString();
         if (string.IsNullOrEmpty(connectionString))
         {
             return; // No connection string available (local dev build)

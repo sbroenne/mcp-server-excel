@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -80,5 +82,102 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
         var info = _tableCommands.Read(batch, "DataTable");
         Assert.True(info.Success, $"Read after append failed: {info.ErrorMessage}");
         Assert.Equal(3, info.Table!.RowCount); // 1 original + 2 appended
+    }
+
+    /// <summary>
+    /// Appending a non-rectangular payload must fail before Excel is mutated.
+    /// Silent truncation or partially filled rows makes retries unsafe and hides
+    /// caller mistakes, so every row must match the table's column count.
+    /// </summary>
+    [Fact]
+    public void Append_WithMismatchedRowWidths_FailsClosedWithoutChangingTable()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(Append_WithMismatchedRowWidths_FailsClosedWithoutChangingTable),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Name = "Data";
+            sheet.Range["A1:C2"].Value2 = new object[,]
+            {
+                { "Label", "IsActive", "Amount" },
+                { "Initial", true, 1.0 },
+            };
+            return 0;
+        });
+        _tableCommands.Create(batch, "Data", "DataTable", "A1:C2", true, "TableStyleLight1");
+
+        var malformedRows = new List<List<object?>>
+        {
+            new() { "TooShort", true },
+            new() { "Too", "Many", "Values", 4 },
+        };
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => _tableCommands.Append(batch, "DataTable", malformedRows));
+        Assert.Contains("3", exception.Message, StringComparison.Ordinal);
+
+        var data = _tableCommands.GetData(batch, "DataTable", visibleOnly: false);
+        Assert.True(data.Success, $"Read after rejected append failed: {data.ErrorMessage}");
+        Assert.Single(data.Data!);
+        Assert.Equal("Initial", data.Data![0][0]);
+        Assert.Equal(true, data.Data[0][1]);
+        Assert.Equal(1.0, Convert.ToDouble(data.Data[0][2], CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Resizing to append rows must move, rather than overwrite, an enabled totals row.
+    /// </summary>
+    [Fact]
+    public void Append_WithTotalsRow_PreservesTotalFormulaAndAppendedValues()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(Append_WithTotalsRow_PreservesTotalFormulaAndAppendedValues),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Name = "Data";
+            sheet.Range["A1:C3"].Value2 = new object[,]
+            {
+                { "Label", "IsActive", "Amount" },
+                { "First", true, 1.0 },
+                { "Second", false, 2.0 },
+            };
+            return 0;
+        });
+        _tableCommands.Create(batch, "Data", "DataTable", "A1:C3", true, "TableStyleLight1");
+        _tableCommands.ToggleTotals(batch, "DataTable", true);
+        _tableCommands.SetColumnTotal(batch, "DataTable", "Amount", "Sum");
+
+        _tableCommands.Append(
+            batch,
+            "DataTable",
+            [new List<object?> { "Third", true, 3.0 }]);
+
+        var info = _tableCommands.Read(batch, "DataTable");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.True(info.Table!.ShowTotals);
+        Assert.Equal(3, info.Table.RowCount);
+
+        var data = _tableCommands.GetData(batch, "DataTable", visibleOnly: false);
+        Assert.Equal(3, data.RowCount);
+        Assert.Equal("Third", data.Data[2][0]);
+        Assert.Equal(3.0, Convert.ToDouble(data.Data[2][2], CultureInfo.InvariantCulture));
+
+        var rangeCommands = new RangeCommands();
+        var total = rangeCommands.GetFormulas(batch, "Data", "C5");
+        Assert.True(total.Success, total.ErrorMessage);
+        Assert.Contains("SUBTOTAL", total.Formulas[0][0], StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(6.0, Convert.ToDouble(total.Values[0][0], CultureInfo.InvariantCulture));
     }
 }

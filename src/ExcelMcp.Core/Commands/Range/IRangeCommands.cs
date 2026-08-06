@@ -41,7 +41,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
-    [ServiceAction("get-values")]
+    [ServiceAction("get-values", IsMutation = false)]
     RangeValueResult GetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -68,7 +68,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name</param>
-    [ServiceAction("get-formulas")]
+    [ServiceAction("get-formulas", IsMutation = false)]
     RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -94,7 +94,7 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address to validate</param>
     /// <param name="formulas">2D array of formulas to validate - include '=' prefix</param>
     /// <param name="formulasFile">Path to a JSON file containing the formulas to validate. Alternative to inline formulas parameter.</param>
-    [ServiceAction("validate-formulas")]
+    [ServiceAction("validate-formulas", IsMutation = false)]
     RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
 
     // === CLEAR OPERATIONS ===
@@ -177,7 +177,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <returns>2D array of format codes (e.g., [["$#,##0.00", "0.00%"], ["m/d/yyyy", "General"]])</returns>
-    [ServiceAction("get-number-formats")]
+    [ServiceAction("get-number-formats", IsMutation = false)]
     RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -212,7 +212,7 @@ public interface IRangeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    [ServiceAction("get-used-range")]
+    [ServiceAction("get-used-range", IsMutation = false)]
     RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
     /// <summary>
@@ -222,7 +222,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'B5') - expands to contiguous data region around this cell</param>
-    [ServiceAction("get-current-region")]
+    [ServiceAction("get-current-region", IsMutation = false)]
     RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
     /// <summary>
@@ -232,7 +232,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
-    [ServiceAction("get-info")]
+    [ServiceAction("get-info", IsMutation = false)]
     RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }
 

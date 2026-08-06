@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**26 specialized tools with 234 operations for comprehensive Excel automation**
+**26 specialized tools with 239 operations for comprehensive Excel automation**
 
 ---
 
@@ -20,7 +20,7 @@ page"** menu to jump to a specific tool.
 
 ---
 
-## 📁 File Operations (6 operations)
+## 📁 File Operations (11 operations)
 
 Open, create, and close Excel workbooks. Every other tool works on a session opened here.
 
@@ -31,6 +31,11 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **Close Workbook:** Close workbook without closing Excel
 - **Create Empty:** Create new .xlsx or .xlsm workbook
 - **Test:** Verify workbook can be opened and is accessible. Returns `isIrmProtected` flag for IRM/AIP-protected files.
+- **Preflight:** Inspect an active session for Excel compatibility, workbook state, and capability evidence before automation begins.
+- **Configure Safety:** Enable opt-in review, checkpoint, journal, verification, and abnormal-shutdown policies for an active session.
+- **Journal:** Read the session's durable operation journal and verification evidence.
+- **Recoveries:** List available recovery checkpoints using privacy-safe summaries.
+- **Recover:** Open a recovery checkpoint as a new session without overwriting the original workbook.
 
 ---
 
@@ -344,8 +349,8 @@ Add, rename, move, and manage worksheets — including tab colors and visibility
 - **Delete:** Remove a worksheet
 
 **Cross-Workbook Operations:**
-- **Copy to File:** Copy a worksheet to another workbook (atomic)
-- **Move to File:** Move a worksheet to another workbook (atomic)
+- **Copy to File:** Copy a worksheet to another workbook (atomic; safety workflow options fail closed without changing either workbook)
+- **Move to File:** Move a worksheet to another workbook (atomic; safety workflow options fail closed without changing either workbook)
 
 **Tab Colors:**
 - **Set Tab Color:** Set a worksheet tab's RGB color

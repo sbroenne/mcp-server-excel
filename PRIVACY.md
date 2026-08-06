@@ -12,6 +12,8 @@ MCP Server for Excel ("ExcelMcp") is an open-source tool that enables AI assista
 
 ExcelMcp's MCP Server collects **limited, anonymous telemetry** to improve the software. Here's what we do and don't collect:
 
+Set `EXCELMCP_TELEMETRY_OPTOUT=true` to disable MCP telemetry initialization for the process. The CLI and daemon remain telemetry-free.
+
 ### What We DO Collect (Anonymous Telemetry)
 
 - **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values")
@@ -20,7 +22,7 @@ ExcelMcp's MCP Server collects **limited, anonymous telemetry** to improve the s
 - **Session information** - A random session ID generated each time the server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
-- **Unhandled exceptions** - Error types (not error messages or stack traces with sensitive data)
+- **Unhandled exceptions** - Sanitized error type and message; emitted exception payloads are redacted for paths, emails, credentials, connection secrets, and stack details
 
 ### What We DO NOT Collect
 
@@ -52,6 +54,8 @@ ExcelMcp operates on your local machine:
 1. **Local Processing** - All Excel operations are performed locally via Microsoft's COM API
 2. **Your Files Stay Local** - Excel files are read from and written to your local filesystem only
 3. **Minimal Network Usage** - The only network traffic is anonymous telemetry to Azure Application Insights
+
+When safety journaling is enabled, durable state is stored locally under the user's application-data state directory (or `EXCELMCP_STATE_DIR`). Portable journal and recovery records omit cell values, full formulas, secrets, raw stack traces, and unsanitized portable paths. Checkpoint files are local full-workbook copies and are not encrypted. Custom state roots must be private local directories: network drives and existing reparse points are rejected, but path checks cannot atomically defend against another process running as the same user and racing a path replacement.
 
 ## Data Flow
 

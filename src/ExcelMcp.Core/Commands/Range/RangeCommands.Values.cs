@@ -109,6 +109,7 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            dynamic? areas = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
 
@@ -118,6 +119,18 @@ public partial class RangeCommands
                 if (range == null)
                 {
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
+                }
+
+                // Excel does not define a reliable SAFEARRAY assignment for a
+                // disjoint/multi-area range. Reject it before changing calculation
+                // mode or dispatching the write so no area can be silently skipped.
+                areas = range.Areas;
+                var areaCount = Convert.ToInt32(areas.Count, System.Globalization.CultureInfo.InvariantCulture);
+                if (areaCount != 1)
+                {
+                    throw new ArgumentException(
+                        $"Range '{rangeAddress}' contains {areaCount} disjoint areas; set-values requires one contiguous rectangular area.",
+                        nameof(values));
                 }
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
@@ -174,6 +187,7 @@ public partial class RangeCommands
                         // Ignore errors restoring calculation mode
                     }
                 }
+                ComUtilities.Release(ref areas);
                 ComUtilities.Release(ref range);
             }
         });

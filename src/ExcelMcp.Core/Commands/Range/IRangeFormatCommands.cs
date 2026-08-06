@@ -63,7 +63,7 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
-    [ServiceAction("get-style")]
+    [ServiceAction("get-style", IsMutation = false)]
     RangeStyleResult GetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -176,7 +176,7 @@ public interface IRangeFormatCommands
     /// <param name="errorMessage">Text for the error alert popup</param>
     /// <param name="ignoreBlank">Whether to allow blank cells in validation (default: true)</param>
     /// <param name="showDropdown">Whether to show dropdown arrow for list validation (default: true)</param>
-    [ServiceAction("validate-range")]
+    [ServiceAction("validate-range", IsMutation = false)]
     OperationResult ValidateRange(
         IExcelBatch batch,
         string sheetName,
@@ -201,7 +201,7 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
-    [ServiceAction("get-validation")]
+    [ServiceAction("get-validation", IsMutation = false)]
     RangeValidationResult GetValidation(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -259,7 +259,7 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to check for merged cells (e.g., 'A1:D10')</param>
-    [ServiceAction("get-merge-info")]
+    [ServiceAction("get-merge-info", IsMutation = false)]
     RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     // === SIZING OPERATIONS ===

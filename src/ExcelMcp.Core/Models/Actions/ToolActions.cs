@@ -28,7 +28,22 @@ public enum FileAction
     CloseWorkbook,
 
     [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
-    Test
+    Test,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("preflight")]
+    Preflight,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("configure-safety")]
+    ConfigureSafety,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("journal")]
+    Journal,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("recoveries")]
+    Recoveries,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("recover")]
+    Recover
 }
 
 // NOTE: PowerQueryAction is now generated from IPowerQueryCommands interface

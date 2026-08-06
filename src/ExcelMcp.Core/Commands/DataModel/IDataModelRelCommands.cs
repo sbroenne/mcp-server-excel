@@ -32,7 +32,7 @@ public interface IDataModelRelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of relationships</returns>
-    [ServiceAction("list-relationships")]
+    [ServiceAction("list-relationships", IsMutation = false)]
     DataModelRelationshipListResult ListRelationships(IExcelBatch batch);
 
     /// <summary>
@@ -44,7 +44,7 @@ public interface IDataModelRelCommands
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
     /// <returns>Result containing relationship details</returns>
-    [ServiceAction("read-relationship")]
+    [ServiceAction("read-relationship", IsMutation = false)]
     DataModelRelationshipViewResult ReadRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,

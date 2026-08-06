@@ -37,7 +37,7 @@ public interface IChartCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>Structured result with charts, names, types, sheets, positions, and data sources</returns>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     ChartListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -46,7 +46,7 @@ public interface IChartCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart (or shape name)</param>
     /// <returns>Chart type, data source, series info, position, styling</returns>
-    [ServiceAction("read")]
+    [ServiceAction("read", IsMutation = false)]
     ChartInfoResult Read(IExcelBatch batch, [RequiredParameter] string chartName);
 
     /// <summary>

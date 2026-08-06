@@ -2,7 +2,13 @@ using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using ServiceBatchOperation = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchOperation;
+using ServiceBatchOperationResult = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchOperationResult;
+using ServiceBatchRequest = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchRequest;
+using ServiceBatchResponse = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceBatchResponse;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -11,6 +17,8 @@ using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Service.Rpc;
+using Sbroenne.ExcelMcp.Service.Idempotency;
+using Sbroenne.ExcelMcp.Service.Safety;
 using StreamJsonRpc;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
@@ -28,6 +36,7 @@ namespace Sbroenne.ExcelMcp.Service;
 /// </summary>
 public sealed class ExcelMcpService : IDisposable
 {
+    private const int MaximumBatchOperations = 256;
     private readonly SessionManager _sessionManager = new();
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Task, byte> _activeConnectionTasks = new();
@@ -56,10 +65,21 @@ public sealed class ExcelMcpService : IDisposable
     private readonly DiagCommands _diagCommands = new();
     private readonly WindowCommands _windowCommands = new();
     private readonly PythonInExcelCommands _pythonInExcelCommands = new();
+    private readonly WorkbookSafetyCoordinator _safetyCoordinator;
+    private readonly IdempotencyCoordinator _idempotencyCoordinator = new();
 
-    public ExcelMcpService()
+    public ExcelMcpService() : this(null)
+    {
+    }
+
+    /// <summary>
+    /// Creates the service with an optional durable safety-state root.
+    /// </summary>
+    public ExcelMcpService(string? safetyStateRoot)
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _safetyCoordinator = new WorkbookSafetyCoordinator(safetyStateRoot);
+        _sessionManager.DeadSessionCleanupStarting += HandleDeadSessionCleanupStarting;
     }
 
     public DateTime StartTime => _startTime;
@@ -241,7 +261,10 @@ public sealed class ExcelMcpService : IDisposable
     /// Processes a service request directly (in-process, no pipe).
     /// Used by the MCP Server for direct in-process communication.
     /// </summary>
-    public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+    public Task<ServiceResponse> ProcessAsync(ServiceRequest request) =>
+        _idempotencyCoordinator.ExecuteAsync(request, () => ProcessCoreAsync(request));
+
+    private async Task<ServiceResponse> ProcessCoreAsync(ServiceRequest request)
     {
         try
         {
@@ -253,7 +276,10 @@ public sealed class ExcelMcpService : IDisposable
             ServiceResponse response = category switch
             {
                 "service" => HandleServiceCommand(action),
-                "session" => HandleSessionCommand(action, request),
+                "session" => string.Equals(action, "batch", StringComparison.Ordinal)
+                    ? await HandleSessionBatchAsync(request)
+                    : HandleSessionCommand(action, request),
+                "recovery" => HandleRecoveryCommand(action, request),
                 "sheet" or "sheetstyle" => await DispatchSheetAsync(action, request),
                 "range" or "rangeedit" or "rangeformat" or "rangelink" => await DispatchRangeAsync(action, request),
                 "table" or "tablecolumn" => await DispatchTableAsync(action, request),
@@ -361,9 +387,233 @@ public sealed class ExcelMcpService : IDisposable
             "close" => HandleSessionClose(request),
             "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
+            "preflight" => HandleSessionPreflight(request),
+            "configure-safety" => HandleSessionConfigureSafety(request),
+            "journal" => HandleSessionJournal(request),
             _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
         };
     }
+
+    private async Task<ServiceResponse> HandleSessionBatchAsync(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "sessionId is required",
+            };
+        }
+
+        ServiceBatchRequest? batchRequest;
+        try
+        {
+            batchRequest = ServiceProtocol.Deserialize<ServiceBatchRequest>(request.Args ?? "{}");
+        }
+        catch (JsonException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Invalid session.batch arguments: {ex.Message}",
+            };
+        }
+
+        if (batchRequest?.Operations is not { Count: > 0 })
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "session.batch requires at least one operation",
+            };
+        }
+
+        if (batchRequest.Operations.Count > MaximumBatchOperations)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "BatchTooLarge",
+                ErrorMessage = $"session.batch accepts at most {MaximumBatchOperations} operations",
+            };
+        }
+
+        for (int index = 0; index < batchRequest.Operations.Count; index++)
+        {
+            var operation = batchRequest.Operations[index];
+            string? validationError = ValidateBatchOperation(request.SessionId, operation);
+            if (validationError != null)
+            {
+                return CreateBatchValidationFailure(index, operation.Command, validationError);
+            }
+        }
+
+        var results = new List<ServiceBatchOperationResult>(batchRequest.Operations.Count);
+        int? failedIndex = null;
+        ServiceResponse? firstFailure = null;
+
+        for (int index = 0; index < batchRequest.Operations.Count; index++)
+        {
+            var operation = batchRequest.Operations[index];
+            var operationRequest = new ServiceRequest
+            {
+                Command = operation.Command,
+                SessionId = request.SessionId,
+                Args = GetOperationArgsJson(operation.Args),
+                Source = request.Source,
+                ReviewOnly = operation.ReviewOnly,
+                ReviewId = operation.ReviewId,
+                Checkpoint = operation.Checkpoint,
+                IdempotencyKey = operation.IdempotencyKey,
+            };
+
+            var operationResponse = await ProcessAsync(operationRequest);
+            results.Add(new ServiceBatchOperationResult
+            {
+                Index = index,
+                Success = operationResponse.Success,
+                Result = ParseEmbeddedResult(operationResponse.Result),
+                ErrorMessage = operationResponse.ErrorMessage,
+                ErrorCategory = operationResponse.ErrorCategory,
+                ExceptionType = operationResponse.ExceptionType,
+                HResult = operationResponse.HResult,
+            });
+
+            if (!operationResponse.Success)
+            {
+                failedIndex ??= index;
+                firstFailure ??= operationResponse;
+                if (batchRequest.StopOnError || IsTerminalBatchFailure(operationResponse))
+                {
+                    break;
+                }
+            }
+        }
+
+        bool completed = results.Count == batchRequest.Operations.Count;
+        var batchResponse = new ServiceBatchResponse
+        {
+            Success = failedIndex == null,
+            Completed = completed,
+            FailedIndex = failedIndex,
+            Results = results,
+        };
+
+        return new ServiceResponse
+        {
+            Success = batchResponse.Success,
+            ErrorMessage = firstFailure?.ErrorMessage,
+            ErrorCategory = firstFailure?.ErrorCategory,
+            ExceptionType = firstFailure?.ExceptionType,
+            HResult = firstFailure?.HResult,
+            Result = ServiceProtocol.Serialize(batchResponse),
+        };
+    }
+
+    private static string? ValidateBatchOperation(string sessionId, ServiceBatchOperation operation)
+    {
+        if (string.IsNullOrWhiteSpace(operation.Command))
+        {
+            return "Every batch operation requires a command";
+        }
+
+        if (!string.IsNullOrWhiteSpace(operation.SessionId) &&
+            !string.Equals(operation.SessionId, sessionId, StringComparison.Ordinal))
+        {
+            return "A batch operation cannot target a different session";
+        }
+
+        var parts = operation.Command.Split('.', 2);
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return $"Invalid batch command: {operation.Command}";
+        }
+
+        bool sessionScoped = parts[0] switch
+        {
+            "sheet" => !ServiceRegistry.Sheet.TryParseAction(parts[1], out var action) ||
+                ServiceRegistry.Sheet.RequiresSessionForAction(action),
+            "sheetstyle" or
+            "range" or "rangeedit" or "rangeformat" or "rangelink" or
+            "table" or "tablecolumn" or
+            "powerquery" or
+            "pivottable" or "pivottablefield" or "pivottablecalc" or
+            "chart" or "chartconfig" or
+            "connection" or "calculation" or "namedrange" or
+            "conditionalformat" or "vba" or
+            "datamodel" or "datamodelrel" or
+            "slicer" or "screenshot" or "window" or "pythoninexcel" => true,
+            _ => false,
+        };
+
+        return sessionScoped
+            ? null
+            : $"Command '{operation.Command}' is not allowed inside session.batch";
+    }
+
+    private static ServiceResponse CreateBatchValidationFailure(int index, string command, string message)
+    {
+        var result = new ServiceBatchResponse
+        {
+            Success = false,
+            Completed = false,
+            FailedIndex = index,
+            Results =
+            [
+                new ServiceBatchOperationResult
+                {
+                    Index = index,
+                    Command = command,
+                    Success = false,
+                    ErrorMessage = message,
+                    ErrorCategory = "InvalidInput",
+                },
+            ],
+        };
+
+        return new ServiceResponse
+        {
+            Success = false,
+            ErrorCategory = "InvalidInput",
+            ErrorMessage = message,
+            Result = ServiceProtocol.Serialize(result),
+        };
+    }
+
+    private static string? GetOperationArgsJson(JsonElement? args)
+    {
+        if (args is not { } value || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
+    }
+
+    private static JsonElement? ParseEmbeddedResult(string? result)
+    {
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(result);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return JsonSerializer.SerializeToElement(result, ServiceProtocol.JsonOptions);
+        }
+    }
+
+    private static bool IsTerminalBatchFailure(ServiceResponse response) =>
+        response.ErrorCategory is "Timeout" or "Cancelled" or "ExcelProcessDied" or
+            "IdempotencyUnknownOutcome" or "UnknownOutcome" or "AbortedUnknown" or "JournalPersistenceFailed";
 
     private ServiceResponse HandleSessionCreate(ServiceRequest request)
     {
@@ -373,7 +623,23 @@ public sealed class ExcelMcpService : IDisposable
             return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
 
-        var fullPath = Path.GetFullPath(args.FilePath);
+        var validation = ExcelFileValidator.Inspect(args.FilePath);
+        if (!validation.IsWithinPathLimit)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = validation.Message };
+        }
+
+        if (!validation.IsWithinCreatePathLimit)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "PathTooLong",
+                ErrorMessage = $"File path exceeds Excel's practical SaveAs limit of {ExcelFileValidator.MaximumCreatePathLength} characters."
+            };
+        }
+
+        var fullPath = validation.FilePath;
 
         if (File.Exists(fullPath))
         {
@@ -384,14 +650,12 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        var extension = Path.GetExtension(fullPath);
-        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase))
+        if (!validation.IsSupportedExtension)
         {
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = $"Invalid file extension '{extension}'. session create supports .xlsx and .xlsm only."
+                ErrorMessage = $"Invalid file extension '{validation.Extension}'. session create supports .xlsx and .xlsm only."
             };
         }
 
@@ -453,25 +717,47 @@ public sealed class ExcelMcpService : IDisposable
         var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
         var shouldSave = args?.Save ?? false;
         bool closed;
+        bool excelProcessWasDead;
         try
         {
-            closed = _sessionManager.CloseSession(request.SessionId, save: shouldSave);
+            closed = _sessionManager.CloseSession(
+                request.SessionId,
+                save: shouldSave,
+                force: false,
+                out excelProcessWasDead);
         }
         catch (Exception ex) when (IsFatalExcelDisconnect(ex))
         {
-            CleanupDeadSession(request.SessionId);
+            RecordAndCleanupDeadSession(request.SessionId);
             return CreateExcelDisconnectedResponse(request.SessionId, ex, shouldSave
                 ? "Excel disconnected while saving before close. Session has been cleaned up; reopen the workbook and verify whether the save completed."
                 : "Excel disconnected while closing. Session has been cleaned up; reopen the workbook with a new session.");
         }
 
+        if (excelProcessWasDead)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                SessionId = request.SessionId,
+                ErrorCategory = "ExcelProcessDied",
+                ErrorMessage = shouldSave
+                    ? "Excel had already stopped before close, so changes could not be saved. Recovery evidence was recorded; reopen the workbook and verify its contents."
+                    : "Excel had already stopped before close. Recovery evidence was recorded and the dead session was cleaned up."
+            };
+        }
+
         if (closed)
         {
+            _safetyCoordinator.RemoveSession(request.SessionId);
+            _idempotencyCoordinator.RemoveSession(request.SessionId);
             return new ServiceResponse { Success = true };
         }
 
         if (_knownSessionIds.ContainsKey(request.SessionId))
         {
+            _safetyCoordinator.RemoveSession(request.SessionId);
+            _idempotencyCoordinator.RemoveSession(request.SessionId);
             return new ServiceResponse
             {
                 Success = true,
@@ -504,7 +790,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex) when (IsFatalExcelDisconnect(ex))
         {
-            CleanupDeadSession(request.SessionId);
+            RecordAndCleanupDeadSession(request.SessionId);
             return CreateExcelDisconnectedResponse(request.SessionId, ex,
                 "Excel disconnected while saving. Session has been cleaned up; reopen the workbook and verify whether the save completed.");
         }
@@ -532,6 +818,199 @@ public sealed class ExcelMcpService : IDisposable
             Success = true,
             Result = JsonSerializer.Serialize(new { success = true, sessions, count = sessions.Count }, ServiceProtocol.JsonOptions)
         };
+    }
+
+    private ServiceResponse HandleSessionConfigureSafety(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
+        }
+
+        if (!_sessionManager.IsSessionAlive(request.SessionId) ||
+            !_sessionManager.TryGetFilePath(request.SessionId, out var workbookPath))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Session '{request.SessionId}' not found or Excel is no longer running."
+            };
+        }
+
+        var response = _safetyCoordinator.Configure(request.SessionId, workbookPath, request.Args);
+        if (response.Success)
+        {
+            _sessionManager.SetAutoSaveOnDispose(
+                request.SessionId,
+                autoSave: !_safetyCoordinator.ShouldDiscardOnAbnormalShutdown(request.SessionId));
+        }
+
+        return response;
+    }
+
+    private ServiceResponse HandleSessionJournal(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
+        }
+
+        return _safetyCoordinator.GetJournal(request.SessionId);
+    }
+
+    private ServiceResponse HandleRecoveryCommand(string action, ServiceRequest request)
+    {
+        if (action == "list")
+        {
+            return _safetyCoordinator.ListRecoveries();
+        }
+
+        if (action != "recover")
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown recovery action: {action}" };
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<RecoveryArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args?.RecoveryId))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "recoveryId is required" };
+        }
+
+        if (!_safetyCoordinator.TryResolveRecovery(args.RecoveryId, out var checkpointPath, out var operationId) ||
+            string.IsNullOrWhiteSpace(checkpointPath) || string.IsNullOrWhiteSpace(operationId))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "RecoveryUnavailable",
+                ErrorMessage = $"Recovery '{args.RecoveryId}' is unavailable or failed integrity validation."
+            };
+        }
+
+        try
+        {
+            TimeSpan? timeout = args.TimeoutSeconds.HasValue
+                ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
+                : null;
+            var origin = request.Source?.StartsWith("mcp", StringComparison.OrdinalIgnoreCase) == true
+                ? SessionOrigin.MCP
+                : SessionOrigin.CLI;
+            var sessionId = _sessionManager.CreateSession(
+                checkpointPath,
+                show: args.Show,
+                operationTimeout: timeout,
+                origin: origin);
+            _knownSessionIds.TryAdd(sessionId, 0);
+            _safetyCoordinator.RecordRecovered(operationId);
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId,
+                    recoveryId = args.RecoveryId,
+                    originalWorkbookOverwritten = false
+                }, ServiceProtocol.JsonOptions)
+            };
+        }
+        catch (Exception ex)
+        {
+            return CreateErrorResponse(ex, request.Command, request.SessionId);
+        }
+    }
+
+    private ServiceResponse HandleSessionPreflight(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
+        }
+
+        var sessionError = TryBeginUsableSession(request.SessionId, out var batch);
+        if (sessionError != null)
+        {
+            return sessionError;
+        }
+
+        try
+        {
+            var result = CapabilityPreflightCommands.Collect(batch!, request.SessionId);
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
+            };
+        }
+        catch (ExcelOperationNotStartedTimeoutException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "TimeoutBeforeExecution",
+                ErrorMessage = $"Excel operation timed out before execution. The session remains open and retrying is safe: {ex.Message}",
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (ExcelOperationNotStartedCanceledException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "CancelledBeforeExecution",
+                ErrorMessage = $"Excel operation was cancelled before execution. The session remains open and retrying is safe: {ex.Message}",
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (TimeoutException ex)
+        {
+            _safetyCoordinator.RecordSessionInterruption(request.SessionId, "abortedUnknown", "Timeout");
+            CloseInterruptedSession(request.SessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
+                ErrorMessage = $"Excel capability preflight timed out and the session has been closed: {ex.Message}",
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            _safetyCoordinator.RecordSessionInterruption(request.SessionId, "abortedUnknown", "Cancelled");
+            CloseInterruptedSession(request.SessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Cancelled",
+                ErrorMessage = "Excel capability preflight was cancelled and the session has been closed.",
+                ExceptionType = nameof(OperationCanceledException)
+            };
+        }
+        catch (Exception ex) when (IsFatalExcelDisconnect(ex))
+        {
+            RecordAndCleanupDeadSession(request.SessionId);
+            return CreateExcelDisconnectedResponse(
+                request.SessionId,
+                ex,
+                $"Excel process for session '{request.SessionId}' disconnected during capability preflight. Session has been cleaned up. Please reopen the file with a new session.");
+        }
+        catch (Exception ex)
+        {
+            if (batch is not null && !batch.IsExcelProcessAlive())
+            {
+                RecordAndCleanupDeadSession(request.SessionId);
+                return CreateExcelDisconnectedResponse(
+                    request.SessionId,
+                    ex,
+                    $"Excel process for session '{request.SessionId}' died during capability preflight. Session has been cleaned up. Please reopen the file with a new session.");
+            }
+
+            return CreateErrorResponse(ex, request.Command, request.SessionId);
+        }
+        finally
+        {
+            _sessionManager.EndOperation(request.SessionId);
+        }
     }
 
 
@@ -578,7 +1057,7 @@ public sealed class ExcelMcpService : IDisposable
 
 
 
-        return await WithSessionAsync(request.SessionId, batch => WrapResult(dispatch(action, batch)));
+        return await WithSessionAsync(request, batch => WrapResult(dispatch(action, batch)));
 
     }
 
@@ -602,11 +1081,28 @@ public sealed class ExcelMcpService : IDisposable
 
         {
 
-            // CopyToFile/MoveToFile are atomic operations without session
-
-            if (sheetAction is SheetAction.CopyToFile or SheetAction.MoveToFile)
+            // Atomic actions are self-contained and do not require a session.
+            if (!ServiceRegistry.Sheet.RequiresSessionForAction(sheetAction))
 
             {
+
+                if (request.ReviewOnly || !string.IsNullOrWhiteSpace(request.ReviewId) || request.Checkpoint)
+
+                {
+
+                    return new ServiceResponse
+
+                    {
+
+                        Success = false,
+
+                        ErrorCategory = "SafetyWorkflowUnavailable",
+
+                        ErrorMessage = "Atomic cross-file worksheet actions do not yet support review or checkpoints; neither workbook was changed. Run without safety options only after reviewing the source and target files directly."
+
+                    };
+
+                }
 
                 try
 
@@ -630,7 +1126,7 @@ public sealed class ExcelMcpService : IDisposable
 
 
 
-            return await WithSessionAsync(request.SessionId, batch =>
+            return await WithSessionAsync(request, batch =>
 
                 WrapResult(ServiceRegistry.Sheet.DispatchToCore(_sheetCommands, sheetAction, batch, request.Args)));
 
@@ -642,7 +1138,7 @@ public sealed class ExcelMcpService : IDisposable
 
         {
 
-            return await WithSessionAsync(request.SessionId, batch =>
+            return await WithSessionAsync(request, batch =>
 
                 WrapResult(ServiceRegistry.SheetStyle.DispatchToCore(_sheetCommands, styleAction, batch, request.Args)));
 
@@ -660,7 +1156,7 @@ public sealed class ExcelMcpService : IDisposable
 
     {
 
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
 
         {
 
@@ -692,7 +1188,7 @@ public sealed class ExcelMcpService : IDisposable
 
     {
 
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
 
         {
 
@@ -715,7 +1211,7 @@ public sealed class ExcelMcpService : IDisposable
         if (!ServiceRegistry.Window.TryParseAction(actionString, out var windowAction))
             return new ServiceResponse { Success = false, ErrorMessage = $"Unknown window action: {actionString}" };
 
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
         {
             var result = WrapResult(ServiceRegistry.Window.DispatchToCore(_windowCommands, windowAction, batch, request.Args));
 
@@ -737,8 +1233,9 @@ public sealed class ExcelMcpService : IDisposable
     }
 
 
-    private Task<ServiceResponse> WithSessionAsync(string? sessionId, Func<IExcelBatch, ServiceResponse> action)
+    private Task<ServiceResponse> WithSessionAsync(ServiceRequest request, Func<IExcelBatch, ServiceResponse> action)
     {
+        var sessionId = request.SessionId;
         if (string.IsNullOrWhiteSpace(sessionId))
         {
             return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" });
@@ -752,11 +1249,32 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
-            var response = action(batch!);
+            var response = _safetyCoordinator.Execute(request, batch!, () => action(batch!));
             return Task.FromResult(response);
+        }
+        catch (ExcelOperationNotStartedTimeoutException ex)
+        {
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "TimeoutBeforeExecution",
+                ErrorMessage = $"Excel operation timed out before execution. The session remains open and retrying is safe: {ex.Message}",
+                ExceptionType = ex.GetType().Name
+            });
+        }
+        catch (ExcelOperationNotStartedCanceledException ex)
+        {
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "CancelledBeforeExecution",
+                ErrorMessage = $"Excel operation was cancelled before execution. The session remains open and retrying is safe: {ex.Message}",
+                ExceptionType = ex.GetType().Name
+            });
         }
         catch (TimeoutException ex)
         {
+            _safetyCoordinator.RecordSessionInterruption(sessionId, "abortedUnknown", "Timeout");
             // Operation timed out — Excel COM call is hung (IDispatch.Invoke stuck).
             // Force-close the session to trigger the force-kill path in ExcelBatch.Dispose(),
             // which will kill the hung Excel process and release the STA thread.
@@ -779,6 +1297,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (OperationCanceledException)
         {
+            _safetyCoordinator.RecordSessionInterruption(sessionId, "abortedUnknown", "Cancelled");
             // Caller cancelled (e.g., VS Code cancelled the tool call) while a COM operation
             // may still be running on the STA thread. ExcelBatch.Execute sets _operationTimedOut
             // on cancellation, but nobody calls Dispose() — the session stays alive with a
@@ -807,8 +1326,7 @@ public sealed class ExcelMcpService : IDisposable
             ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED ||
             ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
         {
-            // Excel process died during the operation — clean up the dead session
-            CleanupDeadSession(sessionId);
+            RecordAndCleanupDeadSession(sessionId);
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -823,8 +1341,7 @@ public sealed class ExcelMcpService : IDisposable
             ex.Message.Contains("no longer running", StringComparison.OrdinalIgnoreCase) ||
             ex.Message.Contains("process", StringComparison.OrdinalIgnoreCase))
         {
-            // Excel process detected as dead before COM call (ExcelBatch pre-check)
-            CleanupDeadSession(sessionId);
+            RecordAndCleanupDeadSession(sessionId);
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -838,7 +1355,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             if (IsFatalExcelDisconnect(ex))
             {
-                CleanupDeadSession(sessionId);
+                RecordAndCleanupDeadSession(sessionId);
                 return Task.FromResult(CreateExcelDisconnectedResponse(sessionId, ex,
                     $"Excel process for session '{sessionId}' disconnected during the operation. Session has been cleaned up. Please reopen the file with a new session."));
             }
@@ -846,7 +1363,7 @@ public sealed class ExcelMcpService : IDisposable
             // Check if Excel died with a non-COM exception — clean up dead session
             if (batch != null && !batch.IsExcelProcessAlive())
             {
-                CleanupDeadSession(sessionId);
+                RecordAndCleanupDeadSession(sessionId);
             }
 
             return Task.FromResult(CreateErrorResponse(ex));
@@ -867,6 +1384,29 @@ public sealed class ExcelMcpService : IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
         }
+        finally
+        {
+            _safetyCoordinator.RemoveSession(sessionId);
+        }
+    }
+
+    private void RecordAndCleanupDeadSession(string sessionId)
+    {
+        _ = _safetyCoordinator.RecordSessionInterruption(
+            sessionId,
+            "excelProcessDied",
+            "ExcelProcessDied");
+        CleanupDeadSession(sessionId);
+    }
+
+    private void HandleDeadSessionCleanupStarting(string sessionId)
+    {
+        _ = _safetyCoordinator.RecordSessionInterruption(
+            sessionId,
+            "excelProcessDied",
+            "ExcelProcessDied");
+        _safetyCoordinator.RemoveSession(sessionId);
+        _idempotencyCoordinator.RemoveSession(sessionId);
     }
 
     private static ServiceResponse CreateExcelDisconnectedResponse(string sessionId, Exception ex, string message)
@@ -924,12 +1464,6 @@ public sealed class ExcelMcpService : IDisposable
         var command = response.Command ?? request.Command;
         var sessionId = response.SessionId ?? request.SessionId;
 
-        if (string.Equals(command, response.Command, StringComparison.Ordinal)
-            && string.Equals(sessionId, response.SessionId, StringComparison.Ordinal))
-        {
-            return response;
-        }
-
         return CloneResponse(response, command, sessionId);
     }
 
@@ -940,11 +1474,11 @@ public sealed class ExcelMcpService : IDisposable
             Success = response.Success,
             Command = command,
             SessionId = sessionId,
-            ErrorMessage = response.ErrorMessage,
+            ErrorMessage = SensitiveDataSanitizer.Redact(response.ErrorMessage),
             ErrorCategory = response.ErrorCategory,
             ExceptionType = response.ExceptionType,
             HResult = response.HResult,
-            InnerError = response.InnerError,
+            InnerError = SensitiveDataSanitizer.Redact(response.InnerError),
             Result = response.Result
         };
     }
@@ -965,7 +1499,7 @@ public sealed class ExcelMcpService : IDisposable
 
         if (ex.InnerException != null)
         {
-            innerError = ex.InnerException.Message;
+            innerError = SensitiveDataSanitizer.Redact(ex.InnerException.Message);
             if (ex.InnerException is COMException innerComEx)
             {
                 innerError += $" [COM: 0x{innerComEx.HResult:X8}]";
@@ -980,7 +1514,7 @@ public sealed class ExcelMcpService : IDisposable
                 Command = command,
                 SessionId = sessionId,
                 ErrorCategory = pqEx.ErrorCategory,
-                ErrorMessage = $"{pqEx.GetType().Name}: {pqEx.Message}",
+                ErrorMessage = $"{pqEx.GetType().Name}: {SensitiveDataSanitizer.Redact(pqEx.Message)}",
                 ExceptionType = exceptionType,
                 HResult = hresult,
                 InnerError = innerError
@@ -991,7 +1525,7 @@ public sealed class ExcelMcpService : IDisposable
                 Command = command,
                 SessionId = sessionId,
                 ErrorCategory = errorCategory,
-                ErrorMessage = $"{exceptionType}: {ex.Message}",
+                ErrorMessage = $"{exceptionType}: {SensitiveDataSanitizer.Redact(ex.Message)}",
                 ExceptionType = exceptionType,
                 HResult = hresult,
                 InnerError = innerError
@@ -1003,10 +1537,58 @@ public sealed class ExcelMcpService : IDisposable
     {
         if (!_sessionManager.TryBeginOperation(sessionId, out batch, out var errorMessage))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = errorMessage };
+            var (errorCategory, journalState) = ClassifySessionBeginFailure(errorMessage);
+            if (journalState is not null && errorCategory is not null)
+            {
+                // Dead-process cleanup is handled synchronously by SessionManager's
+                // DeadSessionCleanupStarting event before it removes tracking.
+                if (!string.Equals(errorCategory, "ExcelProcessDied", StringComparison.Ordinal))
+                {
+                    _ = _safetyCoordinator.RecordSessionInterruption(sessionId, journalState, errorCategory);
+                }
+            }
+
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = errorCategory,
+                ErrorMessage = errorMessage
+            };
         }
 
         return null;
+    }
+
+    private void CloseInterruptedSession(string sessionId)
+    {
+        try
+        {
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+        }
+        catch (Exception cleanupEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+        }
+        finally
+        {
+            _safetyCoordinator.RemoveSession(sessionId);
+        }
+    }
+
+    private static (string? ErrorCategory, string? JournalState) ClassifySessionBeginFailure(string? errorMessage)
+    {
+        if (errorMessage?.Contains("has died", StringComparison.OrdinalIgnoreCase) == true ||
+            errorMessage?.Contains("no longer running", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return ("ExcelProcessDied", "excelProcessDied");
+        }
+
+        if (errorMessage?.Contains("timed out or was cancelled", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return ("SessionInterrupted", "abortedUnknown");
+        }
+
+        return (null, null);
     }
 
     public void Dispose()
@@ -1015,8 +1597,32 @@ public sealed class ExcelMcpService : IDisposable
         _disposed = true;
 
         _shutdownCts.Cancel();
-        _sessionManager.Dispose();
-        _shutdownCts.Dispose();
+        try
+        {
+            foreach (var sessionId in _sessionManager.ActiveSessionIds.ToArray())
+            {
+                _safetyCoordinator.RecordServerShutdown(sessionId);
+            }
+        }
+        finally
+        {
+            try
+            {
+                _sessionManager.Dispose();
+            }
+            finally
+            {
+                try
+                {
+                    _safetyCoordinator.Dispose();
+                }
+                finally
+                {
+                    _idempotencyCoordinator.Clear();
+                    _shutdownCts.Dispose();
+                }
+            }
+        }
     }
 }
 
@@ -1030,3 +1636,9 @@ public sealed class SessionOpenArgs
     public int? TimeoutSeconds { get; set; }
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
+public sealed class RecoveryArgs
+{
+    public string? RecoveryId { get; set; }
+    public bool Show { get; set; }
+    public int? TimeoutSeconds { get; set; }
+}

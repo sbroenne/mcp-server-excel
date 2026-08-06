@@ -38,7 +38,7 @@ public interface IPivotTableFieldCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <returns>Field names, data types, current areas, aggregation functions</returns>
-    [ServiceAction("list-fields")]
+    [ServiceAction("list-fields", IsMutation = false)]
     PivotFieldListResult ListFields(IExcelBatch batch, string pivotTableName);
 
     /// <summary>

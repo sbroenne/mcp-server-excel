@@ -28,14 +28,14 @@ public interface IVbaCommands
     /// <summary>
     /// Lists all VBA modules and procedures in the workbook
     /// </summary>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     VbaListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Views VBA module code without exporting to file
     /// </summary>
     /// <param name="moduleName">Name of the VBA module</param>
-    [ServiceAction("view")]
+    [ServiceAction("view", IsMutation = false)]
     VbaViewResult View(IExcelBatch batch, [RequiredParameter] string moduleName);
 
     /// <summary>

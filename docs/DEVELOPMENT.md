@@ -473,6 +473,8 @@ dotnet build -c Release
 
 ExcelMcp uses Azure Application Insights (Classic SDK with WorkerService integration) for anonymous usage telemetry and crash reporting. Telemetry is **opt-out** (enabled by default in release builds).
 
+Set `EXCELMCP_TELEMETRY_OPTOUT=true` to disable MCP telemetry initialization for a process. Exception telemetry is constructed from sanitized details; the original exception object is not emitted. The CLI and its daemon do not send telemetry.
+
 ### **How It Works**
 
 The Application Insights connection string is **embedded at build time** via MSBuild - there is no runtime environment variable lookup.

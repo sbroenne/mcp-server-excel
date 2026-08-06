@@ -49,6 +49,12 @@ public class PythonInExcelResult : ResultBase
     public bool IsPythonError { get; set; }
 
     /// <summary>
+    /// True when Excel returned the exact #NAME? result for a PY() formula, indicating
+    /// that Python in Excel is unavailable for the active Excel/account environment.
+    /// </summary>
+    public bool IsPythonUnavailable { get; set; }
+
+    /// <summary>
     /// Informational message (e.g. explaining Python Object limitations or polling timeout).
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

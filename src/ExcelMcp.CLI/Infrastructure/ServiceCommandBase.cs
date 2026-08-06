@@ -38,17 +38,19 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     protected virtual bool RequiresSession => true;
 
     /// <summary>
+    /// Whether the parsed action requires a session. Categories with mixed action requirements
+    /// override this from generated action metadata.
+    /// </summary>
+    protected virtual bool RequiresSessionForAction(string action) => RequiresSession;
+
+    /// <summary>
     /// Validates settings and executes the command.
     /// Returns early with error code if validation fails.
     /// </summary>
     protected sealed override async Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
     {
-        // Session validation
+        // Capture the session before action-specific validation.
         var sessionId = GetSessionId(settings);
-        if (RequiresSession && string.IsNullOrWhiteSpace(sessionId))
-        {
-            return CliErrorOutput.WriteError("Session ID is required. Use --session <id>");
-        }
 
         // Action validation
         var rawAction = GetAction(settings);
@@ -62,6 +64,13 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         {
             var validList = string.Join(", ", ValidActions);
             return CliErrorOutput.WriteError($"Invalid action '{action}'. Valid actions: {validList}");
+        }
+
+        // Session validation happens after the action has been parsed because a category can
+        // contain self-contained atomic actions alongside session-based actions.
+        if (RequiresSessionForAction(action) && string.IsNullOrWhiteSpace(sessionId))
+        {
+            return CliErrorOutput.WriteError("Session ID is required. Use --session <id>");
         }
 
         // Route and execute
@@ -80,15 +89,26 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
 
         // Connect to CLI daemon service (auto-starts if not running)
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var settingsType = settings.GetType();
+        var reviewOnly = settingsType.GetProperty("ReviewOnly")?.GetValue(settings) is true;
+        var reviewId = settingsType.GetProperty("ReviewId")?.GetValue(settings) as string;
+        var checkpoint = settingsType.GetProperty("Checkpoint")?.GetValue(settings) is true;
+        var idempotencyKey = settingsType.GetProperty("IdempotencyKey")?.GetValue(settings) as string;
+
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,
             SessionId = sessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
+            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null,
+            Source = "cli",
+            ReviewOnly = reviewOnly,
+            ReviewId = reviewId,
+            Checkpoint = checkpoint,
+            IdempotencyKey = idempotencyKey
         }, cancellationToken);
 
         // Check for --output file path (generated on all CliSettings)
-        var outputPath = settings.GetType().GetProperty("OutputPath")?.GetValue(settings) as string;
+        var outputPath = settingsType.GetProperty("OutputPath")?.GetValue(settings) as string;
 
         // Output result
         if (response.Success)

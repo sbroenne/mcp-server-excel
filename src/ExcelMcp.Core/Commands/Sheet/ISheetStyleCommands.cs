@@ -46,7 +46,7 @@ public interface ISheetStyleCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    [ServiceAction("get-tab-color")]
+    [ServiceAction("get-tab-color", IsMutation = false)]
     TabColorResult GetTabColor(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
@@ -82,7 +82,7 @@ public interface ISheetStyleCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    [ServiceAction("get-visibility")]
+    [ServiceAction("get-visibility", IsMutation = false)]
     SheetVisibilityResult GetVisibility(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>

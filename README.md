@@ -13,7 +13,7 @@
 
 **Automate Excel with AI** — A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (26 tools with 234 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (26 tools with 239 operations).
 
 **⚡ Powered by the real Excel engine** — ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
 
@@ -32,7 +32,7 @@
 
 ## 🎯 What You Can Do
 
-**26 specialized tools with 234 operations:**
+**26 specialized tools with 239 operations:**
 
 - 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
@@ -44,14 +44,22 @@
 - 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
-- 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
+- 📁 **Files** (1 tool, 11 ops) - Session management, preflight, safety configuration, journals, checkpoints, recovery, and workbook creation
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
+- 🎨 **Conditional Formatting** (1 tool, 4 ops) - Add, inspect, and clear rules, including visual rule types
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 234 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 239 operations
+
+### Opt-in safety workflow
+
+Safety controls are available through both MCP and CLI and are disabled by default for compatibility. Configure a session with `review` (`off`, `optional`, or `required`), checkpoint, journal, verification, and abnormal-shutdown policies. Once any safety control is enabled, an omitted abnormal-shutdown policy defaults to discard-with-recovery-evidence; callers can explicitly retain legacy auto-save. Mutating generated commands and same-workbook worksheet actions support review-only plans, bound review IDs, and pre-write checkpoints. Atomic `copy-to-file` and `move-to-file` worksheet actions reject safety options without changing either workbook because one-workbook checkpoints cannot safely cover both files. Exact range verification covers values and formulas; formatting and other uninspected metadata are reported as partially verified. Use session preflight before work, session journal/recoveries to inspect durable evidence, and recovery to open a checkpoint as a new session.
+
+The safety seams are capability preflight, shared service dispatch, generated MCP/CLI surfaces, and session lifecycle. Lifecycle file/session mutations (open, create, save, close, and recovery itself) are outside the universal generated-command review handshake. Checkpoints are local full-workbook copies and are not encrypted; their SHA-256 detects accidental corruption but is not a malicious-tamper-proof security boundary. Recovery cannot restore unsaved in-memory Excel state.
+
+File validation is shared: `test` accepts existing `.xlsx`/`.xlsm`; `open` accepts `.xlsx`, `.xlsm`, and legacy `.xls`; `create` writes `.xlsx`/`.xlsm`. Existing files are limited to 1 GiB and general paths to 32,767 characters; Excel SaveAs creation uses a practical 218-character path limit. Python capability preflight remains `notDetermined` unless existing evidence is available and never performs a cloud probe.
 
 
 ## 💬 Example Prompts

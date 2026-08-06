@@ -18,7 +18,7 @@ public interface IConnectionCommands
     /// <summary>
     /// Lists all connections in a workbook
     /// </summary>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     ConnectionListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -26,7 +26,7 @@ public interface IConnectionCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection to view</param>
-    [ServiceAction("view")]
+    [ServiceAction("view", IsMutation = false)]
     ConnectionViewResult View(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName);
@@ -86,7 +86,7 @@ public interface IConnectionCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection</param>
-    [ServiceAction("get-properties")]
+    [ServiceAction("get-properties", IsMutation = false)]
     ConnectionPropertiesResult GetProperties(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName);

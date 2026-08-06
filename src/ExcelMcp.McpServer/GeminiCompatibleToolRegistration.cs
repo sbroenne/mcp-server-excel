@@ -54,6 +54,30 @@ internal static class GeminiCompatibleToolRegistration
                         obj["type"] = "string";
                         obj["description"] = "Any valid scalar (string/number/boolean) converted to string";
                     }
+
+                    // Fix 3: nullable enums are emitted with a literal null member in `enum`.
+                    // Gemini rejects non-string values inside a string enum. These tool inputs
+                    // are optional, so omission represents "not supplied"; explicit JSON null is
+                    // intentionally not advertised. Remove both the null member and the otherwise
+                    // contradictory OpenAPI nullable marker.
+                    if (obj.TryGetPropertyValue("enum", out var enumNode) &&
+                        enumNode is System.Text.Json.Nodes.JsonArray enumValues)
+                    {
+                        var removedNullMember = false;
+                        for (var index = enumValues.Count - 1; index >= 0; index--)
+                        {
+                            if (enumValues[index] is null)
+                            {
+                                enumValues.RemoveAt(index);
+                                removedNullMember = true;
+                            }
+                        }
+
+                        if (removedNullMember)
+                        {
+                            obj.Remove("nullable");
+                        }
+                    }
                 }
                 return node;
             }

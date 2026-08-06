@@ -53,7 +53,7 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**26 specialized tools with 234 operations** for comprehensive Excel automation:
+**26 specialized tools with 239 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
@@ -70,7 +70,7 @@ pwsh -ExecutionPolicy Bypass -File `
 - **VBA** (6 ops) — Module import/export, run procedures, version control
 - **Connections** (9 ops) — OLEDB/ODBC/Text/Web connections with refresh and testing
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
-- **Conditional Formatting** (2 ops) — Add rules (cell value, expression), clear
+- **Conditional Formatting** (4 ops) — Add, list by range or worksheet, and clear rules, including visual rule types
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation (performance optimization)
 - **Python in Excel** (2 ops) — Set/get `=PY()` formulas and results
@@ -79,7 +79,7 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ### File Operations
 
-- **Session Management** (6 ops) — Create, open, close, list sessions
+- **Session Management** (11 ops) — Create, open, close, preflight, safety configuration, journals, and recovery
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for authentication
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)

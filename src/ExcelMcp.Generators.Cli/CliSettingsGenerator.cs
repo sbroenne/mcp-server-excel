@@ -104,6 +104,11 @@ public class CliSettingsGenerator : IIncrementalGenerator
         sb.AppendLine($"internal sealed class {registryName}Command : ServiceCommandBase<ServiceRegistry.{registryName}.CliSettings>");
         sb.AppendLine("{");
         if (!requiresSession) sb.AppendLine("    protected override bool RequiresSession => false;");
+        if (requiresSession)
+        {
+            sb.AppendLine("    protected override bool RequiresSessionForAction(string action) =>");
+            sb.AppendLine($"        ServiceRegistry.{registryName}.TryParseAction(action, out var parsed) ? ServiceRegistry.{registryName}.RequiresSessionForAction(parsed) : true;");
+        }
 
         // NoSession commands don't have SessionId in CliSettings — return null
         if (requiresSession)

@@ -32,7 +32,7 @@ public interface IPivotTableCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>List of PivotTables with names, sheets, ranges, source data, field counts, last refresh</returns>
-    [ServiceAction("list")]
+    [ServiceAction("list", IsMutation = false)]
     PivotTableListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -41,7 +41,7 @@ public interface IPivotTableCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <returns>All fields with positions, aggregation functions, filter states</returns>
-    [ServiceAction("read")]
+    [ServiceAction("read", IsMutation = false)]
     PivotTableInfoResult Read(IExcelBatch batch, string pivotTableName);
 
     /// <summary>

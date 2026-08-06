@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 
@@ -10,6 +11,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 /// </summary>
 public sealed class PythonInExcelCommands : IPythonInExcelCommands
 {
+    private const int NameErrorCode = -2146826252;
+
     /// <summary>
     /// Transient result markers returned by Excel while the cloud Python sandbox is still
     /// computing/connecting - not real errors, just "not ready yet".
@@ -43,7 +46,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 string escapedCode = code.Replace("\"", "\"\"", StringComparison.Ordinal);
                 string formula = $"=PY(\"{escapedCode}\",{returnType})";
 
-                range.Formula2 = formula;
+                FormulaCompatibility.Write(batch, range, formula);
 
                 result.Success = true;
                 result.Message = $"Set Python in Excel formula on '{range.Address}'. Use get-result to read the computed value once the cloud Python backend finishes.";
@@ -84,10 +87,10 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
 
                 result.RangeAddress = range.Address;
 
-                string formula = range.Formula2?.ToString() ?? string.Empty;
+                string formula = FormulaCompatibility.Read(batch, range)?.ToString() ?? string.Empty;
                 result.Formula = formula;
 
-                if (!formula.Contains("PY(", StringComparison.Ordinal))
+                if (!IsDirectPythonFormula(formula))
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Cell '{result.RangeAddress}' does not contain a Python in Excel (PY()) formula.";
@@ -128,6 +131,15 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 // int Value2 returns for a Python-side error/object has been observed to vary and is not
                 // a reliable discriminator on its own) - see the returnType-based classification below.
                 const int PythonErrorCode = -2146826233;
+                // Read once before nudging application-wide calculation. A persisted PY cell can
+                // already contain a settled #NAME? result when the active account, policy, or Excel
+                // edition does not provide Python in Excel. In that case no cloud dispatch is needed.
+                object? value = range.Value2;
+                string text = range.Text?.ToString() ?? string.Empty;
+                if (TryApplyPythonUnavailable(result, value))
+                {
+                    return result;
+                }
 
                 // Nudge calculation once so a manual-calc workbook actually dispatches the async PY call.
                 // Harmless if calculation is automatic or already running.
@@ -140,8 +152,6 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     // Application is busy calculating - the nudge is best-effort, so ignore and poll.
                 }
 
-                object? value = null;
-                string text = string.Empty;
                 int nonBusyReads = 0;
                 bool converged = false;
                 // Last state observed by the poll loop, used to build an accurate timeout diagnostic
@@ -210,13 +220,14 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     // failed to evaluate (e.g. bad range reference) - these are never Python results.
                     bool isStandardExcelError = errorCode is -2146826288 or -2147483648 or -2146826259
                         or -2146826246 or -2146826252 or -2142019887;
+                    bool isPythonUnavailable = TryApplyPythonUnavailable(result, errorCode);
 
-                    if (isStandardExcelError)
+                    if (!isPythonUnavailable && isStandardExcelError)
                     {
                         result.Success = false;
                         result.ErrorMessage = RangeCommands.MapErrorCodeToMessage(errorCode);
                     }
-                    else if (formulaReturnType == 1)
+                    else if (!isPythonUnavailable && formulaReturnType == 1)
                     {
                         // Python Object mode: Value2 is always an error-shaped placeholder for rich
                         // data types (e.g. a DataFrame) since COM cannot represent them. Text would
@@ -229,7 +240,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                             + "Value2 cannot expose rich Python object data via COM automation - set returnType=0 "
                             + "(Excel Value) instead if you need to read the underlying data.";
                     }
-                    else
+                    else if (!isPythonUnavailable)
                     {
                         // Excel Value mode (returnType=0) with a non-standard negative error code -
                         // this is the Python code itself raising an error (syntax or runtime exception).
@@ -256,5 +267,41 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    private static bool IsDirectPythonFormula(string formula)
+    {
+        ReadOnlySpan<char> expression = formula.AsSpan().Trim();
+        if (expression.IsEmpty || expression[0] != '=')
+        {
+            return false;
+        }
+
+        expression = expression[1..].TrimStart();
+        if (!expression.IsEmpty && expression[0] == '@')
+        {
+            expression = expression[1..].TrimStart();
+        }
+
+        const string FutureFunctionPrefix = "_xlfn.";
+        if (expression.StartsWith(FutureFunctionPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            expression = expression[FutureFunctionPrefix.Length..];
+        }
+
+        return expression.StartsWith("PY(", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool TryApplyPythonUnavailable(PythonInExcelResult result, object? value)
+    {
+        if (value is not int errorCode || errorCode != NameErrorCode)
+        {
+            return false;
+        }
+
+        result.Success = false;
+        result.IsPythonUnavailable = true;
+        result.ErrorMessage = "Python in Excel unavailable";
+        return true;
     }
 }
