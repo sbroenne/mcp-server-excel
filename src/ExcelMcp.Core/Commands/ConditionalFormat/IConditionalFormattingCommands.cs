@@ -98,8 +98,8 @@ public interface IConditionalFormattingCommands
         [FromString("interiorColor")] string? interiorColor = null,
         [FromString("interiorPattern")] string? interiorPattern = null,
         [FromString("fontColor")] string? fontColor = null,
-        [FromString("fontBold")] bool? fontBold = null,
-        [FromString("fontItalic")] bool? fontItalic = null,
+        bool? fontBold = null,
+        bool? fontItalic = null,
         [FromString("borderStyle")] string? borderStyle = null,
         [FromString("borderColor")] string? borderColor = null,
         [FromString("colorScaleMinType")] string? colorScaleMinType = null,
@@ -114,14 +114,14 @@ public interface IConditionalFormattingCommands
         [FromString("dataBarColor")] string? dataBarColor = null,
         [FromString("dataBarNegativeColor")] string? dataBarNegativeColor = null,
         [FromString("dataBarDirection")] string? dataBarDirection = null,
-        [FromString("dataBarShowValue")] bool? dataBarShowValue = null,
+        bool? dataBarShowValue = null,
         [FromString("dataBarMinType")] string? dataBarMinType = null,
         [FromString("dataBarMinValue")] string? dataBarMinValue = null,
         [FromString("dataBarMaxType")] string? dataBarMaxType = null,
         [FromString("dataBarMaxValue")] string? dataBarMaxValue = null,
         [FromString("iconSetId")] string? iconSetId = null,
-        [FromString("iconSetReverse")] bool? iconSetReverse = null,
-        [FromString("iconSetShowIconOnly")] bool? iconSetShowIconOnly = null,
+        bool? iconSetReverse = null,
+        bool? iconSetShowIconOnly = null,
         [FromString("iconThreshold1Type")] string? iconThreshold1Type = null,
         [FromString("iconThreshold1Value")] string? iconThreshold1Value = null,
         [FromString("iconThreshold2Type")] string? iconThreshold2Type = null,
@@ -130,8 +130,8 @@ public interface IConditionalFormattingCommands
         [FromString("iconThreshold3Value")] string? iconThreshold3Value = null,
         [FromString("iconThreshold4Type")] string? iconThreshold4Type = null,
         [FromString("iconThreshold4Value")] string? iconThreshold4Value = null,
-        [FromString("rank")] int? rank = null,
-        [FromString("top10Percent")] bool? top10Percent = null,
+        int? rank = null,
+        bool? top10Percent = null,
         [FromString("topBottom")] string? topBottom = null,
         [FromString("aboveBelow")] string? aboveBelow = null,
         [FromString("datePeriod")] string? datePeriod = null);
@@ -184,6 +184,5 @@ public interface IConditionalFormattingCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName);
 }
-
 
 
