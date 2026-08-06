@@ -51,10 +51,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.0.x
 
@@ -89,7 +89,7 @@ jobs:
     # Upload SARIF results as artifact for review
     - name: Upload CodeQL Results
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: codeql-sarif-results-${{ matrix.language }}
         path: sarif-results
