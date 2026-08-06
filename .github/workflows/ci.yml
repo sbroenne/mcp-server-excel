@@ -122,8 +122,9 @@ jobs:
       - name: Integration tests note
         shell: pwsh
         run: |
-          Write-Host "Integration, CLI workflow, and MCP smoke tests require Microsoft Excel and are NOT run in CI."
-          Write-Host "They run locally via scripts/pre-commit.ps1 and 'dotnet test' on a machine with Excel."
+          Write-Host "Full Excel integration tests, the CLI workflow smoke test, and the MCP smoke test all require Microsoft Excel."
+          Write-Host "This GitHub-hosted 'windows-latest' runner has no Excel, so this job does not run them."
+          Write-Host "They run in .github/workflows/integration-tests.yml on the self-hosted [self-hosted, windows, excel] runner instead."
 
       - name: Upload CLI build artifacts
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
