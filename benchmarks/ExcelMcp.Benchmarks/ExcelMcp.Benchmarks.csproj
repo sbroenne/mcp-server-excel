@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Sbroenne.ExcelMcp.Benchmarks</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Benchmarks</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Benchmarks.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.Service\ExcelMcp.Service.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj" />
+  </ItemGroup>
+</Project>
