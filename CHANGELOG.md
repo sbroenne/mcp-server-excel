@@ -11,6 +11,32 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [Unreleased] - rjgold98 fork
+
+This section records the fork work being evaluated in [upstream pull request #759](https://github.com/sbroenne/mcp-server-excel/pull/759). The individual commits and the preserved `feature/safe-compatible-automation` branch remain available as recovery points.
+
+### Added
+
+- **Compact Copilot profile:** an opt-in nine-tool MCP surface reduces discovery overhead while keeping the full compatibility profile available.
+- **Workflow execution:** `open-and-describe` returns a bounded workbook manifest, while `execute-plan` runs ordered edits with optional checkpointing, idempotency keys, stop-on-error behavior, and bounded verification receipts.
+- **Reliability controls:** durable safety journals, workbook checkpoints, semantic preflight inspection, precise owned-process tracking, timeout quarantine, queue bounds, and explicit unknown-outcome handling.
+- **Faster Excel operations:** same-STA batch execution, vectorized writes and table appends, read fast paths, and targeted safety inspection for supported operations.
+- **Formatting and layout operations:** deterministic report-formatting commands plus grouped row and column outline support.
+- **Comparable benchmark suite:** nine independently measurable optimization plans, cumulative comparison tooling, raw artifacts, protocol-footprint probes, reliability gates, and environment-matching checks.
+- **Regression coverage:** expanded unit, MCP transport, CLI, COM interop, and real-Excel integration tests for the new workflow, safety, formatting, and batching paths.
+- **Operator documentation:** work-computer validation instructions, benchmark methodology, safety specifications, architecture roadmap, and primary-source research notes.
+
+### Changed
+
+- MCP and CLI capability metadata now expose runtime identity, active profile, available operations, and deterministic catalog/profile hashes.
+- Generated command metadata now carries safety and service-registration information used by preflight and workflow execution.
+- Windows MCPB and VS Code packaging is deterministic, and build workers are cleaned up to avoid locked benchmark and packaging assemblies.
+- Security-related dependency locks were refreshed for the VS Code extension and LLM-test tooling.
+
+### Fixed
+
+- Improved formula compatibility, Python-in-Excel error classification, table-data handling, telemetry redaction, and several build and packaging edge cases discovered by the expanded test suite.
+
 ## [1.10.2] - 2026-07-26
 
 ### Minor Changes
