@@ -155,6 +155,54 @@ public class ConditionalFormattingCommandsTests : IClassFixture<TempDirectoryFix
     }
 
     [Fact]
+    public void AddRule_CellValueWithoutOperator_ThrowsHelpfulError()
+    {
+        var file = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(file);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.AddRule(batch, "", "A1:A10", "cellValue", null, "100", null));
+
+        Assert.Contains("operatorType is required", exception.Message);
+    }
+
+    [Fact]
+    public void AddRule_CellValueWithoutFormula1_ThrowsHelpfulError()
+    {
+        var file = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(file);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.AddRule(batch, "", "A1:A10", "cellValue", "greater", null, null));
+
+        Assert.Contains("formula1 is required", exception.Message);
+    }
+
+    [Fact]
+    public void AddRule_BetweenWithoutFormula2_ThrowsHelpfulError()
+    {
+        var file = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(file);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.AddRule(batch, "", "A1:A10", "cellValue", "between", "10", null));
+
+        Assert.Contains("formula2 is required", exception.Message);
+    }
+
+    [Fact]
+    public void AddRule_ExpressionWithoutFormula1_ThrowsHelpfulError()
+    {
+        var file = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(file);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.AddRule(batch, "", "A1:A10", "expression", null, null, null));
+
+        Assert.Contains("formula1 is required", exception.Message);
+    }
+
+    [Fact]
     public void ListRules_RuleWithBorderStyleAndColor_RoundTripsCorrectly()
     {
         // Regression test for #737 acceptance criterion (b): border style/color

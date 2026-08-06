@@ -47,7 +47,7 @@
 - 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
+- 🎨 **Conditional Formatting** (1 tool, 4 ops) - Add, clear, and inspect rules
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 

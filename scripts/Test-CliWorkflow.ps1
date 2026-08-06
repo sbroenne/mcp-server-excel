@@ -8,12 +8,14 @@
     1. Create session (auto-starts daemon, creates file)
     2. Create worksheet
     3. List worksheets
-    4. Delete worksheet
-    5. Close session (with save)
-    6. Reopen saved file (session open - exercises Workbooks.Open path)
-    7. List worksheets in reopened session
-    8. Close reopened session
-    9. Verify file exists
+    4. Format multiple ranges
+    5. Add and inspect a conditional-format rule with typed arguments
+    6. Delete worksheet
+    7. Close session (with save)
+    8. Reopen saved file (session open - exercises Workbooks.Open path)
+    9. List worksheets in reopened session
+    10. Close reopened session
+    11. Verify file exists
 
 .EXAMPLE
     .\scripts\Test-CliWorkflow.ps1
@@ -129,7 +131,25 @@ Test-Step "Format ranges on 'Data' (multi-value addresses)" {
     $r.success -eq $true
 }
 
-# 5. Delete worksheet
+# 5. Add a conditional-format rule with typed integer/boolean arguments
+Test-Step "Add typed conditional-format rule" {
+    & $cli -q conditionalformat add-rule --session $sessionId --sheet-name Data --range-address "B1:B10" --rule-type top10 --rank 7 --top10-percent true --font-bold true --font-italic false | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true
+}
+
+$conditionalFormatRules = Test-Step "Inspect typed conditional-format rule" {
+    & $cli -q conditionalformat list-rules --session $sessionId --sheet-name Data --range-address "B1:B10" | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true -and
+    $r.rules.Count -eq 1 -and
+    $r.rules[0].top10.rank -eq 7 -and
+    $r.rules[0].top10.percent -eq $true
+}
+
+# 6. Delete worksheet
 Test-Step "Delete worksheet 'Data'" {
     & $cli -q sheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
 } -Verify {
@@ -137,7 +157,7 @@ Test-Step "Delete worksheet 'Data'" {
     $r.success -eq $true
 }
 
-# 6. Close session (with save)
+# 7. Close session (with save)
 Test-Step "Close session (with save)" {
     & $cli -q session close --session $sessionId --save | ConvertFrom-Json
 } -Verify {
@@ -145,7 +165,7 @@ Test-Step "Close session (with save)" {
     $r.success -eq $true
 }
 
-# 6. Reopen saved file (session open - exercises Workbooks.Open path distinct from Add+SaveAs)
+# 8. Reopen saved file (session open - exercises Workbooks.Open path distinct from Add+SaveAs)
 #    This step would catch deployment issues like missing office.dll (issue #487) because
 #    ExcelBatch.ctor runs AutomationSecurity setup before opening any workbook.
 $reopenSession = Test-Step "Reopen saved file (session open)" {
@@ -155,7 +175,7 @@ $reopenSession = Test-Step "Reopen saved file (session open)" {
     $r.sessionId -and $r.success -ne $false
 }
 
-# 6b. List worksheets in reopened session (proves the file loaded correctly)
+# 9. List worksheets in reopened session (proves the file loaded correctly)
 if ($reopenSession -and $reopenSession.sessionId) {
     $reopenSessionId = $reopenSession.sessionId
     Test-Step "List worksheets in reopened session" {
@@ -165,7 +185,7 @@ if ($reopenSession -and $reopenSession.sessionId) {
         $r.success -eq $true -or $r.worksheets -ne $null
     }
 
-    # 6c. Close reopened session
+    # 10. Close reopened session
     Test-Step "Close reopened session" {
         & $cli -q session close --session $reopenSessionId | ConvertFrom-Json
     } -Verify {
@@ -174,7 +194,7 @@ if ($reopenSession -and $reopenSession.sessionId) {
     }
 }
 
-# 7. Verify file exists
+# 11. Verify file exists
 Test-Step "Verify file exists" {
     if (Test-Path $testFile) {
         $size = (Get-Item $testFile).Length
