@@ -11,6 +11,13 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [1.10.4] - 2026-08-07
+
+### Patch Changes
+
+- [#757](https://github.com/sbroenne/mcp-server-excel/pull/757) [`8f7340a`](https://github.com/sbroenne/mcp-server-excel/commit/8f7340ae66cc8a97bb7f58bdca2c1290c9c364ea) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **Reliable conditional-format rules over MCP** ([#757](https://github.com/sbroenne/mcp-server-excel/issues/757)): `conditionalformat add-rule`
+  now accepts schema-typed boolean and integer options without JSON deserialization errors.
+
 ## [1.10.2] - 2026-07-26
 
 ### Minor Changes
