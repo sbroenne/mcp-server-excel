@@ -35,6 +35,8 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            dynamic? cells = null;
+            dynamic? firstCell = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -61,9 +63,11 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     // #BUSY! for an enabled backend or #NAME? when PY() is unavailable.
                 }
 
-                object? value = range.Value2;
-                string displayedText = range.Text?.ToString() ?? string.Empty;
-                string storedFormula = range.Formula2?.ToString() ?? formula;
+                cells = range.Cells;
+                firstCell = cells.Item[1, 1];
+                object? value = firstCell.Value2;
+                string displayedText = firstCell.Text?.ToString() ?? string.Empty;
+                string storedFormula = firstCell.Formula2?.ToString() ?? formula;
                 if (IsPythonInExcelUnavailable(storedFormula, value, displayedText))
                 {
                     result.Success = false;
@@ -82,6 +86,8 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
             }
             finally
             {
+                ComUtilities.Release(ref firstCell);
+                ComUtilities.Release(ref cells);
                 ComUtilities.Release(ref range);
             }
         });
