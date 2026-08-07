@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [1.10.5] - 2026-08-07
+
+### Patch Changes
+
+- [#760](https://github.com/sbroenne/mcp-server-excel/pull/760) [`09d6130`](https://github.com/sbroenne/mcp-server-excel/commit/09d6130e08fe591f15e1d0d9a01d834de6b92e39) Thanks [@sbroenne](https://github.com/sbroenne)! - **Clear Python in Excel availability errors** ([#753](https://github.com/sbroenne/mcp-server-excel/issues/753)): `pythoninexcel set-formula` and `get-result` now explain when the current Excel session cannot use Python in Excel instead of reporting success or exposing a raw `#NAME?` worksheet error.
+
 ## [1.10.4] - 2026-08-07
 
 ### Patch Changes
