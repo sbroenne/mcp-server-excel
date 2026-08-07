@@ -238,6 +238,34 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
         Assert.Contains("does not contain", getResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies the classifier against the actual Value2 error emitted by the installed Excel
+    /// version for an unavailable worksheet function, rather than only a fabricated integer.
+    /// </summary>
+    [Fact]
+    public void UnavailableClassifier_UsesExcelNameErrorValue()
+    {
+        using var batch = BeginBatch();
+        int startRow = _fixture.GetUniqueRowBlockStart();
+        string targetCell = $"D{startRow}";
+
+        var setResult = _rangeCommands.SetFormulas(
+            batch,
+            "Sheet1",
+            targetCell,
+            [["=UNDEFINEDFUNCTION()"]]);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+
+        var formulaResult = _rangeCommands.GetFormulas(batch, "Sheet1", targetCell);
+        Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
+        object? nameErrorValue = formulaResult.Values[0][0];
+
+        Assert.True(PythonInExcelCommands.IsPythonInExcelUnavailable(
+            "=PY(\"1 + 1\",0)",
+            nameErrorValue,
+            string.Empty));
+    }
+
     /// <inheritdoc/>
     [Fact]
     public void SetFormula_WithEmptyCode_ThrowsArgumentException()

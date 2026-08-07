@@ -80,6 +80,12 @@ When you write formulas with `range(action: 'set-formulas')`, they don't automat
 3. range(action: 'get-values', ...)       → Read calculated results
 ```
 
+## Python in Excel Requires Microsoft 365 Entitlement
+
+`pythoninexcel` runs code in Microsoft's cloud sandbox. It requires a licensed Microsoft 365 account with Python in Excel enabled and internet access; perpetual-license Excel and offline sessions cannot run `=PY()` formulas.
+
+When Excel evaluates a `PY()` formula as `#NAME?`, both `set-formula` and `get-result` return a clear unavailable-feature error. Do not retry that condition as if calculation were pending. `#BUSY!`, `#CONNECT!`, and `#BLOCKED!` are transient cloud states and retain retry semantics.
+
 ## File Locking Across Sessions
 
 If multiple Excel sessions have the same workbook open, operations on one session can lock the file and timeout on other sessions (30-second timeout).

@@ -10,6 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 /// </summary>
 public sealed class PythonInExcelCommands : IPythonInExcelCommands
 {
+    private const int NameErrorCode = -2146826259;
+    private const string PythonUnavailableErrorMessage =
+        "Python in Excel is not available in this Excel session. It requires a licensed Microsoft 365 account "
+        + "with the Python in Excel feature enabled and internet access; it is not available with perpetual-license "
+        + "Excel (2016/2019/2021/2024) or offline.";
+
     /// <summary>
     /// Transient result markers returned by Excel while the cloud Python sandbox is still
     /// computing/connecting - not real errors, just "not ready yet".
@@ -44,6 +50,26 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 string formula = $"=PY(\"{escapedCode}\",{returnType})";
 
                 range.Formula2 = formula;
+
+                try
+                {
+                    range.Calculate();
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    // Excel may already be calculating asynchronously; the read below still reports
+                    // #BUSY! for an enabled backend or #NAME? when PY() is unavailable.
+                }
+
+                object? value = range.Value2;
+                string displayedText = range.Text?.ToString() ?? string.Empty;
+                string storedFormula = range.Formula2?.ToString() ?? formula;
+                if (IsPythonInExcelUnavailable(storedFormula, value, displayedText))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = PythonUnavailableErrorMessage;
+                    return result;
+                }
 
                 result.Success = true;
                 result.Message = $"Set Python in Excel formula on '{range.Address}'. Use get-result to read the computed value once the cloud Python backend finishes.";
@@ -157,6 +183,13 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     text = range.Text?.ToString() ?? string.Empty;
                     calcState = (int)ctx.App.CalculationState;
 
+                    if (IsPythonInExcelUnavailable(formula, value, text))
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = PythonUnavailableErrorMessage;
+                        return result;
+                    }
+
                     int markerIndex = Array.IndexOf(TransientMarkers, text);
                     bool cellBusy = (value is int busyCode && busyCode == BusyErrorCode)
                         || markerIndex >= 0;
@@ -256,5 +289,21 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    /// <summary>
+    /// Identifies Excel's unavailable-function response without confusing unrelated #NAME? errors
+    /// or transient Python cloud markers with a missing Python in Excel capability.
+    /// </summary>
+    internal static bool IsPythonInExcelUnavailable(string formula, object? value, string displayedText)
+    {
+        string normalizedFormula = formula.TrimStart();
+        bool isTopLevelPythonFormula =
+            normalizedFormula.StartsWith("=PY(", StringComparison.OrdinalIgnoreCase)
+            || normalizedFormula.StartsWith("=_xlfn.PY(", StringComparison.OrdinalIgnoreCase);
+
+        return isTopLevelPythonFormula
+            && ((value is int errorCode && errorCode == NameErrorCode)
+                || string.Equals(displayedText, "#NAME?", StringComparison.Ordinal));
     }
 }

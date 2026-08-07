@@ -466,11 +466,12 @@ Capture ranges or worksheets as PNG images using Excel's own rendering.
 Write and read `=PY()` formulas that run in Excel's cloud Python engine.
 
 **Operations:**
-- **Set Formula:** Write a `=PY("<code>", returnType)` formula via `Range.Formula2`. `returnType` 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). Must always be passed explicitly — omitting it causes a `#NAME?` error.
-- **Get Result:** Read back the computed value, polling briefly since cloud execution is not instantaneous. **Best-effort:** Excel exposes no reliable "still computing" signal via COM, so a freshly written formula may read back as unconverged; if the poll doesn't stabilize in time, the call reports failure and asks the caller to retry rather than guessing at a stale value.
+- **Set Formula:** Write a `=PY("<code>", returnType)` formula via `Range.Formula2`. `returnType` 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). Must always be passed explicitly. If Excel immediately evaluates the formula as `#NAME?`, the operation reports that Python in Excel is unavailable instead of claiming success.
+- **Get Result:** Read back the computed value, polling until Excel's calculation state and the cell's transient marker show that cloud execution has finished. If the deadline is reached, the operation reports the observed transient state rather than guessing at a stale value. A settled `#NAME?` on a `PY()` formula is reported as Python in Excel being unavailable.
 
 **Notes:**
 - **Requires:** a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel.
+- **Unavailable vs. transient:** `#NAME?` means this Excel session cannot use Python in Excel. `#BUSY!`, `#CONNECT!`, and `#BLOCKED!` remain transient cloud states and keep their existing retry behavior.
 - **Data binding:** Reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
 
 ---
