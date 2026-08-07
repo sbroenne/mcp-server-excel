@@ -131,6 +131,31 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
         Assert.Equal(125d, Convert.ToDouble(getResult.Value, System.Globalization.CultureInfo.InvariantCulture));
     }
 
+    /// <summary>
+    /// Preserves support for writing one Python formula across a multi-cell target range while the
+    /// immediate availability check samples only the top-left cell.
+    /// </summary>
+    [Fact]
+    public void SetFormula_OnMultiCellRange_WritesEveryCell()
+    {
+        using var batch = BeginBatch();
+        int startRow = _fixture.GetUniqueRowBlockStart();
+        string targetRange = $"D{startRow}:D{startRow + 1}";
+
+        var setResult = _pythonCommands.SetFormula(
+            batch,
+            "Sheet1",
+            targetRange,
+            "1 + 1",
+            returnType: 0);
+
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+
+        var formulaResult = _rangeCommands.GetFormulas(batch, "Sheet1", targetRange);
+        Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
+        Assert.All(formulaResult.Formulas, row => Assert.StartsWith("=PY(", row[0], StringComparison.Ordinal));
+    }
+
     /// <inheritdoc/>
     [Fact]
     public void SetFormula_ThenGetResult_ComputesMeanOfWorksheetRange()
@@ -236,6 +261,34 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
         // Assert
         Assert.False(getResult.Success);
         Assert.Contains("does not contain", getResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies the classifier against the actual Value2 error emitted by the installed Excel
+    /// version for an unavailable worksheet function, rather than only a fabricated integer.
+    /// </summary>
+    [Fact]
+    public void UnavailableClassifier_UsesExcelNameErrorValue()
+    {
+        using var batch = BeginBatch();
+        int startRow = _fixture.GetUniqueRowBlockStart();
+        string targetCell = $"D{startRow}";
+
+        var setResult = _rangeCommands.SetFormulas(
+            batch,
+            "Sheet1",
+            targetCell,
+            [["=UNDEFINEDFUNCTION()"]]);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+
+        var formulaResult = _rangeCommands.GetFormulas(batch, "Sheet1", targetCell);
+        Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
+        object? nameErrorValue = formulaResult.Values[0][0];
+
+        Assert.True(PythonInExcelCommands.IsPythonInExcelUnavailable(
+            "=PY(\"1 + 1\",0)",
+            nameErrorValue,
+            string.Empty));
     }
 
     /// <inheritdoc/>
