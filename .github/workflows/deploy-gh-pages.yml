@@ -20,6 +20,7 @@ on:
       - '.github/workflows/deploy-gh-pages.yml'
       - '.github/star-history.csv'
       - 'scripts/Update-StarHistory.ps1'
+      - 'scripts/Persist-StarHistory.ps1'
       - 'scripts/Test-StarHistory.ps1'
   schedule:
     - cron: "17 3 * * *"
@@ -95,60 +96,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $repository = '${{ github.repository }}'
-          $refApi = "repos/$repository/git/ref/heads/$env:STAR_HISTORY_BRANCH"
-          $refResponse = & gh api $refApi 2>&1
-          $refResponseText = $refResponse -join "`n"
-
-          if ($LASTEXITCODE -ne 0) {
-            if ($refResponseText -notmatch "HTTP 404") {
-              throw "Unable to inspect $env:STAR_HISTORY_BRANCH: $refResponseText"
-            }
-
-            gh api --silent --method POST "repos/$repository/git/refs" `
-              -f ref="refs/heads/$env:STAR_HISTORY_BRANCH" `
-              -f sha='${{ github.sha }}'
-
-            if ($LASTEXITCODE -ne 0) {
-              throw "Unable to create $env:STAR_HISTORY_BRANCH."
-            }
-          }
-
-          $contentApi = "repos/$repository/contents/$env:STAR_HISTORY_PATH" +
-            "?ref=$env:STAR_HISTORY_BRANCH"
-          $existingResponse = & gh api $contentApi 2>&1
-          $existingExitCode = $LASTEXITCODE
-
-          if ($existingExitCode -ne 0) {
-            throw "Unable to read the persisted aggregate file: $($existingResponse -join "`n")"
-          }
-
-          $existing = ($existingResponse -join "`n") | ConvertFrom-Json
-          $existingText = [Text.Encoding]::UTF8.GetString(
-            [Convert]::FromBase64String(($existing.content -replace "\s", "")))
-          $updatedText = [IO.File]::ReadAllText($env:STAR_HISTORY_PATH)
-
-          if ($existingText -eq $updatedText) {
-            Write-Host "Today's aggregate snapshot is already current."
-            exit 0
-          }
-
-          $payload = @{
-            message = "chore: snapshot star history $([DateTime]::UtcNow.ToString('yyyy-MM-dd'))"
-            content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($updatedText))
-            branch = $env:STAR_HISTORY_BRANCH
-            sha = $existing.sha
-          } | ConvertTo-Json
-          $payloadPath = Join-Path $env:RUNNER_TEMP "star-history-update.json"
-          [IO.File]::WriteAllText($payloadPath, $payload)
-
-          gh api --silent --method PUT `
-            "repos/$repository/contents/$env:STAR_HISTORY_PATH" `
-            --input $payloadPath
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Unable to persist the daily aggregate snapshot."
-          }
+          ./scripts/Persist-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch $env:STAR_HISTORY_BRANCH `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -RemotePath $env:STAR_HISTORY_PATH `
+            -CommitSha '${{ github.sha }}' `
+            -TempPath $env:RUNNER_TEMP
 
       - name: Setup Python
         uses: actions/setup-python@v7

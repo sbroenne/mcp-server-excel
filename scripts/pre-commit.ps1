@@ -89,10 +89,10 @@ function Stop-DotNetBuildServers {
 # Determine whether this commit touches actual code (as opposed to docs/changeset-only
 # changes). The Release build, smoke tests and release packaging gates all exercise
 # compiled binaries and are slow (minutes) - they add no value for pure documentation
-# changes, including edits to the gh-pages documentation website (its MkDocs config,
-# hooks, templates and image assets are all part of the docs site, not the shipped
-# product). Cheap source-level guards still run for every commit.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
+# changes, including edits to the gh-pages documentation website and its star-history
+# generation workflow. These files do not affect the shipped Excel binaries. Cheap
+# source-level guards still run for every commit.
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|(Update|Persist|Test)-StarHistory)\.ps1$)'
 $stagedFiles = git diff --cached --name-only 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0

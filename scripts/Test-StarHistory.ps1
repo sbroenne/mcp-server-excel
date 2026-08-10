@@ -6,6 +6,7 @@
 $ErrorActionPreference = "Stop"
 
 $scriptPath = Join-Path $PSScriptRoot "Update-StarHistory.ps1"
+$persistScriptPath = Join-Path $PSScriptRoot "Persist-StarHistory.ps1"
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "excelmcp-star-history-tests-$([Guid]::NewGuid().ToString('N'))"
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $testsRun = 0
@@ -171,6 +172,95 @@ date,count
         Invoke-StarHistory -HistoryPath $historyPath -OutputPath (Join-Path $testRoot "empty.svg") `
             -WithoutSnapshot
     }
+    $testsRun++
+
+    $historyPath = New-HistoryFile -Name "persist-existing.csv" -Content @"
+date,count
+2026-01-01,1
+2026-01-02,2
+"@
+    $persistedPayloads = [System.Collections.Generic.List[object]]::new()
+    $existingContent = [Convert]::ToBase64String(
+        [Text.Encoding]::UTF8.GetBytes("date,count`n2026-01-01,1`n"))
+    $existingFileInvoker = {
+        param([string[]]$Arguments)
+
+        $request = $Arguments -join " "
+        if ($request -like "api repos/owner/repository/git/ref/heads/star-history-data") {
+            return [pscustomobject]@{ ExitCode = 0; Output = @("{}") }
+        }
+        if ($request -like "api repos/owner/repository/contents/.github/star-history.csv?ref=star-history-data") {
+            $body = @{ content = $existingContent; sha = "existing-sha" } | ConvertTo-Json -Compress
+            return [pscustomobject]@{ ExitCode = 0; Output = @($body) }
+        }
+        if ($request -like "api --silent --method PUT *") {
+            $inputIndex = [Array]::IndexOf($Arguments, "--input")
+            $payload = Get-Content -Raw -LiteralPath $Arguments[$inputIndex + 1] | ConvertFrom-Json
+            $persistedPayloads.Add($payload)
+            return [pscustomobject]@{ ExitCode = 0; Output = @() }
+        }
+
+        throw "Unexpected gh invocation: $request"
+    }
+    & $persistScriptPath `
+        -Repository "owner/repository" `
+        -Branch "star-history-data" `
+        -HistoryPath $historyPath `
+        -RemotePath ".github/star-history.csv" `
+        -CommitSha ("a" * 40) `
+        -TempPath $testRoot `
+        -ApiInvoker $existingFileInvoker
+    Assert-True -Condition ($persistedPayloads.Count -eq 1) `
+        -Message "The existing aggregate file was not updated."
+    Assert-True -Condition ($persistedPayloads[0].sha -eq "existing-sha") `
+        -Message "The existing aggregate update did not include its blob SHA."
+    $persistedText = [Text.Encoding]::UTF8.GetString(
+        [Convert]::FromBase64String($persistedPayloads[0].content))
+    Assert-True -Condition ($persistedText -eq [IO.File]::ReadAllText($historyPath)) `
+        -Message "The existing aggregate update did not persist the current validated content."
+    $testsRun++
+
+    $historyPath = New-HistoryFile -Name "persist-missing.csv" -Content @"
+date,count
+2026-01-01,1
+2026-01-02,2
+"@
+    $persistedPayloads = [System.Collections.Generic.List[object]]::new()
+    $missingFileInvoker = {
+        param([string[]]$Arguments)
+
+        $request = $Arguments -join " "
+        if ($request -like "api repos/owner/repository/git/ref/heads/star-history-data") {
+            return [pscustomobject]@{ ExitCode = 0; Output = @("{}") }
+        }
+        if ($request -like "api repos/owner/repository/contents/.github/star-history.csv?ref=star-history-data") {
+            return [pscustomobject]@{ ExitCode = 1; Output = @("gh: Not Found (HTTP 404)") }
+        }
+        if ($request -like "api --silent --method PUT *") {
+            $inputIndex = [Array]::IndexOf($Arguments, "--input")
+            $payload = Get-Content -Raw -LiteralPath $Arguments[$inputIndex + 1] | ConvertFrom-Json
+            $persistedPayloads.Add($payload)
+            return [pscustomobject]@{ ExitCode = 0; Output = @() }
+        }
+
+        throw "Unexpected gh invocation: $request"
+    }
+    & $persistScriptPath `
+        -Repository "owner/repository" `
+        -Branch "star-history-data" `
+        -HistoryPath $historyPath `
+        -RemotePath ".github/star-history.csv" `
+        -CommitSha ("a" * 40) `
+        -TempPath $testRoot `
+        -ApiInvoker $missingFileInvoker
+    Assert-True -Condition ($persistedPayloads.Count -eq 1) `
+        -Message "The missing aggregate file was not created."
+    Assert-True -Condition ($persistedPayloads[0].PSObject.Properties.Name -notcontains "sha") `
+        -Message "The missing aggregate create payload unexpectedly included a blob SHA."
+    $persistedText = [Text.Encoding]::UTF8.GetString(
+        [Convert]::FromBase64String($persistedPayloads[0].content))
+    Assert-True -Condition ($persistedText -eq [IO.File]::ReadAllText($historyPath)) `
+        -Message "The missing aggregate create did not persist the current validated content."
     $testsRun++
 }
 finally {
