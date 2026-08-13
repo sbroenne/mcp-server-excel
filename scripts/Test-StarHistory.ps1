@@ -6,6 +6,7 @@
 $ErrorActionPreference = "Stop"
 
 $scriptPath = Join-Path $PSScriptRoot "Update-StarHistory.ps1"
+$restoreScriptPath = Join-Path $PSScriptRoot "Restore-StarHistory.ps1"
 $persistScriptPath = Join-Path $PSScriptRoot "Persist-StarHistory.ps1"
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "excelmcp-star-history-tests-$([Guid]::NewGuid().ToString('N'))"
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
@@ -171,6 +172,79 @@ date,count
     Assert-Throws -ExpectedMessage "does not contain any aggregate rows" -Action {
         Invoke-StarHistory -HistoryPath $historyPath -OutputPath (Join-Path $testRoot "empty.svg") `
             -WithoutSnapshot
+    }
+    $testsRun++
+
+    $historyPath = New-HistoryFile -Name "restore-missing.csv" -Content @"
+date,count
+2026-01-01,1
+"@
+    $missingRestoreInvoker = {
+        param([string[]]$Arguments)
+
+        $request = $Arguments -join " "
+        if ($request -eq "api repos/owner/repository/contents/.github/star-history.csv?ref=star-history-data") {
+            return [pscustomobject]@{ ExitCode = 1; Output = @("gh: Not Found (HTTP 404)") }
+        }
+
+        throw "Unexpected gh invocation: $request"
+    }
+    $global:LASTEXITCODE = 23
+    & $restoreScriptPath `
+        -Repository "owner/repository" `
+        -Branch "star-history-data" `
+        -HistoryPath $historyPath `
+        -RemotePath ".github/star-history.csv" `
+        -ApiInvoker $missingRestoreInvoker
+    Assert-True -Condition ($global:LASTEXITCODE -eq 0) `
+        -Message "A missing persisted aggregate left a stale non-zero native exit code."
+    Assert-True -Condition ([IO.File]::ReadAllText($historyPath) -like "*2026-01-01,1*") `
+        -Message "A missing persisted aggregate changed the bootstrap history."
+    $testsRun++
+
+    $historyPath = New-HistoryFile -Name "restore-existing.csv" -Content @"
+date,count
+2026-01-01,1
+"@
+    $restoredText = "date,count`n2026-01-01,1`n2026-01-02,2`n"
+    $restoredContent = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($restoredText))
+    $existingRestoreInvoker = {
+        param([string[]]$Arguments)
+
+        $request = $Arguments -join " "
+        if ($request -eq "api repos/owner/repository/contents/.github/star-history.csv?ref=star-history-data") {
+            $body = @{ content = $restoredContent } | ConvertTo-Json -Compress
+            return [pscustomobject]@{ ExitCode = 0; Output = @($body) }
+        }
+
+        throw "Unexpected gh invocation: $request"
+    }
+    & $restoreScriptPath `
+        -Repository "owner/repository" `
+        -Branch "star-history-data" `
+        -HistoryPath $historyPath `
+        -RemotePath ".github/star-history.csv" `
+        -ApiInvoker $existingRestoreInvoker
+    Assert-True -Condition ([IO.File]::ReadAllText($historyPath) -eq $restoredText) `
+        -Message "The persisted aggregate was not restored over the bootstrap history."
+    $testsRun++
+
+    $historyPath = New-HistoryFile -Name "restore-error.csv" -Content @"
+date,count
+2026-01-01,1
+"@
+    $failedRestoreInvoker = {
+        param([string[]]$Arguments)
+
+        return [pscustomobject]@{ ExitCode = 1; Output = @("gh: API rate limit exceeded (HTTP 403)") }
+    }
+    Assert-Throws -ExpectedMessage "Unable to restore persisted star history" -Action {
+        & $restoreScriptPath `
+            -Repository "owner/repository" `
+            -Branch "star-history-data" `
+            -HistoryPath $historyPath `
+            -RemotePath ".github/star-history.csv" `
+            -ApiInvoker $failedRestoreInvoker
     }
     $testsRun++
 

@@ -20,6 +20,7 @@ on:
       - '.github/workflows/deploy-gh-pages.yml'
       - '.github/star-history.csv'
       - 'scripts/Update-StarHistory.ps1'
+      - 'scripts/Restore-StarHistory.ps1'
       - 'scripts/Persist-StarHistory.ps1'
       - 'scripts/Test-StarHistory.ps1'
   schedule:
@@ -54,23 +55,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $apiPath = "repos/${{ github.repository }}/contents/$env:STAR_HISTORY_PATH" +
-            "?ref=$env:STAR_HISTORY_BRANCH"
-          $response = & gh api $apiPath 2>&1
-          $responseText = $response -join "`n"
-
-          if ($LASTEXITCODE -eq 0) {
-            $state = $responseText | ConvertFrom-Json
-            $content = [Convert]::FromBase64String(($state.content -replace "\s", ""))
-            [IO.File]::WriteAllBytes($env:STAR_HISTORY_PATH, $content)
-            Write-Host "Restored aggregate snapshots from $env:STAR_HISTORY_BRANCH."
-          }
-          elseif ($responseText -match "HTTP 404") {
-            Write-Host "No persisted branch exists yet; using the exact aggregate bootstrap."
-          }
-          else {
-            throw "Unable to restore persisted star history: $responseText"
-          }
+          ./scripts/Restore-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch $env:STAR_HISTORY_BRANCH `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -RemotePath $env:STAR_HISTORY_PATH
 
       - name: Record current public star count and generate chart
         shell: pwsh
