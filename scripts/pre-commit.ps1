@@ -92,7 +92,7 @@ function Stop-DotNetBuildServers {
 # changes, including edits to the gh-pages documentation website and its star-history
 # generation workflow. These files do not affect the shipped Excel binaries. Cheap
 # source-level guards still run for every commit.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|(Update|Persist|Test)-StarHistory)\.ps1$)'
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
 $stagedFiles = git diff --cached --name-only 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0

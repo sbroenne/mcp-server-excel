@@ -14,9 +14,12 @@ against the repository's public `stargazers_count`.
 
 Scheduled builds do not query the restricted timestamped stargazers REST
 endpoint. They read the exact current `stargazers_count` from public repository
-metadata using the workflow's `GITHUB_TOKEN`, append or replace that UTC day's
-aggregate snapshot, and persist the CSV on the `star-history-data` branch. Count
-decreases are retained so unstars are represented rather than hidden.
+metadata using the workflow's `GITHUB_TOKEN`. Before recording the count, the
+workflow restores the CSV from `star-history-data`; an expected missing branch
+or file uses the committed aggregate bootstrap, while other API failures stop
+the deployment. It then appends or replaces that UTC day's aggregate snapshot
+and persists the CSV on the data branch. Count decreases are retained so
+unstars are represented rather than hidden.
 
 The dedicated data branch keeps daily state durable without granting a personal
 access token or write access to `main`. The Pages site continues to deploy from
