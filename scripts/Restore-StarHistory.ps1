@@ -56,6 +56,12 @@ $responseText = @($contentResult.Output) -join "`n"
 
 if ($contentResult.ExitCode -eq 0) {
     $state = $responseText | ConvertFrom-Json
+    if ($null -eq $state -or
+        $null -eq $state.PSObject.Properties["content"] -or
+        [string]::IsNullOrWhiteSpace([string]$state.content)) {
+        throw "GitHub did not return a file content payload for persisted star history."
+    }
+
     $content = [Convert]::FromBase64String(($state.content -replace "\s", ""))
     [IO.File]::WriteAllBytes($resolvedHistoryPath, $content)
     $global:LASTEXITCODE = 0

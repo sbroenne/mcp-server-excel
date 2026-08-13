@@ -248,6 +248,25 @@ date,count
     }
     $testsRun++
 
+    $historyPath = New-HistoryFile -Name "restore-invalid-response.csv" -Content @"
+date,count
+2026-01-01,1
+"@
+    $invalidRestoreInvoker = {
+        param([string[]]$Arguments)
+
+        return [pscustomobject]@{ ExitCode = 0; Output = @("{}") }
+    }
+    Assert-Throws -ExpectedMessage "did not return a file content payload" -Action {
+        & $restoreScriptPath `
+            -Repository "owner/repository" `
+            -Branch "star-history-data" `
+            -HistoryPath $historyPath `
+            -RemotePath ".github/star-history.csv" `
+            -ApiInvoker $invalidRestoreInvoker
+    }
+    $testsRun++
+
     $historyPath = New-HistoryFile -Name "persist-existing.csv" -Content @"
 date,count
 2026-01-01,1
