@@ -235,7 +235,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 [![GitHub stars over time for ExcelMcp](https://excelmcpserver.dev/assets/images/star-history.svg)](https://github.com/sbroenne/mcp-server-excel/stargazers)
 
-Updated daily from GitHub's stargazer data.
+Updated daily from exact aggregate snapshots; no stargazer identities are stored.
 
 ## 📋 Additional Information
 

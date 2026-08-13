@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-    Generates an SVG chart from a repository's GitHub stargazer history.
+    Updates aggregate GitHub star history and generates its SVG chart.
 
 .DESCRIPTION
-    Reads timestamped stargazers through GitHub's authenticated API and writes a
-    deterministic, theme-aware SVG suitable for the repository README and docs site.
+    Reads date/count aggregates from a CSV file, optionally records a current
+    daily snapshot, and writes a deterministic, theme-aware SVG. The script
+    never reads or stores stargazer identities.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -12,10 +13,14 @@ param(
     [string]$Repository,
 
     [Parameter(Mandatory = $true)]
-    [string]$Token,
+    [string]$HistoryPath,
 
     [Parameter(Mandatory = $true)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [int]$CurrentCount,
+
+    [DateTimeOffset]$SnapshotDate = [DateTimeOffset]::UtcNow
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,43 +43,98 @@ function ConvertTo-SvgNumber {
     return $Value.ToString("0.##", [System.Globalization.CultureInfo]::InvariantCulture)
 }
 
-$headers = @{
-    Accept = "application/vnd.github.star+json"
-    Authorization = "Bearer $Token"
-    "X-GitHub-Api-Version" = "2022-11-28"
-    "User-Agent" = "sbroenne/mcp-server-excel-star-history"
+$resolvedHistoryPath = [System.IO.Path]::GetFullPath($HistoryPath)
+
+if (-not (Test-Path -LiteralPath $resolvedHistoryPath -PathType Leaf)) {
+    throw "Star-history aggregate file '$resolvedHistoryPath' does not exist."
 }
 
-$stargazers = [System.Collections.Generic.List[object]]::new()
-$page = 1
+$csvText = [System.IO.File]::ReadAllText($resolvedHistoryPath).TrimStart([char]0xFEFF)
+$csvLines = @($csvText -split "\r?\n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
-do {
-    $uri = "https://api.github.com/repos/$Repository/stargazers?per_page=100&page=$page"
-    $pageItems = Invoke-RestMethod -Uri $uri -Headers $headers
-    $pageItems = @($pageItems)
+if ($csvLines.Count -eq 0 -or $csvLines[0].Trim().ToLowerInvariant() -ne "date,count") {
+    throw "Star-history aggregate file '$resolvedHistoryPath' must start with the header 'date,count'."
+}
 
-    foreach ($item in $pageItems) {
-        if (-not $item.starred_at) {
-            throw "GitHub did not return stargazer timestamps for '$Repository'."
-        }
+if ($csvLines.Count -eq 1) {
+    throw "Star-history aggregate file '$resolvedHistoryPath' does not contain any aggregate rows."
+}
 
-        $stargazers.Add([DateTimeOffset]$item.starred_at)
+$rawRows = @($csvLines | ConvertFrom-Csv)
+$history = [System.Collections.Generic.List[object]]::new()
+$previousDate = [DateTime]::MinValue
+
+foreach ($row in $rawRows) {
+    $date = [DateTime]::MinValue
+    $parsedDate = [DateTime]::TryParseExact(
+        [string]$row.date,
+        "yyyy-MM-dd",
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::None,
+        [ref]$date)
+
+    if (-not $parsedDate) {
+        throw "Star-history aggregate row has invalid date '$($row.date)'; expected yyyy-MM-dd."
     }
 
-    $page++
-} while ($pageItems.Count -eq 100)
+    $count = 0
+    $parsedCount = [int]::TryParse(
+        [string]$row.count,
+        [System.Globalization.NumberStyles]::None,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [ref]$count)
 
-if ($stargazers.Count -eq 0) {
-    throw "No stargazers were returned for '$Repository'."
+    if (-not $parsedCount -or $count -lt 0) {
+        throw "Star-history aggregate row for '$($row.date)' has invalid count '$($row.count)'."
+    }
+
+    if ($history.Count -gt 0 -and $date -le $previousDate) {
+        throw "Star-history aggregate dates must be strictly increasing; found '$($row.date)' after '$($previousDate.ToString("yyyy-MM-dd"))'."
+    }
+
+    $history.Add([pscustomobject]@{
+        Date = $date
+        Count = $count
+    })
+    $previousDate = $date
 }
 
-$stars = @($stargazers | Sort-Object)
-$firstStar = $stars[0]
-$lastStar = $stars[-1]
-$chartEnd = $lastStar
+if ($PSBoundParameters.ContainsKey("CurrentCount")) {
+    if ($CurrentCount -lt 0) {
+        throw "Current star count cannot be negative."
+    }
 
-if ($chartEnd -eq $firstStar) {
-    $chartEnd = $firstStar.AddDays(1)
+    $snapshotDay = $SnapshotDate.UtcDateTime.Date
+    $latestDay = $history[-1].Date
+
+    if ($snapshotDay -lt $latestDay) {
+        throw "Snapshot date '$($snapshotDay.ToString("yyyy-MM-dd"))' precedes the latest history date '$($latestDay.ToString("yyyy-MM-dd"))'."
+    }
+
+    if ($snapshotDay -eq $latestDay) {
+        $history[-1].Count = $CurrentCount
+    }
+    else {
+        $history.Add([pscustomobject]@{
+            Date = $snapshotDay
+            Count = $CurrentCount
+        })
+    }
+
+    $historyRows = $history | ForEach-Object {
+        "$($_.Date.ToString("yyyy-MM-dd")),$($_.Count)"
+    }
+    $updatedCsv = "date,count`n$($historyRows -join "`n")`n"
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($resolvedHistoryPath, $updatedCsv, $utf8NoBom)
+}
+
+$firstSnapshot = $history[0]
+$latestSnapshot = $history[-1]
+$chartEnd = $latestSnapshot.Date
+
+if ($chartEnd -eq $firstSnapshot.Date) {
+    $chartEnd = $firstSnapshot.Date.AddDays(1)
 }
 
 $width = 900
@@ -85,13 +145,17 @@ $top = 76
 $bottom = 62
 $plotWidth = $width - $left - $right
 $plotHeight = $height - $top - $bottom
-$durationTicks = ($chartEnd - $firstStar).Ticks
-$maxStars = $stars.Count
+$durationTicks = ($chartEnd - $firstSnapshot.Date).Ticks
+$maxStars = ($history | Measure-Object -Property Count -Maximum).Maximum
 
-$points = for ($index = 0; $index -lt $stars.Count; $index++) {
-    $elapsedTicks = ($stars[$index] - $firstStar).Ticks
+if ($maxStars -le 0) {
+    throw "Star-history aggregate file '$resolvedHistoryPath' must contain at least one positive count."
+}
+
+$points = foreach ($snapshot in $history) {
+    $elapsedTicks = ($snapshot.Date - $firstSnapshot.Date).Ticks
     $x = $left + (($elapsedTicks / $durationTicks) * $plotWidth)
-    $y = $top + $plotHeight - ((($index + 1) / $maxStars) * $plotHeight)
+    $y = $top + $plotHeight - (($snapshot.Count / $maxStars) * $plotHeight)
 
     [pscustomobject]@{
         X = $x
@@ -110,11 +174,12 @@ $baselineY = ConvertTo-SvgNumber ($top + $plotHeight)
 $areaPath = "M $firstX $baselineY L $lineCoordinates L $lastX $baselineY Z"
 
 $repositoryText = ConvertTo-SvgText $Repository
-$dateRange = "{0:MMM yyyy} - {1:MMM yyyy}" -f $firstStar, $lastStar
-$subtitle = ConvertTo-SvgText "$Repository - $maxStars stars - $dateRange"
+$dateRange = "{0:MMM yyyy} - {1:MMM yyyy}" -f $firstSnapshot.Date, $latestSnapshot.Date
+$subtitle = ConvertTo-SvgText "$Repository - $($latestSnapshot.Count) stars - $dateRange"
 $description = ConvertTo-SvgText (
-    "Cumulative GitHub stars for $Repository from " +
-    "$($firstStar.ToString('yyyy-MM-dd')) to $($lastStar.ToString('yyyy-MM-dd')).")
+    "Daily aggregate GitHub star counts for $Repository from " +
+    "$($firstSnapshot.Date.ToString("yyyy-MM-dd")) to $($latestSnapshot.Date.ToString("yyyy-MM-dd")); " +
+    "latest count $($latestSnapshot.Count).")
 
 $svg = [System.Text.StringBuilder]::new()
 [void]$svg.AppendLine('<?xml version="1.0" encoding="UTF-8"?>')
@@ -153,10 +218,10 @@ for ($index = 0; $index -le 4; $index++) {
 
 for ($index = 0; $index -le 4; $index++) {
     $x = $left + (($plotWidth * $index) / 4)
-    $tickDate = $firstStar.AddTicks([long](($durationTicks * $index) / 4))
+    $tickDate = $firstSnapshot.Date.AddTicks([long](($durationTicks * $index) / 4))
     $anchor = if ($index -eq 0) { "start" } elseif ($index -eq 4) { "end" } else { "middle" }
 
-    [void]$svg.AppendLine("  <text class=`"axis-text`" x=`"$(ConvertTo-SvgNumber $x)`" y=`"$($top + $plotHeight + 28)`" text-anchor=`"$anchor`">$($tickDate.ToString('MMM yyyy'))</text>")
+    [void]$svg.AppendLine("  <text class=`"axis-text`" x=`"$(ConvertTo-SvgNumber $x)`" y=`"$($top + $plotHeight + 28)`" text-anchor=`"$anchor`">$($tickDate.ToString("MMM yyyy"))</text>")
 }
 
 [void]$svg.AppendLine("  <path class=`"area`" d=`"$areaPath`" />")
@@ -166,11 +231,11 @@ for ($index = 0; $index -le 4; $index++) {
 $resolvedOutputPath = [System.IO.Path]::GetFullPath($OutputPath)
 $outputDirectory = Split-Path -Parent $resolvedOutputPath
 
-if (-not (Test-Path $outputDirectory)) {
+if (-not (Test-Path -LiteralPath $outputDirectory)) {
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 }
 
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText($resolvedOutputPath, $svg.ToString(), $utf8NoBom)
 
-Write-Host "Generated $resolvedOutputPath with $maxStars stars." -ForegroundColor Green
+Write-Host "Generated $resolvedOutputPath from $($history.Count) aggregate snapshots; latest count $($latestSnapshot.Count)." -ForegroundColor Green

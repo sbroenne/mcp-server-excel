@@ -194,4 +194,4 @@ workflow:
 
 ![GitHub stars over time for ExcelMcp](assets/images/star-history.svg){ loading=lazy }
 
-Updated daily from GitHub's stargazer data.
+Updated daily from exact aggregate snapshots; no stargazer identities are stored.

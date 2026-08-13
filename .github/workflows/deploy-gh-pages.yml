@@ -18,16 +18,13 @@ on:
       - 'src/ExcelMcp.CLI/README.md'
       - 'skills/README.md'
       - '.github/workflows/deploy-gh-pages.yml'
+      - '.github/star-history.csv'
       - 'scripts/Update-StarHistory.ps1'
+      - 'scripts/Persist-StarHistory.ps1'
+      - 'scripts/Test-StarHistory.ps1'
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
 
 # Allow only one concurrent deployment
 concurrency:
@@ -35,27 +32,77 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
+    outputs:
+      indexnow_urls: ${{ steps.indexnow-urls.outputs.urls }}
+    env:
+      STAR_HISTORY_BRANCH: star-history-data
+      STAR_HISTORY_PATH: .github/star-history.csv
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Generate star history chart
+      - name: Test star history generator
+        shell: pwsh
+        run: ./scripts/Test-StarHistory.ps1
+
+      - name: Restore persisted star history
         shell: pwsh
         env:
-          # The default GITHUB_TOKEN can no longer read the timestamp-enriched
-          # stargazers endpoint (403 as of 2026). Configure a fine-grained PAT with
-          # `metadata: read` as the STAR_HISTORY_TOKEN secret to refresh the chart.
-          STAR_HISTORY_TOKEN: ${{ secrets.STAR_HISTORY_TOKEN || github.token }}
-        run: >
-          ./scripts/Update-StarHistory.ps1
-          -Repository '${{ github.repository }}'
-          -Token $env:STAR_HISTORY_TOKEN
-          -OutputPath './gh-pages/docs/assets/images/star-history.svg'
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $apiPath = "repos/${{ github.repository }}/contents/$env:STAR_HISTORY_PATH" +
+            "?ref=$env:STAR_HISTORY_BRANCH"
+          $response = & gh api $apiPath 2>&1
+          $responseText = $response -join "`n"
+
+          if ($LASTEXITCODE -eq 0) {
+            $state = $responseText | ConvertFrom-Json
+            $content = [Convert]::FromBase64String(($state.content -replace "\s", ""))
+            [IO.File]::WriteAllBytes($env:STAR_HISTORY_PATH, $content)
+            Write-Host "Restored aggregate snapshots from $env:STAR_HISTORY_BRANCH."
+          }
+          elseif ($responseText -match "HTTP 404") {
+            Write-Host "No persisted branch exists yet; using the exact aggregate bootstrap."
+          }
+          else {
+            throw "Unable to restore persisted star history: $responseText"
+          }
+
+      - name: Record current public star count and generate chart
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Repository metadata remains public even though timestamped stargazers are restricted.
+          $countText = gh api "repos/${{ github.repository }}" --jq ".stargazers_count"
+          $count = 0
+
+          if ($LASTEXITCODE -ne 0 -or -not [int]::TryParse($countText, [ref]$count)) {
+            throw "GitHub did not return a valid public stargazers_count."
+          }
+
+          ./scripts/Update-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -CurrentCount $count `
+            -OutputPath './gh-pages/docs/assets/images/star-history.svg'
+
+      - name: Persist daily aggregate snapshot
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./scripts/Persist-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch $env:STAR_HISTORY_BRANCH `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -RemotePath $env:STAR_HISTORY_PATH `
+            -CommitSha '${{ github.sha }}' `
+            -TempPath $env:RUNNER_TEMP
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -71,25 +118,40 @@ jobs:
         working-directory: gh-pages
         run: mkdocs build --strict --clean
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: 'gh-pages/_site'
+
+      - name: Collect IndexNow URLs
+        id: indexnow-urls
+        run: |
+          # Get list of all HTML pages from the built site (excluding 404.html which should not be indexed)
+          cd gh-pages/_site
+          URLS=$(find . -name "*.html" -type f ! -name "404.html" | sed 's|^\./||' | sed 's|index\.html$||' | sed 's|^|https://excelmcpserver.dev/|' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "urls=$URLS" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
 
       - name: Notify IndexNow (Bing/Yandex)
+        env:
+          URLS: ${{ needs.build.outputs.indexnow_urls }}
         run: |
-          # Get list of all HTML pages from the built site (excluding 404.html which should not be indexed)
-          cd gh-pages/_site
-          URLS=$(find . -name "*.html" -type f ! -name "404.html" | sed 's|^\./||' | sed 's|index\.html$||' | sed 's|^|https://excelmcpserver.dev/|' | jq -R -s -c 'split("\n") | map(select(length > 0))')
-
-          # Submit to IndexNow API
           curl -X POST "https://api.indexnow.org/IndexNow" \
             -H "Content-Type: application/json; charset=utf-8" \
             -d "{
