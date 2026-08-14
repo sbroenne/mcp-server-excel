@@ -48,11 +48,11 @@ datamodel(evaluate, daxQuery="...")               # Returns NEW values!
 | Feature | Power BI/SSAS | Excel Power Pivot | Workaround |
 |---------|---------------|-------------------|------------|
 | Calculated Tables | DAX: `MyTable = FILTER(...)` | NOT SUPPORTED | Use Power Query to create the table |
-| Calculated Columns | DAX: `Table[Col] = ...` | NO COM API access | Use Power Query or DAX measures |
+| Calculated Columns | DAX: `Table[Col] = ...` | Read-only names/types; no COM formula or mutation API | Use Power Query or DAX measures |
 | Measures | Full support | Full support | - |
 | Relationships | Full support | Full support | - |
 
-**Key Insight**: Excel's COM API cannot create or modify calculated columns. If you need computed columns:
+**Key Insight**: `ModelTableColumn` exposes only `Name`, `DataType`, and `Parent` in Excel's PIA. `list-columns` and `read-table` return both the raw `XlParameterDataType` value and its readable name. Excel's COM API cannot read a calculated-column formula or create, modify, or delete calculated columns. If you need computed columns:
 1. **Preferred**: Add the column in Power Query (computed at refresh time)
 2. **Alternative**: Use a DAX measure instead (computed at query time)
 
@@ -77,6 +77,8 @@ DAX formulas are preserved exactly by default on WRITE operations (create-measur
 - delete-measure: Remove a measure
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)
+- read-connection: Get the embedded model connection name/type, ModelConnection command metadata, and connected table names
+- read-table: Get table columns and source connection metadata
 - refresh: Refresh all Data Model data from sources
 - **evaluate**: Execute DAX EVALUATE queries and return tabular results (read-only, no side effects)
 - **execute-dmv**: Execute DMV queries for metadata discovery (SELECT * FROM $SYSTEM.*)
@@ -227,5 +229,6 @@ A PivotChart is a single object connected to the Data Model. Creating a PivotTab
 
 - 2-minute auto-timeout on Data Model operations
 - Table names in Data Model may differ from worksheet (check list-tables)
-- Refresh refreshes ALL tables, not individual ones
+- Refresh is synchronous and can target the whole model or one table; Excel exposes no live model/table `Refreshing` status through COM
+- `ModelTable.LastRefresh` is missing from the Excel PIA and unavailable at runtime in supported Excel builds, so no reliable model-table refresh timestamp can be reported
 - Measure names must be unique across entire Data Model (not per-table)

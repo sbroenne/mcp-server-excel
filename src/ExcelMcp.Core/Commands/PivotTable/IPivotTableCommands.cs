@@ -108,6 +108,52 @@ public interface IPivotTableCommands
     /// <returns>Refresh timestamp, record count, any structural changes</returns>
     [ServiceAction("refresh")]
     PivotTableRefreshResult Refresh(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null);
-}
 
+    /// <summary>
+    /// Gets refresh, retention, and source-data settings for a PivotTable and its PivotCache.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <returns>Current PivotCache and source-data settings</returns>
+    [ServiceAction("get-cache-options")]
+    PivotCacheOptionsResult GetCacheOptions(IExcelBatch batch, string pivotTableName);
+
+    /// <summary>
+    /// Configures refresh, retention, and source-data settings for a PivotTable and its PivotCache.
+    /// Omitted parameters keep their current values. Missing-item retention applies only to regular
+    /// PivotTables; OLAP/Data Model caches manage retained members at the source.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="enableRefresh">Allow the PivotCache to refresh</param>
+    /// <param name="refreshOnFileOpen">Refresh the PivotCache when the workbook opens</param>
+    /// <param name="missingItemsLimit">How many deleted source items Excel retains in the cache</param>
+    /// <param name="optimizeCache">Optimize the cache when it is constructed</param>
+    /// <param name="saveSourceData">Save source records with the PivotTable</param>
+    /// <returns>The applied cache options</returns>
+    [ServiceAction("set-cache-options")]
+    PivotCacheOptionsResult SetCacheOptions(
+        IExcelBatch batch,
+        string pivotTableName,
+        bool? enableRefresh = null,
+        bool? refreshOnFileOpen = null,
+        [FromString] PivotMissingItemsLimit? missingItemsLimit = null,
+        bool? optimizeCache = null,
+        bool? saveSourceData = null);
+
+    /// <summary>
+    /// Expands a regular PivotTable value cell into a new worksheet containing its underlying
+    /// source records. The address must identify a cell inside the PivotTable data body.
+    /// OLAP/Data Model drill-through is provider-dependent and is not supported by this action.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="cellAddress">Value-cell address on the PivotTable worksheet (for example, G4)</param>
+    /// <returns>The created detail worksheet and row count</returns>
+    [ServiceAction("drill-through")]
+    PivotDrillThroughResult DrillThrough(
+        IExcelBatch batch,
+        string pivotTableName,
+        string cellAddress);
+}
 

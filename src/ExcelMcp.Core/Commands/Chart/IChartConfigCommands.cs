@@ -178,11 +178,17 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="placement">Placement mode: 1=MoveAndSize, 2=Move, 3=FreeFloating</param>
+    /// <param name="printObject">Whether the embedded chart prints with the worksheet</param>
+    /// <param name="locked">Whether the embedded chart is locked when the worksheet is protected</param>
+    /// <param name="roundedCorners">Whether the embedded chart uses rounded corners</param>
     [ServiceAction("set-placement")]
     OperationResult SetPlacement(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
-        [RequiredParameter] int placement);
+        [RequiredParameter] int placement,
+        bool? printObject = null,
+        bool? locked = null,
+        bool? roundedCorners = null);
 
     // === DATA LABELS ===
 
@@ -287,6 +293,10 @@ public interface IChartConfigCommands
     /// <param name="markerBackgroundColor">Marker fill color (#RRGGBB)</param>
     /// <param name="markerForegroundColor">Marker border color (#RRGGBB)</param>
     /// <param name="invertIfNegative">Invert colors for negative values</param>
+    /// <param name="fillColor">Series fill color as #RRGGBB</param>
+    /// <param name="fillTransparency">Series fill transparency from 0 (opaque) to 1 (transparent)</param>
+    /// <param name="lineColor">Series line color as #RRGGBB</param>
+    /// <param name="lineWeight">Series line weight in points</param>
     [ServiceAction("set-series-format")]
     OperationResult SetSeriesFormat(
         IExcelBatch batch,
@@ -296,7 +306,74 @@ public interface IChartConfigCommands
         int? markerSize = null,
         string? markerBackgroundColor = null,
         string? markerForegroundColor = null,
-        bool? invertIfNegative = null);
+        bool? invertIfNegative = null,
+        string? fillColor = null,
+        double? fillTransparency = null,
+        string? lineColor = null,
+        double? lineWeight = null);
+
+    /// <summary>
+    /// Sets the chart type for one series in a regular chart, enabling combo charts such as
+    /// clustered columns with a line series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="chartType">Chart type for the selected series</param>
+    [ServiceAction("set-series-chart-type")]
+    OperationResult SetSeriesChartType(
+        IExcelBatch batch,
+        [RequiredParameter] string chartName,
+        [RequiredParameter] int seriesIndex,
+        [RequiredParameter] ChartType chartType);
+
+    /// <summary>
+    /// Gets how a chart plots rows or columns, blank cells, and hidden cells.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    [ServiceAction("get-plot-options")]
+    ChartPlotOptionsResult GetPlotOptions(
+        IExcelBatch batch,
+        [RequiredParameter] string chartName);
+
+    /// <summary>
+    /// Configures how a chart plots rows or columns, blank cells, and hidden cells.
+    /// Omitted parameters keep their current values.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="plotBy">Interpret source rows or columns as data series</param>
+    /// <param name="displayBlanksAs">How blank cells appear: gaps, zeroes, or interpolation</param>
+    /// <param name="plotVisibleOnly">True to omit hidden rows and columns</param>
+    [ServiceAction("set-plot-options")]
+    OperationResult SetPlotOptions(
+        IExcelBatch batch,
+        [RequiredParameter] string chartName,
+        ChartPlotBy? plotBy = null,
+        ChartDisplayBlanksAs? displayBlanksAs = null,
+        bool? plotVisibleOnly = null);
+
+    /// <summary>
+    /// Applies fill and border formatting to the chart area or plot area.
+    /// Colors use #RRGGBB; transparency is 0-1; line weight is measured in points.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="area">Chart area or plot area</param>
+    /// <param name="fillColor">Fill color as #RRGGBB</param>
+    /// <param name="fillTransparency">Fill transparency from 0 (opaque) to 1 (transparent)</param>
+    /// <param name="lineColor">Border color as #RRGGBB</param>
+    /// <param name="lineWeight">Border weight in points</param>
+    [ServiceAction("set-area-format")]
+    OperationResult SetAreaFormat(
+        IExcelBatch batch,
+        [RequiredParameter] string chartName,
+        [RequiredParameter] ChartAreaTarget area,
+        string? fillColor = null,
+        double? fillTransparency = null,
+        string? lineColor = null,
+        double? lineWeight = null);
 
     // === TRENDLINES ===
 

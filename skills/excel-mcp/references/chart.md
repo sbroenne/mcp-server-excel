@@ -37,6 +37,11 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 - `add-series`: Add data series with valuesRange and optional categoryRange
 - `remove-series`: Remove series by index (1-based)
 - `set-source-range`: Replace entire chart data source
+- `set-series-chart-type`: Assign a chart type to one regular-chart series for combo charts
+
+### Plot Behavior
+- `get-plot-options`: Read row/column orientation, blank-cell display, and hidden-cell plotting
+- `set-plot-options`: Configure `plotBy`, `displayBlanksAs`, and `plotVisibleOnly`
 
 ### Titles and Labels
 - `set-title`: Set chart title (empty string hides)
@@ -54,7 +59,7 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 - `set-gridlines`: Show/hide major/minor gridlines
 
 ### Series Formatting
-- `set-series-format`: Configure markers (style, size, foregroundColor, backgroundColor)
+- `set-series-format`: Configure markers plus material fill, transparency, line color, and line weight
 
 ### Trendlines
 - `list-trendlines`: View all trendlines on a series
@@ -65,6 +70,8 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 ### Styling
 - `show-legend`: Control legend visibility and position (Bottom, Corner, Top, Right, Left)
 - `set-style`: Apply Excel chart styles (1-48)
+- `set-area-format`: Format the chart area or plot area fill and border
+- `set-placement`: Configure cell anchoring plus print, lock, and rounded-corner behavior
 
 ## Trendline Details
 

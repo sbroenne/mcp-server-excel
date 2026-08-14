@@ -65,6 +65,13 @@ powerquery(refresh, ...)     # Refreshes Power Query AND Data Model
 # PivotTables connected to Data Model auto-refresh
 ```
 
+## PivotCache Options
+
+- `pivottable(get-cache-options)`: Read refresh, retained-item, optimization, and saved-source settings.
+- `pivottable(set-cache-options)`: Set `enableRefresh`, `refreshOnFileOpen`, `missingItemsLimit`, `optimizeCache`, or `saveSourceData`.
+- `missingItemsLimit` values: `Default`, `None`, `Max`, `Max2`.
+- Deleted-item retention applies only to regular PivotTables. OLAP/Data Model caches manage members in the model.
+
 ## Field Configuration
 
 ### Row/Column/Value Fields
@@ -77,6 +84,24 @@ When creating PivotTables, configure fields in order:
 5. **Refresh to update display**: `pivottable(refresh, pivotTableName="...")`
 
 **IMPORTANT**: Field operations are structural only - they modify the PivotTable layout but don't trigger visual refresh. Call `pivottable(refresh)` after configuring all fields to update the display. This is especially important for OLAP/Data Model PivotTables.
+
+### Manual Grouping
+
+```
+pivottable_field(group-items, fieldName="Region", itemNames=["North", "South"], groupName="Core Regions")
+# Use groupedFieldName from the result:
+pivottable_field(ungroup-field, groupedFieldName="Region2")
+```
+
+Manual grouping requires a regular PivotTable and a field already placed in the Row or Column area. OLAP/Data Model PivotTables must add grouping columns in the model.
+
+### Drill Through
+
+```
+pivottable(drill-through, pivotTableName="SalesPivot", cellAddress="G4")
+```
+
+The target must be a value cell in a regular PivotTable data body. Excel creates a new worksheet containing the underlying source rows. OLAP/Data Model drill-through is provider-dependent and intentionally not exposed as a deterministic operation.
 
 ### Aggregation Functions for Value Fields
 

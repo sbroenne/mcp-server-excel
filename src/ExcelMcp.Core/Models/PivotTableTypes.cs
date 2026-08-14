@@ -111,6 +111,24 @@ public enum SortDirection
 }
 
 /// <summary>
+/// Number of deleted source items retained in a regular PivotCache.
+/// </summary>
+public enum PivotMissingItemsLimit
+{
+    /// <summary>Use Excel's default retention behavior.</summary>
+    Default = -1,
+
+    /// <summary>Do not retain deleted source items.</summary>
+    None = 0,
+
+    /// <summary>Retain up to 32,500 unique items per field.</summary>
+    Max = 32500,
+
+    /// <summary>Retain up to 1,048,576 unique items per field.</summary>
+    Max2 = 1048576
+}
+
+/// <summary>
 /// Excel COM constants for PivotTable field orientation
 /// </summary>
 public static class XlPivotFieldOrientation
@@ -605,6 +623,70 @@ public class PivotTableDataResult : ResultBase
 }
 
 /// <summary>
+/// PivotTable and PivotCache refresh, retention, and saved-data settings.
+/// </summary>
+public class PivotCacheOptionsResult : ResultBase
+{
+    /// <summary>Name of the PivotTable.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+
+    /// <summary>True when the PivotCache can be refreshed.</summary>
+    public bool EnableRefresh { get; set; }
+
+    /// <summary>True when Excel refreshes the PivotCache on workbook open.</summary>
+    public bool RefreshOnFileOpen { get; set; }
+
+    /// <summary>Deleted-item retention limit, or null for OLAP/Data Model caches.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PivotMissingItemsLimit? MissingItemsLimit { get; set; }
+
+    /// <summary>True when Excel optimizes the cache while constructing it.</summary>
+    public bool OptimizeCache { get; set; }
+
+    /// <summary>True when source records are saved with the PivotTable.</summary>
+    public bool SaveSourceData { get; set; }
+
+    /// <summary>True for OLAP/Data Model PivotCaches.</summary>
+    public bool IsOlap { get; set; }
+}
+
+/// <summary>
+/// Result of manually grouping PivotTable items.
+/// </summary>
+public class PivotItemGroupResult : ResultBase
+{
+    /// <summary>Name of the original PivotField.</summary>
+    public string FieldName { get; set; } = string.Empty;
+
+    /// <summary>Name of the generated grouped PivotField.</summary>
+    public string GroupedFieldName { get; set; } = string.Empty;
+
+    /// <summary>Caption assigned to the new group.</summary>
+    public string GroupName { get; set; } = string.Empty;
+
+    /// <summary>Exact source item captions included in the group.</summary>
+    public List<string> Items { get; set; } = [];
+}
+
+/// <summary>
+/// Result of expanding a PivotTable value cell into source-detail rows.
+/// </summary>
+public class PivotDrillThroughResult : ResultBase
+{
+    /// <summary>Name of the PivotTable.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+
+    /// <summary>Expanded PivotTable value-cell address.</summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>Name of the worksheet Excel created for the source rows.</summary>
+    public string DetailSheetName { get; set; } = string.Empty;
+
+    /// <summary>Number of rows on the detail worksheet, including headers.</summary>
+    public int DetailRowCount { get; set; }
+}
+
+/// <summary>
 /// Result for field filter operations
 /// </summary>
 public class PivotFieldFilterResult : ResultBase
@@ -957,5 +1039,4 @@ public class SlicerResult : ResultBase
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkflowHint { get; set; }
 }
-
 

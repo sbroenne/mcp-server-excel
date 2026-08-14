@@ -19,12 +19,15 @@ public sealed class ActionValidatorTests
         [typeof(RangeAction), typeof(ServiceRegistry.Range)],
         [typeof(RangeEditAction), typeof(ServiceRegistry.RangeEdit)],
         [typeof(RangeFormatAction), typeof(ServiceRegistry.RangeFormat)],
-        [typeof(RangeLinkAction), typeof(ServiceRegistry.RangeLink)]
+        [typeof(RangeLinkAction), typeof(ServiceRegistry.RangeLink)],
+        [typeof(DrawingAction), typeof(ServiceRegistry.Drawing)],
+        [typeof(WorkbookAction), typeof(ServiceRegistry.Workbook)]
     ];
 
     private static readonly string[] ExpectedCommands =
     [
         "session",
+        "workbook",
         "sheet",
         "worksheetstyle",
         "range",
@@ -46,6 +49,7 @@ public sealed class ActionValidatorTests
         "vba",
         "datamodel",
         "datamodelrelationship",
+        "drawing",
         "slicer"
     ];
 
@@ -83,6 +87,16 @@ public sealed class ActionValidatorTests
         {
             Assert.True(commands.TryGetProperty(expected, out _), $"Missing command '{expected}'.");
         }
+    }
+
+    [Fact]
+    public void DataModelActions_ReturnAllGeneratedActionStrings()
+    {
+        var expected = GetExpectedActions(typeof(DataModelAction), typeof(ServiceRegistry.DataModel));
+        var actual = GetActualActions(typeof(ServiceRegistry.DataModel));
+
+        Assert.Equal(expected, actual);
+        Assert.Contains("read-connection", actual);
     }
 
     private static string[] GetExpectedActions(Type enumType, Type registryType)
@@ -140,7 +154,4 @@ public sealed class ActionValidatorTests
         public IReadOnlyList<string> Raw { get; } = Array.Empty<string>();
     }
 }
-
-
-
 

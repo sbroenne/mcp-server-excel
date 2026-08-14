@@ -17,6 +17,31 @@ public class DataModelTableViewResult : ResultBase
     public string SourceName { get; set; } = "";
 
     /// <summary>
+    /// Name of the workbook connection that supplies this table.
+    /// </summary>
+    public string SourceConnectionName { get; set; } = "";
+
+    /// <summary>
+    /// Description of the source workbook connection.
+    /// </summary>
+    public string SourceConnectionDescription { get; set; } = "";
+
+    /// <summary>
+    /// Human-readable source connection type.
+    /// </summary>
+    public string SourceConnectionType { get; set; } = "";
+
+    /// <summary>
+    /// Excel XlConnectionType numeric value for the source connection.
+    /// </summary>
+    public int SourceConnectionTypeValue { get; set; }
+
+    /// <summary>
+    /// Whether Excel reports the source connection as participating in the model.
+    /// </summary>
+    public bool SourceConnectionInModel { get; set; }
+
+    /// <summary>
     /// Number of rows in the table
     /// </summary>
     public int RecordCount { get; set; }
@@ -31,5 +56,3 @@ public class DataModelTableViewResult : ResultBase
     /// </summary>
     public int MeasureCount { get; set; }
 }
-
-

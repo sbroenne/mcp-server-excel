@@ -767,6 +767,39 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Updates the path associated with an active session after Workbook.SaveAs.
+    /// </summary>
+    /// <param name="sessionId">Active session ID</param>
+    /// <param name="filePath">New workbook path</param>
+    public void UpdateSessionFilePath(string sessionId, string filePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_activeSessions.ContainsKey(sessionId))
+        {
+            throw new KeyNotFoundException($"Session not found: {sessionId}");
+        }
+
+        var normalizedPath = Path.GetFullPath(filePath);
+        lock (GetSessionLock(sessionId))
+        {
+            if (_activeFilePaths.TryGetValue(normalizedPath, out var existingSessionId) &&
+                !string.Equals(existingSessionId, sessionId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"File '{normalizedPath}' is already open in another session.");
+            }
+
+            if (_sessionFilePaths.TryGetValue(sessionId, out var previousPath))
+            {
+                _activeFilePaths.TryRemove(previousPath, out _);
+            }
+
+            _activeFilePaths[normalizedPath] = sessionId;
+            _sessionFilePaths[sessionId] = normalizedPath;
+        }
+    }
+
+    /// <summary>
     /// Disposes all active sessions, auto-saving each one first to prevent data loss.
     /// </summary>
     /// <remarks>

@@ -213,4 +213,36 @@ public interface IPivotTableFieldCommands
     [ServiceAction("group-by-numeric")]
     PivotFieldResult GroupByNumeric(IExcelBatch batch, string pivotTableName,
         string fieldName, double? start, double? endValue, double intervalSize);
+
+    /// <summary>
+    /// Manually groups two or more visible items in a regular PivotTable field.
+    /// Manual grouping is not supported for OLAP/Data Model PivotTables.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Placed row or column field containing the items</param>
+    /// <param name="itemNames">Exact item captions to group</param>
+    /// <param name="groupName">Caption for the new group</param>
+    /// <returns>The generated grouped field and grouped items</returns>
+    [ServiceAction("group-items")]
+    PivotItemGroupResult GroupItems(
+        IExcelBatch batch,
+        string pivotTableName,
+        string fieldName,
+        List<string> itemNames,
+        string groupName);
+
+    /// <summary>
+    /// Removes manual grouping from a grouped field in a regular PivotTable.
+    /// Use the grouped field name returned by group-items.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="groupedFieldName">Generated grouped field name</param>
+    /// <returns>Operation result</returns>
+    [ServiceAction("ungroup-field")]
+    OperationResult UngroupField(
+        IExcelBatch batch,
+        string pivotTableName,
+        string groupedFieldName);
 }

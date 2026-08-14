@@ -1,5 +1,7 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -339,27 +341,7 @@ public partial class DataModelCommands
                 // Iterate through columns
                 ComUtilities.ForEachColumn(table, (column, index) =>
                 {
-                    bool isCalculated = false;
-                    try
-                    {
-                        // PIA gap: ModelTableColumn.IsCalculatedColumn not in Excel PIA v16; access via dynamic
-                        isCalculated = ((dynamic)column).IsCalculatedColumn ?? false;
-                    }
-                    catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-                                            or System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore - property not available in this Excel version
-                        isCalculated = false;
-                    }
-
-                    var columnInfo = new DataModelColumnInfo
-                    {
-                        Name = ComUtilities.SafeGetString(column, "Name"),
-                        DataType = ComUtilities.SafeGetString(column, "DataType"),
-                        IsCalculated = isCalculated
-                    };
-
-                    result.Columns.Add(columnInfo);
+                    result.Columns.Add(CreateColumnInfo(column));
                 });
 
                 result.Success = true;
@@ -408,30 +390,25 @@ public partial class DataModelCommands
                 result.SourceName = ComUtilities.SafeGetString(table, "SourceName");
                 result.RecordCount = ComUtilities.SafeGetInt(table, "RecordCount");
 
+                Excel.WorkbookConnection? sourceConnection = null;
+                try
+                {
+                    sourceConnection = table.SourceWorkbookConnection;
+                    result.SourceConnectionName = sourceConnection.Name ?? string.Empty;
+                    result.SourceConnectionDescription = sourceConnection.Description ?? string.Empty;
+                    result.SourceConnectionTypeValue = Convert.ToInt32(sourceConnection.Type, CultureInfo.InvariantCulture);
+                    result.SourceConnectionType = ConnectionHelpers.GetConnectionTypeName(result.SourceConnectionTypeValue);
+                    result.SourceConnectionInModel = sourceConnection.InModel;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref sourceConnection);
+                }
+
                 // Get columns
                 ComUtilities.ForEachColumn(table, (column, index) =>
                 {
-                    bool isCalculated = false;
-                    try
-                    {
-                        // PIA gap: ModelTableColumn.IsCalculatedColumn not in Excel PIA v16; access via dynamic
-                        isCalculated = ((dynamic)column).IsCalculatedColumn ?? false;
-                    }
-                    catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-                                            or System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore - property not available in this Excel version
-                        isCalculated = false;
-                    }
-
-                    var columnInfo = new DataModelColumnInfo
-                    {
-                        Name = ComUtilities.SafeGetString(column, "Name"),
-                        DataType = ComUtilities.SafeGetString(column, "DataType"),
-                        IsCalculated = isCalculated
-                    };
-
-                    result.Columns.Add(columnInfo);
+                    result.Columns.Add(CreateColumnInfo(column));
                 });
 
                 // Count measures in this table
@@ -510,4 +487,3 @@ public partial class DataModelCommands
         }, timeoutCts.Token);
     }
 }
-

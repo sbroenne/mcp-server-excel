@@ -3,12 +3,12 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
 
-namespace Sbroenne.ExcelMcp.Core.Commands;
+namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
 /// <summary>
-/// Workbook-level protection and view operations.
+/// Workbook-level command implementation.
 /// </summary>
-public class WorkbookCommands : IWorkbookCommands
+public partial class WorkbookCommands : IWorkbookCommands
 {
     /// <inheritdoc />
     public OperationResult SetProtection(IExcelBatch batch, bool isProtected, string? password = null)
@@ -19,16 +19,13 @@ public class WorkbookCommands : IWorkbookCommands
             {
                 ctx.Book.Protect(password, Structure: true, Windows: false);
             }
+            else if (string.IsNullOrWhiteSpace(password))
+            {
+                ctx.Book.Unprotect();
+            }
             else
             {
-                if (string.IsNullOrWhiteSpace(password))
-                {
-                    ctx.Book.Unprotect();
-                }
-                else
-                {
-                    ctx.Book.Unprotect(password);
-                }
+                ctx.Book.Unprotect(password);
             }
 
             return new OperationResult { Success = true, FilePath = batch.WorkbookPath };

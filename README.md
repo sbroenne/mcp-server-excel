@@ -13,11 +13,13 @@
 
 **Automate Excel with AI** — A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (27 tools with 262 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, What-If Analysis, VBA macros, PivotTables, charts, formatting, and data transformations (31 tools with 326 operations).
 
 **⚡ Powered by the real Excel engine** — ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
+
+**🔬 Native What-If Analysis** - Run Goal Seek, manage scenarios and summaries, and build one- or two-variable data tables through Excel's real calculation engine.
 
 **🧪 LLM-Tested Quality** - Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering). We test that LLMs correctly understand and use our tools.
 
@@ -32,26 +34,31 @@
 
 ## 🎯 What You Can Do
 
-**27 specialized tools with 262 operations:**
+**31 specialized tools with 326 operations:**
 
 - 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
+- 📊 **Data Model/DAX** (2 tools, 20 ops) - Measures, relationships, source metadata, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines
+- 📈 **PivotTables** (3 tools, 35 ops) - Creation, grouping, caches, drill-through, calculated members/fields
+- 📉 **Charts** (2 tools, 33 ops) - Combo series, plotting, placement, material formatting, labels, trendlines
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
-- 📋 **Ranges** (4 tools, 46 ops) - Values, formulas, formatting, validation, protection
-- 📄 **Worksheets** (2 tools, 27 ops) - Lifecycle, colors, visibility, cell notes, images, shapes, page setup, and cross-workbook moves
-- 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
+- 📋 **Ranges** (4 tools, 51 ops) - Values, formulas, hyperlinks, threaded comments, formatting, validation
+- 📄 **Worksheets** (2 tools, 33 ops) - Lifecycle, outlines, protection, notes, images, shapes, and page setup
+- 📘 **Workbooks** (1 tool, 15 ops) - Metadata, properties, Save As/copy, PDF/XPS, external links
+- 🔌 **Connections** (1 tool, 11 ops) - OLEDB/ODBC management, refresh status, and cancellation
+- 🌐 **QueryTables** (1 tool, 9 ops) - Text/CSV and legacy HTML imports with refresh controls
+- 🖼️ **Drawings** (1 tool, 14 ops) - Shapes, images, text boxes, connectors, Forms controls, sparklines
+- 🔬 **What-If Analysis** (1 tool, 8 ops) - Goal Seek, scenarios, summaries, and data tables
+- 🧩 **XML Maps** (1 tool, 6 ops) - Schemas, XPath mappings, secure XML import/export
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 4 ops) - Add, clear, and inspect rules
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
-- 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
+- 🪧 **Window Management** (1 tool, 15 ops) - Show/hide, panes, zoom, display options, positioning
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 262 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 326 operations
 
 
 ## 💬 Example Prompts
@@ -63,6 +70,8 @@
 
 **Analysis & Visualization:**
 - *"Create a PivotTable from this data showing total sales by Product, then add a bar chart"*
+- *"Use Goal Seek to find the price that makes profit equal $100,000, then save optimistic and conservative scenarios"*
+- *"Create a two-variable data table showing profit for different prices and sales volumes"*
 - *"Use Power Query to import products.csv, load it to the Data Model, and create a measure for Total Revenue"*
 - *"Create a slicer for the Region field so I can filter the PivotTable interactively"*
 - *"Create a relationship between the Orders and Products tables using ProductID"*

@@ -27,7 +27,7 @@ internal sealed class ExcelBatch : IExcelBatch
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-    private readonly string _workbookPath; // Primary workbook path
+    private string _workbookPath; // Primary workbook path
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly bool _showExcel; // Whether to show Excel window
     private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
@@ -567,6 +567,31 @@ internal sealed class ExcelBatch : IExcelBatch
     }
 
     public string WorkbookPath => _workbookPath;
+
+    public void UpdateWorkbookPath(string workbookPath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+        var normalizedPath = Path.GetFullPath(workbookPath);
+
+        Execute((_, _) =>
+        {
+            if (_workbooks == null || _excel == null || _workbook == null)
+            {
+                throw new InvalidOperationException("Workbooks not initialized");
+            }
+
+            var previousPath = Path.GetFullPath(_workbookPath);
+            if (!_workbooks.Remove(previousPath, out var workbook))
+            {
+                throw new InvalidOperationException($"Tracked workbook '{previousPath}' was not found.");
+            }
+
+            _workbooks[normalizedPath] = workbook;
+            _workbookPath = normalizedPath;
+            _allWorkbookPaths[0] = normalizedPath;
+            _context = new ExcelContext(normalizedPath, _excel, _workbook);
+        });
+    }
 
     public ILogger Logger => _logger;
 

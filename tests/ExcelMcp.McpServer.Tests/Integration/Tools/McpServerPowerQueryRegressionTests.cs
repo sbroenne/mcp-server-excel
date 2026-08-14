@@ -238,6 +238,106 @@ public class McpServerPowerQueryRegressionTests : IAsyncLifetime, IAsyncDisposab
         }
     }
 
+    [Fact]
+    public async Task DataModel_MetadataActions_ReturnReliableFieldsViaMcpProtocol()
+    {
+        var workbookPath = Path.Join(_tempDir, $"DataModelMetadata_{Guid.NewGuid():N}.xlsx");
+        var sessionId = await CreateSessionAsync(workbookPath);
+
+        try
+        {
+            var createResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["session_id"] = sessionId,
+                ["query_name"] = "MetadataModel",
+                ["m_code"] = BuildInlineTableMCode(includeExtraColumn: false),
+                ["load_destination"] = "load-to-data-model"
+            }, ToolTimeout);
+            AssertSuccess(createResult, "powerquery.create metadata model");
+
+            var connectionResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+            {
+                ["action"] = "read-connection",
+                ["session_id"] = sessionId
+            }, ToolTimeout);
+            AssertSuccess(connectionResult, "datamodel.read-connection");
+            using (var connectionJson = JsonDocument.Parse(connectionResult))
+            {
+                Assert.False(string.IsNullOrWhiteSpace(connectionJson.RootElement.GetProperty("modelName").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(connectionJson.RootElement.GetProperty("connectionName").GetString()));
+                Assert.True(connectionJson.RootElement.GetProperty("inModel").GetBoolean());
+                Assert.Equal("MODEL", connectionJson.RootElement.GetProperty("connectionType").GetString());
+                Assert.Equal(7, connectionJson.RootElement.GetProperty("connectionTypeValue").GetInt32());
+                Assert.Equal("CUBE", connectionJson.RootElement.GetProperty("commandType").GetString());
+                Assert.Equal(1, connectionJson.RootElement.GetProperty("commandTypeValue").GetInt32());
+                Assert.True(connectionJson.RootElement.TryGetProperty("commandText", out _));
+                Assert.Contains(
+                    connectionJson.RootElement.GetProperty("tableNames").EnumerateArray(),
+                    table => table.GetString() == "MetadataModel");
+            }
+
+            var refreshResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+            {
+                ["action"] = "refresh",
+                ["session_id"] = sessionId,
+                ["table_name"] = "MetadataModel"
+            }, ToolTimeout);
+            AssertSuccess(refreshResult, "datamodel.refresh metadata model");
+
+            var readTableResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+            {
+                ["action"] = "read-table",
+                ["session_id"] = sessionId,
+                ["table_name"] = "MetadataModel"
+            }, ToolTimeout);
+            AssertSuccess(readTableResult, "datamodel.read-table metadata model");
+            using (var tableJson = JsonDocument.Parse(readTableResult))
+            {
+                Assert.False(string.IsNullOrWhiteSpace(tableJson.RootElement.GetProperty("sourceConnectionName").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(tableJson.RootElement.GetProperty("sourceConnectionDescription").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(tableJson.RootElement.GetProperty("sourceConnectionType").GetString()));
+                Assert.NotEqual(0, tableJson.RootElement.GetProperty("sourceConnectionTypeValue").GetInt32());
+                Assert.True(tableJson.RootElement.GetProperty("sourceConnectionInModel").GetBoolean());
+                Assert.All(tableJson.RootElement.GetProperty("columns").EnumerateArray(), column =>
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(column.GetProperty("dataType").GetString()));
+                    Assert.NotEqual(0, column.GetProperty("dataTypeValue").GetInt32());
+                    Assert.False(string.IsNullOrWhiteSpace(column.GetProperty("dataTypeName").GetString()));
+                });
+                Assert.False(tableJson.RootElement.TryGetProperty("lastRefresh", out _));
+                Assert.False(tableJson.RootElement.TryGetProperty("refreshing", out _));
+                Assert.False(tableJson.RootElement.TryGetProperty("sourceCommandType", out _));
+                Assert.False(tableJson.RootElement.TryGetProperty("sourceCommandText", out _));
+            }
+
+            var listColumnsResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+            {
+                ["action"] = "list-columns",
+                ["session_id"] = sessionId,
+                ["table_name"] = "MetadataModel"
+            }, ToolTimeout);
+            AssertSuccess(listColumnsResult, "datamodel.list-columns metadata model");
+            using (var columnsJson = JsonDocument.Parse(listColumnsResult))
+            {
+                var columns = columnsJson.RootElement.GetProperty("columns").EnumerateArray().ToArray();
+                Assert.Equal(3, columns.Length);
+                Assert.All(columns, column =>
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(column.GetProperty("dataType").GetString()));
+                    Assert.NotEqual(0, column.GetProperty("dataTypeValue").GetInt32());
+                    Assert.False(string.IsNullOrWhiteSpace(column.GetProperty("dataTypeName").GetString()));
+                    Assert.False(column.TryGetProperty("formula", out _));
+                    Assert.False(column.TryGetProperty("expression", out _));
+                });
+            }
+        }
+        finally
+        {
+            await TryCloseSessionAsync(sessionId);
+        }
+    }
+
     private async Task DisposeAsyncCore()
     {
         await ProgramTransportTestHost.StopAsync(

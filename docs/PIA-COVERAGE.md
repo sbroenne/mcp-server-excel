@@ -9,12 +9,24 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 | Area | Status |
 |------|--------|
 | Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Fully typed |
+| Drawing geometry/text and Forms controls | ✅ Typed |
+| Shape creation/type/fill/line members | ⚠️ Office.Core signatures; isolated late binding |
+| Sparklines (`SparklineGroups`, `SparklineGroup`, colors/points) | ✅ Typed |
+| What-If Analysis (`GoalSeek`, `Scenarios`, `Table`) | ✅ Typed |
+| QueryTables and threaded comments | ✅ Typed via the 16.x Excel PIA |
+| XML maps (`XmlMaps`, `XmlMap`, `XmlImportXml`, `XmlMap.ExportXml`) | ✅ Typed; external schema resolution is rejected before COM |
+| PivotCache options, grouping, drill-through, and chart plotting/formatting | ✅ Typed |
+| Workbook metadata, properties, Save As/copy, fixed-format export, and links | ✅ Typed except Office document-property collections |
 | Collections (`Sheets`, `Names`, `ListObjects`, etc.) | ✅ Fully typed |
 | Power Query (`Workbook.Queries`, `WorkbookQuery`) | ✅ Typed via the 16.x Excel PIA |
 | DataModel (`ModelTables`, `ModelRelationships`, etc.) | ✅ Typed |
+| `ModelTableColumn.DataType` / `XlParameterDataType` | ✅ Typed; list/read responses expose raw and named values |
 | DataModel measures/formats (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) | ✅ Typed via the 16.x Excel PIA |
 | Connection sub-types (`OLEDBConnection`, `ODBCConnection`, `TextConnection`) | ✅ Migrated — callers use typed WorkbookConnection |
-| `ModelTableColumn.IsCalculatedColumn` | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
+| `ModelTableColumn.IsCalculatedColumn` / formula / expression | ❌ Not exposed by the 16.x Excel PIA; runtime COM also has no reliable calculated-column metadata API |
+| `ModelTable.LastRefresh` | ❌ Missing from the 16.x Excel PIA and unavailable at runtime; no reliable table refresh timestamp |
+| Data Model source/model connection metadata | ✅ Typed (`SourceWorkbookConnection`, `DataModelConnection`, `ModelConnection`, `ModelTables`, command metadata) |
+| Data Model live refresh status | ❌ No `Model.Refreshing` or `ModelTable.Refreshing` PIA/COM surface; refresh calls are synchronous |
 | `ModelMeasure.FormatInformation` | ⚠️ Typed as `object`; dynamic property probing remains for polymorphic `ModelFormat*` objects |
 | `WorkbookConnection.Refreshing` / `CancelRefresh` | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
 | VBA (`VBProject`, `VBComponents`) | ⚠️ External VBE object model, not Excel PIA — dynamic debt until typed interop is added |
@@ -44,11 +56,26 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 - **Current workaround**: Dynamic calls are isolated to connection refresh waiting/cancellation.
 - **Preferred future fix**: Add a typed interop surface or replace the behavior with a typed Excel API path.
 
-### ModelTableColumn.IsCalculatedColumn
+### Data Model calculated columns
 
-- **Why not typed yet**: `ModelTableColumn.IsCalculatedColumn` does not compile against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
-- **Current workaround**: Dynamic property access is isolated to Data Model table/column read paths.
-- **Preferred future fix**: Add typed interop coverage for the property.
+- **Compile probe result**: `ModelTableColumn.IsCalculatedColumn`, `Formula`, and `Expression` all fail with CS1061 against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Runtime result**: Excel reliably exposes only column name, data type, and parent through `ModelTableColumn`; calculated-column formulas and mutation are not practical automation surfaces.
+- **Current behavior**: `list-columns` returns reliable names plus the raw and named `XlParameterDataType` values. Use Power Query for computed columns or a DAX measure for query-time calculations.
+- **Runtime quirk**: Excel returns value `20` (`BIGINT`) for worksheet integer columns loaded into the model even though `20` is outside the documented `XlParameterDataType` values. ExcelMcp preserves the raw value and supplies the observed readable name.
+
+### ModelTable refresh metadata and status
+
+- **Compile probe result**: `ModelTable.LastRefresh`, `ModelTable.Refreshing`, and `Model.Refreshing` fail with CS1061 against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Runtime result**: After a successful explicit `ModelTable.Refresh()`, late-bound `LastRefresh` access still fails, so the timestamp is not exposed.
+- **Current behavior**: `refresh` uses the typed synchronous `Model.Refresh()` / `ModelTable.Refresh()` APIs.
+- **Hard limitation**: There is no reliable refresh timestamp, live refresh-status, or cancellation API for the Data Model itself.
+
+### Data Model connection metadata
+
+- **Compile probe result**: `Model.DataModelConnection`, `ModelTable.SourceWorkbookConnection`, `WorkbookConnection.ModelConnection`, `WorkbookConnection.ModelTables`, `WorkbookConnection.InModel`, and `ModelConnection.CommandText` / `CommandType` / `ADOConnection` compile against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Runtime finding**: `Model.DataModelConnection.ModelTables` throws `0x800A03EC` for Excel's embedded model connection. `read-connection` therefore enumerates the reliable typed `Model.ModelTables` collection instead.
+- **Runtime finding**: A worksheet-backed `ModelTable.SourceWorkbookConnection` exposes source connection metadata, but its `ModelConnection` property throws `0x800A03EC`; command metadata is therefore exposed only by `read-connection` for the actual model-type connection.
+- **Current behavior**: `read-connection` exposes non-sensitive model connection metadata and table names. The raw ADO connection is intentionally not serialized because it may contain provider/session details.
 
 ### VBProject / VBComponents / VBComponent
 
@@ -66,6 +93,15 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 - **office.dll is NOT a runtime dependency**: The Excel PIA is embedded (`EmbedInteropTypes` via the repo-root `Directory.Build.targets`; the PackageReference is compile-only via `<ExcludeAssets>runtime</ExcludeAssets>`). Embedding bakes only the Excel interop types we actually use into our assemblies — none of which are Office.Core types — so the built assemblies carry **no** reference to `office.dll`. This is why no assembly resolver is required. (Previously the PIA was referenced but not embedded, so it dragged in a transitive `office v16.0.0.0` dependency that forced a runtime `office.dll` load; that is now gone.)
 - **Do NOT add a `<Reference>` to office.dll or a hand-rolled assembly resolver**: A GAC hint path is version- and machine-specific (15.0 vs 16.0 mismatch). Proper PIA embedding removes the office.dll dependency entirely, so neither is needed.
 - **Affected files**: `ExcelBatch.cs`
+
+### Drawing shapes — Office.Core enum and formatting signatures
+
+- **Compile probe result**: `Excel.Shapes`, `Excel.Shape`, geometry, `TextFrame`, `Characters`, `Font`, `ControlFormat`, and `AddFormControl` compile through the Excel PIA.
+- **Office.Core gap**: `Shapes.AddPicture`, `AddShape`, `AddTextbox`, and `AddConnector` require `MsoTriState`, `MsoAutoShapeType`, `MsoTextOrientation`, and `MsoConnectorType` from `office.dll`. `Shape.Type`, `AutoShapeType`, `ConnectorFormat`, `Fill`, `Line`, `Visible`, and `LockAspectRatio` have the same dependency.
+- **Workaround**: `DrawingCommands` uses typed Excel objects everywhere else and isolates pure IDispatch late binding to those Office.Core-dependent members, passing documented integer enum values.
+- **Why not add office.dll**: The project intentionally embeds only Excel PIA types to avoid a runtime `office.dll` dependency. Adding the Office.Core PIA would regress self-contained deployment.
+- **Sparklines stay typed**: `Range.SparklineGroups`, `SparklineGroups.Add`, `SparklineGroup.ModifySourceData`, `Type`, `SeriesColor`, `Points`, and `Delete` are all available through the Excel PIA.
+- **Affected files**: `DrawingCommands.Objects.cs`.
 
 ### WebConnection
 

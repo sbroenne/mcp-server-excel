@@ -4,11 +4,14 @@ using System.Reflection;
 #pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Commands.Drawing;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Generated;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
@@ -26,6 +29,54 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 /// </summary>
 public class CoreCommandsCoverageTests
 {
+    /// <summary>
+    /// Verifies all drawing methods have generated action routes and string mappings.
+    /// </summary>
+    [Fact]
+    public void DrawingAction_AllGeneratedRoutesMatchCoreContract()
+    {
+        var coreActions = typeof(IDrawingCommands)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Select(method => method.GetCustomAttribute<ServiceActionAttribute>()?.Action)
+            .Where(action => action != null)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var generatedActions = Enum.GetValues<DrawingAction>()
+            .Select(ServiceRegistry.Drawing.ToActionString)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(14, coreActions.Length);
+        Assert.Equal(coreActions, generatedActions);
+    }
+    /// <summary>
+    /// Verifies IWorkbookCommands has matching WorkbookAction enum values.
+    /// </summary>
+    [Fact]
+    public void IWorkbookCommands_AllMethodsHaveEnumValues()
+    {
+        var coreMethodCount = typeof(IWorkbookCommands)
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Length;
+        var enumValueCount = Enum.GetValues<WorkbookAction>().Length;
+
+        Assert.Equal(coreMethodCount, enumValueCount);
+    }
+
+    /// <summary>
+    /// Verifies all WorkbookAction enum values have generated string mappings.
+    /// </summary>
+    [Fact]
+    public void WorkbookAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<WorkbookAction>())
+        {
+            var exception = Record.Exception(() => ServiceRegistry.Workbook.ToActionString(action));
+            Assert.Null(exception);
+            Assert.NotEmpty(ServiceRegistry.Workbook.ToActionString(action));
+        }
+    }
+
     /// <summary>
     /// Verifies IPowerQueryCommands has matching PowerQueryAction enum values
     /// </summary>
@@ -404,7 +455,3 @@ public class CoreCommandsCoverageTests
             .Count();
     }
 }
-
-
-
-

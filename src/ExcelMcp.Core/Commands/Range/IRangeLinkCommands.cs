@@ -5,7 +5,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 /// <summary>
-/// Hyperlink and cell protection operations for Excel ranges.
+/// Hyperlink, threaded comment, and cell protection operations for Excel ranges.
 /// Use range for values/formulas, rangeformat for styling.
 ///
 /// HYPERLINKS:
@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("rangelink", "RangeLink")]
 [McpTool("range_link", Title = "Range Link Operations", Destructive = true, Category = "data",
-    Description = "Hyperlink and cell protection operations. HYPERLINKS: add-hyperlink creates external links with url or internal workbook links with subAddress; update-hyperlink changes an existing target, display text, or tooltip; remove-hyperlink keeps cell content; list-hyperlinks returns all worksheet links; get-hyperlink reads a specific cell. At least url or subAddress is required when adding. CELL PROTECTION: set-cell-lock/get-cell-lock only take effect when sheet protection is enabled.")]
+    Description = "Hyperlink, threaded comment, and cell protection operations. THREADED COMMENTS: add-threaded-comment, list-threaded-comments, add-threaded-comment-reply, delete-threaded-comment use the local Excel PIA. Cloud mentions, assignments, reactions, presence, and coauthoring state are not exposed by local Excel COM. HYPERLINKS: add-hyperlink creates external links with url or internal workbook links with subAddress; update-hyperlink changes an existing target, display text, or tooltip; remove-hyperlink keeps cell content; list-hyperlinks returns all worksheet links; get-hyperlink reads a specific cell. At least url or subAddress is required when adding. CELL PROTECTION: set-cell-lock/get-cell-lock only take effect when sheet protection is enabled.")]
 public interface IRangeLinkCommands
 {
     // === HYPERLINK OPERATIONS ===
@@ -93,6 +93,50 @@ public interface IRangeLinkCommands
     /// <param name="cellAddress">Single cell address (e.g., 'A1')</param>
     [ServiceAction("get-hyperlink")]
     RangeHyperlinkResult GetHyperlink(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
+
+    // === THREADED COMMENT OPERATIONS ===
+
+    /// <summary>
+    /// Adds a top-level threaded comment to one cell.
+    /// Excel COM: Range.AddCommentThreaded().
+    /// </summary>
+    [ServiceAction("add-threaded-comment")]
+    OperationResult AddThreadedComment(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string cellAddress,
+        [RequiredParameter] string text);
+
+    /// <summary>
+    /// Lists a cell's top-level threaded comment and its replies.
+    /// Excel COM: Range.CommentThreaded and CommentThreaded.Replies.
+    /// </summary>
+    [ServiceAction("list-threaded-comments")]
+    ThreadedCommentsResult ListThreadedComments(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string cellAddress);
+
+    /// <summary>
+    /// Adds a reply to a cell's existing threaded comment.
+    /// Excel COM: CommentThreaded.AddReply().
+    /// </summary>
+    [ServiceAction("add-threaded-comment-reply")]
+    OperationResult AddThreadedCommentReply(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string cellAddress,
+        [RequiredParameter] string text);
+
+    /// <summary>
+    /// Deletes a cell's threaded comment and all replies.
+    /// Excel COM: CommentThreaded.Delete().
+    /// </summary>
+    [ServiceAction("delete-threaded-comment")]
+    OperationResult DeleteThreadedComment(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string cellAddress);
 
     // === CELL PROTECTION OPERATIONS ===
 

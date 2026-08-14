@@ -52,6 +52,12 @@ public interface IExcelBatch : IDisposable
     string WorkbookPath { get; }
 
     /// <summary>
+    /// Updates the tracked primary workbook path after Excel Save As changes the workbook identity.
+    /// </summary>
+    /// <param name="workbookPath">New absolute workbook path</param>
+    void UpdateWorkbookPath(string workbookPath);
+
+    /// <summary>
     /// Gets the logger instance for diagnostic output.
     /// Returns NullLogger if no logger was provided during construction.
     /// </summary>
@@ -146,6 +152,5 @@ public interface IExcelBatch : IDisposable
     TimeSpan OperationTimeout { get; }
 
 }
-
 
 

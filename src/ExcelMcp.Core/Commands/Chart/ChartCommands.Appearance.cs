@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -309,7 +310,13 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetPlacement(IExcelBatch batch, string chartName, int placement)
+    public OperationResult SetPlacement(
+        IExcelBatch batch,
+        string chartName,
+        int placement,
+        bool? printObject = null,
+        bool? locked = null,
+        bool? roundedCorners = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -320,6 +327,7 @@ public partial class ChartCommands
                 throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
+            Excel.ChartObject? chartObject = null;
             try
             {
                 // Validate placement value (xlMoveAndSize=1, xlMove=2, xlFreeFloating=3)
@@ -330,13 +338,23 @@ public partial class ChartCommands
                         nameof(placement));
                 }
 
-                // Set placement on the shape (ChartObject)
-                findResult.Shape.Placement = placement;
+                chartObject = (Excel.ChartObject)findResult.Chart.Parent;
+                chartObject.Placement = placement;
+
+                if (printObject.HasValue)
+                    chartObject.PrintObject = printObject.Value;
+
+                if (locked.HasValue)
+                    chartObject.Locked = locked.Value;
+
+                if (roundedCorners.HasValue)
+                    chartObject.RoundedCorners = roundedCorners.Value;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
+                ComUtilities.Release(ref chartObject);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -729,7 +747,11 @@ public partial class ChartCommands
         int? markerSize = null,
         string? markerBackgroundColor = null,
         string? markerForegroundColor = null,
-        bool? invertIfNegative = null)
+        bool? invertIfNegative = null,
+        string? fillColor = null,
+        double? fillTransparency = null,
+        string? lineColor = null,
+        double? lineWeight = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -785,6 +807,21 @@ public partial class ChartCommands
                 // Set invert if negative
                 if (invertIfNegative.HasValue)
                     series.InvertIfNegative = invertIfNegative.Value;
+
+                if (fillColor != null || fillTransparency.HasValue || lineColor != null || lineWeight.HasValue)
+                {
+                    dynamic? format = null;
+                    try
+                    {
+                        // Excel PIA exposes Office chart formatting objects without typed Office.Core references.
+                        format = series.Format;
+                        ApplyMaterialFormat(format, fillColor, fillTransparency, lineColor, lineWeight);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref format!);
+                    }
+                }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
@@ -1244,5 +1281,3 @@ public partial class ChartCommands
         });
     }
 }
-
-

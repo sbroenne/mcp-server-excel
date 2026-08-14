@@ -3,6 +3,32 @@
 > Auto-generated from `excelcli --help`. Use these exact parameter names.
 
 
+### analysis
+
+Run Excel what-if analysis with Goal Seek, scenarios, scenario reports, and one- or two-variable data tables. Solver is not exposed because it requires a user-enabled VBA add-in and reference.
+
+**Actions:** `goal-seek`, `list-scenarios`, `create-scenario`, `update-scenario`, `show-scenario`, `delete-scenario`, `create-scenario-summary`, `create-data-table`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--sheet-name` | Worksheet containing the model (required) |
+| `--formula-cell` | Formula cell Goal Seek should drive to the target (required for: goal-seek) |
+| `--goal` | Numeric target for the formula cell (required for: goal-seek) |
+| `--changing-cell` | Input cell Goal Seek may adjust (required for: goal-seek) |
+| `--scenario-name` | Scenario name (required for: create-scenario, update-scenario, show-scenario, delete-scenario) |
+| `--changing-cells` | Range containing the scenario input cells (required for: create-scenario, update-scenario) |
+| `--values` | JSON array with one stored value per changing cell (required for: create-scenario, update-scenario) |
+| `--comment` | Optional scenario comment |
+| `--locked` | Whether the scenario is locked (default: true) |
+| `--hidden` | Whether the scenario is hidden (default: false) |
+| `--report-type` | Scenario report type: summary or pivot-table (default: summary) |
+| `--result-cells` | Optional formula cells to include in a scenario report |
+| `--table-range` | Prepared one- or two-variable data table range (required for: create-data-table) |
+| `--row-input-cell` | Model input cell replaced by values in the table's first row |
+| `--column-input-cell` | Model input cell replaced by values in the table's first column |
+
+
+
 ### calculationmode
 
 Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes for faster performance, then recalculate once at the end.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
@@ -12,6 +13,45 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class DataModelCommands
 {
+    private static DataModelColumnInfo CreateColumnInfo(object column)
+    {
+        var typedColumn = (Excel.ModelTableColumn)column;
+        bool isCalculated;
+        try
+        {
+            // PIA gap: ModelTableColumn.IsCalculatedColumn does not compile against Excel PIA 16.0.18925.20022.
+            isCalculated = ((dynamic)typedColumn).IsCalculatedColumn ?? false;
+        }
+        catch (Exception ex) when (ex is RuntimeBinderException or COMException)
+        {
+            isCalculated = false;
+        }
+
+        int dataTypeValue = typedColumn.DataType;
+        return new DataModelColumnInfo
+        {
+            Name = typedColumn.Name ?? string.Empty,
+            DataType = dataTypeValue.ToString(CultureInfo.InvariantCulture),
+            DataTypeValue = dataTypeValue,
+            DataTypeName = GetParameterDataTypeName(dataTypeValue),
+            IsCalculated = isCalculated
+        };
+    }
+
+    private static string GetParameterDataTypeName(int dataTypeValue)
+    {
+        if (dataTypeValue == 20)
+        {
+            return "BIGINT";
+        }
+
+        const string prefix = "xlParamType";
+        string enumName = ((Excel.XlParameterDataType)dataTypeValue).ToString();
+        return enumName.StartsWith(prefix, StringComparison.Ordinal)
+            ? enumName[prefix.Length..].ToUpperInvariant()
+            : $"Unknown ({dataTypeValue.ToString(CultureInfo.InvariantCulture)})";
+    }
+
     private static DataModelAdoDiagnostics CollectAdoDiagnostics(dynamic? adoConnection)
     {
         if (adoConnection == null)

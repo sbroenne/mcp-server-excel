@@ -6,13 +6,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Data connections (OLEDB, ODBC, ODC import).
-/// TEXT/WEB/CSV: Use powerquery instead.
+/// TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations.
 /// Power Query connections auto-redirect to powerquery.
 /// TIMEOUT: 30 min auto-timeout for refresh/load-to.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
-    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use powerquery instead. Power Query connections auto-redirect to powerquery. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
+    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations. Power Query connections redirect to powerquery. Typed OLEDB/ODBC refresh status and cancellation are available. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
 public interface IConnectionCommands
 {
     /// <summary>
@@ -58,6 +58,24 @@ public interface IConnectionCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName,
         [FromString("timeout")] TimeSpan? timeout = null);
+
+    /// <summary>
+    /// Gets refresh status for OLEDB and ODBC connections.
+    /// Excel PIA exposes status on the typed sub-connection, not WorkbookConnection.
+    /// </summary>
+    [ServiceAction("get-refresh-status")]
+    RefreshStatusResult GetRefreshStatus(
+        IExcelBatch batch,
+        [RequiredParameter, FromString("connectionName")] string connectionName);
+
+    /// <summary>
+    /// Cancels an active OLEDB or ODBC refresh.
+    /// Returns an explicit unsupported result for connection types without a typed PIA cancellation API.
+    /// </summary>
+    [ServiceAction("cancel-refresh")]
+    RefreshCancellationResult CancelRefresh(
+        IExcelBatch batch,
+        [RequiredParameter, FromString("connectionName")] string connectionName);
 
     /// <summary>
     /// Deletes a connection
@@ -125,6 +143,4 @@ public interface IConnectionCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName);
 }
-
-
 
