@@ -17,7 +17,7 @@ public static partial class ExcelWorksheetTool
     /// RENAME: Use old_name + new_name.
     /// ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically).
     /// POSITIONING: Use before OR after (not both) to place sheet relative to another.
-    /// Use worksheet_style for tab colors and visibility.
+    /// Use worksheet_style for tab colors, visibility, and protection.
     /// </summary>
     /// <param name="action">The action to perform</param>
     /// <param name="session_id">Session ID from file 'open' action (required for: list, create, rename, delete, move, copy. Not required for: copy-to-file, move-to-file)</param>
@@ -36,7 +36,7 @@ public static partial class ExcelWorksheetTool
     [McpServerTool(Name = "worksheet", Title = "Worksheet Operations", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
-    [Description("Worksheet lifecycle: create, rename, copy, delete, move. RENAME: Use old_name plus new_name. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors and visibility.")]
+    [Description("Worksheet lifecycle: create, rename, copy, delete, move. RENAME: Use old_name plus new_name. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors, visibility, and protection.")]
     public static string ExcelWorksheet(
         [Description("The action to perform")] SheetAction action,
         [Description(

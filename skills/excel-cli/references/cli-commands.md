@@ -477,9 +477,9 @@ Worksheet lifecycle management: create, rename, copy, delete, move, list sheets.
 
 ### worksheetstyle
 
-Worksheet styling operations for tab colors and visibility. Use sheet for lifecycle operations (create, rename, copy, delete, move). TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization. VISIBILITY LEVELS: - 'visible': Normal visible sheet - 'hidden': Hidden but accessible via Format > Sheet > Unhide - 'veryhidden': Only accessible via VBA (protection against casual unhiding)
+Worksheet styling operations for tab colors, visibility, protection, legacy cell notes, images, shapes, and page setup. Use sheet for lifecycle operations (create, rename, copy, delete, move). TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization. VISIBILITY LEVELS: - 'visible': Normal visible sheet - 'hidden': Hidden but accessible via Format > Sheet > Unhide - 'veryhidden': Only accessible via VBA (protection against casual unhiding). PROTECTION: Protect or unprotect a sheet to lock its contents and structure. NOTES: set-comment/get-comment/clear-comment use Excel's legacy Comment COM API and therefore manage cell notes, not threaded comments.
 
-**Actions:** `set-tab-color`, `get-tab-color`, `clear-tab-color`, `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide`
+**Actions:** `set-tab-color`, `get-tab-color`, `clear-tab-color`, `set-protection`, `get-protection`, `set-comment`, `get-comment`, `clear-comment`, `add-image`, `get-image-count`, `add-shape`, `get-shape-count`, `set-page-setup`, `get-page-setup`, `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -488,6 +488,16 @@ Worksheet styling operations for tab colors and visibility. Use sheet for lifecy
 | `--green` | Green color component (0-255) (required for: set-tab-color) |
 | `--blue` | Blue color component (0-255) (required for: set-tab-color) |
 | `--visibility` | Visibility level: 'visible', 'hidden', or 'veryhidden' (required for: set-visibility) |
+| `--is-protected` | Whether the worksheet should be protected (required for: set-protection) |
+| `--password` | Optional worksheet protection password |
+| `--cell-address` | Cell address such as A1 (required for: set-comment, get-comment, clear-comment, add-image, add-shape) |
+| `--text` | Legacy cell note text (required for: set-comment) |
+| `--image-path` | Absolute path to an image file (required for: add-image) |
+| `--orientation` | Page orientation: portrait or landscape (required for: set-page-setup) |
+| `--fit-to-pages-wide` | Optional number of pages wide for print scaling |
+| `--fit-to-pages-tall` | Optional number of pages tall for print scaling |
+| `--center-horizontally` | Whether to center the printout horizontally |
+| `--center-vertically` | Whether to center the printout vertically |
 
 
 
@@ -573,6 +583,21 @@ VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQU
 | `--procedure-name` | Name of the procedure to run (for example "Module1.MySub") (required for: run) |
 | `--timeout` | Optional timeout for execution |
 | `--parameters` | Optional parameters to pass to the procedure (required for: run) |
+
+
+
+### workbook
+
+Workbook-level protection and view operations.
+
+**Actions:** `set-protection`, `get-protection`, `set-view-options`, `get-view-options`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--is-protected` | Whether workbook structure should be protected (required for: set-protection) |
+| `--password` | Optional workbook protection password |
+| `--display-gridlines` | Whether to display gridlines in the workbook window |
+| `--display-headings` | Whether to display row and column headings in the workbook window |
 
 
 

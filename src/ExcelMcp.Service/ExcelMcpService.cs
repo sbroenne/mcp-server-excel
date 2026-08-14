@@ -41,6 +41,7 @@ public sealed class ExcelMcpService : IDisposable
     // Core command instances - use concrete types per CA1859
     private readonly RangeCommands _rangeCommands = new();
     private readonly SheetCommands _sheetCommands = new();
+    private readonly WorkbookCommands _workbookCommands = new();
     private readonly TableCommands _tableCommands = new();
     private readonly PowerQueryCommands _powerQueryCommands;
     private readonly PivotTableCommands _pivotTableCommands = new();
@@ -255,6 +256,7 @@ public sealed class ExcelMcpService : IDisposable
                 "service" => HandleServiceCommand(action),
                 "session" => HandleSessionCommand(action, request),
                 "sheet" or "sheetstyle" => await DispatchSheetAsync(action, request),
+                "workbook" => await DispatchWorkbookAsync(action, request),
                 "range" or "rangeedit" or "rangeformat" or "rangelink" => await DispatchRangeAsync(action, request),
                 "table" or "tablecolumn" => await DispatchTableAsync(action, request),
                 "powerquery" => await DispatchSimpleAsync<PowerQueryAction>(action, request,
@@ -656,36 +658,34 @@ public sealed class ExcelMcpService : IDisposable
 
 
 
-    private async Task<ServiceResponse> DispatchRangeAsync(string actionString, ServiceRequest request)
-
+    private async Task<ServiceResponse> DispatchWorkbookAsync(string actionString, ServiceRequest request)
     {
+        if (!ServiceRegistry.Workbook.TryParseAction(actionString, out var workbookAction))
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown workbook action: {actionString}" };
 
         return await WithSessionAsync(request.SessionId, batch =>
+            WrapResult(ServiceRegistry.Workbook.DispatchToCore(_workbookCommands, workbookAction, batch, request.Args)));
+    }
 
+    private async Task<ServiceResponse> DispatchRangeAsync(string actionString, ServiceRequest request)
+    {
+        return await WithSessionAsync(request.SessionId, batch =>
         {
-
             if (ServiceRegistry.Range.TryParseAction(actionString, out var ra))
-
                 return WrapResult(ServiceRegistry.Range.DispatchToCore(_rangeCommands, ra, batch, request.Args));
 
             if (ServiceRegistry.RangeEdit.TryParseAction(actionString, out var rea))
-
                 return WrapResult(ServiceRegistry.RangeEdit.DispatchToCore(_rangeCommands, rea, batch, request.Args));
 
             if (ServiceRegistry.RangeFormat.TryParseAction(actionString, out var rfa))
-
                 return WrapResult(ServiceRegistry.RangeFormat.DispatchToCore(_rangeCommands, rfa, batch, request.Args));
 
             if (ServiceRegistry.RangeLink.TryParseAction(actionString, out var rla))
-
                 return WrapResult(ServiceRegistry.RangeLink.DispatchToCore(_rangeCommands, rla, batch, request.Args));
 
             return new ServiceResponse { Success = false, ErrorMessage = $"Unknown range action: {actionString}" };
-
         });
-
     }
-
 
 
     private async Task<ServiceResponse> DispatchTableAsync(string actionString, ServiceRequest request)

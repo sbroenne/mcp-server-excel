@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**26 specialized tools with 234 operations for comprehensive Excel automation**
+**27 specialized tools with 249 operations for comprehensive Excel automation**
 
 ---
 
@@ -331,9 +331,9 @@ Read and write cell values, formulas, and formatting across any range of cells.
 
 ---
 
-## 📄 Worksheets (16 operations)
+## 📄 Worksheets (27 operations)
 
-Add, rename, move, and manage worksheets — including tab colors and visibility.
+Add, rename, move, and manage worksheets — including tab colors, visibility, protection, legacy cell notes, inline images, shapes, and page setup.
 
 **Lifecycle:**
 - **List:** List worksheets in the workbook
@@ -358,6 +358,39 @@ Add, rename, move, and manage worksheets — including tab colors and visibility
 - **Very Hide:** Hide a worksheet from the Excel UI entirely
 - **Get Visibility:** Read the current visibility status
 - **Set Visibility:** Set visibility status directly
+
+**Protection:**
+- **Set Protection:** Protect or unprotect a worksheet
+- **Get Protection:** Read the current protection state
+
+**Cell Notes:**
+- **Set Comment:** Create or update a legacy cell note through Excel's Comment COM API
+- **Get Comment:** Read the current legacy cell note text
+- **Clear Comment:** Remove a legacy cell note
+
+**Images:**
+- **Add Image:** Insert an image from disk and anchor it to a cell
+- **Get Image Count:** Read how many images are currently on a worksheet
+
+**Shapes:**
+- **Add Shape:** Insert a basic rectangle shape and anchor it to a cell
+- **Get Shape Count:** Read how many shapes are currently on a worksheet
+
+**Page Setup:**
+- **Set Page Setup:** Configure orientation, fit-to-page settings, and centering
+- **Get Page Setup:** Read worksheet page setup values
+
+---
+
+## 📘 Workbook (4 operations)
+
+Protect and inspect workbook protection and view options for the active workbook.
+
+**Operations:**
+- **Set Protection:** Protect or unprotect the current workbook, optionally with a password
+- **Get Protection:** Determine whether the current workbook is protected
+- **Set View Options:** Toggle workbook window gridlines and headings on or off
+- **Get View Options:** Read back workbook window gridlines and headings state
 
 ---
 

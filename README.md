@@ -13,7 +13,7 @@
 
 **Automate Excel with AI** — A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (26 tools with 234 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (27 tools with 249 operations).
 
 **⚡ Powered by the real Excel engine** — ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
 
@@ -32,7 +32,7 @@
 
 ## 🎯 What You Can Do
 
-**26 specialized tools with 234 operations:**
+**27 specialized tools with 249 operations:**
 
 - 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
@@ -41,7 +41,7 @@
 - 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
 - 📋 **Ranges** (4 tools, 46 ops) - Values, formulas, formatting, validation, protection
-- 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
+- 📄 **Worksheets** (2 tools, 27 ops) - Lifecycle, colors, visibility, cell notes, images, shapes, page setup, and cross-workbook moves
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
@@ -51,7 +51,7 @@
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 234 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 249 operations
 
 
 ## 💬 Example Prompts

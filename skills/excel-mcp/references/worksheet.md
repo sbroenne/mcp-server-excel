@@ -63,7 +63,7 @@ Use `before_sheet` OR `after_sheet` (not both) to control where the sheet appear
 
 ## When to Use Session-Based Operations
 
-For same-file operations (copy within same workbook, rename, delete, tab colors), use session-based actions with `session_id`.
+For same-file operations (copy within same workbook, rename, delete, tab colors, visibility, protection, legacy cell notes, images, shapes, and page setup), use session-based actions with `session_id`. The worksheet-style `set-comment`, `get-comment`, and `clear-comment` actions operate on legacy notes, not threaded comments.
 
 ## Rename Parameters
 
