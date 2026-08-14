@@ -32,8 +32,9 @@ public class WindowInfoResult : OperationResult
 }
 
 /// <summary>
-/// Control Excel window visibility, position, state, and status bar.
-/// Use to show/hide Excel, bring it to front, reposition, or maximize/minimize.
+/// Control Excel window visibility, position, state, status bar, and worksheet-specific views.
+/// Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes,
+/// split panes, set zoom, and control gridlines, headings, and outline symbols.
 /// Set status bar text to give users real-time feedback during operations.
 ///
 /// VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel.
@@ -44,10 +45,15 @@ public class WindowInfoResult : OperationResult
 /// ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'.
 ///
 /// STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default.
+///
+/// WORKSHEET VIEW: View properties belong to a workbook window and apply to the named active worksheet.
+/// 'freeze-panes' uses row and column counts above/left of the pane boundary.
+/// 'set-split' creates movable panes and disables frozen panes.
+/// Zoom must be between 10 and 400 percent.
 /// </summary>
 [ServiceCategory("window", "Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
-    Description = "Control Excel window visibility, position, state, and status bar. show/hide Excel, bring to front, reposition, maximize/minimize, set status bar text. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen. STATUS BAR: set-status-bar displays feedback text, clear-status-bar restores default.")]
+    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, and outline symbols. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
 public interface IWindowCommands
 {
     /// <summary>
@@ -122,4 +128,79 @@ public interface IWindowCommands
     /// <param name="batch">Excel batch session</param>
     [ServiceAction("clear-status-bar")]
     OperationResult ClearStatusBar(IExcelBatch batch);
+
+    /// <summary>
+    /// Gets worksheet-specific view state from the workbook window.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose view should be inspected</param>
+    [ServiceAction("get-view")]
+    WorksheetViewResult GetView(IExcelBatch batch, [RequiredParameter] string sheetName);
+
+    /// <summary>
+    /// Freezes rows above and columns left of a pane boundary.
+    /// At least one of frozenRows or frozenColumns must be greater than zero.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose panes should be frozen</param>
+    /// <param name="frozenRows">Number of rows to freeze from the top (0-1,048,575)</param>
+    /// <param name="frozenColumns">Number of columns to freeze from the left (0-16,383)</param>
+    [ServiceAction("freeze-panes")]
+    OperationResult FreezePanes(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        int frozenRows = 0,
+        int frozenColumns = 0);
+
+    /// <summary>
+    /// Unfreezes panes and removes the pane split from a worksheet view.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose panes should be unfrozen</param>
+    [ServiceAction("unfreeze-panes")]
+    OperationResult UnfreezePanes(IExcelBatch batch, [RequiredParameter] string sheetName);
+
+    /// <summary>
+    /// Sets movable row and column split panes and disables frozen panes.
+    /// Set both values to zero to remove all splits.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose split should be changed</param>
+    /// <param name="splitRows">Number of rows above the horizontal split (0-1,048,575)</param>
+    /// <param name="splitColumns">Number of columns left of the vertical split (0-16,383)</param>
+    [ServiceAction("set-split")]
+    OperationResult SetSplit(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        int splitRows = 0,
+        int splitColumns = 0);
+
+    /// <summary>
+    /// Sets worksheet zoom from 10 through 400 percent.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose zoom should be changed</param>
+    /// <param name="zoom">Zoom percentage from 10 through 400</param>
+    [ServiceAction("set-zoom")]
+    OperationResult SetZoom(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        [RequiredParameter] int zoom);
+
+    /// <summary>
+    /// Changes worksheet gridlines, row/column headings, or outline symbols.
+    /// Omitted options remain unchanged.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet whose display options should be changed</param>
+    /// <param name="showGridlines">Whether to display cell gridlines</param>
+    /// <param name="showHeadings">Whether to display row and column headings</param>
+    /// <param name="showOutlineSymbols">Whether to display outline level symbols</param>
+    [ServiceAction("set-display-options")]
+    OperationResult SetDisplayOptions(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        bool? showGridlines = null,
+        bool? showHeadings = null,
+        bool? showOutlineSymbols = null);
 }

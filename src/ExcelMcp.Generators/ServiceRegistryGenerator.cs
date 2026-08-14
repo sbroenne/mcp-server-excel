@@ -345,8 +345,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             if (hasFileOrValue)
                 sb.AppendLine("                {");
 
-            // Emit RequireNotEmpty for required string parameters (skip FileOrValue - they validate after resolution)
-            foreach (var p in method.Parameters.Where(p => !p.IsFileOrValue && (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) && StringHelper.IsStringType(p.TypeName)))
+            // FromString enum parameters are exposed as strings and require the same validation.
+            foreach (var p in method.Parameters.Where(p =>
+                         !p.IsFileOrValue &&
+                         (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) &&
+                         (StringHelper.IsStringType(p.TypeName) || (p.IsFromString && p.IsEnum))))
             {
                 var paramName = p.IsFromString && p.IsEnum ? (p.ExposedName ?? p.Name) : p.Name;
                 sb.AppendLine($"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty({paramName}, \"{paramName}\", \"{method.ActionName}\");");
@@ -610,9 +613,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static string Forward{method.MethodName}({string.Join(", ", methodParams)})");
         sb.AppendLine("        {");
 
-        // Generate validation for required string parameters (skip FileOrValue - they validate after resolution)
-        // RequireNotEmpty only works with string? parameters
-        foreach (var p in method.Parameters.Where(p => !p.IsFileOrValue && (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) && StringHelper.IsStringType(p.TypeName)))
+        // FromString enum parameters are exposed as strings and require the same validation.
+        foreach (var p in method.Parameters.Where(p =>
+                     !p.IsFileOrValue &&
+                     (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) &&
+                     (StringHelper.IsStringType(p.TypeName) || (p.IsFromString && p.IsEnum))))
         {
             var paramName = p.IsFromString && p.IsEnum ? (p.ExposedName ?? p.Name) : p.Name;
             sb.AppendLine($"            Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty({paramName}, \"{paramName}\", \"{method.ActionName}\");");
@@ -1211,6 +1216,16 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         if (method.Parameters.Count > 0)
         {
             sb.AppendLine($"                    var args = DeserializeArgs<{method.MethodName}Args>(argsJson);");
+        }
+
+        foreach (var p in method.Parameters.Where(p =>
+                     p.IsFromString &&
+                     p.IsEnum &&
+                     (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?")))))
+        {
+            var propName = p.ExposedName ?? p.Name;
+            var pascalProp = StringHelper.ToPascalCase(propName);
+            sb.AppendLine($"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty(args.{pascalProp}, \"{propName}\", \"{method.ActionName}\");");
         }
 
         // Parse enum parameters into local variables

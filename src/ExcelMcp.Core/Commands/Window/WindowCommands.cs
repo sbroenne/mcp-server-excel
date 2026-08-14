@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Window;
 /// <summary>
 /// Implementation of window management commands using Excel COM and Win32 P/Invoke.
 /// </summary>
-public class WindowCommands : IWindowCommands
+public partial class WindowCommands : IWindowCommands
 {
     // Win32 P/Invoke for window management
     [DllImport("user32.dll")]

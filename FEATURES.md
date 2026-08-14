@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**27 specialized tools with 249 operations for comprehensive Excel automation**
+**27 specialized tools with 262 operations for comprehensive Excel automation**
 
 ---
 
@@ -331,7 +331,7 @@ Read and write cell values, formulas, and formatting across any range of cells.
 
 ---
 
-## 📄 Worksheets (27 operations)
+## 📄 Worksheets (40 operations)
 
 Add, rename, move, and manage worksheets — including tab colors, visibility, protection, legacy cell notes, inline images, shapes, and page setup.
 

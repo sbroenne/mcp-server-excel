@@ -5,7 +5,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Worksheet styling operations for tab colors, visibility, and protection.
+/// Worksheet styling, visibility, protection, grouping, and outline operations.
 /// Use sheet for lifecycle operations (create, rename, copy, delete, move).
 ///
 /// TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization.
@@ -16,10 +16,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - 'veryhidden': Only accessible via VBA (protection against casual unhiding)
 ///
 /// PROTECTION: Protect a worksheet to lock its contents and structure, or unprotect it.
+///
+/// OUTLINES: Group or ungroup row/column ranges, configure summary positions,
+/// show a specific row/column outline level, inspect grouping state, or clear all groups.
 /// </summary>
 [ServiceCategory("sheet", "SheetStyle")]
 [McpTool("worksheet_style", Title = "Worksheet Style Operations", Destructive = true, Category = "structure",
-    Description = "Worksheet styling: tab colors, visibility, and protection. TAB COLORS: RGB values 0-255 each for custom tab colors. VISIBILITY: visible (normal), hidden (accessible via Format > Sheet > Unhide), veryhidden (only accessible via VBA). PROTECTION: protect or unprotect a worksheet. Use worksheet for lifecycle operations.")]
+    Description = "Worksheet styling, visibility, protection, grouping, and outlines. OUTLINES: group/ungroup row or column ranges with axis Rows or Columns; get-outline-info reads level, hidden state, summary positions, and automatic styles; set-outline-settings accepts summaryRow above/below and summaryColumn left/right; show-outline-levels expands or collapses to row/column levels; clear-outline removes all groups. TAB COLORS: RGB values 0-255. VISIBILITY: visible, hidden, veryhidden. PROTECTION: protect or unprotect a worksheet. Use worksheet for lifecycle operations.")]
 public interface ISheetStyleCommands
 {
     // === TAB COLOR OPERATIONS ===
@@ -253,4 +256,90 @@ public interface ISheetStyleCommands
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("very-hide")]
     OperationResult VeryHide(IExcelBatch batch, [RequiredParameter] string sheetName);
+
+    /// <summary>
+    /// Groups complete rows or columns covered by a range.
+    /// Use row ranges such as '2:5' with axis Rows and column ranges such as 'B:D' with axis Columns.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Row or column range to group</param>
+    /// <param name="axis">Grouping axis: Rows or Columns</param>
+    [ServiceAction("group")]
+    OperationResult Group(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        [RequiredParameter] string rangeAddress,
+        [RequiredParameter]
+        [FromString] OutlineAxis axis);
+
+    /// <summary>
+    /// Removes one grouping level from complete rows or columns covered by a range.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Grouped row or column range</param>
+    /// <param name="axis">Grouping axis: Rows or Columns</param>
+    [ServiceAction("ungroup")]
+    OperationResult Ungroup(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        [RequiredParameter] string rangeAddress,
+        [RequiredParameter]
+        [FromString] OutlineAxis axis);
+
+    /// <summary>
+    /// Gets outline level, hidden state, summary positions, and automatic style settings.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Row or column range to inspect</param>
+    /// <param name="axis">Outline axis: Rows or Columns</param>
+    [ServiceAction("get-outline-info")]
+    WorksheetOutlineResult GetOutlineInfo(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        [RequiredParameter] string rangeAddress,
+        [RequiredParameter]
+        [FromString] OutlineAxis axis);
+
+    /// <summary>
+    /// Sets worksheet outline summary positions or automatic styles.
+    /// Omitted options remain unchanged.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="summaryRow">Summary row position: above or below</param>
+    /// <param name="summaryColumn">Summary column position: left or right</param>
+    /// <param name="automaticStyles">Whether Excel applies automatic outline styles</param>
+    [ServiceAction("set-outline-settings")]
+    OperationResult SetOutlineSettings(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        string? summaryRow = null,
+        string? summaryColumn = null,
+        bool? automaticStyles = null);
+
+    /// <summary>
+    /// Expands or collapses worksheet groups to the requested row and column outline levels.
+    /// At least one level must be provided. Level values must be positive.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rowLevels">Optional row outline level to display</param>
+    /// <param name="columnLevels">Optional column outline level to display</param>
+    [ServiceAction("show-outline-levels")]
+    OperationResult ShowOutlineLevels(
+        IExcelBatch batch,
+        [RequiredParameter] string sheetName,
+        int? rowLevels = null,
+        int? columnLevels = null);
+
+    /// <summary>
+    /// Removes all row and column outline groups from a worksheet.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    [ServiceAction("clear-outline")]
+    OperationResult ClearOutline(IExcelBatch batch, [RequiredParameter] string sheetName);
 }
