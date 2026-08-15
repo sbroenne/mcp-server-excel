@@ -109,7 +109,7 @@ Example:
 Vulnerability: Path traversal in file operations
 Impact: Attacker could read/write files outside intended directory
 Affected Versions: 1.0.0 - 1.0.2
-PoC: excelcli powerquery export "../../../etc/passwd" "query"
+PoC: excelcli powerquery view --file "../../../etc/passwd" --query-name "Sales"
 Suggested Fix: Validate resolved paths are within allowed directories
 ```
 

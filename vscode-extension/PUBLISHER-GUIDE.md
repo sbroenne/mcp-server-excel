@@ -110,7 +110,7 @@ This guide walks you through publishing your VS Code extension to the marketplac
      - Create unified GitHub release with all artifacts
 
 4. **Verify publication** (takes 5-15 minutes):
-   - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
+   - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp
    - Or search "ExcelMcp" in VS Code Extensions panel
 
 **✅ Your extension is now live on the marketplace!**
@@ -142,7 +142,7 @@ gh workflow run release.yml -f version_bump=patch
 - Any published extensions will appear here
 
 **Check extension page:**
-- Go to https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
+- Go to https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp
 - Should show your extension (after first publish)
 
 ---
