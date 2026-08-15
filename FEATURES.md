@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**26 specialized tools with 234 operations for comprehensive Excel automation**
+**31 specialized tools with 326 operations for comprehensive Excel automation**
 
 ---
 
@@ -74,7 +74,7 @@ Import, transform, and refresh data with Power Query. Every operation is a singl
 
 ---
 
-## 📊 Data Model & DAX (Power Pivot) (19 operations)
+## 📊 Data Model & DAX (Power Pivot) (20 operations)
 
 Build a Power Pivot Data Model — manage tables, DAX measures, and relationships, then query it.
 
@@ -101,13 +101,15 @@ Build a Power Pivot Data Model — manage tables, DAX measures, and relationship
 
 **Model & Queries:**
 - **Read Info:** Get comprehensive model information
+- **Read Connection:** Inspect the embedded model connection, command type, and connected table names
 - **Refresh:** Refresh entire Data Model
 - **Evaluate:** Execute DAX EVALUATE queries and return tabular results (for ad-hoc analysis)
 - **Execute DMV:** Execute SQL-like DMV (Dynamic Management View) queries for metadata discovery
 
 **Notes:**
 - **DAX formatting:** DAX formulas are preserved exactly by default, subject to Excel locale separator translation. CreateMeasure and UpdateMeasure can opt in to remote formatting with `formatDax=true`, which sends DAX to daxformatter.com and adds network latency. If remote formatting fails, the original DAX is saved unchanged.
-- DAX calculated columns are not supported — use the Excel UI for calculated columns.
+- **Source metadata:** Read Table returns each table's source connection name, description, type, and model-membership flag.
+- **COM limitations:** Excel exposes calculated columns as read-only entries but provides no reliable PIA formula/mutation or live refresh-status API. Use Power Query for computed columns.
 
 ---
 
@@ -162,7 +164,7 @@ Create and manage Excel Tables (ListObjects) — structured ranges with styling,
 
 ---
 
-## 📈 PivotTables (30 operations)
+## 📈 PivotTables (35 operations)
 
 Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 
@@ -183,6 +185,11 @@ Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 - **Set Field Filter:** Apply filter criteria to a field
 - **Sort Field:** Sort a field ascending/descending
 
+**Grouping:**
+- **Group by Date / Number:** Build automatic date hierarchies or numeric bands
+- **Group Items:** Combine selected visible items into a named manual group
+- **Ungroup Field:** Remove manual grouping and restore the original field
+
 **Calculated Fields (Regular PivotTables):**
 - **List Calculated Fields:** List calculated fields on a regular PivotTable
 - **Create Calculated Field:** Add a calculated field
@@ -201,6 +208,11 @@ Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 **Data Operations:**
 - **Get PivotTable Data:** Read PivotTable data as a 2D array
 - **Refresh:** Refresh the PivotTable from its source
+- **Drill Through:** Expand a regular PivotTable value cell into its underlying source rows
+
+**PivotCache Configuration:**
+- **Get Cache Options:** Read refresh, retained-item, optimization, and saved-source settings
+- **Set Cache Options:** Configure supported regular-cache options; unsupported OLAP/OLE DB mutations are rejected
 
 **Lifecycle:**
 - **List:** List PivotTables in a worksheet or workbook
@@ -209,7 +221,7 @@ Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 
 ---
 
-## 📉 Charts (29 operations)
+## 📉 Charts (33 operations)
 
 Create and format charts and PivotCharts, with full control over series, axes, labels, and trendlines.
 
@@ -221,10 +233,12 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 - **Add Series:** Add a data series to a chart
 - **Remove Series:** Remove a data series
 - **Update Series Data:** Change the data range for a series
+- **Set Series Chart Type:** Build combo charts by assigning a type to one series
 
 **Configuration:**
 - **Set Data Source:** Change the chart's source range
 - **Set Chart Type:** Change the chart type (bar, line, pie, etc.)
+- **Get/Set Plot Options:** Control row/column orientation, blank cells, and hidden-cell plotting
 - **Show/Hide Legend:** Toggle the legend
 - **Set Style:** Apply a built-in chart style
 
@@ -252,6 +266,10 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 - **Set Marker Style:** Set marker shape (Circle, Square, Diamond, Triangle, etc.)
 - **Set Marker Size:** Set marker size
 - **Set Marker Colors:** Set marker fill/line colors
+- **Set Series Fill/Line:** Set material fill, transparency, line color, and line weight
+
+**Area Formatting:**
+- **Set Area Format:** Format chart-area or plot-area fill, transparency, and border
 
 **Trendlines:**
 - **Add Trendline:** Add a trendline (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)
@@ -260,7 +278,7 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 - **Configure Trendline:** Set forecast forward/backward, display equation, display R²
 
 **Placement & Positioning:**
-- **Set Placement:** Move/resize a chart with cell-anchoring options
+- **Set Placement:** Configure cell anchoring, printing, locking, and rounded corners
 - **Fit to Range:** Position and size a chart to match a range
 
 **Lifecycle:**
@@ -271,7 +289,7 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 
 ---
 
-## 📋 Ranges (46 operations)
+## 📋 Ranges (51 operations)
 
 Read and write cell values, formulas, and formatting across any range of cells.
 
@@ -296,9 +314,16 @@ Read and write cell values, formulas, and formatting across any range of cells.
 
 **Hyperlinks:**
 - **Add Hyperlink:** Add a hyperlink to a cell
+- **Update Hyperlink:** Change an external/internal target, display text, or tooltip
 - **Remove Hyperlink:** Remove a hyperlink
 - **List Hyperlinks:** List all hyperlinks in a range
 - **Get Hyperlink:** Get a specific hyperlink's target
+
+**Threaded Comments:**
+- **Add Threaded Comment:** Add a top-level modern comment to one cell
+- **List Threaded Comments:** Read a cell's comment and replies
+- **Add Threaded Comment Reply:** Reply to an existing cell comment
+- **Delete Threaded Comment:** Delete a comment thread and its replies
 
 **Number Formatting (`range`):**
 - **Get Number Formats:** Read number formats as a 2D array
@@ -331,9 +356,9 @@ Read and write cell values, formulas, and formatting across any range of cells.
 
 ---
 
-## 📄 Worksheets (16 operations)
+## 📄 Worksheets (33 operations)
 
-Add, rename, move, and manage worksheets — including tab colors and visibility.
+Add, rename, move, and manage worksheets — including tab colors, visibility, protection, legacy cell notes, inline images, shapes, and page setup.
 
 **Lifecycle:**
 - **List:** List worksheets in the workbook
@@ -359,9 +384,57 @@ Add, rename, move, and manage worksheets — including tab colors and visibility
 - **Get Visibility:** Read the current visibility status
 - **Set Visibility:** Set visibility status directly
 
+**Protection:**
+- **Set Protection:** Protect or unprotect a worksheet
+- **Get Protection:** Read the current protection state
+
+**Cell Notes:**
+- **Set Comment:** Create or update a legacy cell note through Excel's Comment COM API
+- **Get Comment:** Read the current legacy cell note text
+- **Clear Comment:** Remove a legacy cell note
+
+**Images:**
+- **Add Image:** Insert an image from disk and anchor it to a cell
+- **Get Image Count:** Read how many images are currently on a worksheet
+
+**Shapes:**
+- **Add Shape:** Insert a basic rectangle shape and anchor it to a cell
+- **Get Shape Count:** Read how many shapes are currently on a worksheet
+
+**Page Setup:**
+- **Set Page Setup:** Configure orientation, fit-to-page settings, and centering
+- **Get Page Setup:** Read worksheet page setup values
+
+**Outlines:**
+- **Group / Ungroup:** Group complete row or column ranges and remove one grouping level
+- **Get Outline Info:** Read outline level, hidden state, summary positions, and automatic styles
+- **Set Outline Settings:** Configure summary rows/columns and automatic styles
+- **Show Outline Levels:** Expand or collapse row and column groups to requested levels
+- **Clear Outline:** Remove all row and column groups
+
 ---
 
-## 🔌 Data Connections (9 operations)
+## 📘 Workbook (15 operations)
+
+Manage workbook metadata, protection, document properties, file variants, exports, and external links.
+
+**Operations:**
+- **Set Protection:** Protect or unprotect the current workbook, optionally with a password
+- **Get Protection:** Determine whether the current workbook is protected
+- **Set View Options:** Toggle workbook window gridlines and headings on or off
+- **Get View Options:** Read back workbook window gridlines and headings state
+- **Get Info:** Read workbook name, path, format, saved/read-only state, and protection metadata
+- **List/Get/Set/Delete Document Properties:** Manage built-in and custom workbook properties
+- **Save As:** Save as `.xlsx`, `.xlsm`, `.xlsb`, or `.xls` and move the active session to the new path
+- **Save Copy As:** Create a same-format copy without changing the active workbook
+- **Export Fixed Format:** Publish PDF or XPS with quality, page-range, and print-area controls
+- **List/Update/Break External Links:** Inspect, refresh, or permanently replace linked-workbook formulas
+
+> Printing and print preview are intentionally excluded because physical printer output and modal preview are unsafe for unattended automation.
+
+---
+
+## 🔌 Data Connections (11 operations)
 
 Create and refresh external OLEDB/ODBC data connections.
 
@@ -371,6 +444,8 @@ Create and refresh external OLEDB/ODBC data connections.
 - **Create:** Create OLEDB/ODBC connections (requires provider installed)
 - **Test:** Verify connection validity
 - **Refresh:** Refresh connection data
+- **Get Refresh Status:** Report whether a typed OLEDB/ODBC refresh is active
+- **Cancel Refresh:** Cancel an active typed OLEDB/ODBC refresh
 - **Delete:** Remove connection
 - **Load To:** Load connection data to worksheet (when supported)
 - **Get Properties:** Get connection string and metadata
@@ -378,7 +453,23 @@ Create and refresh external OLEDB/ODBC data connections.
 
 **Notes:**
 - **Supported types:** OLEDB (requires Microsoft.ACE.OLEDB.16.0 or similar), ODBC (requires ODBC driver installed), and Power Query connections (atomic redirect to `powerquery`).
-- **Automatic fallback:** TEXT/WEB connections automatically redirect to `powerquery` for reliable imports.
+- **Text/web imports:** Use `querytable` for direct local text/CSV or legacy HTML imports; use `powerquery` for transformations and modern connectors.
+
+---
+
+## 🌐 QueryTables (9 operations)
+
+Manage local worksheet QueryTables through the typed Excel PIA.
+
+**Operations:**
+- **List / View:** Discover QueryTables and read destination, source type, and refresh configuration
+- **Create Text:** Import text or CSV files with delimiter, qualifier, encoding, and header settings
+- **Create Web:** Import legacy HTML pages or selected tables through Excel's web-query engine
+- **Set Properties:** Configure background refresh, refresh-on-open, refresh period, sizing, and formatting preservation
+- **Refresh / Get Refresh Status / Cancel Refresh:** Control and inspect refresh execution
+- **Delete:** Remove a QueryTable
+
+**Boundaries:** QueryTables do not expose Power Query M, modern cloud connectors, sharing, presence, mentions, reactions, or coauthoring state.
 
 ---
 
@@ -476,7 +567,7 @@ Write and read `=PY()` formulas that run in Excel's cloud Python engine.
 
 ---
 
-## 🪧 Window Management (9 operations)
+## 🪧 Window Management (15 operations)
 
 Show, position, and arrange the Excel window — great for watching the AI work in real time.
 
@@ -491,6 +582,13 @@ Show, position, and arrange the Excel window — great for watching the AI work 
 - **Set Position:** Set window position and size in points (left, top, width, height)
 - **Arrange:** Arrange the Excel window using preset layouts
 
+**Workbook View & Panes:**
+- **Get View:** Read view type, zoom, pane state, and display options
+- **Freeze / Unfreeze Panes:** Freeze rows/columns at a worksheet boundary or remove frozen panes
+- **Set Split:** Configure movable horizontal and vertical panes
+- **Set Zoom:** Change worksheet zoom
+- **Set Display Options:** Toggle gridlines, headings, formula display, and related window options
+
 **Status Bar:**
 - **Set Status Bar:** Display custom text in Excel's status bar for real-time feedback
 - **Clear Status Bar:** Restore the default status bar text
@@ -501,12 +599,50 @@ Show, position, and arrange the Excel window — great for watching the AI work 
 
 ---
 
+## 🖼️ Drawing Objects & Sparklines (14 operations)
+
+Create and manage worksheet visuals without replacing the workbook file.
+
+- **List / Get / Update / Delete Objects:** Manage geometry, text, colors, placement, accessibility text, and safe control bindings
+- **Add Image / Shape / Text Box / Connector:** Create and format worksheet drawing objects
+- **Add Form Control:** Add safe Forms controls such as buttons, check boxes, option buttons, lists, and drop-downs
+- **List / Get / Add / Update / Delete Sparklines:** Manage line, column, and win/loss sparkline groups
+
+ActiveX/OLE controls and macro assignment are intentionally excluded because they cannot be automated safely and reliably across Excel security configurations.
+
+---
+
+## 🔬 What-If Analysis (8 operations)
+
+Run Excel's native sensitivity analysis against live workbook formulas and input cells.
+
+- **Goal Seek:** Adjust one changing cell until a formula reaches a numeric goal
+- **List / Create / Update / Show / Delete Scenarios:** Manage named sets of changing-cell values
+- **Create Scenario Summary:** Produce a standard summary worksheet or Scenario PivotTable report
+- **Create Data Table:** Build one- or two-variable Excel data tables
+
+Solver is intentionally excluded because Microsoft implements it as an optional VBA add-in requiring user enablement and macro-security configuration.
+
+---
+
+## 🧩 XML Maps (6 operations)
+
+Manage workbook XML schemas, XPath mappings, and in-memory XML data exchange.
+
+- **List / Add / Delete:** Manage workbook XML maps
+- **Map Range:** Bind a cell or single-column range to an XPath
+- **Import / Export XML:** Exchange mapped XML in memory without dialogs
+
+DTDs, external XSD dependencies, and XSI schema-location attributes are rejected before Excel COM can resolve external resources.
+
+---
+
 ## 🔧 Tool Selection Quick Reference
 
 | Task | Tool |
 |------|------|
 | Import data | `powerquery` or `connection` |
-| Create analysis | `pivottable` (data model-based for OLAP) |
+| Create analysis | `analysis` for Goal Seek/scenarios/data tables; `pivottable` for aggregation |
 | Visualize data | `chart` |
 | Update parameters | `namedrange` (write operation) |
 | Manage formulas | `range` (set-formulas) |

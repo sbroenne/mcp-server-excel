@@ -122,14 +122,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// Comprehensive smoke test that exercises all 12 MCP tools via the SDK client.
+    /// Comprehensive smoke test that exercises the MCP tools via the SDK client.
     /// This validates the complete E2E flow: MCP protocol → DI → Tool → Core → Excel COM.
     /// </summary>
     [Fact]
     public async Task SmokeTest_AllTools_E2EWorkflow()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
-        _output.WriteLine("Testing all 26 tools via MCP protocol with real Excel...\n");
+        _output.WriteLine("Testing all tools via MCP protocol with real Excel...\n");
 
         // =====================================================================
         // STEP 1: CREATE AND OPEN SESSION
@@ -407,6 +407,21 @@ in
         });
         AssertSuccess(listAfterLoadResult, "List Data Model tables after load");
         Assert.Contains("ProductData", listAfterLoadResult);
+
+        var readModelConnectionResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+        {
+            ["action"] = "read-connection",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(readModelConnectionResult, "Read Data Model connection");
+        using (var connectionJson = JsonDocument.Parse(readModelConnectionResult))
+        {
+            Assert.Equal("MODEL", connectionJson.RootElement.GetProperty("connectionType").GetString());
+            Assert.Equal(7, connectionJson.RootElement.GetProperty("connectionTypeValue").GetInt32());
+            Assert.Contains(
+                connectionJson.RootElement.GetProperty("tableNames").EnumerateArray(),
+                table => table.GetString() == "ProductData");
+        }
 
         // Attempt rename-table - this will return success=false due to Excel limitation
         var renameTableResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
@@ -801,6 +816,4 @@ End Sub
         return json.RootElement.TryGetProperty(propertyName, out var prop) ? prop.GetString() : null;
     }
 }
-
-
 

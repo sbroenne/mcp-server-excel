@@ -63,7 +63,22 @@ Use `before_sheet` OR `after_sheet` (not both) to control where the sheet appear
 
 ## When to Use Session-Based Operations
 
-For same-file operations (copy within same workbook, rename, delete, tab colors), use session-based actions with `session_id`.
+For same-file operations (copy within same workbook, rename, delete, tab colors, visibility, protection, legacy cell notes, images, shapes, and page setup), use session-based actions with `session_id`. The worksheet-style `set-comment`, `get-comment`, and `clear-comment` actions operate on legacy notes, not threaded comments.
+
+## Row and Column Outlines
+
+Use `worksheet_style` for grouping and outline controls:
+
+| Action | Purpose | Key Parameters |
+|--------|---------|----------------|
+| `group` | Group complete rows or columns | `sheet_name`, `range_address`, `axis` (`Rows`/`Columns`) |
+| `ungroup` | Remove one grouping level | `sheet_name`, `range_address`, `axis` |
+| `get-outline-info` | Read outline level, hidden state, and settings | `sheet_name`, `range_address`, `axis` |
+| `set-outline-settings` | Configure summary positions and automatic styles | `summary_row`, `summary_column`, `automatic_styles` |
+| `show-outline-levels` | Expand/collapse to selected levels | `row_levels`, `column_levels` |
+| `clear-outline` | Remove all row and column groups | `sheet_name` |
+
+Use row ranges such as `2:10` with `axis: Rows` and column ranges such as `B:F` with `axis: Columns`. Summary rows accept `above` or `below`; summary columns accept `left` or `right`.
 
 ## Rename Parameters
 

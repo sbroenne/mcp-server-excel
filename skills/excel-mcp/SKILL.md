@@ -11,7 +11,7 @@ description: >
 
 # Excel MCP Server Skill
 
-Provides 234 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 326 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
 ## Workflow Checklist
 
@@ -160,6 +160,7 @@ Error responses include actionable hints:
 | Create PivotTables | `pivottable` | create, create-from-datamodel |
 | Filter with slicers | `slicer` | set-slicer-selection |
 | Create charts | `chart` | create-from-range |
+| Run what-if analysis | `analysis` | goal-seek, create-scenario, create-data-table |
 | Control calculation mode | `calculation_mode` | get-mode, set-mode, calculate |
 | Visual verification | `screenshot` | capture, capture-sheet |
 
@@ -167,6 +168,7 @@ Error responses include actionable hints:
 
 See `references/` for detailed guidance:
 
+- [What-if analysis and Solver limits](./references/analysis.md)
 - [Core execution rules and LLM guidelines](./references/behavioral-rules.md)
 - [Common mistakes to avoid](./references/anti-patterns.md)
 - [Bulk write performance optimization](./references/calculation.md)

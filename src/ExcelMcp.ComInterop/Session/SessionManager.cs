@@ -100,7 +100,7 @@ public sealed class SessionManager : IDisposable
     }
 
     private readonly ConcurrentDictionary<string, IExcelBatch> _activeSessions = new();
-    private readonly ConcurrentDictionary<string, string> _activeFilePaths = new();
+    private readonly ConcurrentDictionary<string, string> _activeFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _sessionFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, int> _activeOperationCounts = new();
     private readonly ConcurrentDictionary<string, object> _sessionLocks = new();
@@ -109,12 +109,34 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
+    private readonly ConcurrentDictionary<string, string> _sessionFilePathReservations = new();
+    private readonly object _filePathReservationLock = new();
     private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
     private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
 
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
+
+    private bool TryClaimFilePath(string normalizedPath, string sessionId)
+    {
+        lock (_filePathReservationLock)
+        {
+            return _activeFilePaths.TryAdd(normalizedPath, sessionId);
+        }
+    }
+
+    private void ReleaseFilePathClaim(string normalizedPath, string sessionId)
+    {
+        lock (_filePathReservationLock)
+        {
+            if (_activeFilePaths.TryGetValue(normalizedPath, out var ownerSessionId) &&
+                string.Equals(ownerSessionId, sessionId, StringComparison.Ordinal))
+            {
+                _activeFilePaths.TryRemove(normalizedPath, out _);
+            }
+        }
+    }
 
     /// <summary>
     /// Creates a new SessionManager with optional logging.
@@ -152,12 +174,6 @@ public sealed class SessionManager : IDisposable
         // Normalize file path for comparison
         string normalizedPath = Path.GetFullPath(filePath);
 
-        // Check if file is already open in another session
-        if (_activeFilePaths.ContainsKey(normalizedPath))
-        {
-            throw new InvalidOperationException($"File '{filePath}' is already open in another session. Excel cannot open the same file multiple times.");
-        }
-
         // Reject external file-access failures before starting Excel. ExcelBatch
         // repeats this check on its STA thread to cover locks acquired after preflight.
         if (!FileAccessValidator.IsIrmProtected(normalizedPath))
@@ -167,6 +183,10 @@ public sealed class SessionManager : IDisposable
 
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
+        if (!TryClaimFilePath(normalizedPath, sessionId))
+        {
+            throw new InvalidOperationException($"File '{filePath}' is already open or reserved by another session. Excel cannot open the same file multiple times.");
+        }
 
         IExcelBatch? batch = null;
         try
@@ -181,18 +201,9 @@ public sealed class SessionManager : IDisposable
                 throw new InvalidOperationException($"Session ID collision: {sessionId}");
             }
 
-            // Track the file path
-            if (!_activeFilePaths.TryAdd(normalizedPath, sessionId))
-            {
-                // Cleanup if file path tracking fails
-                _activeSessions.TryRemove(sessionId, out _);
-                throw new InvalidOperationException($"Failed to track file path for session: {sessionId}");
-            }
-
             if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
             {
                 _activeSessions.TryRemove(sessionId, out _);
-                _activeFilePaths.TryRemove(normalizedPath, out _);
                 throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
@@ -209,6 +220,9 @@ public sealed class SessionManager : IDisposable
         }
         catch (Exception ex)
         {
+            _activeSessions.TryRemove(sessionId, out _);
+            _sessionFilePaths.TryRemove(sessionId, out _);
+            ReleaseFilePathClaim(normalizedPath, sessionId);
             throw new InvalidOperationException($"Failed to create session for '{filePath}': {ex.Message}", ex);
         }
         finally
@@ -260,14 +274,13 @@ public sealed class SessionManager : IDisposable
             throw new InvalidOperationException($"File already exists: {normalizedPath}. Use CreateSession to open existing files.");
         }
 
-        // Check if file is already open in another session
-        if (_activeFilePaths.ContainsKey(normalizedPath))
-        {
-            throw new InvalidOperationException($"File '{filePath}' is already open in another session.");
-        }
-
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
+        if (!TryClaimFilePath(normalizedPath, sessionId))
+        {
+            throw new InvalidOperationException($"File '{filePath}' is already open or reserved by another session.");
+        }
+
         bool isMacroEnabled = extension == ".xlsm";
 
         ExcelBatch? batch = null;
@@ -282,17 +295,9 @@ public sealed class SessionManager : IDisposable
                 throw new InvalidOperationException($"Session ID collision: {sessionId}");
             }
 
-            // Track the file path
-            if (!_activeFilePaths.TryAdd(normalizedPath, sessionId))
-            {
-                _activeSessions.TryRemove(sessionId, out _);
-                throw new InvalidOperationException($"Failed to track file path for session: {sessionId}");
-            }
-
             if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
             {
                 _activeSessions.TryRemove(sessionId, out _);
-                _activeFilePaths.TryRemove(normalizedPath, out _);
                 throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
@@ -309,6 +314,9 @@ public sealed class SessionManager : IDisposable
         }
         catch (Exception ex)
         {
+            _activeSessions.TryRemove(sessionId, out _);
+            _sessionFilePaths.TryRemove(sessionId, out _);
+            ReleaseFilePathClaim(normalizedPath, sessionId);
             throw new InvalidOperationException($"Failed to create session for new file '{filePath}': {ex.Message}", ex);
         }
         finally
@@ -378,17 +386,18 @@ public sealed class SessionManager : IDisposable
     {
         _activeSessions.TryRemove(sessionId, out _);
 
-        if (_sessionFilePaths.TryRemove(sessionId, out var normalizedPath))
+        lock (_filePathReservationLock)
         {
-            _activeFilePaths.TryRemove(normalizedPath, out _);
-        }
-        else
-        {
-            var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
-            if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
+            _sessionFilePaths.TryRemove(sessionId, out _);
+            foreach (var filePath in _activeFilePaths
+                         .Where(kvp => string.Equals(kvp.Value, sessionId, StringComparison.Ordinal))
+                         .Select(kvp => kvp.Key)
+                         .ToList())
             {
-                _activeFilePaths.TryRemove(filePathEntry.Key, out _);
+                _activeFilePaths.TryRemove(filePath, out _);
             }
+
+            _sessionFilePathReservations.TryRemove(sessionId, out _);
         }
 
         _activeOperationCounts.TryRemove(sessionId, out _);
@@ -764,6 +773,118 @@ public sealed class SessionManager : IDisposable
         }
 
         return _sessionFilePaths.TryGetValue(sessionId, out filePath);
+    }
+
+    /// <summary>
+    /// Atomically reserves a Save As target path for an active session.
+    /// </summary>
+    /// <param name="sessionId">Active session ID</param>
+    /// <param name="filePath">Prospective workbook path</param>
+    /// <returns>The normalized reserved path.</returns>
+    public string ReserveSessionFilePath(string sessionId, string filePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var normalizedPath = Path.GetFullPath(filePath);
+
+        lock (_filePathReservationLock)
+        {
+            if (!_activeSessions.ContainsKey(sessionId))
+            {
+                throw new KeyNotFoundException($"Session not found: {sessionId}");
+            }
+
+            if (_sessionFilePathReservations.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' already has a Save As operation in progress.");
+            }
+
+            if (_sessionFilePaths.TryGetValue(sessionId, out var currentPath) &&
+                string.Equals(currentPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                _sessionFilePathReservations[sessionId] = normalizedPath;
+                return normalizedPath;
+            }
+
+            if (!TryClaimFilePath(normalizedPath, sessionId))
+            {
+                throw new InvalidOperationException(
+                    $"File '{normalizedPath}' is already open or reserved by another session.");
+            }
+
+            _sessionFilePathReservations[sessionId] = normalizedPath;
+        }
+
+        return normalizedPath;
+    }
+
+    /// <summary>
+    /// Releases a Save As target reservation when the operation did not complete.
+    /// </summary>
+    /// <param name="sessionId">Active session ID</param>
+    /// <param name="filePath">Previously reserved workbook path</param>
+    public void ReleaseSessionFilePathReservation(string sessionId, string filePath)
+    {
+        var normalizedPath = Path.GetFullPath(filePath);
+        lock (_filePathReservationLock)
+        {
+            if (!_sessionFilePathReservations.TryGetValue(sessionId, out var reservedPath) ||
+                !string.Equals(reservedPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _sessionFilePathReservations.TryRemove(sessionId, out _);
+            if (_sessionFilePaths.TryGetValue(sessionId, out var currentPath) &&
+                string.Equals(currentPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            ReleaseFilePathClaim(normalizedPath, sessionId);
+        }
+    }
+
+    /// <summary>
+    /// Updates the path associated with an active session after Workbook.SaveAs.
+    /// The target path must have been reserved before Excel mutates the workbook.
+    /// </summary>
+    /// <param name="sessionId">Active session ID</param>
+    /// <param name="filePath">New workbook path</param>
+    public void UpdateSessionFilePath(string sessionId, string filePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var normalizedPath = Path.GetFullPath(filePath);
+
+        lock (_filePathReservationLock)
+        {
+            if (!_activeSessions.ContainsKey(sessionId))
+            {
+                throw new KeyNotFoundException($"Session not found: {sessionId}");
+            }
+
+            if (!_sessionFilePathReservations.TryGetValue(sessionId, out var reservedPath) ||
+                !string.Equals(reservedPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"File '{normalizedPath}' is not the active Save As reservation for session '{sessionId}'.");
+            }
+
+            if (!_activeFilePaths.TryGetValue(normalizedPath, out var ownerSessionId) ||
+                !string.Equals(ownerSessionId, sessionId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"File '{normalizedPath}' is not reserved by session '{sessionId}'.");
+            }
+
+            if (_sessionFilePaths.TryGetValue(sessionId, out var previousPath) &&
+                !string.Equals(previousPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeFilePaths.TryRemove(previousPath, out _);
+            }
+
+            _sessionFilePaths[sessionId] = normalizedPath;
+        }
     }
 
     /// <summary>

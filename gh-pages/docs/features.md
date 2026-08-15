@@ -1,7 +1,7 @@
 ---
 title: Complete Feature Reference
-description: 26 specialized tools with 234 operations for comprehensive Excel automation — Power Query, DAX, VBA, charts, PivotTables and more.
-keywords: "Excel MCP features, Power Query automation, DAX measures, VBA macros, Excel tools, MCP operations"
+description: 31 specialized tools with 326 operations for comprehensive Excel automation — What-If Analysis, Power Query, DAX, drawings, charts, PivotTables and more.
+keywords: "Excel MCP features, What-If Analysis, Goal Seek, Power Query automation, DAX measures, VBA macros, Excel tools, MCP operations"
 ---
 
 # Complete Feature Reference

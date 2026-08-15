@@ -190,6 +190,8 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
 
         public Excel.Workbook GetWorkbook(string filePath) => throw new NotSupportedException();
 
+        public void UpdateWorkbookPath(string workbookPath) => throw new NotSupportedException();
+
         public void Execute(Action<ExcelContext, CancellationToken> operation, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();

@@ -2,7 +2,7 @@
 
 ## Tools
 
-- **`window`**: Control Excel window visibility, position, and state
+- **`window`**: Control Excel window visibility, position, state, and worksheet-specific views
 
 ## Actions
 
@@ -12,11 +12,32 @@
 | `hide` | Hide the Excel window | *(none)* |
 | `bring-to-front` | Bring Excel to foreground | *(none)* |
 | `get-info` | Get window state information | *(none)* |
-| `set-state` | Set window state | `windowState` (normal, minimized, maximized) |
+| `set-state` | Set window state | `window_state` (normal, minimized, maximized) |
 | `set-position` | Set position and size | `left`, `top`, `width`, `height` (all optional, in points) |
 | `arrange` | Apply preset layout | `preset` (left-half, right-half, top-half, bottom-half, center, full-screen) |
 | `set-status-bar` | Show text in Excel status bar | `text` (required — e.g. "Building PivotTable...") |
 | `clear-status-bar` | Restore default status bar | *(none)* |
+| `get-view` | Read panes, zoom, and display options | `sheet_name` |
+| `freeze-panes` | Freeze top rows and/or left columns | `sheet_name`, `frozen_rows`, `frozen_columns` |
+| `unfreeze-panes` | Remove frozen panes and splits | `sheet_name` |
+| `set-split` | Create movable pane splits | `sheet_name`, `split_rows`, `split_columns` |
+| `set-zoom` | Set worksheet zoom (10-400%) | `sheet_name`, `zoom` |
+| `set-display-options` | Show/hide gridlines, headings, outline symbols | `sheet_name`, optional display flags |
+
+## Worksheet View Controls
+
+View settings belong to a workbook window and apply to the named active worksheet. Always pass `sheet_name`.
+
+```text
+1. window(freeze-panes, sheet_name='Summary', frozen_rows=1, frozen_columns=1)
+2. window(set-zoom, sheet_name='Summary', zoom=125)
+3. window(set-display-options, sheet_name='Summary', show_gridlines=false)
+4. window(get-view, sheet_name='Summary')
+```
+
+`freeze-panes` interprets values as the number of rows above and columns left of the boundary. At least one count must be greater than zero. `set-split` disables frozen panes; pass zero for both counts to remove splits.
+
+Movable splits are stored by Excel as window geometry. Set zoom and display options before `set-split` when exact row or column counts must remain stable.
 
 ## When to Use Window Management
 

@@ -64,18 +64,22 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## What You Can Do
 
-**18 command categories with 234 operations** for comprehensive Excel automation:
+**22 command categories with 326 operations** for comprehensive Excel automation:
 
 - **Power Query** (12 ops) — Create, update, refresh queries; M code management
-- **Data Model/DAX** (19 ops) — Measures, relationships, EVALUATE queries
-- **PivotTables** (30 ops) — Create, configure fields, calculated items/fields
+- **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
+- **PivotTables** (35 ops) — Fields, grouping, cache options, drill-through
 - **Excel Tables** (27 ops) — Lifecycle, filtering, sorting, DAX-backed tables
-- **Charts** (8 ops) — Create, delete, move, fit-to-range
-- **Chart Config** (21 ops) — Series, titles, styles, data labels, trendlines
-- **Ranges** (46 ops) — Values, formulas, formatting, validation, protection
-- **Worksheets** (16 ops) — Create, rename, copy, move between workbooks
+- **Charts and Chart Config** (33 ops) — Combo series, plotting, placement, formatting
+- **Ranges** (51 ops) — Values, formulas, hyperlinks, threaded comments, formatting
+- **Worksheets** (33 ops) — Lifecycle, outlines, protection, notes, images, shapes
+- **Workbooks** (15 ops) — Metadata, properties, Save As/copy, PDF/XPS, external links
 - **VBA** (6 ops) — Module management and execution
-- **Connections** (9 ops) — OLEDB/ODBC/Text/Web connection management
+- **Connections** (11 ops) — OLEDB/ODBC management and refresh control
+- **QueryTables** (9 ops) — Text/CSV and legacy HTML imports
+- **Drawing Objects** (14 ops) — Shapes, Forms controls, and sparklines
+- **What-If Analysis** (8 ops) — Goal Seek, scenarios, summaries, data tables
+- **XML Maps** (6 ops) — Schemas, XPath mapping, secure import/export
 - **Conditional Formatting** (2 ops) — Add rules, clear formatting
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
@@ -83,7 +87,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Python in Excel** (2 ops) — Set/get Python formulas and results
 - **Screenshot** (2 ops) — Capture ranges/sheets as PNG
 - **File & Session** (6 ops) — Create, open, close, session management
-- **Window Management** (9 ops) — Show/hide Excel, positioning
+- **Window Management** (15 ops) — Show/hide, panes, zoom, display options, positioning
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
 
@@ -94,7 +98,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 | Interface | Best For | Token Efficiency |
 |-----------|----------|------------------|
 | **CLI** (`excelcli`) | Coding agents | **64% fewer tokens** — single tool + skill |
-| **MCP Server** | Conversational AI (Claude Desktop) | 26 tool schemas loaded into context |
+| **MCP Server** | Conversational AI (Claude Desktop) | 31 tool schemas loaded into context |
 
 **Use CLI when:** Your agent needs to script Excel operations without consuming context with large tool definitions.
 

@@ -119,6 +119,19 @@ All format codes are auto-translated to the user's locale. Use US codes (d/m/y f
 - `formats`: 2D array matching range dimensions
 - Example: `[["$#,##0.00", "0.00%"], ["mm/dd/yyyy", "General"]]`
 
+## Threaded Comments (`range_link`)
+
+Use modern threaded comments only when the installed desktop Excel build exposes them:
+
+```text
+range_link(action: 'add-threaded-comment', sheetName: 'Review', cellAddress: 'B2', text: 'Check this value')
+range_link(action: 'add-threaded-comment-reply', sheetName: 'Review', cellAddress: 'B2', text: 'Confirmed')
+range_link(action: 'list-threaded-comments', sheetName: 'Review', cellAddress: 'B2')
+range_link(action: 'delete-threaded-comment', sheetName: 'Review', cellAddress: 'B2')
+```
+
+These actions expose local Excel PIA comment text, author, date, and replies. Microsoft 365 service features such as @mentions, assignments, reactions, presence, sharing, and coauthoring state are not available through local Excel COM.
+
 ## Related `range_format` Actions
 
 - `auto-fit-columns`: Fit column widths to content after writing data
@@ -126,3 +139,17 @@ All format codes are auto-translated to the user's locale. Use US codes (d/m/y f
 - `format-range`: Apply fills, fonts, borders, and alignment
 - `format-ranges`: Apply one shared formatting payload to multiple ranges on the same worksheet
 - `set-style`: Apply named Excel styles such as `Good`, `Bad`, or `Heading 1`
+
+## Hyperlink Lifecycle
+
+Use `range_link` for cell hyperlinks:
+
+| Action | Purpose |
+|--------|---------|
+| `add-hyperlink` | Add an external URL/file link or an internal workbook target |
+| `update-hyperlink` | Change an existing target, display text, or tooltip |
+| `get-hyperlink` | Read the hyperlink in one cell |
+| `list-hyperlinks` | List all hyperlinks on a worksheet |
+| `remove-hyperlink` | Remove hyperlinks while preserving cell content |
+
+For an internal link, omit `url` and pass a `sub_address` such as `'Summary'!A1`. For partial updates, omitted values remain unchanged; pass an empty string to clear the URL, sub-address, or tooltip.

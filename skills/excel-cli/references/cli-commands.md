@@ -3,6 +3,32 @@
 > Auto-generated from `excelcli --help`. Use these exact parameter names.
 
 
+### analysis
+
+Run Excel what-if analysis with Goal Seek, scenarios, scenario reports, and one- or two-variable data tables. Solver is not exposed because it requires a user-enabled VBA add-in and reference.
+
+**Actions:** `goal-seek`, `list-scenarios`, `create-scenario`, `update-scenario`, `show-scenario`, `delete-scenario`, `create-scenario-summary`, `create-data-table`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--sheet-name` | Worksheet containing the model (required) |
+| `--formula-cell` | Formula cell Goal Seek should drive to the target (required for: goal-seek) |
+| `--goal` | Numeric target for the formula cell (required for: goal-seek) |
+| `--changing-cell` | Input cell Goal Seek may adjust (required for: goal-seek) |
+| `--scenario-name` | Scenario name (required for: create-scenario, update-scenario, show-scenario, delete-scenario) |
+| `--changing-cells` | Range containing the scenario input cells (required for: create-scenario, update-scenario) |
+| `--values` | JSON array with one stored value per changing cell (required for: create-scenario, update-scenario) |
+| `--comment` | Optional scenario comment |
+| `--locked` | Whether the scenario is locked (default: true) |
+| `--hidden` | Whether the scenario is hidden (default: false) |
+| `--report-type` | Scenario report type: summary or pivot-table (default: summary) |
+| `--result-cells` | Optional formula cells to include in a scenario report |
+| `--table-range` | Prepared one- or two-variable data table range (required for: create-data-table) |
+| `--row-input-cell` | Model input cell replaced by values in the table's first row |
+| `--column-input-cell` | Model input cell replaced by values in the table's first column |
+
+
+
 ### calculationmode
 
 Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes for faster performance, then recalculate once at the end.
@@ -477,9 +503,9 @@ Worksheet lifecycle management: create, rename, copy, delete, move, list sheets.
 
 ### worksheetstyle
 
-Worksheet styling operations for tab colors and visibility. Use sheet for lifecycle operations (create, rename, copy, delete, move). TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization. VISIBILITY LEVELS: - 'visible': Normal visible sheet - 'hidden': Hidden but accessible via Format > Sheet > Unhide - 'veryhidden': Only accessible via VBA (protection against casual unhiding)
+Worksheet styling operations for tab colors, visibility, protection, legacy cell notes, images, shapes, and page setup. Use sheet for lifecycle operations (create, rename, copy, delete, move). TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization. VISIBILITY LEVELS: - 'visible': Normal visible sheet - 'hidden': Hidden but accessible via Format > Sheet > Unhide - 'veryhidden': Only accessible via VBA (protection against casual unhiding). PROTECTION: Protect or unprotect a sheet to lock its contents and structure. NOTES: set-comment/get-comment/clear-comment use Excel's legacy Comment COM API and therefore manage cell notes, not threaded comments.
 
-**Actions:** `set-tab-color`, `get-tab-color`, `clear-tab-color`, `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide`
+**Actions:** `set-tab-color`, `get-tab-color`, `clear-tab-color`, `set-protection`, `get-protection`, `set-comment`, `get-comment`, `clear-comment`, `add-image`, `get-image-count`, `add-shape`, `get-shape-count`, `set-page-setup`, `get-page-setup`, `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -488,6 +514,16 @@ Worksheet styling operations for tab colors and visibility. Use sheet for lifecy
 | `--green` | Green color component (0-255) (required for: set-tab-color) |
 | `--blue` | Blue color component (0-255) (required for: set-tab-color) |
 | `--visibility` | Visibility level: 'visible', 'hidden', or 'veryhidden' (required for: set-visibility) |
+| `--is-protected` | Whether the worksheet should be protected (required for: set-protection) |
+| `--password` | Optional worksheet protection password |
+| `--cell-address` | Cell address such as A1 (required for: set-comment, get-comment, clear-comment, add-image, add-shape) |
+| `--text` | Legacy cell note text (required for: set-comment) |
+| `--image-path` | Absolute path to an image file (required for: add-image) |
+| `--orientation` | Page orientation: portrait or landscape (required for: set-page-setup) |
+| `--fit-to-pages-wide` | Optional number of pages wide for print scaling |
+| `--fit-to-pages-tall` | Optional number of pages tall for print scaling |
+| `--center-horizontally` | Whether to center the printout horizontally |
+| `--center-vertically` | Whether to center the printout vertically |
 
 
 
@@ -573,6 +609,21 @@ VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQU
 | `--procedure-name` | Name of the procedure to run (for example "Module1.MySub") (required for: run) |
 | `--timeout` | Optional timeout for execution |
 | `--parameters` | Optional parameters to pass to the procedure (required for: run) |
+
+
+
+### workbook
+
+Workbook-level protection and view operations.
+
+**Actions:** `set-protection`, `get-protection`, `set-view-options`, `get-view-options`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--is-protected` | Whether workbook structure should be protected (required for: set-protection) |
+| `--password` | Optional workbook protection password |
+| `--display-gridlines` | Whether to display gridlines in the workbook window |
+| `--display-headings` | Whether to display row and column headings in the workbook window |
 
 
 

@@ -229,7 +229,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 After installation:
 
 1. **Learn the basics:** Try `excelcli --help` and open a session against a test workbook
-2. **Explore commands:** See the [Feature Reference](https://excelmcpserver.dev/features/) for all 18 command categories
+2. **Explore commands:** See the [Feature Reference](https://excelmcpserver.dev/features/) for all 22 command categories
 3. **Read the guides:**
    - [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/) - for AI assistants like Claude Desktop and Copilot Chat
    - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-cli/SKILL.md) - token-efficient AI guidance for coding agents

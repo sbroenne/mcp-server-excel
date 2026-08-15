@@ -57,6 +57,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
+        "analysis",
         "calculation_mode",
         "chart",
         "chart_config",
@@ -64,6 +65,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "connection",
         "datamodel",
         "datamodel_relationship",
+        "drawing",
         "file",
         "namedrange",
         "pivottable",
@@ -71,6 +73,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "pivottable_field",
         "powerquery",
         "pythoninexcel",
+        "querytable",
         "range",
         "range_edit",
         "range_format",
@@ -81,8 +84,10 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "table_column",
         "vba",
         "window",
+        "workbook",
         "worksheet",
-        "worksheet_style"
+        "worksheet_style",
+        "xmlmap"
     ];
 
     /// <summary>
@@ -184,7 +189,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that all 26 expected tools are discoverable via the MCP protocol.
+    /// Tests that all expected tools are discoverable via the MCP protocol.
     /// After token optimization (issue #341):
     /// - Original 12 tools split into focused tools for better token efficiency
     /// - range → range, range_edit, range_format, range_link
@@ -200,7 +205,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll26ExpectedTools()
+    public async Task ListTools_ReturnsAllExpectedTools()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 
@@ -393,6 +398,4 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         output.WriteLine("\n✓ Server capabilities correctly exposed");
     }
 }
-
-
 

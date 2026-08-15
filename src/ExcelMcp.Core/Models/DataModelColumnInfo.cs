@@ -17,9 +17,18 @@ public class DataModelColumnInfo
     public string DataType { get; init; } = "";
 
     /// <summary>
+    /// Excel XlParameterDataType numeric value.
+    /// </summary>
+    public int DataTypeValue { get; init; }
+
+    /// <summary>
+    /// Human-readable XlParameterDataType name.
+    /// </summary>
+    public string DataTypeName { get; init; } = "";
+
+    /// <summary>
     /// Whether this is a calculated column (has DAX formula)
     /// </summary>
     public bool IsCalculated { get; init; }
 }
-
 

@@ -74,6 +74,16 @@ public interface IDataModelCommands
     DataModelInfoResult ReadInfo(IExcelBatch batch);
 
     /// <summary>
+    /// Gets metadata for the workbook's embedded Data Model connection.
+    /// Returns the model and connection names, connection and command types, and model table names.
+    /// The underlying ADO connection is intentionally not exposed because it may contain sensitive connection details.
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <returns>Result containing embedded model connection metadata</returns>
+    [ServiceAction("read-connection")]
+    DataModelConnectionResult ReadConnection(IExcelBatch batch);
+
+    /// <summary>
     /// Lists all DAX measures in the model.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
@@ -218,6 +228,5 @@ public interface IDataModelCommands
     [ServiceAction("execute-dmv")]
     DmvQueryResult ExecuteDmv(IExcelBatch batch, [RequiredParameter, FileOrValue] string dmvQuery);
 }
-
 
 

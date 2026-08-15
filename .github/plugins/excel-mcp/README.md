@@ -53,29 +53,34 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**26 specialized tools with 234 operations** for comprehensive Excel automation:
+**31 specialized tools with 326 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
 - **Power Query** (12 ops) — Create, update, refresh; M code formatting via powerqueryformatter.com
-- **Data Model/DAX** (19 ops) — Measures, relationships, EVALUATE queries; DAX formatting via SQLBI Dax.Formatter
-- **PivotTables** (30 ops) — Create, configure fields, calculated items/fields, layouts
+- **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
+- **PivotTables** (35 ops) — Fields, grouping, cache options, drill-through, calculations
 - **Excel Tables** (27 ops) — Lifecycle, filtering, sorting, DAX-backed tables
-- **Charts** (29 ops) — Create, configure, series, data labels, trendlines, axis formatting
-- **Ranges** (46 ops) — Values, formulas, formatting, validation, protection, merge/unmerge
-- **Worksheets** (16 ops) — Create, rename, copy, move, cross-workbook operations
+- **Charts** (33 ops) — Combo series, plotting, placement, formatting, labels, trendlines
+- **Ranges** (51 ops) — Values, formulas, hyperlinks, threaded comments, formatting, validation
+- **Worksheets** (33 ops) — Lifecycle, outlines, protection, notes, images, shapes, page setup
+- **Workbooks** (15 ops) — Metadata, properties, Save As/copy, PDF/XPS, external links
 
 ### Advanced Features
 
 - **VBA** (6 ops) — Module import/export, run procedures, version control
-- **Connections** (9 ops) — OLEDB/ODBC/Text/Web connections with refresh and testing
+- **Connections** (11 ops) — OLEDB/ODBC connections with refresh status and cancellation
+- **QueryTables** (9 ops) — Text/CSV and legacy HTML imports
+- **Drawing Objects** (14 ops) — Shapes, Forms controls, and sparklines
+- **What-If Analysis** (8 ops) — Goal Seek, scenarios, summaries, data tables
+- **XML Maps** (6 ops) — Schemas, XPath mapping, secure import/export
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
 - **Conditional Formatting** (2 ops) — Add rules (cell value, expression), clear
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation (performance optimization)
 - **Python in Excel** (2 ops) — Set/get `=PY()` formulas and results
 - **Screenshot** (2 ops) — Capture ranges/sheets as PNG for visual verification
-- **Window Management** (9 ops) — Show/hide Excel, arrange, position, status bar feedback
+- **Window Management** (15 ops) — Show/hide, panes, zoom, display options, positioning
 
 ### File Operations
 

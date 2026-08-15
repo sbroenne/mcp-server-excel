@@ -184,6 +184,116 @@ public class SheetVisibilityResult : ResultBase
 }
 
 /// <summary>
+/// Result for getting worksheet protection state
+/// </summary>
+public class SheetProtectionResult : ResultBase
+{
+    /// <summary>
+    /// Whether the worksheet is protected
+    /// </summary>
+    public bool IsProtected { get; set; }
+}
+
+/// <summary>
+/// Result for getting workbook view options.
+/// </summary>
+public class WorkbookViewOptionsResult : ResultBase
+{
+    /// <summary>
+    /// Whether workbook gridlines are displayed.
+    /// </summary>
+    public bool DisplayGridlines { get; set; }
+
+    /// <summary>
+    /// Whether workbook headings are displayed.
+    /// </summary>
+    public bool DisplayHeadings { get; set; }
+}
+
+/// <summary>
+/// Result for getting workbook protection state
+/// </summary>
+public class WorkbookProtectionResult : ResultBase
+{
+    /// <summary>
+    /// Whether the workbook is protected
+    /// </summary>
+    public bool IsProtected { get; set; }
+}
+
+/// <summary>
+/// Result for reading a legacy worksheet cell note
+/// </summary>
+public class SheetCommentResult : ResultBase
+{
+    /// <summary>
+    /// Whether the cell has a legacy note
+    /// </summary>
+    public bool HasComment { get; set; }
+
+    /// <summary>
+    /// Cell note text, null when no note exists
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+}
+
+/// <summary>
+/// Result for reading worksheet image count
+/// </summary>
+public class WorksheetImageCountResult : ResultBase
+{
+    /// <summary>
+    /// Number of images currently on the worksheet
+    /// </summary>
+    public int ImageCount { get; set; }
+}
+
+/// <summary>
+/// Result for reading worksheet shape count
+/// </summary>
+public class WorksheetShapeCountResult : ResultBase
+{
+    /// <summary>
+    /// Number of shapes currently on the worksheet
+    /// </summary>
+    public int ShapeCount { get; set; }
+}
+
+/// <summary>
+/// Result for reading worksheet page setup properties
+/// </summary>
+public class SheetPageSetupResult : ResultBase
+{
+    /// <summary>
+    /// Page orientation (portrait or landscape)
+    /// </summary>
+    public string Orientation { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of pages to fit the printout across
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public int? FitToPagesWide { get; set; }
+
+    /// <summary>
+    /// Number of pages to fit the printout down
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public int? FitToPagesTall { get; set; }
+
+    /// <summary>
+    /// Whether the worksheet is centered horizontally on the printed page
+    /// </summary>
+    public bool CenterHorizontally { get; set; }
+
+    /// <summary>
+    /// Whether the worksheet is centered vertically on the printed page
+    /// </summary>
+    public bool CenterVertically { get; set; }
+}
+
+/// <summary>
 /// Result for reading worksheet data
 /// </summary>
 public class WorksheetDataResult : ResultBase
@@ -2483,5 +2593,3 @@ public class DiagResult : ResultBase
 }
 
 #endregion
-
-

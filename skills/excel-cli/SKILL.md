@@ -178,7 +178,7 @@ excelcli -q batch --input commands.json
 
 Available command groups:
 
-`session`, `batch`, `service`, `calculationmode`, `chart`, `chartconfig`, `conditionalformat`, `connection`, `datamodel`, `datamodelrelationship`, `namedrange`, `pivottable`, `pivottablecalc`, `pivottablefield`, `powerquery`, `pythoninexcel`, `range`, `rangeedit`, `rangeformat`, `rangelink`, `screenshot`, `sheet`, `worksheetstyle`, `slicer`, `table`, `tablecolumn`, `vba`, `window`
+`session`, `batch`, `service`, `analysis`, `calculationmode`, `chart`, `chartconfig`, `conditionalformat`, `connection`, `datamodel`, `datamodelrelationship`, `drawing`, `namedrange`, `pivottable`, `pivottablecalc`, `pivottablefield`, `powerquery`, `pythoninexcel`, `querytable`, `range`, `rangeedit`, `rangeformat`, `rangelink`, `screenshot`, `sheet`, `worksheetstyle`, `slicer`, `table`, `tablecolumn`, `vba`, `window`, `workbook`, `xmlmap`
 
 ## Common Pitfalls
 
