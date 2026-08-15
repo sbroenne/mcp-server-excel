@@ -61,10 +61,16 @@ GITHUB_TREE = "https://github.com/sbroenne/mcp-server-excel/tree/main/"
 # they resolve on the website instead of 404-ing.
 SITE_PAGE_MAP = {
     "FEATURES.md": "/features/",
+    "docs/features/DATA-ANALYTICS.md": "/features/data-analytics/",
+    "docs/features/CELLS-WORKBOOKS.md": "/features/cells-workbooks/",
+    "docs/features/CHARTS-VISUALS.md": "/features/charts-visuals/",
+    "docs/features/AUTOMATION-ADVANCED.md": "/features/automation-advanced/",
     "CHANGELOG.md": "/changelog/",
     "docs/INSTALLATION.md": "/installation/",
     "docs/INSTALLATION-MCP-SERVER.md": "/installation-mcp-server/",
     "docs/INSTALLATION-CLI.md": "/installation-cli/",
+    "docs/ARCHITECTURE.md": "/architecture/",
+    "docs/USE-CASES.md": "/use-cases/",
     "docs/CONTRIBUTING.md": "/contributing/",
     "SECURITY.md": "/security/",
     "PRIVACY.md": "/privacy/",
@@ -74,6 +80,13 @@ SITE_PAGE_MAP = {
 }
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
+
+FEATURE_SOURCES = {
+    "features-data.md": "docs/features/DATA-ANALYTICS.md",
+    "features-workbooks.md": "docs/features/CELLS-WORKBOOKS.md",
+    "features-visualization.md": "docs/features/CHARTS-VISUALS.md",
+    "features-automation.md": "docs/features/AUTOMATION-ADVANCED.md",
+}
 
 
 def _rewrite_links(text: str, source_rel: str) -> str:
@@ -162,6 +175,19 @@ def _strip_header(
     return "\n".join(out).strip() + "\n"
 
 
+def _add_stable_feature_anchors(text: str) -> str:
+    """Give feature headings stable IDs that do not include operation counts."""
+    heading = re.compile(r"^## (?P<title>.+?) \(\d+ operations\)$", re.MULTILINE)
+
+    def replace(match: re.Match) -> str:
+        title = match.group("title")
+        slug = re.sub(r"[^\w\s-]", "", title, flags=re.UNICODE).strip().lower()
+        slug = re.sub(r"[-\s]+", "-", slug)
+        return f"{match.group(0)} {{ #{slug} }}"
+
+    return heading.sub(replace, text)
+
+
 def _read(rel: str) -> str:
     path = REPO_ROOT / rel
     if not path.is_file():
@@ -177,17 +203,16 @@ def _write(name: str, source_rel: str, content: str) -> None:
 
 
 def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
-    # FEATURES.md -> features (drop title + bold subtitle + hr, demote H1)
-    _write(
-        "features.md",
-        "FEATURES.md",
-        _strip_header(
-            _read("FEATURES.md"),
-            drop_prefixes=("**",),
-            end_on_hr=True,
-            demote_h1=True,
-        ),
-    )
+    # Canonical feature references -> focused website pages. The wrappers add
+    # presentation and SEO metadata but never duplicate operation details.
+    for output_name, source_rel in FEATURE_SOURCES.items():
+        _write(
+            output_name,
+            source_rel,
+            _add_stable_feature_anchors(
+                _strip_header(_read(source_rel), end_on_hr=True)
+            ),
+        )
 
     # CHANGELOG.md -> changelog (drop title + description line, demote H1)
     _write(
@@ -233,6 +258,18 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
             end_on_blank=True,
             demote_h1=True,
         ),
+    )
+
+    # Canonical architecture and examples guides.
+    _write(
+        "architecture.md",
+        "docs/ARCHITECTURE.md",
+        _strip_header(_read("docs/ARCHITECTURE.md"), end_on_blank=True),
+    )
+    _write(
+        "use-cases.md",
+        "docs/USE-CASES.md",
+        _strip_header(_read("docs/USE-CASES.md"), end_on_blank=True),
     )
 
     # src/ExcelMcp.McpServer/README.md -> mcp-server (drop title, mcp-name, badges)

@@ -34,7 +34,7 @@ git add .
 git commit -m "Add feature X with tests and documentation
 
 - Implement core functionality
-- Add comprehensive unit tests  
+- Add focused integration tests
 - Update command documentation
 - Include usage examples"
 ```
@@ -88,21 +88,10 @@ git push origin --delete feature/your-feature-name
 
 1. **Ensure all changes are merged** to `main` via PRs
 
-2. **Create and push a version tag**:
-
-```powershell
-# Create version tag (semantic versioning)
-git tag v1.1.0
-
-# Push the tag (triggers release workflow)
-git push origin v1.1.0
-```
-
-1. **Automated Release Workflow**:
-   - ✅ Updates version numbers in project files
-   - ✅ Builds the release binaries  
-   - ✅ Creates GitHub release with ZIP file
-   - ✅ Updates release notes
+2. Run **Release All Components** from GitHub Actions and select a semantic
+   version bump or custom version.
+3. The workflow compiles pending changesets, updates versions, builds and
+   publishes all deliverables, creates the tag, and creates the GitHub release.
 
 ### Version Numbering
 
@@ -123,25 +112,24 @@ The `main` branch is protected with:
 
 ## 🧪 **Testing Requirements & Organization**
 
-### **Three-Tier Test Architecture**
+### **Integration-First Test Architecture**
 
-ExcelMcp uses a **production-ready three-tier testing approach** with organized directory structure:
+ExcelMcp tests Excel behavior through real COM automation. Unit tests that mock
+Excel do not validate the threading, type conversion, persistence, or resource
+management failures that matter in production.
 
 ```
 tests/
 ├── ExcelMcp.Core.Tests/
-│   ├── Unit/           # Fast tests, no Excel required (~2-5 sec)
-│   ├── Integration/    # Medium speed, requires Excel (~1-15 min)
-│   └── RoundTrip/      # Slow, comprehensive workflows (~3-10 min each)
+│   └── Integration/    # Feature and round-trip tests against real Excel
+├── ExcelMcp.ComInterop.Tests/
+│   └── Integration/    # Session, batch, timeout, and shutdown behavior
 ├── ExcelMcp.Diagnostics.Tests/
 │   └── Integration/Diagnostics/ # Research tests, manual only (excluded from CI)
 ├── ExcelMcp.McpServer.Tests/
-│   ├── Unit/           # Fast tests, no server required  
-│   ├── Integration/    # Medium speed, requires MCP server
-│   └── RoundTrip/      # Slow, end-to-end protocol testing
+│   └── Integration/    # Protocol and generated-surface behavior
 └── ExcelMcp.CLI.Tests/
-    ├── Unit/           # Fast tests, no Excel required
-    └── Integration/    # Medium speed, requires Excel & CLI
+    └── Integration/    # CLI and daemon behavior
 ```
 
 ### **Development Workflow Commands**
@@ -181,36 +169,18 @@ dotnet test --filter "RunType=OnDemand"
 
 ### **Adding New Tests**
 
-When creating tests, follow these placement guidelines:
+When creating tests, use real Excel and all required traits:
 
 ```csharp
-// Unit Test Example
-[Trait("Category", "Unit")]
-[Trait("Speed", "Fast")]
-[Trait("Layer", "Core")]
-public class CommandLogicTests 
-{
-    // Tests business logic without Excel
-}
-
-// Integration Test Example  
+// Integration test example
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
+[Trait("Layer", "Core")]
 [Trait("Feature", "PowerQuery")]
 [Trait("RequiresExcel", "true")]
 public class PowerQueryCommandsTests
 {
-    // Tests single Excel operations
-}
-
-// Round Trip Test Example
-[Trait("Category", "RoundTrip")]
-[Trait("Speed", "Slow")]
-[Trait("Feature", "EndToEnd")]
-[Trait("RequiresExcel", "true")]
-public class VbaWorkflowTests
-{
-    // Tests complete workflows: import → run → verify → export
+    // Opens a real workbook and verifies observable Excel behavior.
 }
 ```
 
@@ -241,16 +211,15 @@ dotnet build -c Release
 The CLI uses **Roslyn source generators** to automatically generate command classes from Core's service definitions, ensuring 1:1 parity with MCP tools:
 
 ```
-Core Generator (ServiceRegistryGenerator)
+Core Generator (`ServiceRegistryGenerator`)
   ↓
   Generates ServiceRegistry.{Category} classes
   Generates RouteFromSettings() bridge method
-  Emits _CliCategoryMetadata manifest
   ↓
-CLI Generator (CliSettingsGenerator)  
+CLI Generator (`CliSettingsGenerator`)
   ↓
-  Reads 22 category manifest
-  Generates 22 Command classes (inheriting ServiceCommandBase<T>)
+  Discovers referenced [ServiceCategory] interfaces
+  Generates one command class per category
   Generates CliCommandRegistration.RegisterCommands()
   ↓
 Program.cs calls CliCommandRegistration.RegisterCommands(config)
@@ -264,8 +233,8 @@ Program.cs calls CliCommandRegistration.RegisterCommands(config)
 - Constants: `CliCommandName`, `ValidActions`, `RequiresSession`
 
 **2. CLI Generator** (`CliSettingsGenerator.cs`):
-- Hard-coded list of 22 categories (Sheet, Range, PowerQuery, etc.)
-- For each category, generates command class:
+- Discovers `[ServiceCategory]` interfaces in referenced Core assemblies.
+- For each category, generates a command class:
   ```csharp
   internal sealed class SheetCommand : ServiceCommandBase<ServiceRegistry.Sheet.CliSettings>
   {
@@ -282,7 +251,7 @@ Program.cs calls CliCommandRegistration.RegisterCommands(config)
   {
       config.AddCommand<SheetCommand>("worksheet")
           .WithDescription(...);
-      // ... 21 more commands
+      // ... generated commands for every discovered category
   }
   ```
 
@@ -291,34 +260,11 @@ Program.cs calls CliCommandRegistration.RegisterCommands(config)
 When adding a new service category to Core:
 
 1. **Add `[ServiceCategory]` interface** in Core
-2. **Update `CliSettingsGenerator.cs`** - add tuple to the categories array:
-   ```csharp
-   ("commandname", "RegistryClassName", requiresSession: true)
-   ```
-3. **Rebuild** - generators automatically produce:
+2. **Rebuild** - generators automatically produce:
    - ServiceRegistry class in Core
    - Command class in CLI.Generated
    - Registration entry in CliCommandRegistration
-4. **Test** - verify `excelcli COMMAND_NAME --help` works
-
-### **Why Hard-Coded Categories?**
-
-The categories are currently hard-coded in the CLI generator because:
-
-**Why NOT dynamic discovery via GetTypeByMetadataName?**
-- Source generators can only see syntax in their own compilation
-- Core's generated types are compiled assembly references, not syntax
-- `GetTypeByMetadataName` cannot find types that aren't in the compilation being analyzed
-- Would require cross-assembly semantic analysis (not supported by Roslyn incremental generators)
-
-**Current approach (hard-coded list):**
-- ✅ Works reliably across assembly boundaries
-- ✅ Simple and explicit
-- ✅ Zero runtime cost
-- ✅ Easy to verify (list = what exists in code)
-- ⚠️ Manual sync needed when Core adds new categories (but caught by build)
-
-**Future improvement:** Could emit a manifest file from Core and parse it in CLI generator using source file inclusion.
+3. **Test** - verify `excelcli COMMAND_NAME --help` works.
 
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
@@ -327,94 +273,33 @@ The categories are currently hard-coded in the CLI generator because:
 - ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
 
 
-## 📋 **MCP Server Configuration Management**
+## 📋 **MCP Registry Manifest**
 
-### **CRITICAL: Keep server.json in Sync**
+`src/ExcelMcp.McpServer/.mcp/server.json` describes the published NuGet package
+for the MCP Registry. Tool schemas are generated from Core interfaces and are
+not duplicated in this manifest.
 
-When modifying MCP Server functionality, **you must update** `src/ExcelMcp.McpServer/.mcp/server.json`:
-
-#### **When to Update server.json:**
-
-- ✅ **Adding new MCP tools** - Add tool definition to `"tools"` array
-- ✅ **Modifying tool parameters** - Update `inputSchema` and `properties`
-- ✅ **Changing tool descriptions** - Update `description` fields
-- ✅ **Adding new capabilities** - Update `"capabilities"` section
-- ✅ **Changing requirements** - Update `"environment"."requirements"`
-
-#### **server.json Synchronization Checklist:**
+Update `server.json` only when package identity, transport, repository metadata,
+or runtime requirements change. The release workflow updates its version fields.
 
 ```powershell
-# After making MCP Server code changes, verify:
-
-# 1. Tool definitions match actual implementations
-Compare-Object (Get-Content "src/ExcelMcp.McpServer/.mcp/server.json" | ConvertFrom-Json).tools (Get-ChildItem "src/ExcelMcp.McpServer/Tools/*.cs")
-
-# 2. Build succeeds with updated configuration
+# Build succeeds with the packaged manifest
 dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
-# 3. Test MCP server starts without errors
-dnx Sbroenne.ExcelMcp.McpServer --yes
+# Server starts without errors
+dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 ```
-
-#### **server.json Structure:**
-
-```json
-{
-  "version": "2.0.0",          // ← Updated by release workflow
-  "tools": [                   // ← Must match Tools/*.cs implementations
-    {
-      "name": "file",    // ← Must match [McpServerTool] attribute
-      "description": "...",    // ← Keep description accurate
-      "inputSchema": {         // ← Must match method parameters
-        "properties": {
-          "action": { ... },   // ← Must match actual actions supported
-          "filePath": { ... }   // ← Must match parameter types
-        }
-      }
-    }
-  ]
-}
-```
-
-#### **Common server.json Update Scenarios:**
-
-1. **Adding New Tool:**
-   ```csharp
-   // In Tools/NewTool.cs
-   [McpServerTool]
-   public async Task<string> NewTool(string action, string parameter)
-   ```
-   ```json
-   // Add to server.json tools array
-   {
-     "name": "excel_newtool",
-     "description": "New functionality description",
-     "inputSchema": { ... }
-   }
-   ```
-
-2. **Adding Action to Existing Tool:**
-   ```csharp
-   // In existing tool method
-   case "new-action":
-     return HandleNewAction(parameter);
-   ```
-   ```json
-   // Update inputSchema properties.action enum
-   "action": {
-     "enum": ["list", "create", "new-action"]  // ← Add new action
-   }
-   ```
 
 ## 📝 **PR Template Checklist**
 
 When creating a PR, verify:
 
 - [ ] **Code builds** with zero warnings
-- [ ] **All tests pass** (unit tests minimum)
+- [ ] **Relevant integration tests pass**
 - [ ] **New features have tests**
 - [ ] **Documentation updated** (README, etc.)
-- [ ] **MCP server.json updated** (if MCP Server changes) ← **NEW**
+- [ ] **MCP server.json updated** (only if package manifest metadata changes)
+- [ ] **Changeset added** for user-visible changes, or `skip-changelog` applies
 - [ ] **Breaking changes documented**
 - [ ] **Follows existing code patterns**
 - [ ] **Commit messages are clear**

@@ -4,8 +4,8 @@ ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistan
 
 | Guide | Best For |
 |-------|----------|
-| 📖 **[Installing the MCP Server](https://excelmcpserver.dev/installation-mcp-server/)** | AI assistants — GitHub Copilot, Claude Desktop, Cursor, Windsurf, and any other MCP client |
-| 📖 **[Installing the CLI](https://excelmcpserver.dev/installation-cli/)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
+| 📖 **[Installing the MCP Server](INSTALLATION-MCP-SERVER.md)** | AI assistants — GitHub Copilot, Claude Desktop, Cursor, Windsurf, and any other MCP client |
+| 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
 
 Both require **Windows OS** and **Microsoft Excel 2016+** — no .NET runtime needed for the standalone exe distributions.
 
@@ -52,7 +52,7 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
    - Claude Code: `.claude/skills/excel-cli/` or `.claude/skills/excel-mcp/`
    - Cursor: `.cursor/skills/excel-cli/` or `.cursor/skills/excel-mcp/`
 
-**See:** [Agent Skills Documentation](https://excelmcpserver.dev/skills/)
+**See:** [Agent Skills Documentation](../skills/README.md)
 
 ---
 
@@ -60,6 +60,6 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
 
 - **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- **Contributing:** [Contributing Guide](https://excelmcpserver.dev/contributing/)
+- **Contributing:** [Contributing Guide](CONTRIBUTING.md)
 
 **Happy automating! 🚀**

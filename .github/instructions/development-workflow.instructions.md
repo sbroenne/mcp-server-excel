@@ -114,7 +114,7 @@ Workflow calculates version → builds all components → creates git tag → Gi
 
 **Quick release from terminal:**
 ```powershell
-gh workflow run release.yml -f bump=patch   # or minor/major
+gh workflow run release.yml -f version_bump=patch   # or minor/major
 ```
 
 ## GitHub Issue Comment Protocol

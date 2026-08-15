@@ -12,6 +12,10 @@ safe for an automation server, and testable against a real Excel instance.
 | `Range.XPath.SetValue` | `xmlmap map-range` | Maps a cell or single-column range without opening Excel UI. |
 | `Workbook.XmlImportXml`, `XmlMap.ImportXml` | `xmlmap import-xml` | Imports XML already in memory. Existing maps and automatic destination mapping are supported without file pickers. |
 | `XmlMap.ExportXml` | `xmlmap export-xml` | Returns XML in memory and avoids server-side output path ambiguity. |
+| Built-in and custom document properties | `workbook` list/get/set/delete properties | Supports deterministic workbook metadata without opening property dialogs. |
+| Workbook scenarios | `analysis` scenario lifecycle and summary actions | Manages named changing-cell sets and creates Excel summary reports. |
+| Workbook links | `workbook` list/update/break external links | Exposes explicit link inspection and mutation without update prompts. |
+| Worksheet page setup | `sheetstyle` get/set page setup | Covers orientation, fit-to-page, and centering metadata without invoking print UI. |
 
 XML content is parsed with DTD processing disabled. XML schemas must be supplied
 as inline content (or read through the generated `schema_file` parameter), and
@@ -38,10 +42,7 @@ local-file schema resolution during automatic mapping.
 The following typed APIs are deterministic enough to reconsider when a concrete
 automation workflow and real Excel tests justify them:
 
-- Workbook custom document properties and built-in document metadata.
-- Workbook scenarios and custom views.
-- Workbook links that are read-only or explicitly updated without prompts.
-- Page setup and print-area metadata that do not invoke print dialogs.
+- Workbook custom views.
 
 These are not placeholders or promised actions. They remain unimplemented until
 their behavior, safety defaults, and cross-version test coverage are defined.

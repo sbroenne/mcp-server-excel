@@ -34,9 +34,9 @@ ExcelMcp includes several security measures:
 - **Resource Cleanup**: Comprehensive COM object disposal and garbage collection
 - **No Remote Connections**: Only local Excel automation supported
 
-### ExcelMCP Service Security
+### ExcelMcp Service Security
 
-The ExcelMCP Service manages Excel COM automation sessions:
+The ExcelMcp Service manages Excel COM automation sessions:
 
 **MCP Server**: The service runs fully **in-process** — no inter-process communication. There is no attack surface beyond the MCP Server process itself.
 
@@ -109,7 +109,7 @@ Example:
 Vulnerability: Path traversal in file operations
 Impact: Attacker could read/write files outside intended directory
 Affected Versions: 1.0.0 - 1.0.2
-PoC: ExcelMcp.exe pq-export "../../../etc/passwd" "query"
+PoC: excelcli powerquery export "../../../etc/passwd" "query"
 Suggested Fix: Validate resolved paths are within allowed directories
 ```
 

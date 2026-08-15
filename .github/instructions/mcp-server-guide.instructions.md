@@ -311,7 +311,7 @@ Before committing MCP tool changes:
    - Must be kept synchronized with actual tool behavior
 
 2. **Skill-synced Prompts** (auto-generated from `skills/shared/*.md`):
-   - 16 prompts auto-generated at build time via `GenerateSkillPromptsClass` MSBuild task
+   - All `skills/shared/*.md` prompts are generated at build time via the `GenerateSkillPromptsClass` MSBuild task
    - Source of truth: `skills/shared/*.md` — NEVER edit prompt files directly
    - Same content exposed to skill-based clients (VS Code, Cursor) AND MCP-only clients (Claude Desktop)
    - **On-demand** - loaded only when LLM requests the prompt
@@ -359,4 +359,3 @@ Before committing MCP tool changes:
 ## LLM Guidance Development
 
 **See: [mcp-llm-guidance.instructions.md](mcp-llm-guidance.instructions.md)** for complete guidance on creating guidance for LLMs consuming the MCP server.
-

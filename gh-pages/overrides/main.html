@@ -111,6 +111,9 @@
   <!-- Structured data: BreadcrumbList (interior pages only) -->
   {% if page and not page.is_homepage %}
   {% set crumbs = [{"name": "Home", "url": "https://excelmcpserver.dev/"}] %}
+  {% if page.url.startswith("features/") and page.url != "features/" %}
+    {% set _ = crumbs.append({"name": "Features", "url": "https://excelmcpserver.dev/features/"}) %}
+  {% endif %}
   {% for anc in page.ancestors | reverse %}
     {% if anc.title and anc.canonical_url %}
       {% set _ = crumbs.append({"name": anc.title, "url": anc.canonical_url}) %}

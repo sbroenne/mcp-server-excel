@@ -176,12 +176,11 @@ Releases are triggered via the GitHub Actions UI, not by pushing package-specifi
 4. Monitor the run at https://github.com/sbroenne/mcp-server-excel/actions
 5. Verify packages on NuGet.org (wait 5-10 minutes for indexing) and test installation
 
-### Quick Release (All Components with Single Tag)
+### Quick Release from the Terminal
 
 ```powershell
-# Create and push unified tag - releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
-git tag v1.2.2 -m "Release v1.2.2"
-git push origin v1.2.2
+# Releases all components; use minor/major or custom_version when appropriate
+gh workflow run release.yml -f version_bump=patch
 ```
 
 ---
@@ -258,7 +257,7 @@ unzip -l ./nupkg/Sbroenne.ExcelMcp.CLI.1.0.0.nupkg
 2. Check trusted publisher configuration matches exactly:
    - Owner: `sbroenne`
    - Repository: `mcp-server-excel`
-   - Workflow: `release-[package].yml` (exact filename)
+   - Workflow: `release.yml` (exact filename)
 3. Ensure `NUGET_USER` secret is set correctly
 4. Verify workflow has `id-token: write` permission
 

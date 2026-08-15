@@ -64,7 +64,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## What You Can Do
 
-**22 command categories with 326 operations** for comprehensive Excel automation:
+**31 feature command categories with 326 operations** for comprehensive Excel automation:
 
 - **Power Query** (12 ops) — Create, update, refresh queries; M code management
 - **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
@@ -80,7 +80,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Drawing Objects** (14 ops) — Shapes, Forms controls, and sparklines
 - **What-If Analysis** (8 ops) — Goal Seek, scenarios, summaries, data tables
 - **XML Maps** (6 ops) — Schemas, XPath mapping, secure import/export
-- **Conditional Formatting** (2 ops) — Add rules, clear formatting
+- **Conditional Formatting** (4 ops) — Add, list, delete, and clear rules
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation
@@ -111,17 +111,17 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 excelcli -q session create C:\Reports\Sales.xlsx
 
 # Write headers
-excelcli -q range set-values --session <id> --sheet Sheet1 \
-  --range-address A1:C1 \
+excelcli -q range set-values --session <id> --sheet Sheet1 `
+  --range-address A1:C1 `
   --values '[["Date","Product","Revenue"]]'
 
 # Write data rows
-excelcli -q range set-values --session <id> --sheet Sheet1 \
-  --range-address A2:C3 \
+excelcli -q range set-values --session <id> --sheet Sheet1 `
+  --range-address A2:C3 `
   --values '[["2024-01-15","Widget",1500],["2024-01-16","Gadget",2300]]'
 
 # Create Excel Table
-excelcli -q table create --session <id> --sheet Sheet1 \
+excelcli -q table create --session <id> --sheet Sheet1 `
   --table-name SalesData --range-address A1:C3
 
 # Save and close

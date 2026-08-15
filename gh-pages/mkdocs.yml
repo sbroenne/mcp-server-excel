@@ -64,6 +64,7 @@ theme:
   features:
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.indexes
     - navigation.top
     - navigation.instant
     - navigation.instant.progress
@@ -79,7 +80,12 @@ theme:
 
 nav:
   - Home: index.md
-  - Features: features.md
+  - Features:
+    - Overview: features.md
+    - Data & analytics: features/data-analytics.md
+    - Cells & workbooks: features/cells-workbooks.md
+    - Charts & visuals: features/charts-visuals.md
+    - Automation & advanced: features/automation-advanced.md
   - Installation:
     - Overview: installation.md
     - MCP Server: installation-mcp-server.md
@@ -87,6 +93,7 @@ nav:
   - MCP Server: mcp-server.md
   - CLI: cli.md
   - More:
+    - Examples & use cases: use-cases.md
     - Agent Skills: skills.md
     - Troubleshooting & FAQ: troubleshooting.md
     - Architecture: architecture.md

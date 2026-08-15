@@ -9,19 +9,23 @@ applyTo: "**/*.md,docs/**,specs/**"
 ## 📁 Documentation Hierarchy
 
 ### Root Level - Essential User-Facing Only
-- ✅ `README.md` - Main project overview
+- ✅ `README.md` - GitHub acquisition page and quick start
+- ✅ `FEATURES.md` - Feature navigation hub and tool-selection guide
+- ✅ `CHANGELOG.md` - Generated release history
 - ✅ `SECURITY.md` - Security policy (GitHub standard)
+- ✅ `PRIVACY.md` - Privacy policy
 - ✅ `LICENSE` - License file
 - ❌ **NO** temporary files (SUMMARY, FIX, BUG, TESTS, DOCS, etc.)
 
-### `docs/` - Implementation Documentation
-**Purpose:** How things work, how to use them, architectural decisions
+### `docs/` - Canonical Documentation
+**Purpose:** Feature references, user guides, architecture, and development processes
 
 **Categories:**
-- **User Guides:** `CONTRIBUTING.md`
+- **Feature References:** `features/*.md`
+- **User Guides:** `INSTALLATION*.md`, `USE-CASES.md`, `CONTRIBUTING.md`
+- **Architecture:** `ARCHITECTURE.md`, `ADR-*.md`
 - **Developer Guides:** `DEVELOPMENT.md`, `PRE-COMMIT-SETUP.md`
 - **Process Docs:** `RELEASE-STRATEGY.md`, `MCP_REGISTRY_PUBLISHING.md`, `NUGET-GUIDE.md`
-- **Architecture:** `ADR-*.md` (Architecture Decision Records)
 - **Infrastructure:** `infrastructure/azure/README.md`
 - **Standards:** `TEST-NAMING-STANDARD.md`
 
@@ -65,9 +69,12 @@ applyTo: "**/*.md,docs/**,specs/**"
 ## Document Lifecycle
 
 ### Before Creating a Doc
-1. **Is this permanent?** → YES: Use proper location above
-2. **Is this temporary?** → Put in PR/Issue/commit message instead
-3. **Does equivalent doc exist?** → Update existing, don't duplicate
+1. **Canonical source first:** Update canonical repository docs before Pages wrappers.
+2. **Preserve information:** Map substantive content before shortening or relocating a document.
+3. **Wrappers stay thin:** `gh-pages/docs/` adds presentation and SEO, not a second source of truth.
+4. **Is this permanent?** → YES: Use proper location above.
+5. **Is this temporary?** → Put in PR/Issue/commit message instead.
+6. **Does equivalent doc exist?** → Update existing, don't duplicate.
 
 ### During PR Review
 - ❌ Root-level temporary docs → Move to proper location or delete
@@ -114,3 +121,5 @@ Before committing a `.md` file, verify:
 - [ ] File name follows naming conventions (ALL CAPS or kebab-case)
 - [ ] No duplicate documentation exists
 - [ ] Content is complete (not placeholder)
+- [ ] Removed content has a verified canonical destination
+- [ ] GitHub Pages wrappers contain no duplicated operational reference

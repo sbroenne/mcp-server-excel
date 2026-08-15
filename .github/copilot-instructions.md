@@ -5,7 +5,7 @@
 ## 📋 Critical Files (Read These First)
 
 **ALWAYS read when working on code:**
-- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 27 mandatory rules (Success flag, COM cleanup, tests, etc.)
+- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - Mandatory rules (Success flag, COM cleanup, tests, docs, etc.)
 - [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Batch API, command pattern, resource management
 
 **Read based on task type:**
@@ -14,11 +14,10 @@
 - MCP Server work → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 - Creating PR → [Development Workflow](instructions/development-workflow.instructions.md)
 - Fixing bugs → [Bug Fixing Checklist](instructions/bug-fixing-checklist.instructions.md)
+- Updating documentation → [README Management](instructions/readme-management.instructions.md) and [Documentation Structure](instructions/documentation-structure.instructions.md)
 
 **Less frequently needed:**
 - [Excel Connection Types](instructions/excel-connection-types-guide.instructions.md) - Only for connection-specific work
-- [README Management](instructions/readme-management.instructions.md) - Only when updating READMEs
-- [Documentation Structure](instructions/documentation-structure.instructions.md) - Only when creating docs
 
 ---
 

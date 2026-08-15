@@ -43,7 +43,7 @@ Both plugins publish wrapper/bootstrap assets plus skills. On first use they fet
 
 - Source repo: [sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel)
 - Issues: [sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- Plugin docs: [`plugins/excel-mcp/README.md`](./plugins/excel-mcp/README.md), [`plugins/excel-cli/README.md`](./plugins/excel-cli/README.md)
+- Plugin docs: [excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp), [excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli)
 
 ## License
 
