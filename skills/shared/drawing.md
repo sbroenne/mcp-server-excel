@@ -44,6 +44,6 @@ Use `add-sparkline`, `get-sparkline`, `list-sparklines`, `update-sparkline`, and
 - Line sparklines can show markers
 
 ```powershell
-excelcli drawing add-shape --session <id> --sheet-name "Dashboard" --shape-type RoundedRectangle --name "Status" --text "Ready" --fill-color "#70AD47"
-excelcli drawing add-sparkline --session <id> --sheet-name "Dashboard" --source-range "B2:E2" --location-range "F2" --sparkline-type Line
+excelcli drawing add-shape --session <id> --sheet "Dashboard" --shape-type RoundedRectangle --name "Status" --text "Ready" --fill-color "#70AD47"
+excelcli drawing add-sparkline --session <id> --sheet "Dashboard" --source-range "B2:E2" --location-range "F2" --sparkline-type Line
 ```

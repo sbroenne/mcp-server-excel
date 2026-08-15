@@ -180,6 +180,32 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
+    public void IsExcelVisible_WhenApplicationVisibilityChanges_ReturnsLiveComState()
+    {
+        var testFile = CreateTestFile(nameof(IsExcelVisible_WhenApplicationVisibilityChanges_ReturnsLiveComState));
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(testFile, show: true);
+
+        Assert.True(manager.TryBeginOperation(sessionId, out var batch, out var errorMessage), errorMessage);
+        try
+        {
+            batch.Execute((ctx, ct) =>
+            {
+                ctx.App.Visible = false;
+                return true;
+            });
+        }
+        finally
+        {
+            manager.EndOperation(sessionId);
+        }
+
+        Assert.False(manager.IsExcelVisible(sessionId));
+
+        manager.CloseSession(sessionId);
+    }
+
+    [Fact]
     public void IsExcelVisible_NonExistentSession_ReturnsFalse()
     {
         using var manager = new SessionManager();
@@ -375,6 +401,5 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
     #endregion
 }
-
 
 

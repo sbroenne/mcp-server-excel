@@ -345,26 +345,13 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             if (hasFileOrValue)
                 sb.AppendLine("                {");
 
-            // FromString enum parameters are exposed as strings and require the same validation.
-            foreach (var p in method.Parameters.Where(p =>
-                         !p.IsFileOrValue &&
-                         (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) &&
-                         (StringHelper.IsStringType(p.TypeName) || (p.IsFromString && p.IsEnum))))
-            {
-                var paramName = p.IsFromString && p.IsEnum ? (p.ExposedName ?? p.Name) : p.Name;
-                sb.AppendLine($"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty({paramName}, \"{paramName}\", \"{method.ActionName}\");");
-            }
-
             // Resolve FileOrValue parameters (read file content if file path provided)
             foreach (var p in method.Parameters.Where(p => p.IsFileOrValue))
             {
                 sb.AppendLine($"                    var resolved{StringHelper.ToPascalCase(p.Name)} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue({p.Name}, {p.Name}{p.FileSuffix});");
-                // Validate required FileOrValue parameters AFTER resolution
-                if (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?")))
-                {
-                    sb.AppendLine($"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty(resolved{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\", \"{method.ActionName}\");");
-                }
             }
+
+            GenerateRequiredParameterValidation(sb, method, "                    ");
 
             var argsExpr = BuildCliArgsExpression(method);
             sb.AppendLine($"                    return (command, {argsExpr});");
@@ -613,16 +600,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static string Forward{method.MethodName}({string.Join(", ", methodParams)})");
         sb.AppendLine("        {");
 
-        // FromString enum parameters are exposed as strings and require the same validation.
-        foreach (var p in method.Parameters.Where(p =>
-                     !p.IsFileOrValue &&
-                     (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) &&
-                     (StringHelper.IsStringType(p.TypeName) || (p.IsFromString && p.IsEnum))))
-        {
-            var paramName = p.IsFromString && p.IsEnum ? (p.ExposedName ?? p.Name) : p.Name;
-            sb.AppendLine($"            Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty({paramName}, \"{paramName}\", \"{method.ActionName}\");");
-        }
-
         // Generate transforms (only for FileOrValue parameters)
         // Note: FromString enum parameters are passed as-is to the service (service does parsing)
         foreach (var p in method.Parameters)
@@ -630,14 +607,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             if (p.IsFileOrValue)
             {
                 sb.AppendLine($"            var resolved{StringHelper.ToPascalCase(p.Name)} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue({p.Name}, {p.Name}{p.FileSuffix});");
-                // Validate required FileOrValue parameters AFTER resolution
-                if (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?")))
-                {
-                    sb.AppendLine($"            Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty(resolved{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\", \"{method.ActionName}\");");
-                }
             }
             // FromString enum parameters: pass raw string to service (no pre-parsing)
         }
+
+        GenerateRequiredParameterValidation(sb, method, "            ");
 
         // Build the request object - always use method-specific command constant
         if (method.Parameters.Count == 0)
@@ -673,6 +647,34 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         sb.AppendLine("        }");
         sb.AppendLine();
+    }
+
+    private static void GenerateRequiredParameterValidation(StringBuilder sb, MethodInfo method, string indent)
+    {
+        var requiredParameters = method.Parameters
+            .Where(p =>
+                (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) &&
+                (p.IsFileOrValue || StringHelper.IsStringType(p.TypeName) || (p.IsFromString && p.IsEnum)))
+            .ToList();
+
+        if (requiredParameters.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine($"{indent}Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireAllNotEmpty(\"{method.ActionName}\",");
+        for (int i = 0; i < requiredParameters.Count; i++)
+        {
+            var parameter = requiredParameters[i];
+            var parameterName = parameter.IsFromString && parameter.IsEnum
+                ? parameter.ExposedName ?? parameter.Name
+                : parameter.Name;
+            var valueExpression = parameter.IsFileOrValue
+                ? $"resolved{StringHelper.ToPascalCase(parameter.Name)}"
+                : parameterName;
+            var comma = i < requiredParameters.Count - 1 ? "," : ");";
+            sb.AppendLine($"{indent}    ({valueExpression}, \"{parameterName}\"){comma}");
+        }
     }
 
     private static void GenerateArgsClass(StringBuilder sb, MethodInfo method)

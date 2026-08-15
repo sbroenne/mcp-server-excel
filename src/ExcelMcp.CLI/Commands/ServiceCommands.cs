@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -138,15 +140,28 @@ internal sealed class ServiceStopCommand : AsyncCommand
             return false;
         }
 
-        using var _ = trackedProcess;
+        using var daemonProcess = trackedProcess!;
+        var trackedExcelProcesses = DaemonProcessTracker.GetTrackedExcelProcesses(pipeName);
+        var excelProcessesStopped = true;
 
         try
         {
-            trackedProcess.Kill(entireProcessTree: true);
+            foreach (var excelProcess in trackedExcelProcesses)
+            {
+                using (excelProcess)
+                {
+                    excelProcessesStopped &= TryTerminateProcess(excelProcess, entireProcessTree: false);
+                }
+            }
+
+            if (!TryTerminateProcess(daemonProcess, entireProcessTree: true))
+            {
+                return false;
+            }
 
             using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             waitCts.CancelAfter(ShutdownWaitTimeout);
-            await trackedProcess.WaitForExitAsync(waitCts.Token);
+            await daemonProcess.WaitForExitAsync(waitCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -162,7 +177,45 @@ internal sealed class ServiceStopCommand : AsyncCommand
         }
 
         DaemonProcessTracker.Clear(pipeName);
-        return await WaitForDaemonExitAsync(pipeName, cancellationToken);
+        return excelProcessesStopped && await WaitForDaemonExitAsync(pipeName, cancellationToken);
+    }
+
+    private static bool TryTerminateProcess(Process process, bool entireProcessTree)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree);
+            }
+
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            // The process exited between the state check and termination request.
+            return true;
+        }
+        catch (Win32Exception)
+        {
+            try
+            {
+                process.Refresh();
+                return process.HasExited;
+            }
+            catch (InvalidOperationException)
+            {
+                return true;
+            }
+            catch (Win32Exception)
+            {
+                return false;
+            }
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
     }
 }
 

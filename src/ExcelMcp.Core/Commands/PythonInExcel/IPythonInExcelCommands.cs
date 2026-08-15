@@ -61,7 +61,7 @@ public interface IPythonInExcelCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name</param>
     /// <param name="rangeAddress">Cell address containing the PY() formula</param>
-    /// <param name="maxWaitSeconds">Maximum seconds to poll for the cloud result before giving up (default: 30). Returns as soon as the result is ready.</param>
+    /// <param name="maxWaitSeconds">Maximum seconds to poll for the cloud result before giving up (default: 30). Must be shorter than the session operation timeout. Returns as soon as the result is ready.</param>
     /// <exception cref="InvalidOperationException">If the range cannot be resolved</exception>
     [ServiceAction("get-result")]
     PythonInExcelResult GetResult(

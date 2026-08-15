@@ -100,6 +100,34 @@ public sealed class DiagCommandTests
         Assert.Equal("hello & goodbye <world>", json.RootElement.GetProperty("message").GetString());
     }
 
+    [Fact]
+    public async Task Echo_WithUnknownOption_ReturnsValidationError()
+    {
+        var (result, json) = await CliProcessHelper.RunJsonAsync(
+            "diag echo --message \"sentinel\" --totally-bogus-flag xyz");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("totally-bogus-flag", json.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task SlicerCreate_WithoutRequiredParameters_ReportsAllMissingParameters()
+    {
+        var (result, json) = await CliProcessHelper.RunJsonAsync(
+            "slicer create-slicer --session unused");
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+
+        var error = json.RootElement.GetProperty("error").GetString();
+        Assert.Contains("pivotTableName", error);
+        Assert.Contains("fieldName", error);
+        Assert.Contains("slicerName", error);
+        Assert.Contains("destinationSheet", error);
+        Assert.Contains("position", error);
+    }
+
     // ============================================
     // VALIDATE-PARAMS - Multiple parameter types
     // ============================================

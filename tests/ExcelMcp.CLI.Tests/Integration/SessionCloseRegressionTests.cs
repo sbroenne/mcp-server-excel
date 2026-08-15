@@ -183,6 +183,7 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         public bool HasTimedOutOperation => false;
         public int? ExcelProcessId => 1234;
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(5);
+        public bool IsExcelVisible => false;
         public bool BlockSaveUntilReleased { get; init; }
         public Exception? DisposeException { get; init; }
         public int SaveCalls { get; private set; }

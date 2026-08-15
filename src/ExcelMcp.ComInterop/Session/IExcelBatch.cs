@@ -151,6 +151,10 @@ public interface IExcelBatch : IDisposable
     /// </summary>
     TimeSpan OperationTimeout { get; }
 
-}
+    /// <summary>
+    /// Gets the last visibility state observed from the live Excel application on its STA thread.
+    /// </summary>
+    bool IsExcelVisible { get; }
 
+}
 

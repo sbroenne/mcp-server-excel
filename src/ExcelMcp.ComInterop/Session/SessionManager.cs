@@ -25,8 +25,13 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 public sealed class SessionManager : IDisposable
 {
-    private static readonly ConcurrentBag<int> _trackedExcelPids = new();
+    private static readonly ConcurrentDictionary<int, byte> _trackedExcelPids = new();
     private static int _processExitRegistered;
+
+    /// <summary>
+    /// Raised whenever the set of Excel processes owned by this process changes.
+    /// </summary>
+    public static event Action<IReadOnlyCollection<int>>? TrackedExcelProcessesChanged;
 
     /// <summary>
     /// Registers an Excel process ID for cleanup on unexpected process exit.
@@ -34,26 +39,30 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     public static void TrackExcelProcess(int processId)
     {
-        _trackedExcelPids.Add(processId);
+        _trackedExcelPids[processId] = 0;
 
         // Register handler exactly once (thread-safe)
         if (Interlocked.CompareExchange(ref _processExitRegistered, 1, 0) == 0)
         {
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         }
+
+        TrackedExcelProcessesChanged?.Invoke(GetTrackedExcelProcessIds());
     }
 
     /// <summary>
     /// Marks an Excel process as no longer needing cleanup.
-    /// ConcurrentBag doesn't support removal, but ProcessExit handler checks HasExited before killing.
     /// </summary>
-#pragma warning disable IDE0060 // Intentional: parameter documents API intent; ConcurrentBag lacks Remove
     public static void UntrackExcelProcess(int processId)
-#pragma warning restore IDE0060
     {
-        // ConcurrentBag doesn't support removal, but that's fine —
-        // ProcessExit handler checks HasExited before killing
+        _trackedExcelPids.TryRemove(processId, out _);
+        TrackedExcelProcessesChanged?.Invoke(GetTrackedExcelProcessIds());
     }
+
+    /// <summary>
+    /// Returns a snapshot of Excel process IDs currently owned by this process.
+    /// </summary>
+    public static IReadOnlyCollection<int> GetTrackedExcelProcessIds() => _trackedExcelPids.Keys.ToArray();
 
     private static void OnProcessExit(object? sender, EventArgs e)
     {
@@ -62,7 +71,7 @@ public sealed class SessionManager : IDisposable
         int alreadyExitedCount = 0;
         int failedCount = 0;
 
-        foreach (var pid in _trackedExcelPids)
+        foreach (var pid in _trackedExcelPids.Keys)
         {
             try
             {
@@ -529,7 +538,7 @@ public sealed class SessionManager : IDisposable
     public bool IsExcelVisible(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
-        return _showExcelFlags.TryGetValue(sessionId, out var visible) && visible;
+        return _activeSessions.TryGetValue(sessionId, out var batch) && batch.IsExcelVisible;
     }
 
     /// <summary>
