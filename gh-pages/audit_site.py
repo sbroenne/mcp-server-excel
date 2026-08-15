@@ -17,6 +17,7 @@ import gzip
 import json
 import re
 import sys
+import zlib
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -215,12 +216,23 @@ def audit_sitemap() -> None:
         # rewrites it separately after enriching sitemap.xml. Checking only that
         # it exists would let the two silently diverge - publishing a .gz still
         # carrying the lastmod values the plain file had dropped.
+        # gzip surfaces corruption three ways and only one of them is an OSError:
+        # BadGzipFile (wrong format / CRC failure) subclasses it, but EOFError
+        # (truncated write) and zlib.error (damaged deflate stream) inherit
+        # straight from Exception. Catching OSError alone would let the two most
+        # likely real-world cases escape as a traceback, burying every other
+        # finding this audit produced. The type name is included because
+        # "EOFError" says truncated write, where "BadGzipFile" says wrong format.
         try:
             with gzip.open(SITE_DIR / "sitemap.xml.gz", "rt", encoding="utf-8") as fh:
                 if fh.read() != xml:
                     fail("sitemap.xml.gz does not match sitemap.xml")
-        except OSError as exc:
-            fail(f"sitemap.xml.gz could not be read: {exc}")
+        except (OSError, EOFError, zlib.error) as exc:
+            kind = type(exc).__qualname__
+            if type(exc).__module__ != "builtins":
+                # zlib.error's bare name is just "error", which says nothing.
+                kind = f"{type(exc).__module__}.{kind}"
+            fail(f"sitemap.xml.gz could not be read: {kind}: {exc}")
 
 
 def audit_llms(html_files: list[Path]) -> None:
