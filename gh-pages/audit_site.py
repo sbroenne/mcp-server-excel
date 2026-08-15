@@ -118,7 +118,7 @@ def audit_html(path: Path) -> None:
         fail(f"{name}: no meta description")
     else:
         text = " ".join(description.group(1).split())
-        length = len(description.group(1).strip())
+        length = len(text)
         if not DESCRIPTION_MIN <= length <= DESCRIPTION_MAX:
             fail(
                 f"{name}: meta description is {length} chars "
