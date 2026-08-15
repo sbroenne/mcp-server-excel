@@ -11,6 +11,28 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [1.10.6] - 2026-08-15
+
+### Minor Changes
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Excel what-if analysis:** Added native Goal Seek, scenario lifecycle and summary reports, plus one- and two-variable data tables to both the MCP Server and CLI. Solver remains explicitly excluded because it requires user-enabled VBA add-in configuration.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Worksheet drawing objects and sparklines:** The MCP Server and CLI can now create, inspect, format, update, and delete images, AutoShapes, text boxes, connectors, safe Forms controls, and line/column/win-loss sparklines. ActiveX/OLE controls and macro assignment remain intentionally excluded.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Expanded worksheet and workbook automation:** Added worksheet protection, comments, images, shapes, page setup, workbook protection, and workbook view options to both the MCP Server and CLI.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Data Model connection metadata**: Add `datamodel read-connection` for embedded model connection details and enrich `read-table` with source connection and typed column data-type metadata. Calculated-column, refresh-timestamp, and live refresh-status COM limitations are now documented explicitly.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Workbook lifecycle automation:** Manage built-in and custom document properties, inspect workbook metadata, save or copy workbook formats, publish PDF/XPS files, and discover, update, or break external Excel links through both MCP and CLI.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **XML map automation:** Add XML map lifecycle, XPath range mapping, and safe in-memory XML import/export through both the MCP Server and CLI.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Expanded local import and collaboration automation:** manage text/CSV and legacy HTML QueryTables, inspect or cancel connection refreshes, and create, reply to, list, or delete threaded cell comments through both MCP and CLI.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Expanded PivotTable and chart automation:** configure PivotCaches, manually group items, drill into source rows, build combo charts, control plotting and embedded-chart behavior, and apply chart-area or series material formatting through both MCP and CLI.
+
+- [#768](https://github.com/sbroenne/mcp-server-excel/pull/768) [`8c34c73`](https://github.com/sbroenne/mcp-server-excel/commit/8c34c73d09b6ef0e2121e8ac64dcc8c4aaecba17) Thanks [@sbroenne](https://github.com/sbroenne)! - **Expanded worksheet navigation and organization:** control frozen or split panes, zoom, gridlines, headings, row/column outlines, and internal or updatable hyperlinks through both MCP and CLI.
+
 ## [1.10.5] - 2026-08-07
 
 ### Patch Changes
