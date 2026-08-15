@@ -64,6 +64,28 @@ updates:
         patterns:
           - "*"
 
+  # Documentation site (MkDocs) - check weekly
+  - package-ecosystem: "pip"
+    directory: "/gh-pages"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "documentation"
+      - "automated"
+    commit-message:
+      prefix: "chore(docs-deps)"
+    reviewers:
+      - "sbroenne"
+    groups:
+      docs-dependencies:
+        patterns:
+          - "*"
+
   # .NET SDK (via global.json if present)
   - package-ecosystem: "docker"
     directory: "/"

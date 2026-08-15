@@ -1,0 +1,114 @@
+name: Star History
+
+# Records the daily public star count and persists it to the star-history-data
+# branch.
+#
+# This is deliberately separate from "Deploy GitHub Pages". Persisting the
+# snapshot needs `contents: write`, while the Pages build installs third-party
+# Python packages from requirements.txt. Keeping them in one job meant the
+# dependency install ran with write access to the repository. The Pages build
+# now only *restores* the history (read-only) and renders the chart.
+#
+# Scheduled ahead of the Pages deploy (03:17 UTC) so the site picks up the
+# snapshot taken here on the same day.
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/Update-StarHistory.ps1'
+      - 'scripts/Restore-StarHistory.ps1'
+      - 'scripts/Persist-StarHistory.ps1'
+      - 'scripts/Test-StarHistory.ps1'
+      - '.github/workflows/star-history.yml'
+  pull_request:
+    paths:
+      - 'scripts/Update-StarHistory.ps1'
+      - 'scripts/Restore-StarHistory.ps1'
+      - 'scripts/Persist-StarHistory.ps1'
+      - 'scripts/Test-StarHistory.ps1'
+      - '.github/workflows/star-history.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: star-history
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs on pull requests too, so a change to the generator is validated before
+  # it reaches main rather than only afterwards on the Pages build.
+  test:
+    name: Test star history generator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Test star history generator
+        shell: pwsh
+        run: ./scripts/Test-StarHistory.ps1
+
+  snapshot:
+    name: Record and persist snapshot
+    needs: test
+    # Never persist from a pull request: forks cannot be trusted with write
+    # access, and a PR should not mutate the durable history.
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      STAR_HISTORY_BRANCH: star-history-data
+      STAR_HISTORY_PATH: .github/star-history.csv
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Restore persisted star history
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./scripts/Restore-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch $env:STAR_HISTORY_BRANCH `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -RemotePath $env:STAR_HISTORY_PATH
+
+      - name: Record current public star count
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Repository metadata remains public even though timestamped stargazers are restricted.
+          $countText = gh api "repos/${{ github.repository }}" --jq ".stargazers_count"
+          $count = 0
+
+          if ($LASTEXITCODE -ne 0 -or -not [int]::TryParse($countText, [ref]$count)) {
+            throw "GitHub did not return a valid public stargazers_count."
+          }
+
+          ./scripts/Update-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -CurrentCount $count `
+            -OutputPath $(Join-Path $env:RUNNER_TEMP 'star-history.svg')
+
+      - name: Persist daily aggregate snapshot
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./scripts/Persist-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch $env:STAR_HISTORY_BRANCH `
+            -HistoryPath $env:STAR_HISTORY_PATH `
+            -RemotePath $env:STAR_HISTORY_PATH `
+            -CommitSha '${{ github.sha }}' `
+            -TempPath $env:RUNNER_TEMP

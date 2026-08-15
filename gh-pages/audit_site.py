@@ -7,8 +7,9 @@ Run after ``mkdocs build`` from the ``gh-pages`` directory::
     python audit_site.py
 
 Exits non-zero and prints every failure if the built site regresses. This runs in
-the Pages deploy workflow rather than the pre-commit hook, so the docs-only
-pre-commit fast path stays fast.
+the ``Docs Site`` CI job on every pull request and in the Pages deploy workflow,
+rather than in the pre-commit hook, so the docs-only pre-commit fast path stays
+fast.
 """
 
 from __future__ import annotations
