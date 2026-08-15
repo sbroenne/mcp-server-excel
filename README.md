@@ -103,8 +103,6 @@ AI assistant or script
 
 [![GitHub stars over time for ExcelMcp](https://excelmcpserver.dev/assets/images/star-history.svg)](https://github.com/sbroenne/mcp-server-excel/stargazers)
 
-Updated daily from exact aggregate snapshots; no stargazer identities are stored.
-
 ## 📋 Additional Information
 
 [Documentation](https://excelmcpserver.dev/) ·
