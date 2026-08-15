@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.DataModel;
 
@@ -35,15 +36,5 @@ internal sealed class DataModelAdoDiagnostics
     /// Removes credentials from a connection string before it is included in error output.
     /// </summary>
     internal static string? SanitizeConnectionString(string? connectionString)
-    {
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            return connectionString;
-        }
-
-        return Regex.Replace(
-            connectionString,
-            @"(?i)\b(password|pwd|user\s+id|uid)\s*=\s*[^;]*",
-            "$1=(redacted)");
-    }
+        => ConnectionStringSanitizer.Sanitize(connectionString);
 }

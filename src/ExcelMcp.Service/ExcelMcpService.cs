@@ -757,18 +757,64 @@ public sealed class ExcelMcpService : IDisposable
 
         return await WithSessionAsync(request.SessionId, batch =>
         {
-            var result = WrapResult(
-                ServiceRegistry.Workbook.DispatchToCore(_workbookCommands, workbookAction, batch, request.Args));
-
-            if (result.Success &&
-                workbookAction == WorkbookAction.SaveAs &&
+            string? reservedPath = null;
+            var releaseReservation = true;
+            if (workbookAction == WorkbookAction.SaveAs &&
                 !string.IsNullOrWhiteSpace(request.SessionId))
             {
-                _sessionManager.UpdateSessionFilePath(request.SessionId, batch.WorkbookPath);
+                reservedPath = _sessionManager.ReserveSessionFilePath(
+                    request.SessionId,
+                    GetRequiredStringArgument(request.Args, "targetPath"));
             }
 
-            return result;
+            try
+            {
+                var result = WrapResult(
+                    ServiceRegistry.Workbook.DispatchToCore(_workbookCommands, workbookAction, batch, request.Args));
+
+                if (result.Success && reservedPath != null)
+                {
+                    _sessionManager.UpdateSessionFilePath(request.SessionId!, batch.WorkbookPath);
+                }
+
+                return result;
+            }
+            catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
+            {
+                // The COM call may still be mutating the target. WithSessionAsync force-closes
+                // the session, whose cleanup releases every path claim after Excel terminates.
+                releaseReservation = false;
+                throw;
+            }
+            finally
+            {
+                if (reservedPath != null && releaseReservation)
+                {
+                    _sessionManager.ReleaseSessionFilePathReservation(request.SessionId!, reservedPath);
+                }
+            }
         });
+    }
+
+    private static string GetRequiredStringArgument(string? args, string argumentName)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+        {
+            throw new ArgumentException($"{argumentName} is required.", argumentName);
+        }
+
+        using var document = JsonDocument.Parse(args);
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            if (string.Equals(property.Name, argumentName, StringComparison.OrdinalIgnoreCase) &&
+                property.Value.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(property.Value.GetString()))
+            {
+                return property.Value.GetString()!;
+            }
+        }
+
+        throw new ArgumentException($"{argumentName} is required.", argumentName);
     }
 
 

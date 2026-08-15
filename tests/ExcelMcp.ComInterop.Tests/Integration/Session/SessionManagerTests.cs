@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -235,6 +236,104 @@ public class SessionManagerTests : IDisposable
             return sheet.Cells[1, 1].Value2;
         });
         Assert.Null(value); // Cell should be empty
+    }
+
+    #endregion
+
+    #region Save As Path Reservation
+
+    [Fact]
+    public void ReserveSessionFilePath_ConcurrentSessions_AllowsOnlyOneOwner()
+    {
+        var firstFile = CreateTestFile(nameof(ReserveSessionFilePath_ConcurrentSessions_AllowsOnlyOneOwner) + "_First");
+        var secondFile = CreateTestFile(nameof(ReserveSessionFilePath_ConcurrentSessions_AllowsOnlyOneOwner) + "_Second");
+        var targetPath = Path.Combine(_tempDir, "SharedSaveAsTarget.xlsx");
+        using var manager = new SessionManager();
+        var firstSessionId = manager.CreateSession(firstFile);
+        var secondSessionId = manager.CreateSession(secondFile);
+        var reservations = new ConcurrentBag<(string SessionId, string Path)>();
+        var failures = new ConcurrentBag<Exception>();
+        using var start = new Barrier(2);
+
+        void Reserve(string sessionId, string path)
+        {
+            start.SignalAndWait();
+            try
+            {
+                reservations.Add((sessionId, manager.ReserveSessionFilePath(sessionId, path)));
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        Parallel.Invoke(
+            () => Reserve(firstSessionId, targetPath),
+            () => Reserve(secondSessionId, targetPath.ToUpperInvariant()));
+
+        var reservation = Assert.Single(reservations);
+        Assert.IsType<InvalidOperationException>(Assert.Single(failures));
+        manager.ReleaseSessionFilePathReservation(reservation.SessionId, reservation.Path);
+        manager.CloseSession(firstSessionId);
+        manager.CloseSession(secondSessionId);
+    }
+
+    [Fact]
+    public void CloseSession_ReleasesOutstandingPathReservation()
+    {
+        var firstFile = CreateTestFile(nameof(CloseSession_ReleasesOutstandingPathReservation) + "_First");
+        var secondFile = CreateTestFile(nameof(CloseSession_ReleasesOutstandingPathReservation) + "_Second");
+        var targetPath = Path.Combine(_tempDir, "ReleasedSaveAsTarget.xlsx");
+        using var manager = new SessionManager();
+        var firstSessionId = manager.CreateSession(firstFile);
+        var secondSessionId = manager.CreateSession(secondFile);
+
+        manager.ReserveSessionFilePath(firstSessionId, targetPath);
+        manager.CloseSession(firstSessionId);
+
+        var reservation = manager.ReserveSessionFilePath(secondSessionId, targetPath);
+        Assert.Equal(Path.GetFullPath(targetPath), reservation, ignoreCase: true);
+        manager.ReleaseSessionFilePathReservation(secondSessionId, reservation);
+        manager.CloseSession(secondSessionId);
+    }
+
+    [Fact]
+    public void ReserveSessionFilePath_SameSessionRejectsConcurrentTarget()
+    {
+        var sourceFile = CreateTestFile(nameof(ReserveSessionFilePath_SameSessionRejectsConcurrentTarget));
+        var firstTargetPath = Path.Combine(_tempDir, "FirstSaveAsTarget.xlsx");
+        var secondTargetPath = Path.Combine(_tempDir, "SecondSaveAsTarget.xlsx");
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(sourceFile);
+
+        var firstReservation = manager.ReserveSessionFilePath(sessionId, firstTargetPath);
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => manager.ReserveSessionFilePath(sessionId, secondTargetPath));
+        Assert.Contains("already has a Save As operation in progress", exception.Message, StringComparison.Ordinal);
+
+        manager.ReleaseSessionFilePathReservation(sessionId, firstReservation);
+        var secondReservation = manager.ReserveSessionFilePath(sessionId, secondTargetPath);
+        Assert.Equal(Path.GetFullPath(secondTargetPath), secondReservation, ignoreCase: true);
+        manager.ReleaseSessionFilePathReservation(sessionId, secondReservation);
+        manager.CloseSession(sessionId);
+    }
+
+    [Fact]
+    public void CreateSessionForNewFile_ReservedPath_RejectsBeforeStartingExcel()
+    {
+        var sourceFile = CreateTestFile(nameof(CreateSessionForNewFile_ReservedPath_RejectsBeforeStartingExcel));
+        var targetPath = Path.Combine(_tempDir, "ReservedNewWorkbook.xlsx");
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(sourceFile);
+        manager.ReserveSessionFilePath(sessionId, targetPath);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => manager.CreateSessionForNewFile(targetPath));
+
+        Assert.Contains("already open or reserved", exception.Message, StringComparison.Ordinal);
+        manager.ReleaseSessionFilePathReservation(sessionId, targetPath);
+        manager.CloseSession(sessionId);
     }
 
     #endregion
@@ -605,9 +704,6 @@ public class SessionManagerTests : IDisposable
 
     #endregion
 }
-
-
-
 
 
 

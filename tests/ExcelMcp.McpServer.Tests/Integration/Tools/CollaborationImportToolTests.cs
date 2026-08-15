@@ -101,7 +101,9 @@ public sealed class CollaborationImportToolTests(ITestOutputHelper output)
     {
         var tempDirectory = CreateTempDirectory("McpQueryTable");
         var workbookPath = Path.Join(tempDirectory, "QueryTables.xlsx");
-        var csvPath = Path.Join(tempDirectory, "orders.csv");
+        var csvPath = Path.Join(
+            tempDirectory,
+            "orders;User ID=review-user-id;Password={review-secret;credential-tail};UID=review-uid;PWD=review-pwd.csv");
         var htmlPath = Path.Join(tempDirectory, "rates.html");
         await File.WriteAllTextAsync(csvPath, "Name,Value\nCafé,10\nBeta,20\n");
         await File.WriteAllTextAsync(
@@ -167,6 +169,13 @@ public sealed class CollaborationImportToolTests(ITestOutputHelper output)
             Assert.Equal(",", root.GetProperty("delimiter").GetString());
             Assert.True(root.GetProperty("encoding").GetInt32() > 0);
             Assert.Equal("text", root.GetProperty("sourceType").GetString());
+            var connection = root.GetProperty("connection").GetString();
+            Assert.DoesNotContain("review-user-id", connection, StringComparison.Ordinal);
+            Assert.DoesNotContain("review-secret", connection, StringComparison.Ordinal);
+            Assert.DoesNotContain("credential-tail", connection, StringComparison.Ordinal);
+            Assert.DoesNotContain("review-uid", connection, StringComparison.Ordinal);
+            Assert.DoesNotContain("review-pwd", connection, StringComparison.Ordinal);
+            Assert.Contains("(redacted)", connection, StringComparison.Ordinal);
         }
 
         var importedValuesJson = await CallToolAsync("range", new Dictionary<string, object?>
