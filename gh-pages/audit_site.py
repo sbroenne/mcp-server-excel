@@ -219,40 +219,51 @@ def audit_accessibility(html_files: list[Path]) -> None:
     attribute). All three are invisible in normal use and none of them failed
     the build if they stopped applying - so a Material upgrade that renamed a
     class or reordered an attribute would have silently regressed the site.
+
+    Each element is matched by the specific Material class we patch rather than
+    by its ARIA role, for two reasons. Matching ``role=dialog`` generally would
+    fail the build for any *other* dialog Material grows that we never patched,
+    and - worse - it would go quiet exactly when it matters: if an upgrade
+    restructured the search markup out from under the patch, a role-based search
+    would simply find nothing and pass. Hence the explicit "not found" failure
+    below; an element that vanished is a regression, not a clean run.
     """
-    # Attribute quotes are optional: the minify plugin strips them.
+    # Attribute quotes are optional: the minify plugin strips them. The trailing
+    # character class stops `md-search` also matching `md-search__inner`.
     q = r'["\']?'
     checks = (
         (
-            re.compile(rf"<div[^>]*\brole={q}dialog\b[^>]*>"),
             "search dialog",
+            re.compile(rf"<div[^>]*\bclass={q}md-search[\"'\s>][^>]*>"),
             "hooks.py on_post_page no longer matches Material's search partial",
         ),
         (
-            re.compile(rf"<div[^>]*\brole={q}progressbar\b[^>]*>"),
             "progress bar",
+            re.compile(rf"<div[^>]*\bclass={q}md-progress[\"'\s>][^>]*>"),
             "overrides/partials/progress.html is missing or out of date",
         ),
     )
+    logo_hint = "overrides/partials/logo.html is missing or out of date"
     logo = re.compile(rf"<img[^>]*\bsrc={q}[^\"'\s>]*assets/images/logo\.png[^>]*>")
     for path in html_files:
         html = path.read_text(encoding="utf-8", errors="replace")
         name = page_name(path)
-        for pattern, what, hint in checks:
-            for tag in pattern.findall(html):
+        for what, pattern, hint in checks:
+            tags = pattern.findall(html)
+            if not tags:
+                fail(f"{name}: no {what} found - {hint}")
+                continue
+            for tag in tags:
                 if "aria-label" not in tag and "aria-labelledby" not in tag:
                     fail(f"{name}: {what} has no accessible name - {hint}")
-        for tag in logo.findall(html):
+        logos = logo.findall(html)
+        if not logos:
+            fail(f"{name}: no logo image found - {logo_hint}")
+        for tag in logos:
             if re.search(rf"\balt={q}logo\b", tag) or "alt=" not in tag:
-                fail(
-                    f"{name}: logo image has no meaningful alt text - "
-                    "overrides/partials/logo.html is missing or out of date"
-                )
+                fail(f"{name}: logo image has no meaningful alt text - {logo_hint}")
             elif "width=" not in tag or "height=" not in tag:
-                fail(
-                    f"{name}: logo image is unsized - "
-                    "overrides/partials/logo.html is missing or out of date"
-                )
+                fail(f"{name}: logo image is unsized - {logo_hint}")
 
 
 def audit_internal_links(html_files: list[Path]) -> None:
