@@ -131,7 +131,8 @@ nav:
   - Resources:
     - Examples & use cases: use-cases.md
     - Agent Skills: skills.md
-    - Troubleshooting & FAQ: troubleshooting.md
+    - FAQ: faq.md
+    - Troubleshooting: troubleshooting.md
     - Architecture: architecture.md
     - Changelog: changelog.md
     - Contributing: contributing.md

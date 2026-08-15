@@ -4,6 +4,9 @@ _site/
 # Generated documentation pages (produced by hooks.py from canonical repo docs)
 docs/_generated/
 
+# Star-history chart: produced by the deploy workflow before mkdocs runs, never committed
+docs/assets/images/star-history.svg
+
 # Python
 __pycache__/
 .venv/
