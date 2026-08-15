@@ -8,6 +8,8 @@ on:
       - 'gh-pages/**'
       - 'FEATURES.md'
       - 'docs/features/**'
+      - 'docs/guides/**'
+      - 'skills/shared/**'
       - 'CHANGELOG.md'
       - 'PRIVACY.md'
       - 'docs/INSTALLATION.md'
@@ -109,6 +111,10 @@ jobs:
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
+
+      - name: Audit built site
+        working-directory: gh-pages
+        run: python audit_site.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

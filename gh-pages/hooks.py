@@ -15,6 +15,7 @@ into the thin wrapper pages under ``docs/`` via the ``pymdownx.snippets``
 from __future__ import annotations
 
 import gzip
+import json
 import logging
 import posixpath
 import re
@@ -71,6 +72,12 @@ SITE_PAGE_MAP = {
     "docs/INSTALLATION-CLI.md": "/installation-cli/",
     "docs/ARCHITECTURE.md": "/architecture/",
     "docs/USE-CASES.md": "/use-cases/",
+    "docs/guides/README.md": "/guides/",
+    "docs/guides/REFRESH-POWER-QUERY.md": "/guides/refresh-power-query/",
+    "docs/guides/AUTOMATE-PIVOTTABLES.md": "/guides/automate-pivottables/",
+    "docs/guides/RUN-VBA-MACROS.md": "/guides/run-vba-macros/",
+    "docs/guides/QUERY-DATA-MODEL-WITH-DAX.md": "/guides/query-data-model-with-dax/",
+    "docs/guides/EXCEL-COM-VS-FILE-PARSERS.md": "/guides/excel-automation-vs-file-parsers/",
     "docs/CONTRIBUTING.md": "/contributing/",
     "SECURITY.md": "/security/",
     "PRIVACY.md": "/privacy/",
@@ -81,12 +88,72 @@ SITE_PAGE_MAP = {
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 
+SITE_URL = "https://excelmcpserver.dev/"
+
+# Raw Markdown of every built page, captured in on_page_markdown with --8<--
+# includes resolved, and emitted in on_post_build as /llms-full.txt plus one
+# Markdown mirror per page. Keyed by the page's site path.
+_PAGE_MARKDOWN: dict[str, dict[str, str]] = {}
+
+_SNIPPET = re.compile(r'^[ \t]*(?:-{2,}8<-{2,})[ \t]+"([^"]+)"[ \t]*$', re.MULTILINE)
+_FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
+
 FEATURE_SOURCES = {
     "features-data.md": "docs/features/DATA-ANALYTICS.md",
     "features-workbooks.md": "docs/features/CELLS-WORKBOOKS.md",
     "features-visualization.md": "docs/features/CHARTS-VISUALS.md",
     "features-automation.md": "docs/features/AUTOMATION-ADVANCED.md",
 }
+
+# Canonical task guides -> intent-focused website pages. Same contract as the
+# feature references: the wrapper owns presentation and SEO metadata only.
+GUIDE_SOURCES = {
+    "guides-index.md": "docs/guides/README.md",
+    "guides-refresh-power-query.md": "docs/guides/REFRESH-POWER-QUERY.md",
+    "guides-automate-pivottables.md": "docs/guides/AUTOMATE-PIVOTTABLES.md",
+    "guides-run-vba-macros.md": "docs/guides/RUN-VBA-MACROS.md",
+    "guides-query-data-model-with-dax.md": "docs/guides/QUERY-DATA-MODEL-WITH-DAX.md",
+    "guides-excel-com-vs-file-parsers.md": "docs/guides/EXCEL-COM-VS-FILE-PARSERS.md",
+}
+
+
+# skills/shared/*.md: the expert reference corpus shipped inside the skill
+# packages and MCP prompts. Published verbatim so the site and the agent
+# guidance can never disagree. Value = (output name, page title).
+SKILL_SOURCES = {
+    "workflows.md": ("skills-workflows.md", "Key Constraints & Sequencing"),
+    "behavioral-rules.md": ("skills-behavioral-rules.md", "Behavioral Rules"),
+    "anti-patterns.md": ("skills-anti-patterns.md", "Anti-Patterns to Avoid"),
+    "gotchas.md": ("skills-gotchas.md", "Gotchas & Known Limits"),
+    "excel_agent_mode.md": ("skills-agent-mode.md", "Agent Mode in Excel"),
+    "workbook.md": ("skills-workbook.md", "Workbook Lifecycle"),
+    "worksheet.md": ("skills-worksheet.md", "Worksheet Operations"),
+    "range.md": ("skills-range.md", "Ranges, Number Formats & Formatting"),
+    "table.md": ("skills-table.md", "Excel Tables"),
+    "powerquery.md": ("skills-powerquery.md", "Power Query"),
+    "m-code-syntax.md": ("skills-m-code-syntax.md", "M Code Syntax"),
+    "datamodel.md": ("skills-datamodel.md", "Data Model & DAX"),
+    "dmv-reference.md": ("skills-dmv-reference.md", "DMV Query Reference"),
+    "pivottable.md": ("skills-pivottable.md", "PivotTables"),
+    "querytable.md": ("skills-querytable.md", "QueryTables"),
+    "analysis.md": ("skills-analysis.md", "What-If Analysis"),
+    "chart.md": ("skills-chart.md", "Charts"),
+    "conditionalformat.md": ("skills-conditionalformat.md", "Conditional Formatting"),
+    "slicer.md": ("skills-slicer.md", "Slicers"),
+    "drawing.md": ("skills-drawing.md", "Drawing Objects"),
+    "screenshot.md": ("skills-screenshot.md", "Screenshots & Visual Verification"),
+    "dashboard.md": ("skills-dashboard.md", "Dashboards & Reports"),
+    "window.md": ("skills-window.md", "Window Management"),
+    "xmlmap.md": ("skills-xmlmap.md", "XML Maps"),
+}
+
+_SKILL_SLUGS = {
+    name: output.removeprefix("skills-").removesuffix(".md")
+    for name, (output, _title) in SKILL_SOURCES.items()
+}
+SITE_PAGE_MAP.update(
+    {f"skills/shared/{name}": f"/reference/{slug}/" for name, slug in _SKILL_SLUGS.items()}
+)
 
 
 def _rewrite_links(text: str, source_rel: str) -> str:
@@ -202,6 +269,218 @@ def _write(name: str, source_rel: str, content: str) -> None:
     log.info("generated _generated/%s", name)
 
 
+DOCS_DIR = Path(__file__).resolve().parent / "docs"
+
+
+def _resolve_snippets(text: str, depth: int = 0) -> str:
+    """Expand ``--8<-- "path"`` includes.
+
+    ``on_page_markdown`` fires before the snippets extension runs, so the raw
+    Markdown still contains include directives. Resolving them here is what makes
+    the Markdown mirrors and ``llms-full.txt`` complete rather than a list of
+    stub pages.
+    """
+    if depth > 5:
+        return text
+
+    def repl(match: re.Match) -> str:
+        target = DOCS_DIR / match.group(1)
+        if not target.is_file():
+            log.warning("snippet not found while building llms output: %s", target)
+            return ""
+        return _resolve_snippets(target.read_text(encoding="utf-8"), depth + 1)
+
+    return _SNIPPET.sub(repl, text)
+
+
+def _page_url(page) -> str:
+    return SITE_URL + page.url
+
+
+# The resolved Navigation object, captured in on_nav. config["nav"] holds the raw
+# YAML nav, which has no page objects to correlate with captured Markdown.
+_NAV: list = []
+
+
+def on_nav(nav, config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    _NAV.clear()
+    _NAV.extend(nav.items)
+    return nav
+
+
+def on_page_markdown(markdown, page, config, **kwargs):  # noqa: D401 - MkDocs hook
+    """Capture each page's full Markdown for the LLM-facing outputs."""
+    body = _resolve_snippets(_FRONTMATTER.sub("", markdown)).strip()
+    _PAGE_MARKDOWN[page.file.src_uri] = {
+        "title": page.title or page.file.src_uri,
+        "url": _page_url(page),
+        "description": (page.meta or {}).get("description", "").strip(),
+        "markdown": body,
+        "dest": page.file.dest_uri,
+    }
+
+    faq = _faq_jsonld(body)
+    if faq:
+        page.meta["faq_jsonld"] = faq
+    return markdown
+
+
+_FAQ_QUESTION = re.compile(r'^\?{3}\+?\s+question\s+"([^"]+)"\s*$')
+
+
+def _faq_jsonld(markdown: str) -> str:
+    """Build FAQPage JSON-LD from ``??? question "..."`` admonitions.
+
+    Derived from the page body rather than maintained separately, so the
+    structured data and the visible FAQ cannot diverge.
+    """
+    items: list[tuple[str, list[str]]] = []
+    current: list[str] | None = None
+
+    for line in markdown.splitlines():
+        match = _FAQ_QUESTION.match(line)
+        if match:
+            current = []
+            items.append((match.group(1), current))
+            continue
+        if current is None:
+            continue
+        if not line.strip():
+            current.append("")
+        elif line.startswith((" ", "\t")):
+            current.append(line.strip())
+        else:
+            current = None
+
+    entities = []
+    for question, answer_lines in items:
+        answer = " ".join(x for x in answer_lines if x).strip()
+        if not answer:
+            continue
+        # Strip inline Markdown so the structured answer is plain prose.
+        answer = _MD_LINK.sub(r"\1", answer)
+        answer = re.sub(r"[*_`]+", "", answer)
+        entities.append(
+            {
+                "@type": "Question",
+                "name": question,
+                "acceptedAnswer": {"@type": "Answer", "text": answer},
+            }
+        )
+
+    if not entities:
+        return ""
+
+    return json.dumps(
+        {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": entities},
+        ensure_ascii=False,
+    )
+
+
+def _nav_entries(items, out: list) -> None:
+    for item in items:
+        if getattr(item, "children", None):
+            _nav_entries(item.children, out)
+        elif getattr(item, "file", None) is not None:
+            out.append(item)
+
+
+def _write_llm_outputs(config) -> None:
+    """Emit /llms.txt, /llms-full.txt and one Markdown mirror per page.
+
+    ``llms.txt`` follows the llmstxt.org convention: an H1, a blockquote summary,
+    then link sections. Both files and the mirrors are derived from the same
+    captured Markdown, so they cannot drift from the site.
+    """
+    site_dir = Path(config["site_dir"])
+
+    # Markdown mirrors: /guides/refresh-power-query/index.md next to index.html.
+    mirrored = 0
+    for entry in _PAGE_MARKDOWN.values():
+        dest = site_dir / entry["dest"]
+        if dest.suffix != ".html":
+            continue
+        md_path = dest.with_suffix(".md")
+        md_path.parent.mkdir(parents=True, exist_ok=True)
+        md_path.write_text(
+            entry["markdown"] + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        mirrored += 1
+
+    # Section-aware index, ordered exactly like the site navigation.
+    lines = [
+        "# Excel MCP Server",
+        "",
+        "> Excel MCP Server (ExcelMcp) automates the real Microsoft Excel "
+        "application through its COM API, exposing 31 tools and 326 operations "
+        "to AI assistants over the Model Context Protocol and to scripts through "
+        "the `excelcli` command line. Unlike file-parser libraries it can refresh "
+        "Power Query, evaluate DAX against the Data Model, refresh PivotTables, "
+        "and run VBA, because Excel itself does the work. Windows-only; requires "
+        "Microsoft Excel 2016 or later.",
+        "",
+        "Every page below is also available as Markdown by appending `index.md` "
+        "to its URL. The complete corpus is at "
+        f"{SITE_URL}llms-full.txt.",
+        "",
+    ]
+
+    def link_line(entry: dict) -> str:
+        url = entry["url"].rstrip("/")
+        url = f"{url}/index.md" if entry["dest"].endswith("index.html") else url
+        desc = f": {entry['description']}" if entry["description"] else ""
+        return f"- [{entry['title']}]({url}){desc}"
+
+    seen: set[str] = set()
+    for section in _NAV:
+        pages: list = []
+        _nav_entries([section], pages)
+        title = section.title if getattr(section, "title", None) else "Documentation"
+        rendered = []
+        for item in pages:
+            entry = _PAGE_MARKDOWN.get(item.file.src_uri)
+            if entry is None or item.file.src_uri in seen:
+                continue
+            seen.add(item.file.src_uri)
+            rendered.append(link_line(entry))
+        if rendered:
+            lines.append(f"## {title}")
+            lines.append("")
+            lines.extend(rendered)
+            lines.append("")
+
+    (site_dir / "llms.txt").write_text("\n".join(lines), encoding="utf-8", newline="\n")
+
+    # Full corpus, same order as llms.txt.
+    full = ["# Excel MCP Server - complete documentation", ""]
+    ordered: list = []
+    _nav_entries(_NAV, ordered)
+    emitted: set[str] = set()
+    for item in ordered:
+        entry = _PAGE_MARKDOWN.get(item.file.src_uri)
+        if entry is None or item.file.src_uri in emitted:
+            continue
+        emitted.add(item.file.src_uri)
+        full.append(f"# {entry['title']}")
+        full.append("")
+        full.append(f"Source: {entry['url']}")
+        full.append("")
+        full.append(entry["markdown"])
+        full.append("")
+        full.append("---")
+        full.append("")
+    (site_dir / "llms-full.txt").write_text(
+        "\n".join(full), encoding="utf-8", newline="\n"
+    )
+
+    log.info(
+        "wrote llms.txt, llms-full.txt and %d Markdown mirrors", mirrored
+    )
+
+
+
 def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
     # Canonical feature references -> focused website pages. The wrappers add
     # presentation and SEO metadata but never duplicate operation details.
@@ -212,6 +491,15 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
             _add_stable_feature_anchors(
                 _strip_header(_read(source_rel), end_on_hr=True)
             ),
+        )
+
+    # Canonical task guides -> intent-focused website pages. The H1 lives in the
+    # wrapper, so drop it here and demote any remaining H1 to H2.
+    for output_name, source_rel in GUIDE_SOURCES.items():
+        _write(
+            output_name,
+            source_rel,
+            _strip_header(_read(source_rel), end_on_blank=True, demote_h1=True),
         )
 
     # CHANGELOG.md -> changelog (drop title + description line, demote H1)
@@ -307,10 +595,125 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         ),
     )
 
+    # skills/shared/*.md -> reference pages (drop the H1, wrapper owns the title)
+    for name, (output_name, _title) in SKILL_SOURCES.items():
+        _write(
+            output_name,
+            f"skills/shared/{name}",
+            _strip_header(
+                _read(f"skills/shared/{name}"), end_on_blank=True, demote_h1=True
+            ),
+        )
+
     # Verbatim copies (these keep their own H1 as the page title).
     _write("contributing.md", "docs/CONTRIBUTING.md", _read("docs/CONTRIBUTING.md").strip() + "\n")
     _write("security.md", "SECURITY.md", _read("SECURITY.md").strip() + "\n")
     _write("privacy.md", "PRIVACY.md", _read("PRIVACY.md").strip() + "\n")
+
+
+def _write_tools_json(config) -> None:
+    """Emit /tools.json: every tool and operation as structured JSON.
+
+    Derived from the canonical ``docs/features/*.md`` references, so the machine
+    -readable catalogue is generated from the same source as the human pages and
+    cannot drift. Totals are asserted against the documented headline counts.
+    """
+    category_titles = {
+        "docs/features/DATA-ANALYTICS.md": "Data & Analytics",
+        "docs/features/CELLS-WORKBOOKS.md": "Cells & Workbooks",
+        "docs/features/CHARTS-VISUALS.md": "Charts & Visualization",
+        "docs/features/AUTOMATION-ADVANCED.md": "Automation & Advanced",
+    }
+    site_page = {
+        "docs/features/DATA-ANALYTICS.md": "/features/data-analytics/",
+        "docs/features/CELLS-WORKBOOKS.md": "/features/cells-workbooks/",
+        "docs/features/CHARTS-VISUALS.md": "/features/charts-visuals/",
+        "docs/features/AUTOMATION-ADVANCED.md": "/features/automation-advanced/",
+    }
+
+    heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
+    operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
+
+    # Headline counts live in FEATURES.md and are enforced against code by
+    # scripts/check-doc-counts.ps1, so read them rather than restating them.
+    headline = re.search(
+        r"\*\*(?P<tools>\d+) specialized tools with (?P<ops>\d+) operations",
+        _read("FEATURES.md"),
+    )
+    if headline is None:
+        raise RuntimeError("could not read the headline tool/operation counts from FEATURES.md")
+    headline_tools = int(headline.group("tools"))
+    headline_ops = int(headline.group("ops"))
+
+    categories = []
+    total_ops = 0
+
+    for source_rel, title in category_titles.items():
+        groups: list[dict] = []
+        current: dict | None = None
+        for line in _read(source_rel).splitlines():
+            match = heading.match(line)
+            if match:
+                current = {
+                    "name": match.group("name").strip(),
+                    "operationCount": int(match.group("count")),
+                    "operations": [],
+                }
+                groups.append(current)
+                continue
+            if current is None:
+                continue
+            op = operation.match(line)
+            if op:
+                current["operations"].append(
+                    {
+                        "name": op.group("name").strip(),
+                        "description": op.group("desc").strip(),
+                    }
+                )
+
+        total_ops += sum(g["operationCount"] for g in groups)
+        categories.append(
+            {
+                "name": title,
+                "url": SITE_URL.rstrip("/") + site_page[source_rel],
+                "operationCount": sum(g["operationCount"] for g in groups),
+                "featureGroups": groups,
+            }
+        )
+
+    if total_ops != headline_ops:
+        raise RuntimeError(
+            "tools.json operation total does not match the FEATURES.md headline: "
+            f"parsed {total_ops}, expected {headline_ops}. "
+            "Fix the feature reference headings or the headline."
+        )
+
+    payload = {
+        "name": "Excel MCP Server",
+        "url": SITE_URL,
+        "repository": "https://github.com/sbroenne/mcp-server-excel",
+        "description": (
+            "Automates the real Microsoft Excel application through its COM API, "
+            "exposing Excel to AI assistants over the Model Context Protocol and "
+            "to scripts through the excelcli command line."
+        ),
+        "requirements": {
+            "operatingSystem": "Windows",
+            "application": "Microsoft Excel desktop 2016 or later",
+        },
+        "entryPoints": ["mcp-server", "cli"],
+        "toolCount": headline_tools,
+        "operationCount": total_ops,
+        "categories": categories,
+    }
+
+    (Path(config["site_dir"]) / "tools.json").write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    log.info("wrote tools.json (%d tools, %d operations)", headline_tools, total_ops)
 
 
 def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
@@ -325,6 +728,9 @@ def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
     sending search engines a false freshness signal.
     """
     site_dir = Path(config["site_dir"])
+    _write_llm_outputs(config)
+    _write_tools_json(config)
+
     sitemap = site_dir / "sitemap.xml"
     if not sitemap.is_file():
         log.warning("sitemap.xml not found; skipping video-sitemap enrichment")

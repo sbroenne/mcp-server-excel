@@ -228,3 +228,9 @@ Manage local worksheet QueryTables through the typed Excel PIA.
 - [Automation & advanced](AUTOMATION-ADVANCED.md) — extend workflows with VBA, Python, and What-If Analysis
 - [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
 - [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
+
+## Task guides
+
+- [Refresh Power Query from an AI assistant](../guides/REFRESH-POWER-QUERY.md)
+- [Query the Excel Data Model with DAX](../guides/QUERY-DATA-MODEL-WITH-DAX.md)
+- [Build and update PivotTables with an AI assistant](../guides/AUTOMATE-PIVOTTABLES.md)

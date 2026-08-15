@@ -113,3 +113,8 @@ DTDs, external XSD dependencies, and XSI schema-location attributes are rejected
 - [Charts & visualization](CHARTS-VISUALS.md) — create polished visual output from automated workflows
 - [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
 - [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
+
+## Task guides
+
+- [Run VBA macros from an AI agent](../guides/RUN-VBA-MACROS.md)
+- [Real Excel automation vs. file-parser libraries](../guides/EXCEL-COM-VS-FILE-PARSERS.md)

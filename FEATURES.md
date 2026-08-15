@@ -15,6 +15,17 @@ Excel MCP Server automates the real Microsoft Excel application through four foc
 
 > **New to Excel MCP Server?** You do not need to memorize operation names. Describe the result you want in plain language and your AI assistant selects the appropriate tool.
 
+## Task guides
+
+Prefer a walkthrough to a reference table? The [task guides](docs/guides/README.md)
+cover the most common jobs end to end:
+
+- [Refresh Power Query from an AI assistant](docs/guides/REFRESH-POWER-QUERY.md)
+- [Build and update PivotTables with an AI assistant](docs/guides/AUTOMATE-PIVOTTABLES.md)
+- [Query the Excel Data Model with DAX](docs/guides/QUERY-DATA-MODEL-WITH-DAX.md)
+- [Run VBA macros from an AI agent](docs/guides/RUN-VBA-MACROS.md)
+- [Real Excel automation vs. file-parser libraries](docs/guides/EXCEL-COM-VS-FILE-PARSERS.md)
+
 ---
 
 ## 🔧 Tool Selection Quick Reference

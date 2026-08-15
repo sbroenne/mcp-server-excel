@@ -164,6 +164,8 @@ $checks = @(
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = '\*\*(?<o>\d+) operations\*\* across' }
     @{ File = "vscode-extension\README.md";             Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "mcpb\README.md";                         Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
+    @{ File = "mcpb\manifest.json";                     Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
+    @{ File = "src\ExcelMcp.CLI\ExcelMcp.CLI.csproj";   Pattern = '(?<o>\d+) operations across' }
     @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
     @{ File = "gh-pages\docs\features.md";              Pattern = '(?<t>\d+) specialized tools and (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
@@ -194,7 +196,31 @@ foreach ($check in $checks) {
 }
 
 # ---------------------------------------------------------------------------
-# 6. Canonical feature docs: per-section "(N operations)" headers must sum to canonical
+# 6. Distribution metadata must link to the documentation site
+# ---------------------------------------------------------------------------
+# Package/registry listing pages are the highest-authority inbound links we control.
+# They must point at the canonical docs site, not straight at the GitHub repo.
+$siteUrl = 'https://excelmcpserver.dev/'
+$siteLinkChecks = @(
+    @{ File = "Directory.Build.props";                  Pattern = '<PackageProjectUrl>https://excelmcpserver\.dev/</PackageProjectUrl>';  What = "PackageProjectUrl (NuGet package pages)" }
+    @{ File = "src\ExcelMcp.McpServer\.mcp\server.json"; Pattern = '"websiteUrl"\s*:\s*"https://excelmcpserver\.dev/"';                    What = "websiteUrl (MCP registry listing)" }
+    @{ File = "mcpb\manifest.json";                     Pattern = '"homepage"\s*:\s*"https://excelmcpserver\.dev/"';                      What = "homepage (Claude Desktop bundle)" }
+    @{ File = "vscode-extension\package.json";          Pattern = '"homepage"\s*:\s*"https://excelmcpserver\.dev/"';                      What = "homepage (VS Code Marketplace)" }
+)
+
+foreach ($check in $siteLinkChecks) {
+    $path = Join-Path $rootDir $check.File
+    if (-not (Test-Path $path)) {
+        Add-Failure "Expected metadata file not found: $($check.File)"
+        continue
+    }
+    if ((Get-Content $path -Raw) -notmatch $check.Pattern) {
+        Add-Failure "$($check.File): $($check.What) must point at $siteUrl - this is a primary inbound link and must not regress to the GitHub URL."
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 7. Canonical feature docs: per-section "(N operations)" headers must sum to canonical
 # ---------------------------------------------------------------------------
 $featureFiles = Get-ChildItem (Join-Path $rootDir "docs\features") -Filter "*.md"
 $sectionSum = 0

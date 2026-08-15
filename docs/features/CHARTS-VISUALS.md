@@ -138,3 +138,8 @@ ActiveX/OLE controls and macro assignment are intentionally excluded because the
 - [Automation & advanced](AUTOMATION-ADVANCED.md) — generate reports with VBA, Python, and reusable automation
 - [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
 - [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
+
+## Task guides
+
+- [Build and update PivotTables with an AI assistant](../guides/AUTOMATE-PIVOTTABLES.md)
+- [Refresh Power Query from an AI assistant](../guides/REFRESH-POWER-QUERY.md)

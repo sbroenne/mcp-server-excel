@@ -26,6 +26,13 @@
   <meta name="keywords" content="{{ page.meta.keywords }}">
   {% endif %}
 
+  <!-- Machine-readable alternates for LLMs and answer engines -->
+  {% if page and page.canonical_url %}
+  <link rel="alternate" type="text/markdown" href="{{ page.canonical_url }}index.md" title="Markdown version of this page">
+  {% endif %}
+  <link rel="alternate" type="text/plain" href="{{ config.site_url }}llms.txt" title="llms.txt site index">
+  <link rel="alternate" type="text/plain" href="{{ config.site_url }}llms-full.txt" title="Full documentation as plain Markdown">
+
   <!-- Complete per-page social preview metadata -->
   {% set og_image = "https://excelmcpserver.dev/assets/images/og-card.png" %}
   <meta property="og:title" content="{{ social_title }}">
@@ -163,5 +170,10 @@
     ]
   }
   </script>
+  {% endif %}
+
+  <!-- Structured data: FAQPage, generated in hooks.py from the page's own ??? question blocks -->
+  {% if page and page.meta and page.meta.faq_jsonld %}
+  <script type="application/ld+json">{{ page.meta.faq_jsonld }}</script>
   {% endif %}
 {% endblock %}

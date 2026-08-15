@@ -164,6 +164,9 @@ the build hook and snippet extension:
 | `/features/cells-workbooks/` | `/docs/features/CELLS-WORKBOOKS.md` | `gh-pages/docs/features/cells-workbooks.md` |
 | `/features/charts-visuals/` | `/docs/features/CHARTS-VISUALS.md` | `gh-pages/docs/features/charts-visuals.md` |
 | `/features/automation-advanced/` | `/docs/features/AUTOMATION-ADVANCED.md` | `gh-pages/docs/features/automation-advanced.md` |
+| `/guides/` | `/docs/guides/README.md` | `gh-pages/docs/guides/index.md` |
+| `/guides/<slug>/` | `/docs/guides/*.md` (5 task guides) | `gh-pages/docs/guides/<slug>.md` |
+| `/reference/<slug>/` | `/skills/shared/*.md` (24 agent reference files) | `gh-pages/docs/reference/<slug>.md` |
 | `/installation/` | `/docs/INSTALLATION.md` | `gh-pages/docs/installation.md` |
 | `/installation-mcp-server/` | `/docs/INSTALLATION-MCP-SERVER.md` | `gh-pages/docs/installation-mcp-server.md` |
 | `/installation-cli/` | `/docs/INSTALLATION-CLI.md` | `gh-pages/docs/installation-cli.md` |
@@ -198,6 +201,24 @@ the build hook and snippet extension:
 
 4. **Add it to `nav:`** in `gh-pages/mkdocs.yml`.
 5. **Update site links** to use the local URL instead of a GitHub URL.
+6. **Build strictly** from `gh-pages/`: `python -m mkdocs build --strict --clean`.
+
+### Generated machine-readable outputs
+
+The site build also derives these from the same page content, so they never need
+manual maintenance and cannot drift:
+
+| Output | Contents |
+|---|---|
+| `/llms.txt` | llmstxt.org index: every page with its description, in nav order |
+| `/llms-full.txt` | Full Markdown of every page, `--8<--` includes resolved |
+| `/<path>/index.md` | Markdown mirror of each page, advertised via `<link rel="alternate">` |
+| `/tools.json` | Tool and operation catalogue parsed from `docs/features/*.md` |
+| `FAQPage` JSON-LD | Built from the `??? question` blocks on the troubleshooting page |
+
+`tools.json` generation **fails the build** if the operation totals in
+`docs/features/*.md` stop matching the headline count in `FEATURES.md`.
+
 
 ### Why Local Pages
 

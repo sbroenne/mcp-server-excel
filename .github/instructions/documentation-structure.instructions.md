@@ -86,6 +86,36 @@ applyTo: "**/*.md,docs/**,specs/**"
 
 ---
 
+## Canonical sources published to the website
+
+`gh-pages/hooks.py` transforms canonical repo docs into `gh-pages/docs/_generated/`
+(git-ignored) and thin wrappers include them with `--8<--`. Anything listed below
+is authored **once**, in the repo, and published automatically:
+
+| Canonical source | Site route |
+|---|---|
+| `README.md`, `FEATURES.md`, `CHANGELOG.md`, `SECURITY.md`, `PRIVACY.md` | home, `/features/`, `/changelog/`, `/security/`, `/privacy/` |
+| `docs/features/*.md` | `/features/<slug>/` |
+| `docs/guides/*.md` | `/guides/<slug>/` |
+| `docs/INSTALLATION*.md`, `docs/ARCHITECTURE.md`, `docs/USE-CASES.md`, `docs/CONTRIBUTING.md` | matching routes |
+| `src/ExcelMcp.McpServer/README.md`, `src/ExcelMcp.CLI/README.md`, `skills/README.md` | `/mcp-server/`, `/cli/`, `/skills/` |
+| `skills/shared/*.md` | `/reference/<slug>/` |
+
+When adding a new canonical doc that should appear on the site:
+
+1. Write it under `docs/` (or `skills/shared/` for agent reference material).
+2. Add it to the matching source map in `gh-pages/hooks.py` **and** to
+   `SITE_PAGE_MAP` so cross-references resolve on-site instead of linking to GitHub.
+3. Add a thin wrapper under `gh-pages/docs/` owning only `title`, `description`,
+   `keywords`, the H1, and the `--8<--` include.
+4. Add a nav entry in `gh-pages/mkdocs.yml`.
+5. Build with `python -m mkdocs build --strict` from `gh-pages/`.
+
+The build also derives `/llms.txt`, `/llms-full.txt`, `/tools.json`, and a
+Markdown mirror for every page from the same content — no separate maintenance.
+
+---
+
 ## Naming Standards
 
 ### ✅ Good Names (Discoverable)

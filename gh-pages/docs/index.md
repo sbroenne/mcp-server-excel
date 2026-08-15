@@ -130,6 +130,14 @@ hide:
 
 [See all 31 tools and 326 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
+## Popular guides
+
+- [Refresh Power Query from an AI assistant](guides/refresh-power-query.md)
+- [Build and update PivotTables with an AI assistant](guides/automate-pivottables.md)
+- [Query the Excel Data Model with DAX](guides/query-data-model-with-dax.md)
+- [Run VBA macros from an AI agent](guides/run-vba-macros.md)
+- [Real Excel automation vs. file-parser libraries](guides/excel-automation-vs-file-parsers.md)
+
 ## See it in action
 
 Ask your AI assistant in plain language — it drives Excel for you:

@@ -79,6 +79,13 @@ theme:
 
 nav:
   - Home: index.md
+  - Guides:
+    - Overview: guides/index.md
+    - Refresh Power Query: guides/refresh-power-query.md
+    - Automate PivotTables: guides/automate-pivottables.md
+    - Query the Data Model with DAX: guides/query-data-model-with-dax.md
+    - Run VBA macros: guides/run-vba-macros.md
+    - COM vs. file parsers: guides/excel-automation-vs-file-parsers.md
   - Features:
     - Overview: features.md
     - Data & analytics: features/data-analytics.md
@@ -91,6 +98,36 @@ nav:
     - CLI: installation-cli.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
+  - Reference:
+    - Overview: reference/index.md
+    - Working with agents:
+      - Key constraints & sequencing: reference/workflows.md
+      - Behavioral rules: reference/behavioral-rules.md
+      - Anti-patterns: reference/anti-patterns.md
+      - Gotchas & known limits: reference/gotchas.md
+      - Agent mode in Excel: reference/agent-mode.md
+    - Workbooks, sheets & cells:
+      - Workbook lifecycle: reference/workbook.md
+      - Worksheet operations: reference/worksheet.md
+      - Ranges & formatting: reference/range.md
+      - Excel Tables: reference/table.md
+      - Window management: reference/window.md
+    - Data & the model:
+      - Power Query: reference/powerquery.md
+      - M code syntax: reference/m-code-syntax.md
+      - Data Model & DAX: reference/datamodel.md
+      - DMV query reference: reference/dmv-reference.md
+      - PivotTables: reference/pivottable.md
+      - QueryTables: reference/querytable.md
+      - What-If Analysis: reference/analysis.md
+      - XML maps: reference/xmlmap.md
+    - Visuals & output:
+      - Charts: reference/chart.md
+      - Conditional formatting: reference/conditionalformat.md
+      - Slicers: reference/slicer.md
+      - Drawing objects: reference/drawing.md
+      - Screenshots: reference/screenshot.md
+      - Dashboards & reports: reference/dashboard.md
   - Resources:
     - Examples & use cases: use-cases.md
     - Agent Skills: skills.md

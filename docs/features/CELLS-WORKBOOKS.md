@@ -200,3 +200,8 @@ Manage named ranges — ideal for driving workbook parameters that Power Query a
 - [Automation & advanced](AUTOMATION-ADVANCED.md) — automate workbooks with VBA, Python, and What-If Analysis
 - [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
 - [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
+
+## Task guides
+
+- [Real Excel automation vs. file-parser libraries](../guides/EXCEL-COM-VS-FILE-PARSERS.md)
+- [Refresh Power Query from an AI assistant](../guides/REFRESH-POWER-QUERY.md)

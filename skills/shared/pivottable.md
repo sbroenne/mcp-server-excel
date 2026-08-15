@@ -1,4 +1,3 @@
-````markdown
 # pivottable - Server Quirks
 
 ## CRITICAL: Required Parameters
@@ -160,5 +159,3 @@ The `layoutStyle` parameter controls PivotTable appearance:
 | "Field not found" | Typo or Data Model not refreshed | Refresh Data Model, check field names |
 | Data doesn't update | Source changed without refresh | Call `pivottable(refresh)` |
 | DAX measures missing | Created on worksheet PivotTable | Use `create-from-datamodel` |
-
-````

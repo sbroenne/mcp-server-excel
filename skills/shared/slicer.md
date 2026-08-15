@@ -1,4 +1,3 @@
-````markdown
 # slicer - Server Quirks
 
 **Slicer Types**:
@@ -89,5 +88,3 @@ excelcli slicer create-table-slicer --session <id> --table-name "SalesTable" --c
 excelcli slicer list-slicers --session <id>
 excelcli slicer list-table-slicers --session <id>
 ```
-
-````
