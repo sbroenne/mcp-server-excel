@@ -7,7 +7,7 @@ This guide walks you through publishing your VS Code extension to the marketplac
 1. Create Azure DevOps organization + PAT token
 2. Create VS Code Marketplace publisher account
 3. Configure GitHub secret (`VSCE_TOKEN`)
-4. Push a version tag → Automated publishing!
+4. Dispatch the unified release workflow → Automated publishing!
 
 ---
 
@@ -94,28 +94,13 @@ This guide walks you through publishing your VS Code extension to the marketplac
 
 **Now you're ready to publish!**
 
-1. **Update version in package.json** (if needed):
+1. Ensure user-visible changes have changeset fragments and are merged to `main`.
+2. **Run the unified workflow**:
    ```powershell
-   cd vscode-extension
-   npm version 1.0.0  # or patch, minor, major
+   gh workflow run release.yml -f version_bump=patch
    ```
 
-2. **Update CHANGELOG.md** with release notes
-
-3. **Commit changes**:
-   ```powershell
-   git add .
-   git commit -m "Prepare v1.0.0 release"
-   git push
-   ```
-
-4. **Create and push version tag** (releases ALL components):
-   ```powershell
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-5. **Watch the magic happen**:
+3. **Watch the workflow**:
    - Go to **Actions** tab in GitHub
    - Watch the "Release All Components" workflow run
    - It will:
@@ -124,8 +109,8 @@ This guide walks you through publishing your VS Code extension to the marketplac
      - Publish to VS Code Marketplace
      - Create unified GitHub release with all artifacts
 
-6. **Verify publication** (takes 5-15 minutes):
-   - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
+4. **Verify publication** (takes 5-15 minutes):
+   - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp
    - Or search "ExcelMcp" in VS Code Extensions panel
 
 **✅ Your extension is now live on the marketplace!**
@@ -140,22 +125,11 @@ Once you've done the above setup once, publishing new versions is easy:
 # 1. Make your code changes
 # ... edit files ...
 
-# 2. Update version
-cd vscode-extension
-npm version patch  # or minor, or major
+# 2. Add a changeset in the feature PR
+npx changeset
 
-# 3. Update root CHANGELOG.md
-# Add release notes under new version
-
-# 4. Commit and tag (releases ALL components)
-git add .
-git commit -m "Release v1.0.1"
-git push
-
-git tag v1.0.1
-git push origin v1.0.1
-
-# 5. Done! Automated workflow handles all components
+# 3. After the PR is merged, release all components
+gh workflow run release.yml -f version_bump=patch
 ```
 
 ---
@@ -168,7 +142,7 @@ git push origin v1.0.1
 - Any published extensions will appear here
 
 **Check extension page:**
-- Go to https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
+- Go to https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp
 - Should show your extension (after first publish)
 
 ---
@@ -206,10 +180,7 @@ git push origin v1.0.1
 ### ❌ "Cannot publish - version already exists"
 
 **Solution:**
-- Increment version in package.json:
-  ```powershell
-  npm version patch  # 1.0.0 → 1.0.1
-  ```
+- Dispatch a new unified release with the next semantic version.
 - You cannot republish the same version
 
 ---
@@ -267,8 +238,8 @@ git push origin v1.0.1
 - [ ] Created VS Code Marketplace publisher (ID matches package.json)
 - [ ] Added `VSCE_TOKEN` GitHub secret
 - [ ] Verified package.json has all required fields
-- [ ] Updated root CHANGELOG.md with release notes
-- [ ] Tagged release with `v*` format (e.g., `v1.5.7`)
+- [ ] Added changesets for user-visible changes
+- [ ] Dispatched `release.yml` with the intended version bump
 - [ ] Watched GitHub Actions workflow succeed
 - [ ] Verified extension appears on marketplace (wait 5-15 min)
 

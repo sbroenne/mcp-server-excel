@@ -7,11 +7,16 @@ on:
     paths:
       - 'gh-pages/**'
       - 'FEATURES.md'
+      - 'docs/features/**'
+      - 'docs/guides/**'
+      - 'skills/shared/**'
       - 'CHANGELOG.md'
       - 'PRIVACY.md'
       - 'docs/INSTALLATION.md'
       - 'docs/INSTALLATION-MCP-SERVER.md'
       - 'docs/INSTALLATION-CLI.md'
+      - 'docs/ARCHITECTURE.md'
+      - 'docs/USE-CASES.md'
       - 'docs/CONTRIBUTING.md'
       - 'SECURITY.md'
       - 'src/ExcelMcp.McpServer/README.md'
@@ -106,6 +111,10 @@ jobs:
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
+
+      - name: Audit built site
+        working-directory: gh-pages
+        run: python audit_site.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

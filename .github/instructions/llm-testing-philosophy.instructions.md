@@ -330,7 +330,7 @@ C# Interfaces (XML /// docs)
 skills/shared/*.md (source of truth)
   → MSBuild EmbeddedResource with Link (embedded in assembly)
   → MSBuild GenerateSkillPromptsClass inline task
-    → ExcelSkillPrompts.g.cs (14 [McpServerPrompt] methods)
+    → ExcelSkillPrompts.g.cs ([McpServerPrompt] methods generated from all shared guidance)
       → Claude Desktop sees identical guidance as skill clients
 ```
 

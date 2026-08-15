@@ -9,7 +9,7 @@ The session mode demo shows how to use sessions for high-performance multi-opera
 ### Requirements
 
 - Windows with Excel installed
-- ExcelMcp installed (standalone exe from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) or via `dotnet tool install --global Sbroenne.ExcelMcp.McpServer`)
+- Excel CLI installed (standalone exe from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) or via `dotnet tool install --global Sbroenne.ExcelMcp.CLI`)
 
 ### Running the Demo
 
@@ -17,7 +17,7 @@ Run these commands from PowerShell on Windows:
 
 ```powershell
 # 1. Create a new workbook and open a session (captures the session ID)
-$session = (excelcli session create test-session.xlsx | Select-String "Session ID:").ToString().Split()[-1]
+$session = (excelcli session create test-session.xlsx | ConvertFrom-Json).sessionId
 
 # 2. Perform multiple operations against the same Excel instance
 excelcli sheet create --session $session --sheet Sales
@@ -43,7 +43,7 @@ excelcli session close --session $session --save
    - Lists Power Queries
 4. Lists active sessions
 5. Closes the session with `--save` (saves all changes)
-6. Verifies changes were saved
+6. Leaves a saved workbook that you can open to verify the changes
 
 ### Expected Performance
 

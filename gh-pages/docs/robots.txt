@@ -4,5 +4,67 @@
 User-agent: *
 Allow: /
 
+# AI assistants and answer engines are explicitly welcome. Being quoted
+# accurately by an assistant is a goal of this documentation.
+#
+# Machine-readable entry points:
+#   https://excelmcpserver.dev/llms.txt       - index of every page
+#   https://excelmcpserver.dev/llms-full.txt  - full documentation corpus
+# Any page is also available as Markdown by appending index.md to its URL.
+
+# OpenAI
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# Google AI (Gemini, AI Overviews)
+User-agent: Google-Extended
+Allow: /
+
+# Apple Intelligence
+User-agent: Applebot-Extended
+Allow: /
+
+# Common Crawl
+User-agent: CCBot
+Allow: /
+
+# Meta
+User-agent: meta-externalagent
+Allow: /
+
+# Amazon
+User-agent: Amazonbot
+Allow: /
+
+# Mistral
+User-agent: MistralAI-User
+Allow: /
+
 # Sitemap location
 Sitemap: https://excelmcpserver.dev/sitemap.xml

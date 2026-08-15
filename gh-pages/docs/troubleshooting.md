@@ -121,6 +121,7 @@ winget install OpenJS.NodeJS.LTS
 
 ## Still stuck?
 
+- **Task guides:** [Refresh Power Query](guides/refresh-power-query.md) · [PivotTables](guides/automate-pivottables.md) · [DAX & the Data Model](guides/query-data-model-with-dax.md) · [VBA macros](guides/run-vba-macros.md)
 - **Installation details:** [MCP Server](installation-mcp-server.md) · [CLI](installation-cli.md)
 - **How it works:** [Architecture](architecture.md)
 - **Report a bug or ask a question:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

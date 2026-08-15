@@ -65,19 +65,19 @@
 
 .mcp-hero__actions .md-button:hover {
   background-color: #ffffff;
-  color: var(--mcp-hero-bg-2);
+  color: var(--mcp-hero-bg-1);
   border-color: #ffffff;
 }
 
 .mcp-hero__actions .md-button--primary {
   background-color: #ffffff;
-  color: var(--mcp-hero-bg-2);
+  color: #185c37;
   border-color: #ffffff;
 }
 
 .mcp-hero__actions .md-button--primary:hover {
   background-color: rgba(255, 255, 255, 0.85);
-  color: var(--mcp-hero-bg-2);
+  color: #185c37;
 }
 
 .mcp-hero__badges {
@@ -103,6 +103,14 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Contextual links remain identifiable without relying on color alone. */
+.md-typeset p a:not(.md-button),
+.md-typeset li a:not(.md-button),
+.md-typeset td a {
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
 /* Grid cards: give the leading icon the accent color and tighten spacing */
 .md-typeset .grid.cards .twemoji,
 .md-typeset .grid.cards svg {
@@ -115,6 +123,15 @@
 
 .md-typeset .grid {
   gap: 0.6rem;
+}
+
+.md-typeset .feature-groups > ul > li {
+  display: flex;
+  flex-direction: column;
+}
+
+.md-typeset .feature-groups > ul > li > p:last-child {
+  margin-top: auto;
 }
 
 @media screen and (max-width: 44.9375em) {

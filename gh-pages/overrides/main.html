@@ -2,9 +2,19 @@
 
 <!--
   Site-wide <head> additions layered on top of Material's defaults
-  (Material already emits title, description, canonical and Open Graph tags).
+  (Material emits title, description, and canonical tags).
 -->
 {% block extrahead %}
+  {% set page_description = page.meta.description if page and page.meta and page.meta.description else config.site_description %}
+  {% set page_url = page.canonical_url if page else config.site_url %}
+  {% if page and page.is_homepage %}
+    {% set social_title = "Excel MCP Server — Automate Power Query, DAX & VBA with AI" %}
+  {% elif page %}
+    {% set social_title = ((page.meta.title if page.meta and page.meta.title else page.title) ~ " - " ~ config.site_name) %}
+  {% else %}
+    {% set social_title = config.site_name %}
+  {% endif %}
+
   <!-- Search engine verification -->
   <meta name="msvalidate.01" content="C043BE1CE650BCF122B8139C77889186" />
 
@@ -16,13 +26,27 @@
   <meta name="keywords" content="{{ page.meta.keywords }}">
   {% endif %}
 
-  <!-- Social preview image (1200x630 branded card) -->
+  <!-- Machine-readable alternates for LLMs and answer engines -->
+  {% if page and page.canonical_url %}
+  <link rel="alternate" type="text/markdown" href="{{ page.canonical_url }}index.md" title="Markdown version of this page">
+  {% endif %}
+  <link rel="alternate" type="text/plain" href="{{ config.site_url }}llms.txt" title="llms.txt site index">
+  <link rel="alternate" type="text/plain" href="{{ config.site_url }}llms-full.txt" title="Full documentation as plain Markdown">
+
+  <!-- Complete per-page social preview metadata -->
   {% set og_image = "https://excelmcpserver.dev/assets/images/og-card.png" %}
+  <meta property="og:title" content="{{ social_title }}">
+  <meta property="og:description" content="{{ page_description }}">
+  <meta property="og:url" content="{{ page_url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
   <meta property="og:image" content="{{ og_image }}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Excel MCP Server — automate real Excel with AI">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ social_title }}">
+  <meta name="twitter:description" content="{{ page_description }}">
   <meta name="twitter:image" content="{{ og_image }}">
   <meta name="twitter:image:alt" content="Excel MCP Server — automate real Excel with AI">
 
@@ -38,11 +62,13 @@
   <meta name="twitter:player:height" content="315">
   {% endif %}
 
-  <!-- Structured data: SoftwareApplication -->
+  {% if page and page.is_homepage %}
+  <!-- Homepage entities: product, website, and author -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
+    "@id": "https://excelmcpserver.dev/#software",
     "name": "Excel MCP Server",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Windows",
@@ -65,10 +91,7 @@
       "https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp"
     ],
     "keywords": "Excel, automation, MCP, AI, Power Query, DAX, VBA, PivotTables, GitHub Copilot, Claude",
-    "author": {
-      "@type": "Person",
-      "name": "Stefan Broenner"
-    },
+    "author": { "@id": "https://excelmcpserver.dev/#author" },
     "featureList": [
       "Power Query automation",
       "DAX measures management",
@@ -80,7 +103,6 @@
   }
   </script>
 
-  <!-- Structured data: WebSite + Organization (publisher entity) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -107,20 +129,40 @@
     ]
   }
   </script>
+  {% elif page %}
+  <!-- Interior-page entity referencing the site-wide homepage entities -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": "{{ page_url }}#webpage",
+    "url": "{{ page_url }}",
+    "name": {{ (page.meta.title if page and page.meta and page.meta.title else page.title) | tojson }},
+    "description": {{ page_description | tojson }},
+    "inLanguage": "en",
+    "isPartOf": { "@id": "https://excelmcpserver.dev/#website" },
+    "about": { "@id": "https://excelmcpserver.dev/#software" },
+    "breadcrumb": { "@id": "{{ page_url }}#breadcrumb" }
+  }
+  </script>
+  {% endif %}
 
   <!-- Structured data: BreadcrumbList (interior pages only) -->
   {% if page and not page.is_homepage %}
   {% set crumbs = [{"name": "Home", "url": "https://excelmcpserver.dev/"}] %}
-  {% for anc in page.ancestors | reverse %}
-    {% if anc.title and anc.canonical_url %}
-      {% set _ = crumbs.append({"name": anc.title, "url": anc.canonical_url}) %}
-    {% endif %}
-  {% endfor %}
-  {% set _ = crumbs.append({"name": page.title, "url": page.canonical_url}) %}
+  {% if page.url.startswith("features/") and page.url != "features/" %}
+    {% set _ = crumbs.append({"name": "Features", "url": "https://excelmcpserver.dev/features/"}) %}
+  {% endif %}
+  {% if page.url in ["installation-cli/", "installation-mcp-server/"] %}
+    {% set _ = crumbs.append({"name": "Installation", "url": "https://excelmcpserver.dev/installation/"}) %}
+  {% endif %}
+  {% set current_title = page.meta.title if page.meta and page.meta.title else page.title %}
+  {% set _ = crumbs.append({"name": current_title, "url": page.canonical_url}) %}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": "{{ page_url }}#breadcrumb",
     "itemListElement": [
       {%- for c in crumbs %}
       { "@type": "ListItem", "position": {{ loop.index }}, "name": {{ c.name | tojson }}, "item": {{ c.url | tojson }} }{% if not loop.last %},{% endif %}
@@ -128,5 +170,10 @@
     ]
   }
   </script>
+  {% endif %}
+
+  <!-- Structured data: FAQPage, generated in hooks.py from the page's own ??? question blocks -->
+  {% if page and page.meta and page.meta.faq_jsonld %}
+  <script type="application/ld+json">{{ page.meta.faq_jsonld }}</script>
   {% endif %}
 {% endblock %}

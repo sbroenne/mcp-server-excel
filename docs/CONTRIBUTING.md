@@ -52,7 +52,7 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
    - Verify the final commit message accurately describes the changes
    - After merge, your feature branch can be safely deleted
 
-📋 **Detailed workflow**: See [DEVELOPMENT.md](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/DEVELOPMENT.md) for complete instructions.
+📋 **Detailed workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete instructions.
 
 ## 📋 Development Guidelines
 
@@ -152,7 +152,7 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 2. **Implement it** in the corresponding partial class (e.g. `SheetCommands.Lifecycle.cs`), following the batch-API pattern above.
 3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
 4. **Add integration tests** for the new operation (TDD: write them first).
-5. **Update `FEATURES.md`** with the new operation and its updated operation count — `scripts/check-doc-counts.ps1` enforces that documented counts match the code.
+5. **Update `FEATURES.md` and the appropriate `docs/features/*.md` file** with the new operation and updated operation count — `scripts/check-doc-counts.ps1` enforces that documented counts match the code.
 
 ## 📝 Pull Request Process
 
@@ -162,7 +162,7 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 - [ ] Feature-scoped tests pass (`dotnet test --filter "Feature=<name>&RunType!=OnDemand"`)
 - [ ] Excel processes clean up properly
 - [ ] Added appropriate error handling (no suppressed exceptions)
-- [ ] Updated `FEATURES.md` / relevant docs if the operation count or behavior changed
+- [ ] Updated `FEATURES.md` and `docs/features/*.md` if operation counts or behaviors changed
 - [ ] Pre-commit hook passes locally
 
 ### PR Description Template
@@ -246,7 +246,7 @@ Great feature requests include:
 
 ## 📦 For Maintainers
 
-- [NuGet Publishing Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/NUGET-GUIDE.md) - Complete guide for publishing all packages with OIDC trusted publishing
+- [NuGet Publishing Guide](NUGET-GUIDE.md) - Complete guide for publishing all packages with OIDC trusted publishing
 
 ## 🏷️ Issue Labels
 

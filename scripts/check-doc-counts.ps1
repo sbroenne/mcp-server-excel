@@ -11,7 +11,7 @@
     -----------------------
     The MCP server and the CLI expose DIFFERENT internal surfaces, and several docs used to
     hard-code counts from memory. That drifted (docs said 232, the generated SKILL.md said 229,
-    FEATURES.md section headers summed to 231). This script computes the ONE canonical answer
+    the canonical feature references summed to 231). This script computes the ONE canonical answer
     from code on every commit and fails if any doc disagrees.
 
     HOW THE CANONICAL NUMBERS ARE DERIVED
@@ -156,7 +156,6 @@ Write-Host "  manifest: $manifestTools tools / $manifestOps ops; - diag($diagOps
 # (so a headline can't silently disappear or be reworded past the guard).
 $checks = @(
     @{ File = "README.md";                              Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
-    @{ File = "README.md";                              Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "README.md";                              Pattern = 'all (?<o>\d+) operations' }
     @{ File = "FEATURES.md";                            Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
@@ -165,7 +164,10 @@ $checks = @(
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = '\*\*(?<o>\d+) operations\*\* across' }
     @{ File = "vscode-extension\README.md";             Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "mcpb\README.md";                         Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
+    @{ File = "mcpb\manifest.json";                     Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
+    @{ File = "src\ExcelMcp.CLI\ExcelMcp.CLI.csproj";   Pattern = '(?<o>\d+) operations across' }
     @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
+    @{ File = "gh-pages\docs\features.md";              Pattern = '(?<t>\d+) specialized tools and (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
     @{ File = "skills\excel-mcp\SKILL.md";              Pattern = 'Provides (?<o>\d+) Excel operations' }
@@ -194,18 +196,42 @@ foreach ($check in $checks) {
 }
 
 # ---------------------------------------------------------------------------
-# 6. FEATURES.md: the sum of per-section "(N operations)" headers must equal canonical
+# 6. Distribution metadata must link to the documentation site
 # ---------------------------------------------------------------------------
-$featuresPath = Join-Path $rootDir "FEATURES.md"
-if (Test-Path $featuresPath) {
-    $featuresContent = Get-Content $featuresPath -Raw
-    $sectionSum = 0
-    foreach ($m in [regex]::Matches($featuresContent, '(?m)^##\s+.*\((?<n>\d+) operations\)')) {
+# Package/registry listing pages are the highest-authority inbound links we control.
+# They must point at the canonical docs site, not straight at the GitHub repo.
+$siteUrl = 'https://excelmcpserver.dev/'
+$siteLinkChecks = @(
+    @{ File = "Directory.Build.props";                  Pattern = '<PackageProjectUrl>https://excelmcpserver\.dev/</PackageProjectUrl>';  What = "PackageProjectUrl (NuGet package pages)" }
+    @{ File = "src\ExcelMcp.McpServer\.mcp\server.json"; Pattern = '"websiteUrl"\s*:\s*"https://excelmcpserver\.dev/"';                    What = "websiteUrl (MCP registry listing)" }
+    @{ File = "mcpb\manifest.json";                     Pattern = '"homepage"\s*:\s*"https://excelmcpserver\.dev/"';                      What = "homepage (Claude Desktop bundle)" }
+    @{ File = "vscode-extension\package.json";          Pattern = '"homepage"\s*:\s*"https://excelmcpserver\.dev/"';                      What = "homepage (VS Code Marketplace)" }
+)
+
+foreach ($check in $siteLinkChecks) {
+    $path = Join-Path $rootDir $check.File
+    if (-not (Test-Path $path)) {
+        Add-Failure "Expected metadata file not found: $($check.File)"
+        continue
+    }
+    if ((Get-Content $path -Raw) -notmatch $check.Pattern) {
+        Add-Failure "$($check.File): $($check.What) must point at $siteUrl - this is a primary inbound link and must not regress to the GitHub URL."
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 7. Canonical feature docs: per-section "(N operations)" headers must sum to canonical
+# ---------------------------------------------------------------------------
+$featureFiles = Get-ChildItem (Join-Path $rootDir "docs\features") -Filter "*.md"
+$sectionSum = 0
+foreach ($featureFile in $featureFiles) {
+    $featureContent = Get-Content $featureFile.FullName -Raw
+    foreach ($m in [regex]::Matches($featureContent, '(?m)^##\s+.*\((?<n>\d+) operations\)')) {
         $sectionSum += [int]$m.Groups['n'].Value
     }
-    if ($sectionSum -ne $canonicalOps) {
-        Add-Failure ("FEATURES.md section headers sum to {0} operations but the canonical total is {1}. Fix the section header(s) that drifted." -f $sectionSum, $canonicalOps)
-    }
+}
+if ($sectionSum -ne $canonicalOps) {
+    Add-Failure ("Canonical feature section headers sum to {0} operations but the canonical total is {1}. Fix the section header(s) that drifted." -f $sectionSum, $canonicalOps)
 }
 
 # ---------------------------------------------------------------------------

@@ -2,9 +2,8 @@
 template: home.html
 title: Home
 description: >-
-  Control Microsoft Excel with natural language through AI assistants like
-  GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables and
-  more — no Excel programming knowledge required.
+  Automate real Microsoft Excel with GitHub Copilot, Claude, and other AI
+  assistants using Power Query, DAX, VBA, PivotTables, charts, and Python.
 keywords: "Excel automation, MCP server, AI Excel, Power Query, DAX measures, VBA macros, GitHub Copilot Excel, Claude Excel, Excel CLI, M code"
 hide:
   - navigation
@@ -31,7 +30,7 @@ hide:
     say *"Show me Excel while you work."*
 
 <div class="mcp-video" markdown>
-[![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg){ width="560" }](https://youtu.be/B6eIQ5BIbNc)
+[![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg){ width="1280" height="720" }](https://youtu.be/B6eIQ5BIbNc)
 
 ▶️ [Watch the intro video (1 min)](https://youtu.be/B6eIQ5BIbNc)
 </div>
@@ -131,12 +130,20 @@ hide:
 
 [See all 31 tools and 326 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
+## Popular guides
+
+- [Refresh Power Query from an AI assistant](guides/refresh-power-query.md)
+- [Build and update PivotTables with an AI assistant](guides/automate-pivottables.md)
+- [Query the Excel Data Model with DAX](guides/query-data-model-with-dax.md)
+- [Run VBA macros from an AI agent](guides/run-vba-macros.md)
+- [Real Excel automation vs. file-parser libraries](guides/excel-automation-vs-file-parsers.md)
+
 ## See it in action
 
 Ask your AI assistant in plain language — it drives Excel for you:
 
 <figure markdown="span">
-  ![A styled sales table, regional summary and column chart in the real Excel app, built by Excel MCP Server](assets/images/excel-demo-table-chart.png){ width="820" loading=lazy }
+  ![A styled sales table, regional summary and column chart in the real Excel app, built by Excel MCP Server](assets/images/excel-demo-table-chart.png){ width="1360" height="800" loading=lazy }
   <figcaption>A styled Excel Table, a regional revenue summary and a column chart — created end-to-end in the real Excel application. No manual clicking, no rewriting the <code>.xlsx</code> file.</figcaption>
 </figure>
 
@@ -173,7 +180,7 @@ features like **Python in Excel** work too — your AI assistant can write
 `=PY()` formulas that run pandas and NumPy directly on your worksheet data:
 
 <figure markdown="span">
-  ![Close-up of the Excel ribbon Python group and the formula bar showing a =PY() formula that uses pandas to sum a table column](assets/images/excel-demo-python.png){ width="820" loading=lazy }
+  ![Close-up of the Excel ribbon Python group and the formula bar showing a =PY() formula that uses pandas to sum a table column](assets/images/excel-demo-python.png){ width="1360" height="392" loading=lazy }
   <figcaption>The formula bar with a <code>=PY()</code> formula (note the green <strong>PY</strong> badge) and Excel's <strong>Python</strong> ribbon group — summing the <code>SalesData</code> table with <code>pandas</code>, driven from your AI assistant.</figcaption>
 </figure>
 
@@ -192,6 +199,7 @@ workflow:
 
 ## GitHub star history
 
-![GitHub stars over time for ExcelMcp](assets/images/star-history.svg){ loading=lazy }
+![GitHub stars over time for ExcelMcp](https://excelmcpserver.dev/assets/images/star-history.svg){ width="900" height="480" loading=lazy }
 
-Updated daily from exact aggregate snapshots; no stargazer identities are stored.
+Updated daily on the deployed site from exact aggregate snapshots; no stargazer
+identities are stored.

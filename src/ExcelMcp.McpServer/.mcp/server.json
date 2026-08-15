@@ -4,6 +4,7 @@
   "title": "MCP Server for Excel",
   "description": "Excel automation for AI - Sheets, Power Query, DAX, VBA, Tables, Ranges and more. Windows only.",
   "version": "1.0.0",
+  "websiteUrl": "https://excelmcpserver.dev/",
   "packages": [
     {
       "registryType": "nuget",

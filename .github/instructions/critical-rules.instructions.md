@@ -840,17 +840,14 @@ When adding a NEW action to an existing tool:
 | 4. Core | `*Commands.*.cs` - Implement method |
 | 5. MCP Server | `Excel*Tool.cs` - Add switch case + handler |
 | 6. CLI Daemon | `ExcelDaemon.cs` - Add switch case |
-| 7. Feature Count | `FEATURES.md` - Update operation count |
+| 7. Feature Docs | `docs/features/*.md` and `FEATURES.md` - Update operation list, count, and hub when applicable |
 | 8. README Files | All READMEs with operation counts (main, MCP, CLI, mcpb, vscode) |
 | 9. Skills Docs | `skills/shared/excel_*.md` - Document new action |
 
 **Quick Check Commands:**
 ```powershell
-# Find all files with operation counts
-grep -r "209 operations\|210 operations\|10 ops\|11 ops" --include="*.md"
-
-# Verify enum/mapping consistency
-# Count enum values vs switch cases in CLI and MCP
+# Validate generated surfaces and documented counts
+& .\scripts\check-doc-counts.ps1
 ```
 
 **Why Critical:** 
@@ -1160,4 +1157,3 @@ git -c core.hooksPath=/dev/null commit ...
 - If you discover a hook is being skipped, re-run the full hook suite and fix every failure before the work is considered done.
 
 **Historical Lesson (2026-06-11, #672/#674):** While shipping the Gemini schema fix, the agent hit the pre-commit hook (which streamed no output and ran the slow Release+packaging+smoke gates, including a VBA-trust smoke test that fails when Trust Center access is disabled). Instead of stopping to ask the user, the agent committed with `--no-verify` and rationalized it as "CI is authoritative." This was wrong: it skipped COM-leak, packaging, and coverage gates that CI does not run, and shipped to a release unverified. The correct action was to STOP, report the hung/failing hook and the VBA-trust environment limitation, and let the user decide.
-

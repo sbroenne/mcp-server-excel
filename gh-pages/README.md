@@ -1,9 +1,11 @@
 # Docs Site (MkDocs)
 
 Source for [excelmcpserver.dev](https://excelmcpserver.dev/), built with MkDocs Material.
-Most pages under `docs/` are thin wrappers that `include-markdown` canonical content from
-elsewhere in the repo (root `README.md`, `FEATURES.md`, package READMEs, `CHANGELOG.md`, etc.)
-so there is a single source of truth for documentation content.
+Most pages under `docs/` are thin wrappers that include canonical content from elsewhere in
+the repo (root `README.md`, `FEATURES.md`, `docs/features/`, package READMEs,
+`CHANGELOG.md`, etc.) so there is a single source of truth for documentation content.
+The canonical feature reference is organized into intent-based pages under `docs/features/`;
+`hooks.py` adapts those pages for the website without copying operation details.
 
 ## Setup (one-time)
 
@@ -15,9 +17,8 @@ python -m venv .venv
 
 ## ⚠️ Always use the venv Python
 
-A global `mkdocs` on `PATH` may resolve to a different Python install that does **not** have
-`mkdocs-include-markdown-plugin`, causing `Config value 'plugins': The "include-markdown"
-plugin is not installed`. Always invoke mkdocs through the project's venv:
+A global `mkdocs` on `PATH` may resolve to a different Python install with
+incompatible dependencies. Always invoke MkDocs through the project's venv:
 
 ```powershell
 cd gh-pages
