@@ -177,7 +177,10 @@ public sealed class QueryTableCommands : IQueryTableCommands
         string? webTables = null,
         string formatting = "none")
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(uri.Scheme, Uri.UriSchemeFile, StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException("url must be an absolute HTTP, HTTPS, or file URI.", nameof(url));
         }

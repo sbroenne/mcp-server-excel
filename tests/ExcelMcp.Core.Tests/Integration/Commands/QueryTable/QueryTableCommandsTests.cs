@@ -132,6 +132,28 @@ public sealed class QueryTableCommandsTests : IClassFixture<TempDirectoryFixture
         Assert.Empty(_commands.List(batch).QueryTables);
     }
 
+    [Theory]
+    [InlineData("ftp://example.com/data.html")]
+    [InlineData("mailto:user@example.com")]
+    [InlineData("custom-fetch://example.com/data")]
+    public void WebImport_UnsupportedScheme_ThrowsBeforeCom(string url)
+    {
+        var workbookPath = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(workbookPath);
+        CreateSheet(batch, "WebImports");
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.CreateWeb(
+                batch,
+                "UnsupportedImport",
+                url,
+                "WebImports",
+                "A1"));
+
+        Assert.Contains("HTTP, HTTPS, or file URI", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(_commands.List(batch).QueryTables);
+    }
+
     private static void CreateSheet(IExcelBatch batch, string sheetName)
     {
         batch.Execute((ctx, ct) =>

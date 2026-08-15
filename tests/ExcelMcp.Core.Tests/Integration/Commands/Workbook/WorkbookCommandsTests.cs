@@ -197,6 +197,103 @@ public class WorkbookCommandsTests : IClassFixture<FileTestsFixture>
     }
 
     [Fact]
+    public void SaveAs_InvalidFormatWithOverwrite_PreservesExistingDestination()
+    {
+        var testFile = _fixture.CreateTestFile();
+        var outputPath = Path.Join(_fixture.TempDir, $"ExistingSaveAs_{Guid.NewGuid():N}.xlsx");
+        const string existingContent = "existing save-as destination";
+        System.IO.File.WriteAllText(outputPath, existingContent);
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        Assert.Throws<ArgumentException>(() =>
+            _commands.SaveAs(batch, outputPath, WorkbookSaveFormat.Xlsm, overwrite: true));
+
+        Assert.Equal(existingContent, System.IO.File.ReadAllText(outputPath));
+    }
+
+    [Fact]
+    public void SaveCopyAs_InvalidExtensionWithOverwrite_PreservesExistingDestination()
+    {
+        var testFile = _fixture.CreateTestFile();
+        var outputPath = Path.Join(_fixture.TempDir, $"ExistingCopy_{Guid.NewGuid():N}.xlsm");
+        const string existingContent = "existing copy destination";
+        System.IO.File.WriteAllText(outputPath, existingContent);
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        Assert.Throws<ArgumentException>(() =>
+            _commands.SaveCopyAs(batch, outputPath, overwrite: true));
+
+        Assert.Equal(existingContent, System.IO.File.ReadAllText(outputPath));
+    }
+
+    [Fact]
+    public void ExportFixedFormat_InvalidExtensionWithOverwrite_PreservesExistingDestination()
+    {
+        var testFile = _fixture.CreateTestFile();
+        var outputPath = Path.Join(_fixture.TempDir, $"ExistingExport_{Guid.NewGuid():N}.xps");
+        const string existingContent = "existing export destination";
+        System.IO.File.WriteAllText(outputPath, existingContent);
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        Assert.Throws<ArgumentException>(() =>
+            _commands.ExportFixedFormat(batch, outputPath, FixedFormatType.Pdf, overwrite: true));
+
+        Assert.Equal(existingContent, System.IO.File.ReadAllText(outputPath));
+    }
+
+    [Fact]
+    public void SaveAs_WithOverwrite_ReplacesExistingWorkbook()
+    {
+        var testFile = _fixture.CreateTestFile();
+        var outputPath = _fixture.CreateTestFile();
+        using (var batch = ExcelSession.BeginBatch(testFile))
+        {
+            var result = _commands.SaveAs(batch, outputPath, WorkbookSaveFormat.Xlsx, overwrite: true);
+            Assert.True(result.Success);
+            Assert.Equal(Path.GetFullPath(outputPath), batch.WorkbookPath, ignoreCase: true);
+        }
+
+        using var verifyBatch = ExcelSession.BeginBatch(outputPath);
+        Assert.Equal(Path.GetFullPath(outputPath), verifyBatch.WorkbookPath, ignoreCase: true);
+    }
+
+    [Fact]
+    public void SaveCopyAs_WithOverwrite_ReplacesExistingDestination()
+    {
+        var testFile = _fixture.CreateTestFile();
+        var outputPath = Path.Join(_fixture.TempDir, $"OverwriteCopy_{Guid.NewGuid():N}.xlsx");
+        System.IO.File.WriteAllText(outputPath, "existing copy destination");
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        var result = _commands.SaveCopyAs(batch, outputPath, overwrite: true);
+
+        Assert.True(result.Success);
+        using var verifyBatch = ExcelSession.BeginBatch(outputPath);
+        Assert.Equal(Path.GetFullPath(outputPath), verifyBatch.WorkbookPath, ignoreCase: true);
+    }
+
+    [Fact]
+    public void ExportFixedFormat_WithOverwrite_ReplacesExistingDestination()
+    {
+        var testFile = _fixture.CreateTestFile();
+        var outputPath = Path.Join(_fixture.TempDir, $"OverwriteExport_{Guid.NewGuid():N}.pdf");
+        System.IO.File.WriteAllText(outputPath, "existing export destination");
+        WriteCell(testFile, "Printable workbook content");
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        var result = _commands.ExportFixedFormat(
+            batch,
+            outputPath,
+            FixedFormatType.Pdf,
+            overwrite: true);
+
+        Assert.True(result.Success);
+        Assert.StartsWith(
+            "%PDF",
+            System.Text.Encoding.ASCII.GetString(System.IO.File.ReadAllBytes(outputPath), 0, 4));
+    }
+
+    [Fact]
     public void ExternalLinks_ListUpdateAndBreak_RoundTrip()
     {
         var sourcePath = _fixture.CreateTestFile();

@@ -68,17 +68,28 @@ public partial class WorkbookCommands
                 nameof(targetPath));
         }
 
-        return batch.Execute((context, _) =>
+        var writePath = GetWritePath(normalizedPath, overwrite);
+        try
         {
-            context.Book.SaveCopyAs(normalizedPath);
-            return new OperationResult
+            var result = batch.Execute((context, _) =>
             {
-                Success = true,
-                Action = "save-copy-as",
-                FilePath = normalizedPath,
-                Message = $"Workbook copy saved to '{normalizedPath}'"
-            };
-        });
+                context.Book.SaveCopyAs(writePath);
+                return new OperationResult
+                {
+                    Success = true,
+                    Action = "save-copy-as",
+                    FilePath = normalizedPath,
+                    Message = $"Workbook copy saved to '{normalizedPath}'"
+                };
+            });
+
+            CommitOutput(writePath, normalizedPath);
+            return result;
+        }
+        finally
+        {
+            DeleteTemporaryOutput(writePath, normalizedPath);
+        }
     }
 
     /// <inheritdoc />
@@ -104,31 +115,54 @@ public partial class WorkbookCommands
                 nameof(targetPath));
         }
 
-        return batch.Execute((context, _) =>
+        var writePath = GetWritePath(normalizedPath, overwrite);
+        var openAfterCommit =
+            openAfterPublish &&
+            !string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase);
+        try
         {
-            context.Book.ExportAsFixedFormat(
-                formatType == FixedFormatType.Pdf
-                    ? Excel.XlFixedFormatType.xlTypePDF
-                    : Excel.XlFixedFormatType.xlTypeXPS,
-                normalizedPath,
-                quality == FixedFormatQuality.Standard
-                    ? Excel.XlFixedFormatQuality.xlQualityStandard
-                    : Excel.XlFixedFormatQuality.xlQualityMinimum,
-                includeDocumentProperties,
-                ignorePrintAreas,
-                fromPage ?? Type.Missing,
-                toPage ?? Type.Missing,
-                openAfterPublish,
-                Type.Missing);
-
-            return new OperationResult
+            var result = batch.Execute((context, _) =>
             {
-                Success = true,
-                Action = "export-fixed-format",
-                FilePath = normalizedPath,
-                Message = $"Workbook exported to '{normalizedPath}'"
-            };
-        });
+                context.Book.ExportAsFixedFormat(
+                    formatType == FixedFormatType.Pdf
+                        ? Excel.XlFixedFormatType.xlTypePDF
+                        : Excel.XlFixedFormatType.xlTypeXPS,
+                    writePath,
+                    quality == FixedFormatQuality.Standard
+                        ? Excel.XlFixedFormatQuality.xlQualityStandard
+                        : Excel.XlFixedFormatQuality.xlQualityMinimum,
+                    includeDocumentProperties,
+                    ignorePrintAreas,
+                    fromPage ?? Type.Missing,
+                    toPage ?? Type.Missing,
+                    openAfterPublish && !openAfterCommit,
+                    Type.Missing);
+
+                return new OperationResult
+                {
+                    Success = true,
+                    Action = "export-fixed-format",
+                    FilePath = normalizedPath,
+                    Message = $"Workbook exported to '{normalizedPath}'"
+                };
+            });
+
+            CommitOutput(writePath, normalizedPath);
+            if (openAfterCommit)
+            {
+                using var process = System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(normalizedPath)
+                    {
+                        UseShellExecute = true
+                    });
+            }
+
+            return result;
+        }
+        finally
+        {
+            DeleteTemporaryOutput(writePath, normalizedPath);
+        }
     }
 
     private static string ValidateOutputPath(string outputPath, bool overwrite)
@@ -151,11 +185,39 @@ public partial class WorkbookCommands
             {
                 throw new IOException($"Output file already exists: '{normalizedPath}'.");
             }
-
-            File.Delete(normalizedPath);
         }
 
         return normalizedPath;
+    }
+
+    private static string GetWritePath(string normalizedPath, bool overwrite)
+    {
+        if (!overwrite || !File.Exists(normalizedPath))
+        {
+            return normalizedPath;
+        }
+
+        var directory = Path.GetDirectoryName(normalizedPath)!;
+        var fileName = Path.GetFileNameWithoutExtension(normalizedPath);
+        var extension = Path.GetExtension(normalizedPath);
+        return Path.Combine(directory, $".{fileName}.{Guid.NewGuid():N}.tmp{extension}");
+    }
+
+    private static void CommitOutput(string writePath, string normalizedPath)
+    {
+        if (!string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Move(writePath, normalizedPath, overwrite: true);
+        }
+    }
+
+    private static void DeleteTemporaryOutput(string writePath, string normalizedPath)
+    {
+        if (!string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(writePath))
+        {
+            File.Delete(writePath);
+        }
     }
 
     private static WorkbookSaveFormat ResolveSaveFormat(string outputPath, WorkbookSaveFormat format)
