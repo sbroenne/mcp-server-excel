@@ -13,6 +13,7 @@ pre-commit fast path stays fast.
 
 from __future__ import annotations
 
+import gzip
 import json
 import re
 import sys
@@ -209,6 +210,17 @@ def audit_sitemap() -> None:
             fail(f"sitemap.xml has an off-site <loc>: {loc}")
     if not (SITE_DIR / "sitemap.xml.gz").is_file():
         fail("sitemap.xml.gz is missing")
+    else:
+        # The gzipped twin is what many crawlers actually fetch, and hooks.py
+        # rewrites it separately after enriching sitemap.xml. Checking only that
+        # it exists would let the two silently diverge - publishing a .gz still
+        # carrying the lastmod values the plain file had dropped.
+        try:
+            with gzip.open(SITE_DIR / "sitemap.xml.gz", "rt", encoding="utf-8") as fh:
+                if fh.read() != xml:
+                    fail("sitemap.xml.gz does not match sitemap.xml")
+        except OSError as exc:
+            fail(f"sitemap.xml.gz could not be read: {exc}")
 
 
 def audit_llms(html_files: list[Path]) -> None:
