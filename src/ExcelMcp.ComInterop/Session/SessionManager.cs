@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -31,6 +32,7 @@ public sealed class SessionManager : IDisposable
     /// <summary>
     /// Raised whenever the set of Excel processes owned by this process changes.
     /// </summary>
+    /// <remarks>Subscribers are notified asynchronously and cannot interrupt session lifecycle operations.</remarks>
     public static event Action<IReadOnlyCollection<int>>? TrackedExcelProcessesChanged;
 
     /// <summary>
@@ -47,7 +49,7 @@ public sealed class SessionManager : IDisposable
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         }
 
-        TrackedExcelProcessesChanged?.Invoke(GetTrackedExcelProcessIds());
+        NotifyTrackedExcelProcessesChanged();
     }
 
     /// <summary>
@@ -56,13 +58,40 @@ public sealed class SessionManager : IDisposable
     public static void UntrackExcelProcess(int processId)
     {
         _trackedExcelPids.TryRemove(processId, out _);
-        TrackedExcelProcessesChanged?.Invoke(GetTrackedExcelProcessIds());
+        NotifyTrackedExcelProcessesChanged();
     }
 
     /// <summary>
     /// Returns a snapshot of Excel process IDs currently owned by this process.
     /// </summary>
     public static IReadOnlyCollection<int> GetTrackedExcelProcessIds() => _trackedExcelPids.Keys.ToArray();
+
+    private static void NotifyTrackedExcelProcessesChanged()
+    {
+        var subscribers = TrackedExcelProcessesChanged;
+        if (subscribers is null)
+        {
+            return;
+        }
+
+        var processIds = GetTrackedExcelProcessIds();
+        _ = Task.Run(() =>
+        {
+            foreach (var subscriber in subscribers.GetInvocationList())
+            {
+                try
+                {
+                    ((Action<IReadOnlyCollection<int>>)subscriber)(processIds);
+                }
+                catch (Exception ex)
+                {
+                    Trace.TraceWarning(
+                        "Tracked Excel process notification failed: {0}",
+                        ex.Message);
+                }
+            }
+        });
+    }
 
     private static void OnProcessExit(object? sender, EventArgs e)
     {

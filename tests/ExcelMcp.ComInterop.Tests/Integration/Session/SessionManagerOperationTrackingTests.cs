@@ -214,6 +214,32 @@ public class SessionManagerOperationTrackingTests : IDisposable
         Assert.False(manager.IsExcelVisible(null!));
     }
 
+    [Fact]
+    public void TrackExcelProcess_SubscriberFailure_DoesNotBreakSessionLifecycle()
+    {
+        using var notificationReceived = new ManualResetEventSlim();
+        void ThrowingSubscriber(IReadOnlyCollection<int> _)
+        {
+            notificationReceived.Set();
+            throw new InvalidOperationException("Simulated tracker failure.");
+        }
+
+        SessionManager.TrackedExcelProcessesChanged += ThrowingSubscriber;
+        try
+        {
+            var exception = Record.Exception(() =>
+                SessionManager.TrackExcelProcess(Environment.ProcessId));
+
+            Assert.Null(exception);
+            Assert.True(notificationReceived.Wait(TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            SessionManager.TrackedExcelProcessesChanged -= ThrowingSubscriber;
+            SessionManager.UntrackExcelProcess(Environment.ProcessId);
+        }
+    }
+
     #endregion
 
     #region ValidateClose
@@ -401,5 +427,4 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
     #endregion
 }
-
 

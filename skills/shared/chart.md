@@ -149,7 +149,7 @@ Result example with collision warning:
 {
   "success": true,
   "chartName": "Chart 1",
-  "message": "OVERLAP WARNING: Chart overlaps data area $A$1:$D$20. Use chart fit-to-range to reposition, or screenshot capture-sheet to verify layout."
+  "message": "OVERLAP WARNING: Chart overlaps data area $A$1:$D$20. Use chart fit-to-range to reposition, then screenshot capture with an explicit range to verify layout."
 }
 ```
 
