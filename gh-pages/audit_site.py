@@ -26,6 +26,11 @@ SITE_DIR = Path(__file__).resolve().parent / "_site"
 MKDOCS_YML = Path(__file__).resolve().parent / "mkdocs.yml"
 SITE_URL = "https://excelmcpserver.dev/"
 
+# Imported rather than duplicated: this is the same mapping hooks.py uses to
+# rewrite links, so the audit cannot drift away from what the build produces.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hooks import SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
+
 # Google truncates around these lengths; well outside them is a real problem.
 TITLE_MAX = 70
 DESCRIPTION_MIN = 50
@@ -174,6 +179,33 @@ def audit_html(path: Path) -> None:
     # Markdown alternate must be advertised and must exist.
     if 'type="text/markdown"' not in html and "type=text/markdown" not in html:
         fail(f"{name}: no <link rel=alternate type=text/markdown>")
+
+
+def audit_offsite_links(html_files: list[Path]) -> None:
+    """No page may link out to GitHub for content we publish ourselves.
+
+    Canonical sources that are also rendered outside GitHub (the NuGet package
+    READMEs) spell their links out as absolute GitHub URLs, because NuGet.org
+    resolves relative links against the package root and they 404. hooks.py maps
+    those back to the published page. If that mapping is missed - a new absolute
+    link, or a page added without a SITE_PAGE_MAP entry - the site silently
+    starts sending readers to GitHub instead of its own page, losing both the
+    reader and the internal link equity.
+    """
+    # Quotes are optional: the minify plugin strips them from attribute values.
+    pattern = re.compile(
+        r'href=["\']?https://github\.com/sbroenne/mcp-server-excel/(?:blob|tree)/main/([^"\'\s>#]+)'
+    )
+    for path in html_files:
+        html = path.read_text(encoding="utf-8", errors="replace")
+        name = page_name(path)
+        for target in pattern.findall(html):
+            mapped = SOURCE_TO_SITE.get(target.rstrip("/"))
+            if mapped is not None:
+                fail(
+                    f"{name}: links to GitHub for {target}, which is published at "
+                    f"{mapped} - add the mapping in hooks.py instead"
+                )
 
 
 def audit_internal_links(html_files: list[Path]) -> None:
@@ -392,6 +424,7 @@ def main() -> int:
     for path in html_files:
         audit_html(path)
     audit_internal_links(html_files)
+    audit_offsite_links(html_files)
     audit_jsonld(html_files)
     audit_sitemap()
     audit_llms(html_files)
