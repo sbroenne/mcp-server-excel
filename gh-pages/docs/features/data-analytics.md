@@ -1,5 +1,5 @@
 ---
-title: Excel Data Analysis & Power Query Features
+title: Power Query & Excel Data Analysis
 description: Automate Power Query, DAX, Power Pivot, Excel Tables, PivotTables, QueryTables, and data connections in Microsoft Excel.
 keywords: "Excel Power Query automation, DAX automation, Power Pivot, PivotTable automation, Excel Tables, Excel data connections"
 ---

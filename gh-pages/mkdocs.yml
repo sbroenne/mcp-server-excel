@@ -58,9 +58,8 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
-  font:
-    text: Inter
-    code: JetBrains Mono
+  # Use local system fonts to avoid render-blocking third-party font requests.
+  font: false
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -92,7 +91,7 @@ nav:
     - CLI: installation-cli.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
-  - More:
+  - Resources:
     - Examples & use cases: use-cases.md
     - Agent Skills: skills.md
     - Troubleshooting & FAQ: troubleshooting.md

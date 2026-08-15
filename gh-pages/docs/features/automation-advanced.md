@@ -1,5 +1,5 @@
 ---
-title: Excel VBA, Python & Advanced Automation Features
+title: Excel VBA, Python & Automation
 description: Automate Excel with VBA macros, Python in Excel, What-If Analysis, Goal Seek, window management, and XML Maps.
 keywords: "Excel VBA automation, Python in Excel, Excel Goal Seek automation, What-If Analysis, Excel XML Maps, Excel window automation"
 ---

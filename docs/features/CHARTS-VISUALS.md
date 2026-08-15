@@ -130,3 +130,11 @@ Create and manage worksheet visuals without replacing the workbook file.
 ActiveX/OLE controls and macro assignment are intentionally excluded because they cannot be automated safely and reliably across Excel security configurations.
 
 ---
+
+## Related feature areas
+
+- [Data & analytics](DATA-ANALYTICS.md) — build the tables, PivotTables, and models behind visual reports
+- [Cells & workbooks](CELLS-WORKBOOKS.md) — prepare and format worksheet data before visualization
+- [Automation & advanced](AUTOMATION-ADVANCED.md) — generate reports with VBA, Python, and reusable automation
+- [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
+- [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI

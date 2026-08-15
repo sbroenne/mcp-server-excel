@@ -220,3 +220,11 @@ Manage local worksheet QueryTables through the typed Excel PIA.
 **Boundaries:** QueryTables do not expose Power Query M, modern cloud connectors, sharing, presence, mentions, reactions, or coauthoring state.
 
 ---
+
+## Related feature areas
+
+- [Cells & workbooks](CELLS-WORKBOOKS.md) — prepare ranges, formulas, worksheets, and files for analysis
+- [Charts & visualization](CHARTS-VISUALS.md) — present analytical results with charts, slicers, and formatting
+- [Automation & advanced](AUTOMATION-ADVANCED.md) — extend workflows with VBA, Python, and What-If Analysis
+- [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
+- [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI

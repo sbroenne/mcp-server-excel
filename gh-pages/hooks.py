@@ -314,12 +314,15 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
 
 
 def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
-    """Enrich the generated sitemap with a Google video-sitemap entry.
+    """Normalize and enrich the generated sitemap.
 
     MkDocs writes a plain URL sitemap that cannot describe the home-page intro
     video, so we add the ``video`` namespace to ``<urlset>`` and inject a
     ``<video:video>`` block into the home page's ``<url>``. Both ``sitemap.xml``
     and its gzipped twin are updated so Search Console reads the enriched copy.
+    MkDocs also stamps every URL with the build date, even when its content did
+    not change. Those unreliable ``lastmod`` values are removed rather than
+    sending search engines a false freshness signal.
     """
     site_dir = Path(config["site_dir"])
     sitemap = site_dir / "sitemap.xml"
@@ -328,6 +331,7 @@ def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         return
 
     xml = sitemap.read_text(encoding="utf-8")
+    xml = re.sub(r"\s*<lastmod>[^<]+</lastmod>", "", xml)
 
     if 'xmlns:video=' not in xml:
         xml = xml.replace(
@@ -374,4 +378,39 @@ def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         with gzip.GzipFile(gz, "wb", mtime=0) as fh:
             fh.write(xml.encode("utf-8"))
 
-    log.info("enriched sitemap.xml with home-page video markup")
+    log.info("normalized sitemap dates and added home-page video markup")
+
+
+def on_post_page(output, page, config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    """Add accessibility metadata omitted by the upstream Material partials."""
+    output = output.replace(
+        '<div class="md-search" data-md-component="search" role="dialog">',
+        '<div class="md-search" data-md-component="search" role="dialog" '
+        'aria-label="Search documentation">',
+    )
+    output = output.replace(
+        "<div class=md-search data-md-component=search role=dialog>",
+        '<div class=md-search data-md-component=search role=dialog '
+        'aria-label="Search documentation">',
+    )
+    output = output.replace(
+        '<div class="md-progress" data-md-component="progress" role="progressbar">',
+        '<div class="md-progress" data-md-component="progress" role="progressbar" '
+        'aria-label="Page loading progress">',
+    )
+    output = output.replace(
+        "<div class=md-progress data-md-component=progress role=progressbar>",
+        '<div class=md-progress data-md-component=progress role=progressbar '
+        'aria-label="Page loading progress">',
+    )
+    output = re.sub(
+        r'<img src="([^"]*assets/images/logo\.png)" alt="logo">',
+        r'<img src="\1" alt="Excel MCP Server" width="256" height="256">',
+        output,
+    )
+    output = re.sub(
+        r"<img src=([^\s>]*assets/images/logo\.png) alt=logo>",
+        r'<img src="\1" alt="Excel MCP Server" width="256" height="256">',
+        output,
+    )
+    return output

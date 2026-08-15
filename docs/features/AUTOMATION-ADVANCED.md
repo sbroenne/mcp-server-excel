@@ -105,3 +105,11 @@ Manage workbook XML schemas, XPath mappings, and in-memory XML data exchange.
 DTDs, external XSD dependencies, and XSI schema-location attributes are rejected before Excel COM can resolve external resources.
 
 ---
+
+## Related feature areas
+
+- [Data & analytics](DATA-ANALYTICS.md) — combine VBA and Python with Power Query, DAX, and PivotTables
+- [Cells & workbooks](CELLS-WORKBOOKS.md) — manipulate the ranges, formulas, worksheets, and files used by automation
+- [Charts & visualization](CHARTS-VISUALS.md) — create polished visual output from automated workflows
+- [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
+- [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI

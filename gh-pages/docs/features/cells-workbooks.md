@@ -1,5 +1,5 @@
 ---
-title: Excel Cells, Formulas & Workbook Features
+title: Excel Cells, Formulas & Workbooks
 description: Automate Excel ranges, formulas, formatting, worksheets, workbooks, named ranges, calculation, and file operations.
 keywords: "Excel range automation, Excel formula automation, worksheet automation, workbook automation, cell formatting, named ranges"
 ---

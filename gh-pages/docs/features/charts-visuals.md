@@ -1,5 +1,5 @@
 ---
-title: Excel Charts, Formatting & Visualization Features
+title: Excel Charts & Visualization
 description: Automate Excel charts, slicers, conditional formatting, screenshots, drawing objects, and sparklines.
 keywords: "Excel chart automation, Excel conditional formatting, Excel slicers, Excel screenshots, Excel sparklines, drawing objects"
 ---

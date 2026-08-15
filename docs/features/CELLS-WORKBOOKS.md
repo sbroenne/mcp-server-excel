@@ -192,3 +192,11 @@ Manage named ranges — ideal for driving workbook parameters that Power Query a
 - **Use cases:** Manage workbook parameters without touching worksheets. Ideal for automation — update a parameter and Power Query refreshes automatically.
 
 ---
+
+## Related feature areas
+
+- [Data & analytics](DATA-ANALYTICS.md) — transform ranges and tables with Power Query, DAX, and PivotTables
+- [Charts & visualization](CHARTS-VISUALS.md) — turn workbook data into charts and visual reports
+- [Automation & advanced](AUTOMATION-ADVANCED.md) — automate workbooks with VBA, Python, and What-If Analysis
+- [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
+- [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
