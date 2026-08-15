@@ -1,4 +1,3 @@
-````markdown
 # drawing - Server Quirks
 
 Use `drawing` for worksheet images, AutoShapes, text boxes, connectors, safe Forms controls, and sparklines.
@@ -48,5 +47,3 @@ Use `add-sparkline`, `get-sparkline`, `list-sparklines`, `update-sparkline`, and
 excelcli drawing add-shape --session <id> --sheet-name "Dashboard" --shape-type RoundedRectangle --name "Status" --text "Ready" --fill-color "#70AD47"
 excelcli drawing add-sparkline --session <id> --sheet-name "Dashboard" --source-range "B2:E2" --location-range "F2" --sparkline-type Line
 ```
-
-````

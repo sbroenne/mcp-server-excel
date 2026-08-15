@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Drawing;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -36,7 +37,15 @@ public partial class SheetCommands
                 }
 
                 shapes = sheet.Shapes;
-                shape = shapes.AddShape(1, cell.Left, cell.Top, 144, 72);
+
+                // PIA gap: AddShape requires Office.Core.MsoAutoShapeType, while this project intentionally has no office.dll reference.
+                dynamic lateBoundShapes = (dynamic)(object)shapes;
+                shape = lateBoundShapes.AddShape(
+                    (int)DrawingShapeType.Rectangle,
+                    Convert.ToSingle(cell.Left),
+                    Convert.ToSingle(cell.Top),
+                    144f,
+                    72f);
                 textFrame = shape.TextFrame;
                 characters = textFrame.Characters;
                 characters.Text = "Shape";

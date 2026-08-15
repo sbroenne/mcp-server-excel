@@ -1,4 +1,3 @@
-````markdown
 # analysis - What-If Analysis
 
 Use `analysis` for Excel's native Goal Seek, scenarios, scenario summaries, and one- or two-variable data tables.
@@ -43,4 +42,3 @@ Data tables can be calculation-intensive. Use `calculation_mode` when controllin
 ## Solver Is Not Exposed
 
 Solver is an optional VBA add-in, not an Excel PIA API. Microsoft requires users to enable the add-in in Excel Options and establish a VBA reference before calling Solver functions. Do not try to invoke Solver through `vba`, enable the add-in, or change macro-security settings automatically. Use Goal Seek for one-variable targets or document that multi-variable constrained optimization requires user-configured Solver.
-````
