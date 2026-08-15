@@ -53,7 +53,12 @@ def _xml_escape(text: str) -> str:
 
 # gh-pages/hooks.py -> gh-pages/ -> repo root
 REPO_ROOT = Path(__file__).resolve().parent.parent
-GEN_DIR = Path(__file__).resolve().parent / "docs" / "_generated"
+# Deliberately OUTSIDE docs_dir. When the generated files lived in
+# docs/_generated/, every build rewrote files inside the directory `mkdocs
+# serve` watches, so a single edit put the dev server into an endless
+# rebuild loop. `.` is a snippets base_path, so the `--8<-- "_generated/..."`
+# includes in the wrapper pages resolve here unchanged.
+GEN_DIR = Path(__file__).resolve().parent / "_generated"
 
 GITHUB_BLOB = "https://github.com/sbroenne/mcp-server-excel/blob/main/"
 GITHUB_TREE = "https://github.com/sbroenne/mcp-server-excel/tree/main/"
@@ -270,6 +275,9 @@ def _write(name: str, source_rel: str, content: str) -> None:
 
 
 DOCS_DIR = Path(__file__).resolve().parent / "docs"
+# Mirrors the snippets `base_path` in mkdocs.yml, in the same order. Kept in
+# sync so the llms.txt/mirror output resolves exactly what the site renders.
+SNIPPET_BASE_PATHS = (DOCS_DIR, Path(__file__).resolve().parent)
 
 
 def _resolve_snippets(text: str, depth: int = 0) -> str:
@@ -284,11 +292,12 @@ def _resolve_snippets(text: str, depth: int = 0) -> str:
         return text
 
     def repl(match: re.Match) -> str:
-        target = DOCS_DIR / match.group(1)
-        if not target.is_file():
-            log.warning("snippet not found while building llms output: %s", target)
-            return ""
-        return _resolve_snippets(target.read_text(encoding="utf-8"), depth + 1)
+        for base in SNIPPET_BASE_PATHS:
+            target = base / match.group(1)
+            if target.is_file():
+                return _resolve_snippets(target.read_text(encoding="utf-8"), depth + 1)
+        log.warning("snippet not found while building llms output: %s", match.group(1))
+        return ""
 
     return _SNIPPET.sub(repl, text)
 

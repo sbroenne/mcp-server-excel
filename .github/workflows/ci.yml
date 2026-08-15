@@ -1,10 +1,11 @@
-# CI Gate — the single authoritative status check for pull requests.
+# CI Gate — the authoritative status checks for pull requests.
 #
-# This job ALWAYS runs on every PR to `main` (no path filters), so it can be
-# safely marked as a required status check without the "required check never
+# Both jobs ALWAYS run on every PR to `main` (no path filters), so they can be
+# safely marked as required status checks without the "required check never
 # runs on path-filtered PRs" deadlock.
 #
-# It ports the Excel-free pre-commit gates (scripts/pre-commit.ps1) into CI so
+# `Docs Site` builds and audits the MkDocs website. `CI Gate` ports the
+# Excel-free pre-commit gates (scripts/pre-commit.ps1) into CI so
 # that the correctness checks are enforced server-side even if a contributor
 # bypasses the local hook (see Rule 31). The Excel-dependent gates — the CLI
 # workflow smoke test and the MCP smoke test — are intentionally NOT run here:
@@ -29,6 +30,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The documentation site is the primary distribution channel for this project
+  # (README.md is a landing page that links to excelmcpserver.dev), but until
+  # this job existed nothing validated it before merge: the Pages workflow only
+  # builds on push to `main`, and scripts/pre-commit.ps1 classifies `docs/`,
+  # `gh-pages/` and `*.md` as a docs-only fast path that skips almost every
+  # gate. A broken --strict build or audit regression therefore surfaced only
+  # after merge, on the deploy run. Runs unfiltered like the CI Gate job below
+  # so it can safely be a required check.
+  docs:
+    name: Docs Site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: gh-pages/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r gh-pages/requirements.txt
+
+      - name: Build with MkDocs
+        working-directory: gh-pages
+        run: mkdocs build --strict --clean
+
+      - name: Audit built site
+        working-directory: gh-pages
+        run: python audit_site.py
+
+      # Guards against the deploy workflow's hand-written paths: filter drifting
+      # from the canonical sources hooks.py mirrors, which would publish a
+      # silently stale site until the nightly cron caught up.
+      - name: Verify deploy path filter covers every mirrored source
+        working-directory: gh-pages
+        run: python check_deploy_paths.py
+
   ci-gate:
     name: CI Gate
     runs-on: windows-latest

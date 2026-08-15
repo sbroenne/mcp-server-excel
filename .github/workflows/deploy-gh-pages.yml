@@ -26,9 +26,8 @@ on:
       - '.github/star-history.csv'
       - 'scripts/Update-StarHistory.ps1'
       - 'scripts/Restore-StarHistory.ps1'
-      - 'scripts/Persist-StarHistory.ps1'
-      - 'scripts/Test-StarHistory.ps1'
   schedule:
+    # After star-history.yml (02:17 UTC) so the site renders the same day's snapshot.
     - cron: "17 3 * * *"
   workflow_dispatch:
 
@@ -39,8 +38,11 @@ concurrency:
 
 jobs:
   build:
+    # Read-only: persisting the star history now lives in star-history.yml, so
+    # this job - which installs third-party Python packages - no longer needs
+    # write access to the repository.
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       indexnow_urls: ${{ steps.indexnow-urls.outputs.urls }}
@@ -50,10 +52,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Test star history generator
-        shell: pwsh
-        run: ./scripts/Test-StarHistory.ps1
 
       - name: Restore persisted star history
         shell: pwsh
@@ -66,7 +64,7 @@ jobs:
             -HistoryPath $env:STAR_HISTORY_PATH `
             -RemotePath $env:STAR_HISTORY_PATH
 
-      - name: Record current public star count and generate chart
+      - name: Render star history chart
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -79,24 +77,12 @@ jobs:
             throw "GitHub did not return a valid public stargazers_count."
           }
 
+          # Local render only - the durable snapshot is written by star-history.yml.
           ./scripts/Update-StarHistory.ps1 `
             -Repository '${{ github.repository }}' `
             -HistoryPath $env:STAR_HISTORY_PATH `
             -CurrentCount $count `
             -OutputPath './gh-pages/docs/assets/images/star-history.svg'
-
-      - name: Persist daily aggregate snapshot
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ./scripts/Persist-StarHistory.ps1 `
-            -Repository '${{ github.repository }}' `
-            -Branch $env:STAR_HISTORY_BRANCH `
-            -HistoryPath $env:STAR_HISTORY_PATH `
-            -RemotePath $env:STAR_HISTORY_PATH `
-            -CommitSha '${{ github.sha }}' `
-            -TempPath $env:RUNNER_TEMP
 
       - name: Setup Python
         uses: actions/setup-python@v7
