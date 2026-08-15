@@ -20,6 +20,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 SITE_DIR = Path(__file__).resolve().parent / "_site"
+MKDOCS_YML = Path(__file__).resolve().parent / "mkdocs.yml"
 SITE_URL = "https://excelmcpserver.dev/"
 
 # Google truncates around these lengths; well outside them is a real problem.
@@ -27,8 +28,59 @@ TITLE_MAX = 70
 DESCRIPTION_MIN = 50
 DESCRIPTION_MAX = 200
 
+# The home page legitimately renders site_description; every other page must not.
+HOMEPAGE = "index.html"
+
+# Remote status badges: their pixel dimensions are not knowable at build time, and
+# the URL may carry no file extension at all (e.g. img.shields.io/...?style=flat),
+# so they are matched on host rather than on the path.
+BADGE_HOSTS = ("img.shields.io", "cdn.jsdelivr.net", "vsmarketplacebadges.dev", "badgen.net")
+
+# Material emits the theme logo from its own header partial and sizes it via CSS;
+# it cannot carry width/height without overriding that partial.
+THEME_LOGO_SUFFIXES = ("/logo.png", "/icon.png")
+
 failures: list[str] = []
 checked = 0
+
+
+def _site_description() -> str:
+    """Read ``site_description`` out of mkdocs.yml.
+
+    Parsed rather than hardcoded on purpose: a copy of the string here would stop
+    matching the moment someone rewords mkdocs.yml, and the fallback check below
+    would then pass forever while guarding nothing - a silent failure inside a
+    detector whose whole job is catching silent failures.
+
+    A full ``yaml.safe_load`` is not an option because mkdocs.yml carries custom
+    ``!!python/name:`` tags, so only this one key is parsed. Plain, quoted and
+    ``>``/``|`` block scalar forms are all handled.
+    """
+    lines = MKDOCS_YML.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        match = re.match(r"^site_description:\s*(.*?)\s*$", line)
+        if not match:
+            continue
+        value = match.group(1)
+        if value[:1] in (">", "|"):
+            block: list[str] = []
+            for follow in lines[index + 1 :]:
+                if not follow.strip():
+                    block.append("")
+                    continue
+                if not follow[:1].isspace():
+                    break
+                block.append(follow.strip())
+            value = " ".join(x for x in block if x)
+        else:
+            value = value.strip("'\"")
+        return " ".join(value.split())
+
+    print("ERROR: could not find site_description in mkdocs.yml", file=sys.stderr)
+    sys.exit(2)
+
+
+SITE_DESCRIPTION = _site_description()
 
 
 def fail(message: str) -> None:
@@ -65,11 +117,25 @@ def audit_html(path: Path) -> None:
     if not description:
         fail(f"{name}: no meta description")
     else:
+        text = " ".join(description.group(1).split())
         length = len(description.group(1).strip())
         if not DESCRIPTION_MIN <= length <= DESCRIPTION_MAX:
             fail(
                 f"{name}: meta description is {length} chars "
                 f"(want {DESCRIPTION_MIN}-{DESCRIPTION_MAX})"
+            )
+        # Material falls back to site_description whenever a page has no usable
+        # per-page description, and MkDocs reports nothing when that happens.
+        # Two ways to trigger it, both silent: a double quote inside an unquoted
+        # `description:` value terminates the rendered content="..." attribute
+        # early, and an unquoted YAML scalar containing ": " makes the whole
+        # front-matter block unparseable - dropping title, description and
+        # keywords together.
+        if name != HOMEPAGE and text == SITE_DESCRIPTION:
+            fail(
+                f"{name}: meta description fell back to site_description - this "
+                f"page's YAML front matter did not apply (check the description "
+                f'value for a double quote or an unquoted ": ")'
             )
 
     for prop in ("og:title", "og:description", "og:image", "og:url", "og:type"):
@@ -85,13 +151,19 @@ def audit_html(path: Path) -> None:
         fail(f"{name}: found {h1_count} <h1> elements (want exactly 1)")
 
     # Raster content images need explicit dimensions to avoid layout shift.
-    # SVG badges carry intrinsic dimensions in the file itself, so they are exempt.
-    svg_hosts = ("img.shields.io", "cdn.jsdelivr.net")
+    # SVGs carry intrinsic dimensions in the file itself, remote badges have no
+    # build-time dimensions (and often no file extension either, so they are
+    # matched on host), and the theme logo is emitted by Material's own partials.
     for img in re.findall(r"<img\b[^>]*>", html):
         src_match = re.search(r'src=["\']?([^"\'\s>]+)', img)
         src = src_match.group(1) if src_match else ""
-        is_svg = src.split("?")[0].endswith(".svg") or any(h in src for h in svg_hosts)
-        if "data:image" in img or is_svg:
+        parts = urlsplit(src)
+        exempt = (
+            parts.netloc in BADGE_HOSTS
+            or parts.path.endswith(".svg")
+            or parts.path.endswith(THEME_LOGO_SUFFIXES)
+        )
+        if "data:image" in img or exempt:
             continue
         if "width=" not in img or "height=" not in img:
             fail(f"{name}: <img> without width/height: {src or img[:60]}")
@@ -227,12 +299,53 @@ def audit_robots() -> None:
 
 
 def audit_faq() -> None:
-    path = SITE_DIR / "troubleshooting" / "index.html"
-    if not path.is_file():
-        fail("troubleshooting page is missing")
+    """The FAQ page must carry parseable FAQPage structured data.
+
+    The JSON-LD is derived from the page's own ``###`` question headings by
+    hooks.py, so a parser regression shows up as too few questions rather than
+    as a build failure.
+    """
+    faq = SITE_DIR / "faq" / "index.html"
+    if not faq.is_file():
+        fail("FAQ page is missing")
         return
-    if "FAQPage" not in path.read_text(encoding="utf-8"):
-        fail("troubleshooting page has no FAQPage structured data")
+    html = faq.read_text(encoding="utf-8")
+    blocks = re.findall(
+        r'<script type=["\']?application/ld\+json["\']?>(.*?)</script>', html, re.DOTALL
+    )
+    faq_blocks = []
+    for block in blocks:
+        try:
+            data = json.loads(block)
+        except json.JSONDecodeError:
+            continue  # audit_jsonld reports the parse error itself
+        if data.get("@type") == "FAQPage":
+            faq_blocks.append(data)
+    if not faq_blocks:
+        fail("faq/index.html: no FAQPage structured data")
+    elif len(faq_blocks[0].get("mainEntity", [])) < 5:
+        fail(
+            f"faq/index.html: FAQPage has only "
+            f"{len(faq_blocks[0].get('mainEntity', []))} questions - parser regression?"
+        )
+
+    if not (SITE_DIR / "troubleshooting" / "index.html").is_file():
+        fail("troubleshooting page is missing")
+
+
+def audit_jsonld(html_files: list[Path]) -> None:
+    """Every JSON-LD block must actually parse, or search engines ignore it."""
+    for path in html_files:
+        html = path.read_text(encoding="utf-8", errors="replace")
+        for block in re.findall(
+            r'<script type=["\']?application/ld\+json["\']?>(.*?)</script>',
+            html,
+            re.DOTALL,
+        ):
+            try:
+                json.loads(block)
+            except json.JSONDecodeError as exc:
+                fail(f"{page_name(path)}: invalid JSON-LD: {exc}")
 
 
 def main() -> int:
@@ -243,6 +356,8 @@ def main() -> int:
     html_files = sorted(
         p
         for p in SITE_DIR.rglob("*.html")
+        # 404.html is not an indexable page: MkDocs renders it with no canonical
+        # URL and no page metadata, so every metadata check would fire on it.
         if p.name != "404.html" and "assets" not in p.relative_to(SITE_DIR).parts
     )
     if not html_files:
@@ -252,6 +367,7 @@ def main() -> int:
     for path in html_files:
         audit_html(path)
     audit_internal_links(html_files)
+    audit_jsonld(html_files)
     audit_sitemap()
     audit_llms(html_files)
     audit_tools_json()

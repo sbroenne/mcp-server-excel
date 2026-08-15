@@ -387,7 +387,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 
 ## Getting Help
 
-- **Troubleshooting:** [Troubleshooting & FAQ](https://excelmcpserver.dev/troubleshooting/)
+- **Troubleshooting:** [Troubleshooting](https://excelmcpserver.dev/troubleshooting/) · [FAQ](https://excelmcpserver.dev/faq/)
 - **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
 - **Contributing:** [Contributing Guide](CONTRIBUTING.md)

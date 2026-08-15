@@ -325,41 +325,86 @@ def on_page_markdown(markdown, page, config, **kwargs):  # noqa: D401 - MkDocs h
     return markdown
 
 
-_FAQ_QUESTION = re.compile(r'^\?{3}\+?\s+question\s+"([^"]+)"\s*$')
+_FAQ_ADMONITION = re.compile(r'^\?{3}\+?\s+question\s+"([^"]+)"\s*$')
+_FAQ_HEADING = re.compile(r"^###\s+(.+?)\s*$")
+_FAQ_MIN_ENTITIES = 3
 
 
 def _faq_jsonld(markdown: str) -> str:
-    """Build FAQPage JSON-LD from ``??? question "..."`` admonitions.
+    """Build FAQPage JSON-LD from a page's own question blocks.
 
-    Derived from the page body rather than maintained separately, so the
-    structured data and the visible FAQ cannot diverge.
+    Two source forms are recognised:
+
+    * ``### Some question?`` headings - preferred, because each answer keeps a
+      stable anchor that can be deep-linked from another page or straight from a
+      search result, and shows up in the page table of contents.
+    * ``??? question "..."`` collapsible admonitions, which have no anchor at
+      all, kept so a page written either way still works.
+
+    Either way the structured data is derived from the page body rather than
+    maintained separately, so the two cannot diverge.
     """
     items: list[tuple[str, list[str]]] = []
     current: list[str] | None = None
+    indented = False
 
     for line in markdown.splitlines():
-        match = _FAQ_QUESTION.match(line)
-        if match:
+        admonition = _FAQ_ADMONITION.match(line)
+        if admonition:
             current = []
-            items.append((match.group(1), current))
+            indented = True
+            items.append((admonition.group(1), current))
             continue
+
+        heading = _FAQ_HEADING.match(line)
+        if heading:
+            text = heading.group(1).strip()
+            if text.endswith("?"):
+                current = []
+                indented = False
+                items.append((text, current))
+            else:
+                current = None
+            continue
+
         if current is None:
             continue
+
+        # A heading of any level ends a heading-sourced answer.
+        if not indented and line.startswith("#"):
+            current = None
+            continue
+
         if not line.strip():
             current.append("")
-        elif line.startswith((" ", "\t")):
-            current.append(line.strip())
-        else:
+        elif indented and not line.startswith((" ", "\t")):
             current = None
+        else:
+            current.append(line.strip())
 
     entities = []
     for question, answer_lines in items:
-        answer = " ".join(x for x in answer_lines if x).strip()
+        # Fenced code blocks and table rows are useful on the page but pure noise
+        # inside a structured answer, so they are dropped here.
+        prose: list[str] = []
+        in_fence = False
+        for raw in answer_lines:
+            if raw.startswith("```"):
+                in_fence = not in_fence
+                continue
+            if in_fence or raw.startswith("|"):
+                continue
+            # Strip the list marker only where it starts a line, so a dash used
+            # mid-sentence survives into the structured answer.
+            prose.append(re.sub(r"^[-*+]\s+", "", raw))
+
+        answer = " ".join(x for x in prose if x).strip()
         if not answer:
             continue
         # Strip inline Markdown so the structured answer is plain prose.
         answer = _MD_LINK.sub(r"\1", answer)
         answer = re.sub(r"[*_`]+", "", answer)
+        answer = re.sub(r"\s{2,}", " ", answer).strip()
         entities.append(
             {
                 "@type": "Question",
@@ -368,7 +413,9 @@ def _faq_jsonld(markdown: str) -> str:
             }
         )
 
-    if not entities:
+    # A page with one or two question-shaped headings is a guide that happens to
+    # ask a question, not an FAQ; emitting FAQPage there is a false signal.
+    if len(entities) < _FAQ_MIN_ENTITIES:
         return ""
 
     return json.dumps(
