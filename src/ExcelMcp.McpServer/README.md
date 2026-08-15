@@ -57,15 +57,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - ✅ Windsurf
 - ✅ Any MCP-compatible client
 
-📖 **Detailed setup instructions:** [MCP Server Installation Guide](../../docs/INSTALLATION-MCP-SERVER.md)
+📖 **Detailed setup instructions:** [MCP Server Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-MCP-SERVER.md)
 
-🎯 **Quick config examples:** [examples/mcp-configs/](../../examples/mcp-configs/)
+🎯 **Quick config examples:** [examples/mcp-configs/](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs)
 
 ## 🛠️ What You Can Do
 
 **31 specialized tools with 326 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 326 operations, grouped by category
+📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 326 operations, grouped by category
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
@@ -99,11 +99,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ## 📋 Additional Resources
 
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
-- **[MCP Server Installation Guide](../../docs/INSTALLATION-MCP-SERVER.md)** - Detailed setup for all platforms
+- **[MCP Server Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-MCP-SERVER.md)** - Detailed setup for all platforms
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
-- **[CLI Documentation](../ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
+- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
 
 **License:** MIT  
-**Privacy:** [PRIVACY.md](../../PRIVACY.md)
+**Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
 **Platform:** Windows only (requires Excel 2016+)  
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

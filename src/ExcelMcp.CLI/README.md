@@ -38,7 +38,7 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
-📖 **[Full Installation Guide](../../docs/INSTALLATION-CLI.md)** - PATH setup, GitHub Copilot plugin, updating, uninstalling, and troubleshooting
+📖 **[Full Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - PATH setup, GitHub Copilot plugin, updating, uninstalling, and troubleshooting
 
 📚 **CLI usage guide:** See the session workflow, troubleshooting, advanced usage, and CI/CD examples below.
 
@@ -52,7 +52,7 @@ ExcelMcp.CLI provides **326 operations** across 31 feature command categories in
 
 Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations, grouped by category
+📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Full documentation with all operations, grouped by category
 
 ---
 
@@ -61,7 +61,7 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 - **Windows OS** (Windows 10/11 or Server 2016+) + **Microsoft Excel 2016 or later** — COM interop is Windows-specific and requires Excel to be installed
 - **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for the standalone exe)
 
-📖 **[Full System Requirements & Optional Components](../../docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
+📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
 
 ---
 
@@ -176,7 +176,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 ## 🤝 Related Tools
 
-- **[MCP Server](../ExcelMcp.McpServer/README.md)** - For conversational AI (Claude Desktop, VS Code Chat) — distributed as `mcp-excel.exe`
+- **[MCP Server](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)** - For conversational AI (Claude Desktop, VS Code Chat) — distributed as `mcp-excel.exe`
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
 - **Issues & Discussions**: [GitHub](https://github.com/sbroenne/mcp-server-excel)
 - **Full docs**: [excelmcpserver.dev](https://excelmcpserver.dev/)
@@ -185,7 +185,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 ## 📄 License
 
-MIT License - see [LICENSE](../../LICENSE) for details.
+MIT License - see [LICENSE](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE) for details.
 
 ---
 

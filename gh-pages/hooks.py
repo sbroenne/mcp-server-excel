@@ -162,16 +162,35 @@ SITE_PAGE_MAP.update(
 
 
 def _rewrite_links(text: str, source_rel: str) -> str:
-    """Resolve repo-relative links in pulled-in content so they work on the site.
+    """Resolve links in pulled-in content so they work on the site.
 
-    Links that point at a page we publish are rewritten to that page's URL;
-    everything else that resolves inside the repo is rewritten to an absolute
-    GitHub URL. External links, anchors and site-absolute links are left alone.
+    Two cases:
+
+    - Repo-relative links: rewritten to the published page when we publish one,
+      otherwise to an absolute GitHub URL.
+    - Absolute GitHub URLs into this repo: rewritten *back* to the published
+      page when we publish one. Sources that are also rendered outside GitHub -
+      the NuGet package READMEs - have to spell links out absolutely, because
+      NuGet.org resolves relative links against the package root and they 404.
+      Without this the website would link out to GitHub for pages it publishes
+      itself.
+
+    External links, anchors and site-absolute links are left alone.
     """
     source_dir = posixpath.dirname(source_rel)
 
     def repl(match: re.Match) -> str:
         label, url = match.group(1), match.group(2)
+
+        for prefix in (GITHUB_BLOB, GITHUB_TREE):
+            if url.startswith(prefix):
+                remainder = url[len(prefix) :]
+                target, _, anchor = remainder.partition("#")
+                anchor = f"#{anchor}" if anchor else ""
+                if target.rstrip("/") in SITE_PAGE_MAP:
+                    return f"[{label}]({SITE_PAGE_MAP[target.rstrip('/')]}{anchor})"
+                return match.group(0)
+
         if url.startswith(("http://", "https://", "#", "/", "mailto:", "<")):
             return match.group(0)
 
