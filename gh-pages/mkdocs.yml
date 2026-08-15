@@ -31,6 +31,12 @@ watch:
 # Raw generated includes live in gh-pages/_generated/ (outside docs_dir, so
 # `mkdocs serve` does not retrigger itself) and are pulled into the thin wrapper
 # pages via pymdownx.snippets, which reads them straight from disk.
+#
+# They used to live in docs/_generated/. Long-lived clones still have that stale
+# directory, and without this exclusion MkDocs would silently build every stale
+# file as a published page. Keep this even though nothing writes there anymore.
+exclude_docs: |
+  _generated/
 
 # Many pulled-in source READMEs contain repo-relative links (e.g. ../../FEATURES.md)
 # that intentionally point at GitHub, not the site. Keep these as warnings, never
