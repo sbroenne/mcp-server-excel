@@ -7,6 +7,23 @@ the repo (root `README.md`, `FEATURES.md`, `docs/features/`, package READMEs,
 The canonical feature reference is organized into intent-based pages under `docs/features/`;
 `hooks.py` adapts those pages for the website without copying operation details.
 
+## Theme overrides
+
+`overrides/` holds the templates that change MkDocs/Material output:
+
+| File | Why |
+| --- | --- |
+| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `hooks.py`) and the home page's `<video:video>` block. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
+| `partials/logo.html` | Upstream renders `alt="logo"` with no dimensions - a WCAG 1.1.1 failure and an unsized image. |
+| `partials/progress.html` | Upstream's `role="progressbar"` has no accessible name (WCAG 4.1.2). |
+
+Material's search dialog needs the same treatment, but its partial is ~45 lines
+of markup and feature flags, so forking it to add one attribute would pin a
+large slice of Material internals. That one stays a string patch in
+`hooks.py`. `audit_site.py` asserts all four fixes are present in the built
+HTML, so an upstream change that breaks any of them fails the build instead of
+silently regressing accessibility.
+
 ## Setup (one-time)
 
 ```powershell
@@ -36,9 +53,13 @@ after a build:
 
 ```powershell
 cd gh-pages
-.\.venv\Scripts\python.exe audit_site.py           # SEO / LLM-discoverability audit
+.\.venv\Scripts\python.exe audit_site.py           # SEO / a11y / LLM-discoverability audit
 .\.venv\Scripts\python.exe check_deploy_paths.py   # deploy paths: filter covers every mirrored source
 ```
+
+Both workflows that build the site check out with `fetch-depth: 0`, because the
+sitemap dates come from `git log`. On a shallow clone every page would claim the
+tip commit's date; `audit_site.py` fails the build when it sees that.
 
 Two further checks run on a schedule rather than per pull request:
 

@@ -6,27 +6,38 @@ are generated from the authoritative Markdown files elsewhere in the repo
 drift from the real docs. It is the MkDocs equivalent of the old Jekyll
 ``build.sh`` script.
 
-Generated files are written to ``docs/_generated/`` (git-ignored) and pulled
-into the thin wrapper pages under ``docs/`` via the ``pymdownx.snippets``
-``--8<--`` include syntax. Regeneration happens automatically on every
-``mkdocs build`` / ``mkdocs serve`` via the ``on_pre_build`` event.
+Generated files are written to ``gh-pages/_generated/`` (git-ignored, and
+deliberately outside ``docs_dir``) and pulled into the thin wrapper pages under
+``docs/`` via the ``pymdownx.snippets`` ``--8<--`` include syntax. Regeneration
+happens automatically on every ``mkdocs build`` / ``mkdocs serve`` via the
+``on_pre_build`` event.
+
+Two smaller jobs live here as well:
+
+* ``on_env`` hands ``overrides/sitemap.xml`` the git commit date behind every
+  page, so ``<lastmod>`` reflects real content changes rather than the build
+  date, plus the home page's video metadata.
+* ``on_post_page`` gives Material's search dialog an accessible name. The logo
+  and progress-bar equivalents are declarative partials under ``overrides/``;
+  ``audit_site.py`` fails the build if any of the three stops applying.
 """
 
 from __future__ import annotations
 
-import gzip
 import json
 import logging
 import posixpath
 import re
+import subprocess
+from datetime import datetime
 from pathlib import Path
 
 log = logging.getLogger("mkdocs.hooks.generate")
 
 # Home-page intro video. MkDocs' built-in sitemap is a plain URL sitemap and has
-# no notion of embedded media, so we enrich the home page's <url> entry with a
-# Google video-sitemap <video:video> block in on_post_build. Keep these fields in
-# sync with the VideoObject JSON-LD in docs/index.md.
+# no notion of embedded media, so overrides/sitemap.xml renders a Google
+# video-sitemap <video:video> block into the home page's <url> entry. Keep these
+# fields in sync with the VideoObject JSON-LD in docs/index.md.
 VIDEO = {
     "page_url": "https://excelmcpserver.dev/",
     "thumbnail": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
@@ -39,17 +50,6 @@ VIDEO = {
     "duration": "62",
     "publication_date": "2025-11-23T08:33:40-08:00",
 }
-
-_VIDEO_NS = "http://www.google.com/schemas/sitemap-video/1.1"
-
-
-def _xml_escape(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
 
 # gh-pages/hooks.py -> gh-pages/ -> repo root
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -290,7 +290,127 @@ def _write(name: str, source_rel: str, content: str) -> None:
     GEN_DIR.mkdir(parents=True, exist_ok=True)
     content = _rewrite_links(content, source_rel)
     (GEN_DIR / name).write_text(content, encoding="utf-8")
+    MIRROR_SOURCES[name] = source_rel
     log.info("generated _generated/%s", name)
+
+
+# Generated file name (e.g. "features-data.md") -> repo-relative canonical
+# source. Populated by _write during on_pre_build and read back when dating
+# sitemap entries: a wrapper page's real "last modified" is driven by the
+# canonical file it mirrors, not by the two-line wrapper.
+MIRROR_SOURCES: dict[str, str] = {}
+
+# Matches the snippet includes in the wrapper pages, e.g.
+#     --8<-- "_generated/features-data.md"
+_GEN_INCLUDE = re.compile(r'--8<--\s*"_generated/([^"]+)"')
+
+
+def _git_lastmod_index() -> dict[str, str]:
+    """Map every tracked repo-relative path to its last commit date (W3C).
+
+    One ``git log`` walk over the whole history, newest first: the first time a
+    path appears is by definition its most recent change. This replaces the
+    previous behaviour of stripping ``<lastmod>`` altogether, which was done
+    because MkDocs stamps every URL with the *build* date - a false freshness
+    signal on every page in every deploy.
+
+    Returns an empty index (so ``<lastmod>`` is simply omitted) when git is
+    unavailable, which keeps ``mkdocs build`` working from a source tarball.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "log", "--format=%cI", "--name-only", "--no-renames"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        log.warning("git log failed (%s); sitemap will omit <lastmod>", exc)
+        return {}
+
+    index: dict[str, str] = {}
+    date = ""
+    for line in proc.stdout.splitlines():
+        if not line:
+            continue
+        # Commit-date lines are the only ones that can start with a 4-digit year
+        # followed by '-'; paths in this repo never do.
+        if len(line) >= 5 and line[:4].isdigit() and line[4] == "-":
+            date = line
+        elif date:
+            index.setdefault(line, date)
+    return index
+
+
+def _git_is_shallow() -> bool:
+    """True when the checkout has truncated history.
+
+    Worth reporting explicitly: a shallow clone still lists every tracked file,
+    just all under the tip commit's date, so the lastmod index looks perfectly
+    healthy while every date in it is wrong.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return proc.stdout.strip() == "true"
+
+
+def _page_lastmod(files) -> dict[str, str]:
+    """Map each page's ``src_uri`` to the newest git date that affects it.
+
+    For a wrapper page that is nothing but an ``--8<--`` include, that is the
+    date of the canonical source; the wrapper itself contributes its own date
+    too, so editing either one refreshes the entry.
+    """
+    index = _git_lastmod_index()
+    if not index:
+        return {}
+    if _git_is_shallow():
+        # A shallow clone (actions/checkout's default fetch-depth: 1) still lists
+        # every tracked file - all under the tip commit's date. So the index
+        # looks healthy and only the dates are wrong; audit_site.py catches it by
+        # noticing that every page claims the same <lastmod>.
+        log.warning(
+            "shallow git clone: every sitemap <lastmod> will be the tip "
+            "commit's date - the workflow needs fetch-depth: 0"
+        )
+
+    lastmod: dict[str, str] = {}
+    for file in files.documentation_pages():
+        candidates = []
+        wrapper_rel = f"gh-pages/docs/{file.src_uri}"
+        if wrapper_rel in index:
+            candidates.append(index[wrapper_rel])
+        try:
+            text = Path(file.abs_src_path).read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        for name in _GEN_INCLUDE.findall(text):
+            source_rel = MIRROR_SOURCES.get(name)
+            if source_rel and source_rel in index:
+                candidates.append(index[source_rel])
+        if candidates:
+            # git's %cI keeps each committer's UTC offset, so the strings are
+            # not directly comparable as instants - parse before taking the max.
+            lastmod[file.src_uri] = max(candidates, key=datetime.fromisoformat)
+    return lastmod
+
+
+def on_env(env, config, files, **kwargs):  # noqa: D401 - MkDocs hook signature
+    """Expose sitemap data to overrides/sitemap.xml."""
+    env.globals["page_lastmod"] = _page_lastmod(files)
+    env.globals["video"] = VIDEO
+    return env
 
 
 DOCS_DIR = Path(__file__).resolve().parent / "docs"
@@ -792,78 +912,30 @@ def _write_tools_json(config) -> None:
 
 
 def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
-    """Normalize and enrich the generated sitemap.
+    """Write the LLM-facing outputs that MkDocs itself has no notion of.
 
-    MkDocs writes a plain URL sitemap that cannot describe the home-page intro
-    video, so we add the ``video`` namespace to ``<urlset>`` and inject a
-    ``<video:video>`` block into the home page's ``<url>``. Both ``sitemap.xml``
-    and its gzipped twin are updated so Search Console reads the enriched copy.
-    MkDocs also stamps every URL with the build date, even when its content did
-    not change. Those unreliable ``lastmod`` values are removed rather than
-    sending search engines a false freshness signal.
+    The sitemap used to be rewritten here - stripping ``<lastmod>`` and splicing
+    in a ``<video:video>`` block with regexes, then re-gzipping by hand. Both
+    jobs now happen declaratively in ``overrides/sitemap.xml``, which also means
+    MkDocs writes ``sitemap.xml.gz`` from the same rendered output instead of the
+    two being kept in step manually.
     """
-    site_dir = Path(config["site_dir"])
     _write_llm_outputs(config)
     _write_tools_json(config)
 
-    sitemap = site_dir / "sitemap.xml"
-    if not sitemap.is_file():
-        log.warning("sitemap.xml not found; skipping video-sitemap enrichment")
-        return
-
-    xml = sitemap.read_text(encoding="utf-8")
-    xml = re.sub(r"\s*<lastmod>[^<]+</lastmod>", "", xml)
-
-    if 'xmlns:video=' not in xml:
-        xml = xml.replace(
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
-            f' xmlns:video="{_VIDEO_NS}">',
-            1,
-        )
-
-    video_block = (
-        "        <video:video>\n"
-        f"            <video:thumbnail_loc>{_xml_escape(VIDEO['thumbnail'])}</video:thumbnail_loc>\n"
-        f"            <video:title>{_xml_escape(VIDEO['title'])}</video:title>\n"
-        f"            <video:description>{_xml_escape(VIDEO['description'])}</video:description>\n"
-        f"            <video:player_loc>{_xml_escape(VIDEO['player_loc'])}</video:player_loc>\n"
-        f"            <video:duration>{VIDEO['duration']}</video:duration>\n"
-        f"            <video:publication_date>{VIDEO['publication_date']}</video:publication_date>\n"
-        "            <video:family_friendly>yes</video:family_friendly>\n"
-        "            <video:live>no</video:live>\n"
-        "        </video:video>\n"
-    )
-
-    # Insert the video block inside the home page's <url>...</url> element.
-    home_url = re.compile(
-        r"(<url>\s*<loc>"
-        + re.escape(VIDEO["page_url"])
-        + r"</loc>.*?)(</url>)",
-        re.DOTALL,
-    )
-    if "<video:video>" not in xml:
-        new_xml, count = home_url.subn(rf"\1{video_block}    \2", xml, count=1)
-        if count:
-            xml = new_xml
-        else:
-            log.warning(
-                "home page <url> not found in sitemap; video markup not added"
-            )
-
-    sitemap.write_text(xml, encoding="utf-8", newline="\n")
-
-    gz = site_dir / "sitemap.xml.gz"
-    if gz.exists():
-        # mtime=0 keeps the output reproducible, matching MkDocs' own gzip call.
-        with gzip.GzipFile(gz, "wb", mtime=0) as fh:
-            fh.write(xml.encode("utf-8"))
-
-    log.info("normalized sitemap dates and added home-page video markup")
-
 
 def on_post_page(output, page, config, **kwargs):  # noqa: D401 - MkDocs hook signature
-    """Add accessibility metadata omitted by the upstream Material partials."""
+    """Give Material's search dialog an accessible name.
+
+    A role="dialog" with no name is a WCAG 4.1.2 failure. Unlike the logo and
+    progress-bar fixes - now declarative partials under ``overrides/`` - this one
+    stays a string patch on purpose: upstream's ``partials/search.html`` is ~45
+    lines of markup, icon lookups and feature flags, so copying it into
+    ``overrides/`` to add one attribute would pin a large slice of Material
+    internals and silently miss every upstream change to the search UI.
+
+    Two variants because mkdocs-minify strips attribute quotes.
+    """
     output = output.replace(
         '<div class="md-search" data-md-component="search" role="dialog">',
         '<div class="md-search" data-md-component="search" role="dialog" '
@@ -873,25 +945,5 @@ def on_post_page(output, page, config, **kwargs):  # noqa: D401 - MkDocs hook si
         "<div class=md-search data-md-component=search role=dialog>",
         '<div class=md-search data-md-component=search role=dialog '
         'aria-label="Search documentation">',
-    )
-    output = output.replace(
-        '<div class="md-progress" data-md-component="progress" role="progressbar">',
-        '<div class="md-progress" data-md-component="progress" role="progressbar" '
-        'aria-label="Page loading progress">',
-    )
-    output = output.replace(
-        "<div class=md-progress data-md-component=progress role=progressbar>",
-        '<div class=md-progress data-md-component=progress role=progressbar '
-        'aria-label="Page loading progress">',
-    )
-    output = re.sub(
-        r'<img src="([^"]*assets/images/logo\.png)" alt="logo">',
-        r'<img src="\1" alt="Excel MCP Server" width="256" height="256">',
-        output,
-    )
-    output = re.sub(
-        r"<img src=([^\s>]*assets/images/logo\.png) alt=logo>",
-        r'<img src="\1" alt="Excel MCP Server" width="256" height="256">',
-        output,
     )
     return output
