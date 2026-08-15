@@ -1,0 +1,43 @@
+{#-
+  Overrides mkdocs/templates/sitemap.xml.
+
+  Two things the stock template cannot do, both of which used to be regex
+  surgery over the built file in hooks.py:
+
+  1. <lastmod> - MkDocs stamps every URL with the *build* date, so a deploy that
+     changed one page claimed all 52 had changed. `page_lastmod` (from hooks.py)
+     carries the real git commit date of the content behind each page, including
+     the canonical repo file a wrapper page mirrors.
+  2. <video:video> - the home page embeds an intro video, and a plain URL sitemap
+     has no way to describe it.
+
+  Rendering both here means MkDocs writes sitemap.xml.gz from this same output,
+  instead of hooks.py having to re-gzip a file it had just patched.
+-#}
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+{%- for file in pages -%}
+    {% if not file.page.is_link and (file.page.abs_url or file.page.canonical_url) %}
+    {%- set loc = file.page.canonical_url or file.page.abs_url %}
+    <url>
+         <loc>{{ loc|e }}</loc>
+         {%- set lastmod = page_lastmod.get(file.src_uri) %}
+         {%- if lastmod %}
+         <lastmod>{{ lastmod|e }}</lastmod>
+         {%- endif %}
+         {%- if loc == video.page_url %}
+         <video:video>
+             <video:thumbnail_loc>{{ video.thumbnail|e }}</video:thumbnail_loc>
+             <video:title>{{ video.title|e }}</video:title>
+             <video:description>{{ video.description|e }}</video:description>
+             <video:player_loc>{{ video.player_loc|e }}</video:player_loc>
+             <video:duration>{{ video.duration|e }}</video:duration>
+             <video:publication_date>{{ video.publication_date|e }}</video:publication_date>
+             <video:family_friendly>yes</video:family_friendly>
+             <video:live>no</video:live>
+         </video:video>
+         {%- endif %}
+    </url>
+    {%- endif -%}
+{% endfor %}
+</urlset>

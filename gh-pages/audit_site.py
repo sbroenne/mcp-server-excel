@@ -19,6 +19,7 @@ import json
 import re
 import sys
 import zlib
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -208,6 +209,52 @@ def audit_offsite_links(html_files: list[Path]) -> None:
                 )
 
 
+def audit_accessibility(html_files: list[Path]) -> None:
+    """Assert the accessible names Material's own partials omit.
+
+    Three WCAG defects are patched during the build: the logo's alt text and
+    dimensions and the loading progress bar (both via ``overrides/partials/``),
+    and the search dialog's accessible name (a string patch in ``hooks.py``,
+    because upstream's search partial is far too large to fork for one
+    attribute). All three are invisible in normal use and none of them failed
+    the build if they stopped applying - so a Material upgrade that renamed a
+    class or reordered an attribute would have silently regressed the site.
+    """
+    # Attribute quotes are optional: the minify plugin strips them.
+    q = r'["\']?'
+    checks = (
+        (
+            re.compile(rf"<div[^>]*\brole={q}dialog\b[^>]*>"),
+            "search dialog",
+            "hooks.py on_post_page no longer matches Material's search partial",
+        ),
+        (
+            re.compile(rf"<div[^>]*\brole={q}progressbar\b[^>]*>"),
+            "progress bar",
+            "overrides/partials/progress.html is missing or out of date",
+        ),
+    )
+    logo = re.compile(rf"<img[^>]*\bsrc={q}[^\"'\s>]*assets/images/logo\.png[^>]*>")
+    for path in html_files:
+        html = path.read_text(encoding="utf-8", errors="replace")
+        name = page_name(path)
+        for pattern, what, hint in checks:
+            for tag in pattern.findall(html):
+                if "aria-label" not in tag and "aria-labelledby" not in tag:
+                    fail(f"{name}: {what} has no accessible name - {hint}")
+        for tag in logo.findall(html):
+            if re.search(rf"\balt={q}logo\b", tag) or "alt=" not in tag:
+                fail(
+                    f"{name}: logo image has no meaningful alt text - "
+                    "overrides/partials/logo.html is missing or out of date"
+                )
+            elif "width=" not in tag or "height=" not in tag:
+                fail(
+                    f"{name}: logo image is unsized - "
+                    "overrides/partials/logo.html is missing or out of date"
+                )
+
+
 def audit_internal_links(html_files: list[Path]) -> None:
     """Every site-absolute internal link must resolve to something we built."""
     for path in html_files:
@@ -232,8 +279,6 @@ def audit_sitemap() -> None:
         fail("sitemap.xml is missing")
         return
     xml = sitemap.read_text(encoding="utf-8")
-    if "<lastmod>" in xml:
-        fail("sitemap.xml still contains unreliable <lastmod> values")
     if "<video:video>" not in xml:
         fail("sitemap.xml is missing the home-page video markup")
     locs = re.findall(r"<loc>([^<]+)</loc>", xml)
@@ -242,13 +287,36 @@ def audit_sitemap() -> None:
     for loc in locs:
         if not loc.startswith(SITE_URL):
             fail(f"sitemap.xml has an off-site <loc>: {loc}")
+
+    # Every URL must carry a real git-derived <lastmod>. hooks.py used to strip
+    # <lastmod> wholesale because MkDocs stamps the *build* date on every page,
+    # telling crawlers all 52 pages changed on every deploy. Now the dates come
+    # from git, so absent or malformed ones mean the index failed to build.
+    lastmods = re.findall(r"<lastmod>([^<]+)</lastmod>", xml)
+    if len(lastmods) != len(locs):
+        fail(
+            f"sitemap.xml has {len(locs)} <loc> entries but {len(lastmods)} "
+            "<lastmod> values; every URL needs a git-derived date"
+        )
+    for value in lastmods:
+        try:
+            datetime.fromisoformat(value)
+        except ValueError:
+            fail(f"sitemap.xml has a malformed <lastmod>: {value}")
+    if len(lastmods) > 1 and len(set(lastmods)) == 1:
+        # The signature of a shallow clone: git log sees one commit, so every
+        # path resolves to the same date. The workflow needs fetch-depth: 0.
+        fail(
+            "sitemap.xml gives every URL the same <lastmod> "
+            f"({lastmods[0]}); the checkout is probably shallow"
+        )
+
     if not (SITE_DIR / "sitemap.xml.gz").is_file():
         fail("sitemap.xml.gz is missing")
     else:
-        # The gzipped twin is what many crawlers actually fetch, and hooks.py
-        # rewrites it separately after enriching sitemap.xml. Checking only that
-        # it exists would let the two silently diverge - publishing a .gz still
-        # carrying the lastmod values the plain file had dropped.
+        # The gzipped twin is what many crawlers actually fetch. MkDocs writes it
+        # from the same rendered template as sitemap.xml, so a mismatch means
+        # something rewrote one of the two after the build.
         # gzip surfaces corruption three ways and only one of them is an OSError:
         # BadGzipFile (wrong format / CRC failure) subclasses it, but EOFError
         # (truncated write) and zlib.error (damaged deflate stream) inherit
@@ -425,6 +493,7 @@ def main() -> int:
         audit_html(path)
     audit_internal_links(html_files)
     audit_offsite_links(html_files)
+    audit_accessibility(html_files)
     audit_jsonld(html_files)
     audit_sitemap()
     audit_llms(html_files)

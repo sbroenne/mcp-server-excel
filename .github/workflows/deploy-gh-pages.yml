@@ -52,6 +52,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # hooks.py derives each sitemap <lastmod> from `git log`, so the full
+          # history is required. A shallow clone would date every page to the
+          # tip commit; audit_site.py fails the build if it detects that.
+          fetch-depth: 0
 
       - name: Restore persisted star history
         shell: pwsh
