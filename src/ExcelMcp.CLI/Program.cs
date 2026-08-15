@@ -65,6 +65,7 @@ internal sealed class Program
         {
             config.SetApplicationName("excelcli");
             config.SetApplicationVersion(GetCurrentVersion());
+            config.Settings.StrictParsing = true;
             config.SetExceptionHandler((ex, _) =>
             {
                 if (jsonOutputMode)
@@ -251,6 +252,12 @@ internal sealed class Program
             }
         }
         DaemonProcessTracker.RegisterCurrentProcess(pipeName);
+        Action<IReadOnlyCollection<int>> excelProcessTracker =
+            _ => DaemonProcessTracker.UpdateExcelProcesses(
+                pipeName,
+                Sbroenne.ExcelMcp.ComInterop.Session.SessionManager.GetTrackedExcelProcessIds);
+        Sbroenne.ExcelMcp.ComInterop.Session.SessionManager.TrackedExcelProcessesChanged += excelProcessTracker;
+        excelProcessTracker([]);
 
         Service.ExcelMcpService? service = null;
         try
@@ -309,6 +316,7 @@ internal sealed class Program
         finally
         {
             service?.Dispose();
+            Sbroenne.ExcelMcp.ComInterop.Session.SessionManager.TrackedExcelProcessesChanged -= excelProcessTracker;
             DaemonProcessTracker.Clear(pipeName);
 
             // Release the daemon mutex so a new daemon can start if needed.
@@ -318,4 +326,3 @@ internal sealed class Program
         }
     }
 }
-

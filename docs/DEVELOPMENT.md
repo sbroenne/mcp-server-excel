@@ -218,8 +218,8 @@ Core Generator (`ServiceRegistryGenerator`)
   ↓
 CLI Generator (`CliSettingsGenerator`)
   ↓
-  Discovers referenced [ServiceCategory] interfaces
-  Generates one command class per category
+  Discovers referenced [ServiceCategory] interfaces and their metadata
+  Generates one command class per category (inheriting ServiceCommandBase<T>)
   Generates CliCommandRegistration.RegisterCommands()
   ↓
 Program.cs calls CliCommandRegistration.RegisterCommands(config)
@@ -233,7 +233,7 @@ Program.cs calls CliCommandRegistration.RegisterCommands(config)
 - Constants: `CliCommandName`, `ValidActions`, `RequiresSession`
 
 **2. CLI Generator** (`CliSettingsGenerator.cs`):
-- Discovers `[ServiceCategory]` interfaces in referenced Core assemblies.
+- Discovers `[ServiceCategory]` interfaces and their emitted metadata in referenced Core assemblies (no hard-coded command list).
 - For each category, generates a command class:
   ```csharp
   internal sealed class SheetCommand : ServiceCommandBase<ServiceRegistry.Sheet.CliSettings>

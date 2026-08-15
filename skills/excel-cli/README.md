@@ -17,7 +17,7 @@ Modern coding agents increasingly favor CLI-based workflows:
 ```powershell
 # Token-efficient: No schema overhead
 excelcli -q session open C:\Data\Report.xlsx
-excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A1 --values '[["Hello"]]'
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello"]]'
 excelcli -q session close --session 1 --save
 ```
 

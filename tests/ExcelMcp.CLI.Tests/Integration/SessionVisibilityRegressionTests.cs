@@ -77,6 +77,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             Assert.False(string.IsNullOrWhiteSpace(sessionId));
 
             await AssertSessionVisibilityAsync(sessionId!, expectedVisible: true, "session-open-visible-list");
+            await AssertLiveExcelVisibilityAsync(sessionId!, expectedVisible: true, "session-open-visible-window");
         }
         finally
         {
@@ -141,7 +142,9 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             Assert.True(File.Exists(workbookPath));
 
             await AssertSessionVisibilityAsync(sessionId!, expectedVisible: true, "session-create-visible-list");
+            await AssertLiveExcelVisibilityAsync(sessionId!, expectedVisible: true, "session-create-visible-window");
         }
+
         finally
         {
             await CloseSessionIfNeededAsync(sessionId, "session-create-visible-close");
@@ -251,6 +254,22 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
 
         Assert.Equal(JsonValueKind.Object, session.ValueKind);
         Assert.Equal(expectedVisible, session.GetProperty("isExcelVisible").GetBoolean());
+    }
+
+    private static async Task AssertLiveExcelVisibilityAsync(
+        string sessionId,
+        bool expectedVisible,
+        string diagnosticLabel)
+    {
+        var (result, jsonDocument) = await CliProcessHelper.RunJsonAsync(
+            ["window", "get-info", "--session", sessionId],
+            timeoutMs: 10000,
+            diagnosticLabel: diagnosticLabel);
+        using var json = jsonDocument;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(expectedVisible, json.RootElement.GetProperty("isVisible").GetBoolean());
     }
 
     private async Task CloseSessionIfNeededAsync(string? sessionId, string diagnosticLabel)

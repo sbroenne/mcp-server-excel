@@ -52,7 +52,7 @@ public class ScreenshotResult : OperationResult
 ///
 /// ACTIONS:
 /// - capture: Capture a specific range as an image
-/// - capture-sheet: Capture the entire used area of a worksheet
+/// - capture-sheet: Capture the worksheet's used cell range. For chart-only sheets or charts beyond used cells, use capture with an explicit range.
 ///
 /// RETURNS: Base64-encoded image data with dimensions metadata.
 /// For MCP: returned as native ImageContent (no file handling needed).

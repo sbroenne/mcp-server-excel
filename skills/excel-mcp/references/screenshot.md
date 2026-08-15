@@ -24,7 +24,9 @@ This rule applies even if:
 | Action | Purpose | Parameters |
 |--------|---------|------------|
 | `capture` | Capture a specific range | `rangeAddress` (default: A1:Z30), `sheetName`, `quality` |
-| `capture-sheet` | Capture entire used area | `sheetName`, `quality` |
+| `capture-sheet` | Capture the worksheet's used cell range | `sheetName`, `quality` |
+
+`capture-sheet` is cell-driven: it captures Excel's used range. On a chart-only worksheet, or when a chart extends beyond the used cells, use `capture` with an explicit range that covers the chart (for example, `A1:M25`).
 
 ## Quality Parameter
 
@@ -55,7 +57,7 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 ```
 1. pivottable(add-row-field, ...)
 2. pivottable(add-value-field, ...)
-3. screenshot(capture-sheet)  → Verify layout and field arrangement
+3. screenshot(capture, rangeAddress='A1:M25')  → Include charts and verify layout
 ```
 
 ## Best Practices
@@ -64,8 +66,9 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 2. **Capture relevant area**: Use `capture` with a specific range rather than `capture-sheet` when you only need part of the worksheet
 3. **Use after multi-step operations**: Screenshots are most valuable after a sequence of formatting, layout, or chart operations
 4. **MCP returns image directly**: The image is returned as native ImageContent — no file handling needed
-5. **CLI with `--output`**: Use `--output screenshot.png` to save the captured image directly as a PNG file
-6. **Apply formatting once**: Apply each formatting operation (bold, fill color, number format) to a given range only once. Do not reapply unless a subsequent step explicitly changes or clears it — redundant calls waste turns and cost.
+5. **Chart-only sheets need an explicit range**: `capture-sheet` uses the used cell range and may omit charts when no cells are used
+6. **CLI with `--output`**: Use `excelcli screenshot capture --sheet <name> --range A1:M25 --output screenshot.png` to save the image directly
+7. **Apply formatting once**: Apply each formatting operation (bold, fill color, number format) to a given range only once. Do not reapply unless a subsequent step explicitly changes or clears it — redundant calls waste turns and cost.
 
 ## Common Patterns
 
@@ -85,7 +88,7 @@ When creating dashboards with multiple charts:
 2. Create Chart 1 with targetRange below/beside data
 3. Create Chart 2 with targetRange that does NOT overlap Chart 1
 4. Create Chart 3, Chart 4, etc. — each in a non-overlapping targetRange
-5. screenshot(capture-sheet) → Verify NO charts overlap each other or data
+5. screenshot(capture, rangeAddress='A1:M40') → Verify NO charts overlap each other or data
 
 Key rules for multi-chart layouts:
 - Use targetRange for every chart — never rely on default positioning
@@ -97,7 +100,7 @@ Key rules for multi-chart layouts:
 ### Dashboard Layout Check
 ```
 1. Create multiple charts and tables
-2. screenshot(capture-sheet)
+2. screenshot(capture, rangeAddress='A1:M40')
    → Verify overall dashboard layout, spacing, and alignment
 3. If issues found: reposition with chart(fit-to-range), then screenshot again
 ```

@@ -58,5 +58,5 @@ After Power Query: powerquery list, powerquery view
 After refresh:     datamodel list-tables
 After measure:     datamodel list-measures, datamodel evaluate
 After relationship: datamodel_relationship list-relationships
-After chart/layout: screenshot capture-sheet (visual verification)
+After chart/layout: screenshot(capture, rangeAddress='A1:M50') (visual verification)
 ```

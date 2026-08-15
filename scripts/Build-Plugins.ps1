@@ -267,6 +267,13 @@ foreach ($file in $CliReferenceFiles) {
     Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
     Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
 }
+foreach ($file in $SharedFiles) {
+    $destination = Join-Path $RefsDir $file.Name
+    $cliSyntaxNotice = "> **CLI syntax note:** This shared domain guide may use MCP-style ``tool(action: ...)`` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live ``--help``; notably, MCP ``file`` open/close maps to CLI ``session`` open/close, and MCP ``worksheet`` maps to CLI ``sheet``."
+    @($cliSyntaxNotice, "", (Get-Content -Path $file.FullName -Raw)) |
+        Set-Content -Path $destination -Encoding UTF8 -NoNewline
+    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
+}
 
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
 

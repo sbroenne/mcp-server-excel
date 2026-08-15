@@ -19,7 +19,7 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 
 ## Quick Start (Recommended)
 
-The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting. Otherwise:
+The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting outside the plugin. For a direct installation:
 
 1. Download and extract the standalone CLI (below)
 2. Add it to your PATH
@@ -54,8 +54,8 @@ Or manually: **Settings → System → About → Advanced system settings → En
 excelcli --version
 excelcli --help
 
-# Test with a session
-excelcli -q session open test.xlsx
+# Test with an existing workbook
+excelcli -q session open "C:\Data\Test.xlsx"
 excelcli -q session list
 excelcli -q session close --session <id>
 ```
@@ -74,9 +74,10 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-**After installation:** The plugin runs `excelcli` automatically. If you also
-need `excelcli` directly on your PATH, use the standalone executable above or
-install the secondary NuGet tool when .NET 10 is available:
+**After installation:** The plugin downloads, caches, and runs `excelcli`
+automatically. If you also need `excelcli` directly on your PATH, use the
+standalone executable above or install the secondary NuGet tool when .NET 10 is
+available:
 
 ```powershell
 dotnet tool install --global Sbroenne.ExcelMcp.CLI

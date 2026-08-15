@@ -39,6 +39,7 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
+    private volatile bool _isExcelVisible;
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
     private bool _startupDetectedIrmProtectedWorkbook;
 
@@ -309,10 +310,8 @@ internal sealed class ExcelBatch : IExcelBatch
 
                 // All workbooks opened successfully — safe to apply user's visibility preference.
                 // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
-                if (!_showExcel)
-                {
-                    tempExcel.Visible = false;
-                }
+                tempExcel.Visible = _showExcel;
+                _isExcelVisible = (bool)tempExcel.Visible;
 
                 _excel = tempExcel;
                 _workbook = primaryWorkbook;
@@ -599,6 +598,8 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public TimeSpan OperationTimeout => _operationTimeout;
 
+    public bool IsExcelVisible => _isExcelVisible;
+
     public bool HasTimedOutOperation => _operationTimedOut;
 
     public bool IsExcelProcessAlive()
@@ -718,14 +719,17 @@ internal sealed class ExcelBatch : IExcelBatch
                     using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
 
                     var result = operation(_context!, cancellationToken);
+                    UpdateVisibilitySnapshot();
                     tcs.SetResult(result);
                 }
                 catch (OperationCanceledException oce)
                 {
+                    UpdateVisibilitySnapshot();
                     tcs.TrySetCanceled(oce.CancellationToken);
                 }
                 catch (Exception ex)
                 {
+                    UpdateVisibilitySnapshot();
                     tcs.TrySetException(ex);
                 }
                 return Task.CompletedTask;
@@ -784,6 +788,22 @@ internal sealed class ExcelBatch : IExcelBatch
             _logger.LogDebug("Operation cancelled or timed out for {FileName}", Path.GetFileName(_workbookPath));
             _operationTimedOut = true; // STA thread may still be blocked — session is unusable
             throw;
+        }
+    }
+
+    private void UpdateVisibilitySnapshot()
+    {
+        try
+        {
+            _isExcelVisible = _excel != null && (bool)_excel.Visible;
+        }
+        catch (COMException)
+        {
+            _isExcelVisible = false;
+        }
+        catch (InvalidComObjectException)
+        {
+            _isExcelVisible = false;
         }
     }
 
@@ -1054,6 +1074,11 @@ internal sealed class ExcelBatch : IExcelBatch
                 SessionDiagnostics.WriteStdErr(
                     $"[DIAG-DISPOSE-PROCESS-INVALID] [Thread {callingThread}] Excel process {_excelProcessId.Value} object invalid: {ex.Message}");
             }
+        }
+
+        if (_excelProcessId.HasValue)
+        {
+            SessionManager.UntrackExcelProcess(_excelProcessId.Value);
         }
 
         // Dispose cancellation token source

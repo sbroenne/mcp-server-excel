@@ -12,7 +12,6 @@ public class SkillMdQualityTests
 {
     private static readonly string SkillsFolder = Path.Combine(
         AppContext.BaseDirectory, "skills");
-    private static readonly string[] ExpectedCliReferenceFiles = ["cli-commands.md", "README.md"];
 
     [Fact]
     [Trait("Category", "Unit")]
@@ -112,6 +111,62 @@ public class SkillMdQualityTests
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
+    public void CliCommandReference_CoversBranchAndGeneratedCommands()
+    {
+        var referencePath = Path.Combine(SkillsFolder, "excel-cli", "references", "cli-commands.md");
+        var referenceContent = File.ReadAllText(referencePath);
+        var skillContent = File.ReadAllText(Path.Combine(SkillsFolder, "excel-cli", "SKILL.md"));
+        var groupsSection = skillContent[(skillContent.IndexOf("Available command groups:", StringComparison.Ordinal) + "Available command groups:".Length)..];
+        var commandGroups = Regex.Matches(groupsSection.Split("## Common Pitfalls", StringSplitOptions.None)[0], @"`([a-z][a-z0-9-]+)`")
+            .Select(match => match.Groups[1].Value)
+            .Append("diag")
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(commandGroups.Length >= 34, $"Expected all live command groups in SKILL.md, found {commandGroups.Length}.");
+        foreach (var commandGroup in commandGroups)
+        {
+            Assert.Contains($"### {commandGroup}", referenceContent);
+        }
+        Assert.Contains("#### session open", referenceContent);
+        Assert.Contains("#### service stop", referenceContent);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void CliCommandReference_UsesLiveCliOptionAliases()
+    {
+        var referencePath = Path.Combine(SkillsFolder, "excel-cli", "references", "cli-commands.md");
+        var content = File.ReadAllText(referencePath);
+
+        Assert.Contains("`--sheet`", content);
+        Assert.Contains("`--range`", content);
+        Assert.DoesNotContain("`--sheet-name`", content);
+        Assert.DoesNotContain("`--range-address`", content);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void CliCommandReference_DoesNotSplitActionNamesAcrossHelpLines()
+    {
+        var referencePath = Path.Combine(SkillsFolder, "excel-cli", "references", "cli-commands.md");
+        var content = File.ReadAllText(referencePath);
+        var splitAction = Regex.Match(
+            content,
+            @"\(required for:[^)]*\b[a-z]+(?:-[a-z]+)+\s+[a-z]+(?:-[a-z]+)*(?=[,)])");
+        var splitIdentifier = Regex.Match(
+            content,
+            @"'[A-Za-z0-9]*[a-z][A-Z][A-Za-z0-9]*\s+[a-z][A-Za-z0-9]*'");
+
+        Assert.False(splitAction.Success, $"Found a split CLI action name: {splitAction.Value}");
+        Assert.False(splitIdentifier.Success, $"Found a split CLI identifier: {splitIdentifier.Value}");
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
     public void CliSkill_DelegatesFullCommandReference()
     {
         var skillPath = Path.Combine(SkillsFolder, "excel-cli", "SKILL.md");
@@ -121,23 +176,25 @@ public class SkillMdQualityTests
         Assert.Contains("excelcli -q <command> <action>", content);
         Assert.DoesNotContain("### calculationmode", content);
         Assert.DoesNotContain("| Parameter | Description |", content);
+        Assert.DoesNotContain("--sheet-name", content);
+        Assert.DoesNotContain("--range-address", content);
     }
 
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void CliSkill_DoesNotLinkMcpStyleDomainReferences()
+    public void CliSkill_LinksSharedDomainReferences()
     {
         var skillPath = Path.Combine(SkillsFolder, "excel-cli", "SKILL.md");
         var content = File.ReadAllText(skillPath);
 
-        Assert.DoesNotContain("./references/range.md", content);
-        Assert.DoesNotContain("./references/chart.md", content);
-        Assert.DoesNotContain("./references/powerquery.md", content);
-        Assert.DoesNotContain("./references/worksheet.md", content);
-        Assert.DoesNotContain("./references/behavioral-rules.md", content);
-        Assert.DoesNotContain("./references/anti-patterns.md", content);
-        Assert.DoesNotContain("./references/workflows.md", content);
+        Assert.Contains("./references/range.md", content);
+        Assert.Contains("./references/chart.md", content);
+        Assert.Contains("./references/powerquery.md", content);
+        Assert.Contains("./references/worksheet.md", content);
+        Assert.Contains("./references/behavioral-rules.md", content);
+        Assert.Contains("./references/anti-patterns.md", content);
+        Assert.Contains("./references/workflows.md", content);
         Assert.DoesNotContain("range_format(action:", content);
         Assert.DoesNotContain("chart_config(", content);
     }
@@ -145,7 +202,7 @@ public class SkillMdQualityTests
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void CliReferences_OnlyContainCliSpecificFiles()
+    public void CliReferences_ContainGeneratedAndSharedFiles()
     {
         var referencesPath = Path.Combine(SkillsFolder, "excel-cli", "references");
         var fileNames = Directory.GetFiles(referencesPath, "*.md")
@@ -153,7 +210,19 @@ public class SkillMdQualityTests
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        Assert.Equal(ExpectedCliReferenceFiles, fileNames);
+        var expectedFiles = Directory.GetFiles(Path.Combine(SkillsFolder, "shared"), "*.md")
+            .Select(path => Path.GetFileName(path)!)
+            .Append("cli-commands.md")
+            .Append("README.md")
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(expectedFiles, fileNames);
+        foreach (var sharedFile in expectedFiles.Except(["cli-commands.md", "README.md"]))
+        {
+            var content = File.ReadAllText(Path.Combine(referencesPath, sharedFile));
+            Assert.StartsWith("> **CLI syntax note:**", content);
+        }
     }
 
     [Fact]
