@@ -28,6 +28,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $RootOverlayDir = Join-Path $RepoRoot ".github\plugins\marketplace-repo"
 $PublishedRepoDir = (Resolve-Path $PublishedRepoDir).Path
 $BuiltPluginsDir = (Resolve-Path $BuiltPluginsDir).Path
+$AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 
 function Copy-DirectoryFiles {
     param(
@@ -90,6 +91,36 @@ function Write-Utf8NoBomJson {
     [System.IO.File]::WriteAllText($Path, "$json`n", $utf8NoBom)
 }
 
+function Assert-AgentPluginManifest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PluginName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$PluginJsonPath,
+
+        [Parameter(Mandatory = $true)]
+        $PluginJson
+    )
+
+    $allowedFields = @('$schema', "name", "version", "description", "author", "homepage", "repository", "license", "keywords", "extensions")
+    foreach ($property in $PluginJson.PSObject.Properties) {
+        if ($property.Name -notin $allowedFields) {
+            throw "$PluginJsonPath contains unsupported Agent Plugins 1.0 field '$($property.Name)'."
+        }
+    }
+
+    if ($PluginJson.'$schema' -ne $AgentPluginSchema) {
+        throw "$PluginJsonPath must target $AgentPluginSchema."
+    }
+    if ($PluginJson.name -ne $PluginName) {
+        throw "$PluginJsonPath has name '$($PluginJson.name)' but expected '$PluginName'."
+    }
+    if ($PluginJson.repository -isnot [string]) {
+        throw "$PluginJsonPath repository must be a string."
+    }
+}
+
 Write-Host "Synchronizing published plugin repo..." -ForegroundColor Cyan
 Write-Host "  Published repo: $PublishedRepoDir" -ForegroundColor DarkGray
 Write-Host "  Built plugins:  $BuiltPluginsDir" -ForegroundColor DarkGray
@@ -107,8 +138,19 @@ foreach ($pluginName in $builtPluginNames) {
     }
 
     $pluginJson = Get-Content $pluginJsonPath -Raw | ConvertFrom-Json
+    Assert-AgentPluginManifest -PluginName $pluginName -PluginJsonPath $pluginJsonPath -PluginJson $pluginJson
     if ($pluginJson.version -ne $Version) {
         throw "$pluginJsonPath resolved version '$($pluginJson.version)' but expected '$Version'."
+    }
+
+    $legacyCopilotHelper = Join-Path $sourcePluginDir "bin\install-global.ps1"
+    if (Test-Path $legacyCopilotHelper) {
+        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    }
+
+    $legacyMcpPath = Join-Path $sourcePluginDir ".mcp.json"
+    if (Test-Path $legacyMcpPath) {
+        throw "Legacy MCP configuration is not permitted in Agent Plugins 1.0 packages: $legacyMcpPath"
     }
 
     $versionTxtPath = Join-Path $sourcePluginDir "version.txt"
@@ -124,6 +166,11 @@ foreach ($pluginName in $builtPluginNames) {
         source = "./plugins/$pluginName"
         description = $pluginJson.description
         version = $Version
+        author = $pluginJson.author
+        homepage = $pluginJson.homepage
+        repository = $pluginJson.repository
+        license = $pluginJson.license
+        keywords = @($pluginJson.keywords)
         skills = @(Get-PluginSkillPaths -PluginRoot $sourcePluginDir -PluginName $pluginName)
     }
 }

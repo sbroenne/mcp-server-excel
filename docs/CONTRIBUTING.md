@@ -142,7 +142,7 @@ Before submitting a PR:
 2. Excel process cleanup verified - no `excel.exe` remains after tests finish
 3. Error conditions tested (missing files, invalid arguments, etc.)
 4. Build has zero warnings
-5. Pre-commit hook passes (all 14 gates)
+5. Pre-commit hook passes every gate applicable to the staged paths. Excel E2E is required only when Core, CLI, or MCP runtime paths change, including `ComInterop`, `Service`, and their source generators.
 
 ## 🔧 Adding a New Operation
 

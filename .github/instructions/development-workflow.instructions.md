@@ -79,9 +79,10 @@ Quick reference:
 
 **Excel-Dependent Local Verification:**
 - GitHub-hosted runners do not have Excel, and the repository has no self-hosted Excel runner.
-- Before merge, run the relevant Excel integration tests locally with an explicit timeout.
-- Run the canonical Excel-dependent E2E command: `& .\scripts\Test-E2E.ps1`.
-- Record the result and check the E2E attestation in the pull request template only when the command finishes without failures or unresolved issues.
+- Before merge, run the relevant Excel integration tests locally with an explicit timeout when changes affect the Core, CLI, or MCP runtime path.
+- Run `& .\scripts\Test-E2E.ps1` only for those runtime-impacting changes. This includes changes under `src/ExcelMcp.ComInterop`, `src/ExcelMcp.Core`, `src/ExcelMcp.Service`, `src/ExcelMcp.CLI`, `src/ExcelMcp.McpServer`, and source generators that feed CLI or MCP.
+- Plugin/build/publish, marketplace, skill, documentation, and test-only changes do not require Excel E2E unless the same commit also changes one of those runtime paths.
+- Record the result and check the E2E attestation in the pull request template only when Excel E2E is applicable and finishes without failures or unresolved issues.
 
 ## Workflow Config Updates
 

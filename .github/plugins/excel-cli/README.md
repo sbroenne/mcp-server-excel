@@ -29,7 +29,7 @@ If you want `excelcli` on PATH for shell usage outside plugin-driven flows, inst
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
 
 This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that directory to your user PATH if needed.

@@ -16,7 +16,7 @@ Both plugins are maintained in a separate published repository and auto-synced f
 **Two-Repository Pattern:**
 - **This repo** (`sbroenne/mcp-server-excel`) — Source code, release artifacts, plugin templates
 - **Published repo** (`sbroenne/mcp-server-excel-plugins`) — GitHub Copilot plugin marketplace artifacts
-- **Sync path:** `publish-plugins.yml` workflow copies templates, applies overlays, and publishes to marketplace
+- **Sync path:** `publish-plugins.yml` builds source-owned templates, validates them, and publishes them to the marketplace
 
 ### Why Two Repositories?
 
@@ -30,21 +30,25 @@ Each plugin lives in `plugins/` at the published repo:
 
 ```
 plugins/excel-mcp/
-├── plugin.json         # MCP Server + skill metadata
-├── .mcp.json           # Launches the bootstrap wrapper (no bundled executable)
+├── plugin.json         # Agent Plugins 1.0 manifest
+├── mcp.json            # Portable stdio config that launches the bootstrap wrapper
 ├── version.txt         # Published version
-├── bin/                # Bootstrap wrapper scripts (install-global.ps1, launcher) — downloads/caches mcp-excel.exe from GitHub Releases on first use
+├── bin/                # Portable bootstrap launcher and downloader
+├── com.github.copilot/ # Copilot-only global installation helper
 ├── agents/             # Optional agent definitions
 └── skills/             # Behavioral guidance (excel-mcp skill)
 
 plugins/excel-cli/
-├── plugin.json         # CLI-only metadata
+├── plugin.json         # Agent Plugins 1.0 manifest
 ├── version.txt         # Published version
-├── bin/                # Bootstrap wrapper scripts (install-global.ps1) — downloads/caches excelcli.exe from GitHub Releases on first use
+├── bin/                # Portable bootstrap launcher and downloader
+├── com.github.copilot/ # Copilot-only global installation helper
 └── skills/             # Behavioral guidance (excel-cli skill)
 ```
 
-The skills reference is shared from this source repo (`skills/shared/*.md`).
+Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields; any future Copilot-only files must live under `com.github.copilot/`. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows/Excel compatibility.
+
+Each generated plugin receives an exact copy of its canonical skill directory, including every referenced file. This prevents stale published references and preserves skill-specific files such as `references/calculation.md`.
 
 Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed, then reuses it for the rest of the chat session. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
 
@@ -77,7 +81,7 @@ Provides the CLI bootstrap wrapper plus skill guidance for coding agents:
 
 ```powershell
 copilot plugin install excel-cli@mcp-server-excel-plugins
-pwsh -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+pwsh -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
 
 Best for: CI/CD, scripts, token-efficient coding agents.
@@ -97,7 +101,7 @@ See [Plugin Publishing Workflow Setup](../.github/workflows/docs/publish-plugins
 Updates to plugins are handled automatically:
 
 1. **Skill updates** → Modify `skills/excel-mcp/` or `skills/excel-cli/` in this repo
-2. **Plugin templates** → Update `.github/plugins/excel-{mcp,cli}/` overlays
+2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
 3. **Sync to marketplace** → Next release runs `publish-plugins.yml` to update both plugins
 4. **No awesome-copilot PR needed** — Plugins are fetched from the published marketplace repo
 

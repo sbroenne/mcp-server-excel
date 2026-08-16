@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$PluginDir = Split-Path -Parent $PSScriptRoot
+$PluginDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $WrapperPath = Join-Path $PluginDir "bin\start-mcp.ps1"
 $UserMcpConfig = Join-Path $env:USERPROFILE ".copilot\mcp-config.json"
 

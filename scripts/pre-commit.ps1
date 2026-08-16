@@ -97,6 +97,12 @@ $stagedFiles = git diff --cached --name-only 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0
 
+# Excel-dependent E2E validates the runtime path only. Include the COM and service
+# layers plus source generators because their changes flow into Core, CLI, or MCP.
+$excelE2EPattern = '(^src/ExcelMcp\.(CLI|ComInterop|Core|McpServer|Service)/)|(^src/ExcelMcp\.Generators(\.[^/]+)?/)|(^scripts/Test-E2E\.ps1$)'
+$excelE2EChangedFiles = $stagedFiles | Where-Object { $_ -match $excelE2EPattern }
+$requiresExcelE2E = @($excelE2EChangedFiles).Count -gt 0
+
 # CRITICAL: Check branch FIRST - never commit directly to main (Rule 6)
 Write-Host "Checking current branch..." -ForegroundColor Cyan
 $currentBranch = git branch --show-current
@@ -314,7 +320,7 @@ Invoke-ValidationStep `
         & $docCountScript
     }
 
-if ($hasCodeChanges) {
+if ($requiresExcelE2E) {
     Invoke-ValidationStep `
         -Heading "Running Excel-dependent E2E tests..." `
         -FailureSummary "Excel-dependent E2E tests failed! Both the CLI workflow and MCP all-tools smoke tests must pass." `
@@ -325,7 +331,7 @@ if ($hasCodeChanges) {
         }
 } else {
     Write-Host ""
-    Write-Host "Skipping Excel-dependent E2E tests (no code changes detected - docs/changeset only)" -ForegroundColor Yellow
+    Write-Host "Skipping Excel-dependent E2E tests (no staged changes affect Core, CLI, or MCP runtime paths)" -ForegroundColor Yellow
 }
 
 Invoke-ValidationStep `

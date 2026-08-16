@@ -61,6 +61,11 @@ function Generate-CliReference {
         return
     }
 
+    if ($env:OS -ne "Windows_NT" -and [System.IO.Path]::GetExtension($ExcelCliPath) -eq ".exe") {
+        Write-Warning "Skipping CLI reference generation because the Windows executable cannot run on this host"
+        return
+    }
+
     Write-Host "  Generating CLI command reference from excelcli..." -ForegroundColor Cyan
 
     $RefsDir = Join-Path $SkillPath "references"
@@ -306,7 +311,7 @@ if (-not (Test-Path $OutputPath)) {
 Write-Host "Building combined skills package..." -ForegroundColor Yellow
 
 # Create staging directory
-$StagingDir = Join-Path $env:TEMP "excel-skills-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+$StagingDir = Join-Path ([System.IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 
 try {
