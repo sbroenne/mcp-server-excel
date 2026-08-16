@@ -36,7 +36,7 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 
 ### Runtime Bootstrap
 
-The plugin does **not** rely on a bundled `mcp-excel.exe`. Its `.mcp.json` launches a PowerShell wrapper that:
+The plugin does **not** rely on a bundled `mcp-excel.exe`. Its Agent Plugins 1.0 `mcp.json` launches a PowerShell wrapper that:
 
 - checks GitHub Releases for the newest `ExcelMcp-MCP-Server-*-windows.zip`
 - downloads and caches the latest self-contained Windows server on first invocation
@@ -46,7 +46,7 @@ If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-mcp\bin\install-global.ps1"
+  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-mcp\com.github.copilot\bin\install-global.ps1"
 ```
 
 ---

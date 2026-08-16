@@ -1,22 +1,13 @@
 <#
 .SYNOPSIS
-    Builds Copilot CLI plugins by copying validated published plugin templates and updating versions.
+    Builds Agent Plugins from canonical source-owned templates and updates versions.
 
 .DESCRIPTION
-    Phase 3 build script that preserves Phase 1/2 validated plugin implementations.
-
-    COPY STRATEGY (not generate):
-    1. Copy validated plugin structure from the published marketplace repo (../mcp-server-excel-plugins/plugins/)
-    2. Strip any committed runtime payloads from plugin bin/ roots
-    3. Apply source-owned plugin overlays from .github/plugins/ (overlay content only, not standalone plugin roots)
-    4. Update runtime-bootstrap metadata in plugin.json and version.txt
-    5. Refresh skills content from source repo
-    6. Refresh shared references from source repo
-
-    WHY COPY NOT GENERATE:
-    - Phase 1/2 created validated plugin layouts, READMEs, configs
-    - Regenerating would introduce drift and regressions
-    - Build script's job: wrapper/bootstrap packaging + version injection + skill refresh, not plugin authoring
+    1. Copy canonical plugin templates from .github/plugins/
+    2. Strip any runtime payloads from plugin bin/ roots
+    3. Update runtime-bootstrap metadata in plugin.json and version.txt
+    4. Synchronize complete Agent Skill directories from source
+    5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
     RUNTIME BOOTSTRAP MODEL:
     - Published plugins ship wrapper/download logic and metadata only
@@ -34,9 +25,6 @@
 .PARAMETER OutputDir
     Output directory. Default: plugins/
 
-.PARAMETER PluginTemplateDir
-    Validated plugin templates source. Default: ../mcp-server-excel-plugins/plugins/ in the published marketplace repo.
-
 .EXAMPLE
     ./Build-Plugins.ps1
 
@@ -45,34 +33,15 @@
 #>
 param(
     [string]$Version = $null,
-    [string]$OutputDir = "plugins",
-    [string]$PluginTemplateDir = $null
+    [string]$OutputDir = "plugins"
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SkillsDir = Join-Path $RepoRoot "skills"
-$SharedDir = Join-Path $SkillsDir "shared"
-$PluginOverlayDir = Join-Path $RepoRoot ".github\plugins"
-
-# Default template dir: sibling repo
-if (-not $PluginTemplateDir) {
-    $PluginTemplateDir = Join-Path (Split-Path -Parent $RepoRoot) "mcp-server-excel-plugins\plugins"
-}
-
-# Validate template directory exists
-if (-not (Test-Path $PluginTemplateDir)) {
-    Write-Error @"
-❌ Plugin template directory not found: $PluginTemplateDir
-
-Expected: ../mcp-server-excel-plugins/plugins/
-This directory contains the published marketplace repo's validated plugin implementations.
-
-If running in CI/CD, clone the published repo first:
-  git clone https://github.com/sbroenne/mcp-server-excel-plugins ../mcp-server-excel-plugins
-"@
-    exit 1
-}
+$PluginSourceDir = Join-Path $RepoRoot ".github\plugins"
+$AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+$AgentPluginMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 
 # Resolve version
 if (-not $Version) {
@@ -83,25 +52,6 @@ if (-not $Version) {
     } else {
         Write-Error "Version not specified and VERSION file not found at $VersionFile"
         exit 1
-    }
-}
-
-function Copy-DirectoryFiles {
-    param(
-        [string]$SourceDir,
-        [string]$DestinationDir
-    )
-
-    Get-ChildItem -Path $SourceDir -Recurse -File -Force | ForEach-Object {
-        $relativePath = $_.FullName.Substring($SourceDir.Length).TrimStart('\')
-        $destinationPath = Join-Path $DestinationDir $relativePath
-        $destinationParent = Split-Path -Parent $destinationPath
-
-        if (-not (Test-Path $destinationParent)) {
-            New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
-        }
-
-        Copy-Item -Path $_.FullName -Destination $destinationPath -Force
     }
 }
 
@@ -131,36 +81,189 @@ function Remove-PackagedRuntimePayload {
 function Update-PluginManifest {
     param(
         [string]$PluginJsonPath,
-        [string]$Version,
-        [string]$DisplayName,
-        [string]$Description
+        [string]$Version
     )
 
     $pluginJson = Get-Content $PluginJsonPath -Raw | ConvertFrom-Json
     $pluginJson.version = $Version
-    $pluginJson.displayName = $DisplayName
-    $pluginJson.description = $Description
     $pluginJson | ConvertTo-Json -Depth 10 | Set-Content $PluginJsonPath -Encoding UTF8
 }
 
-function Apply-PluginOverlay {
+function Copy-AgentSkill {
     param(
-        [string]$PluginName,
-        [string]$DestinationDir
+        [string]$SourceDir,
+        [string]$DestinationDir,
+        [string]$Version = $null
     )
 
-    $overlaySource = Join-Path $PluginOverlayDir $PluginName
-    if (-not (Test-Path $overlaySource)) {
+    if (-not (Test-Path $SourceDir -PathType Container)) {
+        throw "Canonical Agent Skill directory not found: $SourceDir"
+    }
+
+    if (Test-Path $DestinationDir) {
+        Remove-Item -Path $DestinationDir -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Path (Split-Path -Parent $DestinationDir) -Force | Out-Null
+    Copy-Item -Path $SourceDir -Destination $DestinationDir -Recurse -Force
+
+    $skillVersionPath = Join-Path $DestinationDir "VERSION"
+    if ($Version -and (Test-Path $skillVersionPath)) {
+        Set-Content -Path $skillVersionPath -Value $Version -Encoding UTF8 -NoNewline
+    }
+}
+
+function Assert-AgentSkill {
+    param(
+        [string]$SkillDir
+    )
+
+    $skillPath = Join-Path $SkillDir "SKILL.md"
+    if (-not (Test-Path $skillPath -PathType Leaf)) {
+        throw "Agent Skill is missing SKILL.md: $SkillDir"
+    }
+
+    $lines = @(Get-Content $skillPath)
+    if ($lines.Count -lt 3 -or $lines[0].Trim() -ne "---") {
+        throw "$skillPath must begin with YAML frontmatter."
+    }
+
+    $closingDelimiter = -1
+    for ($index = 1; $index -lt $lines.Count; $index++) {
+        if ($lines[$index].Trim() -eq "---") {
+            $closingDelimiter = $index
+            break
+        }
+    }
+
+    if ($closingDelimiter -lt 2) {
+        throw "$skillPath is missing the closing YAML frontmatter delimiter."
+    }
+
+    $frontmatter = $lines[1..($closingDelimiter - 1)]
+    $allowedFields = @("name", "description", "license", "compatibility", "metadata", "allowed-tools")
+    $fields = @{}
+    foreach ($line in $frontmatter) {
+        if ($line -match "^([a-z][a-z-]*):(?:\s*(.*))?$") {
+            $fieldName = $Matches[1]
+            if ($fieldName -notin $allowedFields) {
+                throw "$skillPath contains unsupported Agent Skills frontmatter field '$fieldName'."
+            }
+            $fields[$fieldName] = $Matches[2]
+        }
+    }
+
+    $expectedName = Split-Path -Leaf $SkillDir
+    $skillName = $fields["name"]
+    if ($skillName -ne $expectedName -or $skillName -notmatch "^(?!.*--)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$" -or $skillName.Length -gt 64) {
+        throw "$skillPath has invalid Agent Skill name '$skillName'; it must match directory '$expectedName'."
+    }
+
+    if (-not $fields.ContainsKey("description")) {
+        throw "$skillPath must declare an Agent Skill description."
+    }
+
+    $descriptionStart = [Array]::IndexOf($frontmatter, ($frontmatter | Where-Object { $_ -match "^description:" } | Select-Object -First 1))
+    $description = $fields["description"]
+    if ($description -in @(">", "|")) {
+        $descriptionLines = @()
+        for ($index = $descriptionStart + 1; $index -lt $frontmatter.Count; $index++) {
+            if ($frontmatter[$index] -notmatch "^\s+") {
+                break
+            }
+            $descriptionLines += $frontmatter[$index].Trim()
+        }
+        $description = $descriptionLines -join " "
+    }
+
+    if ([string]::IsNullOrWhiteSpace($description) -or $description.Length -gt 1024) {
+        throw "$skillPath has an invalid Agent Skill description length."
+    }
+}
+
+function Assert-AgentPluginPackage {
+    param(
+        [string]$PluginName,
+        [string]$PluginDir,
+        [string]$ExpectedVersion
+    )
+
+    $pluginJsonPath = Join-Path $PluginDir "plugin.json"
+    if (-not (Test-Path $pluginJsonPath -PathType Leaf)) {
+        throw "Agent Plugin manifest not found: $pluginJsonPath"
+    }
+
+    $pluginJson = Get-Content $pluginJsonPath -Raw | ConvertFrom-Json
+    $allowedFields = @('$schema', "name", "version", "description", "author", "homepage", "repository", "license", "keywords", "extensions")
+    foreach ($property in $pluginJson.PSObject.Properties) {
+        if ($property.Name -notin $allowedFields) {
+            throw "$pluginJsonPath contains unsupported Agent Plugins 1.0 field '$($property.Name)'."
+        }
+    }
+
+    if ($pluginJson.'$schema' -ne $AgentPluginSchema) {
+        throw "$pluginJsonPath must target $AgentPluginSchema."
+    }
+    if ($pluginJson.name -ne $PluginName) {
+        throw "$pluginJsonPath has name '$($pluginJson.name)' but expected '$PluginName'."
+    }
+    if ($pluginJson.version -ne $ExpectedVersion) {
+        throw "$pluginJsonPath has version '$($pluginJson.version)' but expected '$ExpectedVersion'."
+    }
+    if ($pluginJson.repository -isnot [string]) {
+        throw "$pluginJsonPath repository must be a string."
+    }
+
+    $legacyCopilotHelper = Join-Path $PluginDir "bin\install-global.ps1"
+    if (Test-Path $legacyCopilotHelper) {
+        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    }
+
+    $legacyMcpPath = Join-Path $PluginDir ".mcp.json"
+    if (Test-Path $legacyMcpPath) {
+        throw "Legacy MCP configuration is not permitted in Agent Plugins 1.0 packages: $legacyMcpPath"
+    }
+
+    $skillsRoot = Join-Path $PluginDir "skills"
+    if (Test-Path $skillsRoot) {
+        Get-ChildItem -Path $skillsRoot -Directory | ForEach-Object {
+            Assert-AgentSkill -SkillDir $_.FullName
+        }
+    }
+
+    $mcpPath = Join-Path $PluginDir "mcp.json"
+    if (-not (Test-Path $mcpPath)) {
         return
     }
 
-    Write-Host "  Applying source-owned plugin overlay..." -ForegroundColor Cyan
-    Copy-DirectoryFiles -SourceDir $overlaySource -DestinationDir $DestinationDir
+    $mcp = Get-Content $mcpPath -Raw | ConvertFrom-Json
+    $mcpProperties = @($mcp.PSObject.Properties.Name)
+    if ($mcpProperties.Count -ne 2 -or '$schema' -notin $mcpProperties -or "mcpServers" -notin $mcpProperties) {
+        throw "$mcpPath must contain only '`$schema' and 'mcpServers'."
+    }
+    if ($mcp.'$schema' -ne $AgentPluginMcpSchema) {
+        throw "$mcpPath must target $AgentPluginMcpSchema."
+    }
+
+    foreach ($serverProperty in $mcp.mcpServers.PSObject.Properties) {
+        $server = $serverProperty.Value
+        $serverFields = @($server.PSObject.Properties.Name)
+        $allowedServerFields = @("type", "command", "args", "env", "cwd")
+        if ($serverFields | Where-Object { $_ -notin $allowedServerFields }) {
+            throw "$mcpPath server '$($serverProperty.Name)' contains unsupported fields."
+        }
+        if ($server.type -ne "stdio" -or $server.command -isnot [string] -or $server.command -match "\s") {
+            throw "$mcpPath server '$($serverProperty.Name)' must use type 'stdio' and a single executable command token."
+        }
+        if (@($server.args) | Where-Object { $_ -match "\{pluginDir\}" }) {
+            throw "$mcpPath server '$($serverProperty.Name)' still uses the legacy '{pluginDir}' placeholder."
+        }
+    }
 }
 
-Write-Host "`n=== Building Copilot CLI Plugins v$Version ===" -ForegroundColor Green
+Write-Host "`n=== Building Agent Plugins v$Version ===" -ForegroundColor Green
 Write-Host "Source:   $RepoRoot"
-Write-Host "Template: $PluginTemplateDir"
+Write-Host "Templates: $PluginSourceDir"
 Write-Host "Output:   $OutputDir`n"
 
 # Clean output
@@ -176,7 +279,7 @@ New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 Write-Host "`n[1/2] Building excel-mcp plugin..." -ForegroundColor Yellow
 
-$TemplateMcp = Join-Path $PluginTemplateDir "excel-mcp"
+$TemplateMcp = Join-Path $PluginSourceDir "excel-mcp"
 $OutputMcp = Join-Path $OutputDir "excel-mcp"
 
 if (-not (Test-Path $TemplateMcp)) {
@@ -184,39 +287,26 @@ if (-not (Test-Path $TemplateMcp)) {
     exit 1
 }
 
-Write-Host "  Copying validated plugin structure..." -ForegroundColor Cyan
+Write-Host "  Copying canonical plugin template..." -ForegroundColor Cyan
 Copy-Item -Path $TemplateMcp -Destination $OutputMcp -Recurse -Force
 
-Apply-PluginOverlay -PluginName "excel-mcp" -DestinationDir $OutputMcp
 Remove-PackagedRuntimePayload -PluginName "excel-mcp" -PluginDir $OutputMcp
 
 Write-Host "  Updating plugin.json version to $Version..." -ForegroundColor Cyan
 $PluginJsonPath = Join-Path $OutputMcp "plugin.json"
 Update-PluginManifest `
     -PluginJsonPath $PluginJsonPath `
-    -Version $Version `
-    -DisplayName "Excel MCP Plugin" `
-    -Description "Windows-only Excel automation plugin that bootstraps the latest ExcelMcp MCP runtime on first use."
+    -Version $Version
 
 Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputMcp "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
-Write-Host "  Refreshing excel-mcp skill content..." -ForegroundColor Cyan
-$SourceSkillMcp = Join-Path $SkillsDir "excel-mcp\SKILL.md"
-$DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp\SKILL.md"
-Copy-Item -Path $SourceSkillMcp -Destination $DestSkillMcp -Force
+Write-Host "  Synchronizing complete excel-mcp skill directory..." -ForegroundColor Cyan
+$SourceSkillMcp = Join-Path $SkillsDir "excel-mcp"
+$DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp"
+Copy-AgentSkill -SourceDir $SourceSkillMcp -DestinationDir $DestSkillMcp -Version $Version
 
-Write-Host "  Refreshing shared references..." -ForegroundColor Cyan
-$RefsDir = Join-Path $OutputMcp "skills\excel-mcp\references"
-if (-not (Test-Path $RefsDir)) {
-    New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
-}
-$SharedFiles = Get-ChildItem -Path $SharedDir -Filter "*.md"
-foreach ($file in $SharedFiles) {
-    Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
-    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
-}
-
+Assert-AgentPluginPackage -PluginName "excel-mcp" -PluginDir $OutputMcp -ExpectedVersion $Version
 Write-Host "✅ excel-mcp plugin built" -ForegroundColor Green
 
 # =============================================================================
@@ -225,7 +315,7 @@ Write-Host "✅ excel-mcp plugin built" -ForegroundColor Green
 
 Write-Host "`n[2/2] Building excel-cli plugin..." -ForegroundColor Yellow
 
-$TemplateCli = Join-Path $PluginTemplateDir "excel-cli"
+$TemplateCli = Join-Path $PluginSourceDir "excel-cli"
 $OutputCli = Join-Path $OutputDir "excel-cli"
 
 if (-not (Test-Path $TemplateCli)) {
@@ -233,48 +323,26 @@ if (-not (Test-Path $TemplateCli)) {
     exit 1
 }
 
-Write-Host "  Copying validated plugin structure..." -ForegroundColor Cyan
+Write-Host "  Copying canonical plugin template..." -ForegroundColor Cyan
 Copy-Item -Path $TemplateCli -Destination $OutputCli -Recurse -Force
 
-Apply-PluginOverlay -PluginName "excel-cli" -DestinationDir $OutputCli
 Remove-PackagedRuntimePayload -PluginName "excel-cli" -PluginDir $OutputCli
 
 Write-Host "  Updating plugin.json version to $Version..." -ForegroundColor Cyan
 $PluginJsonPath = Join-Path $OutputCli "plugin.json"
 Update-PluginManifest `
     -PluginJsonPath $PluginJsonPath `
-    -Version $Version `
-    -DisplayName "Excel CLI Plugin" `
-    -Description "Windows-only Excel automation plugin that bootstraps the latest excelcli runtime on first use."
+    -Version $Version
 
 Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
-Write-Host "  Refreshing excel-cli skill content..." -ForegroundColor Cyan
-$SourceSkillCli = Join-Path $SkillsDir "excel-cli\SKILL.md"
-$DestSkillCli = Join-Path $OutputCli "skills\excel-cli\SKILL.md"
-Copy-Item -Path $SourceSkillCli -Destination $DestSkillCli -Force
+Write-Host "  Synchronizing complete excel-cli skill directory..." -ForegroundColor Cyan
+$SourceSkillCli = Join-Path $SkillsDir "excel-cli"
+$DestSkillCli = Join-Path $OutputCli "skills\excel-cli"
+Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli
 
-$RefsDir = Join-Path $OutputCli "skills\excel-cli\references"
-if (-not (Test-Path $RefsDir)) {
-    New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
-}
-
-Write-Host "  Refreshing excel-cli references..." -ForegroundColor Cyan
-$CliReferencesDir = Join-Path $SkillsDir "excel-cli\references"
-$CliReferenceFiles = Get-ChildItem -Path $CliReferencesDir -Filter "*.md"
-foreach ($file in $CliReferenceFiles) {
-    Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
-    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
-}
-foreach ($file in $SharedFiles) {
-    $destination = Join-Path $RefsDir $file.Name
-    $cliSyntaxNotice = "> **CLI syntax note:** This shared domain guide may use MCP-style ``tool(action: ...)`` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live ``--help``; notably, MCP ``file`` open/close maps to CLI ``session`` open/close, and MCP ``worksheet`` maps to CLI ``sheet``."
-    @($cliSyntaxNotice, "", (Get-Content -Path $file.FullName -Raw)) |
-        Set-Content -Path $destination -Encoding UTF8 -NoNewline
-    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
-}
-
+Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
 
 # =============================================================================

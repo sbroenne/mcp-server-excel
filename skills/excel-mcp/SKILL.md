@@ -7,6 +7,7 @@ description: >
   Slicers, formatting, screenshots, VBA macros, connections, and calculation mode.
   Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
   chart, dashboard, VBA, MCP.
+compatibility: Requires Windows, Microsoft Excel 2016 or later, and network access for first-run runtime download.
 ---
 
 # Excel MCP Server Skill

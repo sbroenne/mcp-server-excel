@@ -1127,10 +1127,10 @@ public void Refresh_ReportsProgress_DuringExecution()
 
 ## Rule 31: NEVER Bypass Pre-Commit Hooks (`--no-verify` is FORBIDDEN) (CRITICAL)
 
-**NEVER commit with `git commit --no-verify` (or `-n`), `git push --no-verify`, `HUSKY=0`, `core.hooksPath=/dev/null`, `--no-hooks`, environment toggles, or ANY other mechanism that skips the repo's pre-commit / pre-push hooks. The 14 pre-commit gates are mandatory and must pass on the real machine before every commit.**
+**NEVER commit with `git commit --no-verify` (or `-n`), `git push --no-verify`, `HUSKY=0`, `core.hooksPath=/dev/null`, `--no-hooks`, environment toggles, or ANY other mechanism that skips the repo's pre-commit / pre-push hooks. Every applicable pre-commit gate selected from the staged paths is mandatory and must pass on the real machine before every commit.**
 
 **Why Critical:**
-- The pre-commit hooks (COM leak detection, success-flag check, MCP/Core coverage, Release build, CLI/MCP smoke tests, packaging deliverables, dynamic-cast audit — see the 14 gates in `copilot-instructions.md`) are the ONLY thing that validates the full deliverable shape locally. PR CI does **not** run all of them.
+- The pre-commit hooks (COM leak detection, success-flag check, MCP/Core coverage, Release build, conditional CLI/MCP smoke tests, packaging deliverables, dynamic-cast audit — see the gates in `copilot-instructions.md`) are the ONLY thing that validates the full deliverable shape locally. PR CI does **not** run all of them.
 - Bypassing the hooks ships unverified code: leaks, broken packaging, broken smoke tests, and Gemini/schema regressions can reach `main` and a release.
 - "CI is the authoritative gate" is FALSE for this repo — many gates run ONLY in the pre-commit hook.
 - A slow or hanging hook is NOT a license to skip it. Slowness is expected (Release builds + packaging take many minutes).
@@ -1146,7 +1146,9 @@ git -c core.hooksPath=/dev/null commit ...
 ```
 
 **REQUIRED behavior:**
-- ✅ Always run `git commit` and let ALL hooks run to completion, however long it takes.
+- ✅ Always run `git commit` and let every applicable hook-selected gate run to completion, however long it takes.
+- ✅ Run Excel-dependent `Test-E2E.ps1` only when staged changes affect Core, CLI, or MCP runtime paths. `ComInterop`, `Service`, and source-generator changes that feed those surfaces count as runtime-impacting.
+- ✅ Do not require Excel E2E for plugin/build/publish, marketplace, skill, documentation, or test-only changes unless the same commit also changes a runtime path.
 - ✅ If a hook FAILS, FIX the underlying cause — never bypass.
 - ✅ If a hook fails due to a genuine **environment** limitation (e.g. "VBA trust access is not enabled", missing npm toolchain), STOP and tell the user. Ask them to either fix the environment (e.g. enable "Trust access to the VBA project object model" in Excel Trust Center, install the toolchain) or explicitly decide how to proceed. Do NOT unilaterally bypass.
 - ✅ In worktrees, the hook lives in the shared git dir (`<main-repo>\.git\hooks`); `Test-Path .git\hooks\pre-commit` from a worktree can falsely report "no hook". Resolve the real path with `git rev-parse --git-path hooks` before assuming there is no hook.

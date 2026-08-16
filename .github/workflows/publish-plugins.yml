@@ -7,7 +7,7 @@ name: Publish Plugins
 # - Uses workflow_run to get the version that was just released
 #
 # WHAT IT DOES:
-# 1. Builds both plugin bundles (excel-mcp, excel-cli) from source
+# 1. Builds both Agent Plugins 1.0 bundles (excel-mcp, excel-cli) from canonical source templates
 # 2. Validates that published plugins contain wrapper/bootstrap assets, not bundled runtimes
 # 3. Updates version.txt to match the release version
 # 4. Pushes published plugin artifacts to sbroenne/mcp-server-excel-plugins
@@ -15,7 +15,7 @@ name: Publish Plugins
 #
 # NOTE:
 # - sbroenne/mcp-server-excel-plugins is the actual Copilot CLI marketplace repo
-# - this source repo is NOT a marketplace; .github/plugins/ only contains source-owned overlays copied into the published plugins
+# - this source repo is NOT a marketplace; .github/plugins/ contains the canonical plugin templates copied into the published repo
 #
 # AUTHENTICATION:
 # - Requires repository secret PLUGINS_REPO_TOKEN (PAT or app token)
@@ -249,27 +249,25 @@ jobs:
         with:
           path: source
 
-      - name: Checkout published repo (plugin templates)
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ env.PUBLISHED_REPO }}
-          token: ${{ secrets.PLUGINS_REPO_TOKEN }}
-          path: published
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
-      - name: Build plugins from validated templates
+      - name: Test Agent Plugin packaging
+        run: >
+          dotnet test source/tests/ExcelMcp.SkillGeneration.Tests/ExcelMcp.SkillGeneration.Tests.csproj
+          --configuration Release
+          --filter "Feature=AgentPluginSpec|Feature=PluginBootstrap"
+          --verbosity minimal
+
+      - name: Build plugins from canonical source templates
         run: |
           $VERSION = "${{ needs.get-version.outputs.version }}"
           Write-Host "Building plugins for version: $VERSION"
 
-          # Build script copies from ../mcp-server-excel-plugins/plugins/
-          # We checked out published repo at ./published, so adjust path
           cd source
-          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins"
+          & .\scripts\Build-Plugins.ps1 -Version $VERSION
         shell: pwsh
 
       - name: Validate wrapper-only plugin payloads
@@ -411,7 +409,32 @@ jobs:
               echo "::error::built-plugins/$plugin/plugin.json resolved version '$ARTIFACT_VERSION' but expected '$VERSION'."
               exit 1
             fi
+
+            if ! jq -e '
+              ."$schema" == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+              and (.repository | type == "string")
+              and ((keys - ["$schema", "name", "version", "description", "author", "homepage", "repository", "license", "keywords", "extensions"]) | length == 0)
+            ' "built-plugins/$plugin/plugin.json" >/dev/null; then
+              echo "::error::built-plugins/$plugin/plugin.json is not Agent Plugins 1.0 conformant."
+              exit 1
+            fi
+
+            if [ -f "built-plugins/$plugin/.mcp.json" ]; then
+              echo "::error::built-plugins/$plugin contains legacy .mcp.json."
+              exit 1
+            fi
           done
+
+          if ! jq -e '
+            ."$schema" == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+            and ((keys - ["$schema", "mcpServers"]) | length == 0)
+            and (.mcpServers["excel-mcp"].type == "stdio")
+            and (.mcpServers["excel-mcp"].command == "powershell")
+            and (.mcpServers["excel-mcp"].args | index("${PLUGIN_ROOT}/bin/start-mcp.ps1") != null)
+          ' built-plugins/excel-mcp/mcp.json >/dev/null; then
+            echo "::error::built-plugins/excel-mcp/mcp.json is not Agent Plugins 1.0 conformant."
+            exit 1
+          fi
 
           MCP_VERSION_TXT=$(tr -d '\r\n' < built-plugins/excel-mcp/version.txt)
           if [ "$MCP_VERSION_TXT" != "$VERSION" ]; then

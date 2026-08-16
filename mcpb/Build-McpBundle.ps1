@@ -24,7 +24,7 @@
 .NOTES
     Requirements:
     - .NET 10 SDK
-    - Windows x64
+    - Windows to execute the packaged server verification; other platforms cross-compile it
 
     Output:
     mcpb/artifacts/excel-mcp-{version}.mcpb
@@ -119,13 +119,18 @@ $FinalExePath = Join-Path $ServerDir "excel-mcp-server.exe"
 Move-Item (Join-Path $StagingDir "Sbroenne.ExcelMcp.McpServer.exe") $FinalExePath -Force
 Write-Host "   ✓ Renamed to server/excel-mcp-server.exe" -ForegroundColor Green
 
-# Verify executable works
-$VersionOutput = & $FinalExePath --version 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Executable verification failed!" -ForegroundColor Red
-    exit 1
+# Verify the Windows executable when the host can run it.
+if ($env:OS -eq "Windows_NT") {
+    $VersionOutput = & $FinalExePath --version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Executable verification failed!" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "   ✓ Verified: $VersionOutput" -ForegroundColor Green
 }
-Write-Host "   ✓ Verified: $VersionOutput" -ForegroundColor Green
+else {
+    Write-Host "   ✓ Skipped executable launch verification on non-Windows host" -ForegroundColor Green
+}
 
 # Copy manifest.json and update version
 $ManifestSrc = Join-Path $McpbDir "manifest.json"

@@ -246,7 +246,7 @@ public async Task CreateWorksheet_ValidName_CreatesSheet()
 **For Excel dependency**:
 - Local development requires Excel (documented in CONTRIBUTING.md)
 - GitHub-hosted CI runs Excel-free build and static-analysis gates
-- Pull requests attest local targeted integration and `& .\scripts\Test-E2E.ps1` results
+- Pull requests attest local targeted integration and `& .\scripts\Test-E2E.ps1` results when Core, CLI, or MCP runtime paths changed
 
 ---
 
@@ -373,8 +373,8 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ### CI/CD Pipeline
 - **GitHub Actions**: Excel-free build and static-analysis checks
 - **Local targeted integration**: Run the changed feature with an explicit `Feature=<name>` filter
-- **Local E2E smoke**: Run `& .\scripts\Test-E2E.ps1` for the CLI workflow and MCP all-tools workflow
-- Record both local results in the pull request before merge
+- **Local E2E smoke**: When Core, CLI, or MCP runtime paths changed, run `& .\scripts\Test-E2E.ps1` for the CLI workflow and MCP all-tools workflow
+- Record the applicable local results in the pull request before merge
 
 ---
 

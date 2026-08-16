@@ -1,12 +1,15 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "excel-mcp": {
+      "type": "stdio",
       "command": "powershell",
       "args": [
+        "-NoProfile",
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "{pluginDir}\\bin\\start-mcp.ps1"
+        "${PLUGIN_ROOT}/bin/start-mcp.ps1"
       ]
     }
   }

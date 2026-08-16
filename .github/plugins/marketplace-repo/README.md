@@ -15,10 +15,15 @@ This repository is the publish target for plugin artifacts from [`sbroenne/mcp-s
 .github/plugin/marketplace.json
 plugins/
 ├── excel-mcp/
+│   ├── plugin.json
+│   ├── mcp.json
+│   └── skills/excel-mcp/SKILL.md
 └── excel-cli/
+    ├── plugin.json
+    └── skills/excel-cli/SKILL.md
 ```
 
-The canonical marketplace manifest lives at `.github/plugin/marketplace.json`. The `plugins/` directory contains the distributable plugin bundles published by the source repo's `publish-plugins.yml` workflow.
+The canonical marketplace manifest lives at `.github/plugin/marketplace.json`. The `plugins/` directory contains Agent Plugins 1.0 packages generated from source-owned templates by the source repo's `publish-plugins.yml` workflow.
 
 ## Install
 
@@ -36,8 +41,9 @@ Both plugins publish wrapper/bootstrap assets plus skills. On first use they fet
 ## Notes
 
 - **Windows only** — ExcelMcp depends on Microsoft Excel COM automation.
-- **excel-mcp** includes MCP configuration plus plugin-local bootstrap helpers for the ExcelMcp MCP runtime.
+- **excel-mcp** includes portable root `mcp.json` configuration plus plugin-local bootstrap helpers for the ExcelMcp MCP runtime.
 - **excel-cli** includes plugin-local bootstrap helpers for the Excel CLI runtime; separate PATH installation is optional, not required for plugin use.
+- Both root `plugin.json` manifests target `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills are discovered from the fixed `skills/` directory.
 
 ## Source and Support
 

@@ -8,6 +8,7 @@ description: >
   VBA, Data Models, screenshots, and formatting. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
+compatibility: Requires Windows, Microsoft Excel 2016 or later, and network access for first-run runtime download.
 ---
 
 # Excel Automation with excelcli

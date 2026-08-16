@@ -1,16 +1,15 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Validates plugin README overlay quality before commit
+    Validates canonical plugin README quality before commit
 
 .DESCRIPTION
-    Checks plugin README overlays in .github/plugins/*/README.md for:
+    Checks plugin READMEs in .github/plugins/*/README.md for:
     - Minimum content length (detects thin/stub content)
     - Required sections for published marketplace plugins
     - Prevents shipping incomplete plugin documentation
     
-    This gate catches thin README overlays that would overwrite richer
-    published templates, preventing users from seeing incomplete docs.
+    This gate catches thin canonical READMEs before they are published.
 
 .EXAMPLE
     .\check-plugin-readmes.ps1
@@ -24,7 +23,7 @@ $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 $pluginOverlayDir = Join-Path $rootDir ".github\plugins"
 
-Write-Host "Validating plugin README overlays..." -ForegroundColor Cyan
+Write-Host "Validating canonical plugin READMEs..." -ForegroundColor Cyan
 Write-Host ""
 
 # Minimum content requirements for published plugin READMEs
@@ -38,12 +37,12 @@ $REQUIRED_SECTIONS = @(
 
 $violations = @()
 
-# Find all plugin README overlays (skip marketplace-repo README - that's repo-level docs)
+# Find canonical plugin READMEs (skip marketplace-repo README - that's repo-level docs)
 $pluginReadmes = Get-ChildItem -Path $pluginOverlayDir -Filter "README.md" -Recurse | 
     Where-Object { $_.DirectoryName -notmatch "marketplace-repo" }
 
 if ($pluginReadmes.Count -eq 0) {
-    Write-Host "No plugin README overlays found - validation skipped" -ForegroundColor Yellow
+    Write-Host "No canonical plugin READMEs found - validation skipped" -ForegroundColor Yellow
     exit 0
 }
 
@@ -96,11 +95,11 @@ foreach ($readme in $pluginReadmes) {
 
 # Report results
 if ($violations.Count -eq 0) {
-    Write-Host "All plugin README overlays validated!" -ForegroundColor Green
+    Write-Host "All canonical plugin READMEs validated!" -ForegroundColor Green
     Write-Host "  Files checked: $($pluginReadmes.Count)" -ForegroundColor Cyan
     exit 0
 } else {
-    Write-Host "VALIDATION FAILED: Plugin README overlays have issues" -ForegroundColor Red
+    Write-Host "VALIDATION FAILED: Canonical plugin READMEs have issues" -ForegroundColor Red
     Write-Host ""
     
     foreach ($violation in $violations) {
@@ -111,13 +110,13 @@ if ($violations.Count -eq 0) {
     }
     
     Write-Host "WHY THIS MATTERS:" -ForegroundColor Yellow
-    Write-Host "  Plugin README overlays overwrite published templates during build." -ForegroundColor White
-    Write-Host "  Stub/thin content means users see incomplete docs in the marketplace." -ForegroundColor White
+    Write-Host "  Canonical plugin READMEs are copied directly into published packages." -ForegroundColor White
+    Write-Host "  Stub/thin content means users see incomplete marketplace documentation." -ForegroundColor White
     Write-Host ""
     Write-Host "TO FIX:" -ForegroundColor Yellow
-    Write-Host "  1. Enrich the README overlay with full content (80+ lines)" -ForegroundColor White
+    Write-Host "  1. Enrich the canonical README with full content (80+ lines)" -ForegroundColor White
     Write-Host "  2. Include all required sections (Prerequisites, Installation, etc.)" -ForegroundColor White
-    Write-Host "  3. Or remove the overlay to use the published template as-is" -ForegroundColor White
+    Write-Host "  3. Re-run this check before publishing" -ForegroundColor White
     Write-Host ""
     
     exit 1

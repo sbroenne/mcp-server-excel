@@ -2,32 +2,58 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 
 /// <summary>
-/// Integration tests for the Copilot plugin bootstrap packaging flow.
-/// These exercise the real PowerShell build/sync scripts against synthetic plugin templates
-/// so runtime bootstrap assets survive packaging without touching real user state.
+/// Integration tests for Agent Plugins 1.0 packaging and runtime bootstrap flows.
+/// These exercise the real PowerShell build/sync scripts against canonical source templates
+/// and isolated output repositories without touching real user state.
 /// </summary>
 public sealed class PluginBootstrapBuildTests
 {
+    private const string AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
+    private const string AgentPluginMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     private static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
+
+    [Theory]
+    [InlineData("excel-mcp")]
+    [InlineData("excel-cli")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "AgentPluginSpec")]
+    public void SourcePluginManifest_ConformsToAgentPluginsV1(string pluginName)
+    {
+        var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
+
+        AssertAgentPluginManifest(pluginRoot, expectedVersion: "0.0.0");
+        AssertAgentSkill(Path.Combine(RepoRoot, "skills", pluginName), pluginName);
+        Assert.True(File.Exists(Path.Combine(pluginRoot, "com.github.copilot", "bin", "install-global.ps1")));
+        Assert.False(File.Exists(Path.Combine(pluginRoot, "bin", "install-global.ps1")));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "AgentPluginSpec")]
+    public void ExcelMcpSource_UsesPortableMcpConfiguration()
+    {
+        var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp");
+
+        AssertPortableMcpConfiguration(pluginRoot);
+        Assert.False(File.Exists(Path.Combine(pluginRoot, ".mcp.json")));
+    }
 
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_PreservesCurrentBootstrapAssetsAndDropsLegacyBootstrapFiles()
     {
-        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
-
         var sandbox = CreateSandbox("build-preserves-bootstrap-assets");
         try
         {
-            var templateDir = CreatePluginTemplateSet(Path.Combine(sandbox, "templates"));
             var outputDir = Path.Combine(sandbox, "built-plugins");
             var version = "9.9.9-test";
 
@@ -35,7 +61,6 @@ public sealed class PluginBootstrapBuildTests
                 BuildPluginsScript,
                 [
                     "-Version", version,
-                    "-PluginTemplateDir", templateDir,
                     "-OutputDir", outputDir
                 ]);
 
@@ -43,26 +68,27 @@ public sealed class PluginBootstrapBuildTests
 
             AssertBootstrapAssetSet(
                 Path.Combine(outputDir, "excel-mcp"),
-                ".mcp.json",
-                @"bin\start-mcp.ps1",
-                @"bin\download.ps1",
-                @"bin\install-global.ps1");
+                "mcp.json",
+                "bin/start-mcp.ps1",
+                "bin/download.ps1",
+                "com.github.copilot/bin/install-global.ps1");
 
             AssertBootstrapAssetSet(
                 Path.Combine(outputDir, "excel-cli"),
-                @"bin\start-cli.ps1",
-                @"bin\download.ps1",
-                @"bin\install-global.ps1");
+                "bin/start-cli.ps1",
+                "bin/download.ps1",
+                "com.github.copilot/bin/install-global.ps1");
 
             AssertBootstrapAssetsAbsent(
                 Path.Combine(outputDir, "excel-mcp"),
-                @"bin\download-mcp.ps1",
-                @"bin\bootstrap-state.json");
+                ".mcp.json",
+                "bin/download-mcp.ps1",
+                "bin/bootstrap-state.json");
 
             AssertBootstrapAssetsAbsent(
                 Path.Combine(outputDir, "excel-cli"),
-                @"bin\download-cli.ps1",
-                @"bin\bootstrap-state.json");
+                "bin/download-cli.ps1",
+                "bin/bootstrap-state.json");
 
             Assert.False(File.Exists(Path.Combine(outputDir, "excel-mcp", "bin", "mcp-excel.exe")));
             Assert.False(File.Exists(Path.Combine(outputDir, "excel-cli", "bin", "excelcli.exe")));
@@ -78,12 +104,9 @@ public sealed class PluginBootstrapBuildTests
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_RefreshesVersionAndSkillContentWithoutClobberingCliOverlay()
     {
-        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
-
         var sandbox = CreateSandbox("build-refreshes-version-and-skills");
         try
         {
-            var templateDir = CreatePluginTemplateSet(Path.Combine(sandbox, "templates"));
             var outputDir = Path.Combine(sandbox, "built-plugins");
             var version = "9.9.10-test";
 
@@ -91,7 +114,6 @@ public sealed class PluginBootstrapBuildTests
                 BuildPluginsScript,
                 [
                     "-Version", version,
-                    "-PluginTemplateDir", templateDir,
                     "-OutputDir", outputDir
                 ]);
 
@@ -108,6 +130,9 @@ public sealed class PluginBootstrapBuildTests
             using var cliPluginJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(outputDir, "excel-cli", "plugin.json")));
             Assert.Equal(version, mcpPluginJson.RootElement.GetProperty("version").GetString());
             Assert.Equal(version, cliPluginJson.RootElement.GetProperty("version").GetString());
+            AssertAgentPluginManifest(Path.Combine(outputDir, "excel-mcp"), version);
+            AssertAgentPluginManifest(Path.Combine(outputDir, "excel-cli"), version);
+            AssertPortableMcpConfiguration(Path.Combine(outputDir, "excel-mcp"));
 
             var sourceMcpSkill = File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-mcp", "SKILL.md"));
             var builtMcpSkill = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp", "SKILL.md"));
@@ -117,8 +142,18 @@ public sealed class PluginBootstrapBuildTests
             var builtCliSkill = File.ReadAllText(Path.Combine(outputDir, "excel-cli", "skills", "excel-cli", "SKILL.md"));
             Assert.Equal(sourceCliSkill, builtCliSkill);
 
-            var overlayInstallGlobal = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "install-global.ps1"));
-            var builtInstallGlobal = File.ReadAllText(Path.Combine(outputDir, "excel-cli", "bin", "install-global.ps1"));
+            AssertSkillDirectoryMatchesSource(
+                Path.Combine(RepoRoot, "skills", "excel-mcp"),
+                Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp"),
+                version);
+            AssertSkillDirectoryMatchesSource(
+                Path.Combine(RepoRoot, "skills", "excel-cli"),
+                Path.Combine(outputDir, "excel-cli", "skills", "excel-cli"));
+            AssertLocalSkillLinksResolve(Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp"));
+            AssertLocalSkillLinksResolve(Path.Combine(outputDir, "excel-cli", "skills", "excel-cli"));
+
+            var overlayInstallGlobal = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"));
+            var builtInstallGlobal = File.ReadAllText(Path.Combine(outputDir, "excel-cli", "com.github.copilot", "bin", "install-global.ps1"));
             Assert.Equal(overlayInstallGlobal, builtInstallGlobal);
 
             var overlayCliBootstrap = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "start-cli.ps1"));
@@ -133,8 +168,8 @@ public sealed class PluginBootstrapBuildTests
             var builtMcpBootstrap = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "bin", "start-mcp.ps1"));
             Assert.Equal(overlayMcpBootstrap, builtMcpBootstrap);
 
-            var overlayMcpInstallGlobal = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "bin", "install-global.ps1"));
-            var builtMcpInstallGlobal = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "bin", "install-global.ps1"));
+            var overlayMcpInstallGlobal = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "com.github.copilot", "bin", "install-global.ps1"));
+            var builtMcpInstallGlobal = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "com.github.copilot", "bin", "install-global.ps1"));
             Assert.Equal(overlayMcpInstallGlobal, builtMcpInstallGlobal);
 
             var overlayMcpDownload = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "bin", "download.ps1"));
@@ -152,12 +187,9 @@ public sealed class PluginBootstrapBuildTests
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_IncludesCliCommandAndSharedReferencesInExcelCliSkill()
     {
-        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
-
         var sandbox = CreateSandbox("build-includes-cli-command-reference");
         try
         {
-            var templateDir = CreatePluginTemplateSet(Path.Combine(sandbox, "templates"));
             var outputDir = Path.Combine(sandbox, "built-plugins");
             var version = "9.9.13-test";
 
@@ -165,7 +197,6 @@ public sealed class PluginBootstrapBuildTests
                 BuildPluginsScript,
                 [
                     "-Version", version,
-                    "-PluginTemplateDir", templateDir,
                     "-OutputDir", outputDir
                 ]);
 
@@ -211,28 +242,23 @@ public sealed class PluginBootstrapBuildTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
-    public async Task BuildPlugins_MissingTemplateDirectory_FailsWithClearMessage()
+    public async Task BuildPlugins_UsesSourceOwnedTemplatesWithoutPublishedRepository()
     {
-        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
-
-        var sandbox = CreateSandbox("build-missing-template-dir");
+        var sandbox = CreateSandbox("build-source-owned-templates");
         try
         {
-            var missingTemplateDir = Path.Combine(sandbox, "missing-templates");
             var outputDir = Path.Combine(sandbox, "built-plugins");
 
             var result = await RunPowerShellFileAsync(
                 BuildPluginsScript,
                 [
                     "-Version", "9.9.11-test",
-                    "-PluginTemplateDir", missingTemplateDir,
                     "-OutputDir", outputDir
                 ]);
 
-            Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("Plugin template directory not found", result.CombinedOutput);
-            Assert.Contains("mcp-server-excel-plugins", result.CombinedOutput);
-            Assert.Contains("clone the published repo first", result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, result.ExitCode);
+            AssertAgentPluginManifest(Path.Combine(outputDir, "excel-mcp"), "9.9.11-test");
+            AssertAgentPluginManifest(Path.Combine(outputDir, "excel-cli"), "9.9.11-test");
         }
         finally
         {
@@ -245,12 +271,9 @@ public sealed class PluginBootstrapBuildTests
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_SmokeRun_ExitsZeroAndPrintsAsciiSummary()
     {
-        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
-
         var sandbox = CreateSandbox("build-smoke-summary");
         try
         {
-            var templateDir = CreatePluginTemplateSet(Path.Combine(sandbox, "templates"));
             var outputDir = Path.Combine(sandbox, "built-plugins");
             var version = "9.9.12-test";
 
@@ -258,7 +281,6 @@ public sealed class PluginBootstrapBuildTests
                 BuildPluginsScript,
                 [
                     "-Version", version,
-                    "-PluginTemplateDir", templateDir,
                     "-OutputDir", outputDir
                 ]);
 
@@ -282,12 +304,9 @@ public sealed class PluginBootstrapBuildTests
     [Trait("Feature", "PluginBootstrap")]
     public async Task SyncPublishedPluginRepo_WritesCanonicalManifestAndCopiesBootstrapPlugins()
     {
-        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
-
         var sandbox = CreateSandbox("sync-published-plugin-repo");
         try
         {
-            var templateDir = CreatePluginTemplateSet(Path.Combine(sandbox, "templates"));
             var builtPluginsDir = Path.Combine(sandbox, "built-plugins");
             var publishedRepoDir = Path.Combine(sandbox, "published-repo");
             var version = "9.9.12-test";
@@ -299,7 +318,6 @@ public sealed class PluginBootstrapBuildTests
                 BuildPluginsScript,
                 [
                     "-Version", version,
-                    "-PluginTemplateDir", templateDir,
                     "-OutputDir", builtPluginsDir
                 ]);
 
@@ -331,29 +349,32 @@ public sealed class PluginBootstrapBuildTests
             Assert.Equal("./plugins/excel-cli", pluginEntries["excel-cli"].GetProperty("source").GetString());
             Assert.Contains("./plugins/excel-mcp/skills/excel-mcp", pluginEntries["excel-mcp"].GetProperty("skills").EnumerateArray().Select(s => s.GetString()));
             Assert.Contains("./plugins/excel-cli/skills/excel-cli", pluginEntries["excel-cli"].GetProperty("skills").EnumerateArray().Select(s => s.GetString()));
+            AssertMarketplacePluginMetadata(pluginEntries["excel-mcp"]);
+            AssertMarketplacePluginMetadata(pluginEntries["excel-cli"]);
 
             AssertBootstrapAssetSet(
+                Path.Combine(publishedRepoDir, "plugins", "excel-mcp"),
+                "mcp.json",
+                "bin/start-mcp.ps1",
+                "bin/download.ps1",
+                "com.github.copilot/bin/install-global.ps1");
+
+            AssertBootstrapAssetSet(
+                Path.Combine(publishedRepoDir, "plugins", "excel-cli"),
+                "bin/start-cli.ps1",
+                "bin/download.ps1",
+                "com.github.copilot/bin/install-global.ps1");
+
+            AssertBootstrapAssetsAbsent(
                 Path.Combine(publishedRepoDir, "plugins", "excel-mcp"),
                 ".mcp.json",
-                @"bin\start-mcp.ps1",
-                @"bin\download.ps1",
-                @"bin\install-global.ps1");
-
-            AssertBootstrapAssetSet(
-                Path.Combine(publishedRepoDir, "plugins", "excel-cli"),
-                @"bin\start-cli.ps1",
-                @"bin\download.ps1",
-                @"bin\install-global.ps1");
-
-            AssertBootstrapAssetsAbsent(
-                Path.Combine(publishedRepoDir, "plugins", "excel-mcp"),
-                @"bin\download-mcp.ps1",
-                @"bin\bootstrap-state.json");
+                "bin/download-mcp.ps1",
+                "bin/bootstrap-state.json");
 
             AssertBootstrapAssetsAbsent(
                 Path.Combine(publishedRepoDir, "plugins", "excel-cli"),
-                @"bin\download-cli.ps1",
-                @"bin\bootstrap-state.json");
+                "bin/download-cli.ps1",
+                "bin/bootstrap-state.json");
         }
         finally
         {
@@ -619,72 +640,6 @@ public sealed class PluginBootstrapBuildTests
         }
     }
 
-    private static string CreatePluginTemplateSet(string root)
-    {
-        Directory.CreateDirectory(root);
-
-        CreatePluginTemplate(
-            Path.Combine(root, "excel-mcp"),
-            "excel-mcp",
-            version: "0.0.1",
-            description: "Template MCP plugin",
-            extraFiles: new Dictionary<string, string>
-            {
-                [".mcp.json"] = """
-                    { "servers": { "excel-mcp": { "command": "powershell", "args": [ "-File", "{pluginDir}\\bin\\start-mcp.ps1" ] } } }
-                    """,
-                [@"bin\start-mcp.ps1"] = "Write-Output 'template mcp bootstrap'",
-                [@"bin\download.ps1"] = "Write-Output 'template mcp download'",
-                [@"bin\install-global.ps1"] = "Write-Output 'template mcp install'",
-                [@"skills\excel-mcp\SKILL.md"] = "template mcp skill"
-            });
-
-        CreatePluginTemplate(
-            Path.Combine(root, "excel-cli"),
-            "excel-cli",
-            version: "0.0.1",
-            description: "Template CLI plugin",
-            extraFiles: new Dictionary<string, string>
-            {
-                [@"bin\start-cli.ps1"] = "Write-Output 'template cli bootstrap'",
-                [@"bin\download.ps1"] = "Write-Output 'template cli download'",
-                [@"bin\install-global.ps1"] = "Write-Output 'template cli install'",
-                [@"skills\excel-cli\SKILL.md"] = "template cli skill"
-            });
-
-        return root;
-    }
-
-    private static void CreatePluginTemplate(
-        string pluginRoot,
-        string name,
-        string version,
-        string description,
-        IReadOnlyDictionary<string, string> extraFiles)
-    {
-        Directory.CreateDirectory(pluginRoot);
-
-        File.WriteAllText(
-            Path.Combine(pluginRoot, "plugin.json"),
-            $$"""
-            {
-              "name": "{{name}}",
-              "displayName": "{{name}}",
-              "version": "{{version}}",
-              "description": "{{description}}"
-            }
-            """);
-
-        File.WriteAllText(Path.Combine(pluginRoot, "version.txt"), version);
-
-        foreach (var (relativePath, content) in extraFiles)
-        {
-            var fullPath = Path.Combine(pluginRoot, relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-            File.WriteAllText(fullPath, content);
-        }
-    }
-
     private static void AssertBootstrapAssetSet(string pluginRoot, params string[] relativePaths)
     {
         foreach (var relativePath in relativePaths)
@@ -700,6 +655,179 @@ public sealed class PluginBootstrapBuildTests
         {
             var fullPath = Path.Combine(pluginRoot, relativePath);
             Assert.False(File.Exists(fullPath), $"Did not expect legacy bootstrap asset at {fullPath}");
+        }
+    }
+
+    private static void AssertAgentPluginManifest(string pluginRoot, string expectedVersion)
+    {
+        var manifestPath = Path.Combine(pluginRoot, "plugin.json");
+        Assert.True(File.Exists(manifestPath), $"Expected Agent Plugin manifest at {manifestPath}");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var root = document.RootElement;
+        var allowedProperties = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "$schema",
+            "name",
+            "version",
+            "description",
+            "author",
+            "homepage",
+            "repository",
+            "license",
+            "keywords",
+            "extensions"
+        };
+
+        Assert.Equal(JsonValueKind.Object, root.ValueKind);
+        Assert.Equal(AgentPluginSchema, root.GetProperty("$schema").GetString());
+        Assert.Equal(Path.GetFileName(pluginRoot), root.GetProperty("name").GetString());
+        Assert.Equal(expectedVersion, root.GetProperty("version").GetString());
+        Assert.Equal(JsonValueKind.String, root.GetProperty("description").ValueKind);
+        Assert.Equal(JsonValueKind.String, root.GetProperty("repository").ValueKind);
+        Assert.All(root.EnumerateObject(), property => Assert.Contains(property.Name, allowedProperties));
+        Assert.DoesNotContain(root.EnumerateObject(), property =>
+            property.Name is "displayName" or "publisher" or "skills" or "mcpServers");
+    }
+
+    private static void AssertPortableMcpConfiguration(string pluginRoot)
+    {
+        var mcpPath = Path.Combine(pluginRoot, "mcp.json");
+        Assert.True(File.Exists(mcpPath), $"Expected portable MCP configuration at {mcpPath}");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(mcpPath));
+        var root = document.RootElement;
+        Assert.Equal(AgentPluginMcpSchema, root.GetProperty("$schema").GetString());
+        Assert.Equal(2, root.EnumerateObject().Count());
+
+        var server = root.GetProperty("mcpServers").GetProperty("excel-mcp");
+        Assert.Equal("stdio", server.GetProperty("type").GetString());
+        Assert.Equal("powershell", server.GetProperty("command").GetString());
+        Assert.DoesNotContain(' ', server.GetProperty("command").GetString()!);
+
+        var args = server.GetProperty("args").EnumerateArray().Select(arg => arg.GetString()).ToArray();
+        Assert.Contains("${PLUGIN_ROOT}/bin/start-mcp.ps1", args);
+        Assert.DoesNotContain(args, arg => arg?.Contains("{pluginDir}", StringComparison.Ordinal) == true);
+    }
+
+    private static void AssertAgentSkill(string skillRoot, string expectedName)
+    {
+        var skillPath = Path.Combine(skillRoot, "SKILL.md");
+        Assert.True(File.Exists(skillPath), $"Expected Agent Skill at {skillPath}");
+
+        var lines = File.ReadAllLines(skillPath);
+        Assert.True(lines.Length > 3);
+        Assert.Equal("---", lines[0].Trim());
+
+        var closingDelimiter = Array.FindIndex(lines, 1, line => line.Trim() == "---");
+        Assert.True(closingDelimiter > 1, $"{skillPath} must contain YAML frontmatter.");
+
+        var nameLine = lines[1..closingDelimiter]
+            .Single(line => line.StartsWith("name:", StringComparison.Ordinal));
+        var name = nameLine["name:".Length..].Trim();
+        Assert.Equal(expectedName, name);
+        Assert.Matches("^(?!.*--)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", name);
+        Assert.InRange(name.Length, 1, 64);
+
+        var descriptionIndex = Array.FindIndex(
+            lines,
+            1,
+            closingDelimiter - 1,
+            line => line.StartsWith("description:", StringComparison.Ordinal));
+        Assert.True(descriptionIndex > 0, $"{skillPath} must declare a description.");
+
+        var description = string.Join(
+            " ",
+            lines[(descriptionIndex + 1)..closingDelimiter]
+                .TakeWhile(line => line.Length > 0 && char.IsWhiteSpace(line[0]))
+                .Select(line => line.Trim()));
+        Assert.InRange(description.Length, 1, 1024);
+        Assert.Contains("Use when", description, StringComparison.OrdinalIgnoreCase);
+
+        var allowedFields = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "name",
+            "description",
+            "license",
+            "compatibility",
+            "metadata",
+            "allowed-tools"
+        };
+        var frontmatterFields = lines[1..closingDelimiter]
+            .Where(line => line.Length > 0 && !char.IsWhiteSpace(line[0]) && line.Contains(':'))
+            .Select(line => line[..line.IndexOf(':')])
+            .ToArray();
+        Assert.All(frontmatterFields, field => Assert.Contains(field, allowedFields));
+
+        var compatibilityLine = lines[1..closingDelimiter]
+            .Single(line => line.StartsWith("compatibility:", StringComparison.Ordinal));
+        var compatibility = compatibilityLine["compatibility:".Length..].Trim();
+        Assert.InRange(compatibility.Length, 1, 500);
+    }
+
+    private static void AssertMarketplacePluginMetadata(JsonElement plugin)
+    {
+        var allowedProperties = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "name",
+            "source",
+            "description",
+            "version",
+            "author",
+            "homepage",
+            "repository",
+            "license",
+            "keywords",
+            "skills"
+        };
+
+        Assert.All(plugin.EnumerateObject(), property => Assert.Contains(property.Name, allowedProperties));
+        Assert.Equal(JsonValueKind.String, plugin.GetProperty("repository").ValueKind);
+        Assert.Equal(JsonValueKind.Array, plugin.GetProperty("skills").ValueKind);
+    }
+
+    private static void AssertSkillDirectoryMatchesSource(
+        string sourceSkillRoot,
+        string builtSkillRoot,
+        string? expectedVersion = null)
+    {
+        var sourceFiles = Directory.GetFiles(sourceSkillRoot, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(sourceSkillRoot, path))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+        var builtFiles = Directory.GetFiles(builtSkillRoot, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(builtSkillRoot, path))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(sourceFiles, builtFiles);
+        foreach (var relativePath in sourceFiles.Where(path => path != "VERSION"))
+        {
+            Assert.Equal(
+                File.ReadAllText(Path.Combine(sourceSkillRoot, relativePath)),
+                File.ReadAllText(Path.Combine(builtSkillRoot, relativePath)));
+        }
+
+        if (expectedVersion != null)
+        {
+            Assert.Equal(expectedVersion, File.ReadAllText(Path.Combine(builtSkillRoot, "VERSION")).Trim());
+        }
+    }
+
+    private static void AssertLocalSkillLinksResolve(string skillRoot)
+    {
+        var skillPath = Path.Combine(skillRoot, "SKILL.md");
+        var content = File.ReadAllText(skillPath);
+        var localLinks = Regex.Matches(content, @"\]\((\./[^)#]+)(?:#[^)]+)?\)")
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        foreach (var localLink in localLinks)
+        {
+            var relativePath = localLink[2..].Replace('/', Path.DirectorySeparatorChar);
+            var linkedPath = Path.Combine(skillRoot, relativePath);
+            Assert.True(File.Exists(linkedPath), $"Local Agent Skill link '{localLink}' does not resolve from {skillPath}.");
         }
     }
 
