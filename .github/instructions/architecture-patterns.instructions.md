@@ -153,27 +153,11 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 **In-Process Architecture**: MCP Server hosts ExcelMcpService fully in-process with direct method calls (no pipe).
 ServiceBridge holds the service reference and calls ProcessAsync() directly.
 
-**19 Focused Tools:**
-1. `file` - Session lifecycle (open, close, create, list)
-2. `worksheet` - Worksheet operations
-3. `worksheet_style` - Tab colors and visibility
-4. `range` - Range values and formulas
-5. `range_edit` - Insert/delete/find/replace
-6. `table` - Excel Tables (ListObjects)
-7. `table_column` - Table columns/filters/sorts
-8. `powerquery` - Power Query M code
-9. `pivottable` - PivotTable lifecycle
-10. `pivottable_field` - PivotTable fields
-11. `pivottable_calc` - Calculated fields/items
-12. `chart` - Chart lifecycle
-13. `chart_config` - Chart configuration
-14. `connection` - Data connections
-15. `slicer` - Slicers
-16. `vba` - VBA macros
-17. `datamodel` - Power Pivot / DAX
-18. `datamodel_relationship` - Data Model relationships
-19. `namedrange` - Named ranges
-20. `excel_calculation` - Calculation mode
+**Generated tool surface:** MCP tools and CLI feature categories are generated
+from Core `[ServiceCategory]` interfaces, with the hand-written `file`/session
+surface added at the entry-point layer. Do not maintain a manual tool list here.
+Use `scripts/check-doc-counts.ps1` and generated manifests as the authoritative
+coverage and count checks.
 
 ### Action-Based Routing with ForwardToService
 ```csharp

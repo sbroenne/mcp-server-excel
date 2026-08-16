@@ -1,6 +1,6 @@
 # Installing the MCP Server - ExcelMcp
 
-Installation instructions for the ExcelMcp **MCP Server** — the entry point for AI assistants like GitHub Copilot, Claude Desktop, Cursor, and any other MCP client. Looking for the CLI instead? See the [CLI Installation Guide](https://excelmcpserver.dev/installation-cli/).
+Installation instructions for the ExcelMcp **MCP Server** — the entry point for AI assistants like GitHub Copilot, Claude Desktop, Cursor, and any other MCP client. Looking for the CLI instead? See the [CLI Installation Guide](INSTALLATION-CLI.md).
 
 ## System Requirements
 
@@ -28,7 +28,7 @@ Use this order to avoid setup confusion:
    - **GitHub Copilot Plugin** (Copilot CLI users) — marketplace installation
    - **Manual MCP setup** (other MCP clients like Cursor, Windsurf)
 2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB/plugin install)
-3. **Optional:** also install the [CLI](https://excelmcpserver.dev/installation-cli/) (`excelcli`) for scripting/RPA
+3. **Optional:** also install the [CLI](INSTALLATION-CLI.md) (`excelcli`) for scripting/RPA
 
 ### VS Code Extension (Easiest - One-Click Setup)
 
@@ -138,7 +138,7 @@ npx add-mcp "mcp-excel" --name excel-mcp --all -y
 
 #### Option B: Manual Configuration
 
-**Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
+**Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](../examples/mcp-configs/)
 
 **For GitHub Copilot (VS Code):**
 
@@ -326,7 +326,7 @@ dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 
 ### Check What's New
 
-Before updating, check the [changelog](https://excelmcpserver.dev/changelog/) or [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases).
+Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases).
 
 ---
 
@@ -387,10 +387,10 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 
 ## Getting Help
 
-- **Troubleshooting:** [Troubleshooting & FAQ](https://excelmcpserver.dev/troubleshooting/)
+- **Troubleshooting:** [Troubleshooting](https://excelmcpserver.dev/troubleshooting/) · [FAQ](https://excelmcpserver.dev/faq/)
 - **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- **Contributing:** [Contributing Guide](https://excelmcpserver.dev/contributing/)
+- **Contributing:** [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
@@ -399,10 +399,10 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 After installation:
 
 1. **Learn the basics:** Try simple commands like creating worksheets, setting values
-2. **Explore features:** See the [Feature Reference](https://excelmcpserver.dev/features/) for the complete tool list
+2. **Explore features:** See the [Feature Reference](../FEATURES.md) for the complete tool list
 3. **Read the guides:**
-   - [CLI Installation Guide](https://excelmcpserver.dev/installation-cli/) - for scripting, RPA, and CI/CD
-   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md) - cross-platform AI guidance
+   - [CLI Installation Guide](INSTALLATION-CLI.md) - for scripting, RPA, and CI/CD
+   - [Agent Skills](../skills/excel-mcp/SKILL.md) - cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

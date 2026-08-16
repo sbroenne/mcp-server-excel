@@ -1,0 +1,15 @@
+{#-
+  Overrides material/templates/partials/logo.html.
+
+  Upstream renders `alt="logo"` with no dimensions. That is a WCAG 1.1.1 failure
+  (the alt text names the element rather than the site) and an unsized image,
+  which costs layout stability. Previously patched with two regexes over the
+  built HTML - one for the normal output and one for the quote-stripped minified
+  form. `config.site_name` is "Excel MCP Server", the value those regexes wrote.
+-#}
+{% if config.theme.logo %}
+  <img src="{{ config.theme.logo | url }}" alt="{{ config.site_name }}" width="256" height="256">
+{% else %}
+  {% set icon = config.theme.icon.logo or "material/library" %}
+  {% include ".icons/" ~ icon ~ ".svg" %}
+{% endif %}

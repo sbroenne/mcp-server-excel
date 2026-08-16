@@ -1,0 +1,72 @@
+name: Link Check
+
+# Weekly link rot check for the published site.
+#
+# audit_site.py already validates internal structure on every PR, but nothing
+# checked that the site's outbound links still resolve. Broken external links
+# degrade both the reading experience and search ranking.
+#
+# Deliberately NOT run on pull requests: external endpoints rate-limit and go
+# down for reasons unrelated to the change under review, so this would be a
+# flaky required check. It runs on a schedule and files an issue instead.
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Check links in built site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: gh-pages/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r gh-pages/requirements.txt
+
+      - name: Build site
+        working-directory: gh-pages
+        run: mkdocs build --strict --clean
+
+      - name: Check links
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # --base lets root-relative hrefs resolve against the built output, so
+          # internal and external links are both covered.
+          args: >-
+            --base gh-pages/_site
+            --no-progress
+            --max-concurrency 4
+            --accept 200,206,429
+            --exclude '^https?://localhost'
+            --exclude '^https?://127\.0\.0\.1'
+            --exclude 'example\.com'
+            'gh-pages/_site/**/*.html'
+          fail: true
+          output: lychee-report.md
+
+      - name: File an issue when links are broken
+        if: failure() && steps.lychee.outcome == 'failure'
+        uses: peter-evans/create-issue-from-file@v6
+        with:
+          title: "Broken links on excelmcpserver.dev"
+          content-filepath: lychee-report.md
+          # Only labels that actually exist in this repo - the API rejects
+          # unknown label names.
+          labels: documentation

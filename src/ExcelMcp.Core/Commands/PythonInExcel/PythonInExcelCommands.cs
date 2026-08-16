@@ -96,6 +96,17 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
     /// <inheritdoc />
     public PythonInExcelResult GetResult(IExcelBatch batch, string sheetName, string rangeAddress, int maxWaitSeconds = 30)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxWaitSeconds, 1);
+
+        if (TimeSpan.FromSeconds(maxWaitSeconds) >= batch.OperationTimeout)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxWaitSeconds),
+                maxWaitSeconds,
+                $"maxWaitSeconds must be less than the session operation timeout of {batch.OperationTimeout.TotalSeconds:0.###} seconds. " +
+                "Reopen the session with a larger --timeout, or use a shorter wait and call get-result again.");
+        }
+
         var result = new PythonInExcelResult
         {
             FilePath = batch.WorkbookPath,

@@ -1,4 +1,3 @@
-````markdown
 # conditionalformat - Server Quirks
 
 **Rule Types**:
@@ -175,21 +174,21 @@
 
 ```powershell
 # Add rule: highlight values > 100 in yellow
-excelcli conditionalformat add-rule --session <id> --sheet-name "Data" --range-address "B2:B100" `
+excelcli conditionalformat add-rule --session <id> --sheet "Data" --range "B2:B100" `
   --rule-type "cell-value" --operator-type "greater" --formula1 "100" --interior-color "#FFFF00"
 
 # Add expression rule: highlight entire row if column A is "Error"
-excelcli conditionalformat add-rule --session <id> --sheet-name "Data" --range-address "A2:E100" `
+excelcli conditionalformat add-rule --session <id> --sheet "Data" --range "A2:E100" `
   --rule-type "expression" --formula1 "=`$A2=`"Error`"" --interior-color "#FF0000" --font-color "#FFFFFF"
 
 # Clear all rules from range
-excelcli conditionalformat clear-rules --session <id> --sheet-name "Data" --range-address "A1:E100"
+excelcli conditionalformat clear-rules --session <id> --sheet "Data" --range "A1:E100"
 
 # List rules for a range
-excelcli conditionalformat list-rules --session <id> --sheet-name "Data" --range-address "A1:E100"
+excelcli conditionalformat list-rules --session <id> --sheet "Data" --range "A1:E100"
 
 # List all rules on a worksheet
-excelcli conditionalformat list-worksheet-rules --session <id> --sheet-name "Data"
+excelcli conditionalformat list-worksheet-rules --session <id> --sheet "Data"
 ```
 
 **Common Mistakes**:
@@ -205,5 +204,3 @@ excelcli conditionalformat list-worksheet-rules --session <id> --sheet-name "Dat
 2. Use `clear-rules` before applying new rules if replacing existing formatting
 3. For row-based highlighting, apply rule to full range (not just one column)
 4. Use relative row references (`$A1`) and absolute column references for row highlighting
-
-````

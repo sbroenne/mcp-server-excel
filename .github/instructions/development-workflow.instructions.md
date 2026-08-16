@@ -82,6 +82,7 @@ Quick reference:
 - Before merge, run the relevant Excel integration tests locally with an explicit timeout when changes affect the Core, CLI, or MCP runtime path.
 - Run `& .\scripts\Test-E2E.ps1` only for those runtime-impacting changes. This includes changes under `src/ExcelMcp.ComInterop`, `src/ExcelMcp.Core`, `src/ExcelMcp.Service`, `src/ExcelMcp.CLI`, `src/ExcelMcp.McpServer`, and source generators that feed CLI or MCP.
 - Plugin/build/publish, marketplace, skill, documentation, and test-only changes do not require Excel E2E unless the same commit also changes one of those runtime paths.
+- For merge commits, pre-commit evaluates the staged result relative to the incoming merge parent so already-validated changes imported from `main` do not trigger unrelated Excel E2E.
 - Record the result and check the E2E attestation in the pull request template only when Excel E2E is applicable and finishes without failures or unresolved issues.
 
 ## Workflow Config Updates
@@ -115,7 +116,7 @@ Workflow calculates version → builds all components → creates git tag → Gi
 
 **Quick release from terminal:**
 ```powershell
-gh workflow run release.yml -f bump=patch   # or minor/major
+gh workflow run release.yml -f version_bump=patch   # or minor/major
 ```
 
 ## GitHub Issue Comment Protocol

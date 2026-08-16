@@ -64,8 +64,30 @@ updates:
         patterns:
           - "*"
 
-  # .NET SDK (via global.json if present)
-  - package-ecosystem: "docker"
+  # Documentation site (MkDocs) - check weekly
+  - package-ecosystem: "pip"
+    directory: "/gh-pages"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "documentation"
+      - "automated"
+    commit-message:
+      prefix: "chore(docs-deps)"
+    reviewers:
+      - "sbroenne"
+    groups:
+      docs-dependencies:
+        patterns:
+          - "*"
+
+  # Changesets tooling at the repo root (never published to npm)
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -75,9 +97,37 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "docker"
+      - "npm"
       - "automated"
     commit-message:
-      prefix: "chore(docker)"
+      prefix: "chore(deps)"
+      include: "scope"
     reviewers:
       - "sbroenne"
+    groups:
+      changesets:
+        patterns:
+          - "*"
+
+  # VS Code extension - check weekly
+  - package-ecosystem: "npm"
+    directory: "/vscode-extension"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+      - "automated"
+    commit-message:
+      prefix: "chore(vscode-deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      vscode-extension:
+        patterns:
+          - "*"

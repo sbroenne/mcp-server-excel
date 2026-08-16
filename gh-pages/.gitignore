@@ -1,8 +1,15 @@
 # MkDocs build output
 _site/
 
-# Generated documentation pages (produced by hooks.py from canonical repo docs)
+# Generated documentation pages (produced by hooks.py from canonical repo docs).
+# Outside docs/ on purpose - see the comment on GEN_DIR in hooks.py.
+_generated/
+# Former location, kept so the stale directory in long-lived clones stays
+# ignored rather than showing up as untracked files.
 docs/_generated/
+
+# Star-history chart: produced by the deploy workflow before mkdocs runs, never committed
+docs/assets/images/star-history.svg
 
 # Python
 __pycache__/

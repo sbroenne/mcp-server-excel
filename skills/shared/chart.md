@@ -149,14 +149,14 @@ Result example with collision warning:
 {
   "success": true,
   "chartName": "Chart 1",
-  "message": "OVERLAP WARNING: Chart overlaps data area $A$1:$D$20. Use chart fit-to-range to reposition, or screenshot capture-sheet to verify layout."
+  "message": "OVERLAP WARNING: Chart overlaps data area $A$1:$D$20. Use chart fit-to-range to reposition, then screenshot capture with an explicit range to verify layout."
 }
 ```
 
 **If you see an overlap warning:**
 1. Use `chart(fit-to-range, chartName, rangeAddress='F2:K15')` to reposition
 2. Or use `chart(move, chartName, left=..., top=...)` to adjust
-3. Always follow up with `screenshot(capture-sheet)` to verify
+3. Always follow up with `screenshot(capture, rangeAddress='A1:M25')` to include and verify the chart
 
 ### Position Estimates
 - Rows: ~15 points per row (varies with row height)
@@ -167,7 +167,7 @@ Result example with collision warning:
 1. **Preferred**: Use `targetRange='F2:K15'` in create call — avoids all overlap issues
 2. **Alternative**: Omit position — auto-positioning places chart below content
 3. **Manual**: `get-used-range` → calculate coordinates → specify left/top
-4. **Always verify**: Use `screenshot(capture-sheet)` to visually confirm layout
+4. **Always verify**: Use `screenshot(capture, rangeAddress='A1:M25')` to visually confirm layout
 
 ## Multi-Chart Layout (CRITICAL)
 
@@ -181,11 +181,11 @@ chart(create-from-range, ..., targetRange='A12:F25')   # Top-left
 chart(create-from-range, ..., targetRange='G12:L25')   # Top-right
 chart(create-from-range, ..., targetRange='A27:F40')   # Bottom-left
 chart(create-from-range, ..., targetRange='G27:L40')   # Bottom-right
-screenshot(capture-sheet) → Verify no overlaps
+screenshot(capture, rangeAddress='A1:M40') → Verify no overlaps
 ```
 
 ### Rules
 - **Use targetRange for every chart** in multi-chart layouts — auto-positioning stacks vertically
 - Leave at least 1-2 rows/columns gap between charts
 - If any chart result includes an overlap warning, fix it before creating the next chart
-- Take a final `screenshot(capture-sheet)` to verify the complete layout
+- Take a final `screenshot(capture, rangeAddress='A1:M40')` to verify the complete layout

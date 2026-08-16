@@ -249,6 +249,7 @@ public sealed class ExcelMcpServiceErrorTests
         public int DisposeCalls { get; private set; }
         public int? ExcelProcessId => 1234;
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(5);
+        public bool IsExcelVisible => false;
 
         public Excel.Workbook GetWorkbook(string filePath) => throw new NotSupportedException();
 

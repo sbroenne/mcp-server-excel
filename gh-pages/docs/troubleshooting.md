@@ -1,46 +1,17 @@
 ---
-title: Troubleshooting & FAQ
+title: Troubleshooting
 description: >-
-  Fixes for the most common Excel MCP Server issues — Excel must be closed,
+  Fixes for the most common Excel MCP Server issues - Excel must be closed,
   VBA trust, DAX/MSOLAP setup, PATH problems, and protected workbooks.
 keywords: "Excel MCP troubleshooting, VBA trust, MSOLAP DAX, workbook locked, mcp-excel not recognized, IRM AIP Excel"
 ---
 
-# Troubleshooting & FAQ
+# Troubleshooting
 
-Hitting a snag? Most first-time issues fall into one of the cases below. If none
-of these help, open a [GitHub issue](https://github.com/sbroenne/mcp-server-excel/issues).
-
-## Frequently asked questions
-
-??? question "Do I need to know how Excel automation works to use this?"
-    No. You talk to your AI assistant in plain language ("build a PivotTable of
-    sales by product and chart it") and it drives Excel for you. The
-    [feature reference](features.md) is there when you want to see everything
-    that's possible — you don't need to memorize it.
-
-??? question "Does it require Microsoft Excel to be installed?"
-    Yes. Excel MCP Server drives the **real Excel application** through its COM
-    API, so it's **Windows-only** and needs **Excel 2016 or later** installed
-    locally. It is not a file-format parser and does not run on macOS or Linux.
-
-??? question "Will it damage my existing workbooks?"
-    No. Excel itself opens and saves the file, so formulas, PivotTables, charts,
-    macros, the Data Model, and formatting are all preserved. Other tools that
-    rewrite the `.xlsx` file directly can silently drop those; here Excel does
-    the work.
-
-??? question "CLI or MCP Server — which should I install?"
-    Both expose the **same 326 operations**. Use the **MCP Server** for
-    conversational AI (Claude Desktop, VS Code Chat); use the **CLI**
-    (`excelcli`) for coding agents and scripting, where it uses ~64% fewer
-    tokens. You can install both. See [Installation](installation.md).
-
-??? question "Does it cost anything or send my data anywhere?"
-    Excel MCP Server is free and open source (MIT). It runs locally against your
-    own Excel. A few opt-in features reach the internet (remote M/DAX
-    formatting, and Python in Excel, which runs in Microsoft's cloud). See
-    [Privacy](privacy.md) for details.
+Hitting a snag? Most first-time issues fall into one of the cases below. For
+general questions about what the tool is and what it needs, see the
+[FAQ](faq.md). If none of these help, open a
+[GitHub issue](https://github.com/sbroenne/mcp-server-excel/issues).
 
 ## Common issues
 
@@ -121,6 +92,8 @@ winget install OpenJS.NodeJS.LTS
 
 ## Still stuck?
 
+- **General questions:** [FAQ](faq.md)
+- **Task guides:** [Refresh Power Query](guides/refresh-power-query.md) · [PivotTables](guides/automate-pivottables.md) · [DAX & the Data Model](guides/query-data-model-with-dax.md) · [VBA macros](guides/run-vba-macros.md)
 - **Installation details:** [MCP Server](installation-mcp-server.md) · [CLI](installation-cli.md)
 - **How it works:** [Architecture](architecture.md)
 - **Report a bug or ask a question:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

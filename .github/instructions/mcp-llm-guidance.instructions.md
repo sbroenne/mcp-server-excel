@@ -143,7 +143,7 @@ A good prompt:
 
 | Guidance Type | Format | Source of Truth | Status |
 |---------------|--------|----------------|--------|
-| **Skill Prompts** | Auto-generated from `skills/shared/*.md` | `skills/shared/` | ✅ 16 prompts auto-synced |
+| **Skill Prompts** | Auto-generated from `skills/shared/*.md` | `skills/shared/` | ✅ All shared guidance auto-synced |
 | **Completions** | N/A | SDK auto-generates enum values | ❌ Not implemented |
 | **Workflow Guidance** | C# static methods | Tool classes | ✅ Keep as C# |
 

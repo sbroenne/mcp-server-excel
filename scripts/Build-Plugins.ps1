@@ -261,7 +261,7 @@ function Assert-AgentPluginPackage {
     }
 }
 
-Write-Host "`n=== Building Copilot CLI Plugins v$Version ===" -ForegroundColor Green
+Write-Host "`n=== Building Agent Plugins v$Version ===" -ForegroundColor Green
 Write-Host "Source:   $RepoRoot"
 Write-Host "Templates: $PluginSourceDir"
 Write-Host "Output:   $OutputDir`n"

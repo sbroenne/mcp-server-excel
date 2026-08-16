@@ -840,17 +840,14 @@ When adding a NEW action to an existing tool:
 | 4. Core | `*Commands.*.cs` - Implement method |
 | 5. MCP Server | `Excel*Tool.cs` - Add switch case + handler |
 | 6. CLI Daemon | `ExcelDaemon.cs` - Add switch case |
-| 7. Feature Count | `FEATURES.md` - Update operation count |
+| 7. Feature Docs | `docs/features/*.md` and `FEATURES.md` - Update operation list, count, and hub when applicable |
 | 8. README Files | All READMEs with operation counts (main, MCP, CLI, mcpb, vscode) |
 | 9. Skills Docs | `skills/shared/excel_*.md` - Document new action |
 
 **Quick Check Commands:**
 ```powershell
-# Find all files with operation counts
-grep -r "209 operations\|210 operations\|10 ops\|11 ops" --include="*.md"
-
-# Verify enum/mapping consistency
-# Count enum values vs switch cases in CLI and MCP
+# Validate generated surfaces and documented counts
+& .\scripts\check-doc-counts.ps1
 ```
 
 **Why Critical:** 

@@ -11,6 +11,20 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [1.10.7] - 2026-08-15
+
+### Minor Changes
+
+- [#769](https://github.com/sbroenne/mcp-server-excel/pull/769) [`37aa032`](https://github.com/sbroenne/mcp-server-excel/commit/37aa032503adc4d050bd03b5cc45551e337f10e2) Thanks [@sbroenne](https://github.com/sbroenne)! - **Documentation site overhaul** — focused feature pages instead of one long reference, five new task guides (refresh Power Query, automate PivotTables, query the Data Model with DAX, run VBA macros, and how COM automation compares to file-parser libraries), and the 24-file expert reference corpus that previously shipped only inside the agent skills is now published on the web.
+
+  The site also gained a machine-readable layer for AI assistants: `/llms.txt`, `/llms-full.txt`, a Markdown mirror of every page (append `index.md` to any URL), `/tools.json` describing all 31 tools and 326 operations, FAQ structured data, and an explicit AI-crawler policy in `robots.txt`.
+
+  Distribution metadata was corrected and locked down: the Claude Desktop bundle description and the CLI NuGet description advertised outdated tool and operation counts, and the NuGet package pages now link to the documentation site. `scripts/check-doc-counts.ps1` guards both, so those counts and links cannot silently rot again.
+
+### Patch Changes
+
+- [#770](https://github.com/sbroenne/mcp-server-excel/pull/770) [`d526b22`](https://github.com/sbroenne/mcp-server-excel/commit/d526b22d0edab30f0748aac37796b44e3bef89c6) Thanks [@sbroenne](https://github.com/sbroenne)! - **More reliable CLI automation** ([#764](https://github.com/sbroenne/mcp-server-excel/issues/764), [#765](https://github.com/sbroenne/mcp-server-excel/issues/765), [#766](https://github.com/sbroenne/mcp-server-excel/issues/766), [#767](https://github.com/sbroenne/mcp-server-excel/issues/767)): the CLI now rejects unknown options, reports all missing required parameters together, keeps visible sessions genuinely visible, and cleans up Excel when a timed-out daemon is forced to stop. Python in Excel polling now respects the session timeout, while the generated CLI skill ships complete live command help and shared domain guidance.
+
 ## [1.10.6] - 2026-08-15
 
 ### Minor Changes

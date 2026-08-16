@@ -16,7 +16,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drives the **actual Excel application** through its official COM API. That means it can run live operations file-based tools can't — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()` — and edit your existing workbooks with formulas, PivotTables, charts, macros and formatting left intact. Watch it happen in real time.
 
-**🔗 In-Process Service Architecture** - The MCP Server hosts the ExcelMCP Service in-process and calls it directly (no pipe), for low-latency Excel automation. The CLI is an equal entry point that runs the same service as a background daemon.
+**🔗 In-Process Service Architecture** - The MCP Server hosts the ExcelMcp Service in-process and calls it directly (no pipe), for low-latency Excel automation. The CLI is an equal entry point that runs the same service as a background daemon.
 
 **CLI also available:** `mcp-excel.exe` (MCP Server) and `excelcli.exe` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
 
@@ -57,7 +57,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - ✅ Windsurf
 - ✅ Any MCP-compatible client
 
-📖 **Detailed setup instructions:** [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/)
+📖 **Detailed setup instructions:** [MCP Server Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-MCP-SERVER.md)
 
 🎯 **Quick config examples:** [examples/mcp-configs/](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs)
 
@@ -65,7 +65,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **31 specialized tools with 326 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
 
-📚 **[Complete Feature Reference →](https://excelmcpserver.dev/features/)** - Detailed documentation of all 326 operations, grouped by category
+📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 326 operations, grouped by category
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
@@ -99,11 +99,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ## 📋 Additional Resources
 
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
-- **[MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/)** - Detailed setup for all platforms
+- **[MCP Server Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-MCP-SERVER.md)** - Detailed setup for all platforms
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
-- **[CLI Documentation](https://excelmcpserver.dev/cli/)** - Comprehensive commands for RPA and CI/CD automation
+- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
 
 **License:** MIT  
-**Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)  
+**Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
 **Platform:** Windows only (requires Excel 2016+)  
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

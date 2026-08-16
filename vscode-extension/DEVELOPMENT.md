@@ -171,93 +171,33 @@ vscode-extension/bin/excelcli.exe --version
 
 ### Automated Publishing (Recommended)
 
-The extension is automatically published to the VS Code Marketplace when a version tag is pushed:
+The extension is published with every unified repository release:
 
 ```powershell
-# 1. Create and push tag (releases ALL components with same version)
-git tag vX.Y.Z
-git push --tags
+# Release all components with the same calculated version
+gh workflow run release.yml -f version_bump=patch
 ```
 
 The GitHub Actions workflow will automatically:
-- ✅ **Extract version from tag** (e.g., `v1.5.7` → `1.5.7`)
+- ✅ **Calculate version** from the latest tag and dispatch input
 - ✅ **Update package.json version** using `npm version` (no manual editing needed)
-- ✅ **Update CHANGELOG.md** with release date
+- ✅ **Compile changesets** into `CHANGELOG.md` and release notes
 - ✅ **Build and package the extension**
 - ✅ **Publish to VS Code Marketplace** (if `VSCE_TOKEN` secret is configured)
 - ✅ **Build all other components** (MCP Server, CLI, MCPB)
 - ✅ **Create unified GitHub release** with all artifacts
 
-**Important**: The workflow manages version numbers - you don't need to manually update `package.json` before tagging. The unified release workflow (`.github/workflows/release.yml`) releases all components together.
+**Important**: The workflow manages version numbers. Do not manually update
+`package.json` before release.
 
 See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instructions.
 
-## CHANGELOG Maintenance
+## Changelog Maintenance
 
-### How to Maintain CHANGELOG.md
-
-The CHANGELOG.md file should always have a **top entry ready for the next release**. The release workflow will automatically update the version number and date.
-
-**Before Release**:
-```markdown
-## [1.0.0] - 2025-10-29
-
-### Added
-- New feature A
-- New feature B
-
-### Fixed
-- Bug fix C
-```
-
-**After Release** (workflow automatically updates):
-```markdown
-## [1.1.0] - 2025-10-30
-
-### Added
-- New feature A
-- New feature B
-
-### Fixed
-- Bug fix C
-```
-
-### Workflow Process
-
-1. **You maintain**: Keep root CHANGELOG.md updated with changes, but version number can be any placeholder
-2. **Workflow updates**: When you push tag `v1.1.0`, the workflow extracts that version's section for release notes
-
-### Best Practice
-
-**After each release, add a new top section for the next version**:
-
-```markdown
-# Change Log
-
-## [1.0.0] - 2025-10-29
-
-### Added
-- Prepare for next release
-- Add changes here as you make them
-
-## [1.0.0] - 2025-10-29
-
-### Added
-- Initial release
-...
-```
-
-This way, the CHANGELOG is always ready, and the workflow just updates the version/date.
-
-### Format
-
-Follow [Keep a Changelog](https://keepachangelog.com/) format:
-- **Added**: New features
-- **Changed**: Changes in existing functionality
-- **Deprecated**: Soon-to-be removed features
-- **Removed**: Removed features
-- **Fixed**: Bug fixes
-- **Security**: Security fixes
+Never edit the root `CHANGELOG.md` manually. Add a changeset with
+`npx changeset` for every user-visible change. The unified release workflow
+consumes pending fragments, generates the changelog entry, and copies the
+generated changelog into the extension package.
 
 ### Manual Publishing
 
@@ -292,8 +232,8 @@ The workflow will:
 - Update all component versions (MCP Server, CLI, MCPB manifest)
 - Create git tag and unified GitHub release with all artifacts
 
-**Manual Version Updates** (if needed):
-If you need to update the version locally before tagging:
+**Local Version Testing**:
+If packaging needs a temporary local version:
 
 ```powershell
 npm version patch   # Bumps 1.0.0 → 1.0.1
@@ -306,7 +246,7 @@ Follow Semantic Versioning (SemVer):
 - **Minor**: New features
 - **Patch**: Bug fixes
 
-**Important**: Don't manually edit version numbers in `package.json` - use either git tags (for releases) or `npm version` commands (for local testing).
+**Important**: Don't commit local version changes. Releases use workflow inputs.
 
 ## Maintenance
 

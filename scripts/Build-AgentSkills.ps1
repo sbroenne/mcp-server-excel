@@ -43,158 +43,245 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SkillsDir = Join-Path $RepoRoot "skills"
 $SharedDir = Join-Path $SkillsDir "shared"
 
-# Function to generate CLI command reference from excelcli --help output
+# Generate a complete reference from the built CLI so aliases and branch commands cannot drift.
 function Generate-CliReference {
     param(
         [string]$SkillPath,
         [string]$ExcelCliPath = $null
     )
 
-    # Find excelcli binary
     if (-not $ExcelCliPath) {
         $ExcelCliPath = Join-Path $RepoRoot "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
     }
-
-    if (-not (Test-Path $ExcelCliPath)) {
-        Write-Warning "excelcli not found at $ExcelCliPath - skipping CLI reference generation"
-        Write-Warning "Build the CLI first: dotnet build src/ExcelMcp.CLI -c Release"
-        return
-    }
-
     if ($env:OS -ne "Windows_NT" -and [System.IO.Path]::GetExtension($ExcelCliPath) -eq ".exe") {
         Write-Warning "Skipping CLI reference generation because the Windows executable cannot run on this host"
         return
     }
+    if (-not (Test-Path $ExcelCliPath)) {
+        throw "excelcli not found at $ExcelCliPath. Build it first with: dotnet build src/ExcelMcp.CLI -c Release"
+    }
+
+    function Get-HelpSection {
+        param([string[]]$Lines, [string]$Header)
+
+        $start = [Array]::IndexOf($Lines, $Header)
+        if ($start -lt 0) {
+            return @()
+        }
+
+        $section = [System.Collections.Generic.List[string]]::new()
+        for ($index = $start + 1; $index -lt $Lines.Count; $index++) {
+            if ($Lines[$index] -match '^[A-Z][A-Z ]+:$') {
+                break
+            }
+            if ($section.Count -eq 0 -and [string]::IsNullOrWhiteSpace($Lines[$index])) {
+                continue
+            }
+            $section.Add($Lines[$index])
+        }
+        return @($section)
+    }
+
+    function Join-WrappedText {
+        param([System.Collections.Generic.List[string]]$Lines)
+        return ((($Lines | ForEach-Object { $_.Trim() }) -join " ") -replace '\s+', ' ').Trim()
+    }
+
+    function Get-HelpEntries {
+        param(
+            [string[]]$Lines,
+            [string]$Header,
+            [ValidateSet("Command", "Argument", "Option")]
+            [string]$Kind
+        )
+
+        $pattern = switch ($Kind) {
+            "Command" { '^\s{4}(?<spec>\S+(?:\s+<[^>]+>)?)\s{2,}(?<description>.*)$' }
+            "Argument" { '^\s{4}(?<spec><[^>]+>)\s{2,}(?<description>.*)$' }
+            "Option" { '^\s{4,}(?<spec>(?:-\w,\s+)?--[\w-]+(?:\s+<[^>]+>)?)\s{2,}(?<description>.*)$' }
+        }
+
+        $entries = [System.Collections.Generic.List[object]]::new()
+        $current = $null
+        foreach ($line in (Get-HelpSection -Lines $Lines -Header $Header)) {
+            if ($line -match $pattern) {
+                if ($null -ne $current) {
+                    $current.Description = Join-WrappedText -Lines $current.DescriptionLines
+                    $entries.Add($current)
+                }
+                $current = [PSCustomObject]@{
+                    Spec = $Matches.spec.Trim()
+                    Description = ""
+                    DescriptionLines = [System.Collections.Generic.List[string]]::new()
+                }
+                if (-not [string]::IsNullOrWhiteSpace($Matches.description)) {
+                    $current.DescriptionLines.Add($Matches.description)
+                }
+            }
+            elseif ($null -ne $current -and -not [string]::IsNullOrWhiteSpace($line)) {
+                $current.DescriptionLines.Add($line)
+            }
+        }
+        if ($null -ne $current) {
+            $current.Description = Join-WrappedText -Lines $current.DescriptionLines
+            $entries.Add($current)
+        }
+        return @($entries)
+    }
+
+    function Add-ParameterTable {
+        param(
+            [System.Collections.Generic.List[string]]$Markdown,
+            [string[]]$HelpLines,
+            [string[]]$KnownTokens = @()
+        )
+
+        function Restore-KnownTokens {
+            param([string]$Text, [string[]]$Tokens)
+
+            foreach ($token in ($Tokens | Sort-Object Length -Descending)) {
+                $pattern = (($token.ToCharArray() | ForEach-Object {
+                    [regex]::Escape([string]$_)
+                }) -join '\s*')
+                $Text = [regex]::Replace($Text, $pattern, $token)
+            }
+            $Text = [regex]::Replace(
+                $Text,
+                "'(?<left>[A-Za-z0-9]*[a-z][A-Z][A-Za-z0-9]*)\s+(?<right>[a-z][A-Za-z0-9]*)'",
+                "'`${left}`${right}'")
+            return $Text
+        }
+
+        $parameters = [System.Collections.Generic.List[object]]::new()
+        foreach ($argument in (Get-HelpEntries -Lines $HelpLines -Header "ARGUMENTS:" -Kind Argument)) {
+            if ($argument.Spec -ne "<ACTION>") {
+                $parameters.Add([PSCustomObject]@{
+                    Name = $argument.Spec.ToLowerInvariant()
+                    Description = Restore-KnownTokens -Text $argument.Description -Tokens $KnownTokens
+                })
+            }
+        }
+        foreach ($option in (Get-HelpEntries -Lines $HelpLines -Header "OPTIONS:" -Kind Option)) {
+            $name = [regex]::Match($option.Spec, '--[\w-]+').Value
+            if ($name -and $name -ne "--help") {
+                $parameters.Add([PSCustomObject]@{
+                    Name = $name
+                    Description = Restore-KnownTokens -Text $option.Description -Tokens $KnownTokens
+                })
+            }
+        }
+        if ($parameters.Count -eq 0) {
+            return
+        }
+
+        $Markdown.Add("| Parameter | Description |")
+        $Markdown.Add("|-----------|-------------|")
+        foreach ($parameter in $parameters) {
+            $description = $parameter.Description.Replace("|", "\|")
+            $Markdown.Add("| ``$($parameter.Name)`` | $description |")
+        }
+        $Markdown.Add("")
+    }
 
     Write-Host "  Generating CLI command reference from excelcli..." -ForegroundColor Cyan
-
-    $RefsDir = Join-Path $SkillPath "references"
-    if (-not (Test-Path $RefsDir)) {
-        New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
+    $mainHelp = @(& $ExcelCliPath --help 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to run '$ExcelCliPath --help'."
     }
 
-    $OutputFile = Join-Path $RefsDir "cli-commands.md"
-    $Content = @()
-    $Content += "# CLI Command Reference"
-    $Content += ""
-    $Content += "> Auto-generated from \`excelcli --help\`. Do not edit manually."
-    $Content += ""
-
-    # Get main help to extract commands
-    $MainHelp = & $ExcelCliPath --help 2>&1 | Out-String
-
-    # Parse commands from main help (look for lines with command names)
-    $Commands = @()
-    $InCommands = $false
-    foreach ($line in ($MainHelp -split "`r?`n")) {
-        if ($line -match "^COMMANDS:") {
-            $InCommands = $true
-            continue
-        }
-        if ($InCommands -and $line -match "^\s{4}(\w+)\s") {
-            $Commands += $Matches[1]
-        }
+    $cliAssemblyPath = [System.IO.Path]::ChangeExtension($ExcelCliPath, ".dll")
+    if (-not (Test-Path $cliAssemblyPath)) {
+        throw "CLI assembly not found at $cliAssemblyPath."
     }
+    $assembly = [System.Reflection.Assembly]::LoadFrom((Resolve-Path $cliAssemblyPath))
+    $typesByCommand = @{}
+    foreach ($type in @($assembly.GetTypes() | Where-Object {
+        $_.Namespace -eq "Sbroenne.ExcelMcp.CLI.Generated" -and
+        $_.Name -like "*Command" -and
+        $_.Name -ne "CliCommandRegistration"
+    })) {
+        $typesByCommand[($type.Name -replace 'Command$', '').ToLowerInvariant()] = $type
+    }
+    $typesByCommand["calculationmode"] = $typesByCommand["calculation"]
+    $typesByCommand["datamodelrelationship"] = $typesByCommand["datamodelrel"]
+    $typesByCommand["worksheetstyle"] = $typesByCommand["sheetstyle"]
 
-    # Skip 'session' as it's documented separately
-    $Commands = $Commands | Where-Object { $_ -ne "session" }
+    $content = [System.Collections.Generic.List[string]]::new()
+    $content.Add("# CLI Command Reference")
+    $content.Add("")
+    $content.Add("> Auto-generated from the built ``excelcli`` runtime. Use these exact command and parameter names.")
+    $content.Add("")
 
-    foreach ($cmd in $Commands) {
-        $Content += "## $cmd"
-        $Content += ""
+    $commands = Get-HelpEntries -Lines $mainHelp -Header "COMMANDS:" -Kind Command
+    foreach ($command in ($commands | Sort-Object { $_.Spec.Split(' ')[0] })) {
+        $commandName = $command.Spec.Split(' ')[0]
+        $help = @(& $ExcelCliPath $commandName --help 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to run '$ExcelCliPath $commandName --help'."
+        }
 
-        # Get command help
-        $CmdHelp = & $ExcelCliPath $cmd --help 2>&1 | Out-String
-
-        # Extract actions from the description line
-        if ($CmdHelp -match "Actions:\s*(.+?)(?:\r?\n|$)") {
-            $ActionsStr = $Matches[1] -replace "\s+", " "
-            $Actions = ($ActionsStr -split ",\s*") | ForEach-Object { $_.Trim().TrimEnd('.') } | Where-Object { $_ -ne "" }
-
-            # Extract options section
-            $Options = @()
-            $InOptions = $false
-            foreach ($line in ($CmdHelp -split "`r?`n")) {
-                if ($line -match "^OPTIONS:") {
-                    $InOptions = $true
-                    continue
-                }
-                if ($InOptions -and $line -match "^\s+--(\S+)\s+<[^>]+>\s+(.+)$") {
-                    $Options += @{
-                        Name = $Matches[1]
-                        Desc = $Matches[2].Trim()
-                    }
-                }
-                elseif ($InOptions -and $line -match "^\s+-\w\|--(\S+)\s+<[^>]+>\s+(.+)$") {
-                    $Options += @{
-                        Name = $Matches[1]
-                        Desc = $Matches[2].Trim()
-                    }
-                }
-            }
-
-            # Output actions
-            $ActionsList = $Actions | ForEach-Object { "``$_``" }
-            $Content += "**Actions:** $($ActionsList -join ', ')"
-            $Content += ""
-
-            # Output parameters table if any
-            if ($Options.Count -gt 0) {
-                $Content += "| Parameter | Description |"
-                $Content += "|-----------|-------------|"
-                foreach ($opt in $Options) {
-                    $Content += "| ``--$($opt.Name)`` | $($opt.Desc) |"
-                }
-                $Content += ""
+        $descriptionLines = [System.Collections.Generic.List[string]]::new()
+        foreach ($line in (Get-HelpSection -Lines $help -Header "DESCRIPTION:")) {
+            if (-not [string]::IsNullOrWhiteSpace($line)) {
+                $descriptionLines.Add($line)
             }
         }
+        $description = if ($descriptionLines.Count -gt 0) {
+            Join-WrappedText -Lines $descriptionLines
+        } else {
+            $command.Description
+        }
+        $actions = @()
+
+        $content.Add("### $commandName")
+        $content.Add("")
+        $content.Add($description)
+        $content.Add("")
+
+        if ($typesByCommand.ContainsKey($commandName)) {
+            $commandType = $typesByCommand[$commandName]
+            $instance = [Activator]::CreateInstance($commandType)
+            $property = $commandType.GetProperty(
+                "ValidActions",
+                [System.Reflection.BindingFlags]"Public,NonPublic,Instance")
+            $actions = @($property.GetValue($instance))
+            $formattedActions = ($actions | ForEach-Object { [string]::Concat('`', $_, '`') }) -join ", "
+            $content.Add("**Actions:** $formattedActions")
+            $content.Add("")
+        }
+
+        $subcommands = Get-HelpEntries -Lines $help -Header "COMMANDS:" -Kind Command
+        if ($subcommands.Count -gt 0) {
+            foreach ($subcommand in $subcommands) {
+                $subcommandName = $subcommand.Spec.Split(' ')[0]
+                $subcommandHelp = @(& $ExcelCliPath $commandName $subcommandName --help 2>&1)
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Failed to run '$ExcelCliPath $commandName $subcommandName --help'."
+                }
+                $content.Add("#### $commandName $subcommandName")
+                $content.Add("")
+                $content.Add($subcommand.Description)
+                $content.Add("")
+                Add-ParameterTable -Markdown $content -HelpLines $subcommandHelp -KnownTokens @($subcommandName)
+            }
+        } else {
+            Add-ParameterTable -Markdown $content -HelpLines $help -KnownTokens $actions
+        }
     }
 
-    $Content += "## Common Pitfalls"
-    $Content += ""
-    $Content += "### --values-file Must Be an Existing File"
-    $Content += ""
-    $Content += "`--values-file` expects a path to an **existing** JSON or CSV file on disk. Do NOT pass inline JSON as the value - the CLI will look for a file at that path and fail with `"File not found`". If you don't have a file, use `--values` with inline JSON instead."
-    $Content += ""
-    $Content += "### --timeout Must Be Greater Than Zero"
-    $Content += ""
-    $Content += "When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (300 seconds for most operations)."
-    $Content += ""
-    $Content += "### Power Query Operations Are Slow"
-    $Content += ""
-    $Content += "`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Either omit `--timeout` (uses 5-minute default) or set a generous value like `--timeout 120`."
-    $Content += ""
-    $Content += "### JSON Values Format"
-    $Content += ""
-    $Content += "`--values` takes a 2D JSON array wrapped in single quotes:"
-    $Content += '```powershell'
-    $Content += "# CORRECT: 2D array with single-quote wrapper"
-    $Content += "--values '[[`"Name`",`"Age`"],[`"Alice`",30],[`"Bob`",25]]'"
-    $Content += ""
-    $Content += "# WRONG: Not a 2D array"
-    $Content += "--values '[`"Alice`",30]'"
-    $Content += ""
-    $Content += "# WRONG: Object instead of array"
-    $Content += "--values '{`"Name`":`"Alice`",`"Age`":30}'"
-    $Content += '```'
-    $Content += ""
-    $Content += "### List Parameters Use JSON Arrays"
-    $Content += ""
-    $Content += "Parameters that accept lists (for example, `--selected-items` for slicers) require JSON array format:"
-    $Content += '```powershell'
-    $Content += "# CORRECT: JSON array with single-quote wrapper"
-    $Content += "--selected-items '[`"West`",`"East`"]'"
-    $Content += ""
-    $Content += "# CORRECT: Clear selection"
-    $Content += "--selected-items '[]'"
-    $Content += ""
-    $Content += "# WRONG: Comma-separated string (not valid)"
-    $Content += "--selected-items `"West,East`""
-    $Content += '```'
-    $Content += ""
+    $content.Add("## Common Pitfalls")
+    $content.Add("")
+    $content.Add("- ``--values-file`` requires an existing JSON or CSV file; use ``--values`` for inline JSON.")
+    $content.Add("- ``--timeout`` must be greater than zero; omit it to use the command default.")
+    $content.Add("- ``pythoninexcel get-result --max-wait-seconds`` must be at least 1 and shorter than the session operation timeout.")
+    $content.Add("- ``--values`` and list parameters use JSON arrays; range values use a two-dimensional array.")
+    $content.Add("- Power Query operations may take 30 seconds or longer; use a generous positive timeout.")
+    $content.Add("")
 
-    # Write the file
-    $Content -join "`n" | Set-Content -Path $OutputFile -Encoding UTF8 -NoNewline
+    $refsDir = Join-Path $SkillPath "references"
+    New-Item -ItemType Directory -Path $refsDir -Force | Out-Null
+    $outputFile = Join-Path $refsDir "cli-commands.md"
+    $content -join "`n" | Set-Content -Path $outputFile -Encoding UTF8 -NoNewline
     Write-Host "  Generated: cli-commands.md" -ForegroundColor Green
 }
 
@@ -212,50 +299,19 @@ function Copy-SharedReferences {
         New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
     }
 
-    # Define which files each skill needs (based on SKILL.md references)
-    $SkillReferences = @{
-        "excel-cli" = @(
-            # cli-commands.md is generated dynamically by Generate-CliReference.
-            # Do not copy MCP-style shared references into the CLI skill.
-        )
-        "excel-mcp" = @(
-            "behavioral-rules.md"
-            "anti-patterns.md"
-            "workflows.md"
-            "chart.md"
-            "conditionalformat.md"
-            "datamodel.md"
-            "powerquery.md"
-            "range.md"
-            "slicer.md"
-            "table.md"
-            "worksheet.md"
-        )
-    }
-
-    # Get the list of files for this skill
-    if (-not $SkillReferences.ContainsKey($SkillName)) {
-        Write-Warning "Unknown skill: $SkillName"
-        return
-    }
-
-    $FilesToCopy = $SkillReferences[$SkillName]
-    if ($FilesToCopy.Count -eq 0) {
-        Write-Host "  No shared references copied to $SkillName/references/" -ForegroundColor DarkGray
-        return
-    }
-
-    # Copy only the files this skill needs
     if (Test-Path $SharedDir) {
+        $FilesToCopy = @(Get-ChildItem -Path $SharedDir -File -Filter "*.md")
         $CopiedCount = 0
-        foreach ($fileName in $FilesToCopy) {
-            $sourceFile = Join-Path $SharedDir $fileName
-            if (Test-Path $sourceFile) {
-                Copy-Item -Path $sourceFile -Destination $RefsDir -Force
-                $CopiedCount++
+        foreach ($sourceFile in $FilesToCopy) {
+            $destination = Join-Path $RefsDir $sourceFile.Name
+            if ($SkillName -eq "excel-cli") {
+                $cliSyntaxNotice = "> **CLI syntax note:** This shared domain guide may use MCP-style ``tool(action: ...)`` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live ``--help``; notably, MCP ``file`` open/close maps to CLI ``session`` open/close, and MCP ``worksheet`` maps to CLI ``sheet``."
+                $adaptedContent = "$cliSyntaxNotice`r`n`r`n$(Get-Content -Path $sourceFile.FullName -Raw)"
+                Set-Content -Path $destination -Value $adaptedContent -Encoding UTF8 -NoNewline
             } else {
-                Write-Warning "Reference file not found in shared: $fileName"
+                Copy-Item -Path $sourceFile.FullName -Destination $destination -Force
             }
+            $CopiedCount++
         }
         Write-Host "  Copied $CopiedCount shared references to $SkillName/references/" -ForegroundColor Green
     } else {

@@ -70,7 +70,7 @@ Chart 4: targetRange='G37:L50'    (bottom-right)
 ### Collision Detection
 All chart operations automatically warn about overlaps. If a result includes an `OVERLAP WARNING` message:
 1. Use `chart(fit-to-range)` to reposition
-2. Take `screenshot(capture-sheet)` to verify
+2. Take `screenshot(capture, rangeAddress='A1:M50')` to verify
 
 **Rules:**
 - **Use targetRange for multi-chart layouts** — auto-positioning stacks vertically
@@ -84,7 +84,7 @@ All chart operations automatically warn about overlaps. If a result includes an 
 **Always take a screenshot after creating charts or complex layouts:**
 
 ```
-screenshot(capture-sheet)
+screenshot(capture, rangeAddress='A1:M50')
 → Confirm: no overlaps, professional spacing, readable labels
 → If issues found: chart(fit-to-range) to reposition, then screenshot again
 ```

@@ -180,12 +180,64 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
+    public void IsExcelVisible_WhenApplicationVisibilityChanges_ReturnsLiveComState()
+    {
+        var testFile = CreateTestFile(nameof(IsExcelVisible_WhenApplicationVisibilityChanges_ReturnsLiveComState));
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(testFile, show: true);
+
+        Assert.True(manager.TryBeginOperation(sessionId, out var batch, out var errorMessage), errorMessage);
+        try
+        {
+            batch.Execute((ctx, ct) =>
+            {
+                ctx.App.Visible = false;
+                return true;
+            });
+        }
+        finally
+        {
+            manager.EndOperation(sessionId);
+        }
+
+        Assert.False(manager.IsExcelVisible(sessionId));
+
+        manager.CloseSession(sessionId);
+    }
+
+    [Fact]
     public void IsExcelVisible_NonExistentSession_ReturnsFalse()
     {
         using var manager = new SessionManager();
 
         Assert.False(manager.IsExcelVisible("nonexistent"));
         Assert.False(manager.IsExcelVisible(null!));
+    }
+
+    [Fact]
+    public void TrackExcelProcess_SubscriberFailure_DoesNotBreakSessionLifecycle()
+    {
+        using var notificationReceived = new ManualResetEventSlim();
+        void ThrowingSubscriber(IReadOnlyCollection<int> _)
+        {
+            notificationReceived.Set();
+            throw new InvalidOperationException("Simulated tracker failure.");
+        }
+
+        SessionManager.TrackedExcelProcessesChanged += ThrowingSubscriber;
+        try
+        {
+            var exception = Record.Exception(() =>
+                SessionManager.TrackExcelProcess(Environment.ProcessId));
+
+            Assert.Null(exception);
+            Assert.True(notificationReceived.Wait(TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            SessionManager.TrackedExcelProcessesChanged -= ThrowingSubscriber;
+            SessionManager.UntrackExcelProcess(Environment.ProcessId);
+        }
     }
 
     #endregion
@@ -375,6 +427,4 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
     #endregion
 }
-
-
 

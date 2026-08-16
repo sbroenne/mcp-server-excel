@@ -25,6 +25,14 @@ For questions, contributions, or collaboration opportunities related to Sbroenne
 
 Stefan welcomes contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your contributions help make ExcelMcp better for everyone. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get involved.
 
+### Acknowledgments
+
+- Microsoft Excel Team - For the comprehensive COM automation APIs
+- Model Context Protocol community - For the AI integration standard
+- Open-source community - For inspiration, feedback, and reusable practices
+
+ExcelMcp has been developed extensively with GitHub Copilot AI assistance.
+
 ---
 
 *Making Excel automation accessible to coding agents and developers worldwide.*

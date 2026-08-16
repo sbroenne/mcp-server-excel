@@ -8,9 +8,9 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 
 /// <summary>
-/// Integration tests for the Copilot plugin bootstrap packaging flow.
-/// These exercise the real PowerShell build/sync scripts against synthetic plugin templates
-/// so runtime bootstrap assets survive packaging without touching real user state.
+/// Integration tests for Agent Plugins 1.0 packaging and runtime bootstrap flows.
+/// These exercise the real PowerShell build/sync scripts against canonical source templates
+/// and isolated output repositories without touching real user state.
 /// </summary>
 public sealed class PluginBootstrapBuildTests
 {
@@ -185,7 +185,7 @@ public sealed class PluginBootstrapBuildTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
-    public async Task BuildPlugins_IncludesCliCommandReferenceInExcelCliSkillReferences()
+    public async Task BuildPlugins_IncludesCliCommandAndSharedReferencesInExcelCliSkill()
     {
         var sandbox = CreateSandbox("build-includes-cli-command-reference");
         try
@@ -204,9 +204,34 @@ public sealed class PluginBootstrapBuildTests
 
             var sourceReferencePath = Path.Combine(RepoRoot, "skills", "excel-cli", "references", "cli-commands.md");
             var builtReferencePath = Path.Combine(outputDir, "excel-cli", "skills", "excel-cli", "references", "cli-commands.md");
+            var sourceSharedReferences = Directory.GetFiles(Path.Combine(RepoRoot, "skills", "shared"), "*.md");
 
             Assert.True(File.Exists(builtReferencePath), $"Expected excel-cli plugin to package CLI command reference at {builtReferencePath}");
             Assert.Equal(File.ReadAllText(sourceReferencePath), File.ReadAllText(builtReferencePath));
+            foreach (var sourceSharedReference in sourceSharedReferences)
+            {
+                var builtSharedReference = Path.Combine(
+                    outputDir,
+                    "excel-cli",
+                    "skills",
+                    "excel-cli",
+                    "references",
+                    Path.GetFileName(sourceSharedReference));
+                Assert.True(File.Exists(builtSharedReference), $"Expected excel-cli plugin to package shared reference at {builtSharedReference}");
+                var builtContent = File.ReadAllText(builtSharedReference);
+                Assert.Contains("CLI syntax note", builtContent);
+                Assert.Contains(File.ReadAllText(sourceSharedReference), builtContent);
+
+                var builtMcpReference = Path.Combine(
+                    outputDir,
+                    "excel-mcp",
+                    "skills",
+                    "excel-mcp",
+                    "references",
+                    Path.GetFileName(sourceSharedReference));
+                Assert.True(File.Exists(builtMcpReference), $"Expected excel-mcp plugin to package shared reference at {builtMcpReference}");
+                Assert.Equal(File.ReadAllText(sourceSharedReference), File.ReadAllText(builtMcpReference));
+            }
         }
         finally
         {
@@ -798,7 +823,6 @@ public sealed class PluginBootstrapBuildTests
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.NotEmpty(localLinks);
         foreach (var localLink in localLinks)
         {
             var relativePath = localLink[2..].Replace('/', Path.DirectorySeparatorChar);

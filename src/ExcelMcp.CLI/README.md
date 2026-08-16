@@ -10,7 +10,7 @@
 > **Primary distribution: Standalone executable** — Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
-The CLI provides 22 command categories with 326 operations matching the MCP Server — the same capabilities without loading 31 tool schemas into context.
+The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -38,9 +38,9 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
-📖 **[Full Installation Guide](https://excelmcpserver.dev/installation-cli/)** - PATH setup, GitHub Copilot plugin, updating, uninstalling, and troubleshooting
+📖 **[Full Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - PATH setup, GitHub Copilot plugin, updating, uninstalling, and troubleshooting
 
-📚 **[Complete CLI Usage Guide](https://excelmcpserver.dev/cli/)** - Session workflow, quiet mode, command reference, typical workflows, CI/CD examples
+📚 **CLI usage guide:** See the session workflow, troubleshooting, advanced usage, and CI/CD examples below.
 
 > 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session close --session <id> --save` when finished. Add `--show` when Excel must stay visible for IRM/AIP sign-in or other authentication prompts.
 
@@ -48,11 +48,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 What You Can Do
 
-ExcelMcp.CLI provides **326 operations** across 22 command categories including Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
+ExcelMcp.CLI provides **326 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
 
 Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
 
-📚 **[Complete Feature Reference →](https://excelmcpserver.dev/features/)** - Full documentation with all operations, grouped by category
+📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Full documentation with all operations, grouped by category
 
 ---
 
@@ -61,7 +61,7 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 - **Windows OS** (Windows 10/11 or Server 2016+) + **Microsoft Excel 2016 or later** — COM interop is Windows-specific and requires Excel to be installed
 - **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for the standalone exe)
 
-📖 **[Full System Requirements & Optional Components](https://excelmcpserver.dev/installation-cli/)** - including DAX/MSOLAP prerequisites
+📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
 
 ---
 
@@ -127,32 +127,38 @@ Use `--show` whenever hidden automation would block on a sign-in, consent, or in
 # PowerShell script example
 $files = Get-ChildItem *.xlsx
 foreach ($file in $files) {
-    $session = excelcli session open $file.Name | Select-String "Session ID: (.+)" | ForEach-Object { $_.Matches.Groups[1].Value }
-    excelcli powerquery refresh --session $session --query "Sales Data"
-    excelcli datamodel refresh --session $session
-    excelcli session close $session --save
+    $sessionId = (excelcli -q session open $file.FullName | ConvertFrom-Json).sessionId
+    excelcli -q powerquery refresh --session $sessionId --query-name "Sales Data"
+    excelcli -q datamodel refresh --session $sessionId
+    excelcli -q session close --session $sessionId --save
 }
 ```
 
 ### CI/CD Integration
 
+Excel COM requires a self-hosted Windows runner with desktop Excel installed; GitHub-hosted runners do not include Excel.
+
 ```yaml
 # GitHub Actions example
-- name: Download ExcelMcp CLI
-  run: |
-    $version = (Invoke-RestMethod "https://api.github.com/repos/sbroenne/mcp-server-excel/releases/latest").tag_name.TrimStart('v')
-    Invoke-WebRequest "https://github.com/sbroenne/mcp-server-excel/releases/download/v$version/ExcelMcp-CLI-$version-windows.zip" -OutFile cli.zip
-    Expand-Archive cli.zip -DestinationPath C:\Tools\ExcelMcp
-    echo "C:\Tools\ExcelMcp" >> $env:GITHUB_PATH
-  shell: pwsh
+jobs:
+  process-excel:
+    runs-on: [self-hosted, Windows, excel]
+    steps:
+      - name: Download ExcelMcp CLI
+        shell: pwsh
+        run: |
+          $version = (Invoke-RestMethod "https://api.github.com/repos/sbroenne/mcp-server-excel/releases/latest").tag_name.TrimStart('v')
+          Invoke-WebRequest "https://github.com/sbroenne/mcp-server-excel/releases/download/v$version/ExcelMcp-CLI-$version-windows.zip" -OutFile cli.zip
+          Expand-Archive cli.zip -DestinationPath C:\Tools\ExcelMcp
+          "C:\Tools\ExcelMcp" >> $env:GITHUB_PATH
 
-- name: Process Excel Files
-  run: |
-    $session = (excelcli session open data.xlsx | Select-String "Session ID:").ToString().Split()[-1]
-    excelcli powerquery create --session $session --query-name "Query1" --m-code-file queries/query1.pq
-    excelcli powerquery refresh --session $session --query-name "Query1"
-    excelcli session close --session $session --save
-  shell: pwsh
+      - name: Process Excel Files
+        shell: pwsh
+        run: |
+          $sessionId = (excelcli -q session open data.xlsx | ConvertFrom-Json).sessionId
+          excelcli -q powerquery create --session $sessionId --query-name "Query1" --m-code-file queries\query1.pq
+          excelcli -q powerquery refresh --session $sessionId --query-name "Query1"
+          excelcli -q session close --session $sessionId --save
 ```
 
 
@@ -161,7 +167,7 @@ foreach ($file in $files) {
 The CLI ships with real Excel-backed integration tests that exercise the session lifecycle plus worksheet creation/listing flows through the same commands you run locally. Execute them with:
 
 ```powershell
-dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "Layer=CLI"
+dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "Layer=CLI"
 ```
 
 These tests open actual workbooks, issue `session open/list/close`, and call `excelcli sheet` actions to ensure the command pipeline stays healthy.
@@ -170,7 +176,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 ## 🤝 Related Tools
 
-- **[MCP Server](https://excelmcpserver.dev/mcp-server/)** - For conversational AI (Claude Desktop, VS Code Chat) — distributed as `mcp-excel.exe`
+- **[MCP Server](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)** - For conversational AI (Claude Desktop, VS Code Chat) — distributed as `mcp-excel.exe`
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
 - **Issues & Discussions**: [GitHub](https://github.com/sbroenne/mcp-server-excel)
 - **Full docs**: [excelmcpserver.dev](https://excelmcpserver.dev/)

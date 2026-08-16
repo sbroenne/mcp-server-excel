@@ -156,7 +156,7 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 
 ```powershell
 # Navigate to the LLM tests directory first
-cd d:\source\mcp-server-excel\tests\ExcelMcp.LLM.Tests
+cd llm-tests
 
 # Install deps
 uv sync

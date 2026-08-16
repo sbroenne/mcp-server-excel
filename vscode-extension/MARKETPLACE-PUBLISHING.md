@@ -51,43 +51,26 @@ When you run the release workflow (via `workflow_dispatch`):
 
 1. **Calculates version** from latest git tag (or custom version input)
 2. **Updates `package.json`** version for VS Code extension
-2. **Updates CHANGELOG.md** with release date
-3. **Builds the extension** from source
-4. **Packages as VSIX** file
-5. **Publishes to VS Code Marketplace** (if `VSCE_TOKEN` is configured)
-6. **Creates GitHub Release** with all components (MCP Server, CLI, VS Code, MCPB)
+3. **Compiles changesets** into `CHANGELOG.md` and release notes
+4. **Builds the extension** from source
+5. **Packages as VSIX** file
+6. **Publishes to VS Code Marketplace**
+7. **Creates GitHub Release** with all components (MCP Server, CLI, VS Code, MCPB)
 
-### Publishing is Optional
+### Publishing is Best-Effort
 
-- If the token is not configured, marketplace publishing will be skipped (uses `continue-on-error: true`)
-- The GitHub release will still be created with the VSIX file
-- Users can always install from the VSIX file manually
-
-### Publishing Status
-
-The GitHub release notes will show:
-```
-### Publishing Status
-
-- ✅ Published to VS Code Marketplace
-```
-
-Or if token is not configured:
-```
-### Publishing Status
-
-- ❌ Not published to VS Code Marketplace
-```
+The marketplace step uses `continue-on-error: true`, so a missing/expired token
+or Marketplace outage does not block the GitHub release. Inspect the publish
+step after every release and use the manual fallback below if needed.
 
 ## Testing the Workflow
 
 To test the release workflow:
 
 1. Ensure the `VSCE_TOKEN` secret is configured
-2. Push a test tag (this will trigger release of ALL components):
+2. Dispatch a real semantic release when it is ready:
    ```powershell
-   git tag v0.0.1-test
-   git push origin v0.0.1-test
+   gh workflow run release.yml -f version_bump=patch
    ```
 3. Go to GitHub Actions and watch the unified workflow run
 4. Check that the release was created and marketplace publishing succeeded

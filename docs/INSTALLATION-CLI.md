@@ -1,6 +1,6 @@
 # Installing the CLI - ExcelMcp
 
-Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry point for scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single-tool interface. Looking for the MCP Server instead? See the [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/).
+Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry point for scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single-tool interface. Looking for the MCP Server instead? See the [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md).
 
 ## System Requirements
 
@@ -19,7 +19,7 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 
 ## Quick Start (Recommended)
 
-The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting. Otherwise:
+The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting outside the plugin. For a direct installation:
 
 1. Download and extract the standalone CLI (below)
 2. Add it to your PATH
@@ -54,8 +54,8 @@ Or manually: **Settings → System → About → Advanced system settings → En
 excelcli --version
 excelcli --help
 
-# Test with a session
-excelcli -q session open test.xlsx
+# Test with an existing workbook
+excelcli -q session open "C:\Data\Test.xlsx"
 excelcli -q session list
 excelcli -q session close --session <id>
 ```
@@ -74,7 +74,10 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-**After Installation:** Install `excelcli` separately if you need it on PATH:
+**After installation:** The plugin downloads, caches, and runs `excelcli`
+automatically. If you also need `excelcli` directly on your PATH, use the
+standalone executable above or install the secondary NuGet tool when .NET 10 is
+available:
 
 ```powershell
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
@@ -140,7 +143,7 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 
 ### Check What's New
 
-Before updating, check the [changelog](https://excelmcpserver.dev/changelog/) or [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases).
+Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases).
 
 ---
 
@@ -181,14 +184,8 @@ Current VBA support is procedural and module-focused:
 - `vba import` creates a new standard module from inline code or `--vba-code-file`
 - `vba update`, `vba delete`, and `vba run` work against existing component/procedure names
 
-For macro-enabled workbooks, use the `.xlsm` extension:
-
-```powershell
-excelcli session create macros.xlsm
-# Returns session ID (e.g., 1)
-excelcli vba import --session 1 --module-name MyModule --vba-code-file code.vba
-excelcli session close --session 1 --save
-```
+For complete VBA command usage and a macro-enabled workbook example, see
+[Automation & Advanced Features](features/AUTOMATION-ADVANCED.md).
 
 ### "Workbook is locked" or "Cannot open file"
 
@@ -217,10 +214,10 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ## Getting Help
 
-- **Troubleshooting:** [Troubleshooting & FAQ](https://excelmcpserver.dev/troubleshooting/)
+- **Troubleshooting:** [Troubleshooting](https://excelmcpserver.dev/troubleshooting/) · [FAQ](https://excelmcpserver.dev/faq/)
 - **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- **Contributing:** [Contributing Guide](https://excelmcpserver.dev/contributing/)
+- **Contributing:** [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
@@ -229,10 +226,10 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 After installation:
 
 1. **Learn the basics:** Try `excelcli --help` and open a session against a test workbook
-2. **Explore commands:** See the [Feature Reference](https://excelmcpserver.dev/features/) for all 22 command categories
+2. **Explore commands:** See the [Feature Reference](../FEATURES.md) for all 31 feature command categories
 3. **Read the guides:**
-   - [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/) - for AI assistants like Claude Desktop and Copilot Chat
-   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-cli/SKILL.md) - token-efficient AI guidance for coding agents
+   - [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md) - for AI assistants like Claude Desktop and Copilot Chat
+   - [Agent Skills](../skills/excel-cli/SKILL.md) - token-efficient AI guidance for coding agents
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

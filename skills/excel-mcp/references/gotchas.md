@@ -86,6 +86,8 @@ When you write formulas with `range(action: 'set-formulas')`, they don't automat
 
 When Excel evaluates a `PY()` formula as `#NAME?`, both `set-formula` and `get-result` return a clear unavailable-feature error. Do not retry that condition as if calculation were pending. `#BUSY!`, `#CONNECT!`, and `#BLOCKED!` are transient cloud states and retain retry semantics.
 
+Python cloud startup can take several minutes. Prefer an asynchronous workflow: set the formula, continue other workbook work, then call `get-result` later. For the CLI, `--max-wait-seconds` must be at least 1 and shorter than the session's operation timeout; do not use a polling wait equal to or longer than the session timeout.
+
 ## File Locking Across Sessions
 
 If multiple Excel sessions have the same workbook open, operations on one session can lock the file and timeout on other sessions (30-second timeout).

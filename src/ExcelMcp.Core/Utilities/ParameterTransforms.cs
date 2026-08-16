@@ -306,6 +306,22 @@ public static class ParameterTransforms
     }
 
     /// <summary>
+    /// Validates all required string parameters together so callers receive one actionable error.
+    /// </summary>
+    public static void RequireAllNotEmpty(string actionName, params (string? Value, string ParameterName)[] parameters)
+    {
+        var missing = parameters
+            .Where(parameter => string.IsNullOrWhiteSpace(parameter.Value))
+            .Select(parameter => $"{parameter.ParameterName} is required for {actionName} action")
+            .ToArray();
+
+        if (missing.Length > 0)
+        {
+            throw new ArgumentException(string.Join("; ", missing));
+        }
+    }
+
+    /// <summary>
     /// Validates that a required parameter is not null, empty, or whitespace, returning the value if valid.
     /// </summary>
     /// <param name="value">The parameter value to validate</param>

@@ -6,26 +6,38 @@ are generated from the authoritative Markdown files elsewhere in the repo
 drift from the real docs. It is the MkDocs equivalent of the old Jekyll
 ``build.sh`` script.
 
-Generated files are written to ``docs/_generated/`` (git-ignored) and pulled
-into the thin wrapper pages under ``docs/`` via the ``pymdownx.snippets``
-``--8<--`` include syntax. Regeneration happens automatically on every
-``mkdocs build`` / ``mkdocs serve`` via the ``on_pre_build`` event.
+Generated files are written to ``gh-pages/_generated/`` (git-ignored, and
+deliberately outside ``docs_dir``) and pulled into the thin wrapper pages under
+``docs/`` via the ``pymdownx.snippets`` ``--8<--`` include syntax. Regeneration
+happens automatically on every ``mkdocs build`` / ``mkdocs serve`` via the
+``on_pre_build`` event.
+
+Two smaller jobs live here as well:
+
+* ``on_env`` hands ``overrides/sitemap.xml`` the git commit date behind every
+  page, so ``<lastmod>`` reflects real content changes rather than the build
+  date, plus the home page's video metadata.
+* ``on_post_page`` gives Material's search dialog an accessible name. The logo
+  and progress-bar equivalents are declarative partials under ``overrides/``;
+  ``audit_site.py`` fails the build if any of the three stops applying.
 """
 
 from __future__ import annotations
 
-import gzip
+import json
 import logging
 import posixpath
 import re
+import subprocess
+from datetime import datetime
 from pathlib import Path
 
 log = logging.getLogger("mkdocs.hooks.generate")
 
 # Home-page intro video. MkDocs' built-in sitemap is a plain URL sitemap and has
-# no notion of embedded media, so we enrich the home page's <url> entry with a
-# Google video-sitemap <video:video> block in on_post_build. Keep these fields in
-# sync with the VideoObject JSON-LD in docs/index.md.
+# no notion of embedded media, so overrides/sitemap.xml renders a Google
+# video-sitemap <video:video> block into the home page's <url> entry. Keep these
+# fields in sync with the VideoObject JSON-LD in docs/index.md.
 VIDEO = {
     "page_url": "https://excelmcpserver.dev/",
     "thumbnail": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
@@ -39,20 +51,14 @@ VIDEO = {
     "publication_date": "2025-11-23T08:33:40-08:00",
 }
 
-_VIDEO_NS = "http://www.google.com/schemas/sitemap-video/1.1"
-
-
-def _xml_escape(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
-
 # gh-pages/hooks.py -> gh-pages/ -> repo root
 REPO_ROOT = Path(__file__).resolve().parent.parent
-GEN_DIR = Path(__file__).resolve().parent / "docs" / "_generated"
+# Deliberately OUTSIDE docs_dir. When the generated files lived in
+# docs/_generated/, every build rewrote files inside the directory `mkdocs
+# serve` watches, so a single edit put the dev server into an endless
+# rebuild loop. `.` is a snippets base_path, so the `--8<-- "_generated/..."`
+# includes in the wrapper pages resolve here unchanged.
+GEN_DIR = Path(__file__).resolve().parent / "_generated"
 
 GITHUB_BLOB = "https://github.com/sbroenne/mcp-server-excel/blob/main/"
 GITHUB_TREE = "https://github.com/sbroenne/mcp-server-excel/tree/main/"
@@ -61,10 +67,22 @@ GITHUB_TREE = "https://github.com/sbroenne/mcp-server-excel/tree/main/"
 # they resolve on the website instead of 404-ing.
 SITE_PAGE_MAP = {
     "FEATURES.md": "/features/",
+    "docs/features/DATA-ANALYTICS.md": "/features/data-analytics/",
+    "docs/features/CELLS-WORKBOOKS.md": "/features/cells-workbooks/",
+    "docs/features/CHARTS-VISUALS.md": "/features/charts-visuals/",
+    "docs/features/AUTOMATION-ADVANCED.md": "/features/automation-advanced/",
     "CHANGELOG.md": "/changelog/",
     "docs/INSTALLATION.md": "/installation/",
     "docs/INSTALLATION-MCP-SERVER.md": "/installation-mcp-server/",
     "docs/INSTALLATION-CLI.md": "/installation-cli/",
+    "docs/ARCHITECTURE.md": "/architecture/",
+    "docs/USE-CASES.md": "/use-cases/",
+    "docs/guides/README.md": "/guides/",
+    "docs/guides/REFRESH-POWER-QUERY.md": "/guides/refresh-power-query/",
+    "docs/guides/AUTOMATE-PIVOTTABLES.md": "/guides/automate-pivottables/",
+    "docs/guides/RUN-VBA-MACROS.md": "/guides/run-vba-macros/",
+    "docs/guides/QUERY-DATA-MODEL-WITH-DAX.md": "/guides/query-data-model-with-dax/",
+    "docs/guides/EXCEL-COM-VS-FILE-PARSERS.md": "/guides/excel-automation-vs-file-parsers/",
     "docs/CONTRIBUTING.md": "/contributing/",
     "SECURITY.md": "/security/",
     "PRIVACY.md": "/privacy/",
@@ -75,18 +93,104 @@ SITE_PAGE_MAP = {
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 
+SITE_URL = "https://excelmcpserver.dev/"
+
+# Raw Markdown of every built page, captured in on_page_markdown with --8<--
+# includes resolved, and emitted in on_post_build as /llms-full.txt plus one
+# Markdown mirror per page. Keyed by the page's site path.
+_PAGE_MARKDOWN: dict[str, dict[str, str]] = {}
+
+_SNIPPET = re.compile(r'^[ \t]*(?:-{2,}8<-{2,})[ \t]+"([^"]+)"[ \t]*$', re.MULTILINE)
+_FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
+
+FEATURE_SOURCES = {
+    "features-data.md": "docs/features/DATA-ANALYTICS.md",
+    "features-workbooks.md": "docs/features/CELLS-WORKBOOKS.md",
+    "features-visualization.md": "docs/features/CHARTS-VISUALS.md",
+    "features-automation.md": "docs/features/AUTOMATION-ADVANCED.md",
+}
+
+# Canonical task guides -> intent-focused website pages. Same contract as the
+# feature references: the wrapper owns presentation and SEO metadata only.
+GUIDE_SOURCES = {
+    "guides-index.md": "docs/guides/README.md",
+    "guides-refresh-power-query.md": "docs/guides/REFRESH-POWER-QUERY.md",
+    "guides-automate-pivottables.md": "docs/guides/AUTOMATE-PIVOTTABLES.md",
+    "guides-run-vba-macros.md": "docs/guides/RUN-VBA-MACROS.md",
+    "guides-query-data-model-with-dax.md": "docs/guides/QUERY-DATA-MODEL-WITH-DAX.md",
+    "guides-excel-com-vs-file-parsers.md": "docs/guides/EXCEL-COM-VS-FILE-PARSERS.md",
+}
+
+
+# skills/shared/*.md: the expert reference corpus shipped inside the skill
+# packages and MCP prompts. Published verbatim so the site and the agent
+# guidance can never disagree. Value = (output name, page title).
+SKILL_SOURCES = {
+    "workflows.md": ("skills-workflows.md", "Key Constraints & Sequencing"),
+    "behavioral-rules.md": ("skills-behavioral-rules.md", "Behavioral Rules"),
+    "anti-patterns.md": ("skills-anti-patterns.md", "Anti-Patterns to Avoid"),
+    "gotchas.md": ("skills-gotchas.md", "Gotchas & Known Limits"),
+    "excel_agent_mode.md": ("skills-agent-mode.md", "Agent Mode in Excel"),
+    "workbook.md": ("skills-workbook.md", "Workbook Lifecycle"),
+    "worksheet.md": ("skills-worksheet.md", "Worksheet Operations"),
+    "range.md": ("skills-range.md", "Ranges, Number Formats & Formatting"),
+    "table.md": ("skills-table.md", "Excel Tables"),
+    "powerquery.md": ("skills-powerquery.md", "Power Query"),
+    "m-code-syntax.md": ("skills-m-code-syntax.md", "M Code Syntax"),
+    "datamodel.md": ("skills-datamodel.md", "Data Model & DAX"),
+    "dmv-reference.md": ("skills-dmv-reference.md", "DMV Query Reference"),
+    "pivottable.md": ("skills-pivottable.md", "PivotTables"),
+    "querytable.md": ("skills-querytable.md", "QueryTables"),
+    "analysis.md": ("skills-analysis.md", "What-If Analysis"),
+    "chart.md": ("skills-chart.md", "Charts"),
+    "conditionalformat.md": ("skills-conditionalformat.md", "Conditional Formatting"),
+    "slicer.md": ("skills-slicer.md", "Slicers"),
+    "drawing.md": ("skills-drawing.md", "Drawing Objects"),
+    "screenshot.md": ("skills-screenshot.md", "Screenshots & Visual Verification"),
+    "dashboard.md": ("skills-dashboard.md", "Dashboards & Reports"),
+    "window.md": ("skills-window.md", "Window Management"),
+    "xmlmap.md": ("skills-xmlmap.md", "XML Maps"),
+}
+
+_SKILL_SLUGS = {
+    name: output.removeprefix("skills-").removesuffix(".md")
+    for name, (output, _title) in SKILL_SOURCES.items()
+}
+SITE_PAGE_MAP.update(
+    {f"skills/shared/{name}": f"/reference/{slug}/" for name, slug in _SKILL_SLUGS.items()}
+)
+
 
 def _rewrite_links(text: str, source_rel: str) -> str:
-    """Resolve repo-relative links in pulled-in content so they work on the site.
+    """Resolve links in pulled-in content so they work on the site.
 
-    Links that point at a page we publish are rewritten to that page's URL;
-    everything else that resolves inside the repo is rewritten to an absolute
-    GitHub URL. External links, anchors and site-absolute links are left alone.
+    Two cases:
+
+    - Repo-relative links: rewritten to the published page when we publish one,
+      otherwise to an absolute GitHub URL.
+    - Absolute GitHub URLs into this repo: rewritten *back* to the published
+      page when we publish one. Sources that are also rendered outside GitHub -
+      the NuGet package READMEs - have to spell links out absolutely, because
+      NuGet.org resolves relative links against the package root and they 404.
+      Without this the website would link out to GitHub for pages it publishes
+      itself.
+
+    External links, anchors and site-absolute links are left alone.
     """
     source_dir = posixpath.dirname(source_rel)
 
     def repl(match: re.Match) -> str:
         label, url = match.group(1), match.group(2)
+
+        for prefix in (GITHUB_BLOB, GITHUB_TREE):
+            if url.startswith(prefix):
+                remainder = url[len(prefix) :]
+                target, _, anchor = remainder.partition("#")
+                anchor = f"#{anchor}" if anchor else ""
+                if target.rstrip("/") in SITE_PAGE_MAP:
+                    return f"[{label}]({SITE_PAGE_MAP[target.rstrip('/')]}{anchor})"
+                return match.group(0)
+
         if url.startswith(("http://", "https://", "#", "/", "mailto:", "<")):
             return match.group(0)
 
@@ -162,6 +266,19 @@ def _strip_header(
     return "\n".join(out).strip() + "\n"
 
 
+def _add_stable_feature_anchors(text: str) -> str:
+    """Give feature headings stable IDs that do not include operation counts."""
+    heading = re.compile(r"^## (?P<title>.+?) \(\d+ operations\)$", re.MULTILINE)
+
+    def replace(match: re.Match) -> str:
+        title = match.group("title")
+        slug = re.sub(r"[^\w\s-]", "", title, flags=re.UNICODE).strip().lower()
+        slug = re.sub(r"[-\s]+", "-", slug)
+        return f"{match.group(0)} {{ #{slug} }}"
+
+    return heading.sub(replace, text)
+
+
 def _read(rel: str) -> str:
     path = REPO_ROOT / rel
     if not path.is_file():
@@ -173,21 +290,412 @@ def _write(name: str, source_rel: str, content: str) -> None:
     GEN_DIR.mkdir(parents=True, exist_ok=True)
     content = _rewrite_links(content, source_rel)
     (GEN_DIR / name).write_text(content, encoding="utf-8")
+    MIRROR_SOURCES[name] = source_rel
     log.info("generated _generated/%s", name)
 
 
-def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
-    # FEATURES.md -> features (drop title + bold subtitle + hr, demote H1)
-    _write(
-        "features.md",
-        "FEATURES.md",
-        _strip_header(
-            _read("FEATURES.md"),
-            drop_prefixes=("**",),
-            end_on_hr=True,
-            demote_h1=True,
-        ),
+# Generated file name (e.g. "features-data.md") -> repo-relative canonical
+# source. Populated by _write during on_pre_build and read back when dating
+# sitemap entries: a wrapper page's real "last modified" is driven by the
+# canonical file it mirrors, not by the two-line wrapper.
+MIRROR_SOURCES: dict[str, str] = {}
+
+# Matches the snippet includes in the wrapper pages, e.g.
+#     --8<-- "_generated/features-data.md"
+_GEN_INCLUDE = re.compile(r'--8<--\s*"_generated/([^"]+)"')
+
+
+def _git_lastmod_index() -> dict[str, str]:
+    """Map every tracked repo-relative path to its last commit date (W3C).
+
+    One ``git log`` walk over the whole history, newest first: the first time a
+    path appears is by definition its most recent change. This replaces the
+    previous behaviour of stripping ``<lastmod>`` altogether, which was done
+    because MkDocs stamps every URL with the *build* date - a false freshness
+    signal on every page in every deploy.
+
+    Returns an empty index (so ``<lastmod>`` is simply omitted) when git is
+    unavailable, which keeps ``mkdocs build`` working from a source tarball.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "log", "--format=%cI", "--name-only", "--no-renames"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        log.warning("git log failed (%s); sitemap will omit <lastmod>", exc)
+        return {}
+
+    index: dict[str, str] = {}
+    date = ""
+    for line in proc.stdout.splitlines():
+        if not line:
+            continue
+        # Commit-date lines are the only ones that can start with a 4-digit year
+        # followed by '-'; paths in this repo never do.
+        if len(line) >= 5 and line[:4].isdigit() and line[4] == "-":
+            date = line
+        elif date:
+            index.setdefault(line, date)
+    return index
+
+
+def _git_is_shallow() -> bool:
+    """True when the checkout has truncated history.
+
+    Worth reporting explicitly: a shallow clone still lists every tracked file,
+    just all under the tip commit's date, so the lastmod index looks perfectly
+    healthy while every date in it is wrong.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return proc.stdout.strip() == "true"
+
+
+def _page_lastmod(files) -> dict[str, str]:
+    """Map each page's ``src_uri`` to the newest git date that affects it.
+
+    For a wrapper page that is nothing but an ``--8<--`` include, that is the
+    date of the canonical source; the wrapper itself contributes its own date
+    too, so editing either one refreshes the entry.
+    """
+    index = _git_lastmod_index()
+    if not index:
+        return {}
+    if _git_is_shallow():
+        # A shallow clone (actions/checkout's default fetch-depth: 1) still lists
+        # every tracked file - all under the tip commit's date. So the index
+        # looks healthy and only the dates are wrong; audit_site.py catches it by
+        # noticing that every page claims the same <lastmod>.
+        log.warning(
+            "shallow git clone: every sitemap <lastmod> will be the tip "
+            "commit's date - the workflow needs fetch-depth: 0"
+        )
+
+    lastmod: dict[str, str] = {}
+    for file in files.documentation_pages():
+        candidates = []
+        wrapper_rel = f"gh-pages/docs/{file.src_uri}"
+        if wrapper_rel in index:
+            candidates.append(index[wrapper_rel])
+        try:
+            text = Path(file.abs_src_path).read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        for name in _GEN_INCLUDE.findall(text):
+            source_rel = MIRROR_SOURCES.get(name)
+            if source_rel and source_rel in index:
+                candidates.append(index[source_rel])
+        if candidates:
+            # git's %cI keeps each committer's UTC offset, so the strings are
+            # not directly comparable as instants - parse before taking the max.
+            lastmod[file.src_uri] = max(candidates, key=datetime.fromisoformat)
+    return lastmod
+
+
+def on_env(env, config, files, **kwargs):  # noqa: D401 - MkDocs hook signature
+    """Expose sitemap data to overrides/sitemap.xml."""
+    env.globals["page_lastmod"] = _page_lastmod(files)
+    env.globals["video"] = VIDEO
+    return env
+
+
+DOCS_DIR = Path(__file__).resolve().parent / "docs"
+# Mirrors the snippets `base_path` in mkdocs.yml, in the same order. Kept in
+# sync so the llms.txt/mirror output resolves exactly what the site renders.
+SNIPPET_BASE_PATHS = (DOCS_DIR, Path(__file__).resolve().parent)
+
+
+def _resolve_snippets(text: str, depth: int = 0) -> str:
+    """Expand ``--8<-- "path"`` includes.
+
+    ``on_page_markdown`` fires before the snippets extension runs, so the raw
+    Markdown still contains include directives. Resolving them here is what makes
+    the Markdown mirrors and ``llms-full.txt`` complete rather than a list of
+    stub pages.
+    """
+    if depth > 5:
+        return text
+
+    def repl(match: re.Match) -> str:
+        for base in SNIPPET_BASE_PATHS:
+            target = base / match.group(1)
+            if target.is_file():
+                return _resolve_snippets(target.read_text(encoding="utf-8"), depth + 1)
+        log.warning("snippet not found while building llms output: %s", match.group(1))
+        return ""
+
+    return _SNIPPET.sub(repl, text)
+
+
+def _page_url(page) -> str:
+    return SITE_URL + page.url
+
+
+# The resolved Navigation object, captured in on_nav. config["nav"] holds the raw
+# YAML nav, which has no page objects to correlate with captured Markdown.
+_NAV: list = []
+
+
+def on_nav(nav, config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    _NAV.clear()
+    _NAV.extend(nav.items)
+    return nav
+
+
+def on_page_markdown(markdown, page, config, **kwargs):  # noqa: D401 - MkDocs hook
+    """Capture each page's full Markdown for the LLM-facing outputs."""
+    body = _resolve_snippets(_FRONTMATTER.sub("", markdown)).strip()
+    _PAGE_MARKDOWN[page.file.src_uri] = {
+        "title": page.title or page.file.src_uri,
+        "url": _page_url(page),
+        "description": (page.meta or {}).get("description", "").strip(),
+        "markdown": body,
+        "dest": page.file.dest_uri,
+    }
+
+    faq = _faq_jsonld(body)
+    if faq:
+        page.meta["faq_jsonld"] = faq
+    return markdown
+
+
+_FAQ_ADMONITION = re.compile(r'^\?{3}\+?\s+question\s+"([^"]+)"\s*$')
+_FAQ_HEADING = re.compile(r"^###\s+(.+?)\s*$")
+_FAQ_MIN_ENTITIES = 3
+
+
+def _faq_jsonld(markdown: str) -> str:
+    """Build FAQPage JSON-LD from a page's own question blocks.
+
+    Two source forms are recognised:
+
+    * ``### Some question?`` headings - preferred, because each answer keeps a
+      stable anchor that can be deep-linked from another page or straight from a
+      search result, and shows up in the page table of contents.
+    * ``??? question "..."`` collapsible admonitions, which have no anchor at
+      all, kept so a page written either way still works.
+
+    Either way the structured data is derived from the page body rather than
+    maintained separately, so the two cannot diverge.
+    """
+    items: list[tuple[str, list[str]]] = []
+    current: list[str] | None = None
+    indented = False
+
+    for line in markdown.splitlines():
+        admonition = _FAQ_ADMONITION.match(line)
+        if admonition:
+            current = []
+            indented = True
+            items.append((admonition.group(1), current))
+            continue
+
+        heading = _FAQ_HEADING.match(line)
+        if heading:
+            text = heading.group(1).strip()
+            if text.endswith("?"):
+                current = []
+                indented = False
+                items.append((text, current))
+            else:
+                current = None
+            continue
+
+        if current is None:
+            continue
+
+        # A heading of any level ends a heading-sourced answer.
+        if not indented and line.startswith("#"):
+            current = None
+            continue
+
+        if not line.strip():
+            current.append("")
+        elif indented and not line.startswith((" ", "\t")):
+            current = None
+        else:
+            current.append(line.strip())
+
+    entities = []
+    for question, answer_lines in items:
+        # Fenced code blocks and table rows are useful on the page but pure noise
+        # inside a structured answer, so they are dropped here.
+        prose: list[str] = []
+        in_fence = False
+        for raw in answer_lines:
+            if raw.startswith("```"):
+                in_fence = not in_fence
+                continue
+            if in_fence or raw.startswith("|"):
+                continue
+            # Strip the list marker only where it starts a line, so a dash used
+            # mid-sentence survives into the structured answer.
+            prose.append(re.sub(r"^[-*+]\s+", "", raw))
+
+        answer = " ".join(x for x in prose if x).strip()
+        if not answer:
+            continue
+        # Strip inline Markdown so the structured answer is plain prose.
+        answer = _MD_LINK.sub(r"\1", answer)
+        answer = re.sub(r"[*_`]+", "", answer)
+        answer = re.sub(r"\s{2,}", " ", answer).strip()
+        entities.append(
+            {
+                "@type": "Question",
+                "name": question,
+                "acceptedAnswer": {"@type": "Answer", "text": answer},
+            }
+        )
+
+    # A page with one or two question-shaped headings is a guide that happens to
+    # ask a question, not an FAQ; emitting FAQPage there is a false signal.
+    if len(entities) < _FAQ_MIN_ENTITIES:
+        return ""
+
+    return json.dumps(
+        {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": entities},
+        ensure_ascii=False,
     )
+
+
+def _nav_entries(items, out: list) -> None:
+    for item in items:
+        if getattr(item, "children", None):
+            _nav_entries(item.children, out)
+        elif getattr(item, "file", None) is not None:
+            out.append(item)
+
+
+def _write_llm_outputs(config) -> None:
+    """Emit /llms.txt, /llms-full.txt and one Markdown mirror per page.
+
+    ``llms.txt`` follows the llmstxt.org convention: an H1, a blockquote summary,
+    then link sections. Both files and the mirrors are derived from the same
+    captured Markdown, so they cannot drift from the site.
+    """
+    site_dir = Path(config["site_dir"])
+
+    # Markdown mirrors: /guides/refresh-power-query/index.md next to index.html.
+    mirrored = 0
+    for entry in _PAGE_MARKDOWN.values():
+        dest = site_dir / entry["dest"]
+        if dest.suffix != ".html":
+            continue
+        md_path = dest.with_suffix(".md")
+        md_path.parent.mkdir(parents=True, exist_ok=True)
+        md_path.write_text(
+            entry["markdown"] + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        mirrored += 1
+
+    # Section-aware index, ordered exactly like the site navigation.
+    lines = [
+        "# Excel MCP Server",
+        "",
+        "> Excel MCP Server (ExcelMcp) automates the real Microsoft Excel "
+        "application through its COM API, exposing 31 tools and 326 operations "
+        "to AI assistants over the Model Context Protocol and to scripts through "
+        "the `excelcli` command line. Unlike file-parser libraries it can refresh "
+        "Power Query, evaluate DAX against the Data Model, refresh PivotTables, "
+        "and run VBA, because Excel itself does the work. Windows-only; requires "
+        "Microsoft Excel 2016 or later.",
+        "",
+        "Every page below is also available as Markdown by appending `index.md` "
+        "to its URL. The complete corpus is at "
+        f"{SITE_URL}llms-full.txt.",
+        "",
+    ]
+
+    def link_line(entry: dict) -> str:
+        url = entry["url"].rstrip("/")
+        url = f"{url}/index.md" if entry["dest"].endswith("index.html") else url
+        desc = f": {entry['description']}" if entry["description"] else ""
+        return f"- [{entry['title']}]({url}){desc}"
+
+    seen: set[str] = set()
+    for section in _NAV:
+        pages: list = []
+        _nav_entries([section], pages)
+        title = section.title if getattr(section, "title", None) else "Documentation"
+        rendered = []
+        for item in pages:
+            entry = _PAGE_MARKDOWN.get(item.file.src_uri)
+            if entry is None or item.file.src_uri in seen:
+                continue
+            seen.add(item.file.src_uri)
+            rendered.append(link_line(entry))
+        if rendered:
+            lines.append(f"## {title}")
+            lines.append("")
+            lines.extend(rendered)
+            lines.append("")
+
+    (site_dir / "llms.txt").write_text("\n".join(lines), encoding="utf-8", newline="\n")
+
+    # Full corpus, same order as llms.txt.
+    full = ["# Excel MCP Server - complete documentation", ""]
+    ordered: list = []
+    _nav_entries(_NAV, ordered)
+    emitted: set[str] = set()
+    for item in ordered:
+        entry = _PAGE_MARKDOWN.get(item.file.src_uri)
+        if entry is None or item.file.src_uri in emitted:
+            continue
+        emitted.add(item.file.src_uri)
+        full.append(f"# {entry['title']}")
+        full.append("")
+        full.append(f"Source: {entry['url']}")
+        full.append("")
+        full.append(entry["markdown"])
+        full.append("")
+        full.append("---")
+        full.append("")
+    (site_dir / "llms-full.txt").write_text(
+        "\n".join(full), encoding="utf-8", newline="\n"
+    )
+
+    log.info(
+        "wrote llms.txt, llms-full.txt and %d Markdown mirrors", mirrored
+    )
+
+
+
+def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    # Canonical feature references -> focused website pages. The wrappers add
+    # presentation and SEO metadata but never duplicate operation details.
+    for output_name, source_rel in FEATURE_SOURCES.items():
+        _write(
+            output_name,
+            source_rel,
+            _add_stable_feature_anchors(
+                _strip_header(_read(source_rel), end_on_hr=True)
+            ),
+        )
+
+    # Canonical task guides -> intent-focused website pages. The H1 lives in the
+    # wrapper, so drop it here and demote any remaining H1 to H2.
+    for output_name, source_rel in GUIDE_SOURCES.items():
+        _write(
+            output_name,
+            source_rel,
+            _strip_header(_read(source_rel), end_on_blank=True, demote_h1=True),
+        )
 
     # CHANGELOG.md -> changelog (drop title + description line, demote H1)
     _write(
@@ -235,6 +743,18 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         ),
     )
 
+    # Canonical architecture and examples guides.
+    _write(
+        "architecture.md",
+        "docs/ARCHITECTURE.md",
+        _strip_header(_read("docs/ARCHITECTURE.md"), end_on_blank=True),
+    )
+    _write(
+        "use-cases.md",
+        "docs/USE-CASES.md",
+        _strip_header(_read("docs/USE-CASES.md"), end_on_blank=True),
+    )
+
     # src/ExcelMcp.McpServer/README.md -> mcp-server (drop title, mcp-name, badges)
     _write(
         "mcp-server.md",
@@ -270,71 +790,160 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         ),
     )
 
+    # skills/shared/*.md -> reference pages (drop the H1, wrapper owns the title)
+    for name, (output_name, _title) in SKILL_SOURCES.items():
+        _write(
+            output_name,
+            f"skills/shared/{name}",
+            _strip_header(
+                _read(f"skills/shared/{name}"), end_on_blank=True, demote_h1=True
+            ),
+        )
+
     # Verbatim copies (these keep their own H1 as the page title).
     _write("contributing.md", "docs/CONTRIBUTING.md", _read("docs/CONTRIBUTING.md").strip() + "\n")
     _write("security.md", "SECURITY.md", _read("SECURITY.md").strip() + "\n")
     _write("privacy.md", "PRIVACY.md", _read("PRIVACY.md").strip() + "\n")
 
 
-def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
-    """Enrich the generated sitemap with a Google video-sitemap entry.
+def _write_tools_json(config) -> None:
+    """Emit /tools.json: every tool and operation as structured JSON.
 
-    MkDocs writes a plain URL sitemap that cannot describe the home-page intro
-    video, so we add the ``video`` namespace to ``<urlset>`` and inject a
-    ``<video:video>`` block into the home page's ``<url>``. Both ``sitemap.xml``
-    and its gzipped twin are updated so Search Console reads the enriched copy.
+    Derived from the canonical ``docs/features/*.md`` references, so the machine
+    -readable catalogue is generated from the same source as the human pages and
+    cannot drift. Totals are asserted against the documented headline counts.
     """
-    site_dir = Path(config["site_dir"])
-    sitemap = site_dir / "sitemap.xml"
-    if not sitemap.is_file():
-        log.warning("sitemap.xml not found; skipping video-sitemap enrichment")
-        return
+    category_titles = {
+        "docs/features/DATA-ANALYTICS.md": "Data & Analytics",
+        "docs/features/CELLS-WORKBOOKS.md": "Cells & Workbooks",
+        "docs/features/CHARTS-VISUALS.md": "Charts & Visualization",
+        "docs/features/AUTOMATION-ADVANCED.md": "Automation & Advanced",
+    }
+    site_page = {
+        "docs/features/DATA-ANALYTICS.md": "/features/data-analytics/",
+        "docs/features/CELLS-WORKBOOKS.md": "/features/cells-workbooks/",
+        "docs/features/CHARTS-VISUALS.md": "/features/charts-visuals/",
+        "docs/features/AUTOMATION-ADVANCED.md": "/features/automation-advanced/",
+    }
 
-    xml = sitemap.read_text(encoding="utf-8")
+    heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
+    operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
 
-    if 'xmlns:video=' not in xml:
-        xml = xml.replace(
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
-            f' xmlns:video="{_VIDEO_NS}">',
-            1,
+    # Headline counts live in FEATURES.md and are enforced against code by
+    # scripts/check-doc-counts.ps1, so read them rather than restating them.
+    headline = re.search(
+        r"\*\*(?P<tools>\d+) specialized tools with (?P<ops>\d+) operations",
+        _read("FEATURES.md"),
+    )
+    if headline is None:
+        raise RuntimeError("could not read the headline tool/operation counts from FEATURES.md")
+    headline_tools = int(headline.group("tools"))
+    headline_ops = int(headline.group("ops"))
+
+    categories = []
+    total_ops = 0
+
+    for source_rel, title in category_titles.items():
+        groups: list[dict] = []
+        current: dict | None = None
+        for line in _read(source_rel).splitlines():
+            match = heading.match(line)
+            if match:
+                current = {
+                    "name": match.group("name").strip(),
+                    "operationCount": int(match.group("count")),
+                    "operations": [],
+                }
+                groups.append(current)
+                continue
+            if current is None:
+                continue
+            op = operation.match(line)
+            if op:
+                current["operations"].append(
+                    {
+                        "name": op.group("name").strip(),
+                        "description": op.group("desc").strip(),
+                    }
+                )
+
+        total_ops += sum(g["operationCount"] for g in groups)
+        categories.append(
+            {
+                "name": title,
+                "url": SITE_URL.rstrip("/") + site_page[source_rel],
+                "operationCount": sum(g["operationCount"] for g in groups),
+                "featureGroups": groups,
+            }
         )
 
-    video_block = (
-        "        <video:video>\n"
-        f"            <video:thumbnail_loc>{_xml_escape(VIDEO['thumbnail'])}</video:thumbnail_loc>\n"
-        f"            <video:title>{_xml_escape(VIDEO['title'])}</video:title>\n"
-        f"            <video:description>{_xml_escape(VIDEO['description'])}</video:description>\n"
-        f"            <video:player_loc>{_xml_escape(VIDEO['player_loc'])}</video:player_loc>\n"
-        f"            <video:duration>{VIDEO['duration']}</video:duration>\n"
-        f"            <video:publication_date>{VIDEO['publication_date']}</video:publication_date>\n"
-        "            <video:family_friendly>yes</video:family_friendly>\n"
-        "            <video:live>no</video:live>\n"
-        "        </video:video>\n"
+    if total_ops != headline_ops:
+        raise RuntimeError(
+            "tools.json operation total does not match the FEATURES.md headline: "
+            f"parsed {total_ops}, expected {headline_ops}. "
+            "Fix the feature reference headings or the headline."
+        )
+
+    payload = {
+        "name": "Excel MCP Server",
+        "url": SITE_URL,
+        "repository": "https://github.com/sbroenne/mcp-server-excel",
+        "description": (
+            "Automates the real Microsoft Excel application through its COM API, "
+            "exposing Excel to AI assistants over the Model Context Protocol and "
+            "to scripts through the excelcli command line."
+        ),
+        "requirements": {
+            "operatingSystem": "Windows",
+            "application": "Microsoft Excel desktop 2016 or later",
+        },
+        "entryPoints": ["mcp-server", "cli"],
+        "toolCount": headline_tools,
+        "operationCount": total_ops,
+        "categories": categories,
+    }
+
+    (Path(config["site_dir"]) / "tools.json").write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
+    log.info("wrote tools.json (%d tools, %d operations)", headline_tools, total_ops)
 
-    # Insert the video block inside the home page's <url>...</url> element.
-    home_url = re.compile(
-        r"(<url>\s*<loc>"
-        + re.escape(VIDEO["page_url"])
-        + r"</loc>.*?)(</url>)",
-        re.DOTALL,
+
+def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    """Write the LLM-facing outputs that MkDocs itself has no notion of.
+
+    The sitemap used to be rewritten here - stripping ``<lastmod>`` and splicing
+    in a ``<video:video>`` block with regexes, then re-gzipping by hand. Both
+    jobs now happen declaratively in ``overrides/sitemap.xml``, which also means
+    MkDocs writes ``sitemap.xml.gz`` from the same rendered output instead of the
+    two being kept in step manually.
+    """
+    _write_llm_outputs(config)
+    _write_tools_json(config)
+
+
+def on_post_page(output, page, config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    """Give Material's search dialog an accessible name.
+
+    A role="dialog" with no name is a WCAG 4.1.2 failure. Unlike the logo and
+    progress-bar fixes - now declarative partials under ``overrides/`` - this one
+    stays a string patch on purpose: upstream's ``partials/search.html`` is ~45
+    lines of markup, icon lookups and feature flags, so copying it into
+    ``overrides/`` to add one attribute would pin a large slice of Material
+    internals and silently miss every upstream change to the search UI.
+
+    Two variants because mkdocs-minify strips attribute quotes.
+    """
+    output = output.replace(
+        '<div class="md-search" data-md-component="search" role="dialog">',
+        '<div class="md-search" data-md-component="search" role="dialog" '
+        'aria-label="Search documentation">',
     )
-    if "<video:video>" not in xml:
-        new_xml, count = home_url.subn(rf"\1{video_block}    \2", xml, count=1)
-        if count:
-            xml = new_xml
-        else:
-            log.warning(
-                "home page <url> not found in sitemap; video markup not added"
-            )
-
-    sitemap.write_text(xml, encoding="utf-8", newline="\n")
-
-    gz = site_dir / "sitemap.xml.gz"
-    if gz.exists():
-        # mtime=0 keeps the output reproducible, matching MkDocs' own gzip call.
-        with gzip.GzipFile(gz, "wb", mtime=0) as fh:
-            fh.write(xml.encode("utf-8"))
-
-    log.info("enriched sitemap.xml with home-page video markup")
+    output = output.replace(
+        "<div class=md-search data-md-component=search role=dialog>",
+        '<div class=md-search data-md-component=search role=dialog '
+        'aria-label="Search documentation">',
+    )
+    return output

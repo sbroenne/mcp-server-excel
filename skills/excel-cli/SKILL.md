@@ -25,7 +25,7 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 | Step | Command | When |
 |------|---------|------|
 | 1. Session | `session create/open` | Always first |
-| 2. Sheets | `worksheet create/rename` | If needed |
+| 2. Sheets | `sheet create/rename` | If needed |
 | 3. Write data | See below | If writing values |
 | 4. Save & close | `session close --save` | Always last |
 
@@ -33,7 +33,7 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 **Writing Data (Step 3):**
 - `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
-- Write **one row at a time** for reliability: `--range-address A1:B1 --values '[["Name","Age"]]'`
+- Write **one row at a time** for reliability: `--range A1:B1 --values '[["Name","Age"]]'`
 - Strings MUST be double-quoted in JSON: `"text"`. Numbers are bare: `42`
 - Always wrap the entire JSON value in single quotes to protect special characters
 
@@ -49,7 +49,7 @@ Execute commands to discover the answer instead:
 |-----------|-----------------|
 | "Which file should I use?" | `excelcli -q session list` |
 | "What table should I use?" | `excelcli -q table list --session <id>` |
-| "Which sheet has the data?" | `excelcli -q worksheet list --session <id>` |
+| "Which sheet has the data?" | `excelcli -q sheet list --session <id>` |
 
 **You have commands to answer your own questions. USE THEM.**
 
@@ -129,8 +129,8 @@ $sessionId = $session.sessionId
 excelcli -q calculationmode set-mode --session $sessionId --mode manual
 
 # 3. Write data row by row for reliability
-excelcli -q range set-values --session $sessionId --sheet-name Sheet1 --range-address A1:B1 --values '[["Name","Amount"]]'
-excelcli -q range set-values --session $sessionId --sheet-name Sheet1 --range-address A2:B2 --values '[["Salary",5000]]'
+excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A1:B1 --values '[["Name","Amount"]]'
+excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A2:B2 --values '[["Salary",5000]]'
 
 # 4. Recalculate once at end
 excelcli -q calculationmode calculate --session $sessionId --scope workbook
@@ -194,3 +194,15 @@ See [CLI command reference and common pitfalls](./references/cli-commands.md#com
 ## Reference Documentation
 
 - [CLI command reference and common pitfalls](./references/cli-commands.md)
+- [Behavioral rules](./references/behavioral-rules.md)
+- [Anti-patterns](./references/anti-patterns.md)
+- [Common workflows](./references/workflows.md)
+- [Ranges](./references/range.md)
+- [Worksheets](./references/worksheet.md)
+- [Charts](./references/chart.md)
+- [Power Query](./references/powerquery.md)
+- [Data Model and DAX](./references/datamodel.md)
+- [PivotTables](./references/pivottable.md)
+- [Tables](./references/table.md)
+- [Screenshots](./references/screenshot.md)
+- [Window management](./references/window.md)
