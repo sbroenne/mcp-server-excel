@@ -11,6 +11,34 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [1.10.8] - 2026-08-19
+
+### Patch Changes
+
+- [#773](https://github.com/sbroenne/mcp-server-excel/pull/773) [`e60c600`](https://github.com/sbroenne/mcp-server-excel/commit/e60c600d43c651dae7530c6ed94010e04e7e2b07) Thanks [@sbroenne](https://github.com/sbroenne)! - **Fixed broken documentation links on NuGet.org** — the MCP Server and CLI package pages linked to the installation guides, feature reference, and privacy policy using relative paths. NuGet.org resolves those against the package itself rather than the repository, so every one of them returned a 404 for anyone reading the package page. They now point at absolute repository URLs and work from NuGet.org, GitHub, and inside the shipped skill packages alike.
+
+  The documentation site is unaffected: those links still resolve to the site's own pages, and a new audit check fails the build if a published page ever starts sending readers to GitHub for content the site hosts itself.
+
+- [#776](https://github.com/sbroenne/mcp-server-excel/pull/776) [`b2eab4c`](https://github.com/sbroenne/mcp-server-excel/commit/b2eab4ca91cb0dcbed670f741e527081e654d3a4) Thanks [@sbroenne](https://github.com/sbroenne)! - **Portable Agent Plugins:** Published Excel MCP and CLI plugins now conform to Agent Plugins 1.0, use standard skill discovery, and use portable root `mcp.json` configuration.
+
+- [#774](https://github.com/sbroenne/mcp-server-excel/pull/774) [`3f51870`](https://github.com/sbroenne/mcp-server-excel/commit/3f51870d4029734df4f9893a4bb0aeb0f15f0df9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Accurate documentation-site dates and accessibility fixes**: the sitemap now
+  reports each page's real last-changed date instead of the date the site was
+  built, so search engines no longer see all 52 pages change on every deploy. The
+  site logo also gained the alt text and image dimensions it was missing, the
+  loading indicator and search box gained accessible names, and the build now
+  fails if any of those regress.
+
+- [#778](https://github.com/sbroenne/mcp-server-excel/pull/778) [`3a7abdc`](https://github.com/sbroenne/mcp-server-excel/commit/3a7abdc916157e2bfa2734dd0096efc3447b6eb6) Thanks [@sbroenne](https://github.com/sbroenne)! - **Screenshots now photograph the live Excel window** ([#777](https://github.com/sbroenne/mcp-server-excel/issues/777)) — `screenshot capture` and `capture-sheet` used to render the image inside Excel by inserting a temporary chart into the worksheet. On a protected sheet Excel refuses that insert, so capture failed with a bare `COMException 0x800A03EC`. Capture now takes a real picture of the Excel window instead.
+
+  What this changes for you:
+
+  - Protected sheets can be captured.
+  - Your clipboard is no longer overwritten, and the workbook is never modified or dirtied by taking a screenshot.
+  - Captures are faster, since the old chart create/paste/export retry ladder is gone.
+  - Ranges larger than the Excel window are zoomed to fit and, if still too large, captured in several passes and stitched together; extremely large ranges are truncated to their top-left portion and the result message says so.
+
+  Capture now requires an interactive desktop session — it will fail on a locked desktop or a disconnected Remote Desktop session.
+
 ## [1.10.7] - 2026-08-15
 
 ### Minor Changes
