@@ -118,12 +118,27 @@ function Copy-AgentSkill {
 
 function Assert-AgentSkill {
     param(
-        [string]$SkillDir
+        [string]$SkillDir,
+        [string]$ExpectedVersion
     )
 
     $skillPath = Join-Path $SkillDir "SKILL.md"
     if (-not (Test-Path $skillPath -PathType Leaf)) {
         throw "Agent Skill is missing SKILL.md: $SkillDir"
+    }
+
+    # Every packaged skill must carry a VERSION stamped with the version the plugin was built at.
+    # excel-cli previously shipped with no VERSION at all, and nothing failed the build.
+    if ($ExpectedVersion) {
+        $versionPath = Join-Path $SkillDir "VERSION"
+        if (-not (Test-Path $versionPath -PathType Leaf)) {
+            throw "Agent Skill is missing VERSION: $SkillDir"
+        }
+
+        $skillVersion = (Get-Content $versionPath -Raw).Trim()
+        if ($skillVersion -ne $ExpectedVersion) {
+            throw "$versionPath has version '$skillVersion' but expected '$ExpectedVersion'."
+        }
     }
 
     $lines = @(Get-Content $skillPath)
@@ -230,7 +245,7 @@ function Assert-AgentPluginPackage {
     $skillsRoot = Join-Path $PluginDir "skills"
     if (Test-Path $skillsRoot) {
         Get-ChildItem -Path $skillsRoot -Directory | ForEach-Object {
-            Assert-AgentSkill -SkillDir $_.FullName
+            Assert-AgentSkill -SkillDir $_.FullName -ExpectedVersion $ExpectedVersion
         }
     }
 
