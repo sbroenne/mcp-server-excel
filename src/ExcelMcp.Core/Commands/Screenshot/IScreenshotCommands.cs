@@ -47,12 +47,20 @@ public class ScreenshotResult : OperationResult
 
 /// <summary>
 /// Capture Excel worksheet content as images for visual verification.
-/// Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images.
-/// Captures formatting, conditional formatting, charts, and all visual elements.
+/// Photographs the live Excel window and crops to the requested range, so the image shows exactly
+/// what Excel displays: formatting, conditional formatting, charts, and all visual elements.
+/// Works on protected worksheets and never touches the workbook or the clipboard.
 ///
 /// ACTIONS:
 /// - capture: Capture a specific range as an image
 /// - capture-sheet: Capture the worksheet's used cell range. For chart-only sheets or charts beyond used cells, use capture with an explicit range.
+///
+/// REQUIREMENTS: Excel is briefly shown and brought to the front, so an interactive desktop session
+/// is required. Capture fails on a locked desktop or a disconnected Remote Desktop session.
+///
+/// LARGE RANGES: Ranges wider or taller than the Excel window are zoomed to fit, then captured in
+/// several passes and stitched together. Very large ranges are truncated to their top-left portion,
+/// which is reported in the result message.
 ///
 /// RETURNS: Base64-encoded image data with dimensions metadata.
 /// For MCP: returned as native ImageContent (no file handling needed).

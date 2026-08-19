@@ -30,6 +30,15 @@ This rule applies even if:
 
 `capture-sheet` is cell-driven: it captures Excel's used range. On a chart-only worksheet, or when a chart extends beyond the used cells, use `capture` with an explicit range that covers the chart (for example, `A1:M25`).
 
+## How Capture Works
+
+Screenshots are taken from the live Excel window, so the image is exactly what Excel displays. Two consequences worth knowing:
+
+- **An interactive desktop is required.** Excel is briefly shown and brought to the front. Capture fails on a locked desktop or a disconnected Remote Desktop session.
+- **Protected sheets and hidden windows are fine.** Nothing is written to the workbook and the clipboard is not used, so capture never fails because a sheet is protected and never leaves a stray object behind.
+
+Ranges larger than the Excel window are zoomed to fit and, if still too large, captured in several passes and stitched together. Very large ranges are truncated to their top-left portion; when that happens the result message says so — capture a smaller range for complete output.
+
 ## Quality Parameter
 
 Default is `Medium` — use this for most cases. Only use `High` when fine text or formulas need careful inspection.

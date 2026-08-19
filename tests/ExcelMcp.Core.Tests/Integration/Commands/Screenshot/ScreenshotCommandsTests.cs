@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.Screenshot;
 /// <summary>
 /// Integration tests for Screenshot commands.
 /// Tests CaptureRange and CaptureSheet with real Excel data, charts, and tables.
-/// Validates the CopyPicture retry logic that handles intermittent COM failures.
+/// Validates the window-capture pipeline against real Excel rendering.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]

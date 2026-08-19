@@ -1,3 +1,5 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -5,28 +7,23 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 namespace Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 
 /// <summary>
-/// Implementation of screenshot commands using Excel COM CopyPicture + ChartObject.Export.
+/// Implementation of screenshot commands.
+///
+/// Captures the real Excel window with the Win32 <c>PrintWindow</c> API and crops to the requested
+/// range. Nothing is written to the workbook and the clipboard is never touched, so capture works
+/// on protected worksheets and leaves no trace in the file (issue #777).
 /// </summary>
 public class ScreenshotCommands : IScreenshotCommands
 {
-    // Excel COM constants
-    private const int XlScreen = 1;      // xlScreen - required for CopyPicture to render correctly
-    private const int XlPrinter = 2;     // xlPrinter - fallback when xlScreen rendering is unavailable
-    private const int XlPicture = -4147; // xlPicture - more reliable than xlBitmap for range capture
-    private const int XlBitmap = 2;      // xlBitmap - fallback when xlPicture fails
-    private const int XlNormal = -4143;  // xlNormal
-    private const int XlMinimized = -4140; // xlMinimized
+    // Excel WindowState constants
+    private const int XlNormal = -4143;
+    private const int XlMinimized = -4140;
     private const int SwRestore = 9;
 
-    // CopyPicture retry configuration
-    // After Save or large operations, Excel rendering can take several seconds.
-    // Retries with exponential backoff: 500ms, 1000ms, 1500ms, 2000ms, 2500ms, 3000ms, 3500ms
-    private const int CopyPictureMaxRetries = 10;
-    private const int CopyPictureRetryDelayMs = 700;
-
-    // Export format constants
-    private const string FormatPng = "PNG";
-    private const string FormatJpeg = "JPEG";
+    // Excel needs a moment to render after the window becomes visible or the view changes.
+    private const int VisibilitySettleMs = 600;
+    private const int WindowStateSettleMs = 300;
+    private const int ViewSettleMs = 300;
 
     /// <summary>
     /// Captures a specific range as an image.
@@ -59,8 +56,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
     /// <summary>
     /// Captures the entire used area of a worksheet as an image.
-    /// If UsedRange exceeds 500 rows or 50 columns, it is capped to avoid
-    /// CopyPicture failures on sheets with formatting extending far beyond data.
+    /// If UsedRange exceeds 500 rows or 50 columns, it is capped to keep the capture legible
+    /// on sheets with formatting extending far beyond the data.
     /// </summary>
     public ScreenshotResult CaptureSheet(IExcelBatch batch, string? sheetName = null, ScreenshotQuality quality = ScreenshotQuality.Medium)
     {
@@ -86,7 +83,6 @@ public class ScreenshotCommands : IScreenshotCommands
 
                 if (rows > maxRows || cols > maxCols)
                 {
-                    // Cap the range to avoid CopyPicture failures on enormous ranges
                     int startRow = (int)usedRange.Row;
                     int startCol = (int)usedRange.Column;
                     int endRow = startRow + Math.Min(rows, maxRows) - 1;
@@ -109,42 +105,47 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>
-    /// Exports a range as a PNG image using CopyPicture + ChartObject.Export.
-    /// CopyPicture requires Excel to be visible for rendering. If Excel is hidden,
-    /// we temporarily show it, capture, then restore the previous visibility state.
+    /// Captures a range by photographing the Excel window and cropping to the range rectangle.
     ///
-    /// CRITICAL: After Save/large operations, Excel needs rendering time even if already visible.
-    /// This method includes delays to ensure Excel is fully rendered before capture.
+    /// The window must be visible for Windows to render it, so a hidden or minimized Excel is
+    /// temporarily shown. Zoom and scroll position are adjusted to bring the range into view and
+    /// are restored afterwards.
     /// </summary>
     private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
     {
-        dynamic? chartObjects = null;
-        dynamic? chartObject = null;
-        dynamic? chart = null;
-        string? tempFile = null;
-        bool wasVisible = false;
+        WindowCapture.EnsureDpiAwareness();
+
+        dynamic? window = null;
+        dynamic? previousSheet = null;
+        Bitmap? composed = null;
+
+        bool visibilityChanged = false;
+        bool screenUpdatingChanged = false;
         int originalWindowState = XlNormal;
         bool windowStateChanged = false;
+        int originalZoom = 100;
+        bool zoomChanged = false;
+        int originalScrollRow = 1;
+        int originalScrollColumn = 1;
+        bool scrollChanged = false;
 
         try
         {
-            // CopyPicture requires Excel to be visible for UI rendering
-            wasVisible = (bool)app.Visible;
+            bool wasVisible = (bool)app.Visible;
             if (!wasVisible)
             {
                 app.Visible = true;
-
-                // Excel needs time to initialize its rendering pipeline after
-                // becoming visible. Without this, CopyPicture fails with
-                // "Unable to get the CopyPicture property" or crashes the process
-                // with RPC_S_SERVER_UNAVAILABLE (0x800706BA) under rapid cycling.
-                Thread.Sleep(2000);
+                visibilityChanged = true;
+                Thread.Sleep(VisibilitySettleMs);
             }
-            else
+
+            // Batch execution suppresses ScreenUpdating for speed, which leaves Excel showing its
+            // last painted frame. A screenshot is the one operation that needs Excel to actually
+            // redraw, so turn painting back on for the duration of the capture.
+            if (!(bool)app.ScreenUpdating)
             {
-                // Excel is already visible, but may still be rendering from previous operations.
-                // Slightly longer delay to allow rendering pipeline to fully settle.
-                Thread.Sleep(1000);
+                app.ScreenUpdating = true;
+                screenUpdatingChanged = true;
             }
 
             originalWindowState = Convert.ToInt32(app.WindowState);
@@ -152,106 +153,84 @@ public class ScreenshotCommands : IScreenshotCommands
             {
                 app.WindowState = XlNormal;
                 windowStateChanged = true;
-                Thread.Sleep(500);
+                Thread.Sleep(WindowStateSettleMs);
+            }
+
+            previousSheet = GetActiveSheet(app);
+            sheet.Activate();
+
+            window = app.ActiveWindow;
+            if (window == null)
+            {
+                throw new InvalidOperationException(
+                    "Excel has no active window to capture. Open the workbook in a visible window and retry the screenshot.");
             }
 
             BringExcelToForeground(app);
-            PrepareRangeForCapture(app, sheet, range);
 
-            // Get range dimensions for the chart
-            double width = Convert.ToDouble(range.Width);
-            double height = Convert.ToDouble(range.Height);
+            originalZoom = Convert.ToInt32(window.Zoom);
+            originalScrollRow = Convert.ToInt32(window.ScrollRow);
+            originalScrollColumn = Convert.ToInt32(window.ScrollColumn);
 
-            // Cap dimensions to avoid huge images (max ~4096px equivalent at 96 DPI)
-            // Excel Width/Height are in points (1 point = 1.333 pixels at 96 DPI)
-            const double maxPoints = 3072; // ~4096px
-            if (width > maxPoints || height > maxPoints)
+            var plan = CapturePlanner.Plan(window, range);
+
+            if (plan.Zoom != originalZoom)
             {
-                double scale = Math.Min(maxPoints / width, maxPoints / height);
-                width *= scale;
-                height *= scale;
+                window.Zoom = plan.Zoom;
+                zoomChanged = true;
+                Thread.Sleep(ViewSettleMs);
             }
 
-            // Apply quality-based scale reduction before export.
-            // Lower quality = smaller chart dimensions = fewer pixels = smaller image.
-            // JPEG format (Medium/Low) is also ~4-8x smaller than PNG for the same content.
-            double qualityScale = quality switch
+            scrollChanged = true;
+            composed = CaptureTiles(app, window, range, plan);
+
+            var encoded = ScreenshotEncoder.Encode(composed, quality);
+
+            string message = $"Captured {rangeAddress} on '{sheetName}' ({encoded.Width}x{encoded.Height}px)";
+
+            if (plan.RowSegments.Count * plan.ColumnSegments.Count > 1)
             {
-                ScreenshotQuality.Low => 0.5,
-                ScreenshotQuality.Medium => 0.75,
-                _ => 1.0  // High: full scale
-            };
-            width *= qualityScale;
-            height *= qualityScale;
+                message += $" from {plan.RowSegments.Count * plan.ColumnSegments.Count} tiles at {plan.Zoom}% zoom";
+            }
 
-            // Minimum useful size
-            width = Math.Max(width, 50);
-            height = Math.Max(height, 30);
-
-            // Export format: JPEG for Medium/Low (much smaller), PNG for High (lossless)
-            string exportFormat = quality == ScreenshotQuality.High ? FormatPng : FormatJpeg;
-            string mimeType = quality == ScreenshotQuality.High ? "image/png" : "image/jpeg";
-            string fileExt = quality == ScreenshotQuality.High ? "png" : "jpg";
-
-            // Copy range as picture (with retry — CopyPicture is clipboard-dependent
-            // and intermittently fails when Excel is still rendering after chart/table operations)
-            try { app.CutCopyMode = false; } catch (COMException) { }
-            CopyPictureWithRetry(app, sheet, range);
-            Thread.Sleep(250);
-
-            // Create a temporary ChartObject to paste into and export
-            chartObjects = sheet.ChartObjects();
-            chartObject = chartObjects.Add(0, 0, width, height);
-            chart = chartObject.Chart;
-
-            // Paste the copied picture into the chart
-            PastePictureWithRetry(app, sheet, range, chart);
-
-            // Clear clipboard immediately after paste — releases clipboard for subsequent screenshot calls
-            // (otherwise marching ants remain and next CopyPicture may fail with clipboard contention)
-            try { app.CutCopyMode = false; } catch (COMException) { }
-
-            // Export to temp file in the appropriate format
-            tempFile = Path.Combine(Path.GetTempPath(), $"excelmcp-screenshot-{Guid.NewGuid():N}.{fileExt}");
-            chart.Export(tempFile, exportFormat);
-
-            // Read and convert to base64
-            byte[] imageBytes = File.ReadAllBytes(tempFile);
-            string base64 = Convert.ToBase64String(imageBytes);
-
-            // Read pixel dimensions from file header
-            (int pixelWidth, int pixelHeight) = quality == ScreenshotQuality.High
-                ? GetPngDimensions(imageBytes)
-                : GetJpegDimensions(imageBytes);
+            if (plan.Truncated)
+            {
+                message += ". The range was too large to capture in full and was truncated to its top-left portion - capture a smaller range for complete output";
+            }
 
             return new ScreenshotResult
             {
                 Success = true,
-                ImageBase64 = base64,
-                MimeType = mimeType,
-                Width = pixelWidth,
-                Height = pixelHeight,
+                ImageBase64 = Convert.ToBase64String(encoded.Data),
+                MimeType = encoded.MimeType,
+                Width = encoded.Width,
+                Height = encoded.Height,
                 SheetName = sheetName,
                 RangeAddress = rangeAddress,
-                Message = $"Captured {rangeAddress} on '{sheetName}' ({pixelWidth}x{pixelHeight}px)"
+                Message = message
             };
         }
         finally
         {
-            // Clean up temp ChartObject from the worksheet
-            if (chartObject != null)
+            if (window != null)
             {
-                try { chartObject.Delete(); } catch { /* best effort */ }
+                // Zoom first: Excel scrolls to keep the selection visible when zoom changes, so
+                // restoring the scroll position afterwards is what actually sticks.
+                if (zoomChanged)
+                {
+                    try { window.Zoom = originalZoom; } catch (COMException) { }
+                }
+
+                if (scrollChanged)
+                {
+                    try { window.ScrollRow = originalScrollRow; } catch (COMException) { }
+                    try { window.ScrollColumn = originalScrollColumn; } catch (COMException) { }
+                }
             }
 
-            ComUtilities.Release(ref chart);
-            ComUtilities.Release(ref chartObject);
-            ComUtilities.Release(ref chartObjects);
-
-            // Restore Excel visibility if we changed it
-            if (!wasVisible)
+            if (previousSheet != null)
             {
-                try { app.Visible = false; } catch (COMException) { }
+                try { previousSheet.Activate(); } catch (COMException) { }
             }
 
             if (windowStateChanged)
@@ -259,115 +238,318 @@ public class ScreenshotCommands : IScreenshotCommands
                 try { app.WindowState = originalWindowState; } catch (COMException) { }
             }
 
-            // Clean up temp file
-            if (tempFile != null && File.Exists(tempFile))
+            if (screenUpdatingChanged)
             {
-                try { File.Delete(tempFile); } catch { /* best effort */ }
+                try { app.ScreenUpdating = false; } catch (COMException) { }
             }
+
+            if (visibilityChanged)
+            {
+                try { app.Visible = false; } catch (COMException) { }
+            }
+
+            composed?.Dispose();
+            ComUtilities.Release(ref previousSheet);
+            ComUtilities.Release(ref window);
         }
     }
 
     /// <summary>
-    /// Calls CopyPicture with retry logic. CopyPicture uses the clipboard and
-    /// intermittently fails with COMException when Excel is busy rendering
-    /// (e.g., after chart/table operations). Retries with increasing delay.
+    /// Captures each planned tile and stitches them into a single bitmap.
     /// </summary>
-    private static void CopyPictureWithRetry(dynamic app, dynamic sheet, dynamic range)
+    private static Bitmap CaptureTiles(dynamic app, dynamic window, dynamic range, CapturePlanner.CapturePlan plan)
     {
-        COMException? lastException = null;
-        (int Appearance, int Format)[] modes =
-        [
-            (XlScreen, XlPicture),
-            (XlPrinter, XlPicture),
-            (XlScreen, XlBitmap),
-            (XlPrinter, XlBitmap)
-        ];
+        IntPtr hwnd = GetExcelWindowHandle(app);
+        int dpi = WindowCapture.GetWindowDpi(hwnd);
+        double deviceScale = dpi / 72.0;
+        double pixelsPerPoint = deviceScale * plan.Zoom / 100.0;
 
-        for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
+        int paneMaxWidth = (int)Math.Round(Convert.ToDouble(window.UsableWidth) * deviceScale);
+        int paneMaxHeight = (int)Math.Round(Convert.ToDouble(window.UsableHeight) * deviceScale);
+
+        int[] columnOffsets = BuildPixelOffsets(plan.ColumnSegments, pixelsPerPoint);
+        int[] rowOffsets = BuildPixelOffsets(plan.RowSegments, pixelsPerPoint);
+
+        int totalWidth = Math.Max(1, columnOffsets[^1]);
+        int totalHeight = Math.Max(1, rowOffsets[^1]);
+
+        var canvas = new Bitmap(totalWidth, totalHeight, PixelFormat.Format32bppArgb);
+        dynamic? sheet = range.Worksheet;
+
+        try
         {
-            foreach (var mode in modes)
+            using var graphics = Graphics.FromImage(canvas);
+            graphics.Clear(Color.White);
+
+            PaneOrigin paneOrigin = MeasurePaneOrigin(window);
+            bool verifiedNotBlank = false;
+
+            for (int rowIndex = 0; rowIndex < plan.RowSegments.Count; rowIndex++)
             {
-                try
+                for (int columnIndex = 0; columnIndex < plan.ColumnSegments.Count; columnIndex++)
                 {
-                    try { app.CutCopyMode = false; } catch (COMException) { }
-                    range.CopyPicture(mode.Appearance, mode.Format);
-                    return;
-                }
-                catch (COMException ex)
-                {
-                    lastException = ex;
+                    CapturePlanner.Segment rowSegment = plan.RowSegments[rowIndex];
+                    CapturePlanner.Segment columnSegment = plan.ColumnSegments[columnIndex];
+
+                    dynamic? tileRange = null;
+                    Bitmap? shot = null;
+
+                    try
+                    {
+                        tileRange = GetTileRange(sheet, range, rowSegment, columnSegment);
+
+                        ScrollIntoView(window, tileRange);
+
+                        Rectangle windowBounds = WindowCapture.GetWindowBounds(hwnd);
+                        shot = WindowCapture.CaptureWindow(hwnd);
+
+                        if (!verifiedNotBlank)
+                        {
+                            EnsureWindowRendered(shot);
+                            verifiedNotBlank = true;
+                        }
+
+                        // Excel clamps scrolling near the sheet edges, so measure how far the tile
+                        // actually sits from the pane corner rather than assuming it landed there.
+                        int offsetX = (int)Math.Round((Convert.ToDouble(tileRange.Left) - GetColumnLeft(sheet, Convert.ToInt32(window.ScrollColumn))) * pixelsPerPoint);
+                        int offsetY = (int)Math.Round((Convert.ToDouble(tileRange.Top) - GetRowTop(sheet, Convert.ToInt32(window.ScrollRow))) * pixelsPerPoint);
+
+                        int originX = (int)Math.Round(paneOrigin.X) + offsetX;
+                        int originY = (int)Math.Round(paneOrigin.Y) + offsetY;
+
+                        int tileWidth = Math.Min(
+                            (int)Math.Round(Convert.ToDouble(tileRange.Width) * pixelsPerPoint),
+                            paneMaxWidth - offsetX);
+                        int tileHeight = Math.Min(
+                            (int)Math.Round(Convert.ToDouble(tileRange.Height) * pixelsPerPoint),
+                            paneMaxHeight - offsetY);
+
+                        var source = new Rectangle(
+                            originX - windowBounds.X,
+                            originY - windowBounds.Y,
+                            Math.Max(1, tileWidth),
+                            Math.Max(1, tileHeight));
+
+                        var destination = new Point(columnOffsets[columnIndex], rowOffsets[rowIndex]);
+
+                        DrawTile(graphics, shot, source, destination);
+                    }
+                    finally
+                    {
+                        shot?.Dispose();
+                        ComUtilities.Release(ref tileRange);
+                    }
                 }
             }
 
-            if (attempt < CopyPictureMaxRetries - 1)
-            {
-                Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
-                PrepareRangeForCapture(app, sheet, range);
-            }
+            return canvas;
+        }
+        catch
+        {
+            canvas.Dispose();
+            throw;
+        }
+        finally
+        {
+            ComUtilities.Release(ref sheet);
+        }
+    }
+
+    /// <summary>
+    /// Screen pixel position of the grid's top-left corner, below the ribbon and headers.
+    /// </summary>
+    private readonly record struct PaneOrigin(double X, double Y);
+
+    /// <summary>
+    /// Measures where the grid starts on screen by scrolling to cell A1, where the pane corner and
+    /// the sheet origin coincide.
+    ///
+    /// <c>PointsToScreenPixelsX/Y</c> mixes the scroll offset into its result in a way that does not
+    /// survive a zoom change, so it is only trustworthy at an unscrolled position. Row and column
+    /// headers scale with zoom, so this must be measured after the capture zoom is applied.
+    /// </summary>
+    private static PaneOrigin MeasurePaneOrigin(dynamic window)
+    {
+        try
+        {
+            window.ScrollRow = 1;
+            window.ScrollColumn = 1;
+        }
+        catch (COMException)
+        {
+            // Fall through: the values below still describe wherever Excel actually is.
         }
 
-        for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
+        Thread.Sleep(ViewSettleMs);
+
+        return new PaneOrigin(
+            Convert.ToDouble(window.PointsToScreenPixelsX(0)),
+            Convert.ToDouble(window.PointsToScreenPixelsY(0)));
+    }
+
+    /// <summary>Gets the worksheet point offset of a row's top edge.</summary>
+    private static double GetRowTop(dynamic sheet, int row)
+    {
+        dynamic? cell = null;
+        try
         {
-            try
+            cell = sheet.Cells[row, 1];
+            return Convert.ToDouble(cell.Top);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
+    }
+
+    /// <summary>Gets the worksheet point offset of a column's left edge.</summary>
+    private static double GetColumnLeft(dynamic sheet, int column)
+    {
+        dynamic? cell = null;
+        try
+        {
+            cell = sheet.Cells[1, column];
+            return Convert.ToDouble(cell.Left);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
+    }
+
+    /// <summary>
+    /// Copies the visible part of a tile from the window capture onto the canvas, clipping to what
+    /// the window actually contains so an off-screen edge cannot stretch or wrap the image.
+    /// </summary>
+    private static void DrawTile(Graphics graphics, Bitmap shot, Rectangle source, Point destination)
+    {
+        Rectangle clipped = Rectangle.Intersect(source, new Rectangle(0, 0, shot.Width, shot.Height));
+
+        if (clipped.Width <= 0 || clipped.Height <= 0)
+        {
+            return;
+        }
+
+        var target = new Rectangle(
+            destination.X + (clipped.X - source.X),
+            destination.Y + (clipped.Y - source.Y),
+            clipped.Width,
+            clipped.Height);
+
+        graphics.DrawImage(shot, target, clipped, GraphicsUnit.Pixel);
+    }
+
+    /// <summary>
+    /// Converts segment sizes in points to cumulative pixel offsets, so adjacent tiles meet without
+    /// gaps or overlaps after rounding.
+    /// </summary>
+    private static int[] BuildPixelOffsets(IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint)
+    {
+        var offsets = new int[segments.Count + 1];
+        double cursor = 0;
+
+        for (int i = 0; i < segments.Count; i++)
+        {
+            offsets[i] = (int)Math.Round(cursor * pixelsPerPoint);
+            cursor += segments[i].Size;
+        }
+
+        offsets[segments.Count] = (int)Math.Round(cursor * pixelsPerPoint);
+
+        return offsets;
+    }
+
+    /// <summary>Gets the sub-range covered by one tile.</summary>
+    private static dynamic GetTileRange(dynamic sheet, dynamic range, CapturePlanner.Segment rowSegment, CapturePlanner.Segment columnSegment)
+    {
+        dynamic? topLeft = null;
+        dynamic? bottomRight = null;
+
+        try
+        {
+            topLeft = range.Cells[rowSegment.Start, columnSegment.Start];
+            bottomRight = range.Cells[rowSegment.Start + rowSegment.Count - 1, columnSegment.Start + columnSegment.Count - 1];
+
+            return sheet.Range[topLeft, bottomRight];
+        }
+        finally
+        {
+            ComUtilities.Release(ref bottomRight);
+            ComUtilities.Release(ref topLeft);
+        }
+    }
+
+    /// <summary>
+    /// Scrolls the tile's top-left cell to the top-left of the pane. Scrolling rather than selecting
+    /// keeps the user's selection intact and avoids drawing a selection border into the capture.
+    /// </summary>
+    private static void ScrollIntoView(dynamic window, dynamic tileRange)
+    {
+        try
+        {
+            window.ScrollRow = Convert.ToInt32(tileRange.Row);
+            window.ScrollColumn = Convert.ToInt32(tileRange.Column);
+        }
+        catch (COMException)
+        {
+            // Excel clamps scrolling near the sheet edges; the crop follows the actual position.
+        }
+
+        Thread.Sleep(ViewSettleMs);
+    }
+
+    /// <summary>
+    /// Rejects an all-one-color window capture. A real Excel window always has chrome, so a uniform
+    /// image means Windows produced nothing - typically a locked desktop or a disconnected Remote
+    /// Desktop session.
+    /// </summary>
+    private static void EnsureWindowRendered(Bitmap shot)
+    {
+        int stepX = Math.Max(1, shot.Width / 16);
+        int stepY = Math.Max(1, shot.Height / 16);
+        int first = shot.GetPixel(0, 0).ToArgb();
+
+        for (int y = 0; y < shot.Height; y += stepY)
+        {
+            for (int x = 0; x < shot.Width; x += stepX)
             {
-                try { app.CutCopyMode = false; } catch (COMException) { }
-                range.Copy();
-                return;
-            }
-            catch (COMException ex)
-            {
-                lastException = ex;
-                if (attempt < CopyPictureMaxRetries - 1)
+                if (shot.GetPixel(x, y).ToArgb() != first)
                 {
-                    Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
-                    PrepareRangeForCapture(app, sheet, range);
+                    return;
                 }
             }
         }
 
         throw new InvalidOperationException(
-            $"Excel could not capture the range after {CopyPictureMaxRetries} attempts because CopyPicture and the range copy fallback kept failing. " +
-            "Excel may still be rendering, busy, minimized, or unable to access the clipboard. " +
-            "Retry the screenshot after the workbook finishes refreshing, or capture a smaller range.",
-            lastException);
+            "The Excel window rendered as a blank image. " +
+            "This happens when the desktop is locked or a Remote Desktop session is disconnected. " +
+            "Reconnect to an interactive desktop session and retry the screenshot.");
     }
 
-    private static void PrepareRangeForCapture(dynamic app, dynamic sheet, dynamic range)
+    private static dynamic? GetActiveSheet(dynamic app)
     {
-        dynamic? topLeftCell = null;
-        dynamic? activeWindow = null;
-
         try
         {
-            BringExcelToForeground(app);
-            try { sheet.Activate(); } catch (COMException) { }
-
-            try
-            {
-                topLeftCell = range.Cells[1, 1];
-                app.Goto(topLeftCell, true);
-            }
-            catch (COMException) { }
-
-            try
-            {
-                activeWindow = app.ActiveWindow;
-                if (activeWindow != null && topLeftCell != null)
-                {
-                    activeWindow.ScrollRow = Convert.ToInt32(topLeftCell.Row);
-                    activeWindow.ScrollColumn = Convert.ToInt32(topLeftCell.Column);
-                }
-            }
-            catch (COMException) { }
-
-            try { range.Select(); } catch (COMException) { }
-            Thread.Sleep(500);
+            return app.ActiveSheet;
         }
-        finally
+        catch (COMException)
         {
-            ComUtilities.Release(ref activeWindow);
-            ComUtilities.Release(ref topLeftCell);
+            return null;
         }
+    }
+
+    private static IntPtr GetExcelWindowHandle(dynamic app)
+    {
+        IntPtr hwnd = new(Convert.ToInt64(app.Hwnd));
+
+        if (hwnd == IntPtr.Zero)
+        {
+            throw new InvalidOperationException(
+                "Excel did not report a window handle, so its window cannot be captured. " +
+                "Make the Excel window visible and retry the screenshot.");
+        }
+
+        return hwnd;
     }
 
     private static void BringExcelToForeground(dynamic app)
@@ -379,7 +561,7 @@ public class ScreenshotCommands : IScreenshotCommands
             {
                 ShowWindow(hwnd, SwRestore);
                 SetForegroundWindow(hwnd);
-                Thread.Sleep(250);
+                Thread.Sleep(ViewSettleMs);
             }
         }
         catch (COMException) { }
@@ -393,79 +575,4 @@ public class ScreenshotCommands : IScreenshotCommands
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    private static void PastePictureWithRetry(dynamic app, dynamic sheet, dynamic range, dynamic chart)
-    {
-        for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
-        {
-            try
-            {
-                try { chart.Parent.Activate(); } catch (COMException) { }
-                try { chart.ChartArea.Select(); } catch (COMException) { }
-                Thread.Sleep(100);
-                chart.Paste();
-                Thread.Sleep(250);
-                return;
-            }
-            catch (COMException) when (attempt < CopyPictureMaxRetries - 1)
-            {
-                Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
-                PrepareRangeForCapture(app, sheet, range);
-                try { app.CutCopyMode = false; } catch (COMException) { }
-                CopyPictureWithRetry(app, sheet, range);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Reads width and height from PNG file header (IHDR chunk).
-    /// PNG format: 8-byte signature, then IHDR chunk with width (4 bytes) and height (4 bytes).
-    /// </summary>
-    private static (int width, int height) GetPngDimensions(byte[] data)
-    {
-        if (data.Length < 24)
-            return (0, 0);
-
-        // PNG IHDR starts at byte 16 (after 8-byte signature + 4-byte length + 4-byte "IHDR")
-        int width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
-        int height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
-
-        return (width, height);
-    }
-
-    /// <summary>
-    /// Reads width and height from JPEG file by scanning for SOF (Start Of Frame) markers.
-    /// SOF markers (0xFF 0xC0..0xC3, 0xC5..0xC7, 0xC9..0xCB, 0xCD..0xCF) contain dimensions.
-    /// </summary>
-    private static (int width, int height) GetJpegDimensions(byte[] data)
-    {
-        if (data.Length < 4 || data[0] != 0xFF || data[1] != 0xD8)
-            return (0, 0);
-
-        int i = 2;
-        while (i < data.Length - 8)
-        {
-            if (data[i] != 0xFF) break;
-            byte marker = data[i + 1];
-
-            // SOF markers that contain frame dimensions
-            bool isSof = marker is >= 0xC0 and <= 0xC3
-                or >= 0xC5 and <= 0xC7
-                or >= 0xC9 and <= 0xCB
-                or >= 0xCD and <= 0xCF;
-
-            int segmentLength = (data[i + 2] << 8) | data[i + 3];
-
-            if (isSof && i + 8 < data.Length)
-            {
-                int height = (data[i + 5] << 8) | data[i + 6];
-                int width = (data[i + 7] << 8) | data[i + 8];
-                return (width, height);
-            }
-
-            i += 2 + segmentLength;
-        }
-
-        return (0, 0);
-    }
 }

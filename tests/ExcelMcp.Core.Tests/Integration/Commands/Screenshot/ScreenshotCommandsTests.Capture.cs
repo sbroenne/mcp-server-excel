@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.Screenshot;
 
 /// <summary>
 /// Tests for CaptureRange and CaptureSheet operations.
-/// These exercise the CopyPicture + ChartObject.Export pipeline including retry logic.
+/// These exercise the window-capture pipeline end to end.
 /// </summary>
 public partial class ScreenshotCommandsTests
 {
@@ -262,7 +262,7 @@ public partial class ScreenshotCommandsTests
     [Fact]
     public void CaptureRange_ConsecutiveCalls_AllSucceed()
     {
-        // This test validates the retry logic handles rapid successive CopyPicture calls
+        // Rapid successive captures must each restore the view cleanly for the next one
         var testFile = _fixture.CreateTestFile();
         using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch, addChart: true);
