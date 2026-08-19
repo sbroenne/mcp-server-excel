@@ -17,7 +17,12 @@ internal static class CapturePlanner
     /// <summary>Excel refuses zoom levels below 10%.</summary>
     private const int MinExcelZoom = 10;
 
-    /// <summary>Below this zoom, cell text stops being legible, so tiling is preferred instead.</summary>
+    /// <summary>
+    /// Preferred lower bound on zoom: below this, cell text stops being legible, so a range that
+    /// does not fit is tiled rather than shrunk further. The tile budget wins if the two conflict —
+    /// see <see cref="PreferredMaxTiles"/> — so a range that would otherwise need more than the
+    /// preferred number of tiles may still be zoomed below this floor, down to its fit zoom.
+    /// </summary>
     private const int MinReadableZoom = 40;
 
     /// <summary>Preferred ceiling on tile count; zoom is reduced to stay within it.</summary>

@@ -75,16 +75,16 @@ public class ScreenshotCommands : IScreenshotCommands
                 usedRange = sheet.UsedRange;
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
 
-                int rows = (int)usedRange.Rows.Count;
-                int cols = (int)usedRange.Columns.Count;
+                int rows = Convert.ToInt32(usedRange.Rows.Count);
+                int cols = Convert.ToInt32(usedRange.Columns.Count);
 
                 const int maxRows = 500;
                 const int maxCols = 50;
 
                 if (rows > maxRows || cols > maxCols)
                 {
-                    int startRow = (int)usedRange.Row;
-                    int startCol = (int)usedRange.Column;
+                    int startRow = Convert.ToInt32(usedRange.Row);
+                    int startCol = Convert.ToInt32(usedRange.Column);
                     int endRow = startRow + Math.Min(rows, maxRows) - 1;
                     int endCol = startCol + Math.Min(cols, maxCols) - 1;
                     captureRange = sheet.Range[sheet.Cells[startRow, startCol], sheet.Cells[endRow, endCol]];
