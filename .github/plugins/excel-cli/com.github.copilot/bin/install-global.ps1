@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $PluginDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $WrapperPath = Join-Path $PluginDir "bin\start-cli.ps1"
+$DownloadScriptPath = Join-Path $PluginDir "bin\download.ps1"
 $CopilotDir = Join-Path $env:USERPROFILE ".copilot"
 $CopilotBinDir = Join-Path $CopilotDir "bin"
 $ShimCmdPath = Join-Path $CopilotBinDir "excelcli.cmd"
@@ -25,10 +26,20 @@ if (-not (Test-Path $CopilotBinDir)) {
     New-Item -ItemType Directory -Path $CopilotBinDir -Force | Out-Null
 }
 
-$escapedWrapperPath = $WrapperPath.Replace('"', '""')
+$escapedDownloadPath = $DownloadScriptPath.Replace('"', '""')
+# Resolve the runtime first, then invoke it with cmd's verbatim %*. Routing arguments through
+# "powershell -File" would strip embedded double quotes and corrupt JSON arguments such as
+# --values '[["Name","Amount"]]', so the executable is called directly instead.
 $cmdShim = @"
 @echo off
-powershell -ExecutionPolicy Bypass -File "$escapedWrapperPath" %*
+setlocal
+set "EXCELCLI_EXE="
+for /f "usebackq delims=" %%i in (``powershell -NoProfile -ExecutionPolicy Bypass -File "$escapedDownloadPath" -PassThru -Quiet``) do set "EXCELCLI_EXE=%%i"
+if not defined EXCELCLI_EXE (
+    echo excel-cli bootstrap did not resolve a usable excelcli.exe runtime. 1>&2
+    exit /b 1
+)
+"%EXCELCLI_EXE%" %*
 exit /b %ERRORLEVEL%
 "@
 
