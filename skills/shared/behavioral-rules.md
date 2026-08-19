@@ -105,8 +105,8 @@ Always apply number formats after setting values. Without formatting:
 
 **Common format codes (US locale, auto-translated):**
 
-| Data Type | Format Code | Result |
-|-----------|-------------|--------|
+| Data Type | Format Code | Result (en-US) |
+|-----------|-------------|----------------|
 | USD | `$#,##0.00` | $1,234.56 |
 | EUR | `€#,##0.00` | €1,234.56 |
 | Number | `#,##0.00` | 1,234.56 |
@@ -114,11 +114,18 @@ Always apply number formats after setting values. Without formatting:
 | Date (ISO) | `yyyy-mm-dd` | 2025-01-22 |
 | Date (US) | `mm/dd/yyyy` | 01/22/2025 |
 
+**Rendered output is locale-dependent.** The `Result` column assumes en-US regional settings. Excel
+interprets `,` and `.` in a format code according to the user's locale, so `$#,##0.00` displays as
+`$1,234.56` on en-US but `$1.234,56` on de-DE — same code, different separators. Always write the US
+form (it is auto-translated), never promise a literal rendering, and never "correct" a format code
+because a screenshot shows swapped separators.
+
 **Workflow:**
 ```
 1. range set-values (data is now in cells)
 2. range set-number-format (apply format to range)
-3. range_format auto-fit-columns (when content would clip at default width)
+3. range_format auto-fit-columns (widen columns to fit — formatted dates and
+   long numbers render as ##### at the default column width)
 ```
 
 ### Format Tabular Data as Excel Tables

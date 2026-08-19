@@ -7,9 +7,10 @@ Every report or dashboard should follow this sequence:
 ```
 1. Structure data → Excel Tables (never plain ranges)
 2. Format values → Number formats by data type
-3. Add visuals → Charts with explicit positioning
-4. Verify layout → Screenshot to confirm no overlaps
-5. Save and close → Persist changes
+3. Fit columns → auto-fit so nothing renders as #####
+4. Add visuals → Charts with explicit positioning
+5. Verify layout → Screenshot to confirm no overlaps
+6. Save and close → Persist changes
 ```
 
 ## Step 1: Structure Data as Excel Tables
@@ -32,8 +33,8 @@ table(create, tableName='SalesData', rangeAddress='A1:D20')
 
 **Apply number formats AFTER setting values — not before:**
 
-| Data Type | Format Code | Result |
-|-----------|-------------|--------|
+| Data Type | Format Code | Result (en-US) |
+|-----------|-------------|----------------|
 | Currency (USD) | `$#,##0.00` | $1,234.56 |
 | Currency (EUR) | `€#,##0.00` | €1,234.56 |
 | Percentage | `0.0%` | 12.3% |
@@ -43,7 +44,26 @@ table(create, tableName='SalesData', rangeAddress='A1:D20')
 
 **Always use US format codes** — Excel translates automatically to the user's locale.
 
-## Step 3: Position Charts with No Overlaps
+**Rendered output is locale-dependent.** The `Result` column assumes en-US regional settings. Excel
+interprets `,` and `.` in a format code according to the user's locale, so `$#,##0.00` displays as
+`$1,234.56` on en-US but `$1.234,56` on de-DE. Same code, different separators — this is correct
+behaviour, not a formatting bug. Never promise a literal rendering when reporting back to the user.
+
+## Step 3: Fit Columns to Content
+
+**Number formats make cells WIDER, so auto-fit immediately after formatting:**
+
+```
+range_format(action: 'auto-fit-columns', sheetName: 'Sales', rangeAddress: 'A:F')
+```
+
+A date formatted as `yyyy-mm-dd` or a currency value formatted as `$#,##0.00` does not fit the
+default column width, so Excel renders the cell as `#####`. A screenshot taken before auto-fit will
+show those columns as unreadable hash marks. Auto-fit before Step 5, not after.
+
+Use `range_format auto-fit-rows` as well when any cell has `wrapText` enabled.
+
+## Step 4: Position Charts with No Overlaps
 
 **Charts have automatic collision detection and three positioning modes:**
 
@@ -79,13 +99,14 @@ All chart operations automatically warn about overlaps. If a result includes an 
 - Keep chart sizes consistent (same row/column span)
 - **Always check result messages** for overlap warnings
 
-## Step 4: Verify with Screenshot
+## Step 5: Verify with Screenshot
 
 **Always take a screenshot after creating charts or complex layouts:**
 
 ```
 screenshot(capture, rangeAddress='A1:M50')
 → Confirm: no overlaps, professional spacing, readable labels
+→ Confirm: no column renders as ##### (if it does, go back to Step 3 and auto-fit)
 → If issues found: chart(fit-to-range) to reposition, then screenshot again
 ```
 
@@ -122,7 +143,7 @@ Sheet "Detail":
 
 - [ ] Data in Excel Tables (not plain ranges)
 - [ ] Number formats applied (currency, dates, percentages)
-- [ ] Column widths appropriate for content
+- [ ] `range_format auto-fit-columns` run after formatting (no `#####` cells)
 - [ ] Chart titles are descriptive
 - [ ] Chart axis labels formatted (currency, percentages)
 - [ ] No chart overlaps with data or other charts
