@@ -18,7 +18,19 @@ $CacheRoot = Join-Path $env:USERPROFILE ".copilot\plugin-runtime\mcp-server-exce
 $DownloadsDir = Join-Path $CacheRoot "downloads"
 $ReleasesDir = Join-Path $CacheRoot "releases"
 $StatePath = Join-Path $CacheRoot "bootstrap-state.json"
-$SessionId = if ([string]::IsNullOrWhiteSpace($env:COPILOT_AGENT_SESSION_ID)) { "standalone" } else { $env:COPILOT_AGENT_SESSION_ID }
+$HasCopilotSession = -not [string]::IsNullOrWhiteSpace($env:COPILOT_AGENT_SESSION_ID)
+$SessionId = if ($HasCopilotSession) { $env:COPILOT_AGENT_SESSION_ID } else { "standalone" }
+
+# Outside a Copilot session the session id is the constant "standalone", so it always equals the
+# previously recorded one and the freshness check would never fire again. PATH and shim installs
+# would then be pinned forever to whatever they first downloaded. Fall back to elapsed time there.
+$StandaloneRecheckHours = 24
+
+try {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+} catch {
+    # Already loaded, or running on a host where the type is available without an explicit load.
+}
 
 function Write-Status {
     param(
@@ -47,6 +59,115 @@ function Ensure-Directory {
     if (-not (Test-Path $Path)) {
         New-Item -ItemType Directory -Path $Path -Force | Out-Null
     }
+}
+
+function Test-ZipArchive {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return $false
+    }
+
+    # Presence is not integrity. An interrupted transfer leaves a truncated file that Test-Path
+    # happily reports as a usable cached download, which then fails at extraction on every run.
+    $archive = $null
+    try {
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
+        return $archive.Entries.Count -gt 0
+    } catch {
+        return $false
+    } finally {
+        if ($null -ne $archive) {
+            $archive.Dispose()
+        }
+    }
+}
+
+function Test-FileLocked {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return $false
+    }
+
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        return $false
+    } catch {
+        return $true
+    } finally {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+    }
+}
+
+function Get-BinaryProductVersion {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    # Read the version stamped into the file rather than running the binary with --version: this
+    # is instant, works offline, and has no side effects. The runtime's own --version performs an
+    # update check, which is precisely wrong inside a bootstrap that must survive being offline.
+    try {
+        $productVersion = (Get-Item $Path).VersionInfo.ProductVersion
+    } catch {
+        return $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($productVersion)) {
+        return $null
+    }
+
+    # Release builds stamp SemVer 2 build metadata, for example "1.10.7+d526b22d0eda".
+    return ($productVersion -split '\+', 2)[0].Trim()
+}
+
+function Test-BinaryMatchesVersion {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string]$ExpectedVersion
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ExpectedVersion)) {
+        return $true
+    }
+
+    $actualVersion = Get-BinaryProductVersion -Path $Path
+
+    # Missing version metadata is not treated as a mismatch. An unidentifiable runtime is still
+    # better than no runtime, and the install path already validated the package contents.
+    if ([string]::IsNullOrWhiteSpace($actualVersion)) {
+        return $true
+    }
+
+    return $actualVersion -eq $ExpectedVersion
+}
+
+function Get-RuntimeCacheMutex {
+    # Local\ rather than Global\ deliberately: creating a global kernel object requires
+    # SeCreateGlobalPrivilege, which standard users do not hold. The cache lives under the user
+    # profile, so a per-logon-session lock is exactly the right scope.
+    return [System.Threading.Mutex]::new($false, "Local\excelmcp-plugin-$PluginName")
+}
+
+function Test-FreshnessWindowElapsed {
+    param([Parameter(Mandatory = $true)]$State)
+
+    if ([string]::IsNullOrWhiteSpace($State.checkedAtUtc)) {
+        return $true
+    }
+
+    try {
+        $checkedAtUtc = [DateTime]::Parse(
+            $State.checkedAtUtc,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::RoundtripKind)
+    } catch {
+        return $true
+    }
+
+    return ([DateTime]::UtcNow - $checkedAtUtc.ToUniversalTime()) -ge [TimeSpan]::FromHours($StandaloneRecheckHours)
 }
 
 function New-State {
@@ -99,6 +220,14 @@ function Get-LatestReleaseMetadata {
             "User-Agent" = "excel-mcp-plugin-bootstrap"
         }
 
+        # Unauthenticated GitHub API access is 60 requests/hour per source IP. Behind corporate
+        # NAT that budget is shared by everyone on the network and is routinely exhausted, which
+        # is the most common cause of a bootstrap failing to reach the release metadata.
+        $token = if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) { $env:GITHUB_TOKEN } elseif (-not [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) { $env:GH_TOKEN } else { $null }
+        if ($null -ne $token) {
+            $headers["Authorization"] = "Bearer $token"
+        }
+
         $release = Invoke-RestMethod -Uri $ReleaseApiUrl -Headers $headers
         $releaseVersion = $release.tag_name -replace '^v', ''
         $assetName = "ExcelMcp-MCP-Server-$releaseVersion-windows.zip"
@@ -119,18 +248,17 @@ function Get-LatestReleaseMetadata {
     }
 }
 
-function Resolve-BinaryPath {
-    param([Parameter(Mandatory = $true)]$State)
+function Find-ReleaseBinary {
+    param(
+        [string]$Version,
+        [string]$ExpectedVersion
+    )
 
-    if (-not [string]::IsNullOrWhiteSpace($State.binaryPath) -and (Test-Path $State.binaryPath)) {
-        return $State.binaryPath
-    }
-
-    if ([string]::IsNullOrWhiteSpace($State.latestVersion)) {
+    if ([string]::IsNullOrWhiteSpace($Version)) {
         return $null
     }
 
-    $releaseDir = Join-Path $ReleasesDir $State.latestVersion
+    $releaseDir = Join-Path $ReleasesDir $Version
     if (-not (Test-Path $releaseDir)) {
         return $null
     }
@@ -140,7 +268,106 @@ function Resolve-BinaryPath {
         return $null
     }
 
+    if (-not (Test-BinaryMatchesVersion -Path $binary.FullName -ExpectedVersion $ExpectedVersion)) {
+        return $null
+    }
+
     return $binary.FullName
+}
+
+function Resolve-BinaryPath {
+    param(
+        [Parameter(Mandatory = $true)]$State,
+        [string]$ExpectedVersion
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($State.binaryPath) -and (Test-Path $State.binaryPath)) {
+        if (Test-BinaryMatchesVersion -Path $State.binaryPath -ExpectedVersion $ExpectedVersion) {
+            return $State.binaryPath
+        }
+    }
+
+    return Find-ReleaseBinary -Version $State.latestVersion -ExpectedVersion $ExpectedVersion
+}
+
+function Save-RuntimeArchive {
+    param(
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $true)][string]$DestinationPath
+    )
+
+    # Download to a sibling temp file and rename into place, so an interrupted transfer can never
+    # leave a truncated archive that a later run mistakes for a complete cached download.
+    $partialPath = "$DestinationPath.$([Guid]::NewGuid().ToString('N')).part"
+
+    try {
+        Ensure-Directory -Path (Split-Path -Parent $DestinationPath)
+        Invoke-WebRequest -Uri $Uri -OutFile $partialPath
+
+        if (-not (Test-ZipArchive -Path $partialPath)) {
+            throw "Downloaded package '$(Split-Path $DestinationPath -Leaf)' is not a readable archive."
+        }
+
+        if (Test-Path $DestinationPath) {
+            Remove-Item -Path $DestinationPath -Force
+        }
+
+        Move-Item -Path $partialPath -Destination $DestinationPath
+    } finally {
+        if (Test-Path $partialPath) {
+            Remove-Item -Path $partialPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Install-RuntimeArchive {
+    param(
+        [Parameter(Mandatory = $true)][string]$ZipPath,
+        [Parameter(Mandatory = $true)][string]$ReleaseDir
+    )
+
+    # Extract into a staging directory and swap it into place, so a failed or concurrent
+    # extraction never leaves a half-populated release directory behind.
+    $stagingDir = Join-Path $ReleasesDir (".staging-" + [Guid]::NewGuid().ToString("N"))
+
+    try {
+        Ensure-Directory -Path $stagingDir
+        Expand-Archive -Path $ZipPath -DestinationPath $stagingDir -Force
+
+        $staged = Get-ChildItem -Path $stagingDir -Recurse -File -Filter $ExecutableName | Select-Object -First 1
+        if ($null -eq $staged) {
+            throw "Downloaded package '$(Split-Path $ZipPath -Leaf)' did not contain $ExecutableName."
+        }
+
+        if (Test-Path $ReleaseDir) {
+            $installed = Get-ChildItem -Path $ReleaseDir -Recurse -File -Filter $ExecutableName | Select-Object -First 1
+
+            # Probe for a lock *before* deleting anything. Remove-Item -Recurse deletes every
+            # unlocked file it reaches before failing on the locked executable, which destroys a
+            # working install and leaves nothing usable behind.
+            if ($null -ne $installed -and (Test-FileLocked -Path $installed.FullName)) {
+                Write-StatusError "[excel-mcp] $ExecutableName is in use and cannot be replaced right now; keeping the existing install."
+                return [pscustomobject]@{ Path = $installed.FullName; Installed = $false }
+            }
+
+            Remove-Item -Path $ReleaseDir -Recurse -Force
+        }
+
+        Ensure-Directory -Path (Split-Path -Parent $ReleaseDir)
+        Move-Item -Path $stagingDir -Destination $ReleaseDir
+        $stagingDir = $null
+
+        $binary = Get-ChildItem -Path $ReleaseDir -Recurse -File -Filter $ExecutableName | Select-Object -First 1
+        if ($null -eq $binary) {
+            throw "Downloaded package '$(Split-Path $ZipPath -Leaf)' did not contain $ExecutableName."
+        }
+
+        return [pscustomobject]@{ Path = $binary.FullName; Installed = $true }
+    } finally {
+        if (-not [string]::IsNullOrWhiteSpace($stagingDir) -and (Test-Path $stagingDir)) {
+            Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Ensure-LatestRuntime {
@@ -153,7 +380,7 @@ function Ensure-LatestRuntime {
     # This is checked before any download so that a warm cache never needs the network, even
     # when the cached .zip has been removed by a disk cleanup tool.
     if (-not $Force -and $State.cachedReleaseTag -eq $State.latestTag) {
-        $cachedBinary = Resolve-BinaryPath -State $State
+        $cachedBinary = Resolve-BinaryPath -State $State -ExpectedVersion $State.latestVersion
         if (-not [string]::IsNullOrWhiteSpace($cachedBinary) -and (Test-Path $cachedBinary)) {
             return $cachedBinary
         }
@@ -166,32 +393,85 @@ function Ensure-LatestRuntime {
     $downloadZipPath = Join-Path $DownloadsDir $State.assetName
     $releaseDir = Join-Path $ReleasesDir $State.latestVersion
 
-    $downloadRequired = $Force -or -not (Test-Path $downloadZipPath) -or $State.cachedReleaseTag -ne $State.latestTag
-    if ($downloadRequired) {
-        Write-Status "[excel-mcp] Downloading $($State.assetName)..." "Yellow"
-        Invoke-WebRequest -Uri $State.assetUrl -OutFile $downloadZipPath
-    } else {
-        Write-Status "[excel-mcp] Reusing cached package $($State.assetName)." "DarkGray"
+    # Serialize installs across concurrent sessions. Without this, two bootstraps race on the same
+    # zip path and release directory, and each can observe the other's partially written files.
+    $mutex = Get-RuntimeCacheMutex
+    $acquired = $false
+
+    try {
+        try {
+            $acquired = $mutex.WaitOne([TimeSpan]::FromMinutes(10))
+        } catch [System.Threading.AbandonedMutexException] {
+            # The previous holder died mid-install. We now own the lock and re-validate below.
+            $acquired = $true
+        }
+
+        # Another session may have completed the install while this one waited for the lock. This
+        # deliberately looks only inside the target release directory rather than trusting the
+        # recorded binaryPath, which still points at the previous release during an upgrade.
+        if (-not $Force) {
+            $installedBinary = Find-ReleaseBinary -Version $State.latestVersion -ExpectedVersion $State.latestVersion
+            if (-not [string]::IsNullOrWhiteSpace($installedBinary) -and (Test-Path $installedBinary)) {
+                $State.cachedReleaseTag = $State.latestTag
+                $State.binaryPath = $installedBinary
+                Save-State -State $State
+                return $installedBinary
+            }
+        }
+
+        $lastError = $null
+
+        for ($attempt = 1; $attempt -le 2; $attempt++) {
+            try {
+                # Validating the cached archive rather than merely testing for its presence is what
+                # breaks the permanent wedge: a corrupt zip whose tag still matches used to skip the
+                # download and then fail extraction on every subsequent run, forever.
+                $downloadRequired = $Force -or $attempt -gt 1 -or $State.cachedReleaseTag -ne $State.latestTag -or -not (Test-ZipArchive -Path $downloadZipPath)
+
+                if ($downloadRequired) {
+                    Write-Status "[excel-mcp] Downloading $($State.assetName)..." "Yellow"
+                    Save-RuntimeArchive -Uri $State.assetUrl -DestinationPath $downloadZipPath
+                } else {
+                    Write-Status "[excel-mcp] Reusing cached package $($State.assetName)." "DarkGray"
+                }
+
+                Write-Status "[excel-mcp] Extracting $($State.assetName)..." "Yellow"
+                $result = Install-RuntimeArchive -ZipPath $downloadZipPath -ReleaseDir $releaseDir
+
+                # Only record the tag when the new runtime actually landed. If the install was
+                # skipped because the executable was in use, the next run must try again.
+                if ($result.Installed) {
+                    $State.cachedReleaseTag = $State.latestTag
+                }
+
+                $State.binaryPath = $result.Path
+                Save-State -State $State
+
+                return $result.Path
+            } catch {
+                $lastError = $_
+
+                # Discard the cached archive so the retry starts from a clean download rather than
+                # repeating the same failure against the same bytes.
+                if (Test-Path $downloadZipPath) {
+                    Remove-Item -Path $downloadZipPath -Force -ErrorAction SilentlyContinue
+                }
+
+                if ($attempt -lt 2) {
+                    Write-StatusError "[excel-mcp] Runtime install failed: $($_.Exception.Message)"
+                    Write-StatusError "[excel-mcp] Retrying once with a fresh download."
+                }
+            }
+        }
+
+        throw $lastError
+    } finally {
+        if ($acquired) {
+            $mutex.ReleaseMutex()
+        }
+
+        $mutex.Dispose()
     }
-
-    if (Test-Path $releaseDir) {
-        Remove-Item -Path $releaseDir -Recurse -Force
-    }
-
-    Ensure-Directory -Path $releaseDir
-    Write-Status "[excel-mcp] Extracting $($State.assetName)..." "Yellow"
-    Expand-Archive -Path $downloadZipPath -DestinationPath $releaseDir -Force
-
-    $binary = Get-ChildItem -Path $releaseDir -Recurse -File -Filter $ExecutableName | Select-Object -First 1
-    if ($null -eq $binary) {
-        throw "Downloaded package '$($State.assetName)' did not contain $ExecutableName."
-    }
-
-    $State.cachedReleaseTag = $State.latestTag
-    $State.binaryPath = $binary.FullName
-    Save-State -State $State
-
-    return $binary.FullName
 }
 
 if ($env:OS -ne "Windows_NT") {
@@ -200,6 +480,10 @@ if ($env:OS -ne "Windows_NT") {
 
 $state = Get-State
 $sessionNeedsFreshnessCheck = $Force -or [string]::IsNullOrWhiteSpace($state.checkedSessionId) -or $state.checkedSessionId -ne $SessionId
+
+if (-not $sessionNeedsFreshnessCheck -and -not $HasCopilotSession) {
+    $sessionNeedsFreshnessCheck = Test-FreshnessWindowElapsed -State $state
+}
 
 if ($sessionNeedsFreshnessCheck) {
     try {
