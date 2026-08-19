@@ -15,7 +15,9 @@ public static class ExcelScreenshotTool
 {
     /// <summary>
     /// Capture Excel worksheet content as images for visual verification.
-    /// Uses Excel's built-in rendering to capture all visual elements (formatting, charts, conditional formatting).
+    /// Photographs the live Excel window, so the image shows exactly what Excel displays
+    /// (formatting, charts, conditional formatting). Works on protected sheets and leaves the
+    /// workbook and clipboard untouched, but requires an interactive desktop session.
     /// capture: specific range (requires rangeAddress).
     /// capture-sheet: entire used area of worksheet.
     /// Returns the image directly as MCP ImageContent.
@@ -26,7 +28,9 @@ public static class ExcelScreenshotTool
     [McpMeta("category", "visualization")]
     [McpMeta("requiresSession", true)]
     [Description("Capture Excel worksheet content as images for visual verification. " +
-        "Uses Excel's built-in rendering to capture all visual elements (formatting, charts, conditional formatting). " +
+        "Photographs the live Excel window, so the image shows exactly what Excel displays " +
+        "(formatting, charts, conditional formatting). Works on protected sheets and leaves the " +
+        "workbook and clipboard untouched, but requires an interactive desktop session. " +
         "capture: specific range (requires rangeAddress). " +
         "capture-sheet: entire used area of worksheet. " +
         "Returns the image directly as MCP ImageContent. " +

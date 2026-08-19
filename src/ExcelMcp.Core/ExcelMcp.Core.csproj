@@ -90,6 +90,7 @@
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
+    <PackageReference Include="System.Drawing.Common" />
     <!-- Required for generated CliSettings class (Spectre.Console.Cli.CommandSettings) -->
     <PackageReference Include="Spectre.Console.Cli" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
