@@ -171,6 +171,9 @@ $checks = @(
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
     @{ File = "skills\excel-mcp\SKILL.md";              Pattern = 'Provides (?<o>\d+) Excel operations' }
+    # The --help banner is the first thing a user sees when the server will not start, and it
+    # drifted to "22 tools with 195+ operations" because nothing checked it.
+    @{ File = "src\ExcelMcp.McpServer\Program.cs";      Pattern = 'Provides (?<t>\d+) tools with (?<o>\d+) operations' }
 )
 
 foreach ($check in $checks) {

@@ -433,7 +433,7 @@ public class Program
             Excel MCP Server v{version}
 
             An MCP (Model Context Protocol) server for Microsoft Excel automation.
-            Provides 22 tools with 195+ operations for AI assistants.
+            Provides 31 tools with 326 operations for AI assistants.
 
             Usage:
               mcp-excel.exe [options]

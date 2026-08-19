@@ -148,7 +148,8 @@ public sealed class PluginBootstrapBuildTests
                 version);
             AssertSkillDirectoryMatchesSource(
                 Path.Combine(RepoRoot, "skills", "excel-cli"),
-                Path.Combine(outputDir, "excel-cli", "skills", "excel-cli"));
+                Path.Combine(outputDir, "excel-cli", "skills", "excel-cli"),
+                version);
             AssertLocalSkillLinksResolve(Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp"));
             AssertLocalSkillLinksResolve(Path.Combine(outputDir, "excel-cli", "skills", "excel-cli"));
 
@@ -793,15 +794,19 @@ public sealed class PluginBootstrapBuildTests
     {
         var sourceFiles = Directory.GetFiles(sourceSkillRoot, "*", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(sourceSkillRoot, path))
+            .Where(path => path != "VERSION")
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
         var builtFiles = Directory.GetFiles(builtSkillRoot, "*", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(builtSkillRoot, path))
+            .Where(path => path != "VERSION")
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
 
+        // VERSION is stamped by the build rather than copied from the canonical skill, so it is
+        // compared separately instead of being required to exist in the source.
         Assert.Equal(sourceFiles, builtFiles);
-        foreach (var relativePath in sourceFiles.Where(path => path != "VERSION"))
+        foreach (var relativePath in sourceFiles)
         {
             Assert.Equal(
                 File.ReadAllText(Path.Combine(sourceSkillRoot, relativePath)),

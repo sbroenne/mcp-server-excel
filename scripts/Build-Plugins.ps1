@@ -107,8 +107,11 @@ function Copy-AgentSkill {
     New-Item -ItemType Directory -Path (Split-Path -Parent $DestinationDir) -Force | Out-Null
     Copy-Item -Path $SourceDir -Destination $DestinationDir -Recurse -Force
 
+    # Write the VERSION file unconditionally. Guarding on Test-Path only *updated* a VERSION that
+    # the canonical skill already carried, so excel-cli - whose source skill has none - shipped
+    # without one while excel-mcp shipped with one.
     $skillVersionPath = Join-Path $DestinationDir "VERSION"
-    if ($Version -and (Test-Path $skillVersionPath)) {
+    if ($Version) {
         Set-Content -Path $skillVersionPath -Value $Version -Encoding UTF8 -NoNewline
     }
 }
@@ -340,7 +343,7 @@ Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding
 Write-Host "  Synchronizing complete excel-cli skill directory..." -ForegroundColor Cyan
 $SourceSkillCli = Join-Path $SkillsDir "excel-cli"
 $DestSkillCli = Join-Path $OutputCli "skills\excel-cli"
-Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli
+Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Version $Version
 
 Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
