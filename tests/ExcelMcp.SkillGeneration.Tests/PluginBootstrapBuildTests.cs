@@ -888,6 +888,61 @@ public sealed class PluginBootstrapBuildTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
+    public async Task InstallGlobal_WhenDownloadScriptMissing_FailsBeforeWritingShims()
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        // The generated .cmd shim resolves the runtime by invoking bin\download.ps1, so the
+        // installer depends on that script existing. Without an explicit guard it would happily
+        // write shims that only fail later, at first use, with an opaque error. Validating the
+        // dependency up front has to happen *before* any shim or PATH mutation, which is what
+        // this test pins: a missing download.ps1 must abort with nothing written.
+        var sandbox = CreateSandbox("install-global-missing-download");
+        try
+        {
+            var pluginDir = Path.Combine(sandbox, "excel-cli");
+            var pluginBinDir = Path.Combine(pluginDir, "bin");
+            var installerDir = Path.Combine(pluginDir, "com.github.copilot", "bin");
+            Directory.CreateDirectory(pluginBinDir);
+            Directory.CreateDirectory(installerDir);
+
+            // The wrapper is present; only download.ps1 is absent. That isolates the new guard
+            // from the pre-existing wrapper check, so this test cannot pass for the wrong reason.
+            File.WriteAllText(Path.Combine(pluginBinDir, "start-cli.ps1"), "exit 0");
+
+            var installerPath = Path.Combine(installerDir, "install-global.ps1");
+            File.Copy(
+                Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"),
+                installerPath);
+
+            // Redirect the profile so a regression that proceeds past the guard writes its shims
+            // into the sandbox instead of the real ~/.copilot/bin.
+            var fakeHome = Path.Combine(sandbox, "home");
+            Directory.CreateDirectory(fakeHome);
+
+            var result = await RunPowerShellFileAsync(
+                installerPath,
+                [],
+                new Dictionary<string, string> { ["USERPROFILE"] = fakeHome });
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("download.ps1", result.Stderr, StringComparison.OrdinalIgnoreCase);
+
+            // Failing "cleanly" means no partial install: no shim directory, and no shims.
+            var shimDir = Path.Combine(fakeHome, ".copilot", "bin");
+            Assert.False(
+                Directory.Exists(shimDir),
+                $"Installer created {shimDir} despite the missing bootstrap script.");
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
     public async Task StartCliWrapper_EscapesArgumentsSoTheyRoundTripThroughWin32Parsing()
     {
         Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");

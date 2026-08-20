@@ -21,6 +21,11 @@ if (-not (Test-Path $WrapperPath)) {
     exit 1
 }
 
+if (-not (Test-Path $DownloadScriptPath)) {
+    Write-Error "❌ Plugin bootstrap script not found at $DownloadScriptPath"
+    exit 1
+}
+
 if (-not (Test-Path $CopilotBinDir)) {
     Write-Host "[Install] Creating $CopilotBinDir ..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $CopilotBinDir -Force | Out-Null
