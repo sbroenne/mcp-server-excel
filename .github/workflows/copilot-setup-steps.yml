@@ -31,14 +31,14 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            vscode-extension\package-lock.json
+            vscode-extension/package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: gh-pages\requirements.txt
+          cache-dependency-path: gh-pages/requirements.txt
 
       - name: Restore .NET dependencies
         run: dotnet restore Sbroenne.ExcelMcp.sln
@@ -51,4 +51,4 @@ jobs:
         run: npm ci
 
       - name: Install documentation dependencies
-        run: python -m pip install -r gh-pages\requirements.txt
+        run: python -m pip install -r gh-pages/requirements.txt
