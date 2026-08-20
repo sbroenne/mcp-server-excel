@@ -32,6 +32,15 @@ function Write-Status {
     }
 }
 
+function Write-StatusError {
+    param([string]$Message)
+
+    # Always stderr. Stdout carries the -PassThru binary path, and for the MCP plugin it is the
+    # MCP stdio transport, so diagnostics must never be written there. This is intentionally not
+    # gated on -Quiet: -Quiet suppresses progress chatter, not warnings.
+    [Console]::Error.WriteLine($Message)
+}
+
 function Ensure-Directory {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -137,11 +146,25 @@ function Resolve-BinaryPath {
 function Ensure-LatestRuntime {
     param([Parameter(Mandatory = $true)]$State)
 
-    $downloadZipPath = Join-Path $DownloadsDir $State.assetName
-    $releaseDir = Join-Path $ReleasesDir $State.latestVersion
-
     Ensure-Directory -Path $DownloadsDir
     Ensure-Directory -Path $ReleasesDir
+
+    # Fast path: an already-extracted runtime matching the resolved release is usable as-is.
+    # This is checked before any download so that a warm cache never needs the network, even
+    # when the cached .zip has been removed by a disk cleanup tool.
+    if (-not $Force -and $State.cachedReleaseTag -eq $State.latestTag) {
+        $cachedBinary = Resolve-BinaryPath -State $State
+        if (-not [string]::IsNullOrWhiteSpace($cachedBinary) -and (Test-Path $cachedBinary)) {
+            return $cachedBinary
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($State.assetName) -or [string]::IsNullOrWhiteSpace($State.assetUrl)) {
+        throw "excel-cli must download the runtime but has no release metadata available. Check your network connection and try again.`nRelease page: $ReleasePageUrl"
+    }
+
+    $downloadZipPath = Join-Path $DownloadsDir $State.assetName
+    $releaseDir = Join-Path $ReleasesDir $State.latestVersion
 
     $downloadRequired = $Force -or -not (Test-Path $downloadZipPath) -or $State.cachedReleaseTag -ne $State.latestTag
     if ($downloadRequired) {
@@ -149,11 +172,6 @@ function Ensure-LatestRuntime {
         Invoke-WebRequest -Uri $State.assetUrl -OutFile $downloadZipPath
     } else {
         Write-Status "[excel-cli] Reusing cached package $($State.assetName)." "DarkGray"
-    }
-
-    $binaryPath = Resolve-BinaryPath -State $State
-    if (-not $Force -and $State.cachedReleaseTag -eq $State.latestTag -and -not [string]::IsNullOrWhiteSpace($binaryPath) -and (Test-Path $binaryPath)) {
-        return $binaryPath
     }
 
     if (Test-Path $releaseDir) {
@@ -184,14 +202,32 @@ $state = Get-State
 $sessionNeedsFreshnessCheck = $Force -or [string]::IsNullOrWhiteSpace($state.checkedSessionId) -or $state.checkedSessionId -ne $SessionId
 
 if ($sessionNeedsFreshnessCheck) {
-    $latest = Get-LatestReleaseMetadata
-    $state.checkedSessionId = $SessionId
-    $state.checkedAtUtc = [DateTime]::UtcNow.ToString("o")
-    $state.latestTag = $latest.Tag
-    $state.latestVersion = $latest.Version
-    $state.assetName = $latest.AssetName
-    $state.assetUrl = $latest.AssetUrl
-    Save-State -State $state
+    try {
+        $latest = Get-LatestReleaseMetadata
+        $state.checkedSessionId = $SessionId
+        $state.checkedAtUtc = [DateTime]::UtcNow.ToString("o")
+        $state.latestTag = $latest.Tag
+        $state.latestVersion = $latest.Version
+        $state.assetName = $latest.AssetName
+        $state.assetUrl = $latest.AssetUrl
+        Save-State -State $state
+    } catch {
+        # A failed update check must not take down a working installation. If a usable runtime
+        # is already cached, degrade to it instead of aborting.
+        $cachedBinary = Resolve-BinaryPath -State $state
+        if ([string]::IsNullOrWhiteSpace($cachedBinary) -or -not (Test-Path $cachedBinary)) {
+            throw
+        }
+
+        Write-StatusError "[excel-cli] Could not check for updates: $($_.Exception.Message)"
+        Write-StatusError "[excel-cli] Continuing with the cached runtime $($state.latestTag)."
+
+        # Record the attempt so that every command in this session does not retry a failing
+        # endpoint. The next Copilot session checks again.
+        $state.checkedSessionId = $SessionId
+        $state.checkedAtUtc = [DateTime]::UtcNow.ToString("o")
+        Save-State -State $state
+    }
 } else {
     Write-Status "[excel-cli] Freshness already checked for this Copilot session." "DarkGray"
 }

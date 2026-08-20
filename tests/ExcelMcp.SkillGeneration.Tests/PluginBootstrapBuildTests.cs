@@ -1,5 +1,8 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -640,6 +643,425 @@ public sealed class PluginBootstrapBuildTests
         }
     }
 
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_ApiUnavailableWithWarmCache_FallsBackToCachedRuntime(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-offline-fallback-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+
+            var harnessPath = CreateDownloadHarnessScript(sandbox);
+            var version = "1.2.3";
+            var tag = $"v{version}";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var firstResult = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "success"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.Equal(0, firstResult.ExitCode);
+            ResetMockCalls(userProfile);
+
+            // A brand new Copilot session re-runs the freshness check, and that check now fails.
+            var offlineResult = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "api-fail",
+                    "-QuietMode"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-b",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.Equal(0, offlineResult.ExitCode);
+            Assert.EndsWith(executableName, offlineResult.Stdout.Trim(), StringComparison.OrdinalIgnoreCase);
+
+            // The warning must never reach stdout: it carries the resolved path, and for the MCP
+            // plugin it is also the MCP stdio transport.
+            Assert.Contains("Could not check for updates", offlineResult.Stderr, StringComparison.Ordinal);
+            Assert.DoesNotContain("Could not check for updates", offlineResult.Stdout, StringComparison.Ordinal);
+
+            // Falling back must not re-download anything.
+            Assert.Equal(0, ReadMockCallCount(userProfile, "web"));
+            Assert.Equal(0, ReadMockCallCount(userProfile, "expand"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_CachedArchiveRemoved_ReusesExtractedRuntimeWithoutDownloading(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-archive-removed-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+
+            var harnessPath = CreateDownloadHarnessScript(sandbox);
+            var version = "1.2.3";
+            var tag = $"v{version}";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var firstResult = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "success"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.Equal(0, firstResult.ExitCode);
+
+            // Simulate a disk cleanup tool reclaiming the cached archive while the extracted
+            // runtime stays in place.
+            var downloadsDir = Path.Combine(
+                userProfile,
+                ".copilot",
+                "plugin-runtime",
+                "mcp-server-excel",
+                pluginName,
+                "downloads");
+            Assert.True(Directory.Exists(downloadsDir), $"Expected cached downloads at {downloadsDir}");
+            Directory.Delete(downloadsDir, recursive: true);
+
+            ResetMockCalls(userProfile);
+
+            var secondResult = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "success",
+                    "-QuietMode"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-b",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.Equal(0, secondResult.ExitCode);
+            Assert.EndsWith(executableName, secondResult.Stdout.Trim(), StringComparison.OrdinalIgnoreCase);
+
+            // The already-extracted runtime matches the resolved release, so nothing is fetched
+            // or re-extracted just because the archive is gone.
+            Assert.Equal(0, ReadMockCallCount(userProfile, "web"));
+            Assert.Equal(0, ReadMockCallCount(userProfile, "expand"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip", "Failed to resolve the latest excelcli release.")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip", "Failed to resolve the latest ExcelMcp MCP server release.")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_ApiUnavailableWithoutCache_FailsWithClearError(
+        string pluginName,
+        string executableName,
+        string assetNameFormat,
+        string expectedErrorPrefix)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-offline-cold-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+
+            var harnessPath = CreateDownloadHarnessScript(sandbox);
+            var version = "1.2.3";
+            var tag = $"v{version}";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var result = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "api-fail"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            // With no cached runtime to fall back to there is nothing to degrade to, so the
+            // failure must stay loud rather than emitting an unusable path.
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(expectedErrorPrefix, result.CombinedOutput, StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public void DownloadBootstrapScripts_AreStructurallyIdenticalAcrossPlugins()
+    {
+        // The two bootstrap scripts are maintained as copies that differ only by plugin-specific
+        // names. Normalizing those tokens must make them byte-identical, so a fix applied to one
+        // copy and forgotten in the other fails here instead of shipping.
+        var cli = File.ReadAllText(GetPluginScriptPath("excel-cli", "download.ps1"));
+        var mcp = File.ReadAllText(GetPluginScriptPath("excel-mcp", "download.ps1"));
+
+        Assert.Equal(NormalizeBootstrapScript(cli), NormalizeBootstrapScript(mcp));
+    }
+
+    private static string NormalizeBootstrapScript(string text)
+        => text
+            .Replace("the latest excelcli release.", "the latest RUNTIME release.", StringComparison.Ordinal)
+            .Replace("the latest ExcelMcp MCP server release.", "the latest RUNTIME release.", StringComparison.Ordinal)
+            .Replace("✅ excelcli runtime ready.", "✅ RUNTIME ready.", StringComparison.Ordinal)
+            .Replace("✅ ExcelMcp MCP runtime ready.", "✅ RUNTIME ready.", StringComparison.Ordinal)
+            .Replace("ExcelMcp-CLI-", "ASSET-", StringComparison.Ordinal)
+            .Replace("ExcelMcp-MCP-Server-", "ASSET-", StringComparison.Ordinal)
+            .Replace("excelcli.exe", "RUNTIME.exe", StringComparison.Ordinal)
+            .Replace("mcp-excel.exe", "RUNTIME.exe", StringComparison.Ordinal)
+            .Replace("excel-cli", "PLUGIN", StringComparison.Ordinal)
+            .Replace("excel-mcp", "PLUGIN", StringComparison.Ordinal);
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task InstallGlobal_WhenDownloadScriptMissing_FailsBeforeWritingShims()
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        // The generated .cmd shim resolves the runtime by invoking bin\download.ps1, so the
+        // installer depends on that script existing. Without an explicit guard it would happily
+        // write shims that only fail later, at first use, with an opaque error. Validating the
+        // dependency up front has to happen *before* any shim or PATH mutation, which is what
+        // this test pins: a missing download.ps1 must abort with nothing written.
+        var sandbox = CreateSandbox("install-global-missing-download");
+        try
+        {
+            var pluginDir = Path.Combine(sandbox, "excel-cli");
+            var pluginBinDir = Path.Combine(pluginDir, "bin");
+            var installerDir = Path.Combine(pluginDir, "com.github.copilot", "bin");
+            Directory.CreateDirectory(pluginBinDir);
+            Directory.CreateDirectory(installerDir);
+
+            // The wrapper is present; only download.ps1 is absent. That isolates the new guard
+            // from the pre-existing wrapper check, so this test cannot pass for the wrong reason.
+            File.WriteAllText(Path.Combine(pluginBinDir, "start-cli.ps1"), "exit 0");
+
+            var installerPath = Path.Combine(installerDir, "install-global.ps1");
+            File.Copy(
+                Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"),
+                installerPath);
+
+            // Redirect the profile so a regression that proceeds past the guard writes its shims
+            // into the sandbox instead of the real ~/.copilot/bin.
+            var fakeHome = Path.Combine(sandbox, "home");
+            Directory.CreateDirectory(fakeHome);
+
+            var result = await RunPowerShellFileAsync(
+                installerPath,
+                [],
+                new Dictionary<string, string> { ["USERPROFILE"] = fakeHome });
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("download.ps1", result.Stderr, StringComparison.OrdinalIgnoreCase);
+
+            // Failing "cleanly" means no partial install: no shim directory, and no shims.
+            var shimDir = Path.Combine(fakeHome, ".copilot", "bin");
+            Assert.False(
+                Directory.Exists(shimDir),
+                $"Installer created {shimDir} despite the missing bootstrap script.");
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task StartCliWrapper_EscapesArgumentsSoTheyRoundTripThroughWin32Parsing()
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox("start-cli-argument-fidelity");
+        try
+        {
+            var harnessPath = Path.Combine(sandbox, "escape-harness.ps1");
+            File.WriteAllText(harnessPath, """
+                [CmdletBinding()]
+                param([Parameter(Mandatory = $true)][string]$ScriptPath)
+
+                $ErrorActionPreference = "Stop"
+
+                $tokens = $null
+                $errors = $null
+                $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$tokens, [ref]$errors)
+                if ($errors.Count -gt 0) {
+                    throw "Parse errors in $ScriptPath"
+                }
+
+                $definition = $ast.Find(
+                    {
+                        param($node)
+                        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                        $node.Name -eq 'ConvertTo-NativeArgument'
+                    },
+                    $true)
+
+                if ($null -eq $definition) {
+                    throw "ConvertTo-NativeArgument was not found in $ScriptPath"
+                }
+
+                . ([scriptblock]::Create($definition.Extent.Text))
+
+                $cases = @(
+                    '[["Name","Amount"],["Widget",1500]]'
+                    'plain'
+                    'has space'
+                    'trailing\'
+                    'embedded\\backslash'
+                    'quote"inside'
+                    'backslash\"quote'
+                    ''
+                    'C:\reports\Q1 results.xlsx'
+                    '{"nested":{"value":"a b"}}'
+                )
+
+                $encoded = foreach ($case in $cases) { ConvertTo-NativeArgument -Value $case }
+                Write-Output ($encoded -join ' ')
+                """);
+
+            var result = await RunPowerShellFileAsync(
+                harnessPath,
+                ["-ScriptPath", GetPluginScriptPath("excel-cli", "start-cli.ps1")]);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var commandLine = result.Stdout.Trim();
+            Assert.NotEmpty(commandLine);
+
+            string[] expected =
+            [
+                """[["Name","Amount"],["Widget",1500]]""",
+                "plain",
+                "has space",
+                @"trailing\",
+                @"embedded\\backslash",
+                """quote"inside""",
+                """backslash\"quote""",
+                string.Empty,
+                @"C:\reports\Q1 results.xlsx",
+                """{"nested":{"value":"a b"}}"""
+            ];
+
+            // CommandLineToArgvW is the parser the CRT and .NET use to split a process command
+            // line, so round-tripping through it proves the child sees the original arguments.
+            var parsed = SplitCommandLine($"excelcli.exe {commandLine}").Skip(1).ToArray();
+
+            Assert.Equal(expected, parsed);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string[] SplitCommandLine(string commandLine)
+    {
+        var argv = CommandLineToArgvW(commandLine, out var count);
+        if (argv == IntPtr.Zero)
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        try
+        {
+            var results = new string[count];
+            for (var i = 0; i < count; i++)
+            {
+                var itemPtr = Marshal.ReadIntPtr(argv, i * IntPtr.Size);
+                results[i] = Marshal.PtrToStringUni(itemPtr) ?? string.Empty;
+            }
+
+            return results;
+        }
+        finally
+        {
+            LocalFree(argv);
+        }
+    }
+
+    [DllImport("shell32.dll", EntryPoint = "CommandLineToArgvW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr CommandLineToArgvW(string lpCmdLine, out int pNumArgs);
+
+    [DllImport("kernel32.dll", EntryPoint = "LocalFree", SetLastError = true)]
+    private static extern IntPtr LocalFree(IntPtr hMem);
+
     private static void AssertBootstrapAssetSet(string pluginRoot, params string[] relativePaths)
     {
         foreach (var relativePath in relativePaths)
@@ -867,7 +1289,9 @@ public sealed class PluginBootstrapBuildTests
                 [string]$AssetName,
 
                 [Parameter(Mandatory = $true)]
-                [string]$Mode
+                [string]$Mode,
+
+                [switch]$QuietMode
             )
 
             $ErrorActionPreference = "Stop"
@@ -960,7 +1384,11 @@ public sealed class PluginBootstrapBuildTests
             }
 
             $env:OS = "Windows_NT"
-            & $ScriptPath -PassThru
+            if ($QuietMode) {
+                & $ScriptPath -PassThru -Quiet
+            } else {
+                & $ScriptPath -PassThru
+            }
             """);
 
         return harnessPath;
