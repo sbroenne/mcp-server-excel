@@ -172,7 +172,7 @@ public class ScreenshotCommands : IScreenshotCommands
             originalScrollRow = Convert.ToInt32(window.ScrollRow);
             originalScrollColumn = Convert.ToInt32(window.ScrollColumn);
 
-            var plan = CapturePlanner.Plan(window, range);
+            CapturePlanner.CapturePlan plan = CapturePlanner.Plan(window, range);
 
             if (plan.Zoom != originalZoom)
             {
@@ -182,7 +182,7 @@ public class ScreenshotCommands : IScreenshotCommands
             }
 
             scrollChanged = true;
-            composed = CaptureTiles(app, window, range, plan);
+            composed = CaptureTiles(app, window, range, ref plan);
 
             var encoded = ScreenshotEncoder.Encode(composed, quality);
 
@@ -257,18 +257,25 @@ public class ScreenshotCommands : IScreenshotCommands
     /// <summary>
     /// Captures each planned tile and stitches them into a single bitmap.
     /// </summary>
-    private static Bitmap CaptureTiles(dynamic app, dynamic window, dynamic range, CapturePlanner.CapturePlan plan)
+    private static Bitmap CaptureTiles(dynamic app, dynamic window, dynamic range, ref CapturePlanner.CapturePlan plan)
     {
         IntPtr hwnd = GetExcelWindowHandle(app);
         int dpi = WindowCapture.GetWindowDpi(hwnd);
         double deviceScale = dpi / 72.0;
         double pixelsPerPoint = deviceScale * plan.Zoom / 100.0;
 
-        int paneMaxWidth = (int)Math.Round(Convert.ToDouble(window.UsableWidth) * deviceScale);
-        int paneMaxHeight = (int)Math.Round(Convert.ToDouble(window.UsableHeight) * deviceScale);
+        PaneOrigin paneOrigin = MeasurePaneOrigin(window);
 
-        int[] columnOffsets = BuildPixelOffsets(plan.ColumnSegments, pixelsPerPoint);
-        int[] rowOffsets = BuildPixelOffsets(plan.RowSegments, pixelsPerPoint);
+        // Measured after the capture zoom is applied and at the settled A1 scroll position, so that
+        // the planned tile size and the capturable tile size agree exactly.
+        CapturePlanner.UsablePane usable = CapturePlanner.MeasureUsablePane(window);
+        int paneMaxWidth = (int)Math.Round(usable.Width * deviceScale);
+        int paneMaxHeight = (int)Math.Round(usable.Height * deviceScale);
+
+        plan = CapturePlanner.Replan(range, plan.Zoom, usable);
+
+        int[] columnOffsets = BuildPixelOffsets(plan.ColumnSegments, pixelsPerPoint, paneMaxWidth);
+        int[] rowOffsets = BuildPixelOffsets(plan.RowSegments, pixelsPerPoint, paneMaxHeight);
 
         int totalWidth = Math.Max(1, columnOffsets[^1]);
         int totalHeight = Math.Max(1, rowOffsets[^1]);
@@ -281,7 +288,6 @@ public class ScreenshotCommands : IScreenshotCommands
             using var graphics = Graphics.FromImage(canvas);
             graphics.Clear(Color.White);
 
-            PaneOrigin paneOrigin = MeasurePaneOrigin(window);
             bool verifiedNotBlank = false;
 
             for (int rowIndex = 0; rowIndex < plan.RowSegments.Count; rowIndex++)
@@ -318,10 +324,10 @@ public class ScreenshotCommands : IScreenshotCommands
                         int originY = (int)Math.Round(paneOrigin.Y) + offsetY;
 
                         int tileWidth = Math.Min(
-                            (int)Math.Round(Convert.ToDouble(tileRange.Width) * pixelsPerPoint),
+                            columnOffsets[columnIndex + 1] - columnOffsets[columnIndex],
                             paneMaxWidth - offsetX);
                         int tileHeight = Math.Min(
-                            (int)Math.Round(Convert.ToDouble(tileRange.Height) * pixelsPerPoint),
+                            rowOffsets[rowIndex + 1] - rowOffsets[rowIndex],
                             paneMaxHeight - offsetY);
 
                         var source = new Rectangle(
@@ -443,18 +449,22 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Converts segment sizes in points to cumulative pixel offsets, so adjacent tiles meet without
     /// gaps or overlaps after rounding.
     /// </summary>
-    private static int[] BuildPixelOffsets(IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint)
+    private static int[] BuildPixelOffsets(IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint, int paneMax)
     {
         var offsets = new int[segments.Count + 1];
-        double cursor = 0;
+        int cursor = 0;
 
         for (int i = 0; i < segments.Count; i++)
         {
-            offsets[i] = (int)Math.Round(cursor * pixelsPerPoint);
-            cursor += segments[i].Size;
+            offsets[i] = cursor;
+
+            // Capped at the pane, and rounded per segment rather than cumulatively, so that the
+            // space reserved on the canvas is exactly the number of pixels the tile can supply.
+            // Any mismatch shows up as an unpainted hairline at the seam.
+            cursor += Math.Min((int)Math.Round(segments[i].Size * pixelsPerPoint), paneMax);
         }
 
-        offsets[segments.Count] = (int)Math.Round(cursor * pixelsPerPoint);
+        offsets[segments.Count] = cursor;
 
         return offsets;
     }
