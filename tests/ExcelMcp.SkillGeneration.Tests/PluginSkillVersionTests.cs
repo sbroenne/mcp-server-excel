@@ -183,16 +183,14 @@ public sealed class PluginSkillVersionTests
     [Trait("Feature", "PluginSkillVersion")]
     public async Task CopyVscodeSkills_CleansOutputAndStampsExtensionVersion()
     {
-        var sandbox = CreateSandbox("vscode-skill-version");
+        var outputDir = Path.Combine(RepoRoot, "vscode-extension", "skills", "excel-mcp");
         try
         {
-            var outputDir = Path.Combine(sandbox, "excel-mcp");
+            DeleteDirectoryIfExists(outputDir);
             Directory.CreateDirectory(outputDir);
             File.WriteAllText(Path.Combine(outputDir, "stale.txt"), "stale");
 
-            var result = await RunPowerShellFileAsync(
-                CopyVscodeSkillsScript,
-                ["-OutputDir", outputDir]);
+            var result = await RunPowerShellFileAsync(CopyVscodeSkillsScript, []);
 
             Assert.True(
                 result.ExitCode == 0,
@@ -208,7 +206,7 @@ public sealed class PluginSkillVersionTests
         }
         finally
         {
-            DeleteDirectoryIfExists(sandbox);
+            DeleteDirectoryIfExists(outputDir);
         }
     }
 

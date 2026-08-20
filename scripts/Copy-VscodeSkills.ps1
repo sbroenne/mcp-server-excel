@@ -1,22 +1,12 @@
 <#
 .SYNOPSIS
     Copies the canonical MCP skill into the VS Code extension and stamps its package version.
-
-.PARAMETER OutputDir
-    Destination skill directory. Defaults to vscode-extension/skills/excel-mcp.
 #>
-param(
-    [string]$OutputDir = $null
-)
-
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SourceDir = Join-Path $RepoRoot "skills\excel-mcp"
+$OutputDir = Join-Path $RepoRoot "vscode-extension\skills\excel-mcp"
 $PackageJsonPath = Join-Path $RepoRoot "vscode-extension\package.json"
-
-if (-not $OutputDir) {
-    $OutputDir = Join-Path $RepoRoot "vscode-extension\skills\excel-mcp"
-}
 
 if (-not (Test-Path $SourceDir -PathType Container)) {
     throw "Canonical Agent Skill directory not found: $SourceDir"
