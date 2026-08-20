@@ -20,13 +20,10 @@
       excel-cli/     → CLI plugin (wrapper/bootstrap assets + updated version + fresh skills)
 
 .PARAMETER Version
-    Plugin version. If not specified, reads from skills/excel-mcp/VERSION file.
+    Plugin version. Required for distributable builds.
 
 .PARAMETER OutputDir
     Output directory. Default: plugins/
-
-.EXAMPLE
-    ./Build-Plugins.ps1
 
 .EXAMPLE
     ./Build-Plugins.ps1 -Version 1.2.3
@@ -43,17 +40,10 @@ $PluginSourceDir = Join-Path $RepoRoot ".github\plugins"
 $AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 $AgentPluginMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 
-# Resolve version
-if (-not $Version) {
-    $VersionFile = Join-Path $SkillsDir "excel-mcp\VERSION"
-    if (Test-Path $VersionFile) {
-        $Version = (Get-Content $VersionFile -Raw).Trim()
-        Write-Host "Using version from VERSION file: $Version" -ForegroundColor Cyan
-    } else {
-        Write-Error "Version not specified and VERSION file not found at $VersionFile"
-        exit 1
-    }
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    throw "Version is required. Pass -Version <version>."
 }
+$Version = $Version.Trim()
 
 $BootstrapScriptPath = Join-Path $RepoRoot "scripts\Build-BootstrapScripts.ps1"
 if (-not (Test-Path $BootstrapScriptPath)) {

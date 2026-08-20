@@ -127,7 +127,7 @@ The `publish-plugins.yml` workflow automatically publishes updated plugins when 
     - Applies source-owned plugin overlays from `.github/plugins/` (overlay content only; not standalone plugin roots)
     - Strips committed runtime payloads from plugin bundles so the published repo stays wrapper/bootstrap-only
     - Updates version in plugin.json and version.txt for release-tag metadata, while runtime bootstrap still targets the newest GitHub Release at invocation time
-    - Refreshes skill content (always uses latest source)
+    - Refreshes skill content (always uses latest source) and stamps the explicit release-tag version into each packaged skill's generated `VERSION`
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches
     - Rejects downgrade publishes
@@ -144,6 +144,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 - ✅ **Automatic** — No manual intervention required
 - ✅ **Idempotent** — Safe to re-run on the same version
 - ✅ **Version-aligned** — Uses the exact version from the release
+- ✅ **No stale fallback** — Distributable builds require an explicit version; canonical skill sources contain no `VERSION` file
 - ✅ **Sync-gated** — skips downstream plugin republish when plugin install-surface inputs did not change since the prior release tag
 - ✅ **Guarded replay** — downgrade syncs are rejected, automatic duplicates are skipped, and manual repair/replay runs must keep the requested tag aligned with the incoming plugin manifest/version
 - ✅ **Manual repair path** — maintainers keep a `workflow_dispatch` re-sync entry point for repair/replay scenarios

@@ -50,7 +50,6 @@ npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 ```
 excel-mcp/
 ├── SKILL.md           # Main skill definition with MCP tool guidance
-├── VERSION            # Version tracking
 ├── README.md          # This file
 └── references/        # Detailed domain-specific guidance
     ├── anti-patterns.md
@@ -72,6 +71,9 @@ excel-mcp/
     ├── window.md
     └── worksheet.md
 ```
+
+Distributable packages add a `VERSION` file during the build. The canonical skill
+source intentionally has no version metadata so it cannot become a stale build input.
 
 ## MCP Server Setup
 

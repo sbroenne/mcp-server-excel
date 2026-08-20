@@ -99,6 +99,7 @@ If you've already created a GitHub App for other purposes:
      - Updates `plugin.json` version and `version.txt`
      - Preserves plugin-local `bin/` wrapper/download assets and runtime-bootstrap metadata
      - Synchronizes complete skill directories from source (`skills/excel-mcp`, `skills/excel-cli`), removing stale published files
+     - Stamps the release-tag version into each packaged skill's generated `VERSION` file
      - Validates Agent Plugins 1.0 manifests, portable `mcp.json`, and Agent Skills frontmatter
 5. **Migrate Marketplace Layout** — Rewrites the published repo into the canonical marketplace layout by applying the source-owned root overlay, writing `.github/plugin/marketplace.json`, and removing any legacy root `marketplace.json`
 6. **Published-Repo Guards** — Rejects downgrade or tag/version mismatch publishes before mutating the published repo
@@ -201,7 +202,7 @@ Keep the requested release tag aligned with the plugin manifest/version the work
 
 **Build step fails:**
 - Build-Plugins.ps1 requires .NET 10.0 SDK
-- VERSION file missing in `skills/excel-mcp/VERSION`
+- `Build-Plugins.ps1` requires an explicit `-Version`; source skill directories do not carry fallback `VERSION` files
 
 ---
 
