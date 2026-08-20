@@ -11,6 +11,98 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [1.10.9] - 2026-08-20
+
+### Patch Changes
+
+- [#779](https://github.com/sbroenne/mcp-server-excel/pull/779) [`f3f80ac`](https://github.com/sbroenne/mcp-server-excel/commit/f3f80acbf2b708cff798d8df2be41f982c070de9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Copilot plugins: arguments with quotes now survive, and a cached runtime keeps
+  working offline.** Two defects made the published `excel-cli` and `excel-mcp`
+  plugins fail in normal use.
+
+  Every documented inline JSON example — `--values '[["Name","Amount"]]'` — was
+  silently corrupted to `[[Name,Amount]]` when invoked through the plugin's own
+  wrapper or the generated `excelcli` PATH shim, because Windows PowerShell rebuilds
+  the command line for native executables and drops embedded double quotes. The
+  wrapper now builds the command line itself using the standard MSVCRT quoting rules
+  and hands it to the process verbatim, and the `.cmd` shim resolves the executable
+  first so `%*` is passed through untouched.
+
+  Separately, the bootstrap aborted whenever the GitHub release API was unreachable —
+  even with the correct runtime already downloaded and extracted — so a rate limit or
+  an offline machine stopped the MCP server from starting at all. A failed update
+  check now falls back to the cached runtime and warns on stderr, and an
+  already-extracted runtime is resolved before any download is considered, so
+  reclaiming the cached `.zip` no longer requires the network. With nothing usable
+  cached, the failure stays loud.
+
+- [#790](https://github.com/sbroenne/mcp-server-excel/pull/790) [`3aa557c`](https://github.com/sbroenne/mcp-server-excel/commit/3aa557cd7f1bb688b6eb203d59c2123a6585062d) Thanks [@sbroenne](https://github.com/sbroenne)! - Harden the plugin runtime bootstrap against corrupt caches, concurrent installs, and rate limits.
+
+  Follow-up to the offline-fallback fix. `download.ps1` for both `excel-cli` and `excel-mcp` now:
+
+  - **Validates the cached archive instead of merely testing for its presence.** A truncated
+    download used to wedge the plugin permanently: the release tag still matched, so no download was
+    attempted, yet extraction failed on every subsequent run. Recovery required manually deleting
+    the cache. The archive is now opened and checked before it is trusted.
+  - **Downloads to a temp file and renames into place**, so an interrupted transfer can never leave
+    a partial archive that a later run mistakes for a complete one.
+  - **Extracts into a staging directory and swaps it in**, rather than deleting the release
+    directory first. This also fixes a destructive failure mode: `Remove-Item -Recurse` deletes every
+    sibling file before it reaches a locked executable and fails, leaving a half-destroyed install.
+    The executable is now probed for a lock _before_ anything is removed, and a runtime that is
+    currently in use is kept rather than partially overwritten.
+  - **Retries once with a fresh download** if an install fails, instead of failing permanently.
+  - **Serializes installs with a named mutex**, so concurrent sessions cannot race on the same
+    archive and release directory.
+  - **Verifies the resolved runtime's version** from the version stamped into the file. Running the
+    runtime with `--version` was deliberately avoided: it performs its own network update check,
+    which is exactly wrong inside a bootstrap that must work offline.
+  - **Sends `GITHUB_TOKEN` / `GH_TOKEN` as a bearer token** when present. Unauthenticated GitHub API
+    access is 60 requests/hour per source IP, a budget shared by everyone behind a corporate NAT and
+    routinely exhausted — the most common cause of release metadata being unreachable.
+  - **Re-checks for updates on a time window for non-Copilot installs.** Outside a Copilot session
+    the session id is the constant `"standalone"`, so it always equalled the previously recorded one
+    and the freshness check never fired again. PATH and shim installs were pinned forever to
+    whatever they first downloaded, despite the docs promising the newest runtime.
+
+- [#794](https://github.com/sbroenne/mcp-server-excel/pull/794) [`f05294f`](https://github.com/sbroenne/mcp-server-excel/commit/f05294fd2538f808c33f5bcd69984d3657b4ebfc) Thanks [@sbroenne](https://github.com/sbroenne)! - The `excel-cli` and `excel-mcp` plugin bootstraps now come from one shared template, so they stay in sync without hand-maintained drift.
+
+- [#780](https://github.com/sbroenne/mcp-server-excel/pull/780) [`368dd52`](https://github.com/sbroenne/mcp-server-excel/commit/368dd52592eff870f63ed9e7e7c911a576b1a86e) Thanks [@sbroenne](https://github.com/sbroenne)! - **Accurate plugin documentation and a VERSION file for the CLI plugin.** The MCP
+  server's `--help` banner claimed "22 tools with 195+ operations" while the server
+  actually registers 31 tools with 326 operations. The repo already derives those
+  numbers from code and enforces them across 16 documents on every commit; the banner
+  was simply not one of them, so it drifted unnoticed.
+
+  Rather than correcting the literal, the banner now _derives_ both numbers by
+  reflecting over the live `[McpServerTool]` registration, so it can no longer disagree
+  with the server's own `tools/list` response. The doc-count guard was extended to fail
+  if anyone reintroduces a hard-coded count there — including a count that happens to be
+  correct on the day it is written.
+
+  The `excel-cli` plugin shipped without the `VERSION` file its `excel-mcp` counterpart
+  carries, because the build never passed a version through for the CLI skill and only
+  rewrote a `VERSION` that already existed instead of creating one. Both plugins now
+  get a stamped `VERSION`, and the build fails if any packaged skill is missing one or
+  carries the wrong version.
+
+  Two skill instructions were misleading in ways that produce visibly wrong output. The
+  number-format table showed rendered results as though separators were fixed, but
+  Excel renders them per the user's Windows regional settings — `$#,##0.00` shows
+  `$1.234,56` on a German machine — so the skill now explains that format codes are
+  written in US notation while the rendering is locale-dependent, and warns against
+  "fixing" the code. The formatting workflow also stopped at applying a number format,
+  which leaves date and currency columns showing `#####` because formatted values are
+  wider than the raw ones; auto-fitting columns is now a required step.
+
+  Finally, the CLI skill assumed `excelcli` was on PATH while the plugin's global shim
+  is explicitly opt-in, so an agent following the skill hit command-not-found. The
+  preconditions now state the requirement plainly and give the ways to satisfy it.
+
+- [#793](https://github.com/sbroenne/mcp-server-excel/pull/793) [`c6e5561`](https://github.com/sbroenne/mcp-server-excel/commit/c6e55610f4ad879111c2b9534c9e44ad0b005abf) Thanks [@sbroenne](https://github.com/sbroenne)! - **Screenshots no longer include a strip of Excel window chrome** ([#777](https://github.com/sbroenne/mcp-server-excel/issues/777)): captured images picked up a
+  few pixels of the scroll bar and sheet tab strip along the bottom of every tile, which showed up as a
+  grey band at each seam of a stitched screenshot of a tall or wide range. The capture now measures the
+  actual worksheet grid area instead of Excel's reported workspace size, and sizes tiles so they line
+  up seamlessly.
+
 ## [1.10.8] - 2026-08-19
 
 ### Patch Changes
