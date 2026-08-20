@@ -1,43 +1,21 @@
 ---
 applyTo: ".github/**/*.md,.github/instructions/**"
+excludeAgent: "code-review"
 ---
 
-# Copilot Instructions - Meta
+# Maintaining Copilot instructions
 
-> **Note for maintainers**: This file provides minimal guidance for editing instruction files. For complete documentation, see `docs/COPILOT-INSTRUCTIONS-GUIDE.md`
-
-## Quick Rules for Maintainers
-
-### File Naming
-- ✅ MUST end with `.instructions.md`
-- ✅ Use descriptive names: `excel-com-interop.instructions.md`
-- ❌ DON'T use generic names: `notes.instructions.md`
-
-### Frontmatter Required
-```markdown
----
-applyTo: "**/*.cs,**/*.csproj"
----
-```
-- NO spaces after commas in glob patterns
-- Use `**` for recursive directories
-
-### Content Focus
-**Write FOR the LLM** (actionable instructions):
-- ✅ "When X, run command Y"
-- ✅ "Follow these N steps"
-- ✅ Quick reference tables
-- ✅ ✅/❌ code examples
-
-**Don't write ABOUT the system** (documentation):
-- ❌ "The problem we solved was..."
-- ❌ "This strategy has 5 layers..."
-- ❌ Historical context
-
-### Testing
-1. Open file matching `applyTo` pattern
-2. Ask Copilot Chat a related question
-3. Check "References" section for your instruction file
-
-**Full Guide**: See `docs/COPILOT-INSTRUCTIONS-GUIDE.md` for complete patterns, best practices, and examples.
-
+- Repository-wide guidance belongs in `.github/copilot-instructions.md` and
+  should stay short, durable, and task-independent.
+- Path guidance uses `NAME.instructions.md` under `.github/instructions` with a
+  quoted `applyTo` glob in YAML frontmatter.
+- Add `excludeAgent: "code-review"` to implementation guidance that should not
+  influence review; the dedicated review file excludes `cloud-agent`.
+- Put a rule at the narrowest useful scope. Do not repeat it in repository-wide,
+  critical, and feature files.
+- Describe the current architecture and commands. Remove incident history,
+  obsolete tool names, dated counts, and one-off examples.
+- Use natural language and real repository paths. Do not prescribe a specific
+  assistant's private tool names.
+- When implementation and instructions diverge, verify the code and update the
+  stale instruction in the same change.

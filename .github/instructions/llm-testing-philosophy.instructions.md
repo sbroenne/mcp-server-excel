@@ -1,5 +1,6 @@
 ---
 applyTo: "llm-tests/**"
+excludeAgent: "code-review"
 ---
 
 # LLM Testing Philosophy

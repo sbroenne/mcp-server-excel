@@ -7,7 +7,7 @@
 # `Docs Site` builds and audits the MkDocs website. `CI Gate` ports the
 # Excel-free pre-commit gates (scripts/pre-commit.ps1) into CI so
 # that the correctness checks are enforced server-side even if a contributor
-# bypasses the local hook (see Rule 31). The Excel-dependent gates — the CLI
+# does not have the local hook installed. The Excel-dependent gates — the CLI
 # workflow smoke test and the MCP smoke test — are intentionally NOT run here:
 # this job uses the GitHub-hosted `windows-latest` runner, which does not have
 # Microsoft Excel installed. Those two gates remain local prerequisites and are
@@ -99,13 +99,13 @@ jobs:
 
       # --- Excel-free correctness gates (ported from scripts/pre-commit.ps1) ---
 
-      - name: COM object leak check (Rule 5)
+      - name: COM object leak check
         shell: pwsh
         run: |
           & scripts/check-com-leaks.ps1
           if ($LASTEXITCODE -ne 0) { throw "COM object leaks detected. All dynamic COM objects must be released in finally blocks." }
 
-      - name: Core coverage + naming audit (Rule 24)
+      - name: Core coverage + naming audit
         shell: pwsh
         run: |
           & scripts/audit-core-coverage.ps1 -CheckNaming -FailOnGaps
@@ -117,7 +117,7 @@ jobs:
           & scripts/check-mcp-core-implementations.ps1
           if ($LASTEXITCODE -ne 0) { throw "MCP enum actions without a matching Core Command implementation were found." }
 
-      - name: Success flag check (Rule 1)
+      - name: Success flag check
         shell: pwsh
         run: |
           & scripts/check-success-flag.ps1

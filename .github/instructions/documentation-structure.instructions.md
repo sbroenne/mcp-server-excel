@@ -1,5 +1,6 @@
 ---
-applyTo: "**/*.md,docs/**,specs/**"
+applyTo: "README.md,FEATURES.md,CHANGELOG.md,SECURITY.md,PRIVACY.md,docs/**/*.md,specs/**/*.md,src/**/README.md,skills/**/*.md,gh-pages/docs/**/*.md"
+excludeAgent: "code-review"
 ---
 
 # Documentation Structure & Standards

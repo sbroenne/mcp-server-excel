@@ -1,5 +1,6 @@
 ---
-applyTo: "**/*.md,README.md,**/README.md,**/index.md"
+applyTo: "README.md,**/README.md,**/index.md,FEATURES.md,docs/features/**/*.md,gh-pages/docs/**/*.md"
+excludeAgent: "code-review"
 ---
 
 # README Management - Quick Reference
@@ -80,7 +81,7 @@ Before committing README changes:
 
 ## CHANGELOG.md
 
-The project uses a **centralized changelog** at `/CHANGELOG.md` covering all components. It is generated from [changesets](../../.changeset/README.md), not hand-edited — see `docs/RELEASE-STRATEGY.md#changelog-generation` and Rule 27.
+The project uses a **centralized changelog** at `/CHANGELOG.md` covering all components. It is generated from [changesets](../../.changeset/README.md), not hand-edited — see `docs/RELEASE-STRATEGY.md#changelog-generation`.
 
 **When to update:**
 - Add a changeset (`npx changeset`) with your PR, not by editing CHANGELOG.md directly
