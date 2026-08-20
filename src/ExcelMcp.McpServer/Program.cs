@@ -426,14 +426,27 @@ public class Program
     /// <summary>
     /// Shows help information.
     /// </summary>
-    private static void ShowHelp()
+    private static void ShowHelp() => Console.WriteLine(BuildHelpText());
+
+    /// <summary>
+    /// Builds the help banner.
+    ///
+    /// The tool and operation counts are DERIVED from the live <c>[McpServerTool]</c> registration
+    /// via <see cref="McpToolSurface"/>, never hard-coded. A hard-coded literal here previously
+    /// drifted to "22 tools with 195+ operations" while the real surface was 31 tools / 326
+    /// operations, contradicting every README and the server's own <c>tools/list</c> response.
+    ///
+    /// Exposed internally, rather than inlined into <see cref="ShowHelp"/>, so tests can assert
+    /// that the banner really does track the registration.
+    /// </summary>
+    internal static string BuildHelpText()
     {
         var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
-        Console.WriteLine($"""
+        return $"""
             Excel MCP Server v{version}
 
             An MCP (Model Context Protocol) server for Microsoft Excel automation.
-            Provides 22 tools with 195+ operations for AI assistants.
+            Provides {McpToolSurface.ToolCount} tools with {McpToolSurface.OperationCount} operations for AI assistants.
 
             Usage:
               mcp-excel.exe [options]
@@ -453,7 +466,7 @@ public class Program
 
             Source:
               https://github.com/sbroenne/mcp-server-excel
-            """);
+            """;
     }
 
     /// <summary>

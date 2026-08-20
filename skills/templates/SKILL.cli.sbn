@@ -17,8 +17,16 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 - Windows host with Microsoft Excel installed (2016+)
 - Uses COM interop — does NOT work on macOS or Linux
-- GitHub Copilot `excel-cli` plugin auto-downloads the latest Windows runtime on first use
-- Direct skill-only installs require `excelcli.exe` on PATH
+- **Every command below invokes `excelcli` directly, so it must resolve on PATH.**
+  Installing the `excel-cli` plugin does *not* put it there — the global shim is opt-in. Run
+  `com.github.copilot\bin\install-global.ps1` from the installed plugin folder once (it writes
+  `excelcli.cmd` / `excelcli.ps1` into `~\.copilot\bin` and adds that to your user PATH), or
+  install the runtime independently via the standalone release zip or
+  `dotnet tool install --global Sbroenne.ExcelMcp.CLI`.
+  If `excelcli` is not found, report that and stop — do not guess at a path.
+- The runtime itself is downloaded and cached on first use under
+  `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli`, so only the first invocation needs
+  network access
 
 ## Workflow Checklist
 

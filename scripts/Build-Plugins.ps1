@@ -107,20 +107,38 @@ function Copy-AgentSkill {
     New-Item -ItemType Directory -Path (Split-Path -Parent $DestinationDir) -Force | Out-Null
     Copy-Item -Path $SourceDir -Destination $DestinationDir -Recurse -Force
 
+    # Write the VERSION file unconditionally. Guarding on Test-Path only *updated* a VERSION that
+    # the canonical skill already carried, so excel-cli - whose source skill has none - shipped
+    # without one while excel-mcp shipped with one.
     $skillVersionPath = Join-Path $DestinationDir "VERSION"
-    if ($Version -and (Test-Path $skillVersionPath)) {
+    if ($Version) {
         Set-Content -Path $skillVersionPath -Value $Version -Encoding UTF8 -NoNewline
     }
 }
 
 function Assert-AgentSkill {
     param(
-        [string]$SkillDir
+        [string]$SkillDir,
+        [string]$ExpectedVersion
     )
 
     $skillPath = Join-Path $SkillDir "SKILL.md"
     if (-not (Test-Path $skillPath -PathType Leaf)) {
         throw "Agent Skill is missing SKILL.md: $SkillDir"
+    }
+
+    # Every packaged skill must carry a VERSION stamped with the version the plugin was built at.
+    # excel-cli previously shipped with no VERSION at all, and nothing failed the build.
+    if ($ExpectedVersion) {
+        $versionPath = Join-Path $SkillDir "VERSION"
+        if (-not (Test-Path $versionPath -PathType Leaf)) {
+            throw "Agent Skill is missing VERSION: $SkillDir"
+        }
+
+        $skillVersion = (Get-Content $versionPath -Raw).Trim()
+        if ($skillVersion -ne $ExpectedVersion) {
+            throw "$versionPath has version '$skillVersion' but expected '$ExpectedVersion'."
+        }
     }
 
     $lines = @(Get-Content $skillPath)
@@ -227,7 +245,7 @@ function Assert-AgentPluginPackage {
     $skillsRoot = Join-Path $PluginDir "skills"
     if (Test-Path $skillsRoot) {
         Get-ChildItem -Path $skillsRoot -Directory | ForEach-Object {
-            Assert-AgentSkill -SkillDir $_.FullName
+            Assert-AgentSkill -SkillDir $_.FullName -ExpectedVersion $ExpectedVersion
         }
     }
 
@@ -340,7 +358,7 @@ Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding
 Write-Host "  Synchronizing complete excel-cli skill directory..." -ForegroundColor Cyan
 $SourceSkillCli = Join-Path $SkillsDir "excel-cli"
 $DestSkillCli = Join-Path $OutputCli "skills\excel-cli"
-Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli
+Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Version $Version
 
 Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green

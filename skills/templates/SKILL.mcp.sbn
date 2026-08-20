@@ -74,11 +74,20 @@ Always apply number formats after setting values:
 | Percent | `0.00%` | 15.00% |
 | Date (ISO) | `yyyy-mm-dd` | 2025-01-22 |
 
+Write format codes in US notation (`,` grouping, `.` decimal) regardless of the machine's
+locale — Excel translates them. The **rendered** separators follow the user's Windows regional
+settings, so `$#,##0.00` shows `$1.234,56` on a German system. Don't "fix" that by swapping the
+separators in the format code; it would break on every other locale.
+
 **Workflow:**
 ```
 1. range set-values (data is now in cells)
 2. range set-number-format (apply format)
+3. range_format auto-fit-columns (formatted values are wider than raw ones)
 ```
+
+Step 3 is not optional. A column sized for `45678` is too narrow once that value renders as
+`2025-01-22` or `$1,234.56`, and Excel displays `#####` instead of the number.
 
 ### Rule 4: Use Excel Tables (Not Plain Ranges)
 

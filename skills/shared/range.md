@@ -91,8 +91,8 @@ range_format(action: 'set-style', rangeAddress: 'A1:D1', styleName: 'Heading 1')
 
 ## Format Codes
 
-| Type | Code | Example |
-|------|------|---------|
+| Type | Code | Example (en-US) |
+|------|------|-----------------|
 | Number | `#,##0.00` | 1,234.56 |
 | Dollar | `$#,##0.00` | $1,234.56 |
 | Euro | `€#,##0.00` | €1,234.56 |
@@ -107,6 +107,16 @@ range_format(action: 'set-style', rangeAddress: 'A1:D1', styleName: 'Heading 1')
 | Text | `@` | (as-is) |
 
 All format codes are auto-translated to the user's locale. Use US codes (d/m/y for dates, . for decimal, , for thousands).
+
+**The `Example` column assumes en-US regional settings — rendering is locale-dependent.** Excel
+interprets the `,` and `.` in a format code according to the user's locale, and the same is true of
+the `d`/`m`/`y` date codes. So `$#,##0.00` displays as `$1,234.56` on en-US but `$1.234,56` on de-DE,
+and `mm/dd/yyyy` follows the locale's date separator. This is correct behaviour, not a bug — do not
+rewrite a format code because a screenshot shows swapped separators, and do not tell the user a
+literal rendering without accounting for their regional settings.
+
+After applying a number format, run `range_format auto-fit-columns` — formatted values are wider
+than raw ones and will render as `#####` at the default column width.
 
 ## Actions
 

@@ -196,6 +196,31 @@ foreach ($check in $checks) {
 }
 
 # ---------------------------------------------------------------------------
+# 5b. The --help banner must stay derived, not restated
+# ---------------------------------------------------------------------------
+# The banner is the first thing a user sees when the server will not start, and it silently
+# drifted to "22 tools with 195+ operations" while the real surface was 31/326 -- because nothing
+# checked it. It is now interpolated from McpToolSurface, which reflects over the live
+# [McpServerTool] registration. Rather than validating a literal here (there no longer is one),
+# this fails if anyone reintroduces one.
+$helpBannerFile = "src\ExcelMcp.McpServer\Program.cs"
+$helpBannerPath = Join-Path $rootDir $helpBannerFile
+if (-not (Test-Path $helpBannerPath)) {
+    Add-Failure "Expected source file not found: $helpBannerFile"
+} else {
+    $helpBannerContent = Get-Content $helpBannerPath -Raw
+
+    $hardCoded = [regex]::Matches($helpBannerContent, 'Provides\s+\d+\s+tools\s+with\s+\d+\+?\s+operations')
+    foreach ($m in $hardCoded) {
+        Add-Failure ("{0}: the --help banner restates the counts as a literal -> `"{1}`". Interpolate McpToolSurface.ToolCount / McpToolSurface.OperationCount instead so it cannot drift." -f $helpBannerFile, $m.Value.Trim())
+    }
+
+    if ($helpBannerContent -notmatch 'Provides \{McpToolSurface\.ToolCount\} tools with \{McpToolSurface\.OperationCount\} operations') {
+        Add-Failure "${helpBannerFile}: the --help banner no longer derives its counts from McpToolSurface (was it reworded or removed?)."
+    }
+}
+
+# ---------------------------------------------------------------------------
 # 6. Distribution metadata must link to the documentation site
 # ---------------------------------------------------------------------------
 # Package/registry listing pages are the highest-authority inbound links we control.
