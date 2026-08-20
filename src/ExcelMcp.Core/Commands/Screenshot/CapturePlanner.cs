@@ -86,7 +86,7 @@ internal static class CapturePlanner
         {
             // Excel exposes no visible range for some window states; the workspace size is the only
             // measurement left, so fall back to it rather than failing the capture.
-            return new UsablePane(workspaceWidth, workspaceHeight);
+            return new UsablePane(FallbackExtent(workspaceWidth), FallbackExtent(workspaceHeight));
         }
         finally
         {
@@ -95,9 +95,24 @@ internal static class CapturePlanner
     }
 
     /// <summary>
+    /// Best available extent when the grid cannot be measured from <c>VisibleRange</c>.
+    ///
+    /// The workspace extent is the only measurement left, but it is exactly the value that reaches
+    /// into the chrome, so the safety margin is taken off it as well. That margin comfortably
+    /// exceeds the scroll bar and tab strip measured on a standard display, though an unusually tall
+    /// chrome could still leak a few pixels in this path.
+    /// </summary>
+    private static double FallbackExtent(double workspaceExtent)
+    {
+        double trimmed = workspaceExtent - GridSafetyPoints;
+
+        return trimmed > 0 ? trimmed : workspaceExtent;
+    }
+
+    /// <summary>
     /// Measures one axis of the visible grid, in screen points, up to the leading edge of the last
-    /// (partially visible) row or column. Falls back to the workspace extent when the axis holds a
-    /// single row or column, which is too large to measure this way.
+    /// (partially visible) row or column. Falls back to the trimmed workspace extent when the axis
+    /// holds a single row or column, which is too large to measure this way.
     /// </summary>
     private static double MeasureAxis(dynamic visible, bool rows, double workspaceExtent, double zoomFactor)
     {
@@ -112,7 +127,7 @@ internal static class CapturePlanner
 
             if (count < 2 || zoomFactor <= 0)
             {
-                return workspaceExtent;
+                return FallbackExtent(workspaceExtent);
             }
 
             first = items[1];
@@ -122,7 +137,7 @@ internal static class CapturePlanner
             double trailing = rows ? Convert.ToDouble(last.Top) : Convert.ToDouble(last.Left);
             double extent = (trailing - leading) * zoomFactor - GridSafetyPoints;
 
-            return extent > 0 ? Math.Min(workspaceExtent, extent) : workspaceExtent;
+            return extent > 0 ? Math.Min(FallbackExtent(workspaceExtent), extent) : FallbackExtent(workspaceExtent);
         }
         finally
         {
