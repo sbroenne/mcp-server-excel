@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
@@ -20,6 +22,8 @@ public sealed class PluginSkillVersionTests
     private const string TestVersion = "9.9.9-skillversion";
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
+    private static readonly string BuildAgentSkillsScript = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
+    private static readonly string CopyVscodeSkillsScript = Path.Combine(RepoRoot, "scripts", "Copy-VscodeSkills.ps1");
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -72,14 +76,138 @@ public sealed class PluginSkillVersionTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginSkillVersion")]
-    public void ExcelMcpSkillSource_KeepsVersionFile_BecauseBuildScriptsReadItAsFallbackVersion()
+    public void CanonicalSkillSources_DoNotContainGeneratedVersionFiles()
     {
-        // Build-Plugins.ps1 and Build-AgentSkills.ps1 both fall back to skills/excel-mcp/VERSION when
-        // no explicit -Version is supplied. Deleting it would silently break unversioned builds.
-        var versionFile = Path.Combine(RepoRoot, "skills", "excel-mcp", "VERSION");
+        var versionFiles = Directory
+            .GetDirectories(Path.Combine(RepoRoot, "skills"), "excel-*")
+            .Select(skillDirectory => Path.Combine(skillDirectory, "VERSION"));
 
-        Assert.True(File.Exists(versionFile), $"Canonical fallback version source is missing: {versionFile}");
-        Assert.False(string.IsNullOrWhiteSpace(File.ReadAllText(versionFile)));
+        Assert.All(
+            versionFiles,
+            versionFile => Assert.False(
+                File.Exists(versionFile),
+                $"Canonical skill source contains generated package metadata: {versionFile}"));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginSkillVersion")]
+    public async Task BuildPlugins_RequiresExplicitVersion()
+    {
+        var sandbox = CreateSandbox("plugin-version-required");
+        try
+        {
+            var result = await RunPowerShellFileAsync(
+                BuildPluginsScript,
+                ["-OutputDir", Path.Combine(sandbox, "built-plugins")]);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Version is required", result.CombinedOutput, StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginSkillVersion")]
+    public async Task BuildAgentSkills_RequiresExplicitVersion()
+    {
+        var sandbox = CreateSandbox("agent-skills-version-required");
+        try
+        {
+            var result = await RunPowerShellFileAsync(
+                BuildAgentSkillsScript,
+                ["-OutputDir", Path.GetRelativePath(RepoRoot, Path.Combine(sandbox, "skills"))]);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Version is required", result.CombinedOutput, StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginSkillVersion")]
+    public async Task BuildAgentSkills_StampsVersionFileIntoEveryPackagedSkill()
+    {
+        var sandbox = CreateSandbox("agent-skills-version");
+        try
+        {
+            var outputDir = Path.Combine(sandbox, "skills");
+            var result = await RunPowerShellFileAsync(
+                BuildAgentSkillsScript,
+                [
+                    "-Version",
+                    TestVersion,
+                    "-OutputDir",
+                    Path.GetRelativePath(RepoRoot, outputDir)
+                ]);
+
+            Assert.True(
+                result.ExitCode == 0,
+                $"Build-AgentSkills.ps1 failed with exit code {result.ExitCode}.{Environment.NewLine}{result.CombinedOutput}");
+
+            var zipPath = Path.Combine(outputDir, $"excel-skills-v{TestVersion}.zip");
+            Assert.True(File.Exists(zipPath), $"Agent Skills ZIP was not created: {zipPath}");
+
+            using var archive = ZipFile.OpenRead(zipPath);
+            var versionEntries = archive.Entries
+                .Where(entry => entry.FullName.EndsWith("/VERSION", StringComparison.Ordinal))
+                .OrderBy(entry => entry.FullName, StringComparer.Ordinal)
+                .ToList();
+
+            Assert.Equal(
+                ["skills/excel-cli/VERSION", "skills/excel-mcp/VERSION"],
+                versionEntries.Select(entry => entry.FullName).ToArray());
+
+            foreach (var entry in versionEntries)
+            {
+                using var reader = new StreamReader(entry.Open());
+                Assert.Equal(TestVersion, (await reader.ReadToEndAsync()).Trim());
+            }
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginSkillVersion")]
+    public async Task CopyVscodeSkills_CleansOutputAndStampsExtensionVersion()
+    {
+        var outputDir = Path.Combine(RepoRoot, "vscode-extension", "skills", "excel-mcp");
+        try
+        {
+            DeleteDirectoryIfExists(outputDir);
+            Directory.CreateDirectory(outputDir);
+            File.WriteAllText(Path.Combine(outputDir, "stale.txt"), "stale");
+
+            var result = await RunPowerShellFileAsync(CopyVscodeSkillsScript, []);
+
+            Assert.True(
+                result.ExitCode == 0,
+                $"Copy-VscodeSkills.ps1 failed with exit code {result.ExitCode}.{Environment.NewLine}{result.CombinedOutput}");
+
+            using var packageJson = JsonDocument.Parse(
+                File.ReadAllText(Path.Combine(RepoRoot, "vscode-extension", "package.json")));
+            var expectedVersion = packageJson.RootElement.GetProperty("version").GetString();
+
+            Assert.False(File.Exists(Path.Combine(outputDir, "stale.txt")));
+            Assert.True(File.Exists(Path.Combine(outputDir, "SKILL.md")));
+            Assert.Equal(expectedVersion, File.ReadAllText(Path.Combine(outputDir, "VERSION")).Trim());
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(outputDir);
+        }
     }
 
     private static string CreateSandbox(string name)
