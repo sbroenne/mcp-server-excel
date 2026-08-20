@@ -123,6 +123,12 @@ jobs:
           & scripts/check-success-flag.ps1
           if ($LASTEXITCODE -ne 0) { throw "Success flag violations detected (Success=true with an ErrorMessage set)." }
 
+      - name: Shared bootstrap template drift check
+        shell: pwsh
+        run: |
+          & scripts/Build-BootstrapScripts.ps1 -Check
+          if ($LASTEXITCODE -ne 0) { throw "Bootstrap drift detected. Regenerate the canonical download.ps1 template output before committing." }
+
       - name: Documentation tool/operation counts
         shell: pwsh
         run: |

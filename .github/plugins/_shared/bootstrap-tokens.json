@@ -1,0 +1,16 @@
+{
+  "excel-cli": {
+    "plugin_name": "excel-cli",
+    "runtime_exe": "excelcli.exe",
+    "asset_prefix": "ExcelMcp-CLI-",
+    "release_description": "excelcli release",
+    "ready_message": "✅ excelcli runtime ready."
+  },
+  "excel-mcp": {
+    "plugin_name": "excel-mcp",
+    "runtime_exe": "mcp-excel.exe",
+    "asset_prefix": "ExcelMcp-MCP-Server-",
+    "release_description": "ExcelMcp MCP server release",
+    "ready_message": "✅ ExcelMcp MCP runtime ready."
+  }
+}

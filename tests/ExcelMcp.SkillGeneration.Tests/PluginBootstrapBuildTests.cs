@@ -1264,6 +1264,74 @@ public sealed class PluginBootstrapBuildTests
         Assert.Equal(NormalizeBootstrapScript(cli), NormalizeBootstrapScript(mcp));
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task BuildBootstrapScripts_CheckPassesForCommittedCopies()
+    {
+        var scriptPath = Path.Combine(RepoRoot, "scripts", "Build-BootstrapScripts.ps1");
+        var result = await RunPowerShellFileAsync(scriptPath, ["-Check"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("matching", result.Stdout, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task BuildBootstrapScripts_CheckFailsWhenRenderedCopyDrifts()
+    {
+        var sandbox = CreateSandbox("bootstrap-render-drift");
+        try
+        {
+            var scriptPath = Path.Combine(RepoRoot, "scripts", "Build-BootstrapScripts.ps1");
+            var outputRoot = Path.Combine(sandbox, "generated");
+
+            var generateResult = await RunPowerShellFileAsync(scriptPath, ["-OutputRoot", outputRoot]);
+            Assert.Equal(0, generateResult.ExitCode);
+
+            var driftedScript = Path.Combine(outputRoot, "excel-cli", "bin", "download.ps1");
+            File.AppendAllText(driftedScript, "`r`n# drift test marker`r`n");
+
+            var checkResult = await RunPowerShellFileAsync(scriptPath, ["-Check", "-OutputRoot", outputRoot]);
+
+            Assert.NotEqual(0, checkResult.ExitCode);
+            Assert.Contains("excel-cli", checkResult.Stdout + checkResult.Stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("drift", checkResult.Stdout + checkResult.Stderr, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task BuildBootstrapScripts_GeneratesUtf8WithoutBomAndPreservesCheckmark()
+    {
+        var sandbox = CreateSandbox("bootstrap-render-bytes");
+        try
+        {
+            var scriptPath = Path.Combine(RepoRoot, "scripts", "Build-BootstrapScripts.ps1");
+            var outputRoot = Path.Combine(sandbox, "generated");
+
+            var renderResult = await RunPowerShellFileAsync(scriptPath, ["-OutputRoot", outputRoot]);
+            Assert.Equal(0, renderResult.ExitCode);
+
+            var cliScript = Path.Combine(outputRoot, "excel-cli", "bin", "download.ps1");
+            var bytes = File.ReadAllBytes(cliScript);
+
+            Assert.DoesNotContain(new byte[] { 0xEF, 0xBB, 0xBF }, bytes.Take(3).ToArray());
+            Assert.Contains(bytes, b => b == 0x0D && bytes[Array.IndexOf(bytes, b) + 1] == 0x0A);
+            Assert.Contains("✅", File.ReadAllText(cliScript, Encoding.UTF8), StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
     private static string NormalizeBootstrapScript(string text)
         => text
             .Replace("the latest excelcli release.", "the latest RUNTIME release.", StringComparison.Ordinal)
