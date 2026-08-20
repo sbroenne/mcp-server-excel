@@ -1,115 +1,30 @@
 ---
-applyTo: "**/*.cs,**/*.md"
+applyTo: "src/**/*.cs,tests/**/*.cs"
+excludeAgent: "code-review"
 ---
 
-# Bug Fixing Checklist
+# Bug-fix workflow
 
-> **7-step process for comprehensive bug fixes**
+1. Trace the failure from the user entry point through generated routing,
+   Service, Core, and Excel COM. State the root cause before choosing a fix.
+2. Search sibling commands, fallback/retry branches, both entry points, tests,
+   guidance, and generated/template sources for the same pattern.
+3. Add the smallest regression test that reproduces the bug and observe it fail.
+4. Fix the root cause at the owning layer without changing unrelated behavior.
+5. Rerun the regression test, then the smallest related test group.
+6. Update only documentation, help, descriptions, or workflow hints affected by
+   the behavior change.
+7. Run the applicable repository audit scripts and summarize the root cause,
+   same-pattern findings, behavior change, and validation in the pull request.
 
-## Process
+There is no fixed quota for tests or documentation files. Coverage must be
+proportional to the defect: include the reported case, meaningful boundary or
+error cases, and cross-entry-point coverage where the contract crosses CLI/MCP.
 
-1. **Root Cause** - Trace flow from entry point to bug, identify what's missing/wrong/ignored
-2. **Same-Pattern Search** - Search sibling tools, Core interfaces, generated MCP/CLI surfaces, and tests for the same bug pattern
-3. **Fix Code** - Minimal changes at correct layer, maintain backwards compatibility
-4. **Add Tests** - Minimum 5-8 tests: regression + edge cases + backwards compat + MCP end-to-end
-5. **Update Docs** - Minimum 3 files: tool/method docs, user docs, SuggestedNextActions, LLM prompts
-6. **Verify Quality** - Build passes (0 warnings), all tests pass, no TODOs left
-7. **PR Description** - Bug summary, root cause, same-pattern search result, fix explanation, test coverage, docs updated
+Do not:
 
-## Test Coverage Requirements
-
-**Core Layer** (3-5 tests):
-- Exact bug scenario (regression)
-- Edge case variations
-- Backwards compatibility validation
-
-**MCP Server Layer** (2-3 tests):
-- End-to-end JSON serialization flow
-- Parameter passing verification
-
-**Total: 5-8 new tests minimum**
-
-## Documentation Requirements
-
-**Required files (minimum 3)**:
-1. Tool/method XML documentation (`/// <summary>`, `/// <param>`)
-2. User-facing docs (README or component docs)
-3. Skill references in `skills/shared/` (auto-synced to MCP prompts)
-
-**Update workflow hints**:
-- `SuggestedNextActions` - reflect new capability
-- Error messages - include helpful hints
-- `WorkflowHint` - guide next steps
-
-## Quality Checklist
-
-**Before marking bug as fixed**:
-- [ ] Root cause documented
-- [ ] Same-pattern search completed; matching cases fixed or explicitly ruled out
-- [ ] Minimal code changes (surgical fix)
-- [ ] Parameters wired through all layers
-- [ ] 5-8 new tests added (Core + MCP)
-- [ ] 3+ doc files updated
-- [ ] Build passes (0 warnings, 0 errors)
-- [ ] All tests pass (including existing)
-- [ ] No TODO/FIXME markers
-- [ ] Backwards compatible
-- [ ] PR description comprehensive
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---------|-----|
-| Code without tests | Add tests BEFORE marking fixed |
-| Code without docs | Update docs in same PR |
-| Happy path only | Test edge cases, errors, backwards compat |
-| Breaking changes | Make params optional, use defaults |
-| Parameter ignored | Trace from tool → implementation |
-| Symptoms fixed, not root cause | Understand WHY it broke |
-| Fixing one instance only | Search for the same pattern in sibling tools/layers and fix or document each match |
-| Incomplete PR | Document bug, fix, tests, docs updated |
-
-## PR Description Template
-
-```markdown
-## Bug Fix: [Feature Name]
-
-### Problem
-User reported: [exact issue]
-Issue: #[number]
-
-### Root Cause
-[Technical explanation]
-
-### Same-Pattern Search
-[Searches performed and matching cases fixed or ruled out]
-
-### Solution
-**Files Changed:**
-- path/to/file.cs - [what changed]
-
-**Behavior:**
-- Before: [old behavior]
-- After: [new behavior]
-
-### Test Coverage (X tests, Y scenarios)
-**Core:** test1, test2, test3
-**MCP Server:** test4, test5
-
-**Test Files:**
-- tests/.../FeatureCommandsTests.NewFeature.cs
-- tests/.../FeatureToolTests.cs
-
-### Documentation Updated
-1. MCP prompts - [what updated]
-2. Tool/method docs - [what updated]
-3. User docs - [what updated]
-
-### Backwards Compatibility
-✅ Fully backwards compatible - [how]
-
-### User Impact
-[Workflow improvements]
-```
-
-**No separate summary files** - PR description is canonical record (searchable via GitHub)
+- Fix only the visible symptom while another branch retains the same defect.
+- Assert only `Success`; verify the resulting workbook or response state.
+- Add broad catches, silent defaults, or retries without a bounded condition.
+- Hand-edit generated artifacts instead of their source.
+- Create a separate investigation or summary document in the repository.

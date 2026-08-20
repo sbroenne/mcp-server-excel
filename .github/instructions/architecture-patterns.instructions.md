@@ -1,218 +1,86 @@
 ---
 applyTo: "src/**/*.cs"
+excludeAgent: "code-review"
 ---
 
-# Architecture Patterns
+# Architecture patterns
 
-> **Core patterns for ExcelMcp development**
+## Layer boundaries
 
-## .NET Class Design (MANDATORY)
-
-**Official Docs:** [Framework Design Guidelines](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/), [Partial Classes](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/partial-classes-and-methods)
-
-### Key Rules
-
-1. **One Public Class Per File** - Standard .NET practice (System.Text.Json, ASP.NET Core, EF Core)
-2. **File Name = Class Name** - `RangeCommands.cs` contains `RangeCommands`
-3. **Partial Classes for Large Implementations** - Split 15+ method classes by feature domain
-4. **Descriptive Names** - No over-optimization (`RangeCommands` ✅, `Commands` ❌)
-5. **Folder = Organization, Not Identity** - `Commands/Range/RangeCommands.cs`
-
-### Partial Class Pattern
-
-**When:** Class has 15+ methods, multiple feature domains, team collaboration
-
-**Structure:**
-```
-Commands/Range/
-    IRangeCommands.cs           # Interface
-    RangeCommands.cs            # Partial (constructor, DI)
-    RangeCommands.Values.cs     # Partial (Get/Set values)
-    RangeCommands.Formulas.cs   # Partial (formulas)
-    RangeHelpers.cs             # Separate helper class
+```text
+MCP Server -> in-process ExcelMcpService -> Core commands -> Excel COM
+CLI -> named-pipe daemon -> ExcelMcpService -> Core commands -> Excel COM
 ```
 
-**Benefits:** Git-friendly, team-friendly, ~100-200 lines per file, mirrors .NET Framework patterns
+- `ExcelMcp.ComInterop` owns STA execution, COM lifetime, sessions, and shutdown.
+- `ExcelMcp.Core` owns Excel behavior and typed result models.
+- `ExcelMcp.Service` owns transport-neutral command dispatch.
+- CLI and MCP are adapters. They must not reimplement Excel behavior.
+- Source generators derive Service, CLI, and MCP routing from annotated Core
+  interfaces. Change the source contract, not generated output.
 
----
+## Core command pattern
 
-## TWO EQUAL ENTRY POINTS (CRITICAL)
-
-**ExcelMcp has TWO first-class entry points: MCP Server AND CLI.** Both must have:
-- **Feature parity**: Every action in MCP must exist in CLI and vice versa
-- **Parameter parity**: Same parameters, same defaults, same validation
-- **Behavior parity**: Same Core command, same result format
-
-When adding or changing ANY feature, ALWAYS update BOTH entry points. See Rule 24 (Post-Change Sync).
-
-```
-MCP Server (MCP tools, JSON-RPC) ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
-CLI (command-line args, console)  ──► CLI Daemon (named pipe) ─────► Core Commands ──► Excel COM
-```
-
----
-
-## Command Pattern
-
-### Structure
-```
-Commands/
-├── IPowerQueryCommands.cs    # Interface
-├── PowerQueryCommands.cs     # Implementation
-```
-
-### Routing (Program.cs)
-```csharp
-return args[0] switch
-{
-    "pq-list" => powerQuery.List(args),
-    "sheet-read" => sheet.Read(args),
-    _ => ShowHelp()
-};
-```
-
----
-
-## Resource Management Pattern
-
-**See excel-com-interop.instructions.md** for complete WithExcel() pattern and COM object lifecycle management.
-
----
-
-## Exception Propagation Pattern (CRITICAL)
-
-**Core Commands: Let exceptions propagate naturally** - Do NOT suppress with catch blocks that return error results.
+Core methods are synchronous and accept `IExcelBatch`. Validate ordinary .NET
+arguments before entering the batch, then perform Excel work inside
+`batch.Execute`.
 
 ```csharp
-// ❌ WRONG: Suppressing exception with catch block
-public async Task<OperationResult> SomeAsync(IExcelBatch batch, string param)
+public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
 {
-    try
-    {
-        return await batch.Execute((ctx, ct) => {
-            // ... operation ...
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    catch (Exception ex)
-    {
-        // ❌ WRONG: Catches exception and returns error result
-        return new OperationResult 
-        { 
-            Success = false, 
-            ErrorMessage = ex.Message 
-        };
-    }
-}
+    ArgumentException.ThrowIfNullOrWhiteSpace(oldName);
+    ArgumentException.ThrowIfNullOrWhiteSpace(newName);
 
-// ✅ CORRECT: Let exception propagate through batch.Execute()
-public async Task<OperationResult> SomeAsync(IExcelBatch batch, string param)
-{
-    return await batch.Execute((ctx, ct) => {
-        // ... operation ...
-        return ValueTask.FromResult(new OperationResult { Success = true });
-    });
-    // Exception automatically caught by batch.Execute() via TaskCompletionSource
-    // Returns OperationResult { Success = false, ErrorMessage } from batch layer
-}
-
-// ✅ CORRECT: Finally blocks still allowed for COM resource cleanup
-public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
-{
-    dynamic? connection = null;
-    try
+    return batch.Execute((ctx, ct) =>
     {
-        return await batch.Execute((ctx, ct) => {
-            connection = ctx.Book.Connections.Add(...);
-            // ... operation ...
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    finally
-    {
-        if (connection != null)
+        Excel.Worksheet? sheet = null;
+        try
         {
-            ComUtilities.Release(ref connection!);  // ✅ Cleanup in finally
+            ct.ThrowIfCancellationRequested();
+            sheet = ComUtilities.FindSheet(ctx.Book, oldName)
+                ?? throw new InvalidOperationException(
+                    $"Worksheet '{oldName}' was not found.");
+            sheet.Name = newName;
+            return new OperationResult { Success = true };
         }
-    }
+        finally
+        {
+            ComUtilities.Release(ref sheet);
+        }
+    });
 }
 ```
 
-**Why This Pattern:**
-- `batch.Execute()` already captures exceptions via `TaskCompletionSource`
-- Exceptions in lambda automatically become `OperationResult { Success = false }`
-- Double-wrapping (try-catch returning error result) loses stack context and originates from wrong layer
-- Finally blocks are the correct place for resource cleanup, NOT catch blocks for error suppression
+- Do not wrap `batch.Execute` in a broad catch that returns another result.
+- Acquire and release COM references inside the batch callback.
+- Use cancellation checks in loops and before expensive operations.
+- Reuse `ComUtilities` and feature helpers before adding new interop logic.
 
-**See:** CRITICAL-RULES.md Rule 1 for Success flag requirements
+## Surface parity
 
----
+For an action, parameter, default, or response change, trace this chain:
 
-## MCP Server Domain-Based Tools
+1. Core `[ServiceCategory]` interface and implementation
+2. Generated Service command and argument model
+3. CLI generated command/options and daemon routing
+4. MCP action enum, mapping, schema, and generated/manual route
+5. CLI, MCP, and Core tests
+6. `skills/shared`, feature docs, and help text
 
-**In-Process Architecture**: MCP Server hosts ExcelMcpService fully in-process with direct method calls (no pipe).
-ServiceBridge holds the service reference and calls ProcessAsync() directly.
+Run `scripts\audit-core-coverage.ps1 -CheckNaming -FailOnGaps` and
+`scripts\check-mcp-core-implementations.ps1` after contract changes.
 
-**Generated tool surface:** MCP tools and CLI feature categories are generated
-from Core `[ServiceCategory]` interfaces, with the hand-written `file`/session
-surface added at the entry-point layer. Do not maintain a manual tool list here.
-Use `scripts/check-doc-counts.ps1` and generated manifests as the authoritative
-coverage and count checks.
+## Code organization
 
-### Action-Based Routing with ForwardToService
-```csharp
-[McpServerTool]
-public static string ExcelPowerQuery(string action, string sessionId, ...)
-{
-    return action.ToLowerInvariant() switch
-    {
-        "list" => ForwardList(sessionId),
-        "view" => ForwardView(sessionId, queryName),
-        _ => throw new McpException($"Unknown action: {action}")
-    };
-}
+- One public type per file; file name matches the type.
+- Use partial classes to split large command implementations by domain.
+- Keep validation close to the public contract and Excel behavior in Core.
+- Prefer typed models over anonymous or loosely typed cross-layer payloads.
+- Preserve established error categories and timeout/cancellation propagation.
 
-private static string ForwardList(string sessionId)
-{
-    return ExcelToolsBase.ForwardToService("powerquery.list", sessionId);
-}
-```
+## Performance and security
 
----
-
-## DRY Shared Utilities
-
-**ExcelHelper Methods:** `FindConnection()`, `FindQuery()`, `GetConnectionTypeName()`, `IsPowerQueryConnection()`, `CreateQueryTable()`, `SanitizeConnectionString()`
-
-**Why:** Prevents 60+ lines of duplicate code per feature
-
----
-
-## Security-First Patterns
-
-```csharp
-// Always sanitize before output
-string safe = SanitizeConnectionString(connectionString);
-
-// Defaults
-SavePassword = false  // Never export credentials by default
-```
-
----
-
-## Performance Patterns
-
-**Minimize workbook opens** - Use single session for multiple operations
-**Bulk operations** - Use `range.Value2` for 2D arrays, not cell-by-cell access
-
----
-
-## Key Principles
-
-1. **WithExcel() for everything** - See excel-com-interop.instructions.md
-2. **Release intermediate objects** - Prevents Excel hanging
-3. **Batch/Session for MCP** - Multiple operations in single session
-4. **Domain-based tools** - focused tools, not one tool per operation
-5. **DRY utilities** - Share common patterns
-6. **Security defaults** - Never expose credentials
-7. **Bulk operations** - Minimize COM round-trips
+- Minimize COM round trips; use bulk range operations rather than per-cell loops.
+- Reuse an open batch/session for related operations.
+- Never return credentials or unsanitized connection strings.
+- Keep destructive behavior explicit and consistent across CLI and MCP metadata.

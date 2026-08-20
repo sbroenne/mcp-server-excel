@@ -1,5 +1,6 @@
 ---
 applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json"
+excludeAgent: "code-review"
 ---
 
 # Development Workflow
@@ -22,9 +23,9 @@ All PRs are merged using **squash merge** (single commit to `main`). This keeps 
 ## Development Process
 
 1. **Create feature branch**: `git checkout -b feature/name`
-2. **Standards**: Zero warnings, tests pass, docs updated, security rules followed
-4. **PR Checklist**: Build passes, tests pass, docs updated, patterns followed, changeset added (see Rule 27)
-4. **Check PR review comments**: After creating PR, retrieve automated review feedback and fix all issues
+2. **Standards**: Zero warnings, targeted tests pass, docs updated, security rules followed
+3. **PR Checklist**: Build passes, applicable tests pass, docs updated, patterns followed, changeset added when user-visible
+4. **Check PR review comments**: After creating PR, retrieve automated review feedback and fix all verified issues
 5. **Versions**: Automated via release workflow - don't update manually
 
 ## PR Review Comment Workflow
@@ -41,8 +42,6 @@ All PRs are merged using **squash merge** (single commit to `main`). This keeps 
 # (Admin ops — rulesets, disabling workflows, deleting runs — require this personal token, not the EMU account.)
 gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
 
-# Or use the mcp_github tool if available
-mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenne", repo="mcp-server-excel", pullNumber=PULL_NUMBER)
 ```
 
 **Common automated reviewers:**
@@ -108,7 +107,7 @@ Quick reference:
 - MCPB → Claude Desktop bundle
 
 **Before Releasing:**
-1. Nothing manual — changesets accumulate in `.changeset/` from individual PRs (see Rule 27); the release workflow compiles them into `CHANGELOG.md` automatically
+1. Nothing manual — changesets accumulate in `.changeset/` from individual PRs; the release workflow compiles them into `CHANGELOG.md` automatically
 2. Go to Actions → Release All Components → Run workflow
 3. Select version bump type (patch/minor/major) or enter a custom version
 

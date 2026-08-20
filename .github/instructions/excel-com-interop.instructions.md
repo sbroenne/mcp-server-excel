@@ -1,429 +1,92 @@
 ---
 applyTo: "src/ExcelMcp.Core/**/*.cs"
+excludeAgent: "code-review"
 ---
 
-# Excel COM Interop Patterns
+# Excel COM interop
 
-> **Essential patterns for Excel COM automation**
+## API selection
 
-## Core Principles
+- Prefer strongly typed `Microsoft.Office.Interop.Excel` members.
+- Use `dynamic` only for a documented PIA or runtime dependency gap. Add the
+  justification required by `scripts\check-dynamic-casts.ps1`.
+- Confirm unfamiliar Excel Object Model behavior in Microsoft documentation and
+  a proven interop implementation before coding.
+- Excel collections are one-based.
+- Do not assume a COM numeric property's runtime type. Use `Convert.ToInt32`,
+  `Convert.ToDouble`, or another explicit conversion when marshaling can vary.
 
-1. **PIA First** - Use strongly-typed `Microsoft.Office.Interop.Excel` APIs wherever the referenced PIA exposes them; keep `dynamic` only behind documented COM coverage gaps.
-2. **1-Based Indexing** - Excel collections start at 1, not 0
-3. **Exception Propagation** - Never wrap in try-catch, let batch.Execute() handle exceptions (see Exception Propagation section)
-4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
-5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
-6. **ExcelWriteGuard (Automatic)** - `Execute()` automatically suppresses `ScreenUpdating` via `ExcelWriteGuard`. No manual suppression needed. See ExcelWriteGuard section below.
-7. **Calculation Suppression (Manual)** - Suppress `Calculation` only in specific write commands (SetValues, SetFormulas, Append, Write) — NOT universally. Data Model, PivotTable, and Power Query operations require calculation enabled.
-8. **EnableEvents Unchanged** - Do NOT suppress `EnableEvents` universally. Data Model operations depend on internal Excel events for model synchronization.
+## Batch execution and exceptions
 
-## ExcelWriteGuard — Structural COM Safety
+Validate .NET inputs before `batch.Execute`; perform COM work on its STA callback.
+Do not catch broad exceptions merely to return an error result. The batch and
+service layers own failure transport.
 
-`ExcelBatch.Execute()` wraps every operation with `ExcelWriteGuard`, which automatically suppresses `ScreenUpdating` and restores it after completion or exception. This is transparent to command implementations.
+Specific catches are acceptable for a known HRESULT, a bounded retry, or
+best-effort cleanup. Never use an empty catch or silently substitute a
+success-shaped fallback.
 
-**What the guard does:**
-- Suppresses `ScreenUpdating = false` → prevents Excel UI repaints during COM calls (performance + stability)
-- Reentrant-safe via thread-static ref counting → nested `Execute()` calls are safe
+## COM lifetime
 
-**What the guard does NOT do (by design):**
-- ❌ Does NOT suppress `EnableEvents` → Data Model operations (AddToDataModel, CreateRelationship, CreateMeasure) depend on internal events
-- ❌ Does NOT suppress `Calculation` → PivotTable refresh, Power Query refresh, Data Model refresh require calculation enabled
-
-**Manual calculation suppression pattern** (only for value/formula write commands):
-```csharp
-// Only in SetValues, SetFormulas, Append, Write — NOT in other commands
-int originalCalculation = (int)ctx.App.Calculation;
-bool calculationChanged = false;
-try
-{
-    if (originalCalculation != -4135) // xlCalculationManual
-    {
-        ctx.App.Calculation = (Excel.XlCalculation)(-4135);
-        calculationChanged = true;
-    }
-    // ... write operations ...
-}
-finally
-{
-    if (calculationChanged && originalCalculation != -1)
-    {
-        try { ctx.App.Calculation = (Excel.XlCalculation)originalCalculation; }
-        catch (COMException) { }
-    }
-}
-```
-
-## Reference Resources
-
-**NetOffice Library** - THE BEST source for ALL Excel COM Interop patterns:
-- GitHub: https://github.com/NetOfficeFw/NetOffice
-- **Use for ALL COM Interop work** - ranges, worksheets, workbooks, charts, PivotTables, Power Query, VBA, connections, everything
-- NetOffice wraps Office COM APIs in strongly-typed C# - study their patterns for dynamic interop conversion
-- Search NetOffice repository BEFORE implementing any Excel COM automation
-- Particularly valuable for: PivotTables, OLAP CubeFields, Data Model operations, QueryTables, complex COM scenarios
-
-## Exception Propagation Pattern (CRITICAL)
-
-**Core Commands: NEVER wrap operations in try-catch blocks that return error results. Let exceptions propagate naturally.**
+Every acquired COM reference uses nullable locals and reverse-order cleanup:
 
 ```csharp
-// ❌ WRONG: Catching and wrapping exceptions
-public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
+return batch.Execute((ctx, ct) =>
 {
+    Excel.Worksheet? sheet = null;
+    Excel.Range? range = null;
     try
     {
-        return await batch.Execute((ctx, ct) => {
-            var item = ctx.Create(name);
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    catch (Exception ex)
-    {
-        // ❌ WRONG: Double-wrapping suppresses the exception
-        return new OperationResult { Success = false, ErrorMessage = ex.Message };
-    }
-}
-
-// ✅ CORRECT: Let batch.Execute() handle exceptions via TaskCompletionSource
-public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
-{
-    return await batch.Execute((ctx, ct) => {
-        var item = ctx.Create(name);
-        return ValueTask.FromResult(new OperationResult { Success = true });
-    });
-    // Exception flows to batch.Execute() → caught via TaskCompletionSource
-    // → Returns OperationResult { Success = false, ErrorMessage }
-}
-
-// ✅ CORRECT: Finally blocks are the right place for COM resource cleanup
-public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string name)
-{
-    dynamic? temp = null;
-    try
-    {
-        return await batch.Execute((ctx, ct) => {
-            temp = ctx.CreateTemp(name);
-            // ... operation ...
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
+        sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+            ?? throw new InvalidOperationException(
+                $"Worksheet '{sheetName}' was not found.");
+        range = sheet.Range[address];
+        return ReadRange(range);
     }
     finally
     {
-        // ✅ Finally for resource cleanup, NOT catch for error handling
-        if (temp != null)
-        {
-            ComUtilities.Release(ref temp!);
-        }
+        ComUtilities.Release(ref range);
+        ComUtilities.Release(ref sheet);
     }
-}
+});
 ```
 
-**Why This Pattern:**
-- `batch.Execute()` ALREADY captures exceptions via `TaskCompletionSource` 
-- Inner try-catch suppresses exceptions, causing double-wrapping and lost stack context
-- Finally blocks work perfectly for COM resource cleanup (which must happen regardless of exception)
-- Exception occurs at correct layer (batch), not suppressed at method level
+- Release intermediate objects too, including collections and objects returned
+  by chained property access.
+- Do not release shared session-owned `ctx.App` or `ctx.Book` references.
+- Do not force garbage collection as a substitute for deterministic release.
+- Run `scripts\check-com-leaks.ps1` after interop changes.
 
-**Safe Exception Handling (Keep these):**
-- ✅ Loop continuations: `catch { continue; }` (safe, recovers loop)
-- ✅ Optional property access: `catch { value = null; }` (safe, uses fallback)
-- ✅ Specific error routing: `catch (COMException ex) when (ex.HResult == code) { ... }` (specific, not general)
-- ✅ Finally blocks: Resource cleanup for COM objects (always needed)
+## Excel application state
 
-**Pattern to Remove:**
-- ❌ `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
+- `ExcelWriteGuard` already suppresses and restores `ScreenUpdating` around
+  `Execute`; do not repeat it in commands.
+- Do not globally suppress `EnableEvents` or `Calculation`.
+- Calculation suppression belongs only in established bulk value/formula write
+  paths and must restore the original state in `finally`.
+- Restore any changed application or workbook state on every exit path.
 
-**Architecture:**
-```
-Core Command (NO try-catch wrapping)
-  └─> await batch.Execute()
-      └─> TaskCompletionSource captures exception
-          └─> Returns OperationResult { Success = false, ErrorMessage }
-```
+## Refresh and persistence
 
----
+- Avoid `Workbook.RefreshAll()` where the caller requires completion before
+  returning or saving.
+- Use the existing connection refresh path or `QueryTable.Refresh(false)` for
+  synchronous refresh.
+- Release QueryTable, ListObject, connection, and destination Range references.
+- Persist only when the operation contract requires it; tests should save only
+  when verifying close/reopen behavior.
 
-## Resource Management
+## Shutdown and cancellation
 
-### ✅ Unified Shutdown Pattern (Current Standard)
+- All close/quit paths go through `ExcelShutdownService`.
+- Preserve PID identity tracking, retry behavior, and shutdown timeout layering.
+- Never terminate Excel by process name.
+- Check cancellation in loops and propagate operation timeouts. A timed-out
+  batch must not accept later work or leave a session appearing healthy.
 
-**All workbook close and Excel quit operations use `ExcelShutdownService` with resilient retry:**
+## Known late-bound exceptions
 
-```csharp
-// In ExcelBatch, ExcelSession, FileCommands:
-ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger);
-```
-
-**Shutdown Order:**
-1. **Optional Save** - If `save=true`, calls `workbook.Save()` with retry (3 attempts, 500ms backoff for file lock errors)
-2. **Close Workbook** - Calls `workbook.Close(save)` with retry (3 attempts, 200ms backoff for COM busy errors)
-3. **Release Workbook** - Releases COM reference via `ComUtilities.Release()`
-4. **Quit Excel** - Calls `excel.Quit()` with exponential backoff retry (6 attempts, 200ms base delay)
-5. **Release Excel** - Releases COM reference via `ComUtilities.Release()`
-6. **Automatic GC** - RCW finalizers handle final cleanup automatically (no forced GC needed per Microsoft guidance)
-
-**Resilience Features:**
-- Uses `Microsoft.Extensions.Resilience` retry pipeline for Quit
-- Close and Save have inline retry loops for transient errors
-- **Both single and multi-workbook batches use ExcelShutdownService** (unified path, no bare COM calls)
-- **Outer timeout (30s)**: Overall cancellation for Excel.Quit() - catches hung Excel (modal dialogs, deadlocks)
-- **Inner retry**: Exponential backoff (200ms base, 2x factor, 6 attempts) for transient COM busy errors
-- Retries on: `RPC_E_SERVERCALL_RETRYLATER` (-2147417851), `RPC_E_CALL_REJECTED` (-2147418111)
-- Structured logging for diagnostics (attempt number, HResult, elapsed time)
-- Continues with COM cleanup even if Quit fails/times out
-- **STA thread join (45s)**: Must be >= ExcelQuitTimeout + margin (currently 30s + 15s) to ensure Dispose() waits for full cleanup
-- **PID capture retry**: Hwnd read retried 3 times with 500ms delay if initially zero
-- **ProcessExit handler**: Force-kills tracked Excel PIDs on unexpected .NET process death
-
-**Save Semantics:**
-```csharp
-// Discard changes (default for disposal paths)
-ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger);
-
-// Save before close (for explicit save operations)
-ExcelShutdownService.CloseAndQuit(workbook, excel, save: true, filePath, logger);
-```
-
-**Why Unified Service:**
-- Eliminates duplicated try/catch blocks across `ExcelBatch`, `ExcelSession`, `FileCommands`
-- Consistent retry behavior for all Excel quit operations
-- Centralized logging and diagnostics
-- Handles edge cases: disconnected COM proxies, hung Excel, modal dialogs
-
-**Timeout Architecture (Proper Layering):**
-```
-Overall Quit Timeout: 30 seconds (outer)
-  └─> Resilient Retry: 6 attempts with exponential backoff (inner, ~6s max)
-      └─> Individual Quit() calls
-  └─> STA Thread Join: 45 seconds (ExcelQuitTimeout + 15s margin)
-```
-- **30s quit timeout**: Catches truly hung Excel (modal dialogs, deadlocks) via CancellationToken
-- **6-attempt retry**: Handles transient COM busy states within the 30s window
-- **45s thread join**: Must be >= ExcelQuitTimeout + margin to ensure Dispose() waits for full cleanup
-
-## COM Object Cleanup Pattern (CRITICAL)
-
-**ALWAYS use try-finally for COM object cleanup. NEVER use catch blocks to swallow exceptions.**
-
-### ❌ WRONG Patterns
-
-```csharp
-// WRONG #1: COM cleanup in try block (won't execute if exception occurs)
-try
-{
-    dynamic pivotLayout = chart.PivotLayout;
-    dynamic pivotTable = pivotLayout.PivotTable;
-    name = pivotTable.Name?.ToString() ?? string.Empty;
-    ComUtilities.Release(ref pivotTable!);  // ❌ Won't execute if exception above!
-    ComUtilities.Release(ref pivotLayout!);
-}
-catch
-{
-    name = "(unknown)";  // ❌ Swallows exception, causes COM leak
-}
-
-// WRONG #2: Empty catch block (swallows exceptions silently)
-try
-{
-    dynamic item = GetItem();
-    // ... operations ...
-    ComUtilities.Release(ref item!);
-}
-catch
-{
-    // ❌ Empty catch - swallows exception, no cleanup
-}
-```
-
-### ✅ CORRECT Pattern
-
-```csharp
-// CORRECT: Finally block ensures cleanup regardless of exceptions
-dynamic? pivotLayout = null;
-dynamic? pivotTable = null;
-try
-{
-    pivotLayout = chart.PivotLayout;
-    pivotTable = pivotLayout.PivotTable;
-    name = pivotTable.Name?.ToString() ?? string.Empty;
-}
-finally
-{
-    // ✅ ALWAYS executes - exception or no exception
-    if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-    if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
-}
-// ✅ Exception propagates naturally to batch.Execute()
-```
-
-**Pattern Requirements:**
-1. **Declare COM objects as `dynamic?` nullable** before try block
-2. **Initialize to `null`**
-3. **Acquire COM objects in try block**
-4. **Release in finally block** with null checks
-5. **NO catch blocks** unless specific exception handling required
-6. **NEVER catch to set fallback values** - let exceptions propagate
-
-**Why This Matters:**
-- Finally blocks execute **regardless** of exceptions (try succeeds or fails)
-- COM objects leak if Release() not reached before exception
-- Swallowing exceptions with catch blocks hides real problems from batch.Execute()
-- Empty catch blocks are code smell - remove them entirely
-- Let exceptions propagate naturally to batch.Execute() for proper error handling
-
-**See Also:**
-- CRITICAL-RULES.md Rule 22 for complete requirements
-- CRITICAL-RULES.md Rule 1b for exception propagation pattern
-
-## Critical COM Issues
-
-### 1. Excel Collections Are 1-Based
-```csharp
-// ❌ WRONG: collection.Item(0)  
-// ✅ CORRECT: collection.Item(1)
-for (int i = 1; i <= collection.Count; i++) { var item = collection.Item(i); }
-```
-
-### 2. Named Range Format
-```csharp
-// ❌ WRONG: namesCollection.Add("Param", "Sheet1!A1");  // Missing =
-// ✅ CORRECT: namesCollection.Add("Param", "=Sheet1!A1");
-string ref = reference.StartsWith("=") ? reference : $"={reference}";
-```
-
-### 3. Power Query Loading
-```csharp
-// ❌ WRONG: listObjects.Add(...)  // Causes "Value does not fall within expected range"
-// ✅ CORRECT: Use QueryTables with synchronous refresh
-string cs = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-dynamic qt = sheet.QueryTables.Add(cs, sheet.Range["A1"], commandText);
-qt.Refresh(false);  // CRITICAL: false = synchronous, ensures persistence
-```
-
-### 4. QueryTable Persistence Pattern
-
-**⚠️ RefreshAll() does NOT persist QueryTables!**
-
-```csharp
-// ❌ WRONG: workbook.RefreshAll(); workbook.Save();  // QueryTable lost on reopen
-// ✅ CORRECT: queryTable.Refresh(false); workbook.Save();  // Persists properly
-```
-
-**Why:** `RefreshAll()` is async. Individual `qt.Refresh(false)` is synchronous and required for disk persistence.
-
-### 5. Numeric Property Type Conversions
-
-**⚠️ ALL Excel COM numeric properties return `double`, NOT `int`!**
-
-```csharp
-// ❌ WRONG: Implicit conversion fails at runtime
-int orientation = field.Orientation;  // Runtime error: Cannot convert double to int
-int position = field.Position;        // Runtime error: Cannot convert double to int
-int function = field.Function;        // Runtime error: Cannot convert double to int
-
-// ✅ CORRECT: Explicit conversion required
-int orientation = Convert.ToInt32(field.Orientation);
-int position = Convert.ToInt32(field.Position);
-int comFunction = Convert.ToInt32(field.Function);
-```
-
-**Common Properties Affected:**
-- `PivotField.Orientation` → `double` (not `XlPivotFieldOrientation` enum)
-- `PivotField.Position` → `double` (not `int`)
-- `PivotField.Function` → `double` (not `XlConsolidationFunction` enum)
-- `Range.Row`, `Range.Column` → `double` (not `int`)
-- Any numeric property from Excel COM → assume `double`
-
-**Date Properties:**
-```csharp
-// RefreshDate can be DateTime OR double (OLE date)
-private static DateTime? GetRefreshDateSafe(dynamic refreshDate)
-{
-    if (refreshDate == null) return null;
-    if (refreshDate is DateTime dt) return dt;
-    if (refreshDate is double dbl) return DateTime.FromOADate(dbl);
-    return null;
-}
-```
-
-**Why:** Excel COM uses `VARIANT` types internally, which represent numbers as `double`. C# `dynamic` binding preserves this type.
-
-### 6. Excel Busy Handling
-```csharp
-catch (COMException ex) when (ex.HResult == -2147417851)
-{
-    // RPC_E_SERVERCALL_RETRYLATER - Excel is busy
-}
-```
-
-## Common Patterns
-
-### Read Data
-```csharp
-dynamic range = sheet.Range["A1:D10"];
-object[,] values = range.Value2;  // 2D array, 1-based indexing
-```
-
-### Write Data
-```csharp
-object[,] data = new object[rows, cols];
-dynamic range = sheet.Range[startCell, endCell];
-range.Value2 = data;  // Bulk write
-```
-
-### Refresh Query
-```csharp
-// ❌ NEVER: workbook.RefreshAll();  // Hangs!
-// ✅ CORRECT: targetConnection.Refresh();
-```
-
-## Connection Type Discrepancy
-
-**⚠️ Excel COM runtime types don't match spec!**
-```csharp
-if (connType == 3 || connType == 4) {  // TEXT files report as type 4 (WEB)
-    try { var conn = connection.TextConnection; }
-    catch { var conn = connection.WebConnection; }
-}
-```
-
-## Data Model (Power Pivot) API Limitations
-
-**⚠️ KNOWN LIMITATION: Hidden columns, relationships, and measures cannot be detected via Excel COM API**
-
-When objects are marked "Hidden from client tools" in Power Pivot, the Excel COM API provides no way to detect this or retrieve them.
-
-**Affected Objects:**
-
-| Object | Available Properties | Missing |
-|--------|---------------------|---------|
-| `ModelTableColumn` | Application, Creator, DataType, Name, Parent | **NO IsHidden** |
-| `ModelRelationship` | Application, Creator, ForeignKeyColumn, ForeignKeyTable, PrimaryKeyColumn, PrimaryKeyTable, Active | **NO IsHidden** |
-| `ModelMeasure` | Application, AssociatedTable, Creator, Description, FormatInformation, Formula, Name, Parent | **NO IsHidden** |
-
-**Alternative APIs that were investigated and DO NOT WORK:**
-
-| Approach | Why It Doesn't Work |
-|----------|---------------------|
-| TOM (Tabular Object Model) | Requires `Microsoft.AnalysisServices.Tabular` library which cannot connect to Excel's embedded Analysis Services engine |
-| XMLA queries | Excel's embedded AS engine doesn't expose a queryable endpoint for external XMLA connections |
-| CubeField.ShowInFieldList | Only applies to PivotTable field visibility, not underlying Data Model hidden status |
-
-**Bottom Line:** If a column, relationship, or measure is hidden in the Data Model, it cannot be seen or listed through the Excel COM API. This is a fundamental limitation of Microsoft's Excel automation interface.
-
----
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---------|-----|
-| 0-based indexing | Excel is 1-based |
-| `RefreshAll()` | Use individual refresh |
-| Missing `=` in ranges | Always prefix with `=` |
-| `ListObjects.Add()` for PQ | Use `QueryTables.Add()` |
-| Not releasing objects | `try/finally` + `ReleaseComObject()` |
-| `int x = field.Property` | Use `Convert.ToInt32()` for ALL numeric properties |
-| Assuming enum types | Numeric properties return `double`, convert to enum |
-| Using TOM/XMLA for Data Model | Not accessible from Excel COM - use only ModelTable/ModelTableColumn APIs |
-
-**📚 Reference:** [Excel Object Model](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
+Late binding remains appropriate where early-bound PIAs introduce unavailable
+runtime dependencies, including established `Application.Run`, VBE, and selected
+Office-core members. Reuse the existing helper/pattern rather than adding a new
+dynamic call.

@@ -1,5 +1,6 @@
 ---
-applyTo: "src/ExcelMcp.Core/Commands/ConnectionCommands.cs,src/ExcelMcp.Core/Connections/**/*.cs,tests/**/ConnectionCommands*.cs,tests/**/ConnectionTestHelper.cs"
+applyTo: "src/ExcelMcp.Core/Commands/Connection/**/*.cs,src/ExcelMcp.Core/Utilities/ConnectionStringSanitizer.cs,tests/**/ConnectionCommandsTests*.cs,tests/**/ConnectionTestHelper.cs,tests/**/ConnectionTestsFixture.cs"
+excludeAgent: "code-review"
 ---
 
 # Excel Connection Types - LLM Quick Reference
