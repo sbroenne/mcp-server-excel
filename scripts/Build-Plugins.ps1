@@ -55,6 +55,17 @@ if (-not $Version) {
     }
 }
 
+$BootstrapScriptPath = Join-Path $RepoRoot "scripts\Build-BootstrapScripts.ps1"
+if (-not (Test-Path $BootstrapScriptPath)) {
+    throw "Bootstrap generator script not found: $BootstrapScriptPath"
+}
+
+Write-Host "Rendering canonical plugin bootstrap scripts from the shared template..." -ForegroundColor Cyan
+& $BootstrapScriptPath -OutputRoot $PluginSourceDir
+if ($LASTEXITCODE -ne 0) {
+    throw "Bootstrap script generation failed."
+}
+
 function Remove-PackagedRuntimePayload {
     param(
         [string]$PluginName,
