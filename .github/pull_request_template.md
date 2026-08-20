@@ -50,17 +50,13 @@ ExcelMcp command2 "test.xlsx" "param"
 
 If YES, verify all steps completed:
 
-- [ ] Added method to Core Commands interface (e.g., `IPowerQueryCommands.NewMethodAsync()`)
-- [ ] Implemented method in Core Commands class (e.g., `PowerQueryCommands.NewMethodAsync()`)
-- [ ] Added enum value to `ToolActions.cs` (e.g., `PowerQueryAction.NewMethod`)
-- [ ] Added `ToActionString` mapping to `ActionExtensions.cs` (e.g., `PowerQueryAction.NewMethod => "new-method"`)
-- [ ] Added switch case to appropriate MCP Tool (e.g., `ExcelPowerQueryTool.cs`)
-- [ ] Implemented MCP method that calls Core method
-- [ ] Build succeeds with 0 warnings (CS8524 compiler enforcement verified)
-- [ ] Updated `CORE-COMMANDS-AUDIT.md` (if significant addition)
-- [ ] Added integration tests for new action
-- [ ] Updated MCP Server prompts documentation
-- [ ] Updated CLI commands documentation (if applicable)
+- [ ] Updated the annotated Core Commands interface and implementation
+- [ ] Built Release so source generators refreshed Service, CLI, and MCP surfaces
+- [ ] Ran `scripts\audit-core-coverage.ps1 -CheckNaming -FailOnGaps`
+- [ ] Ran `scripts\check-mcp-core-implementations.ps1`
+- [ ] Verified CLI and MCP names, parameters, defaults, validation, and results match
+- [ ] Updated focused integration tests for the affected entry points
+- [ ] Updated canonical guidance in `skills/shared` and user documentation when behavior changed
 
 **Coverage Impact**: +___ methods, ___% → ___% coverage
 
