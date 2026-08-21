@@ -383,6 +383,45 @@ public static class ComUtilities
         }
     }
 
+
+    /// <summary>
+    /// HRESULT for Excel "application-defined or object-defined error".
+    /// Common when Formula2 is unavailable (Excel 2019 / some locales) or the call is rejected.
+    /// </summary>
+    public const int ExcelObjectDefinedError = unchecked((int)0x800A03EC);
+
+    /// <summary>
+    /// Reads formulas preferring Formula2 (dynamic-array aware), falling back to Formula
+    /// when Formula2 throws 0x800A03EC — typical on Excel 2019 32-bit / non-en-US builds
+    /// where VBA Range.Formula still works (see GitHub issue #750).
+    /// </summary>
+    public static object GetRangeFormulas(dynamic range)
+    {
+        try
+        {
+            return range.Formula2;
+        }
+        catch (COMException ex) when (ex.HResult == ExcelObjectDefinedError)
+        {
+            return range.Formula;
+        }
+    }
+
+    /// <summary>
+    /// Writes formulas preferring Formula2, falling back to Formula on 0x800A03EC (issue #750).
+    /// </summary>
+    public static void SetRangeFormulas(dynamic range, object formulas)
+    {
+        try
+        {
+            range.Formula2 = formulas;
+        }
+        catch (COMException ex) when (ex.HResult == ExcelObjectDefinedError)
+        {
+            range.Formula = formulas;
+        }
+    }
+
     [DllImport("kernel32.dll")]
     private static extern void Sleep(uint dwMilliseconds);
 
