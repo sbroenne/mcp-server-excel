@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -40,15 +41,16 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
     [Fact]
     public async Task FileCloseWorkbook_IsRejectedInsteadOfReportingNoOpSuccess()
     {
-        var result = await CallToolAsync("file", new Dictionary<string, object?>
+        var result = await Client!.CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close-workbook",
             ["path"] = @"C:\tmp\book.xlsx"
-        });
+        }, cancellationToken: TestCancellationToken);
 
-        Output.WriteLine(result);
-        Assert.DoesNotContain("\"success\":true", result, StringComparison.OrdinalIgnoreCase);
-        Assert.False(string.IsNullOrWhiteSpace(result));
+        Assert.True(result.IsError);
+        var response = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        Output.WriteLine(response);
+        Assert.False(string.IsNullOrWhiteSpace(response));
     }
 
     [Fact]

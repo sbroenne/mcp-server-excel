@@ -61,9 +61,10 @@ public sealed class DataModelRefreshTimeoutRegressionTests
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("isError").GetBoolean());
         var error = json.RootElement.GetProperty("error").GetString();
         Assert.Contains("00:10:00", error, StringComparison.Ordinal);
-        Assert.Contains("Nullable", error, StringComparison.Ordinal);
+        Assert.Equal(error, json.RootElement.GetProperty("errorMessage").GetString());
     }
 
     [Fact]
