@@ -11,6 +11,62 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.0] - 2026-08-21
+
+### Major Changes
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Canonical file lifecycle** ([#798](https://github.com/sbroenne/mcp-server-excel/issues/798), [#799](https://github.com/sbroenne/mcp-server-excel/issues/799)): CLI and MCP now expose the same
+  list/open/create/close/test workflow. Standalone CLI save and the MCP
+  `close-workbook` no-op are removed; file testing shares one result model with
+  openability and deterministic IRM/AIP read-only requirements. IRM detection now
+  requires the rights-management data-space marker, so ordinary password-encrypted
+  OOXML files are not incorrectly forced into read-only mode.
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Compact, truthful Power Query reads** ([#787](https://github.com/sbroenne/mcp-server-excel/issues/787), [#800](https://github.com/sbroenne/mcp-server-excel/issues/800)): `powerquery list` now
+  returns bounded M previews and exact worksheet/Data Model load state without
+  serializing full formulas. Use `powerquery view` for full M code. List inspection
+  errors now fail explicitly instead of silently omitting queries. The public
+  `PowerQueryInfo.Formula` getter and setter remain available for source and binary
+  compatibility, but are obsolete and excluded from list JSON.
+
+### Patch Changes
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Canonical public inputs** ([#782](https://github.com/sbroenne/mcp-server-excel/issues/782), [#783](https://github.com/sbroenne/mcp-server-excel/issues/783), [#784](https://github.com/sbroenne/mcp-server-excel/issues/784), [#801](https://github.com/sbroenne/mcp-server-excel/issues/801)): CLI, batch JSON, and MCP
+  now use integer seconds for timeouts, validate the same supported ranges, and
+  resolve inline-or-file content aliases once at shared dispatch. Manual session
+  open/create now enforces its documented 10-3600 second operation timeout.
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Exact Power Query and connection cleanup** ([#786](https://github.com/sbroenne/mcp-server-excel/issues/786), [#796](https://github.com/sbroenne/mcp-server-excel/issues/796), [#797](https://github.com/sbroenne/mcp-server-excel/issues/797)): Power Query
+  load detection, refresh, unload, delete, Data Model lookup, and evaluate cleanup
+  now use exact case-insensitive mashup `Location` identity instead of substring or
+  display-name matching. Connection delete/load-to removes only QueryTables owned
+  by the exact WorkbookConnection, preserving similarly named and unrelated
+  workbook objects. Queries loaded to both a worksheet and the Data Model now
+  refresh both destinations instead of leaving model data stale. Evaluate removes
+  Excel-generated `Connection`/`Connection1` artifacts before save and returns an
+  actionable error if cleanup fails.
+
+- [#803](https://github.com/sbroenne/mcp-server-excel/pull/803) [`4e67044`](https://github.com/sbroenne/mcp-server-excel/commit/4e670445f7ad8993ba26f7e344131177f3843194) Thanks [@sbroenne](https://github.com/sbroenne)! - **Accurate skill versions in every distribution** ([#791](https://github.com/sbroenne/mcp-server-excel/issues/791)): plugin, Agent Skills ZIP,
+  and VS Code extension builds now stamp their resolved package version into generated
+  skill metadata instead of copying a stale source `VERSION` file. Manual distributable
+  builds must pass `-Version`, preventing silently mislabeled packages.
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Safer CLI cleanup** ([#789](https://github.com/sbroenne/mcp-server-excel/issues/789)): builds and test workflows now stop only the CLI daemon and Excel processes owned by their selected pipe, preserving unrelated Excel sessions. Daemon lifecycle locks use disjoint, case-insensitive hashed pipe identities so case variants, suffixes, special characters, and long names cannot collide. When cleanup sources are newer than the installed build output, pre-build cleanup uses an isolated current client so the owned daemon cannot lock the rebuild.
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Strict generated action contracts** ([#781](https://github.com/sbroenne/mcp-server-excel/issues/781), [#788](https://github.com/sbroenne/mcp-server-excel/issues/788)): CLI direct commands, CLI batch,
+  and MCP now reject unknown enum values and parameters that do not apply to the
+  selected action. Power Query load destinations accept the documented
+  `worksheet`, `data-model`, and `both` aliases without falling back to an
+  unintended load mode.
+
+- [#807](https://github.com/sbroenne/mcp-server-excel/pull/807) [`f9a25d1`](https://github.com/sbroenne/mcp-server-excel/commit/f9a25d155f3e9ebc27e2e9a62b35b15a66ada3e9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Truthful CLI daemon status** ([#785](https://github.com/sbroenne/mcp-server-excel/issues/785)): `service status` now distinguishes
+  stopped, running, and unresponsive daemons, while `session list` returns an empty
+  list only for confirmed empty states. Both commands probe the configured service
+  before consulting daemon mutex state, so externally hosted services remain
+  visible. Shared control-command and startup readiness timeouts tolerate slow
+  daemon startup without converting transport failures into successful stopped or
+  empty results.
+
 ## [1.10.9] - 2026-08-20
 
 ### Patch Changes
