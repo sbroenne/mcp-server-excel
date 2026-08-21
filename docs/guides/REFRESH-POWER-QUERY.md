@@ -28,8 +28,8 @@ know the operation names — but they are useful when scripting.
     The assistant opens a session, refreshes, then closes it:
 
     ```text
-    file(action: 'open', filePath: 'C:\reports\Q3-report.xlsx')
-    powerquery(action: 'refresh', queryName: 'SalesData', refreshTimeoutSeconds: 300)
+    file(action: 'open', path: 'C:\reports\Q3-report.xlsx')
+    powerquery(action: 'refresh', query_name: 'SalesData', timeout_seconds: 300)
     file(action: 'close', save: true)
     ```
 
@@ -41,9 +41,22 @@ know the operation names — but they are useful when scripting.
     excelcli -q session close --session $session --save
     ```
 
-`refresh` defaults to a **30-minute** timeout when the timeout is omitted or `0`.
-For quick queries pass something smaller (60–120 seconds) so a stuck refresh fails
+Public timeout values are always integer seconds. `refresh` defaults to a
+**30-minute** data-operation timeout when its timeout is omitted or `0`. For
+quick queries pass something smaller (60–120 seconds) so a stuck refresh fails
 fast instead of holding the session.
+
+## Understand timeout ownership
+
+| Timeout | Configure it with | Applies to | Default and range |
+|---|---|---|---|
+| Session operation timeout | MCP `file open/create` `timeout_seconds`; CLI `session open/create --timeout` | Workbook startup and operations that do not supply a dedicated data-operation timeout, including Power Query `create`, `update`, and `evaluate` | 120 seconds; 10–3600 |
+| Refresh/data-operation timeout | The refresh action's MCP `timeout_seconds`, CLI `--timeout`, or batch `timeout` | Power Query `refresh` and `refresh-all`; `load-to` uses the same 30-minute default but has no caller override | Power Query omitted/`0`: 1800 seconds; explicit range 0–2147483. Other timeout-bearing categories use 1–2147483. |
+
+A dedicated refresh/data-operation timeout replaces the session operation wait
+for that operation; the two limits are not layered. `powerquery load-to` has no
+caller timeout option and uses the fixed 30-minute data-operation timeout;
+passing `timeout` is rejected as action-inapplicable rather than ignored.
 
 ## Refresh everything
 
@@ -69,6 +82,11 @@ preview *without* creating a permanent query:
 useful than the COM exception you get from a failed `create`. Skipping it is how
 workbooks end up polluted with broken queries.
 
+For large M programs, use `m_code_file` in MCP, `--m-code-file` in the CLI, or
+`mCodeFile` in batch JSON. Supply exactly one of the inline and file forms. The
+file must exist and be readable; file content is resolved once by shared
+dispatch.
+
 Use `create` for a new query and `update` for one that already exists — `create`
 fails with "Query 'X' already exists", and `update` fails with "not found". Run
 `powerquery list` first if you are unsure.
@@ -85,6 +103,11 @@ excelcli -q datamodel list-tables --session $session    # if loading to the Data
 
 In `list` output, `IsConnectionOnly = true` means the query has **no** data
 destination. A query loaded only to the Data Model is *not* connection-only.
+List includes exact load mode, formula character count, and an M preview of at
+most 80 characters; use `powerquery view` for one query's complete M code.
+List, View, and Get Load Config share one exact worksheet/Data Model-aware
+detector. If Excel cannot inspect a query, List fails instead of silently
+omitting it from a successful response.
 
 ## Choose where the data lands
 

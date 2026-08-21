@@ -17,8 +17,9 @@ safe for an automation server, and testable against a real Excel instance.
 | Workbook links | `workbook` list/update/break external links | Exposes explicit link inspection and mutation without update prompts. |
 | Worksheet page setup | `sheetstyle` get/set page setup | Covers orientation, fit-to-page, and centering metadata without invoking print UI. |
 
-XML content is parsed with DTD processing disabled. XML schemas must be supplied
-as inline content (or read through the generated `schema_file` parameter), and
+XML content is parsed with DTD processing disabled. XML schemas and import data
+must each use exactly one inline value or readable file alias (`schemaFile` /
+`xmlDataFile` in batch JSON, snake_case in MCP, kebab-case in the CLI), and
 XSD `import`/`include`/`redefine` dependencies are rejected so Excel cannot implicitly fetch
 external schemas. XML imports also reject `xsi:schemaLocation` and
 `xsi:noNamespaceSchemaLocation` before invoking Excel, preventing HTTP, UNC, or

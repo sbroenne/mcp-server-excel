@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
@@ -36,25 +37,56 @@ public partial class FileCommandsTests
         // Assert
         Assert.True(info.Exists);
         Assert.True(info.IsValid);
+        Assert.True(info.Success);
+        Assert.True(info.CanOpen);
         Assert.False(info.IsIrmProtected);
+        Assert.False(info.WillOpenReadOnly);
+        Assert.False(info.RequiresVisibleSession);
         Assert.Null(info.Message);
     }
 
-    [Fact]
-    public void Test_IrmSignatureFile_DetectsProtection()
+    [Theory]
+    [InlineData("\tDRMDataSpace")]
+    [InlineData("DRMEncryptedDataSpace")]
+    public void Test_IrmDataSpaceFile_DetectsProtection(string dataSpaceName)
     {
-        // Arrange - deterministic OLE2 header seam for IRM detection logic
         var testFile = Path.Join(_fixture.TempDir, $"FakeIrm_{Guid.NewGuid():N}.xlsx");
-        System.IO.File.WriteAllBytes(testFile, Ole2Signature);
+        OleDataSpaceTestFile.Write(testFile, dataSpaceName);
 
         // Act
         var info = _fileCommands.Test(testFile);
 
         // Assert
         Assert.True(info.Exists);
-        Assert.True(info.IsValid);
+        Assert.False(info.IsValid);
+        Assert.False(info.Success);
+        Assert.False(info.CanOpen);
         Assert.True(info.IsIrmProtected);
-        Assert.Null(info.Message);
+        Assert.True(info.WillOpenReadOnly);
+        Assert.True(info.RequiresVisibleSession);
+        Assert.NotNull(info.Message);
+    }
+
+    [Fact]
+    public void Test_PasswordEncryptionMarkersWithoutDrmDataSpace_AreNotIrm()
+    {
+        var testFile = Path.Join(_fixture.TempDir, $"FakeIrmMarkers_{Guid.NewGuid():N}.xlsx");
+        var bytes = new byte[1536];
+        Ole2Signature.CopyTo(bytes, 0);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(26, 2), 3);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(28, 2), 0xFFFE);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(30, 2), 9);
+        System.Text.Encoding.Unicode.GetBytes("EncryptionInfo").CopyTo(bytes, 600);
+        System.Text.Encoding.Unicode.GetBytes("EncryptedPackage").CopyTo(bytes, 700);
+        System.IO.File.WriteAllBytes(testFile, bytes);
+
+        var info = _fileCommands.Test(testFile);
+
+        Assert.False(info.IsIrmProtected);
+        Assert.False(info.IsValid);
+        Assert.False(info.CanOpen);
+        Assert.False(info.WillOpenReadOnly);
+        Assert.False(info.RequiresVisibleSession);
     }
 
     [Fact]

@@ -26,7 +26,7 @@ public partial class ConnectionCommands
 
             try
             {
-                conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
 
                 if (conn == null)
                 {
@@ -38,6 +38,19 @@ public partial class ConnectionCommands
                 {
                     throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use 'pq-loadto' command instead.");
                 }
+
+                var definition = new ConnectionDefinition
+                {
+                    Name = connectionName,
+                    Description = conn.Description,
+                    ConnectionString = GetConnectionString(conn),
+                    CommandText = GetCommandText(conn),
+                    CommandType = GetCommandType(conn),
+                    BackgroundQuery = GetBackgroundQuerySetting(conn),
+                    RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
+                    SavePassword = GetSavePasswordSetting(conn),
+                    RefreshPeriod = GetRefreshPeriod(conn)
+                };
 
                 // Find or create target sheet
                 sheets = ctx.Book.Worksheets;
@@ -68,7 +81,17 @@ public partial class ConnectionCommands
                 }
 
                 // Remove existing QueryTables first
-                PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, conn);
+                ComUtilities.Release(ref conn);
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
+                if (conn == null)
+                {
+                    CreateConnection(ctx.Book, connectionName, definition);
+                    conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName)
+                        ?? throw new InvalidOperationException(
+                            $"Connection '{connectionName}' could not be recreated after replacing its QueryTables.");
+                    UpdateConnectionProperties(conn, definition);
+                }
 
                 // Create QueryTable to load data
                 var options = new PowerQueryHelpers.QueryTableOptions
@@ -97,7 +120,7 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
 
             if (conn == null)
             {
@@ -127,6 +150,3 @@ public partial class ConnectionCommands
         });
     }
 }
-
-
-

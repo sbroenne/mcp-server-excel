@@ -42,7 +42,7 @@ public interface IVbaCommands
     /// Imports VBA code to create a new standard module
     /// </summary>
     /// <param name="moduleName">Name for the new module</param>
-    /// <param name="vbaCode">VBA code to import</param>
+    /// <param name="vbaCode">VBA code. Public callers must supply either inline vbaCode or a readable vbaCodeFile, not both.</param>
     [ServiceAction("import")]
     OperationResult Import(IExcelBatch batch, [RequiredParameter] string moduleName, [RequiredParameter][FileOrValue] string vbaCode);
 
@@ -50,7 +50,7 @@ public interface IVbaCommands
     /// Updates an existing VBA module with new code
     /// </summary>
     /// <param name="moduleName">Name of the module to update</param>
-    /// <param name="vbaCode">New VBA code</param>
+    /// <param name="vbaCode">New VBA code. Public callers must supply either inline vbaCode or a readable vbaCodeFile, not both.</param>
     [ServiceAction("update")]
     OperationResult Update(IExcelBatch batch, [RequiredParameter] string moduleName, [RequiredParameter][FileOrValue] string vbaCode);
 
@@ -58,7 +58,7 @@ public interface IVbaCommands
     /// Runs a VBA procedure with optional parameters
     /// </summary>
     /// <param name="procedureName">Name of the procedure to run (for example "Module1.MySub")</param>
-    /// <param name="timeout">Optional timeout for execution</param>
+    /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
     /// <param name="parameters">Optional parameters to pass to the procedure</param>
     [ServiceAction("run")]
     OperationResult Run(IExcelBatch batch, [RequiredParameter] string procedureName, TimeSpan? timeout, params string[] parameters);
@@ -70,6 +70,5 @@ public interface IVbaCommands
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
 }
-
 
 

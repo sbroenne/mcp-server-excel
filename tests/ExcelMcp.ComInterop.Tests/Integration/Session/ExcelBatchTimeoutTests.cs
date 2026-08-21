@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -128,7 +129,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void BeginBatch_IrmStartupOpenBlocks_TimeoutMessageIncludesInteractiveGuidance()
     {
         string fakeIrmFile = Path.Join(Path.GetTempPath(), $"batch-timeout-irm-{Guid.NewGuid():N}.xlsx");
-        File.WriteAllBytes(fakeIrmFile, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+        OleDataSpaceTestFile.Write(fakeIrmFile, "\tDRMDataSpace");
 
         ExcelBatch.BeforeWorkbookOpenHook = (_, cancellationToken) =>
         {

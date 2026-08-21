@@ -1,6 +1,5 @@
 > **CLI syntax note:** This shared domain guide may use MCP-style `tool(action: ...)` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live `--help`; notably, MCP `file` open/close maps to CLI `session` open/close, and MCP `worksheet` maps to CLI `sheet`.
 
-````markdown
 # conditionalformat - Server Quirks
 
 **Rule Types**:
@@ -207,5 +206,3 @@ excelcli conditionalformat list-worksheet-rules --session <id> --sheet "Data"
 2. Use `clear-rules` before applying new rules if replacing existing formatting
 3. For row-based highlighting, apply rule to full range (not just one column)
 4. Use relative row references (`$A1`) and absolute column references for row highlighting
-
-````

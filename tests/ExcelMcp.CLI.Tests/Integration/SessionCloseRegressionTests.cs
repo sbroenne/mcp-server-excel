@@ -31,7 +31,8 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         var batch = new FakeBatch
         {
             WorkbookPath = CreateFakeWorkbookPath(),
-            DisposeException = new InvalidOperationException("synthetic teardown failure")
+            DisposeException = new InvalidOperationException(
+                "Excel process 4321 did not exit and remains tracked for pipe cleanup")
         };
         const string sessionId = "dispose-failure-quarantine";
         RegisterSession(service, sessionId, batch, addKnownSessionId: true);
@@ -41,7 +42,7 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         Assert.False(firstClose.Success);
         Assert.NotNull(firstClose.ErrorMessage);
         Assert.Contains("Failed to dispose session", firstClose.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("synthetic teardown failure", firstClose.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("remains tracked", firstClose.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
         var listAfterFailedClose = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
         Assert.True(listAfterFailedClose.Success);
@@ -50,7 +51,7 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
 
         var quarantinedUse = await service.ProcessAsync(new ServiceRequest
         {
-            Command = "session.save",
+            Command = "sheet.list",
             SessionId = sessionId
         });
         Assert.False(quarantinedUse.Success);
@@ -68,20 +69,12 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
     public async Task SessionClose_DuringInFlightOperation_ReturnsBusyAndKeepsSessionUsable()
     {
         using var service = new ExcelMcpService();
-        var batch = new FakeBatch
-        {
-            WorkbookPath = CreateFakeWorkbookPath(),
-            BlockSaveUntilReleased = true
-        };
+        var batch = new FakeBatch { WorkbookPath = CreateFakeWorkbookPath() };
         const string sessionId = "in-flight-close-race";
         RegisterSession(service, sessionId, batch, addKnownSessionId: true);
 
-        var inFlightSave = Task.Run(async () => await service.ProcessAsync(new ServiceRequest
-        {
-            Command = "session.save",
-            SessionId = sessionId
-        }));
-        Assert.True(await batch.WaitForSaveStartedAsync(TimeSpan.FromSeconds(10)));
+        var sessionManager = GetSessionManager(service);
+        sessionManager.BeginOperation(sessionId);
 
         var closeWhileBusy = await CloseSessionAsync(service, sessionId);
 
@@ -102,17 +95,8 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
             Assert.False(session.GetProperty("canClose").GetBoolean());
         }
 
-        batch.ReleaseSave();
-        var saveResponse = await inFlightSave;
-        Assert.True(saveResponse.Success);
-        Assert.Equal(0, GetSessionManager(service).GetActiveOperationCount(sessionId));
-
-        var secondSave = await service.ProcessAsync(new ServiceRequest
-        {
-            Command = "session.save",
-            SessionId = sessionId
-        });
-        Assert.True(secondSave.Success);
+        sessionManager.EndOperation(sessionId);
+        Assert.Equal(0, sessionManager.GetActiveOperationCount(sessionId));
 
         var finalClose = await CloseSessionAsync(service, sessionId);
         Assert.True(finalClose.Success);
@@ -174,9 +158,6 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
 
     private sealed class FakeBatch : IExcelBatch
     {
-        private readonly TaskCompletionSource _saveStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource _releaseSave = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
         public string WorkbookPath { get; init; } = string.Empty;
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
@@ -184,9 +165,7 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         public int? ExcelProcessId => 1234;
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(5);
         public bool IsExcelVisible => false;
-        public bool BlockSaveUntilReleased { get; init; }
         public Exception? DisposeException { get; init; }
-        public int SaveCalls { get; private set; }
         public int DisposeCalls { get; private set; }
 
         public Excel.Workbook GetWorkbook(string filePath) => throw new NotSupportedException();
@@ -205,28 +184,9 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
 
         public void Save(CancellationToken cancellationToken = default)
         {
-            SaveCalls++;
-            if (!BlockSaveUntilReleased)
-            {
-                return;
-            }
-
-            _saveStarted.TrySetResult();
-            _releaseSave.Task.Wait(cancellationToken);
         }
 
         public bool IsExcelProcessAlive() => true;
-
-        public async Task<bool> WaitForSaveStartedAsync(TimeSpan timeout)
-        {
-            var completed = await Task.WhenAny(_saveStarted.Task, Task.Delay(timeout));
-            return completed == _saveStarted.Task;
-        }
-
-        public void ReleaseSave()
-        {
-            _releaseSave.TrySetResult();
-        }
 
         public void Dispose()
         {

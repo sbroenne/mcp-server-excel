@@ -194,10 +194,10 @@ Available command groups:
 See [CLI command reference and common pitfalls](./references/cli-commands.md#common-pitfalls) for examples. Key issues:
 
 - `--values-file` expects a path to an existing file; use `--values` for inline JSON.
-- `--timeout` must be a positive integer; omit it to use the default timeout.
+- `--timeout` ranges are action-specific: session open/create accepts 10-3600; Power Query refresh/refresh-all accepts 0-2147483 (0 keeps the default); other generated timeout actions accept 1-2147483.
 - `--values` takes a 2D JSON array such as `'[["Name","Age"],["Alice",30]]'`.
 - List parameters such as `--selected-items` require JSON arrays.
-- Power Query operations can take 30+ seconds; use generous timeouts.
+- Power Query operations can take 30+ seconds; use a deliberate data-operation timeout or 0 for the default.
 
 ## Reference Documentation
 

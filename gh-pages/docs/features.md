@@ -1,6 +1,6 @@
 ---
 title: Excel Automation Features
-description: Explore 31 Excel automation tools and 326 operations for Power Query, DAX, PivotTables, charts, formulas, VBA, and more.
+description: Explore 31 Excel automation tools and 325 operations for Power Query, DAX, PivotTables, charts, formulas, VBA, and more.
 keywords: "Excel automation features, Excel MCP tools, Power Query automation, DAX, PivotTables, VBA, Excel AI"
 ---
 
@@ -11,7 +11,7 @@ keywords: "Excel automation features, Excel MCP tools, Power Query automation, D
   <figcaption>A PivotTable — revenue by region and quarter with grand totals — created in the real Excel application from a plain-language request.</figcaption>
 </figure>
 
-Excel MCP Server provides **31 specialized tools and 326 operations** for
+Excel MCP Server provides **31 specialized tools and 325 operations** for
 automating the real Microsoft Excel application. You can ask your AI assistant
 in plain language—the reference pages below are for discovering what is
 possible and looking up individual operations.

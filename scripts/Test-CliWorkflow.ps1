@@ -26,7 +26,8 @@
 
 [CmdletBinding()]
 param(
-    [switch]$KeepFile  # Don't delete the test file after completion
+    [switch]$KeepFile,  # Don't delete the test file after completion
+    [string]$PipeName
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,6 +44,34 @@ if (-not (Test-Path $cliPath)) {
 
 $cli = (Resolve-Path $cliPath).Path
 Write-Host "Using CLI: $cli" -ForegroundColor Cyan
+
+$previousPipeName = $env:EXCELMCP_CLI_PIPE
+$selectedPipeName = if (-not [string]::IsNullOrWhiteSpace($PipeName)) {
+    $PipeName
+}
+else {
+    "excelmcp-cli-workflow-$PID-$([Guid]::NewGuid().ToString('N'))"
+}
+$env:EXCELMCP_CLI_PIPE = $selectedPipeName
+Write-Host "Using private CLI pipe: $selectedPipeName" -ForegroundColor DarkGray
+
+function Reset-CliWorkflowEnvironment {
+    $cleanupExitCode = 0
+    try {
+        & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
+        $cleanupExitCode = $LASTEXITCODE
+    }
+    finally {
+        if ($null -eq $previousPipeName) {
+            Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:EXCELMCP_CLI_PIPE = $previousPipeName
+        }
+    }
+
+    return $cleanupExitCode
+}
 
 # Generate unique test file
 $testFile = Join-Path $env:TEMP "cli-workflow-test-$(Get-Random).xlsx"
@@ -85,10 +114,12 @@ function Test-Step {
 # TEST WORKFLOW
 # ============================================================================
 
+try {
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "Excel CLI Workflow Test" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
+:workflow do {
 # 1. Create session (auto-starts daemon, creates file)
 $session = Test-Step "Create session (create file)" {
     & $cli -q session create $testFile | ConvertFrom-Json
@@ -99,7 +130,8 @@ $session = Test-Step "Create session (create file)" {
 
 if (-not $session.sessionId) {
     Write-Host "`nFATAL: Could not open session. Aborting." -ForegroundColor Red
-    exit 1
+    $failed++
+    break workflow
 }
 
 $sessionId = $session.sessionId
@@ -206,6 +238,7 @@ Test-Step "Verify file exists" {
     param($r)
     $r -match "bytes"
 }
+} while ($false)
 
 # ============================================================================
 # SUMMARY
@@ -227,8 +260,19 @@ if (-not $KeepFile -and (Test-Path $testFile)) {
 
 if ($failed -gt 0) {
     Write-Host "`nSome tests FAILED!" -ForegroundColor Red
-    exit 1
+    $workflowExitCode = 1
 } else {
     Write-Host "`nAll tests PASSED!" -ForegroundColor Green
-    exit 0
+    $workflowExitCode = 0
 }
+}
+finally {
+    $cleanupExitCode = Reset-CliWorkflowEnvironment
+}
+
+if ($cleanupExitCode -ne 0) {
+    Write-Error "Owned CLI cleanup failed with exit code $cleanupExitCode."
+    exit $cleanupExitCode
+}
+
+exit $workflowExitCode

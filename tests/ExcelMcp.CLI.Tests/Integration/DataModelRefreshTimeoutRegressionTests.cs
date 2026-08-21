@@ -39,11 +39,11 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.Equal("datamodel.refresh", json.RootElement.GetProperty("command").GetString());
 
         using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
-        Assert.Equal("00:10:00", argsJson.RootElement.GetProperty("timeout").GetString());
+        Assert.Equal(600, argsJson.RootElement.GetProperty("timeout").GetInt32());
     }
 
     [Fact]
-    public async Task Refresh_TimeSpanTimeout_ForwardsRequestedBudget()
+    public async Task Refresh_TimeSpanTimeout_IsRejectedBeforeDaemonDispatch()
     {
         var pipeName = $"excelmcp-cli-test-{Guid.NewGuid():N}";
 
@@ -59,11 +59,12 @@ public sealed class DataModelRefreshTimeoutRegressionTests
             },
             diagnosticLabel: "issue-640-datamodel-refresh-timespan-timeout");
 
-        Assert.Equal(0, result.ExitCode);
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-
-        using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
-        Assert.Equal("00:10:00", argsJson.RootElement.GetProperty("timeout").GetString());
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("isError").GetBoolean());
+        var error = json.RootElement.GetProperty("error").GetString();
+        Assert.Contains("00:10:00", error, StringComparison.Ordinal);
+        Assert.Equal(error, json.RootElement.GetProperty("errorMessage").GetString());
     }
 
     [Fact]
@@ -89,7 +90,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.Equal("powerquery.refresh", json.RootElement.GetProperty("command").GetString());
 
         using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
-        Assert.Equal("00:10:00", argsJson.RootElement.GetProperty("timeout").GetString());
+        Assert.Equal(600, argsJson.RootElement.GetProperty("timeout").GetInt32());
     }
 
     private sealed class EchoDaemon : IAsyncDisposable

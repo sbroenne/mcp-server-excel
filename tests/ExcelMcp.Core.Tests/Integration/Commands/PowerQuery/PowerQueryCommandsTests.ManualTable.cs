@@ -105,7 +105,7 @@ in
         // Verify the actual query is present
         var query = Assert.Single(result.Queries);
         Assert.Equal(queryName, query.Name);
-        Assert.NotEmpty(query.Formula);
+        Assert.NotEmpty(query.FormulaPreview);
         Assert.DoesNotContain("Error:", query.FormulaPreview);
 
         // Query should be connection-only (manual table shouldn't affect this)
@@ -294,7 +294,6 @@ in
         Assert.DoesNotContain("Column1", viewResult.MCode);
     }
 }
-
 
 
 

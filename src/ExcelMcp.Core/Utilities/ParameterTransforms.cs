@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -11,6 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Utilities;
 /// </summary>
 public static class ParameterTransforms
 {
+    /// <summary>
+    /// Largest whole-second timeout that remains within the millisecond range accepted by
+    /// all supported cancellation APIs.
+    /// </summary>
+    public const int MaximumTimeoutSeconds = int.MaxValue / 1000;
+
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -255,22 +260,75 @@ public static class ParameterTransforms
 
     /// <summary>
     /// Resolves a value that can come from either a direct string or a file path.
-    /// If filePath is provided and exists, reads file content. Otherwise returns directValue.
+    /// Exactly one source may be supplied.
     /// </summary>
     /// <param name="directValue">The direct string value (e.g., M code inline)</param>
     /// <param name="filePath">Optional path to a file containing the value</param>
+    /// <param name="parameterName">Public inline parameter name used in validation errors</param>
     /// <returns>The resolved value (file content or direct value)</returns>
-    public static string? ResolveFileOrValue(string? directValue, string? filePath)
+    public static string? ResolveFileOrValue(
+        string? directValue,
+        string? filePath,
+        string parameterName = "value")
     {
+        ValidateFileOrValuePair(directValue, filePath, parameterName);
+
         if (!string.IsNullOrWhiteSpace(filePath))
         {
             if (!File.Exists(filePath))
             {
-                throw new FileNotFoundException($"File not found: {filePath}", filePath);
+                throw new FileNotFoundException(
+                    $"File for '{parameterName}' was not found: {filePath}",
+                    filePath);
             }
             return File.ReadAllText(filePath);
         }
         return directValue;
+    }
+
+    /// <summary>
+    /// Rejects ambiguous inline-plus-file inputs without reading the file.
+    /// </summary>
+    public static void ValidateFileOrValuePair(
+        string? directValue,
+        string? filePath,
+        string parameterName)
+    {
+        if (!string.IsNullOrWhiteSpace(directValue) &&
+            !string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException(
+                $"Provide either {parameterName} or {parameterName}File, not both.",
+                parameterName);
+        }
+    }
+
+    /// <summary>
+    /// Validates file-or-value shape and file existence without reading content.
+    /// Content is resolved exactly once immediately before Core dispatch.
+    /// </summary>
+    public static void ValidateFileOrValueInput(
+        string? directValue,
+        string? filePath,
+        string parameterName,
+        bool required)
+    {
+        ValidateFileOrValuePair(directValue, filePath, parameterName);
+        if (!string.IsNullOrWhiteSpace(filePath) && !File.Exists(filePath))
+        {
+            throw new FileNotFoundException(
+                $"File for '{parameterName}' was not found: {filePath}",
+                filePath);
+        }
+
+        if (required
+            && string.IsNullOrWhiteSpace(directValue)
+            && string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException(
+                $"{parameterName} is required.",
+                parameterName);
+        }
     }
 
     /// <summary>
@@ -280,13 +338,20 @@ public static class ParameterTransforms
     /// <returns>The corresponding PowerQueryLoadMode enum value</returns>
     public static Models.PowerQueryLoadMode ParseLoadMode(string? loadDestination)
     {
-        return loadDestination?.ToLowerInvariant() switch
+        if (string.IsNullOrWhiteSpace(loadDestination))
         {
-            "worksheet" or "table" => Models.PowerQueryLoadMode.LoadToTable,
-            "data-model" or "datamodel" => Models.PowerQueryLoadMode.LoadToDataModel,
-            "both" => Models.PowerQueryLoadMode.LoadToBoth,
+            return Models.PowerQueryLoadMode.LoadToTable;
+        }
+
+        return loadDestination.ToLowerInvariant() switch
+        {
+            "worksheet" or "table" or "load-to-table" or "loadtotable" => Models.PowerQueryLoadMode.LoadToTable,
+            "data-model" or "datamodel" or "load-to-data-model" or "loadtodatamodel" => Models.PowerQueryLoadMode.LoadToDataModel,
+            "both" or "load-to-both" or "loadtoboth" => Models.PowerQueryLoadMode.LoadToBoth,
             "connection-only" or "connectiononly" => Models.PowerQueryLoadMode.ConnectionOnly,
-            _ => Models.PowerQueryLoadMode.LoadToTable
+            _ => throw new ArgumentException(
+                $"Invalid load destination '{loadDestination}'. Valid values: worksheet, data-model, both, connection-only.",
+                nameof(loadDestination))
         };
     }
 
@@ -336,29 +401,45 @@ public static class ParameterTransforms
     }
 
     /// <summary>
-    /// Parses a timeout value supplied via CLI.
-    /// Plain numeric values are interpreted as seconds; TimeSpan-formatted values are preserved.
-    /// Returns null for null/empty input.
+    /// Converts a validated public whole-second timeout to the internal TimeSpan representation.
     /// </summary>
-    /// <param name="value">Timeout text from CLI</param>
+    /// <param name="value">Timeout in whole seconds</param>
     /// <param name="parameterName">Parameter name for error messages</param>
+    /// <param name="minimumSeconds">Smallest accepted value</param>
+    /// <param name="maximumSeconds">Largest accepted value</param>
     /// <returns>Parsed timeout or null</returns>
-    /// <exception cref="FormatException">Thrown when the timeout cannot be parsed</exception>
-    public static TimeSpan? ParseTimeSpanOrSeconds(string? value, string parameterName = "timeout")
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the timeout is outside the supported range</exception>
+    public static TimeSpan? ParseTimeoutSeconds(
+        int? value,
+        string parameterName = "timeout",
+        int minimumSeconds = 1,
+        int maximumSeconds = MaximumTimeoutSeconds)
     {
-        if (string.IsNullOrWhiteSpace(value))
+        if (!value.HasValue)
             return null;
 
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
-            return TimeSpan.FromSeconds(seconds);
+        ValidateTimeoutSeconds(value, parameterName, minimumSeconds, maximumSeconds);
+        return TimeSpan.FromSeconds(value.Value);
+    }
 
-        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var parsed)
-            || TimeSpan.TryParse(value, CultureInfo.CurrentCulture, out parsed))
+    /// <summary>
+    /// Validates a public whole-second timeout without converting its representation.
+    /// </summary>
+    public static void ValidateTimeoutSeconds(
+        int? value,
+        string parameterName = "timeout",
+        int minimumSeconds = 1,
+        int maximumSeconds = MaximumTimeoutSeconds)
+    {
+        if (!value.HasValue)
+            return;
+
+        if (value.Value < minimumSeconds || value.Value > maximumSeconds)
         {
-            return parsed;
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                value,
+                $"{parameterName} must be between {minimumSeconds} and {maximumSeconds} seconds.");
         }
-
-        throw new FormatException(
-            $"Invalid {parameterName} value '{value}'. Use seconds (for example 600) or TimeSpan format (for example 00:10:00).");
     }
 }

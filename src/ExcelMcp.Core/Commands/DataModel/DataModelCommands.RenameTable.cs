@@ -113,24 +113,23 @@ public partial class DataModelCommands
                     return result;
                 }
 
-                // Extract Power Query name from connection (format: "Query - {QueryName}")
                 string connectionName = sourceConnection.Name?.ToString() ?? string.Empty;
-                if (!connectionName.StartsWith("Query - ", StringComparison.OrdinalIgnoreCase))
+                if (!PowerQuery.PowerQueryHelpers.TryGetMashupLocation(
+                    sourceConnection,
+                    out var pqName))
                 {
                     result.Success = false;
                     result.ErrorMessage = $"Cannot rename table '{result.NormalizedOldName}': " +
-                        "Power Query connection name format is unexpected: '{connectionName}'.";
+                        $"Power Query connection '{connectionName}' has no exact mashup Location identity.";
                     return result;
                 }
-
-                string pqName = connectionName["Query - ".Length..];
 
                 // Find and rename the underlying Power Query
                 dynamic? targetQuery = null;
                 dynamic? oleDbConnection = null;
                 try
                 {
-                    targetQuery = ComUtilities.FindQuery(ctx.Book, pqName);
+                    targetQuery = PowerQuery.PowerQueryHelpers.FindQueryByExactName(ctx.Book, pqName);
                     if (targetQuery == null)
                     {
                         result.Success = false;
@@ -155,17 +154,12 @@ public partial class DataModelCommands
                         string? currentConnectionString = oleDbConnection.Connection?.ToString();
                         if (!string.IsNullOrEmpty(currentConnectionString))
                         {
-                            // Replace Location={oldName} with Location={newName}
-                            // Handle both exact match and partial match scenarios
-                            string oldLocation = $"Location={pqName}";
-                            string newLocation = $"Location={result.NormalizedNewName}";
-
-                            if (currentConnectionString.Contains(oldLocation, StringComparison.OrdinalIgnoreCase))
+                            if (PowerQuery.PowerQueryHelpers.TryReplaceMashupLocation(
+                                currentConnectionString,
+                                pqName,
+                                result.NormalizedNewName,
+                                out var newConnectionString))
                             {
-                                string newConnectionString = currentConnectionString.Replace(
-                                    oldLocation,
-                                    newLocation,
-                                    StringComparison.OrdinalIgnoreCase);
                                 oleDbConnection.Connection = newConnectionString;
                             }
                         }
@@ -219,18 +213,14 @@ public partial class DataModelCommands
                         if (oleDbConnection != null)
                         {
                             string? currentConnectionString = oleDbConnection.Connection?.ToString();
-                            if (!string.IsNullOrEmpty(currentConnectionString))
+                            if (!string.IsNullOrEmpty(currentConnectionString) &&
+                                PowerQuery.PowerQueryHelpers.TryReplaceMashupLocation(
+                                    currentConnectionString,
+                                    result.NormalizedNewName,
+                                    pqName,
+                                    out var restoredConnectionString))
                             {
-                                string newLocation = $"Location={result.NormalizedNewName}";
-                                string oldLocation = $"Location={pqName}";
-                                if (currentConnectionString.Contains(newLocation, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    string restoredConnectionString = currentConnectionString.Replace(
-                                        newLocation,
-                                        oldLocation,
-                                        StringComparison.OrdinalIgnoreCase);
-                                    oleDbConnection.Connection = restoredConnectionString;
-                                }
+                                oleDbConnection.Connection = restoredConnectionString;
                             }
                         }
                     }
@@ -263,4 +253,3 @@ public partial class DataModelCommands
         });
     }
 }
-

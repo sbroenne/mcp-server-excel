@@ -19,11 +19,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Feature", "File")]
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
-    private static readonly byte[] Ole2Signature =
-    [
-        0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1
-    ];
-
     [Fact]
     public void Create_MissingDirectory_ReturnsJsonError()
     {
@@ -193,15 +188,19 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         Assert.False(json.GetProperty("exists").GetBoolean());
     }
 
-    [Fact]
-    public void Test_IrmSignatureFile_ReturnsIrmMetadata()
+    [Theory]
+    [InlineData("\tDRMDataSpace")]
+    [InlineData("DRMEncryptedDataSpace")]
+    public void Test_IrmDataSpaceFile_ReturnsIrmMetadata(string dataSpaceName)
     {
         // Arrange
         var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileTool_Irm_{Guid.NewGuid():N}.xlsx");
 
         try
         {
-            File.WriteAllBytes(tempPath, Ole2Signature);
+            Sbroenne.ExcelMcp.Tests.Helpers.OleDataSpaceTestFile.Write(
+                tempPath,
+                dataSpaceName);
 
             // Act
             var result = ExcelFileTool.ExcelFile(
@@ -216,11 +215,14 @@ public class ExcelFileToolTests(ITestOutputHelper output)
 
             // Assert
             var json = JsonDocument.Parse(result).RootElement;
-            Assert.True(json.GetProperty("success").GetBoolean());
+            Assert.False(json.GetProperty("success").GetBoolean());
             Assert.True(json.GetProperty("exists").GetBoolean());
-            Assert.True(json.GetProperty("isValid").GetBoolean());
+            Assert.False(json.GetProperty("isValid").GetBoolean());
+            Assert.False(json.GetProperty("canOpen").GetBoolean());
             Assert.True(json.GetProperty("isIrmProtected").GetBoolean());
-            Assert.False(json.TryGetProperty("isError", out _));
+            Assert.True(json.GetProperty("willOpenReadOnly").GetBoolean());
+            Assert.True(json.GetProperty("requiresVisibleSession").GetBoolean());
+            Assert.True(json.GetProperty("isError").GetBoolean());
         }
         finally
         {
@@ -231,6 +233,3 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         }
     }
 }
-
-
-

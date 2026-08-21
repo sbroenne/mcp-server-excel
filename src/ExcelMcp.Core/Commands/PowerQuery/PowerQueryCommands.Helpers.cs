@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -17,23 +18,32 @@ public partial class PowerQueryCommands
     /// - Worksheet queries (InModel=false): Errors thrown via QueryTable.Refresh(false)
     /// - Data Model queries (InModel=true): Errors thrown via Connection.Refresh()
     ///
-    /// Strategy order ensures we use the appropriate method for each connection type:
-    /// 1. Try QueryTable.Refresh() first (handles worksheet queries)
-    /// 2. Fall back to Connection.Refresh() (handles Data Model queries)
+    /// Strategy order ensures every configured destination is refreshed:
+    /// 1. Refresh the worksheet QueryTable when present
+    /// 2. Refresh the Data Model source connection when present
+    /// 3. Fall back to a matching workbook connection for connection-only queries
     /// </summary>
     /// <returns>True if refresh was executed, false if no connection or table found</returns>
     /// <exception cref="Exception">Thrown if Power Query has formula errors</exception>
     private static bool RefreshConnectionByQueryName(dynamic workbook, string queryName, CancellationToken cancellationToken)
     {
-        // Strategy 1: Find and refresh QueryTable directly on worksheet
-        // For worksheet queries (InModel=false), errors are thrown by QueryTable.Refresh()
-        if (RefreshQueryTableByName(workbook, queryName, cancellationToken))
+        // A LoadToBoth query has independent worksheet and Data Model connections.
+        // Refresh both before reporting success so neither destination remains stale.
+        var worksheetRefreshed = RefreshQueryTableByName(
+            workbook,
+            queryName,
+            cancellationToken);
+        var dataModelRefreshed = RefreshDataModelConnectionByQueryName(
+            workbook,
+            queryName,
+            cancellationToken);
+        if (worksheetRefreshed || dataModelRefreshed)
         {
             return true;
         }
 
-        // Strategy 2: Find connection by name patterns and refresh
-        // For Data Model queries (InModel=true), errors are thrown by Connection.Refresh()
+        // Connection-only queries may expose a workbook connection without either
+        // a worksheet QueryTable or a Data Model table.
         dynamic? targetConnection = null;
         dynamic? connections = null;
         try
@@ -46,9 +56,10 @@ public partial class PowerQueryCommands
                 try
                 {
                     conn = connections.Item(i);
-                    string connName = conn.Name?.ToString() ?? "";
-                    if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                        connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                    if (PowerQuery.PowerQueryHelpers.TryGetMashupLocation(
+                        (Excel.WorkbookConnection)conn,
+                        out var location) &&
+                        string.Equals(location, queryName, StringComparison.OrdinalIgnoreCase))
                     {
                         targetConnection = conn;
                         conn = null; // Don't release - we're using it
@@ -80,6 +91,62 @@ public partial class PowerQueryCommands
         }
 
         return false;
+    }
+
+    private static bool RefreshDataModelConnectionByQueryName(
+        dynamic workbook,
+        string queryName,
+        CancellationToken cancellationToken)
+    {
+        dynamic? model = null;
+        dynamic? modelTables = null;
+        try
+        {
+            try
+            {
+                model = workbook.Model;
+                modelTables = model.ModelTables;
+            }
+            catch (COMException)
+            {
+                return false;
+            }
+
+            for (int i = 1; i <= modelTables.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                dynamic? modelTable = null;
+                Excel.WorkbookConnection? sourceConnection = null;
+                try
+                {
+                    modelTable = modelTables.Item(i);
+                    string tableName = modelTable.Name?.ToString() ?? string.Empty;
+                    sourceConnection = modelTable.SourceWorkbookConnection;
+                    if (string.Equals(
+                            tableName,
+                            queryName,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        sourceConnection != null &&
+                        MatchesDataModelSourceConnection(sourceConnection, queryName))
+                    {
+                        RefreshWorkbookConnection(sourceConnection, cancellationToken);
+                        return true;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref sourceConnection);
+                    ComUtilities.Release(ref modelTable);
+                }
+            }
+
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref modelTables);
+            ComUtilities.Release(ref model);
+        }
     }
 
     /// <summary>
@@ -131,8 +198,9 @@ public partial class PowerQueryCommands
                             // Check if this QueryTable is for our query by examining connection string
                             // Format: "OLEDB;...;Location=QueryName;..."
                             string? connection = queryTable.Connection?.ToString();
-                            if (connection != null &&
-                                connection.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase))
+                            if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
+                                connection,
+                                queryName))
                             {
                                 // Keep synchronous refresh semantics for worksheet queries.
                                 // QueryTable.Refresh(false) is the only reliable path that propagates
@@ -387,5 +455,3 @@ public partial class PowerQueryCommands
         }
     }
 }
-
-

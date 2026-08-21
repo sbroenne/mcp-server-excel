@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -298,6 +299,7 @@ in
 
         // Create with LoadToBoth
         _ = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToBoth);
+        AssertDataModelValue(batch, queryName, 1);
 
         // Verify initial state
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -307,6 +309,7 @@ in
 
         // Update
         _ = _powerQueryCommands.Update(batch, queryName, updatedMCode);
+        AssertDataModelValue(batch, queryName, 2);
 
         // Verify LoadToBoth preserved
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -330,20 +333,27 @@ in
         var testExcelFile = _fixture.CreateTestFile();
         var queryName = "PQ_RefreshBoth_" + Guid.NewGuid().ToString("N")[..8];
 
-        var mCode = @"let Source = #table({""Val""}, {{99}}) in Source";
+        var initialMCode = @"let Source = #table({""Val""}, {{1}}) in Source";
+        var updatedMCode = @"let Source = #table({""Val""}, {{2}}) in Source";
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with LoadToBoth
-        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth);
+        _ = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToBoth);
+        AssertDataModelValue(batch, queryName, 1);
 
         // Verify initial state
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
         Assert.Equal(PowerQueryLoadMode.LoadToBoth, loadConfigBefore.LoadMode);
 
-        // Refresh
+        // Change the query without refreshing either destination.
+        _ = _powerQueryCommands.Update(batch, queryName, updatedMCode, refresh: false);
+        AssertDataModelValue(batch, queryName, 1);
+
+        // Refresh both worksheet and Data Model destinations.
         var refreshResult = _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(5));
         Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        AssertDataModelValue(batch, queryName, 2);
 
         // Verify LoadToBoth preserved
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -358,6 +368,23 @@ in
     }
 
     #endregion
+
+    private void AssertDataModelValue(
+        IExcelBatch batch,
+        string queryName,
+        int expectedValue)
+    {
+        var result = _dataModelCommands.Evaluate(
+            batch,
+            $"EVALUATE '{queryName}'");
+
+        Assert.True(result.Success, $"Data Model evaluation failed: {result.ErrorMessage}");
+        var row = Assert.Single(result.Rows);
+        var value = Assert.Single(row);
+        Assert.Equal(
+            expectedValue,
+            Convert.ToInt32(value, CultureInfo.InvariantCulture));
+    }
 
     #region Multiple Queries Tests
 
@@ -1055,7 +1082,5 @@ in
 
     #endregion
 }
-
-
 
 

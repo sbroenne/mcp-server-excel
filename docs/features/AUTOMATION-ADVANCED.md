@@ -32,6 +32,11 @@ excelcli vba import --session <id> --module-name MyModule --vba-code-file code.v
 excelcli session close --session <id> --save
 ```
 
+VBA imports and updates accept either inline code or `--vba-code-file`, never
+both. Batch JSON uses `vbaCodeFile`; MCP uses `vba_code_file`. The file must
+exist and be readable. VBA execution timeouts are integer seconds from 1 through
+2147483.
+
 ---
 
 ## 🐍 Python in Excel (2 operations)

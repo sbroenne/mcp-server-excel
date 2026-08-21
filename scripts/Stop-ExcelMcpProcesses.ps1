@@ -1,23 +1,26 @@
 <#
 .SYNOPSIS
-    Stops the ExcelMCP Service gracefully and kills Excel processes before build.
+    Stops the ExcelMCP CLI service and Excel processes owned by one CLI pipe.
 .DESCRIPTION
-    Pre-build cleanup script that:
-    1. Gracefully stops the ExcelMCP Service via named pipe (service.shutdown)
-    2. Kills any remaining Excel (EXCEL.EXE) processes
+    Invokes the CLI-owned service stop path for EXCELMCP_CLI_PIPE (or the
+    default user pipe when no override is set). The CLI validates tracked
+    process start times before stopping anything.
 
-    This prevents file locking issues during build when the service or Excel
-    holds handles to assemblies or workbooks.
+    If an existing CLI is older than the ownership lifecycle sources, a
+    current cleanup client is built in an isolated temporary output first.
+    If no CLI binary exists yet, the script safely does nothing. It never
+    scans for or stops unrelated Excel or service processes.
 .NOTES
-    Called from Directory.Build.props as a BeforeBuild target.
+    Called once from Directory.Build.props before the CLI project builds.
     Safe to run when no processes are running (silently succeeds).
 #>
 
 param(
+    [string]$PipeName = $env:EXCELMCP_CLI_PIPE,
     [switch]$Verbose
 )
 
-$ErrorActionPreference = 'SilentlyContinue'
+$ErrorActionPreference = 'Stop'
 
 function Write-Status($message) {
     if ($Verbose) {
@@ -25,103 +28,149 @@ function Write-Status($message) {
     }
 }
 
-# ----------------------------------------------
-# 1. Gracefully stop ExcelMCP Service via CLI
-# ----------------------------------------------
-function Stop-ExcelMcpService {
-    # Look for excelcli in build output directories (Debug/Release)
-    $scriptDir = Split-Path -Parent $PSScriptRoot  # repo root
-    $cliPaths = @(
-        "$scriptDir\src\ExcelMcp.CLI\bin\Debug\net10.0-windows\excelcli.exe",
-        "$scriptDir\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe"
-    )
-    $excelcli = $cliPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-    if ($excelcli) {
-        Write-Status "Using CLI: $excelcli"
-        $output = & $excelcli service stop --quiet 2>&1
-        $exitCode = $LASTEXITCODE
-        if ($exitCode -eq 0) {
-            # Parse JSON to check if service was running
-            try {
-                $result = $output | ConvertFrom-Json
-                if ($result.message -eq 'Service is not running.') {
-                    Write-Status "ExcelMCP Service was not running"
-                } else {
-                    Write-Host "  ExcelMCP Service stopped gracefully" -ForegroundColor Green
-                }
-            } catch {
-                Write-Status "Service stop completed (exit code 0)"
-            }
-        } else {
-            Write-Status "CLI service stop returned exit code $exitCode, falling back to process kill"
-            Stop-ExcelMcpServiceFallback
-        }
-    } else {
-        Write-Status "excelcli not found (first build?), using fallback"
-        Stop-ExcelMcpServiceFallback
-    }
-}
-
-function Stop-ExcelMcpServiceFallback {
-    # Fallback: direct named pipe shutdown (works without CLI binary)
-    $sid = ([System.Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
-    $pipeName = "excelmcp-$sid"
-
-    $pipeExists = Test-Path "\\.\pipe\$pipeName"
-    if (-not $pipeExists) {
-        Write-Status "ExcelMCP Service not running (no pipe found)"
+function Remove-StagingClient([string]$path) {
+    if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path)) {
         return
     }
 
-    Write-Status "ExcelMCP Service detected, sending shutdown via pipe..."
     try {
-        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', $pipeName, [System.IO.Pipes.PipeDirection]::InOut)
-        $pipe.Connect(3000)
-
-        $writer = New-Object System.IO.StreamWriter($pipe, [System.Text.Encoding]::UTF8, 4096)
-        $writer.AutoFlush = $true
-        $reader = New-Object System.IO.StreamReader($pipe, [System.Text.Encoding]::UTF8)
-
-        $writer.WriteLine('{"Command":"service.shutdown"}')
-        $response = $reader.ReadLine()
-        Write-Status "Service response: $response"
-
-        $reader.Dispose()
-        $writer.Dispose()
-        $pipe.Dispose()
-
-        Start-Sleep -Milliseconds 500
-        Write-Host "  ExcelMCP Service stopped gracefully" -ForegroundColor Green
+        Remove-Item -LiteralPath $path -Recurse -Force
     }
     catch {
-        Write-Status "Could not connect to pipe: $($_.Exception.Message)"
-        $serviceProcs = Get-Process -Name 'Sbroenne.ExcelMcp.McpServer', 'Sbroenne.ExcelMcp.Service' -ErrorAction SilentlyContinue
-        if ($serviceProcs) {
-            $serviceProcs | Stop-Process -Force -ErrorAction SilentlyContinue
-            Write-Host "  ExcelMCP Service processes killed (pipe unavailable)" -ForegroundColor Yellow
-        }
+        Write-Host "  Isolated owned-cleanup client could not be removed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
-# ----------------------------------------------
-# 2. Kill Excel processes
-# ----------------------------------------------
-function Stop-ExcelProcesses {
-    $excelProcs = Get-Process -Name 'EXCEL' -ErrorAction SilentlyContinue
-    if ($excelProcs) {
-        $count = $excelProcs.Count
-        $excelProcs | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
-        Write-Host "  Killed $count Excel process(es)" -ForegroundColor Yellow
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$cliPaths = @(
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\bin\Debug\net10.0-windows\excelcli.exe')
+)
+$safetyInputs = @(
+    $PSCommandPath,
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Commands\ServiceCommands.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonAutoStart.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonPipeIdentity.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonProcessTracker.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonStartupLock.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonTrackingJson.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\OwnedProcessCleanup.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Cleanup\ExcelMcp.Cleanup.csproj'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Cleanup\Program.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Cleanup\ParameterTransforms.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Service\ServiceClient.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Service\ServiceProtocol.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Service\Rpc\IExcelDaemonRpc.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\ServiceClient\ServiceProtocol.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Program.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ExcelBatch.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ExcelProcessIdentity.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\OwnedProcessGuard.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\SessionManager.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.Service\ServiceSecurity.cs')
+)
+$latestSafetyInput = $safetyInputs |
+    Where-Object { Test-Path $_ } |
+    ForEach-Object { (Get-Item $_).LastWriteTimeUtc } |
+    Sort-Object -Descending |
+    Select-Object -First 1
+$availableClis = @($cliPaths |
+    Where-Object { Test-Path $_ } |
+    ForEach-Object { Get-Item $_ } |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1)
+$excelcli = $availableClis |
+    Where-Object { $_.LastWriteTimeUtc -ge $latestSafetyInput } |
+    Select-Object -First 1
+$stagingRoot = $null
+$useCleanupBootstrap = $false
+
+if (-not $excelcli) {
+    if ($availableClis.Count -eq 0) {
+        Write-Status 'excelcli is missing; owned cleanup skipped safely'
+        exit 0
+    }
+
+    $stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) "excelmcp-cleanup-$PID-$([Guid]::NewGuid().ToString('N'))"
+    $cleanupProject = Join-Path $repoRoot 'src\ExcelMcp.Cleanup\ExcelMcp.Cleanup.csproj'
+    $stagedCliPath = Join-Path $stagingRoot 'bin\ExcelMcp.Cleanup\Release\net10.0-windows\excelmcp-cleanup.exe'
+    Write-Status "Existing CLI is older than the cleanup sources; building isolated cleanup client in $stagingRoot"
+
+    try {
+        $buildOutput = & dotnet build $cleanupProject `
+            --configuration Release `
+            -p:ExcelMcpCleanupRoot=$stagingRoot `
+            -p:ExcelMcpSkipCleanup=true `
+            -p:NuGetAudit=false `
+            -maxcpucount:1 `
+            -nodeReuse:false `
+            --verbosity quiet 2>&1
+        $buildExitCode = $LASTEXITCODE
+    }
+    catch {
+        Write-Host "  Isolated owned-cleanup client could not be built: $($_.Exception.Message). No process sweep was attempted." -ForegroundColor Yellow
+        Remove-StagingClient $stagingRoot
+        exit 1
+    }
+
+    if ($buildExitCode -ne 0 -or -not (Test-Path $stagedCliPath)) {
+        Write-Host "  Isolated owned-cleanup client build failed with exit code $buildExitCode. No process sweep was attempted." -ForegroundColor Yellow
+        if ($buildOutput) {
+            Write-Status ($buildOutput | Out-String).Trim()
+        }
+        Remove-StagingClient $stagingRoot
+        exit $(if ($buildExitCode -ne 0) { $buildExitCode } else { 1 })
+    }
+
+    $excelcli = Get-Item $stagedCliPath
+    $useCleanupBootstrap = $true
+}
+
+$previousPipeName = $env:EXCELMCP_CLI_PIPE
+try {
+    if ([string]::IsNullOrWhiteSpace($PipeName)) {
+        Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
+        Write-Status 'Using the default CLI pipe'
     }
     else {
-        Write-Status "No Excel processes running"
+        $env:EXCELMCP_CLI_PIPE = $PipeName
+        Write-Status "Using CLI pipe: $PipeName"
     }
+
+    Write-Status "Using CLI: $($excelcli.FullName)"
+    try {
+        if ($useCleanupBootstrap) {
+            $output = & $excelcli.FullName 2>&1
+        }
+        else {
+            $output = & $excelcli.FullName service stop --quiet 2>&1
+        }
+        $exitCode = $LASTEXITCODE
+    }
+    catch {
+        Write-Host "  Owned CLI cleanup could not start: $($_.Exception.Message). No process sweep was attempted." -ForegroundColor Yellow
+        exit 1
+    }
+
+    if ($exitCode -ne 0) {
+        Write-Host "  Owned CLI cleanup failed with exit code $exitCode. No process sweep was attempted." -ForegroundColor Yellow
+        if ($output) {
+            Write-Status ($output | Out-String).Trim()
+        }
+        exit $exitCode
+    }
+
+    Write-Status 'Owned CLI cleanup completed'
+}
+finally {
+    if ($null -eq $previousPipeName) {
+        Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:EXCELMCP_CLI_PIPE = $previousPipeName
+    }
+
+    Remove-StagingClient $stagingRoot
 }
 
-# ----------------------------------------------
-# Run cleanup
-# ----------------------------------------------
-Stop-ExcelMcpService
-Stop-ExcelProcesses
+exit 0

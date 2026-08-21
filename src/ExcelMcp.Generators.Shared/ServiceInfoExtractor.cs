@@ -182,6 +182,7 @@ public static class ServiceInfoExtractor
         bool isFromString = false;
         string? exposedName = null;
         bool isRequired = false;
+        bool allowsEmptyString = false;
 
         foreach (var attr in param.GetAttributes())
         {
@@ -211,10 +212,15 @@ public static class ServiceInfoExtractor
             {
                 isRequired = true;
             }
+            else if (attrName == "AllowEmptyStringAttribute")
+            {
+                allowsEmptyString = true;
+            }
         }
 
         // Detect if this is an enum type (including Nullable<Enum>)
         bool isEnum = param.Type.TypeKind == TypeKind.Enum;
+        INamedTypeSymbol? enumTypeSymbol = isEnum ? param.Type as INamedTypeSymbol : null;
         string? enumTypeName = null;
         if (isEnum)
         {
@@ -227,7 +233,25 @@ public static class ServiceInfoExtractor
             isEnum = nullableType.TypeArguments[0].TypeKind == TypeKind.Enum;
             if (isEnum)
             {
+                enumTypeSymbol = nullableType.TypeArguments[0] as INamedTypeSymbol;
                 enumTypeName = TypeNameHelper.GetTypeName(nullableType.TypeArguments[0]);
+            }
+        }
+
+        var enumAliases = new List<EnumAliasInfo>();
+        if (enumTypeSymbol != null)
+        {
+            foreach (var field in enumTypeSymbol.GetMembers().OfType<IFieldSymbol>().Where(f => f.HasConstantValue))
+            {
+                foreach (var attribute in field.GetAttributes().Where(a => a.AttributeClass?.Name == "EnumAliasAttribute"))
+                {
+                    if (attribute.ConstructorArguments.Length > 0 &&
+                        attribute.ConstructorArguments[0].Value is string alias &&
+                        !string.IsNullOrWhiteSpace(alias))
+                    {
+                        enumAliases.Add(new EnumAliasInfo(alias, field.Name));
+                    }
+                }
             }
         }
 
@@ -250,7 +274,10 @@ public static class ServiceInfoExtractor
             isRequired,
             isEnum,
             paramDescription,
-            enumTypeName);
+            enumTypeName,
+            enumAliases,
+            param.IsParams,
+            allowsEmptyString);
     }
 
     private static XmlDocumentation? ExtractXmlDocumentation(IMethodSymbol method)
@@ -318,19 +345,32 @@ public static class ServiceInfoExtractor
                 }
 
                 // Track if this param is required for this action
-                var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
+                var isRequired = p.IsRequired ||
+                                 (!p.HasDefault && !p.TypeName.EndsWith("?") && !p.IsParams);
                 if (isRequired)
                 {
                     existing.RequiredByActions.Add(method.ActionName);
+                }
+                if (!existing.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                {
+                    existing.ApplicableByActions.Add(method.ActionName);
                 }
 
                 // If FileOrValue, also add the file variant
                 if (p.IsFileOrValue && p.FileSuffix != null)
                 {
                     var fileParamName = exposedName + p.FileSuffix;
-                    if (!paramMap.ContainsKey(fileParamName))
+                    if (!paramMap.TryGetValue(fileParamName, out var fileParameter))
                     {
-                        paramMap[fileParamName] = new ExposedParameter(fileParamName, "string?", $"Path to file containing {exposedName}");
+                        fileParameter = new ExposedParameter(
+                            fileParamName,
+                            "string?",
+                            $"Path to a readable file containing {exposedName}; use instead of inline {exposedName}, not together");
+                        paramMap[fileParamName] = fileParameter;
+                    }
+                    if (!fileParameter.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                    {
+                        fileParameter.ApplicableByActions.Add(method.ActionName);
                     }
                 }
             }

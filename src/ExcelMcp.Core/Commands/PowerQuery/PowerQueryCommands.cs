@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
-
+using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -125,41 +126,87 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    /// <summary>
-    /// Determine which worksheet a query is loaded to (if any).
-    /// Uses the same ListObjects + connection string matching as RefreshQueryTableByName
-    /// for reliable detection of modern Excel table (ListObject) queries.
-    /// </summary>
-    private static string? DetermineLoadedSheet(dynamic workbook, string queryName)
+    private static PowerQueryLoadState DetectLoadState(
+        Excel.Workbook workbook,
+        string queryName,
+        CancellationToken cancellationToken)
     {
-        dynamic? worksheets = null;
+        var targetSheet = DetermineLoadedSheet(workbook, queryName, cancellationToken);
+        var isLoadedToDataModel = IsQueryLoadedToDataModel(
+            workbook,
+            queryName,
+            cancellationToken);
+
+        var loadMode = (targetSheet != null, isLoadedToDataModel) switch
+        {
+            (true, true) => PowerQueryLoadMode.LoadToBoth,
+            (true, false) => PowerQueryLoadMode.LoadToTable,
+            (false, true) => PowerQueryLoadMode.LoadToDataModel,
+            _ => PowerQueryLoadMode.ConnectionOnly
+        };
+
+        return new PowerQueryLoadState(loadMode, targetSheet, isLoadedToDataModel);
+    }
+
+    /// <summary>
+    /// Determines which worksheet a query is loaded to by exact mashup Location identity.
+    /// </summary>
+    private static string? DetermineLoadedSheet(
+        Excel.Workbook workbook,
+        string queryName,
+        CancellationToken cancellationToken)
+    {
+        Excel.Sheets? worksheets = null;
         try
         {
             worksheets = workbook.Worksheets;
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic? worksheet = null;
-                dynamic? listObjects = null;
+                cancellationToken.ThrowIfCancellationRequested();
+                Excel.Worksheet? worksheet = null;
+                Excel.QueryTables? queryTables = null;
+                Excel.ListObjects? listObjects = null;
                 try
                 {
-                    worksheet = worksheets.Item(ws);
+                    worksheet = (Excel.Worksheet)worksheets.Item[ws];
+                    queryTables = worksheet.QueryTables;
+                    for (int qt = 1; qt <= queryTables.Count; qt++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Excel.QueryTable? queryTable = null;
+                        try
+                        {
+                            queryTable = queryTables.Item(qt);
+                            if (MatchesWorksheetQueryTable(queryTable, queryName))
+                            {
+                                return worksheet.Name;
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref queryTable);
+                        }
+                    }
+
                     listObjects = worksheet.ListObjects;
 
                     for (int lo = 1; lo <= listObjects.Count; lo++)
                     {
-                        dynamic? listObject = null;
-                        dynamic? queryTable = null;
+                        cancellationToken.ThrowIfCancellationRequested();
+                        Excel.ListObject? listObject = null;
+                        Excel.QueryTable? queryTable = null;
                         try
                         {
-                            listObject = listObjects.Item(lo);
+                            listObject = listObjects.Item[lo];
 
                             try
                             {
                                 queryTable = listObject.QueryTable;
                             }
-                            catch (COMException)
+                            catch (COMException ex)
+                                when (ex.HResult == unchecked((int)0x800A03EC))
                             {
-                                // ListObject has no QueryTable — skip
+                                // A regular Excel table has no external QueryTable.
                                 continue;
                             }
 
@@ -168,19 +215,10 @@ public partial class PowerQueryCommands : IPowerQueryCommands
                                 continue;
                             }
 
-                            // Match by connection string: "OLEDB;...;Location=QueryName;..."
-                            // This is the same strategy as RefreshQueryTableByName and is
-                            // reliable regardless of what Excel assigns as the QueryTable.Name.
-                            string? connection = queryTable.Connection?.ToString();
-                            if (connection != null &&
-                                connection.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase))
+                            if (MatchesWorksheetQueryTable(queryTable, queryName))
                             {
-                                return worksheet.Name?.ToString();
+                                return worksheet.Name;
                             }
-                        }
-                        catch (COMException)
-                        {
-                            continue;
                         }
                         finally
                         {
@@ -192,6 +230,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
                 finally
                 {
                     ComUtilities.Release(ref listObjects);
+                    ComUtilities.Release(ref queryTables);
                     ComUtilities.Release(ref worksheet);
                 }
             }
@@ -204,13 +243,37 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return null;
     }
 
-    /// <summary>
-    /// Determines if a query is loaded to the Data Model
-    /// </summary>
-    private static bool IsQueryLoadedToDataModel(dynamic workbook, string queryName)
+    private static bool MatchesWorksheetQueryTable(
+        Excel.QueryTable queryTable,
+        string queryName)
     {
-        dynamic? model = null;
-        dynamic? modelTables = null;
+        Excel.WorkbookConnection? connection = null;
+        try
+        {
+            connection = queryTable.WorkbookConnection;
+            return connection != null &&
+                PowerQuery.PowerQueryHelpers.TryGetMashupLocationForInspection(
+                    connection,
+                    out var location) &&
+                string.Equals(location, queryName, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            ComUtilities.Release(ref connection);
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a query is loaded to the Data Model by requiring both
+    /// an exact table name and an exact mashup source Location identity.
+    /// </summary>
+    private static bool IsQueryLoadedToDataModel(
+        Excel.Workbook workbook,
+        string queryName,
+        CancellationToken cancellationToken)
+    {
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
         try
         {
             model = workbook.Model;
@@ -218,27 +281,30 @@ public partial class PowerQueryCommands : IPowerQueryCommands
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? table = null;
+                cancellationToken.ThrowIfCancellationRequested();
+                Excel.ModelTable? table = null;
+                Excel.WorkbookConnection? sourceConnection = null;
                 try
                 {
                     table = modelTables.Item(i);
-                    string tableName = table.Name?.ToString() ?? "";
-
-                    // Match by query name (Excel may add prefixes/suffixes)
-                    if (tableName.Contains(queryName, StringComparison.OrdinalIgnoreCase))
+                    string tableName = table.Name;
+                    sourceConnection = table.SourceWorkbookConnection;
+                    if (string.Equals(
+                            tableName,
+                            queryName,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        sourceConnection != null &&
+                        MatchesDataModelSourceConnection(sourceConnection, queryName))
                     {
                         return true;
                     }
                 }
                 finally
                 {
+                    ComUtilities.Release(ref sourceConnection);
                     ComUtilities.Release(ref table);
                 }
             }
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // Data Model might not be available or accessible
         }
         finally
         {
@@ -248,6 +314,24 @@ public partial class PowerQueryCommands : IPowerQueryCommands
 
         return false;
     }
+
+    private static bool MatchesDataModelSourceConnection(
+        Excel.WorkbookConnection sourceConnection,
+        string queryName)
+    {
+        return PowerQuery.PowerQueryHelpers.TryGetMashupLocationForInspection(
+                sourceConnection,
+                out var location) &&
+            string.Equals(location, queryName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private readonly record struct PowerQueryLoadState(
+        PowerQueryLoadMode LoadMode,
+        string? TargetSheet,
+        bool IsLoadedToDataModel)
+    {
+        public bool IsConnectionOnly => LoadMode == PowerQueryLoadMode.ConnectionOnly;
+
+        public bool HasConnection => !IsConnectionOnly;
+    }
 }
-
-

@@ -432,7 +432,7 @@ $extraEnums = $results | Where-Object { $_.Gap -lt 0 }
 if ($extraEnums.Count -gt 0) {
     Write-Host ""
     Write-Host "Note: Some enums have more values than Core methods" -ForegroundColor Yellow
-    Write-Host "This might be intentional (MCP-specific actions like 'close-workbook')" -ForegroundColor Gray
+    Write-Host "This might be intentional for adapter-specific lifecycle actions" -ForegroundColor Gray
     $extraEnums | ForEach-Object {
         Write-Host "  - $($_.Interface): $([math]::Abs($_.Gap)) extra enum values" -ForegroundColor Yellow
     }
@@ -472,7 +472,7 @@ if ($CheckNaming) {
                           "GetColumnNumberFormat", "SetColumnNumberFormat",
                           # Table slicer methods exposed via SlicerAction (cross-interface enum)
                           "CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
-        "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List", "Create")  # MCP-specific session actions
+        "FileAction" = @("Open", "Close", "List", "Create")  # Adapter-specific session actions
         "RangeAction" = @("SetNumberFormatCustom", "InsertCells", "DeleteCells", "InsertRows", "DeleteRows",
                           "InsertColumns", "DeleteColumns", "Find", "Replace", "Sort",
                           "AddHyperlink", "RemoveHyperlink", "ListHyperlinks", "GetHyperlink",

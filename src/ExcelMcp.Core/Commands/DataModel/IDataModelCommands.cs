@@ -143,7 +143,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
-    /// <param name="timeout">Optional: Timeout for the refresh operation</param>
+    /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
     [ServiceAction("refresh")]
     OperationResult Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null);
@@ -156,7 +156,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to add the measure to</param>
     /// <param name="measureName">Name of the new measure</param>
-    /// <param name="daxFormula">DAX formula for the measure</param>
+    /// <param name="daxFormula">DAX formula. Public callers must supply either inline daxFormula or a readable daxFormulaFile, not both.</param>
     /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
     /// <param name="description">Optional: Description of the measure</param>
     /// <param name="formatDax">Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy.</param>
@@ -179,7 +179,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to update</param>
-    /// <param name="daxFormula">Optional: New DAX formula (null to keep existing)</param>
+    /// <param name="daxFormula">Optional new DAX formula. Public callers may supply inline daxFormula or a readable daxFormulaFile, not both.</param>
     /// <param name="formatType">Optional: New format type (null to keep existing)</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
     /// <param name="formatDax">Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy.</param>
@@ -200,7 +200,7 @@ public interface IDataModelCommands
     /// The query should start with EVALUATE and return a table result.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="daxQuery">DAX EVALUATE query (e.g., "EVALUATE 'TableName'" or "EVALUATE SUMMARIZE(...)")</param>
+    /// <param name="daxQuery">DAX EVALUATE query. Public callers must supply either inline daxQuery or a readable daxQueryFile, not both.</param>
     /// <returns>Result containing column names and data rows from the DAX query</returns>
     /// <exception cref="ArgumentException">Thrown when daxQuery is empty</exception>
     /// <exception cref="InvalidOperationException">Thrown when workbook has no Data Model or query execution fails</exception>
@@ -213,7 +213,7 @@ public interface IDataModelCommands
     /// DMV queries retrieve metadata about the Data Model (tables, columns, measures, relationships, etc.).
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="dmvQuery">DMV query in SQL-like syntax (e.g., "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES")</param>
+    /// <param name="dmvQuery">DMV query in SQL-like syntax. Public callers must supply either inline dmvQuery or a readable dmvQueryFile, not both.</param>
     /// <returns>Result containing column names and data rows from the DMV query</returns>
     /// <exception cref="ArgumentException">Thrown when dmvQuery is empty</exception>
     /// <exception cref="InvalidOperationException">Thrown when workbook has no Data Model or query execution fails</exception>
@@ -228,5 +228,4 @@ public interface IDataModelCommands
     [ServiceAction("execute-dmv")]
     DmvQueryResult ExecuteDmv(IExcelBatch batch, [RequiredParameter, FileOrValue] string dmvQuery);
 }
-
 

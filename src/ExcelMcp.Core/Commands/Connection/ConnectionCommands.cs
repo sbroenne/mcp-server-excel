@@ -970,7 +970,7 @@ public partial class ConnectionCommands : IConnectionCommands
         {
             queryTables = targetSheet.QueryTables;
             range = targetSheet.Range["A1"];
-            queryTable = queryTables.Add(connectionString, range, commandText);
+            queryTable = queryTables.Add(conn, range, commandText);
 
             queryTable.Name = options.Name.Replace(" ", "_");
             queryTable.RefreshStyle = 1; // xlInsertDeleteCells
@@ -1023,5 +1023,4 @@ internal sealed class ConnectionDefinition
     public bool? SavePassword { get; set; }
     public int? RefreshPeriod { get; set; }
 }
-
 

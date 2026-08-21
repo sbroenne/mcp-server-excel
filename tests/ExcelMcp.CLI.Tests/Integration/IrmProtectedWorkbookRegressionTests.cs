@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -25,7 +26,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
     {
         _output = output;
         _fakeIrmFile = Path.Combine(Path.GetTempPath(), $"CliFakeIrm_{Guid.NewGuid():N}.xlsx");
-        File.WriteAllBytes(_fakeIrmFile, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+        OleDataSpaceTestFile.Write(_fakeIrmFile, "\tDRMDataSpace");
     }
 
     private static string? GetConfiguredIrmTestFilePath()

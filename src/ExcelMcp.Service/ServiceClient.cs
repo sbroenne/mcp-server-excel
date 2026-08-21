@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO.Pipes;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;
 
@@ -16,7 +18,8 @@ public sealed class ServiceClient : IDisposable
     private bool _disposed;
 
     public static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(5);
-    public static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromHours(2); // Long enough that any --timeout value wins before the pipe does
+    public static readonly TimeSpan DefaultRequestTimeout =
+        TimeSpan.FromSeconds(ParameterTransforms.MaximumTimeoutSeconds + 60);
 
     public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
     {
@@ -28,25 +31,50 @@ public sealed class ServiceClient : IDisposable
     /// <summary>
     /// Sends a request to the service and waits for response via StreamJsonRpc.
     /// </summary>
-    public async Task<ServiceResponse> SendAsync(ServiceRequest request, CancellationToken cancellationToken = default)
+    public Task<ServiceResponse> SendAsync(
+        ServiceRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendCoreAsync(request, totalTimeout: null, cancellationToken);
+
+    /// <summary>
+    /// Sends a request using one timeout across both pipe connection and response.
+    /// </summary>
+    public Task<ServiceResponse> SendAsync(
+        ServiceRequest request,
+        TimeSpan totalTimeout,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(totalTimeout, TimeSpan.Zero);
+        return SendCoreAsync(request, totalTimeout, cancellationToken);
+    }
+
+    private async Task<ServiceResponse> SendCoreAsync(
+        ServiceRequest request,
+        TimeSpan? totalTimeout,
+        CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        var startedAt = Stopwatch.GetTimestamp();
         using var pipe = ServiceSecurity.CreateClient(_pipeName);
+        var connectTimeout = GetStepTimeout(_connectTimeout, totalTimeout, startedAt);
         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        connectCts.CancelAfter(_connectTimeout);
+        connectCts.CancelAfter(connectTimeout);
+        var connected = false;
 
         try
         {
-            await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, connectCts.Token);
+            await pipe.ConnectAsync(ToTimeoutMilliseconds(connectTimeout), connectCts.Token);
+            connected = true;
 
             // Use StreamJsonRpc typed proxy for the RPC call
             var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
             try
             {
+                var requestTimeout = GetStepTimeout(_requestTimeout, totalTimeout, startedAt);
                 using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
-                requestCts.CancelAfter(_requestTimeout);
+                requestCts.CancelAfter(requestTimeout);
 
                 var callTask = proxy.ProcessCommandAsync(request);
                 var disconnectTask = WaitForPipeDisconnectAsync(pipe, disconnectMonitorCts.Token);
@@ -70,39 +98,11 @@ public sealed class ServiceClient : IDisposable
         }
         catch (TimeoutException)
         {
-            return new ServiceResponse
-            {
-                Success = false,
-                Command = request.Command,
-                SessionId = request.SessionId,
-                ErrorCategory = "Timeout",
-                ErrorMessage = "Service connection timed out",
-                ExceptionType = nameof(TimeoutException)
-            };
-        }
-        catch (OperationCanceledException) when (connectCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            return new ServiceResponse
-            {
-                Success = false,
-                Command = request.Command,
-                SessionId = request.SessionId,
-                ErrorCategory = "Timeout",
-                ErrorMessage = "Service connection timed out",
-                ExceptionType = nameof(OperationCanceledException)
-            };
+            return CreateTimeoutResponse(request, connected, nameof(TimeoutException));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new ServiceResponse
-            {
-                Success = false,
-                Command = request.Command,
-                SessionId = request.SessionId,
-                ErrorCategory = "Timeout",
-                ErrorMessage = "Service request timed out",
-                ExceptionType = nameof(OperationCanceledException)
-            };
+            return CreateTimeoutResponse(request, connected, nameof(OperationCanceledException));
         }
         catch (ConnectionLostException)
         {
@@ -120,6 +120,46 @@ public sealed class ServiceClient : IDisposable
                 ExceptionType = nameof(IOException)
             };
         }
+    }
+
+    private static TimeSpan GetStepTimeout(
+        TimeSpan configuredTimeout,
+        TimeSpan? totalTimeout,
+        long startedAt)
+    {
+        if (totalTimeout is null)
+        {
+            return configuredTimeout;
+        }
+
+        var remaining = totalTimeout.Value - Stopwatch.GetElapsedTime(startedAt);
+        if (remaining <= TimeSpan.Zero)
+        {
+            throw new TimeoutException();
+        }
+
+        return configuredTimeout <= remaining ? configuredTimeout : remaining;
+    }
+
+    private static int ToTimeoutMilliseconds(TimeSpan timeout) =>
+        Math.Max(1, checked((int)Math.Ceiling(timeout.TotalMilliseconds)));
+
+    private static ServiceResponse CreateTimeoutResponse(
+        ServiceRequest request,
+        bool connected,
+        string exceptionType)
+    {
+        return new ServiceResponse
+        {
+            Success = false,
+            Command = request.Command,
+            SessionId = request.SessionId,
+            ErrorCategory = "Timeout",
+            ErrorMessage = connected
+                ? "Service request timed out"
+                : "Service connection timed out",
+            ExceptionType = exceptionType
+        };
     }
 
     private static async Task<bool> WaitForPipeDisconnectAsync(Stream pipe, CancellationToken cancellationToken)
@@ -166,16 +206,8 @@ public sealed class ServiceClient : IDisposable
     /// </summary>
     public async Task<bool> PingAsync(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var response = await SendAsync(new ServiceRequest { Command = "service.ping" }, cancellationToken);
-            return response.Success;
-        }
-        catch (Exception)
-        {
-            // Any other communication failure — service is not reachable
-            return false;
-        }
+        var response = await SendAsync(new ServiceRequest { Command = "service.ping" }, cancellationToken);
+        return response.Success;
     }
 
     public void Dispose()
@@ -183,4 +215,3 @@ public sealed class ServiceClient : IDisposable
         _disposed = true;
     }
 }
-

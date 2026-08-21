@@ -31,7 +31,7 @@ public interface IXmlMapCommands
     /// External XSD import/include dependencies are rejected.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="schema">Inline XSD schema content</param>
+    /// <param name="schema">XSD schema content. Public callers must supply either inline schema or a readable schemaFile, not both.</param>
     /// <param name="rootElementName">Optional root element when the schema has multiple roots</param>
     /// <param name="mapName">Optional name to assign to the created map</param>
     [ServiceAction("add")]
@@ -69,7 +69,7 @@ public interface IXmlMapCommands
     /// XML schema-location attributes are rejected to prevent implicit external access.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="xmlData">Inline XML data</param>
+    /// <param name="xmlData">XML data. Public callers must supply either inline xmlData or a readable xmlDataFile, not both.</param>
     /// <param name="mapName">Existing XML map name; omit for automatic mapping</param>
     /// <param name="sheetName">Destination worksheet for automatic mapping</param>
     /// <param name="startCell">Top-left destination cell for automatic mapping</param>

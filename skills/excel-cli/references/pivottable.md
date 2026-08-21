@@ -1,6 +1,5 @@
 > **CLI syntax note:** This shared domain guide may use MCP-style `tool(action: ...)` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live `--help`; notably, MCP `file` open/close maps to CLI `session` open/close, and MCP `worksheet` maps to CLI `sheet`.
 
-````markdown
 # pivottable - Server Quirks
 
 ## CRITICAL: Required Parameters
@@ -162,5 +161,3 @@ The `layoutStyle` parameter controls PivotTable appearance:
 | "Field not found" | Typo or Data Model not refreshed | Refresh Data Model, check field names |
 | Data doesn't update | Source changed without refresh | Call `pivottable(refresh)` |
 | DAX measures missing | Created on worksheet PivotTable | Use `create-from-datamodel` |
-
-````

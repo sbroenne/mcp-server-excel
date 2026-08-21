@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -106,6 +107,142 @@ public sealed class ExcelMcpServiceErrorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_SessionCloseValidatesArgumentsBeforeSessionId()
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.close",
+            Args = """{"save":"invalid"}"""
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains("save", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("sessionId", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(
+        "powerquery.refresh",
+        """{"queryName":"Probe","Timeout":null}""",
+        "Timeout")]
+    [InlineData(
+        "powerquery.refresh",
+        """{"queryName":"Probe","unexpected":true}""",
+        "unexpected")]
+    [InlineData(
+        "connection.refresh",
+        """{"connectionName":"Probe","timeout":0}""",
+        "timeout")]
+    [InlineData(
+        "powerquery.load-to",
+        """{"queryName":"Probe","loadDestination":"worksheet","timeout":60}""",
+        "timeout")]
+    [InlineData(
+        "powerquery.refresh",
+        """{"queryName":null}""",
+        "queryName")]
+    [InlineData(
+        "powerquery.evaluate",
+        """{}""",
+        "mCode")]
+    [InlineData(
+        "powerquery.evaluate",
+        """{"mCode":"let Source = 1 in Source","mCodeFile":"missing.m"}""",
+        "mCode")]
+    [InlineData(
+        "chartconfig.remove-series",
+        """{"chartName":"Chart 1"}""",
+        "seriesIndex")]
+    [InlineData(
+        "analysis.create-scenario",
+        """{"sheetName":"Model","scenarioName":"Base","changingCells":"A1"}""",
+        "values")]
+    [InlineData(
+        "table.toggle-totals",
+        """{"tableName":"Probe"}""",
+        "showTotals")]
+    [InlineData(
+        "powerquery.load-to",
+        """{"queryName":"Probe","loadDestination":"worksheet","timeout":null}""",
+        "timeout")]
+    [InlineData(
+        "window.set-position",
+        """{"left":"not-a-number"}""",
+        "left")]
+    public async Task ProcessAsync_ValidatesGeneratedArgumentsBeforeSessionLookup(
+        string command,
+        string argsJson,
+        string expectedParameter)
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = command,
+            SessionId = "missing-session",
+            Args = argsJson
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains(expectedParameter, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("session", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(
+        """{"filePath":"C:\\missing-parent\\probe.xlsx","macroEnabled":"true"}""",
+        "macroEnabled")]
+    [InlineData(
+        """{"filePath":"C:\\missing-parent\\probe.xlsx","macroEnabled":true}""",
+        "macroEnabled")]
+    public async Task ProcessAsync_ValidatesSessionCreateMacroEnabledBeforeFileCreation(
+        string argsJson,
+        string expectedParameter)
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.create",
+            Args = argsJson
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains(expectedParameter, response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ServiceClient_DefaultRequestTimeout_ExceedsLargestPublicOperationTimeout()
+    {
+        Assert.True(
+            ServiceClient.DefaultRequestTimeout > TimeSpan.FromSeconds(ParameterTransforms.MaximumTimeoutSeconds));
+    }
+
+    [Fact]
+    public async Task ProcessAsync_ValidatesFileInputBeforeSessionLookup()
+    {
+        using var service = new ExcelMcpService();
+        var missingPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.m");
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "powerquery.evaluate",
+            SessionId = "missing-session",
+            Args = JsonSerializer.Serialize(new { mCodeFile = missingPath })
+        });
+
+        Assert.False(response.Success);
+        Assert.Contains("not found", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(missingPath, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("session", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ProcessAsync_SessionCommandOnTimedOutSession_FailsFastBeforeExecutingBatch()
     {
         using var service = new ExcelMcpService();
@@ -128,18 +265,19 @@ public sealed class ExcelMcpServiceErrorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_SessionSaveOnTimedOutSession_FailsFastBeforeSaving()
+    public async Task ProcessAsync_SessionCloseSaveOnTimedOutSession_FailsFastBeforeSaving()
     {
         using var service = new ExcelMcpService();
         var batch = new FakeBatch { HasTimedOutOperation = true };
-        const string sessionId = "timed-out-save";
+        const string sessionId = "timed-out-close-save";
 
         RegisterSession(service, sessionId, batch);
 
         var response = await service.ProcessAsync(new ServiceRequest
         {
-            Command = "session.save",
-            SessionId = sessionId
+            Command = "session.close",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new { save = true }, ServiceProtocol.JsonOptions)
         });
 
         Assert.False(response.Success);
@@ -149,18 +287,19 @@ public sealed class ExcelMcpServiceErrorTests
     }
 
     [Fact]
-    public async Task ProcessAsync_SessionSaveOnHealthySession_StillSavesNormally()
+    public async Task ProcessAsync_SessionCloseSaveOnHealthySession_SavesNormally()
     {
         using var service = new ExcelMcpService();
         var batch = new FakeBatch();
-        const string sessionId = "healthy-save";
+        const string sessionId = "healthy-close-save";
 
         RegisterSession(service, sessionId, batch);
 
         var response = await service.ProcessAsync(new ServiceRequest
         {
-            Command = "session.save",
-            SessionId = sessionId
+            Command = "session.close",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new { save = true }, ServiceProtocol.JsonOptions)
         });
 
         Assert.True(response.Success);

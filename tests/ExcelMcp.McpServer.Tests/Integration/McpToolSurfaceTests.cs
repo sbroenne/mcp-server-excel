@@ -32,7 +32,7 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
     private const int ExpectedToolCount = 31;
 
     /// <summary>Sum of the <c>action</c> enum values across all registered tools.</summary>
-    private const int ExpectedOperationCount = 326;
+    private const int ExpectedOperationCount = 325;
 
     [Fact]
     public void ToolSurface_MatchesDocumentedGroundTruth()

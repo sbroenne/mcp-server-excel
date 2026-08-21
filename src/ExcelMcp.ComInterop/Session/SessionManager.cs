@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -26,7 +28,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 public sealed class SessionManager : IDisposable
 {
-    private static readonly ConcurrentDictionary<int, byte> _trackedExcelPids = new();
+    private static readonly ConcurrentDictionary<ExcelProcessIdentity, byte> _trackedExcelProcesses = new();
     private static int _processExitRegistered;
 
     /// <summary>
@@ -36,12 +38,40 @@ public sealed class SessionManager : IDisposable
     public static event Action<IReadOnlyCollection<int>>? TrackedExcelProcessesChanged;
 
     /// <summary>
+    /// Raised with PID/start-time identities whenever owned Excel processes change.
+    /// </summary>
+    public static event Action<IReadOnlyCollection<ExcelProcessIdentity>>? TrackedExcelProcessIdentitiesChanged;
+
+    /// <summary>
+    /// Invoked synchronously when a new identity is first tracked so in-process
+    /// owners can durably persist it before session startup continues.
+    /// </summary>
+    internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityTracked;
+
+    /// <summary>
     /// Registers an Excel process ID for cleanup on unexpected process exit.
     /// Called from ExcelBatch when a PID is captured.
     /// </summary>
-    public static void TrackExcelProcess(int processId)
+    public static void TrackExcelProcess(int processId) =>
+        _ = TrackExcelProcessIdentity(processId);
+
+    /// <summary>
+    /// Registers an Excel process and returns its captured PID/start-time identity.
+    /// </summary>
+    public static ExcelProcessIdentity? TrackExcelProcessIdentity(int processId)
     {
-        _trackedExcelPids[processId] = 0;
+        if (!TryCaptureExcelProcessIdentity(processId, out var identity))
+        {
+            return null;
+        }
+
+        TrackExcelProcess(identity);
+        return identity;
+    }
+
+    internal static void TrackExcelProcess(ExcelProcessIdentity identity)
+    {
+        _trackedExcelProcesses[identity] = 0;
 
         // Register handler exactly once (thread-safe)
         if (Interlocked.CompareExchange(ref _processExitRegistered, 1, 0) == 0)
@@ -49,6 +79,7 @@ public sealed class SessionManager : IDisposable
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         }
 
+        NotifyExcelProcessIdentityTracked(identity);
         NotifyTrackedExcelProcessesChanged();
     }
 
@@ -57,27 +88,56 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     public static void UntrackExcelProcess(int processId)
     {
-        _trackedExcelPids.TryRemove(processId, out _);
+        foreach (var identity in _trackedExcelProcesses.Keys
+                     .Where(process => process.ProcessId == processId))
+        {
+            _trackedExcelProcesses.TryRemove(identity, out _);
+        }
+
         NotifyTrackedExcelProcessesChanged();
     }
 
     /// <summary>
-    /// Returns a snapshot of Excel process IDs currently owned by this process.
+    /// Marks one exact PID/start-time identity as no longer needing cleanup.
     /// </summary>
-    public static IReadOnlyCollection<int> GetTrackedExcelProcessIds() => _trackedExcelPids.Keys.ToArray();
+    public static void UntrackExcelProcess(ExcelProcessIdentity identity)
+    {
+        _trackedExcelProcesses.TryRemove(identity, out _);
+        NotifyTrackedExcelProcessesChanged();
+    }
+
+    /// <summary>
+    /// Returns a snapshot of Excel process identities currently owned by this process.
+    /// </summary>
+    public static IReadOnlyCollection<ExcelProcessIdentity> GetTrackedExcelProcesses() =>
+        _trackedExcelProcesses.Keys.ToArray();
+
+    /// <summary>
+    /// Returns the PIDs currently tracked for backward compatibility.
+    /// </summary>
+    public static IReadOnlyCollection<int> GetTrackedExcelProcessIds() =>
+        _trackedExcelProcesses.Keys
+            .Select(process => process.ProcessId)
+            .Distinct()
+            .ToArray();
 
     private static void NotifyTrackedExcelProcessesChanged()
     {
-        var subscribers = TrackedExcelProcessesChanged;
-        if (subscribers is null)
+        var legacySubscribers = TrackedExcelProcessesChanged;
+        var identitySubscribers = TrackedExcelProcessIdentitiesChanged;
+        if (legacySubscribers is null && identitySubscribers is null)
         {
             return;
         }
 
-        var processIds = GetTrackedExcelProcessIds();
+        var processes = GetTrackedExcelProcesses();
+        var processIds = processes
+            .Select(process => process.ProcessId)
+            .Distinct()
+            .ToArray();
         _ = Task.Run(() =>
         {
-            foreach (var subscriber in subscribers.GetInvocationList())
+            foreach (var subscriber in legacySubscribers?.GetInvocationList() ?? [])
             {
                 try
                 {
@@ -90,7 +150,42 @@ public sealed class SessionManager : IDisposable
                         ex.Message);
                 }
             }
+
+            foreach (var subscriber in identitySubscribers?.GetInvocationList() ?? [])
+            {
+                try
+                {
+                    ((Action<IReadOnlyCollection<ExcelProcessIdentity>>)subscriber)(processes);
+                }
+                catch (Exception ex)
+                {
+                    Trace.TraceWarning(
+                        "Tracked Excel process identity notification failed: {0}",
+                        ex.Message);
+                }
+            }
         });
+    }
+
+    private static void NotifyExcelProcessIdentityTracked(ExcelProcessIdentity identity)
+    {
+        var subscribers = ExcelProcessIdentityTracked;
+        if (subscribers is null)
+        {
+            return;
+        }
+
+        foreach (var subscriber in subscribers.GetInvocationList())
+        {
+            try
+            {
+                ((Action<ExcelProcessIdentity>)subscriber)(identity);
+            }
+            catch (Exception ex)
+            {
+                throw new ExcelProcessPersistenceException(identity, ex);
+            }
+        }
     }
 
     private static void OnProcessExit(object? sender, EventArgs e)
@@ -100,21 +195,29 @@ public sealed class SessionManager : IDisposable
         int alreadyExitedCount = 0;
         int failedCount = 0;
 
-        foreach (var pid in _trackedExcelPids.Keys)
+        foreach (var identity in _trackedExcelProcesses.Keys)
         {
             try
             {
-                using var proc = System.Diagnostics.Process.GetProcessById(pid);
-                if (!proc.HasExited)
+                var stopped = OwnedProcessGuard.TryTerminate(
+                        identity,
+                        TimeSpan.Zero,
+                        TimeSpan.FromSeconds(5),
+                        out var terminated);
+                if (stopped && terminated)
                 {
-                    proc.Kill();
                     killedCount++;
                     // Note: Cannot use ILogger here - ProcessExit handler runs during AppDomain teardown
-                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed Excel process {pid}");
+                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed Excel process {identity.ProcessId}");
+                }
+                else if (stopped)
+                {
+                    alreadyExitedCount++;
                 }
                 else
                 {
-                    alreadyExitedCount++;
+                    failedCount++;
+                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {identity.ProcessId}");
                 }
             }
             catch (ArgumentException)
@@ -126,14 +229,49 @@ public sealed class SessionManager : IDisposable
             {
                 // Process inaccessible
                 failedCount++;
-                SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {pid}: {ex.Message}");
+                SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {identity.ProcessId}: {ex.Message}");
             }
         }
 
         // Summary log
         if (killedCount > 0 || failedCount > 0)
         {
-            SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedExcelPids.Count}");
+            SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedExcelProcesses.Count}");
+        }
+    }
+
+    private static bool TryCaptureExcelProcessIdentity(
+        int processId,
+        out ExcelProcessIdentity identity)
+    {
+        identity = default;
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            if (process.HasExited)
+            {
+                return false;
+            }
+
+            identity = new ExcelProcessIdentity(
+                processId,
+                process.StartTime.ToUniversalTime().ToFileTimeUtc());
+            return true;
+        }
+        catch (ArgumentException ex)
+        {
+            Trace.TraceWarning("Could not track Excel process {0}: {1}", processId, ex.Message);
+            return false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Trace.TraceWarning("Could not track Excel process {0}: {1}", processId, ex.Message);
+            return false;
+        }
+        catch (Win32Exception ex)
+        {
+            Trace.TraceWarning("Could not track Excel process {0}: {1}", processId, ex.Message);
+            return false;
         }
     }
 
@@ -143,7 +281,7 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, int> _activeOperationCounts = new();
     private readonly ConcurrentDictionary<string, object> _sessionLocks = new();
     private readonly ConcurrentDictionary<string, byte> _closingSessions = new();
-    private readonly ConcurrentDictionary<string, string> _teardownFailures = new();
+    private readonly ConcurrentDictionary<string, ExceptionDispatchInfo> _teardownFailures = new();
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
@@ -212,23 +350,26 @@ public sealed class SessionManager : IDisposable
         // Normalize file path for comparison
         string normalizedPath = Path.GetFullPath(filePath);
 
-        // Reject external file-access failures before starting Excel. ExcelBatch
-        // repeats this check on its STA thread to cover locks acquired after preflight.
-        if (!FileAccessValidator.IsIrmProtected(normalizedPath))
-        {
-            FileAccessValidator.ValidateFileNotLocked(normalizedPath);
-        }
-
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
         if (!TryClaimFilePath(normalizedPath, sessionId))
         {
-            throw new InvalidOperationException($"File '{filePath}' is already open or reserved by another session. Excel cannot open the same file multiple times.");
+            throw new InvalidOperationException(
+                $"File '{filePath}' is already open in another session or reserved for one. " +
+                "Excel cannot open the same file multiple times.");
         }
 
         IExcelBatch? batch = null;
         try
         {
+            // Reject external file-access failures after the in-process path claim,
+            // so a duplicate session reports its canonical ownership error instead
+            // of being mistaken for an unrelated OS-level file lock.
+            if (!FileAccessValidator.IsIrmProtected(normalizedPath))
+            {
+                FileAccessValidator.ValidateFileNotLocked(normalizedPath);
+            }
+
             // Create batch session using Core API with retry for transient COM failures
             // (e.g., CO_E_SERVER_EXEC_FAILURE when system resources are constrained)
             batch = _sessionCreationPipeline.Execute(() => ExcelSession.BeginBatch(show, operationTimeout, filePath));
@@ -407,6 +548,12 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     private void CleanupDeadSession(string sessionId, IExcelBatch batch)
     {
+        if (_teardownFailures.ContainsKey(sessionId)
+            && !TryConfirmFailedTeardown(batch))
+        {
+            return;
+        }
+
         RemoveSessionTracking(sessionId, removeSessionLock: true);
 
         // Dispose the batch (best effort - process is already dead)
@@ -487,7 +634,8 @@ public sealed class SessionManager : IDisposable
         {
             if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
             {
-                errorMessage = $"Session '{sessionId}' is quarantined after a failed close: {teardownFailure}";
+                errorMessage = $"Session '{sessionId}' is quarantined after a failed close: " +
+                               teardownFailure.SourceException.Message;
                 return false;
             }
 
@@ -605,6 +753,16 @@ public sealed class SessionManager : IDisposable
             return new CloseValidationResult(false, false, 0, $"Session '{sessionId}' not found");
         }
 
+        if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+        {
+            return new CloseValidationResult(
+                true,
+                false,
+                0,
+                $"Session '{sessionId}' is quarantined after a failed close: " +
+                teardownFailure.SourceException.Message);
+        }
+
         var activeOps = GetActiveOperationCount(sessionId);
         var isVisible = IsExcelVisible(sessionId);
 
@@ -637,10 +795,32 @@ public sealed class SessionManager : IDisposable
 
         var sessionLock = GetSessionLock(sessionId);
         IExcelBatch batch;
+        var resolvedFailedTeardown = false;
         lock (sessionLock)
         {
+            if (!_activeSessions.TryGetValue(sessionId, out batch!))
+            {
+                return false;
+            }
+
+            if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+            {
+                if (!TryConfirmFailedTeardown(batch))
+                {
+                    teardownFailure.Throw();
+                }
+
+                RemoveSessionTracking(sessionId, removeSessionLock: false);
+                resolvedFailedTeardown = true;
+            }
+
+            if (resolvedFailedTeardown)
+            {
+                _closingSessions.TryRemove(sessionId, out _);
+            }
+
             // Check for running operations (unless force is true)
-            if (!force)
+            if (!resolvedFailedTeardown && !force)
             {
                 var activeOps = GetActiveOperationCount(sessionId);
                 if (activeOps > 0)
@@ -651,12 +831,23 @@ public sealed class SessionManager : IDisposable
                 }
             }
 
-            if (!_activeSessions.TryGetValue(sessionId, out batch!))
+            if (!resolvedFailedTeardown && save && batch.HasTimedOutOperation)
             {
-                return false;
+                throw new InvalidOperationException(
+                    $"A previous operation on session '{sessionId}' timed out or was cancelled. " +
+                    "Close without saving and reopen the workbook before retrying.");
             }
 
-            _closingSessions[sessionId] = 0;
+            if (!resolvedFailedTeardown)
+            {
+                _closingSessions[sessionId] = 0;
+            }
+        }
+
+        if (resolvedFailedTeardown)
+        {
+            _sessionLocks.TryRemove(sessionId, out _);
+            return true;
         }
 
         var closeSucceeded = false;
@@ -701,8 +892,11 @@ public sealed class SessionManager : IDisposable
         }
         catch (Exception ex)
         {
-            _teardownFailures[sessionId] = ex.Message;
-            throw new InvalidOperationException($"Failed to dispose session '{sessionId}': {ex.Message}", ex);
+            var closeFailure = new InvalidOperationException(
+                $"Failed to dispose session '{sessionId}': {ex.Message}",
+                ex);
+            _teardownFailures[sessionId] = ExceptionDispatchInfo.Capture(closeFailure);
+            throw closeFailure;
         }
 
         var sessionLock = GetSessionLock(sessionId);
@@ -713,6 +907,10 @@ public sealed class SessionManager : IDisposable
 
         _sessionLocks.TryRemove(sessionId, out _);
     }
+
+    private static bool TryConfirmFailedTeardown(IExcelBatch batch) =>
+        batch is IExcelBatchTeardownState teardownState
+        && teardownState.TryConfirmOwnedProcessTeardown();
 
     /// <summary>
     /// Gets the number of active sessions.
@@ -1027,5 +1225,8 @@ public sealed record CloseValidationResult(
     /// <summary>
     /// Whether the session can be closed (no blocking conditions).
     /// </summary>
-    public bool CanClose => SessionExists && ActiveOperationCount == 0;
+    public bool CanClose =>
+        SessionExists
+        && ActiveOperationCount == 0
+        && BlockingReason == null;
 }

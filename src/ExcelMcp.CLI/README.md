@@ -10,7 +10,7 @@
 > **Primary distribution: Standalone executable** — Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
-The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
+The CLI provides 31 feature command categories with 325 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -48,7 +48,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 What You Can Do
 
-ExcelMcp.CLI provides **326 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
+ExcelMcp.CLI provides **325 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
 
 Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
 
@@ -111,11 +111,31 @@ where.exe excelcli
 ### IRM / AIP Protected Workbooks
 
 ```powershell
+# Inspect deterministic open and protection requirements without launching Excel
+excelcli -q session test "D:\Docs\Protected.xlsx"
+
 # Keep Excel visible so authentication or policy prompts can surface
 excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
 ```
 
-Use `--show` whenever hidden automation would block on a sign-in, consent, or information-protection prompt.
+`session test` reports `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and
+`requiresVisibleSession` using the same result model as MCP `file test`. Protected
+files report `canOpen:false` until interactive Excel authentication occurs. Use
+`--show` whenever hidden automation would block on a sign-in, consent, or
+information-protection prompt.
+
+### Daemon Status and Session Discovery
+
+`excelcli -q service status` reports `daemonState` as `stopped`, `starting`,
+`running`, or `unresponsive`. A stopped daemon is a successful status result with
+`running:false`; a transport timeout is an error with `running:true` and
+`daemonState:"unresponsive"`.
+
+`excelcli -q session list` returns an empty `sessions` array only when the daemon
+is confirmed stopped or a responsive daemon confirms it has no sessions.
+Transport failures exit nonzero without a `sessions` property. Status and list
+allow up to 10 seconds for daemon transport readiness, while daemon startup
+allows up to 30 seconds.
 
 ---
 

@@ -86,7 +86,7 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
 
             if (conn == null)
             {
@@ -167,7 +167,7 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
 
             if (conn == null)
             {
@@ -355,34 +355,33 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
-
-            if (conn == null)
+            Excel.WorkbookConnection? conn = null;
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
-            }
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
 
-            // Check if this is a Power Query connection
-            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-            {
-                // Check if this is an orphaned Power Query connection (no corresponding query exists)
-                // Orphaned connections can be safely deleted via the connection API
-                if (!PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
+                if (conn == null)
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery with action 'Delete' instead.");
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
                 }
-                // Orphaned connection - allow deletion to proceed
+
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn) &&
+                    !PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
+                {
+                    throw new InvalidOperationException(
+                        $"Connection '{connectionName}' is a Power Query connection. Use powerquery with action 'delete' instead.");
+                }
+
+                PowerQueryHelpers.RemoveQueryTables(ctx.Book, conn);
+                ComUtilities.Release(ref conn);
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
+                conn?.Delete();
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-
-            // Remove associated QueryTables first
-            PowerQueryHelpers.RemoveQueryTables(ctx.Book, connectionName);
-
-            // Delete the connection
-            conn.Delete();
-            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            finally
+            {
+                ComUtilities.Release(ref conn);
+            }
         });
     }
 }
-
-
-

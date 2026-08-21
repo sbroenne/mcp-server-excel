@@ -127,6 +127,22 @@ public sealed class ConditionalFormatAddRuleDeserializationTests
         Assert.Equal("", commands.SheetName);
     }
 
+    [Fact]
+    public void DispatchToCore_ListWorksheetRules_WithOmittedSheetName_IsRejected()
+    {
+        var commands = new CapturingConditionalFormattingCommands();
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.ConditionalFormat.DispatchToCore(
+                commands,
+                ConditionalFormatAction.ListWorksheetRules,
+                null!,
+                "{}"));
+
+        Assert.Contains("sheetName", exception.Message, StringComparison.Ordinal);
+        Assert.False(commands.ListWorksheetRulesCalled);
+    }
+
     private sealed class CapturingConditionalFormattingCommands : IConditionalFormattingCommands
     {
         public bool AddRuleCalled { get; private set; }

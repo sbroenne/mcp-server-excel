@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -35,7 +33,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
 }
 
 /// <summary>
-/// Gracefully stops the ExcelMCP CLI Service daemon.
+/// Stops the ExcelMCP CLI Service daemon and Excel processes tracked for its selected pipe.
 /// </summary>
 internal sealed class ServiceStopCommand : AsyncCommand
 {
@@ -46,6 +44,17 @@ internal sealed class ServiceStopCommand : AsyncCommand
     protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
+        return await DaemonAutoStart.WithStartupLockAsync(
+            pipeName,
+            () => ExecuteWithStartupLockAsync(pipeName, cancellationToken),
+            cancellationToken);
+    }
+
+    private static async Task<int> ExecuteWithStartupLockAsync(
+        string pipeName,
+        CancellationToken cancellationToken)
+    {
+        var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
         try
         {
             using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
@@ -54,11 +63,17 @@ internal sealed class ServiceStopCommand : AsyncCommand
             {
                 if (await WaitForDaemonExitAsync(pipeName, cancellationToken))
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped." }, ServiceProtocol.JsonOptions));
-                    return 0;
+                    return await WriteCleanupResultAsync(
+                        pipeName,
+                        preShutdownSnapshot,
+                        cancellationToken,
+                        "Service stopped.");
                 }
 
-                if (await TryForceStopTrackedDaemonAsync(pipeName, cancellationToken))
+                if (await TryForceStopTrackedDaemonAsync(
+                    pipeName,
+                    preShutdownSnapshot,
+                    cancellationToken))
                 {
                     Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
                     return 0;
@@ -72,11 +87,17 @@ internal sealed class ServiceStopCommand : AsyncCommand
 
             if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service not running." }, ServiceProtocol.JsonOptions));
-                return 0;
+                return await WriteCleanupResultAsync(
+                    pipeName,
+                    preShutdownSnapshot,
+                    cancellationToken,
+                    "Service not running.");
             }
 
-            if (await TryForceStopTrackedDaemonAsync(pipeName, cancellationToken))
+            if (await TryForceStopTrackedDaemonAsync(
+                pipeName,
+                preShutdownSnapshot,
+                cancellationToken))
             {
                 Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
                 return 0;
@@ -95,11 +116,17 @@ internal sealed class ServiceStopCommand : AsyncCommand
         {
             if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service not running." }, ServiceProtocol.JsonOptions));
-                return 0;
+                return await WriteCleanupResultAsync(
+                    pipeName,
+                    preShutdownSnapshot,
+                    cancellationToken,
+                    "Service not running.");
             }
 
-            if (await TryForceStopTrackedDaemonAsync(pipeName, cancellationToken))
+            if (await TryForceStopTrackedDaemonAsync(
+                pipeName,
+                preShutdownSnapshot,
+                cancellationToken))
             {
                 Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
                 return 0;
@@ -123,7 +150,6 @@ internal sealed class ServiceStopCommand : AsyncCommand
         {
             if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
             {
-                DaemonProcessTracker.Clear(pipeName);
                 return true;
             }
 
@@ -133,89 +159,47 @@ internal sealed class ServiceStopCommand : AsyncCommand
         return !DaemonAutoStart.IsDaemonMutexHeld(pipeName);
     }
 
-    private static async Task<bool> TryForceStopTrackedDaemonAsync(string pipeName, CancellationToken cancellationToken)
+    private static async Task<bool> TryForceStopTrackedDaemonAsync(
+        string pipeName,
+        OwnedProcessCleanup.ProcessSnapshot preShutdownSnapshot,
+        CancellationToken cancellationToken)
     {
-        if (!DaemonProcessTracker.TryGetTrackedProcess(pipeName, out var trackedProcess))
-        {
-            return false;
-        }
-
-        using var daemonProcess = trackedProcess!;
-        var trackedExcelProcesses = DaemonProcessTracker.GetTrackedExcelProcesses(pipeName);
-        var excelProcessesStopped = true;
-
-        try
-        {
-            foreach (var excelProcess in trackedExcelProcesses)
-            {
-                using (excelProcess)
-                {
-                    excelProcessesStopped &= TryTerminateProcess(excelProcess, entireProcessTree: false);
-                }
-            }
-
-            if (!TryTerminateProcess(daemonProcess, entireProcessTree: true))
-            {
-                return false;
-            }
-
-            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            waitCts.CancelAfter(ShutdownWaitTimeout);
-            await daemonProcess.WaitForExitAsync(waitCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
-        }
-        catch (InvalidOperationException)
-        {
-            // Already exited between lookup and kill.
-        }
-        catch
-        {
-            return false;
-        }
-
-        DaemonProcessTracker.Clear(pipeName);
-        return excelProcessesStopped && await WaitForDaemonExitAsync(pipeName, cancellationToken);
+        var cleanupResult = await OwnedProcessCleanup.CleanupAsync(
+            pipeName,
+            preShutdownSnapshot,
+            cancellationToken);
+        return cleanupResult.Success
+            && cleanupResult.DaemonMatched
+            && await WaitForDaemonExitAsync(pipeName, cancellationToken);
     }
 
-    private static bool TryTerminateProcess(Process process, bool entireProcessTree)
+    private static async Task<int> WriteCleanupResultAsync(
+        string pipeName,
+        OwnedProcessCleanup.ProcessSnapshot preShutdownSnapshot,
+        CancellationToken cancellationToken,
+        string successMessage)
     {
-        try
+        var cleanupResult = await OwnedProcessCleanup.CleanupAsync(
+            pipeName,
+            preShutdownSnapshot,
+            cancellationToken);
+        if (!cleanupResult.Success)
         {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree);
-            }
+            Console.WriteLine(JsonSerializer.Serialize(
+                new
+                {
+                    success = false,
+                    error = cleanupResult.ErrorMessage
+                        ?? $"One or more processes tracked for CLI pipe '{pipeName}' could not be stopped."
+                },
+                ServiceProtocol.JsonOptions));
+            return 1;
+        }
 
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            // The process exited between the state check and termination request.
-            return true;
-        }
-        catch (Win32Exception)
-        {
-            try
-            {
-                process.Refresh();
-                return process.HasExited;
-            }
-            catch (InvalidOperationException)
-            {
-                return true;
-            }
-            catch (Win32Exception)
-            {
-                return false;
-            }
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
+        Console.WriteLine(JsonSerializer.Serialize(
+            new { success = true, message = successMessage },
+            ServiceProtocol.JsonOptions));
+        return 0;
     }
 }
 
@@ -225,53 +209,68 @@ internal sealed class ServiceStopCommand : AsyncCommand
 /// </summary>
 internal sealed class ServiceStatusCommand : AsyncCommand
 {
-    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
-
     protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
-        try
+        var observation = DaemonConnectionPolicy.Observe(pipeName);
+        var response = await DaemonConnectionPolicy.SendControlRequestAsync(
+            pipeName,
+            new ServiceRequest { Command = "service.status" },
+            cancellationToken,
+            observation.IsStopped
+                ? DaemonConnectionPolicy.InitialProbeTimeout
+                : DaemonConnectionPolicy.ControlTimeout);
+        if (response.Success && response.Result != null)
         {
-            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
-            var response = await client.SendAsync(new ServiceRequest { Command = "service.status" }, cancellationToken);
-            if (response.Success && response.Result != null)
+            var status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
+            if (status != null)
             {
-                var status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
-                if (status != null)
+                Console.WriteLine(JsonSerializer.Serialize(new
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(new
-                    {
-                        success = true,
-                        running = status.Running,
-                        processId = status.ProcessId,
-                        sessionCount = status.SessionCount,
-                        startTime = status.StartTime,
-                        uptime = status.Uptime.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture)
-                    }, ServiceProtocol.JsonOptions));
-                    return 0;
-                }
+                    success = true,
+                    daemonState = DaemonConnectionPolicy.RunningState,
+                    running = status.Running,
+                    processId = status.ProcessId,
+                    sessionCount = status.SessionCount,
+                    startTime = status.StartTime,
+                    uptime = status.Uptime.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture)
+                }, ServiceProtocol.JsonOptions));
+                return 0;
             }
+        }
 
-            // ServiceClient returned an error response — surface the actual error
-            // instead of silently assuming "not running" (fixes #507)
-            Console.WriteLine(JsonSerializer.Serialize(new
-            {
-                success = false,
-                running = false,
-                error = response.ErrorMessage ?? "Service returned invalid response"
-            }, ServiceProtocol.JsonOptions));
-            return 1;
-        }
-        catch (Exception ex)
+        if (response.Success)
         {
-            // Unexpected error that escaped ServiceClient — report with details
-            Console.WriteLine(JsonSerializer.Serialize(new
+            response = new ServiceResponse
             {
-                success = false,
-                running = false,
-                error = $"{ex.GetType().Name}: {ex.Message}"
-            }, ServiceProtocol.JsonOptions));
-            return 1;
+                Success = false,
+                Command = "service.status",
+                ErrorCategory = "InvalidResponse",
+                ErrorMessage = "Service returned an invalid status response."
+            };
         }
+
+        var failureState = DaemonConnectionPolicy.ResolveFailureState(pipeName, response);
+        if (failureState.Name == DaemonConnectionPolicy.StoppedState)
+        {
+            return WriteStoppedStatus();
+        }
+
+        return CliErrorOutput.WriteDaemonError(response, failureState.Name, failureState.Running);
+    }
+
+    private static int WriteStoppedStatus()
+    {
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            success = true,
+            daemonState = DaemonConnectionPolicy.StoppedState,
+            running = false,
+            processId = 0,
+            sessionCount = 0,
+            startTime = (DateTime?)null,
+            uptime = TimeSpan.Zero.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture)
+        }, ServiceProtocol.JsonOptions));
+        return 0;
     }
 }

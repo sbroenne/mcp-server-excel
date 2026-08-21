@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -29,7 +28,9 @@ public static partial class ExcelFileTool
     ///
     /// IRM/AIP FILES: Files protected with Azure Information Protection are detected automatically.
     /// They are opened as read-only with Excel forced visible for credential authentication.
-    /// Use 'test' action first to check isIrmProtected before attempting to open.
+    /// Use 'test' first to inspect canOpen, isIrmProtected, willOpenReadOnly, and
+    /// requiresVisibleSession before attempting to open. IRM/AIP files report
+    /// canOpen=false until the required interactive Excel authentication occurs.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
     /// <param name="path">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
@@ -77,7 +78,6 @@ public static partial class ExcelFileTool
                     FileAction.Open => OpenSessionAsync(path!, show, timeout),
                     FileAction.Close => CloseSessionAsync(session_id!, save),
                     FileAction.Create => CreateSessionAsync(path!, show, timeout),
-                    FileAction.CloseWorkbook => CloseWorkbook(path!),
                     FileAction.Test => TestFileAsync(path!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -174,9 +174,8 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Closes an active session via the ExcelMCP Service with optional save.
-    /// By default, saves changes before closing to prevent data loss.
-    /// Set save=false to discard changes.
+    /// Closes an active session via the ExcelMCP Service with optional atomic save.
+    /// The default save=false discards changes; set save=true to persist before closing.
     /// </summary>
     private static string CloseSessionAsync(string sessionId, bool save)
     {
@@ -305,20 +304,6 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Closes the workbook (no-op with new single-instance architecture).
-    /// LLM Pattern: This action is kept for backward compatibility but does nothing.
-    /// With single-instance sessions, workbooks are automatically closed after each operation.
-    /// </summary>
-    private static string CloseWorkbook(string path)
-    {
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            filePath = path
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    /// <summary>
     /// Lists all active sessions with status info. Lightweight operation - no Excel COM calls.
     /// LLM Pattern: Use this to verify sessions and check for running operations before closing.
     /// </summary>
@@ -351,7 +336,8 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Tests if an Excel file exists and is valid without opening it via Excel COM.
+    /// Tests file existence, validity, openability, and IRM/AIP read-only requirements
+    /// without opening it via Excel COM.
     /// LLM Pattern: Use this for discovery/connectivity testing before running operations.
     /// </summary>
     private static string TestFileAsync(string path)
@@ -361,33 +347,25 @@ public static partial class ExcelFileTool
             throw new ArgumentException("path is required for 'test' action", nameof(path));
         }
 
-        // Validate Windows path format before any file operations
-        var pathError = ExcelToolsBase.ValidateWindowsPath(path);
-        if (pathError != null)
+        var response = ServiceBridge.ServiceBridge.TestFileAsync(path).GetAwaiter().GetResult();
+        if (!response.Success)
         {
-            return pathError;
+            var errorMessage = response.ErrorMessage ?? "Failed to test file";
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = errorMessage,
+                errorMessage,
+                errorCategory = response.ErrorCategory,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
+                filePath = path,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
         }
 
-        var fileCommands = new FileCommands();
-        var info = fileCommands.Test(path);
-
-        return JsonSerializer.Serialize(new
-        {
-            success = info.IsValid,
-            filePath = info.FilePath,
-            exists = info.Exists,
-            isValid = info.IsValid,
-            extension = info.Extension,
-            size = info.Size,
-            lastModified = info.LastModified,
-            isIrmProtected = info.IsIrmProtected,
-            message = info.Message,
-            isError = info.IsValid ? (bool?)null : true
-        }, ExcelToolsBase.JsonOptions);
+        return response.Result ?? throw new InvalidOperationException(
+            "File test succeeded without returning validation metadata.");
     }
 }
-
-
-
-
-

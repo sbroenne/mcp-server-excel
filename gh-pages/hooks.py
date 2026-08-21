@@ -121,7 +121,7 @@ GUIDE_SOURCES = {
     "guides-excel-com-vs-file-parsers.md": "docs/guides/EXCEL-COM-VS-FILE-PARSERS.md",
 }
 
-
+
 # skills/shared/*.md: the expert reference corpus shipped inside the skill
 # packages and MCP prompts. Published verbatim so the site and the agent
 # guidance can never disagree. Value = (output name, page title).
@@ -609,8 +609,8 @@ def _write_llm_outputs(config) -> None:
         "# Excel MCP Server",
         "",
         "> Excel MCP Server (ExcelMcp) automates the real Microsoft Excel "
-        "application through its COM API, exposing 31 tools and 326 operations "
-        "to AI assistants over the Model Context Protocol and to scripts through "
+        "application through its COM API, exposing 31 tools and 325 operations to AI assistants "
+        "over the Model Context Protocol and to scripts through "
         "the `excelcli` command line. Unlike file-parser libraries it can refresh "
         "Power Query, evaluate DAX against the Data Model, refresh PivotTables, "
         "and run VBA, because Excel itself does the work. Windows-only; requires "

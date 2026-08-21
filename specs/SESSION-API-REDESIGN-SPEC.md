@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This specification proposes a **breaking redesign** of ExcelMcp's session API to use intuitive **Open/Save/Close** semantics exclusively. The goal is to eliminate the "batch" concept entirely and remove all cognitive load from LLMs - every operation works through sessions, always. No backwards compatibility, no dual patterns, no decisions about when to batch.
+This specification proposes a **breaking redesign** of ExcelMcp's session API around one canonical **Open/Close** lifecycle. The goal is to eliminate the "batch" concept entirely and remove all cognitive load from LLMs - every operation works through sessions, always. Persistence occurs only at the atomic close boundary. No backwards compatibility, no dual patterns, no decisions about when to batch.
 
 ## ⚠️ CRITICAL: Excel COM Threading & Concurrency Limitations
 
@@ -115,7 +115,7 @@ This matches Excel UI behavior (cannot open same file twice).
 
 Users and LLMs naturally think in terms of:
 
-- **Open** a file → work with it → **Save** changes → **Close** the file
+- **Open** a file → work with it → **Close**, optionally saving changes atomically
 - NOT: Begin session → track GUID → commit session
 
 This is the universal pattern for file operations across all systems.
@@ -126,10 +126,12 @@ This is the universal pattern for file operations across all systems.
 
 **Sessions are the ONLY way to work with Excel files. No exceptions.**
 
-1. **`file(action: 'open')`** - Opens a workbook, returns a `sessionId`
-2. **`file(action: 'save')`** - Saves changes to an open workbook
-3. **`file(action: 'close')`** - Closes workbook and session
-4. **ALL other tools REQUIRE `sessionId`** - No standalone operation mode
+1. **`file(action: 'list')`** - Lists active sessions
+2. **`file(action: 'open')`** - Opens a workbook, returns a `sessionId`
+3. **`file(action: 'create')`** - Creates a workbook, returns a `sessionId`
+4. **`file(action: 'close')`** - Closes the workbook and session; `save=true` persists changes atomically
+5. **`file(action: 'test')`** - Reports file validity, openability, and IRM/AIP requirements
+6. **ALL other tools REQUIRE `sessionId`** - No standalone operation mode
 
 **Revolutionary Change:** Remove the `batchId` optional parameter pattern entirely. Sessions are mandatory, not optional.
 
@@ -152,10 +154,10 @@ Current Term → New Term → Rationale
 ────────────────────────────────────────────────────────
 batchId      → sessionId  → "Session" is more intuitive than "batch"
 begin        → open       → Universal file operation
-commit       → close      → Universal file operation (does NOT save)
+commit       → close      → Universal file operation with optional atomic save
 batch-of-one → REMOVED    → No standalone operations anymore
 Optional     → REQUIRED   → sessionId is mandatory for all operations
-save param   → REMOVED    → close never saves, use explicit save action
+save param   → RETAINED   → close-with-save is the only persistence operation
 excelPath    → REMOVED    → Session knows the file (except open/create)
 ```
 
@@ -165,21 +167,15 @@ excelPath    → REMOVED    → Session knows the file (except open/create)
 
 ### 1. `file` Tool - Updated Actions
 
-**Current Actions:**
+**Canonical Actions:**
 
-- `create-empty` - Create new workbook
-- `close-workbook` - Emergency close (rarely used)
-- `test` - Connection test
+- **`list`** - Lists active sessions
+- **`open`** - Opens a workbook and returns a session ID
+- **`create`** - Creates a workbook and returns a session ID
+- **`close`** - Closes a session, optionally saving atomically
+- **`test`** - Reports file validity, openability, and IRM/AIP requirements
 
-**New Actions (added):**
-
-- **`open`** - Opens workbook, returns sessionId (replaces batch begin)
-- **`save`** - Saves changes to open session
-- **`close`** - Closes session WITHOUT saving (use explicit save action)
-
-**Removed Actions:**
-
-- None (keep create-empty, test, close-workbook for backwards compat)
+Standalone save and compatibility no-ops are intentionally not part of the lifecycle.
 
 ### 2. API Signatures
 
@@ -192,8 +188,7 @@ excelPath    → REMOVED    → Session knows the file (except open/create)
 REQUIRED WORKFLOW:
 1. open - Opens workbook, returns sessionId (ALWAYS FIRST)
 2. Use sessionId for ALL operations (worksheets, queries, ranges, etc.)
-3. save - Saves changes (EXPLICIT action, call anytime during session)
-4. close - Closes workbook and session (NEVER saves - use explicit save action)
+3. close - Closes workbook and session; save=true persists changes atomically
 
 Sessions are mandatory - there are no standalone operations.")]
 public static async Task<string> ExcelFile(
@@ -204,16 +199,18 @@ public static async Task<string> ExcelFile(
     [Description("Full path to Excel file - required for 'open' and 'create-empty'")]
     string? filePath = null,
 
-    [Description("Session ID from 'open' action - required for 'save' and 'close'")]
-    string? sessionId = null)
+    [Description("Session ID from 'open' action - required for 'close'")]
+    string? sessionId = null,
+
+    [Description("Save changes before close")]
+    bool save = false)
 {
     return action switch
     {
         FileAction.Open => await OpenWorkbookAsync(filePath!),
-        FileAction.Save => await SaveWorkbookAsync(sessionId!),
-        FileAction.Close => await CloseWorkbookAsync(sessionId!),  // No save parameter - close NEVER saves
-        FileAction.CreateEmpty => await CreateEmptyAsync(filePath!),
-        FileAction.Test => TestConnection(),
+        FileAction.Close => await CloseSessionAsync(sessionId!, save),
+        FileAction.Create => await CreateSessionAsync(filePath!),
+        FileAction.Test => TestFile(filePath!),
         _ => throw new McpException($"Unknown action: {action}")
     };
 }
@@ -229,10 +226,10 @@ public static async Task<string> ExcelFile(
   "message": "Workbook opened successfully",
   "suggestedNextActions": [
     "Use sessionId='abc-123-def-456' for all operations",
-    "Call file(action: 'save', sessionId='...') to save changes (explicit only)",
-    "Call file(action: 'close', sessionId='...') when done (does NOT save)"
+    "Call file(action: 'close', sessionId='...', save=true) to persist changes",
+    "Call file(action: 'close', sessionId='...', save=false) to discard changes"
   ],
-  "workflowHint": "Session active. Remember: close does NOT save - use explicit save action."
+  "workflowHint": "Session active. Close with save=true to persist or save=false to discard."
 }
 ```
 
@@ -290,19 +287,19 @@ public static async Task<string> ExcelPowerQuery(
 // Add new actions to existing file tool
 public enum FileAction
 {
-    CreateEmpty,
-    Open,        // NEW - replaces batch begin
-    Save,        // NEW - explicit save
-    Close,       // NEW - replaces batch commit
+    List,
+    Open,
+    Create,
+    Close,
     Test
 }
 ```
 
 **Implementation:**
 
-- `OpenWorkbookAsync()` - Creates session, returns sessionId
-- `SaveWorkbookAsync(sessionId)` - Saves changes
-- `CloseWorkbookAsync(sessionId, save)` - Closes and disposes
+- `OpenSessionAsync()` - Creates session, returns sessionId
+- `CreateSessionAsync()` - Creates workbook and session, returns sessionId
+- `CloseSessionAsync(sessionId, save)` - Optionally saves, then closes and disposes
 
 #### Step 3: Update ALL Tools to Require sessionId (3-5 days)
 
@@ -322,7 +319,7 @@ string? batchId = null
 
 - `ExcelConnectionTool.cs`
 - `ExcelDataModelTool.cs`
-- `ExcelFileTool.cs` (add open/save/close actions)
+- `ExcelFileTool.cs` (add list/open/create/close/test actions)
 - `ExcelNamedRangeTool.cs`
 - `ExcelPivotTableTool.cs`
 - `ExcelPowerQueryTool.cs`
@@ -391,8 +388,7 @@ var session = await CreateSessionAsync("sales.xlsx");
 await GetSession(session).Execute(ctx => ctx.Book.Worksheets.Add("Q1"));  // Op 1
 await GetSession(session).Execute(ctx => ctx.Book.Worksheets.Add("Q2"));  // Op 2
 await GetSession(session).Execute(ctx => ctx.Book.Worksheets.Add("Q3"));  // Op 3
-await SaveSessionAsync(session);
-await CloseSessionAsync(session);
+await CloseSessionAsync(session, save: true);
 
 // Result: 1 Excel instance created/destroyed (fast)
 ```
@@ -429,8 +425,7 @@ var sessions = await Task.WhenAll(files.Select(f => CreateSessionAsync(f)));
 await Task.WhenAll(sessions.Select(async sessId => {
     var session = GetSession(sessId);
     await session.Execute(ctx => ProcessWorkbook(ctx));
-    await SaveSessionAsync(sessId);
-    await CloseSessionAsync(sessId);
+    await CloseSessionAsync(sessId, save: true);
 }));
 
 // Result: True parallelism - operations on different files don't block each other
@@ -633,11 +628,11 @@ New System (Mandatory Sessions):
 - [ ] **RENAME** `ExcelBatch` → `ExcelSession` (implementation)
 - [ ] **RENAME** `_activeBatches` → `_activeSessions` in SessionManager
 - [ ] **RENAME** `BeginBatchAsync` → `OpenSessionAsync` in ExcelSession
-- [ ] **ADD** `FileAction.Open`, `FileAction.Save`, `FileAction.Close` enum values
-- [ ] **IMPLEMENT** `OpenWorkbookAsync()`, `SaveWorkbookAsync()`, `CloseWorkbookAsync()` in ExcelFileTool
+- [ ] **ADD** the canonical `FileAction` list/open/create/close/test enum values
+- [ ] **IMPLEMENT** `OpenSessionAsync()`, `CreateSessionAsync()`, and atomic `CloseSessionAsync(save)` in ExcelFileTool
 - [ ] **CHANGE** all 12 tools: `batchId` (optional) → `sessionId` (required)
 - [ ] **REMOVE** `excelPath` parameter from all 11 tools (except file open/create)
-- [ ] **REMOVE** `save` parameter from close action in file tool
+- [ ] **KEEP** `save` on close as the only persistence operation
 - [ ] **SIMPLIFY** all tool methods: remove WithBatchAsync, direct session lookup
 - [ ] **UPDATE** session to track filePath internally (for excelPath removal)
 
@@ -645,12 +640,12 @@ New System (Mandatory Sessions):
 
 - [ ] **DELETE** all batch-mode specific tests
 - [ ] **REWRITE** all tool tests to use session pattern (open → operate → close)
-- [ ] **ADD** session lifecycle tests (open, save, close actions)
+- [ ] **ADD** session lifecycle tests (list, open, create, close, and test actions)
 - [ ] **ADD** error tests: operate without sessionId → clear error message
 - [ ] **ADD** error tests: sessionId not found → helpful error
 - [ ] **ADD** read-only workflow tests: open → read → close (no save)
-- [ ] **ADD** multiple-save workflow tests: open → modify → save → modify → save → close
-- [ ] **ADD** discard changes tests: open → modify → close (no save = rollback)
+- [ ] **ADD** close-with-save persistence tests: open → modify → close(save=true) → reopen → verify
+- [ ] **ADD** discard changes tests: open → modify → close(save=false) → reopen → verify rollback
 - [ ] **VERIFY** no performance regression (sessions were batches internally)
 - [ ] **TEST** integration with MCP clients (Claude, Copilot) using new API
 - [ ] **ADD** concurrency tests: verify operations within session are serial (not parallel)
@@ -672,7 +667,7 @@ New System (Mandatory Sessions):
 
 ### LLM Guidance
 
-- [ ] Create `session_lifecycle.md` prompt with open/save/close patterns
+- [ ] Create `session_lifecycle.md` prompt with list/open/create/close/test patterns
 - [ ] Update `user_request_patterns.md` with session detection hints
 - [ ] Add session error recovery guidance
 - [ ] Update elicitations to ask about multi-operation intent
@@ -784,8 +779,7 @@ LLMs should track the correct `sessionId` for each workbook and close sessions w
 for each file:
   1. open → sessionId
   2. perform operations (all serial within session)
-  3. save
-  4. close (frees Excel process immediately)
+  3. close(save=true) (persists atomically and frees Excel immediately)
 
 # OR parallel approach for small batches (faster but memory-intensive)
 1. open files 1-5 → get 5 sessionIds (5 Excel processes)
@@ -819,16 +813,15 @@ for each file:
 
 ### 2. Should `save` be implicit on `close` by default?
 
-**Decision:** No, close NEVER saves - explicit save action only
+**Decision:** No. `save` defaults to `false` and must be explicitly enabled on `close`.
 **Rationale:**
 
 - **Explicit is better than implicit** - No surprise saves
-- **LLM clarity** - "save" action = save, "close" action = close (no overlap)
-- **Read-only workflows** - Just open → read → close (no save needed)
-- **Multiple saves** - Save multiple times during session, close at end
-- **Predictable behavior** - close always does same thing (cleanup only)
+- **Atomic lifecycle** - Persistence and teardown happen at one close boundary
+- **Read-only workflows** - Just open → read → close with the default `save=false`
+- **Predictable behavior** - `save=true` persists; `save=false` discards
 
-**Implementation:** Remove `save` parameter from close entirely. Users call `file(action: 'save')` explicitly when needed.
+**Implementation:** Keep `save` on close, default it to `false`, and expose no standalone save action.
 
 ### 3. Should sessions timeout automatically after inactivity?
 
@@ -845,38 +838,30 @@ for each file:
 
 ### 4. What are the save semantics for different workflows?
 
-**Decision:** Explicit save action only, close never saves
+**Decision:** `close(save=true)` is the only persistence operation.
 
 **Workflows supported:**
 
 1. **Read-only workflow:**
 
    ```
-   open → read operations → close (no save needed)
+   open → read operations → close(save=false)
    ```
 
    Use case: List queries, view data, check connections
 
-2. **Single save workflow:**
+2. **Persist changes workflow:**
 
    ```
-   open → modify operations → save → close
+   open → modify operations → close(save=true)
    ```
 
    Use case: Standard edit workflow
 
-3. **Multiple save workflow:**
+3. **Discard changes workflow:**
 
    ```
-   open → modify → save → modify → save → modify → save → close
-   ```
-
-   Use case: Incremental changes, checkpoints, complex multi-step operations
-
-4. **Discard changes workflow:**
-
-   ```
-   open → modify operations → close (no save = changes discarded)
+   open → modify operations → close(save=false)
    ```
 
    Use case: Experimental changes, testing, rollback
@@ -884,9 +869,9 @@ for each file:
 **Rationale:**
 
 - **Explicit control** - User decides when to persist changes
-- **Read-only support** - No save parameter needed anywhere
-- **Flexibility** - Save 0, 1, or N times during session
-- **Predictability** - close always does same thing (cleanup)
+- **Read-only support** - The default close path does not write
+- **Single persistence boundary** - No partial checkpoints or standalone save operation
+- **Predictability** - The close flag fully determines persistence
 
 ### 5. Should we keep `excel_batch` as deprecated alias?
 
@@ -977,7 +962,7 @@ LLM: I'll open the workbook and create 3 worksheets.
 4. worksheet(action: 'create',
                    sheetName: 'Q3', sessionId: 'abc-123')
 
-5. file(action: 'close', sessionId: 'abc-123')
+5. file(action: 'close', sessionId: 'abc-123', save: true)
    → { success: true }
 ```
 
@@ -987,7 +972,7 @@ LLM: I'll open the workbook and create 3 worksheets.
 - "Commit batch" → "Close file" (universal action)
 - `batchId` (optional) → `sessionId` (required)
 - No more decision about "should I batch?"
-- **Close never saves** - explicit save action only
+- **Persistence is atomic with close** - `save=true` saves and closes in one operation
 - **excelPath removed** from all operations except open (session knows the file)
 - Simpler: 5 calls vs 5 calls, but with intuitive naming
 
@@ -1008,14 +993,14 @@ LLM: I'll check which Power Queries are in this workbook.
 
 **Key points:**
 
-- No save action needed (read-only operation)
-- Close doesn't save (no changes made)
+- Use the default `save=false` for read-only work
+- Close discards any incidental changes
 - Simple: open → read → close
 
-### Multiple-Save Workflow Example
+### Atomic Persistence Workflow Example
 
 ```
-LLM: I'll create multiple queries with checkpoints after each one.
+LLM: I'll create multiple queries and persist them when the session closes.
 
 1. file(action: 'open', filePath: 'sales.xlsx')
    → { sessionId: 'abc-123' }
@@ -1024,37 +1009,27 @@ LLM: I'll create multiple queries with checkpoints after each one.
                     queryName: 'SalesData', mCodeFile: 'sales.m')
    → { success: true }
 
-3. file(action: 'save', sessionId: 'abc-123')
-   → { success: true }  // Checkpoint 1
-
-4. powerquery(action: 'import', sessionId: 'abc-123',
+3. powerquery(action: 'import', sessionId: 'abc-123',
                     queryName: 'CustomerInfo', mCodeFile: 'customers.m')
    → { success: true }
 
-5. file(action: 'save', sessionId: 'abc-123')
-   → { success: true }  // Checkpoint 2
-
-6. powerquery(action: 'import', sessionId: 'abc-123',
+4. powerquery(action: 'import', sessionId: 'abc-123',
                     queryName: 'ProductCatalog', mCodeFile: 'products.m')
    → { success: true }
 
-7. file(action: 'save', sessionId: 'abc-123')
-   → { success: true }  // Final checkpoint
-
-8. file(action: 'close', sessionId: 'abc-123')
+5. file(action: 'close', sessionId: 'abc-123', save: true)
    → { success: true }
 ```
 
 **Key points:**
 
-- Multiple explicit save actions during session
-- Each save creates a checkpoint (changes persisted)
-- Close at end does NOT save (last save already persisted everything)
-- Incremental persistence reduces risk of data loss
+- No standalone save operation exists
+- All changes persist atomically when close succeeds with `save=true`
+- `save=false` remains available for read-only or discard workflows
 
 ## Conclusion
 
-This redesign achieves the ultimate goal: **Eliminate all cognitive load from LLMs by making sessions the only way to work with Excel files**. The Open/Save/Close pattern is:
+This redesign achieves the ultimate goal: **Eliminate all cognitive load from LLMs by making sessions the only way to work with Excel files**. The Open/Close pattern is:
 
 1. **Universal** - Every developer/LLM knows file lifecycle (no explanation needed)
 2. **Mandatory** - No decisions about batching, sessions are always used

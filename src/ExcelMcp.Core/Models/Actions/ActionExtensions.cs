@@ -12,7 +12,6 @@ public static class ActionExtensions
         FileAction.Open => "open",
         FileAction.Close => "close",
         FileAction.Create => "create",
-        FileAction.CloseWorkbook => "close-workbook",
         FileAction.Test => "test",
         _ => throw new ArgumentException($"Unknown FileAction: {action}")
     };
@@ -55,5 +54,4 @@ public static class ActionExtensions
     // CalculationModeAction.ToActionString() is now generated in ServiceRegistry.Calculation.ToActionString()
 }
 #pragma warning restore CS1591
-
 
