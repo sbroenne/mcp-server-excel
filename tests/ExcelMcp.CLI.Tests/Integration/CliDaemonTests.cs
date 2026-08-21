@@ -118,6 +118,61 @@ public sealed class CliDaemonTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ServiceStart_WhenDaemonStartupExceedsBusyTimeout_WaitsForStartupReadiness()
+    {
+        var result = await RunWithDelayedStartingDaemonAsync(TimeSpan.FromSeconds(18));
+        _output.WriteLine($"Slow startup response: {result.Stdout}");
+        _output.WriteLine($"Slow startup stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ServiceStart_WhenStartupMarkerAppearsDuringBusyWait_UsesOriginalStartupDeadline()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var result = await RunWithLateStartingMarkerAsync(
+            markerDelay: TimeSpan.FromSeconds(8),
+            startupDelay: TimeSpan.FromSeconds(33));
+        stopwatch.Stop();
+        _output.WriteLine($"Late startup marker response: {result.Stdout}");
+        _output.WriteLine($"Late startup marker stderr: {result.Stderr}");
+        _output.WriteLine($"Late startup marker elapsed: {stopwatch.Elapsed}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("ready", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(37));
+    }
+
+    [Fact]
+    public async Task ServiceStart_WhenOnlyLifecycleLockIsHeld_UsesSingleStartupDeadline()
+    {
+        await using var startupLock = await HeldMutex.AcquireAsync(
+            DaemonAutoStart.GetDaemonStartupLockName(_testPipeName));
+
+        var stopwatch = Stopwatch.StartNew();
+        var result = await CliProcessHelper.RunAsync(
+            "service start",
+            timeoutMs: 50000,
+            environmentVariables: TestEnv);
+        stopwatch.Stop();
+
+        _output.WriteLine($"Contended startup response: {result.Stdout}");
+        _output.WriteLine($"Contended startup stderr: {result.Stderr}");
+        _output.WriteLine($"Contended startup elapsed: {stopwatch.Elapsed}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("ready", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(36));
+    }
+
+    [Fact]
     public async Task ServiceStart_WhenDaemonMutexExistsButIsNotOwned_StartsDaemon()
     {
         var mutexName = DaemonAutoStart.GetDaemonMutexName(_testPipeName);
@@ -187,19 +242,124 @@ public sealed class CliDaemonTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ServiceStatus_WhenDaemonAcceptsConnectionButNeverReplies_FailsQuicklyWithTimeoutError()
+    public async Task ServiceStatus_WhenDaemonIsNotRunning_ReportsStoppedState()
     {
+        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 10000, environmentVariables: TestEnv);
+        _output.WriteLine($"Status response: {result.Stdout}");
+        _output.WriteLine($"Status stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.False(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
+    }
+
+    [Fact]
+    public async Task SessionList_WhenDaemonIsNotRunning_ReturnsConfirmedEmptyList()
+    {
+        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 10000, environmentVariables: TestEnv);
+        _output.WriteLine($"Session list response: {result.Stdout}");
+        _output.WriteLine($"Session list stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
+    }
+
+    [Fact]
+    public async Task ServiceStatus_WhenStartupIsInProgressButNotReady_ReportsStartingState()
+    {
+        await using var daemonMutex = await HeldMutex.AcquireAsync(
+            DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        await using var startingMarker = await HeldMutex.AcquireAsync(
+            GetDaemonStartingMarkerName(_testPipeName));
+
+        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 20000, environmentVariables: TestEnv);
+        _output.WriteLine($"Starting status response: {result.Stdout}");
+        _output.WriteLine($"Starting status stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("starting", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.False(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.False(json.RootElement.TryGetProperty("processId", out _));
+        Assert.Contains("timed out", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SessionList_WhenStartupIsInProgressButNotReady_FailsWithoutEmptySessions()
+    {
+        await using var daemonMutex = await HeldMutex.AcquireAsync(
+            DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        await using var startingMarker = await HeldMutex.AcquireAsync(
+            GetDaemonStartingMarkerName(_testPipeName));
+
+        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 20000, environmentVariables: TestEnv);
+        _output.WriteLine($"Starting session list response: {result.Stdout}");
+        _output.WriteLine($"Starting session list stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("starting", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.False(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.False(json.RootElement.TryGetProperty("sessions", out _));
+        Assert.Contains("timed out", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ServiceStatus_WhenDaemonBecomesReadyAfterLegacyTimeout_WaitsAndSucceeds()
+    {
+        var result = await RunWithDelayedServiceAsync("service status", TimeSpan.FromSeconds(3));
+        _output.WriteLine($"Delayed status response: {result.Stdout}");
+        _output.WriteLine($"Delayed status stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("running", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.True(json.RootElement.GetProperty("running").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SessionList_WhenDaemonBecomesReadyAfterLegacyTimeout_ReturnsGenuineEmptyList()
+    {
+        var result = await RunWithDelayedServiceAsync("session list", TimeSpan.FromSeconds(3));
+        _output.WriteLine($"Delayed session list response: {result.Stdout}");
+        _output.WriteLine($"Delayed session list stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("running", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
+    }
+
+    [Fact]
+    public async Task ServiceStatus_WhenDaemonAcceptsConnectionButNeverReplies_ReportsUnresponsiveState()
+    {
+        await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
         await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
         await stalledDaemon.StartAsync();
 
-        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 10000, environmentVariables: TestEnv);
+        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 20000, environmentVariables: TestEnv);
         _output.WriteLine($"Status response: {result.Stdout}");
         _output.WriteLine($"Status stderr: {result.Stderr}");
 
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.False(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.Equal("unresponsive", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.True(json.RootElement.GetProperty("running").GetBoolean());
 
         var error = json.RootElement.GetProperty("error").GetString();
         Assert.NotNull(error);
@@ -207,22 +367,95 @@ public sealed class CliDaemonTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ServiceStatus_WhenConnectConsumesPartOfDeadline_UsesOneControlTimeout()
+    {
+        await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        await using var stalledDaemon = new StalledPipeServer(
+            _testPipeName,
+            _output,
+            TimeSpan.FromSeconds(6));
+
+        var stopwatch = Stopwatch.StartNew();
+        var commandTask = CliProcessHelper.RunAsync(
+            "service status",
+            timeoutMs: 20000,
+            environmentVariables: TestEnv);
+        await stalledDaemon.StartAsync();
+        var result = await commandTask;
+        stopwatch.Stop();
+
+        _output.WriteLine($"Deadline status response: {result.Stdout}");
+        _output.WriteLine($"Deadline status stderr: {result.Stderr}");
+        _output.WriteLine($"Deadline status elapsed: {stopwatch.Elapsed}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("unresponsive", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.True(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.Contains("timed out", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(14));
+    }
+
+    [Fact]
     public async Task SessionList_WhenDaemonAcceptsConnectionButNeverReplies_FailsQuicklyWithTimeoutError()
     {
+        await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
         await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
         await stalledDaemon.StartAsync();
 
-        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 10000, environmentVariables: TestEnv);
+        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 20000, environmentVariables: TestEnv);
         _output.WriteLine($"Session list response: {result.Stdout}");
         _output.WriteLine($"Session list stderr: {result.Stderr}");
 
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("unresponsive", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.True(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.False(json.RootElement.TryGetProperty("sessions", out _));
 
         var error = json.RootElement.GetProperty("error").GetString();
         Assert.NotNull(error);
         Assert.Contains("timed out", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SessionList_WhenDaemonDisappearsDuringRequest_ReturnsConfirmedStoppedEmptyList()
+    {
+        HeldMutex? heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
+        try
+        {
+            await stalledDaemon.StartAsync();
+            var commandTask = CliProcessHelper.RunAsync(
+                "session list",
+                timeoutMs: 20000,
+                environmentVariables: TestEnv);
+            await stalledDaemon.WaitForConnectionAsync();
+            await heldMutex.DisposeAsync();
+            heldMutex = null;
+
+            var result = await commandTask;
+            _output.WriteLine($"Disappeared daemon response: {result.Stdout}");
+            _output.WriteLine($"Disappeared daemon stderr: {result.Stderr}");
+
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
+            Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
+            Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.False(json.RootElement.TryGetProperty("error", out _));
+            Assert.False(json.RootElement.TryGetProperty("isError", out _));
+        }
+        finally
+        {
+            if (heldMutex != null)
+            {
+                await heldMutex.DisposeAsync();
+            }
+        }
     }
 
     [Fact]
@@ -256,6 +489,23 @@ public sealed class CliDaemonTests : IAsyncLifetime
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(0, json.RootElement.GetProperty("sessionCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task SessionList_WhenDaemonIsReadyAndEmpty_ReturnsEmptySuccess()
+    {
+        _daemonProcess = StartDaemon();
+        await WaitForDaemonReadyAsync();
+
+        var (result, json) = await CliProcessHelper.RunJsonAsync("session list", environmentVariables: TestEnv);
+        _output.WriteLine($"Session list response: {result.Stdout}");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("running", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
     }
 
     [Fact]
@@ -491,6 +741,86 @@ public sealed class CliDaemonTests : IAsyncLifetime
         throw new TimeoutException($"CLI daemon did not become ready within {maxRetries * delayMs}ms");
     }
 
+    private async Task<CliResult> RunWithDelayedServiceAsync(string command, TimeSpan startupDelay)
+    {
+        await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        using var service = new ExcelMcpService();
+        var commandTask = CliProcessHelper.RunAsync(
+            command,
+            timeoutMs: 15000,
+            environmentVariables: TestEnv);
+
+        await Task.Delay(startupDelay);
+        var serviceTask = Task.Run(() => service.RunAsync(_testPipeName));
+        try
+        {
+            return await commandTask;
+        }
+        finally
+        {
+            service.RequestShutdown();
+            await serviceTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    private async Task<CliResult> RunWithDelayedStartingDaemonAsync(TimeSpan startupDelay)
+    {
+        await using var daemonMutex = await HeldMutex.AcquireAsync(
+            DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        await using var startupLock = await HeldMutex.AcquireAsync(
+            DaemonAutoStart.GetDaemonStartupLockName(_testPipeName));
+        await using var startingMarker = await HeldMutex.AcquireAsync(
+            GetDaemonStartingMarkerName(_testPipeName));
+        using var service = new ExcelMcpService();
+        var commandTask = CliProcessHelper.RunAsync(
+            "service start",
+            timeoutMs: 25000,
+            environmentVariables: TestEnv);
+
+        await Task.Delay(startupDelay);
+        var serviceTask = Task.Run(() => service.RunAsync(_testPipeName));
+        try
+        {
+            return await commandTask;
+        }
+        finally
+        {
+            service.RequestShutdown();
+            await serviceTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    private async Task<CliResult> RunWithLateStartingMarkerAsync(
+        TimeSpan markerDelay,
+        TimeSpan startupDelay)
+    {
+        await using var daemonMutex = await HeldMutex.AcquireAsync(
+            DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+        using var service = new ExcelMcpService();
+        var commandTask = CliProcessHelper.RunAsync(
+            "service start",
+            timeoutMs: 42000,
+            environmentVariables: TestEnv);
+
+        await Task.Delay(markerDelay);
+        await using var startingMarker = await HeldMutex.AcquireAsync(
+            GetDaemonStartingMarkerName(_testPipeName));
+        await Task.Delay(startupDelay - markerDelay);
+        var serviceTask = Task.Run(() => service.RunAsync(_testPipeName));
+        try
+        {
+            return await commandTask;
+        }
+        finally
+        {
+            service.RequestShutdown();
+            await serviceTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    private static string GetDaemonStartingMarkerName(string pipeName) =>
+        DaemonAutoStart.GetDaemonStartingMarkerName(pipeName);
+
     private void KillDaemon()
     {
         if (_daemonProcess is null || _daemonProcess.HasExited) return;
@@ -515,19 +845,27 @@ public sealed class CliDaemonTests : IAsyncLifetime
     {
         private readonly string _pipeName;
         private readonly ITestOutputHelper _output;
+        private readonly TimeSpan _listenDelay;
         private readonly CancellationTokenSource _cts = new();
         private readonly TaskCompletionSource _listeningTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _connectedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly Task _serverTask;
         private NamedPipeServerStream? _server;
 
-        public StalledPipeServer(string pipeName, ITestOutputHelper output)
+        public StalledPipeServer(
+            string pipeName,
+            ITestOutputHelper output,
+            TimeSpan? listenDelay = null)
         {
             _pipeName = pipeName;
             _output = output;
+            _listenDelay = listenDelay ?? TimeSpan.Zero;
             _serverTask = RunAsync();
         }
 
         public Task StartAsync() => _listeningTcs.Task;
+
+        public Task WaitForConnectionAsync() => _connectedTcs.Task;
 
         public async ValueTask DisposeAsync()
         {
@@ -559,11 +897,13 @@ public sealed class CliDaemonTests : IAsyncLifetime
         {
             try
             {
+                await Task.Delay(_listenDelay, _cts.Token);
                 _server = ServiceSecurity.CreateSecureServer(_pipeName);
                 _listeningTcs.TrySetResult();
                 _output.WriteLine($"Stalled pipe server listening on {_pipeName}");
 
                 await _server.WaitForConnectionAsync(_cts.Token);
+                _connectedTcs.TrySetResult();
                 _output.WriteLine("Stalled pipe server accepted a connection");
 
                 await Task.Delay(Timeout.InfiniteTimeSpan, _cts.Token);

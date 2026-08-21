@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.ExceptionServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -42,6 +43,7 @@ public partial class PowerQueryCommands
             dynamic? queryTable = null;
             dynamic? range = null;
             dynamic? usedRange = null;
+            Exception? operationError = null;
 
             try
             {
@@ -173,105 +175,119 @@ public partial class PowerQueryCommands
                     ComUtilities.Release(ref dataBodyRange);
                 }
 
-                result.Success = true;
             }
-            finally
+            catch (Exception ex)
             {
-                // STEP 6: Cleanup - delete temporary objects
-                // Order matters: delete table, sheet, query, connections
-
-                // Delete the ListObject (table)
-                try
-                {
-                    if (listObject != null)
-                    {
-                        listObject.Delete();
-                    }
-                }
-                catch (COMException) { /* ignore cleanup errors */ }
-
-                ComUtilities.Release(ref queryTable);
-                ComUtilities.Release(ref listObject);
-                ComUtilities.Release(ref listObjects);
-                ComUtilities.Release(ref range);
-                ComUtilities.Release(ref usedRange);
-
-                // Delete the temporary worksheet
-                try
-                {
-                    if (tempSheet != null)
-                    {
-                        // Suppress alerts to avoid "Are you sure you want to delete?" prompt
-                        dynamic? app = null;
-                        try
-                        {
-                            app = ctx.Book.Application;
-                            bool originalAlerts = app.DisplayAlerts;
-                            app.DisplayAlerts = false;
-                            try
-                            {
-                                tempSheet.Delete();
-                            }
-                            finally
-                            {
-                                app.DisplayAlerts = originalAlerts;
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref app);
-                        }
-                    }
-                }
-                catch (COMException) { /* ignore cleanup errors */ }
-
-                ComUtilities.Release(ref tempSheet);
-                ComUtilities.Release(ref worksheets);
-
-                // Delete the temporary query
-                try
-                {
-                    if (query != null)
-                    {
-                        query.Delete();
-                    }
-                }
-                catch (COMException) { /* ignore cleanup errors */ }
-
-                ComUtilities.Release(ref query);
-                ComUtilities.Release(ref queriesCollection);
-
-                // Clean up any lingering connections
-                dynamic? connections = null;
-                try
-                {
-                    connections = ctx.Book.Connections;
-                    for (int i = connections.Count; i >= 1; i--)
-                    {
-                        dynamic? conn = null;
-                        try
-                        {
-                            conn = connections.Item(i);
-                            string connName = conn.Name?.ToString() ?? "";
-                            if (connName.Contains(tempQueryName))
-                            {
-                                conn.Delete();
-                            }
-                        }
-                        catch (COMException) { /* ignore cleanup errors */ }
-                        finally
-                        {
-                            ComUtilities.Release(ref conn);
-                        }
-                    }
-                }
-                catch (COMException) { /* ignore cleanup errors */ }
-                finally
-                {
-                    ComUtilities.Release(ref connections);
-                }
+                operationError = ex;
             }
 
+            var cleanupErrors = new List<Exception>();
+            try
+            {
+                if (listObject != null)
+                {
+                    listObject.Delete();
+                }
+            }
+            catch (COMException ex)
+            {
+                cleanupErrors.Add(new InvalidOperationException(
+                    $"Failed to delete temporary evaluate table for '{tempQueryName}'.",
+                    ex));
+            }
+
+            ComUtilities.Release(ref queryTable);
+            ComUtilities.Release(ref listObject);
+            ComUtilities.Release(ref listObjects);
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref usedRange);
+
+            try
+            {
+                if (tempSheet != null)
+                {
+                    // Suppress alerts to avoid "Are you sure you want to delete?" prompt
+                    dynamic? app = null;
+                    try
+                    {
+                        app = ctx.Book.Application;
+                        bool originalAlerts = app.DisplayAlerts;
+                        app.DisplayAlerts = false;
+                        try
+                        {
+                            tempSheet.Delete();
+                        }
+                        finally
+                        {
+                            app.DisplayAlerts = originalAlerts;
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref app);
+                    }
+                }
+            }
+            catch (COMException ex)
+            {
+                cleanupErrors.Add(new InvalidOperationException(
+                    $"Failed to delete temporary evaluate worksheet '{tempSheetName}'.",
+                    ex));
+            }
+
+            ComUtilities.Release(ref tempSheet);
+            ComUtilities.Release(ref worksheets);
+
+            try
+            {
+                PowerQuery.PowerQueryHelpers.RemoveConnectionsByMashupLocation(
+                    ctx.Book,
+                    tempQueryName);
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException)
+            {
+                cleanupErrors.Add(new InvalidOperationException(
+                    $"Failed to delete temporary evaluate connections for '{tempQueryName}'.",
+                    ex));
+            }
+
+            try
+            {
+                if (query != null)
+                {
+                    query.Delete();
+                }
+            }
+            catch (COMException ex)
+            {
+                cleanupErrors.Add(new InvalidOperationException(
+                    $"Failed to delete temporary evaluate query '{tempQueryName}'.",
+                    ex));
+            }
+
+            ComUtilities.Release(ref query);
+            ComUtilities.Release(ref queriesCollection);
+
+            if (cleanupErrors.Count > 0)
+            {
+                if (operationError != null)
+                {
+                    cleanupErrors.Insert(0, operationError);
+                }
+
+                throw new PowerQueryCommandException(
+                    $"Power Query evaluate cleanup failed for temporary identity '{tempQueryName}'. " +
+                    "Inspect powerquery list and connection list before saving, or close without saving and retry.",
+                    "Cleanup",
+                    new AggregateException(cleanupErrors));
+            }
+
+            if (operationError != null)
+            {
+                ExceptionDispatchInfo.Capture(operationError).Throw();
+            }
+
+            result.Success = true;
             return result;
         });
     }

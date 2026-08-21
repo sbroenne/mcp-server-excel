@@ -20,6 +20,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.Service;
@@ -65,6 +66,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly PythonInExcelCommands _pythonInExcelCommands = new();
     private readonly AnalysisCommands _analysisCommands = new();
     private readonly XmlMapCommands _xmlMapCommands = new();
+    private readonly FileCommands _fileCommands = new();
 
     public ExcelMcpService()
     {
@@ -259,6 +261,8 @@ public sealed class ExcelMcpService : IDisposable
             var category = parts[0];
             var action = parts.Length > 1 ? parts[1] : "";
 
+            ServiceRegistry.ValidateCommandArguments(request.Command, request.Args);
+
             ServiceResponse response = category switch
             {
                 "service" => HandleServiceCommand(action),
@@ -376,26 +380,61 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
+        if (action is not ("create" or "open" or "close" or "list" or "test"))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" };
+        }
+
+        ValidateSessionActionArguments(action, request.Args);
         return action switch
         {
             "create" => HandleSessionCreate(request),
             "open" => HandleSessionOpen(request),
             "close" => HandleSessionClose(request),
-            "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
-            _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
+            "test" => HandleSessionTest(request),
+            _ => throw new InvalidOperationException($"Unhandled session action: {action}")
         };
+    }
+
+    private static void ValidateSessionActionArguments(string action, string? argsJson)
+    {
+        var allowedParameters = action switch
+        {
+            "create" => new HashSet<string>(
+                ["filePath", "macroEnabled", "show", "timeoutSeconds"],
+                StringComparer.Ordinal),
+            "open" => new HashSet<string>(
+                ["filePath", "show", "timeoutSeconds"],
+                StringComparer.Ordinal),
+            "close" => new HashSet<string>(["save"], StringComparer.Ordinal),
+            "test" => new HashSet<string>(["filePath"], StringComparer.Ordinal),
+            _ => []
+        };
+        var unknownParameters = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
+            .Where(parameter => !allowedParameters.Contains(parameter))
+            .ToArray();
+        if (unknownParameters.Length > 0)
+        {
+            throw new ArgumentException(
+                $"Unknown parameter(s) for session.{action}: {string.Join(", ", unknownParameters)}.");
+        }
     }
 
     private ServiceResponse HandleSessionCreate(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
+        var timeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
             return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
 
-        var fullPath = Path.GetFullPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
 
         if (File.Exists(fullPath))
         {
@@ -416,13 +455,16 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = $"Invalid file extension '{extension}'. session create supports .xlsx and .xlsm only."
             };
         }
+        var extensionIsMacroEnabled = string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase);
+        if (args.MacroEnabled.HasValue && args.MacroEnabled.Value != extensionIsMacroEnabled)
+        {
+            throw new ArgumentException(
+                $"macroEnabled must be {extensionIsMacroEnabled.ToString().ToLowerInvariant()} for a '{extension}' workbook.");
+        }
 
         try
         {
             // Use the combined create+open which starts Excel only once
-            TimeSpan? timeout = args.TimeoutSeconds.HasValue
-                ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
-                : null;
             var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
 
@@ -441,22 +483,25 @@ public sealed class ExcelMcpService : IDisposable
     private ServiceResponse HandleSessionOpen(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
+        var timeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
             return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
+        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
 
         try
         {
-            TimeSpan? timeout = args.TimeoutSeconds.HasValue
-                ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
-                : null;
-            var sessionId = _sessionManager.CreateSession(args.FilePath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
+            var sessionId = _sessionManager.CreateSession(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
             return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = args.FilePath }, ServiceProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
@@ -467,13 +512,14 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionClose(ServiceRequest request)
     {
+        var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
+        var shouldSave = args?.Save ?? false;
+
         if (string.IsNullOrWhiteSpace(request.SessionId))
         {
             return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
         }
 
-        var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
-        var shouldSave = args?.Save ?? false;
         bool closed;
         try
         {
@@ -506,33 +552,26 @@ public sealed class ExcelMcpService : IDisposable
         return new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
     }
 
-    private ServiceResponse HandleSessionSave(ServiceRequest request)
+    private ServiceResponse HandleSessionTest(ServiceRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.SessionId))
+        var args = ServiceRegistry.DeserializeArgs<SessionTestArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.FilePath))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
-        }
-
-        var sessionError = TryBeginUsableSession(request.SessionId, out var batch);
-        if (sessionError != null)
-        {
-            return sessionError;
+            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
 
         try
         {
-            batch!.Save();
-            return new ServiceResponse { Success = true };
+            var result = _fileCommands.Test(args.FilePath);
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
+            };
         }
-        catch (Exception ex) when (IsFatalExcelDisconnect(ex))
+        catch (Exception ex)
         {
-            CleanupDeadSession(request.SessionId);
-            return CreateExcelDisconnectedResponse(request.SessionId, ex,
-                "Excel disconnected while saving. Session has been cleaned up; reopen the workbook and verify whether the save completed.");
-        }
-        finally
-        {
-            _sessionManager.EndOperation(request.SessionId);
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -1039,7 +1078,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             PowerQueryCommandException pqEx => pqEx.ErrorCategory,
             TimeoutException => "Timeout",
-            ArgumentException => "InvalidInput",
+            ArgumentException or JsonException => "InvalidInput",
             COMException => "ComInterop",
             _ => null
         };
@@ -1107,7 +1146,9 @@ public sealed class ExcelMcpService : IDisposable
 public sealed class SessionOpenArgs
 {
     public string? FilePath { get; set; }
+    public bool? MacroEnabled { get; set; }
     public bool Show { get; set; }
     public int? TimeoutSeconds { get; set; }
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
+public sealed class SessionTestArgs { public string? FilePath { get; set; } }

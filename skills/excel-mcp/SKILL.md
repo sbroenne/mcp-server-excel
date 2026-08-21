@@ -12,7 +12,7 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 # Excel MCP Server Skill
 
-Provides 326 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 325 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
 ## Workflow Checklist
 

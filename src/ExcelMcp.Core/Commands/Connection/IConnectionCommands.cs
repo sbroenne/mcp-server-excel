@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("connection", "Connection")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
-    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations. Power Query connections redirect to powerquery. Typed OLEDB/ODBC refresh status and cancellation are available. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
+    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations. Power Query connections redirect to powerquery by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. Typed OLEDB/ODBC refresh status and cancellation are available. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
 public interface IConnectionCommands
 {
     /// <summary>
@@ -52,7 +52,7 @@ public interface IConnectionCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection to refresh</param>
-    /// <param name="timeout">Optional timeout for the refresh operation</param>
+    /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
     [ServiceAction("refresh")]
     OperationResult Refresh(
         IExcelBatch batch,
@@ -60,8 +60,10 @@ public interface IConnectionCommands
         [FromString("timeout")] TimeSpan? timeout = null);
 
     /// <summary>
-    /// Gets refresh status for OLEDB and ODBC connections.
+    /// Gets refresh status for OLEDB and ODBC background refreshes started
+    /// outside the synchronous connection refresh action.
     /// Excel PIA exposes status on the typed sub-connection, not WorkbookConnection.
+    /// The synchronous refresh action occupies the session queue until completion.
     /// </summary>
     [ServiceAction("get-refresh-status")]
     RefreshStatusResult GetRefreshStatus(
@@ -69,7 +71,8 @@ public interface IConnectionCommands
         [RequiredParameter, FromString("connectionName")] string connectionName);
 
     /// <summary>
-    /// Cancels an active OLEDB or ODBC refresh.
+    /// Cancels an active OLEDB or ODBC background refresh started outside the
+    /// synchronous connection refresh action.
     /// Returns an explicit unsupported result for connection types without a typed PIA cancellation API.
     /// </summary>
     [ServiceAction("cancel-refresh")]
@@ -78,7 +81,7 @@ public interface IConnectionCommands
         [RequiredParameter, FromString("connectionName")] string connectionName);
 
     /// <summary>
-    /// Deletes a connection
+    /// Deletes a connection and QueryTables owned by that exact WorkbookConnection.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection to delete</param>
@@ -88,7 +91,8 @@ public interface IConnectionCommands
         [RequiredParameter, FromString("connectionName")] string connectionName);
 
     /// <summary>
-    /// Loads connection data to a worksheet
+    /// Loads connection data to a worksheet, replacing only QueryTables owned by
+    /// the exact WorkbookConnection.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection</param>
@@ -143,4 +147,3 @@ public interface IConnectionCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName);
 }
-

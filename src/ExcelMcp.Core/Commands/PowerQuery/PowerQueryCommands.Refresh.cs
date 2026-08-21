@@ -47,7 +47,7 @@ public partial class PowerQueryCommands
                 Excel.WorkbookQuery? query = null;
                 try
                 {
-                    query = ComUtilities.FindQuery(ctx.Book, queryName);
+                    query = PowerQuery.PowerQueryHelpers.FindQueryByExactName(ctx.Book, queryName);
                     if (query == null)
                     {
                         throw new InvalidOperationException($"Query '{queryName}' not found.");
@@ -76,10 +76,9 @@ public partial class PowerQueryCommands
 
                     result.HasErrors = false;
                     result.Success = true;
-                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
-
-                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
+                    var loadState = DetectLoadState(ctx.Book, queryName, ct);
+                    result.LoadedToSheet = loadState.TargetSheet;
+                    result.IsConnectionOnly = loadState.IsConnectionOnly;
 
                     progress?.Report(new ProgressInfo { Current = 1, Total = 1, Message = $"Refreshed '{queryName}'" });
                     return result;
@@ -185,41 +184,4 @@ public partial class PowerQueryCommands
         }, timeoutCts.Token);
     }
 
-    /// <summary>
-    /// Helper method to find connection for a query
-    /// </summary>
-    private static dynamic? FindConnectionForQuery(dynamic workbook, string queryName)
-    {
-        dynamic? connections = null;
-        try
-        {
-            connections = workbook.Connections;
-            for (int i = 1; i <= connections.Count; i++)
-            {
-                dynamic? conn = null;
-                try
-                {
-                    conn = connections.Item(i);
-                    string connName = conn.Name;
-                    if (connName.Contains(queryName))
-                    {
-                        return conn;
-                    }
-                }
-                finally
-                {
-                    if (conn != null && conn != connections.Item(i))
-                    {
-                        ComUtilities.Release(ref conn!);
-                    }
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref connections!);
-        }
-
-        return null;
-    }
 }

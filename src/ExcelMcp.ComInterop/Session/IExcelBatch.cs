@@ -158,3 +158,7 @@ public interface IExcelBatch : IDisposable
 
 }
 
+internal interface IExcelBatchTeardownState
+{
+    bool TryConfirmOwnedProcessTeardown();
+}

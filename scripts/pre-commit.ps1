@@ -129,25 +129,13 @@ if ($currentBranch -eq "main") {
 Write-Host "Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
 Write-Host ""
 
-# Kill stale Excel and MCP server processes to avoid file locks on Release binaries
-Write-Host "Killing stale Excel and server processes..." -ForegroundColor Cyan
-
-$killedProcesses = @()
-foreach ($procName in @("EXCEL", "excelcli", "Sbroenne.ExcelMcp.McpServer", "Sbroenne.ExcelMcp.Service")) {
-    $procs = Get-Process -Name $procName -ErrorAction SilentlyContinue
-    if ($procs) {
-        $procs | Stop-Process -Force -ErrorAction SilentlyContinue
-        $killedProcesses += "$procName ($($procs.Count))"
-    }
-}
-
-if ($killedProcesses.Count -gt 0) {
-    Write-Host "   Killed: $($killedProcesses -join ', ')" -ForegroundColor Yellow
-    # Brief pause to let file handles release
-    Start-Sleep -Milliseconds 500
-}
-else {
-    Write-Host "   No stale processes found" -ForegroundColor Gray
+# Stop only processes owned by the selected CLI pipe before touching Release binaries.
+Write-Host "Stopping pipe-owned ExcelMCP processes..." -ForegroundColor Cyan
+$ownedCleanupScript = Join-Path $PSScriptRoot "Stop-ExcelMcpProcesses.ps1"
+& $ownedCleanupScript -Verbose
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Pipe-owned cleanup failed with exit code $LASTEXITCODE." -ForegroundColor Red
+    exit 1
 }
 
 Stop-DotNetBuildServers

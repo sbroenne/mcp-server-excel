@@ -14,7 +14,8 @@ Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
 - `evaluate` executes M code WITHOUT creating permanent query (test-then-commit)
 - Returns actual data preview with columns and rows in JSON
 - Better error messages than COM exceptions from create/update
-- No cleanup needed - temporary objects auto-deleted
+- Temporary queries, sheets, tables, and mashup connections are deleted by exact
+  `Location`; cleanup failures return an error instead of success
 - Skip evaluate only for trivial literal tables (`#table` with hardcoded values)
 
 **IF CREATE/UPDATE FAILS**: Use `evaluate` to get detailed Power Query error message, fix code, retry.
@@ -26,21 +27,27 @@ Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
 
 ---
 
-**M-Code Formatting**:
+**M-Code Formatting and reads**:
 
 - Create and Update preserve M code exactly by default and do not call remote services
 - Set `formatMCode=true` only with explicit user consent; it sends M code to powerqueryformatter.com
 - Remote formatting adds ~100-500ms network latency per call
 - Graceful fallback: saves original M code if the formatting service is unavailable
-- Read operations (List, View) return M code as stored (no formatting on read)
+- `list` returns compact metadata, exact load mode, character count, and at most
+  80 characters of `formulaPreview`; it never returns full M code
+- Use `view` to retrieve one query's complete M code and exact load mode
+- Read operations return stored text without formatting
 
 **Data Model workflow**:
 
 Power Query can load data to different destinations:
-- `worksheet` (default): Creates an Excel Table on a worksheet
-- `data-model`: Loads directly to Power Pivot for DAX analysis
-- `both`: Loads to worksheet AND Power Pivot
+- `worksheet` / `load-to-table` (default): Creates an Excel Table on a worksheet
+- `data-model` / `load-to-data-model`: Loads directly to Power Pivot for DAX analysis
+- `both` / `load-to-both`: Loads to worksheet AND Power Pivot
 - `connection-only`: Imports query definition without loading data
+
+Destination values are case-insensitive. Unknown values fail before the query is
+changed; they never fall back to connection-only or another enum default.
 
 To create DAX measures on Power Query data:
 1. Use powerquery create/load-to with `loadDestination='data-model'`
@@ -77,11 +84,16 @@ Alternative path (for existing worksheet tables):
 - Not sure? → Check with list action first, then use update if exists or create if new
 - **ALWAYS evaluate M code FIRST** to catch errors before persisting
 
-**List action and IsConnectionOnly**:
+**List/view load state**:
 
+- `list`, `view`, and `get-load-config` use the same exact-identity detector
+- `loadMode` distinguishes `connection-only`, `load-to-table`,
+  `load-to-data-model`, and `load-to-both`
 - `IsConnectionOnly=true` means query has NO data destination (not in worksheet, not in Data Model)
 - `IsConnectionOnly=false` means query loads data SOMEWHERE (worksheet OR Data Model OR both)
 - A query loaded ONLY to Data Model is NOT connection-only
+- If Excel cannot inspect a query, `list` fails explicitly instead of silently
+  omitting that query
 
 **Inline M code**:
 
@@ -105,6 +117,7 @@ Alternative path (for existing worksheet tables):
 - Assuming unload only removes worksheet data → Also removes Data Model connections
 - Calling rename without trimming newName → Server trims automatically, " Query " becomes "Query"
 - Renaming to conflicting name → Check list first if unsure about existing names
+- Passing an option from another action (for example `mCode` on delete or `timeout` on load-to) → ERROR; category-wide schemas expose the union of options, but each action validates its own subset
 
 **Server-specific quirks**:
 
@@ -112,14 +125,16 @@ Alternative path (for existing worksheet tables):
 - connection-only queries: NOT validated until first execution
 - refresh with loadDestination: Applies load config + refreshes (2-in-1)
 - Single cell returns [[value]] not scalar
-- refresh defaults to 30-minute timeout if `refreshTimeoutSeconds` is 0 or omitted. Any positive value is accepted. For quick queries use a smaller value (e.g., 60-120 seconds).
-- load-to uses the same 30-minute timeout as refresh. If Excel is blocked by privacy dialogs/credentials, you'll get `SuggestedNextActions` instead of a hang—surface them to the user before retrying.
+- Public timeout inputs are integer seconds. Refresh/refresh-all accepts 0-2147483 and defaults to the 30-minute data-operation timeout when `timeout_seconds`/`--timeout` is 0 or omitted. For quick queries use a smaller value (e.g., 60-120 seconds).
+- load-to has no caller timeout parameter and uses the fixed 30-minute data-operation timeout; passing `timeout` to load-to is rejected instead of ignored.
+- Refresh/refresh-all data-operation timeouts replace the session operation wait rather than layering with it. The session timeout controls startup and operations without a dedicated data timeout, including create/update/evaluate. Session open/create accepts 10-3600 seconds and defaults to 120.
 
 **Data Model connection cleanup**:
 
 - Unload removes BOTH worksheet ListObjects AND Data Model connections
 - Delete removes query, worksheet ListObjects, AND Data Model connections
-- Connection naming pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+- Ownership uses the exact case-insensitive mashup `Location` value, not connection
+  display names; queries such as `A` and `AA` remain isolated
 
 ## M Code - Server-Specific Notes
 

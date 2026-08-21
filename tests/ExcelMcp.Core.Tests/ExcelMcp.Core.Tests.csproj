@@ -35,6 +35,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Helpers\OleDataSpaceTestFile.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Copy TestAssets to output directory for test execution -->
     <None Include="TestAssets\**\*" CopyToOutputDirectory="PreserveNewest" />

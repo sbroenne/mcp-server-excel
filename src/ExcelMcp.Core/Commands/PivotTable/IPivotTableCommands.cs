@@ -104,7 +104,7 @@ public interface IPivotTableCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable to refresh</param>
-    /// <param name="timeout">Optional timeout for the refresh operation</param>
+    /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
     /// <returns>Refresh timestamp, record count, any structural changes</returns>
     [ServiceAction("refresh")]
     PivotTableRefreshResult Refresh(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null);
@@ -156,4 +156,3 @@ public interface IPivotTableCommands
         string pivotTableName,
         string cellAddress);
 }
-

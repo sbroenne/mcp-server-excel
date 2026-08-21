@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -12,7 +13,7 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? connection = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? connection = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
             try
             {
                 if (connection == null)
@@ -41,7 +42,7 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? connection = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? connection = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
             try
             {
                 if (connection == null)

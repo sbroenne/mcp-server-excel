@@ -26,21 +26,25 @@ Columns, relationships, and measures marked **"Hidden from client tools"** in Po
 
 ## Large Power Query Refreshes Timeout
 
-Default timeout for `powerquery(action: 'refresh')` is **5 minutes**. Power Query operations querying large datasets often exceed this.
+Power Query refresh has a **30-minute** data-operation default when its timeout
+is omitted or `0`. Its data-operation timeout replaces the session operation
+wait for that refresh; the limits are not layered.
 
-**Symptoms:** Operation appears to succeed but data doesn't load, or timeout error after 5 minutes.
-
-**Fix:** Increase timeout when opening the session:
+**Fix:** Set the timeout that owns each operation deliberately:
 
 ```json
 {
   "action": "open",
-  "filePath": "C:\\path\\to\\workbook.xlsx",
-  "timeoutSeconds": 900
+  "path": "C:\\path\\to\\workbook.xlsx",
+  "timeout_seconds": 900
 }
 ```
 
-Set `timeoutSeconds` to match your expected query duration (900 = 15 min, 1800 = 30 min).
+Use `timeout_seconds` on `powerquery refresh` for its data-operation budget and
+on `file open/create` for workbook startup and operations without a dedicated
+data timeout. Public timeout values are integer seconds. Session open/create
+accepts 10-3600; Power Query refresh accepts 0-2147483, with `0` retaining the
+30-minute default.
 
 ## Session Concurrency Requires STA Thread
 

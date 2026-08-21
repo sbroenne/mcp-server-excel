@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -415,7 +416,7 @@ public class ExcelBatchTests : IAsyncLifetime
     public void BeginBatch_IrmWorkbook_ShowFalse_FailsFastBeforeOpen()
     {
         string fakeIrmFile = Path.Join(Path.GetTempPath(), $"batch-irm-headless-{Guid.NewGuid():N}.xlsx");
-        File.WriteAllBytes(fakeIrmFile, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+        OleDataSpaceTestFile.Write(fakeIrmFile, "\tDRMDataSpace");
 
         bool openAttempted = false;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) => openAttempted = true;
@@ -436,6 +437,88 @@ public class ExcelBatchTests : IAsyncLifetime
 #pragma warning disable CA1031 // Intentional: best-effort test cleanup
             try { File.Delete(fakeIrmFile); } catch (Exception) { }
 #pragma warning restore CA1031
+        }
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    [Trait("RequiresExcel", "true")]
+    public void BeginBatch_StartupFailureWithConfirmedExit_UntracksExactIdentity()
+    {
+        ExcelProcessIdentity? capturedIdentity = null;
+        void CaptureIdentity(ExcelProcessIdentity identity) => capturedIdentity = identity;
+
+        SessionManager.ExcelProcessIdentityTracked += CaptureIdentity;
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
+            throw new InvalidOperationException("synthetic startup failure");
+        ExcelBatch.FailedStartupTerminationHook = _ => false;
+        ExcelBatch.FailedStartupExitConfirmationHook = _ => true;
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => ExcelSession.BeginBatch(_testFileCopy!));
+
+            Assert.Equal("synthetic startup failure", exception.Message);
+            var identity = Assert.IsType<ExcelProcessIdentity>(capturedIdentity);
+            Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityTracked -= CaptureIdentity;
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+            ExcelBatch.FailedStartupTerminationHook = null;
+            ExcelBatch.FailedStartupExitConfirmationHook = null;
+            if (capturedIdentity is { } identity)
+            {
+                _ = ExcelBatch.TryTerminateOwnedProcess(
+                    identity,
+                    TimeSpan.Zero,
+                    TimeSpan.FromSeconds(5));
+                SessionManager.UntrackExcelProcess(identity);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    [Trait("RequiresExcel", "true")]
+    public void BeginBatch_StartupFailureWithUnconfirmedLiveIdentity_RetainsOwnership()
+    {
+        ExcelProcessIdentity? capturedIdentity = null;
+        void CaptureIdentity(ExcelProcessIdentity identity) => capturedIdentity = identity;
+
+        SessionManager.ExcelProcessIdentityTracked += CaptureIdentity;
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
+            throw new InvalidOperationException("synthetic startup failure");
+        ExcelBatch.FailedStartupTerminationHook = _ => false;
+        ExcelBatch.FailedStartupExitConfirmationHook = _ => false;
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => ExcelSession.BeginBatch(_testFileCopy!));
+
+            var identity = Assert.IsType<ExcelProcessIdentity>(capturedIdentity);
+            Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains("remains tracked", exception.Message, StringComparison.OrdinalIgnoreCase);
+            var failures = Assert.IsType<AggregateException>(exception.InnerException);
+            Assert.Contains(
+                failures.InnerExceptions,
+                failure => failure.Message == "synthetic startup failure");
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityTracked -= CaptureIdentity;
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+            ExcelBatch.FailedStartupTerminationHook = null;
+            ExcelBatch.FailedStartupExitConfirmationHook = null;
+            if (capturedIdentity is { } identity)
+            {
+                _ = ExcelBatch.TryTerminateOwnedProcess(
+                    identity,
+                    TimeSpan.Zero,
+                    TimeSpan.FromSeconds(5));
+                SessionManager.UntrackExcelProcess(identity);
+            }
         }
     }
 
@@ -618,8 +701,6 @@ public class ExcelBatchTests : IAsyncLifetime
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
-
-
 
 
 

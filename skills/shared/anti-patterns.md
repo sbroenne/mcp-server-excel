@@ -416,7 +416,8 @@ powerquery(action: 'refresh', ...)
 - Catch syntax errors and missing sources BEFORE persisting
 - See actual data preview (columns, sample rows)
 - Better error messages than COM exceptions
-- No cleanup needed - temporary objects auto-deleted
+- Temporary objects are removed by exact mashup identity; cleanup failures are
+  surfaced with recovery guidance instead of returning success
 - Like a REPL for M code
 
 ### When Evaluate IS Optional

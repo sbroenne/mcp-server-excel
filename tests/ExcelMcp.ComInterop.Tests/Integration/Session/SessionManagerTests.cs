@@ -670,9 +670,9 @@ public class SessionManagerTests : IDisposable
     }
 
     [Fact]
-    public void CloseSession_DefaultSaveTrue_PersistsChanges()
+    public void CloseSession_SaveTrue_PersistsChanges()
     {
-        var testFile = CreateTestFile(nameof(CloseSession_DefaultSaveTrue_PersistsChanges));
+        var testFile = CreateTestFile(nameof(CloseSession_SaveTrue_PersistsChanges));
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile);
 
@@ -704,7 +704,6 @@ public class SessionManagerTests : IDisposable
 
     #endregion
 }
-
 
 
 

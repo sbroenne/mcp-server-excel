@@ -11,8 +11,8 @@ Import, transform, model, and summarize data with Power Query, DAX, Excel Tables
 Import, transform, and refresh data with Power Query. Every operation is a single-call atomic workflow.
 
 **Discovery:**
-- **List:** List all Power Query queries in workbook
-- **View:** View the M code of a Power Query
+- **List:** Return compact query metadata, exact load state, and an M preview of at most 80 characters; full M is never included
+- **View:** View one query's full M code and exact load state
 - **Get Load Config:** Get current load configuration
 
 **Lifecycle:**
@@ -32,6 +32,13 @@ Import, transform, and refresh data with Power Query. Every operation is a singl
 
 **Notes:**
 - **M-code formatting:** M code is preserved exactly by default. Create and Update can opt in to remote formatting with `formatMCode=true`, which sends M code to powerqueryformatter.com and adds network latency. If remote formatting fails, the original M code is saved unchanged.
+- **Inline or file input:** Required M, DAX, and DMV text accepts exactly one inline value or its matching file alias (`mCodeFile`, `daxFormulaFile`, `daxQueryFile`, or `dmvQueryFile` in batch JSON; snake_case in MCP; kebab-case options in the CLI). Optional `update-measure` DAX input may omit both forms; whenever a value is supplied, inline and file forms remain mutually exclusive. Files must exist and be readable.
+- **Timeout representation:** Public CLI, batch, and MCP timeouts are integer seconds. Power Query refresh/refresh-all accepts 0–2147483; omission or `0` uses the 30-minute data-operation default. Connection, Data Model, PivotTable, and VBA timeouts accept 1–2147483.
+- **Load destinations:** `worksheet`, `data-model`, `both`, and `connection-only` are case-insensitive aliases for the corresponding generated enum values. Unknown values are rejected before any load destination is changed.
+- **Action-specific parameters:** CLI and MCP schemas expose the category-wide parameter union, but each action rejects explicitly supplied parameters it does not use. In particular, `load-to` rejects `timeout` and uses the fixed 30-minute data-operation timeout.
+- **Truthful reads:** List, View, and Get Load Config share exact worksheet/Data Model-aware load detection. List fails explicitly if Excel cannot inspect a query rather than silently omitting it.
+- **Exact query identity:** Load detection, refresh, load-to, unload, and delete compare the parsed mashup `Location` exactly and case-insensitively, so prefix names such as `A` and `AA` cannot affect each other.
+- **Evaluate cleanup:** Temporary queries, worksheets, tables, and generically named workbook connections are removed by exact mashup identity. Cleanup failures return an actionable error and never report success.
 
 ---
 
@@ -202,6 +209,7 @@ Create and refresh external OLEDB/ODBC data connections.
 **Notes:**
 - **Supported types:** OLEDB (requires Microsoft.ACE.OLEDB.16.0 or similar), ODBC (requires ODBC driver installed), and Power Query connections (atomic redirect to `powerquery`).
 - **Text/web imports:** Use `querytable` for direct local text/CSV or legacy HTML imports; use `powerquery` for transformations and modern connectors.
+- **Safe cleanup:** Connection delete and load-to remove only QueryTables owned by the exact WorkbookConnection; similarly named QueryTables are preserved.
 
 ---
 

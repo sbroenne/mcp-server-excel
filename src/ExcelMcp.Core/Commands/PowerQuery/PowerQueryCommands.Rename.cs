@@ -43,7 +43,9 @@ public partial class PowerQueryCommands
                 queries = ctx.Book.Queries;
 
                 // Find target query (case-sensitive exact match first)
-                targetQuery = ComUtilities.FindQuery(ctx.Book, result.NormalizedOldName);
+                targetQuery = PowerQuery.PowerQueryHelpers.FindQueryByExactName(
+                    ctx.Book,
+                    result.NormalizedOldName);
                 if (targetQuery == null)
                 {
                     result.Success = false;

@@ -341,7 +341,8 @@ public class PowerQueryListResult : ResultBase
 }
 
 /// <summary>
-/// Information about a Power Query
+/// Compact metadata for a Power Query list item.
+/// Full M code is available only through the Power Query view action.
 /// </summary>
 public class PowerQueryInfo
 {
@@ -351,19 +352,44 @@ public class PowerQueryInfo
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Full M code formula
+    /// Full M code retained for source and binary compatibility.
+    /// Use the Power Query view action for new code.
     /// </summary>
+    [Obsolete("Use the Power Query view action to retrieve full M code. This compatibility property is not serialized.")]
+    [JsonIgnore]
     public string Formula { get; set; } = string.Empty;
 
     /// <summary>
-    /// Preview of the formula (first 80 characters)
+    /// Bounded preview of the formula (at most 80 characters).
+    /// Use Power Query view to retrieve the full M code.
     /// </summary>
     public string FormulaPreview { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether the query is connection-only
+    /// Number of characters in the full M code
+    /// </summary>
+    public int CharacterCount { get; set; }
+
+    /// <summary>
+    /// Exact current load mode
+    /// </summary>
+    public PowerQueryLoadMode LoadMode { get; set; }
+
+    /// <summary>
+    /// Target worksheet name for worksheet and combined loads
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetSheet { get; set; }
+
+    /// <summary>
+    /// Whether the query has no worksheet or Data Model destination
     /// </summary>
     public bool IsConnectionOnly { get; set; }
+
+    /// <summary>
+    /// Whether the query is loaded to the Data Model
+    /// </summary>
+    public bool IsLoadedToDataModel { get; set; }
 }
 
 /// <summary>
@@ -387,7 +413,28 @@ public class PowerQueryViewResult : ResultBase
     public int CharacterCount { get; set; }
 
     /// <summary>
-    /// Whether the query is connection-only
+    /// Exact current load mode
+    /// </summary>
+    public PowerQueryLoadMode LoadMode { get; set; }
+
+    /// <summary>
+    /// Target worksheet name for worksheet and combined loads
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetSheet { get; set; }
+
+    /// <summary>
+    /// Whether the query has an active worksheet or Data Model destination
+    /// </summary>
+    public bool HasConnection { get; set; }
+
+    /// <summary>
+    /// Whether the query is loaded to the Data Model
+    /// </summary>
+    public bool IsLoadedToDataModel { get; set; }
+
+    /// <summary>
+    /// Whether the query has no worksheet or Data Model destination
     /// </summary>
     public bool IsConnectionOnly { get; set; }
 }
@@ -407,18 +454,23 @@ public enum PowerQueryLoadMode
     /// <summary>
     /// Load to table in worksheet
     /// </summary>
+    [Attributes.EnumAlias("worksheet")]
+    [Attributes.EnumAlias("table")]
     [JsonStringEnumMemberName("load-to-table")]
     LoadToTable,
 
     /// <summary>
     /// Load to Data Model (PowerPivot)
     /// </summary>
+    [Attributes.EnumAlias("data-model")]
+    [Attributes.EnumAlias("datamodel")]
     [JsonStringEnumMemberName("load-to-data-model")]
     LoadToDataModel,
 
     /// <summary>
     /// Load to both table and data model
     /// </summary>
+    [Attributes.EnumAlias("both")]
     [JsonStringEnumMemberName("load-to-both")]
     LoadToBoth
 }
@@ -445,7 +497,7 @@ public class PowerQueryLoadConfigResult : ResultBase
     public string? TargetSheet { get; set; }
 
     /// <summary>
-    /// Whether the query has an active connection
+    /// Whether the query has an active worksheet or Data Model destination
     /// </summary>
     public bool HasConnection { get; set; }
 
@@ -870,6 +922,11 @@ public class ScriptInfo
 public class FileValidationInfo
 {
     /// <summary>
+    /// Whether the file passed validation and can be opened
+    /// </summary>
+    public bool Success => CanOpen;
+
+    /// <summary>
     /// Full file path being validated
     /// </summary>
     public string FilePath { get; set; } = string.Empty;
@@ -895,9 +952,17 @@ public class FileValidationInfo
     public DateTime LastModified { get; set; }
 
     /// <summary>
-    /// Whether the file is a valid Excel workbook
+    /// Whether a standard OOXML file has a supported extension and valid package.
+    /// IRM/AIP containers require interactive Excel validation and report false.
     /// </summary>
     public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Whether a standard OOXML workbook passes package validation and can be
+    /// accessed using ExcelMcp's required open mode. IRM/AIP openability requires
+    /// interactive authentication and reports false during preflight.
+    /// </summary>
+    public bool CanOpen { get; set; }
 
     /// <summary>
     /// Whether the file is IRM/AIP-protected (OLE2 compound document format).
@@ -908,10 +973,26 @@ public class FileValidationInfo
     public bool IsIrmProtected { get; set; }
 
     /// <summary>
+    /// Whether ExcelMcp will open the workbook read-only
+    /// </summary>
+    public bool WillOpenReadOnly { get; set; }
+
+    /// <summary>
+    /// Whether opening requires a visible Excel session for authentication
+    /// </summary>
+    public bool RequiresVisibleSession { get; set; }
+
+    /// <summary>
     /// Optional message describing validation outcome (missing file, invalid extension, etc.)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Message { get; set; }
+
+    /// <summary>
+    /// Indicates a validation failure in CLI and MCP result envelopes
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsError => Success ? null : true;
 }
 
 /// <summary>

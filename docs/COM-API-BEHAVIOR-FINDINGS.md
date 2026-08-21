@@ -81,8 +81,10 @@ query.Formula = ModifiedQuery;  // Updates M code
   - **NO `IsConnectionOnly`, `LoadDestination`, or similar property exists**
 - "Connection-only" is the **ABSENCE** of load destinations (no ListObject, no Data Model connection)
 - To convert loaded query to connection-only:
-  1. Find and remove worksheet tables (ListObjects with matching QueryTable)
-  2. Find and remove Data Model connections (connections with "Query - {name}" pattern)
+  1. Parse the mashup connection properties once and remove worksheet tables whose
+     QueryTable has an exact case-insensitive `Location` match
+  2. Remove Data Model destinations by the same exact identity (or exact model-table
+     name where Excel exposes only a model connection)
   3. Keep the query in `Workbook.Queries` collection
   
 **Implication:** Connection-only must be implemented by removing ALL load destinations.
@@ -95,7 +97,7 @@ query.Formula = ModifiedQuery;  // Updates M code
 // Current Unload implementation (INCOMPLETE):
 foreach (ListObject in worksheet.ListObjects)
 {
-    if (QueryTable.Connection.Contains(queryName))
+    if (ParseMashupLocation(QueryTable.Connection).Equals(queryName, OrdinalIgnoreCase))
         listObject.Unlist();
 }
 // BUG: Never checks/removes Data Model connections!
@@ -115,14 +117,14 @@ foreach (ListObject in worksheet.ListObjects)
 // Step 1: Remove worksheet tables (existing behavior)
 foreach (ListObject in worksheet.ListObjects)
 {
-    if (QueryTable.Connection.Contains(queryName))
+    if (ParseMashupLocation(QueryTable.Connection).Equals(queryName, OrdinalIgnoreCase))
         listObject.Unlist();
 }
 
 // Step 2: Remove Data Model connections (MISSING!)
 foreach (Connection in workbook.Connections)
 {
-    if (connection.Name == $"Query - {queryName}")
+    if (ParseMashupLocation(connection.Connection).Equals(queryName, OrdinalIgnoreCase))
         connection.Delete();
 }
 
@@ -152,6 +154,25 @@ foreach (Connection in workbook.Connections)
 **Current Status:** Root cause unknown. The error appears to be related to internal Excel state that cannot be cleared programmatically via COM automation. Workaround: manually save and reopen the workbook in Excel UI.
 
 **See:** GitHub Issue #323
+
+---
+
+### Formula Getter Partial-Failure Fixture Investigation
+
+No deterministic real-Excel fixture could make an enumerable `WorkbookQuery`
+expose its `Name` while throwing `COMException` from the `Formula` getter.
+The investigation covered connection-only, worksheet, Data Model-only, combined,
+empty, whitespace, unexecuted invalid-M, structure-protected, deleted-reference,
+and legacy `.xls` query states. Enumerable queries remained readable through
+`Formula`; deleted queries were removed from the collection.
+The Data Model dirty state from Scenario 15 affects the `Formula` setter, not the
+getter. Excel's supported COM API also removes deleted queries from `Queries`
+rather than leaving an inspectable broken entry.
+
+**Decision:** `powerquery list` no longer catches a broad per-query
+`COMException`. An unexpected inspection failure now fails the operation instead
+of silently dropping a query. No partial-success warning contract was added
+because it could not be backed by a deterministic real-Excel regression fixture.
 
 ---
 

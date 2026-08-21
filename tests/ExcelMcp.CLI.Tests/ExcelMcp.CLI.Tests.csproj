@@ -37,6 +37,7 @@
   <ItemGroup>
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\CoreTestHelper.cs" Link="Helpers\CoreTestHelper.cs" />
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\TempDirectoryFixture.cs" Link="Helpers\TempDirectoryFixture.cs" />
+    <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Helpers\OleDataSpaceTestFile.cs" />
   </ItemGroup>
 
   <ItemGroup>

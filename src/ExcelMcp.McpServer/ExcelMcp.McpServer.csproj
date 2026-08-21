@@ -336,7 +336,7 @@ internal static class TelemetryConfig
       <SkillManifestPath>$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs</SkillManifestPath>
     </PropertyGroup>
     <Message Text="Generating MCP Skill from template..." Importance="high" />
-    <GenerateSkillFile TemplatePath="$(SkillTemplatePath)" OutputPath="$(SkillOutputPath)" ManifestPath="$(SkillManifestPath)" ExcludeCommands="diag" ExtraOperationCount="6" ExtraToolCount="1" />
+    <GenerateSkillFile TemplatePath="$(SkillTemplatePath)" OutputPath="$(SkillOutputPath)" ManifestPath="$(SkillManifestPath)" ExcludeCommands="diag" ExtraOperationCount="5" ExtraToolCount="1" />
     <Message Text="Generated MCP Skill: $(SkillOutputPath)" Importance="high" />
   </Target>
 

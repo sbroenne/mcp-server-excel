@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -39,6 +39,7 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
+    private ExcelProcessIdentity? _excelProcessIdentity;
     private volatile bool _isExcelVisible;
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
     private bool _startupDetectedIrmProtectedWorkbook;
@@ -55,6 +56,10 @@ internal sealed class ExcelBatch : IExcelBatch
     /// Production code must leave this null.
     /// </summary>
     internal static Action<string, CancellationToken>? BeforeWorkbookOpenHook { get; set; }
+
+    internal static Func<ExcelProcessIdentity, bool>? FailedStartupTerminationHook { get; set; }
+
+    internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -177,7 +182,8 @@ internal sealed class ExcelBatch : IExcelBatch
                             if (processId != 0)
                             {
                                 _excelProcessId = (int)processId;
-                                SessionManager.TrackExcelProcess(_excelProcessId.Value);
+                                _excelProcessIdentity =
+                                    SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
                                 _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId} (attempt {Attempt})",
                                     _excelProcessId, attempt);
                                 break;
@@ -199,6 +205,11 @@ internal sealed class ExcelBatch : IExcelBatch
                             "Force-kill will be disabled for this session to avoid killing unrelated Excel instances.",
                             maxRetries);
                     }
+                }
+                catch (ExcelProcessPersistenceException ex)
+                {
+                    _excelProcessIdentity = ex.Identity;
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -424,6 +435,26 @@ internal sealed class ExcelBatch : IExcelBatch
                             "[DIAG-SHUTDOWN-ENTER-PROCESS-DEAD] Excel PID {ProcessId} already dead BEFORE shutdown for {FileName}",
                             _excelProcessId.Value, Path.GetFileName(_workbookPath));
                     }
+                    catch (System.ComponentModel.Win32Exception ex)
+                    {
+                        SessionDiagnostics.WriteStdErr(
+                            $"[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {_excelProcessId.Value} could not be queried before shutdown: {ex.Message}");
+                        _logger.LogWarning(
+                            ex,
+                            "[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {ProcessId} could not be queried before shutdown for {FileName}",
+                            _excelProcessId.Value,
+                            Path.GetFileName(_workbookPath));
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        SessionDiagnostics.WriteStdErr(
+                            $"[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {_excelProcessId.Value} state was unavailable before shutdown: {ex.Message}");
+                        _logger.LogWarning(
+                            ex,
+                            "[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {ProcessId} state was unavailable before shutdown for {FileName}",
+                            _excelProcessId.Value,
+                            Path.GetFileName(_workbookPath));
+                    }
                 }
 
                 // Unified shutdown: use ExcelShutdownService for ALL workbook close/quit operations.
@@ -513,30 +544,38 @@ internal sealed class ExcelBatch : IExcelBatch
 
             started.Task.GetAwaiter().GetResult();
         }
-        catch
+        catch (Exception startupFailure)
         {
             if (_staThread.IsAlive)
             {
-                if (!_staThread.Join(TimeSpan.FromSeconds(10)) && _excelProcessId.HasValue)
-                {
-                    try
-                    {
-                        using var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
-                        if (!excelProcess.HasExited)
-                        {
-                            excelProcess.Kill();
-                            excelProcess.WaitForExit(5000);
-                        }
-                    }
-                    catch (ArgumentException)
-                    {
-                        // Excel process already exited during startup cleanup.
-                    }
-                    catch (Exception)
-                    {
-                        // Best effort only — rethrow original startup failure below.
-                    }
+                _ = _staThread.Join(TimeSpan.FromSeconds(10));
+            }
 
+            if (_excelProcessIdentity is { } failedStartupIdentity)
+            {
+                try
+                {
+                    FinalizeFailedStartupOwnedProcess(
+                        failedStartupIdentity,
+                        FailedStartupTerminationHook
+                        ?? (identity => TryTerminateOwnedProcess(
+                            identity,
+                            TimeSpan.FromSeconds(5),
+                            TimeSpan.FromSeconds(3))),
+                        FailedStartupExitConfirmationHook
+                        ?? OwnedProcessGuard.TryConfirmExited);
+                }
+                catch (Exception teardownFailure)
+                {
+                    throw new InvalidOperationException(
+                        $"Excel startup failed and exact process teardown could not be confirmed for " +
+                        $"process {failedStartupIdentity.ProcessId}. The process identity remains tracked " +
+                        "for ProcessExit cleanup.",
+                        new AggregateException(startupFailure, teardownFailure));
+                }
+
+                if (_staThread.IsAlive)
+                {
                     _ = _staThread.Join(TimeSpan.FromSeconds(5));
                 }
             }
@@ -612,6 +651,11 @@ internal sealed class ExcelBatch : IExcelBatch
             // "unknown but assumed alive" so callers do not tear down a live session before the
             // first COM command runs; real COM failures still surface on the actual operation.
             return true;
+        }
+
+        if (_excelProcessIdentity is { } identity)
+        {
+            return OwnedProcessGuard.IsAlive(identity);
         }
 
         try
@@ -846,49 +890,46 @@ internal sealed class ExcelBatch : IExcelBatch
 
         // When operation timed out, the STA thread is stuck in IDispatch.Invoke (unmanaged COM call
         // that cannot be cancelled). Kill the Excel process FIRST to unblock the STA thread, then wait.
-        if (_operationTimedOut && _excelProcessId.HasValue && _staThread != null && _staThread.IsAlive)
+        if (_operationTimedOut
+            && _excelProcessIdentity is { } timedOutIdentity
+            && _staThread != null
+            && _staThread.IsAlive)
         {
             // INSTRUMENTATION: Track pre-emptive kill path entry
             _logger.LogWarning(
                 "[DIAG-DISPOSE-TIMEOUT-PREKILL] [Thread {CallingThread}] Operation timed out — force-killing Excel process {ProcessId} BEFORE waiting for STA thread to unblock IDispatch.Invoke for {FileName}",
-                callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+                callingThread, timedOutIdentity.ProcessId, Path.GetFileName(_workbookPath));
             SessionDiagnostics.WriteStdErr(
-                $"[DIAG-DISPOSE-TIMEOUT-PREKILL] [Thread {callingThread}] Operation timed out — force-killing Excel process {_excelProcessId.Value} BEFORE waiting for STA thread to unblock IDispatch.Invoke for {Path.GetFileName(_workbookPath)}");
-            try
+                $"[DIAG-DISPOSE-TIMEOUT-PREKILL] [Thread {callingThread}] Operation timed out — force-killing Excel process {timedOutIdentity.ProcessId} BEFORE waiting for STA thread to unblock IDispatch.Invoke for {Path.GetFileName(_workbookPath)}");
+            if (OwnedProcessGuard.TryTerminate(
+                    timedOutIdentity,
+                    TimeSpan.Zero,
+                    TimeSpan.FromSeconds(5),
+                    out var preemptivelyTerminated))
             {
-                using var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
-                if (!excelProcess.HasExited)
+                if (preemptivelyTerminated)
                 {
-                    excelProcess.Kill();
-                    excelProcess.WaitForExit(5000);
                     // INSTRUMENTATION: Track successful pre-emptive kill
                     _logger.LogInformation(
                         "[DIAG-DISPOSE-TIMEOUT-PREKILL-SUCCESS] [Thread {CallingThread}] Force-killed Excel process {ProcessId} (pre-emptive, before STA join)",
-                        callingThread, _excelProcessId.Value);
+                        callingThread, timedOutIdentity.ProcessId);
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-TIMEOUT-PREKILL-SUCCESS] [Thread {callingThread}] Force-killed Excel process {_excelProcessId.Value} (pre-emptive, before STA join)");
+                        $"[DIAG-DISPOSE-TIMEOUT-PREKILL-SUCCESS] [Thread {callingThread}] Force-killed Excel process {timedOutIdentity.ProcessId} (pre-emptive, before STA join)");
                 }
                 else
                 {
-                    // INSTRUMENTATION: Process already gone
                     _logger.LogDebug(
-                        "[DIAG-DISPOSE-TIMEOUT-PREKILL-ALREADY-GONE] [Thread {CallingThread}] Excel process {ProcessId} already exited",
-                        callingThread, _excelProcessId.Value);
+                        "[DIAG-DISPOSE-TIMEOUT-PREKILL-ALREADY-GONE] [Thread {CallingThread}] Excel process {ProcessId} already exited or its PID was reused",
+                        callingThread, timedOutIdentity.ProcessId);
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-TIMEOUT-PREKILL-ALREADY-GONE] [Thread {callingThread}] Excel process {_excelProcessId.Value} already exited");
+                        $"[DIAG-DISPOSE-TIMEOUT-PREKILL-ALREADY-GONE] [Thread {callingThread}] Excel process {timedOutIdentity.ProcessId} already exited or its PID was reused");
                 }
             }
-            catch (ArgumentException)
+            else
             {
-                _logger.LogDebug("[DIAG-DISPOSE-TIMEOUT-PREKILL-NOT-FOUND] [Thread {CallingThread}] Excel process {ProcessId} not found (already exited)", callingThread, _excelProcessId.Value);
+                _logger.LogWarning("[DIAG-DISPOSE-TIMEOUT-PREKILL-FAILED] [Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}", callingThread, timedOutIdentity.ProcessId);
                 SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-TIMEOUT-PREKILL-NOT-FOUND] [Thread {callingThread}] Excel process {_excelProcessId.Value} not found (already exited)");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[DIAG-DISPOSE-TIMEOUT-PREKILL-FAILED] [Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}", callingThread, _excelProcessId.Value);
-                SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-TIMEOUT-PREKILL-FAILED] [Thread {callingThread}] Failed to force-kill Excel process {_excelProcessId.Value}: {ex.GetType().Name}: {ex.Message}");
+                    $"[DIAG-DISPOSE-TIMEOUT-PREKILL-FAILED] [Thread {callingThread}] Failed to force-kill Excel process {timedOutIdentity.ProcessId}");
             }
         }
 
@@ -920,40 +961,38 @@ internal sealed class ExcelBatch : IExcelBatch
                 SessionDiagnostics.WriteStdErr(
                     $"[DIAG-DISPOSE-STA-JOIN-TIMEOUT] [Thread {callingThread}] STA thread (Id={_staThread.ManagedThreadId}) did NOT exit within {joinTimeout} for {Path.GetFileName(_workbookPath)}. Excel cleanup is severely stuck{reasonForError}. Attempting force-kill.");
 
-                // Force-kill the hung Excel process
-                if (_excelProcessId.HasValue)
+                // Force-kill only the exact Excel identity captured for this batch.
+                if (_excelProcessIdentity is { } stuckIdentity)
                 {
-                    try
+                    _logger.LogWarning(
+                        "[DIAG-DISPOSE-FORCE-KILL-ATTEMPT] [Thread {CallingThread}] Force-killing Excel process {ProcessId} for {FileName}",
+                        callingThread, stuckIdentity.ProcessId, Path.GetFileName(_workbookPath));
+                    SessionDiagnostics.WriteStdErr(
+                        $"[DIAG-DISPOSE-FORCE-KILL-ATTEMPT] [Thread {callingThread}] Force-killing Excel process {stuckIdentity.ProcessId} for {Path.GetFileName(_workbookPath)}");
+
+                    if (OwnedProcessGuard.TryTerminate(
+                            stuckIdentity,
+                            TimeSpan.Zero,
+                            TimeSpan.FromSeconds(5),
+                            out var forceTerminated))
                     {
-                        using var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
-                        // INSTRUMENTATION: Track force-kill attempt after STA join timeout
-                        _logger.LogWarning(
-                            "[DIAG-DISPOSE-FORCE-KILL-ATTEMPT] [Thread {CallingThread}] Force-killing Excel process {ProcessId} for {FileName}",
-                            callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-DISPOSE-FORCE-KILL-ATTEMPT] [Thread {callingThread}] Force-killing Excel process {_excelProcessId.Value} for {Path.GetFileName(_workbookPath)}");
-
-                        excelProcess.Kill();
-                        excelProcess.WaitForExit(5000); // Wait up to 5 seconds for process to die
-
-                        // INSTRUMENTATION: Track successful force-kill
+                        var outcome = forceTerminated
+                            ? "force-killed"
+                            : "already exited or PID was reused";
                         _logger.LogInformation(
-                            "[DIAG-DISPOSE-FORCE-KILL-SUCCESS] [Thread {CallingThread}] Successfully force-killed Excel process {ProcessId}",
-                            callingThread, _excelProcessId.Value);
+                            "[DIAG-DISPOSE-FORCE-KILL-SUCCESS] [Thread {CallingThread}] Excel process {ProcessId} was {Outcome}",
+                            callingThread, stuckIdentity.ProcessId, outcome);
                         SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-DISPOSE-FORCE-KILL-SUCCESS] [Thread {callingThread}] Successfully force-killed Excel process {_excelProcessId.Value}");
+                            $"[DIAG-DISPOSE-FORCE-KILL-SUCCESS] [Thread {callingThread}] Excel process {stuckIdentity.ProcessId} was {outcome}");
 
-                        // Now wait briefly for STA thread to exit after process killed
                         if (_staThread.Join(TimeSpan.FromSeconds(5)))
                         {
-                            // INSTRUMENTATION: Track STA thread exit after force-kill
                             _logger.LogDebug("[DIAG-DISPOSE-STA-EXIT-AFTER-KILL] [Thread {CallingThread}] STA thread exited after force-kill", callingThread);
                             SessionDiagnostics.WriteStdErr(
                                 $"[DIAG-DISPOSE-STA-EXIT-AFTER-KILL] [Thread {callingThread}] STA thread exited after force-kill");
                         }
                         else
                         {
-                            // INSTRUMENTATION: Track persistent STA thread leak
                             _logger.LogWarning(
                                 "[DIAG-DISPOSE-STA-LEAK] [Thread {CallingThread}] STA thread still stuck even after force-kill. Thread leak.",
                                 callingThread);
@@ -961,23 +1000,17 @@ internal sealed class ExcelBatch : IExcelBatch
                                 $"[DIAG-DISPOSE-STA-LEAK] [Thread {callingThread}] STA thread still stuck even after force-kill. Thread leak.");
                         }
                     }
-                    catch (ArgumentException)
+                    else
                     {
-                        _logger.LogWarning(
-                            "[Thread {CallingThread}] Excel process {ProcessId} not found (already exited?)",
-                            callingThread, _excelProcessId.Value);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex,
+                        _logger.LogError(
                             "[Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}",
-                            callingThread, _excelProcessId.Value);
+                            callingThread, stuckIdentity.ProcessId);
                     }
                 }
                 else
                 {
                     _logger.LogError(
-                        "[Thread {CallingThread}] No Excel process ID captured - cannot force-kill. Process will leak.",
+                        "[Thread {CallingThread}] No Excel process identity captured - cannot force-kill. Process will leak.",
                         callingThread);
                 }
             }
@@ -987,105 +1020,120 @@ internal sealed class ExcelBatch : IExcelBatch
             _logger.LogDebug("[Thread {CallingThread}] STA thread was null or not alive for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         }
 
-        // Wait for Excel process to fully terminate to prevent CO_E_SERVER_EXEC_FAILURE
-        // on subsequent Activator.CreateInstance calls. excel.Quit() + COM release doesn't
-        // guarantee the EXCEL.EXE process has exited — rapid create/destroy cycles can fail.
-        if (_excelProcessId.HasValue)
+        try
         {
-            try
+            // Wait for Excel process to fully terminate to prevent CO_E_SERVER_EXEC_FAILURE
+            // on subsequent Activator.CreateInstance calls. excel.Quit() + COM release doesn't
+            // guarantee the EXCEL.EXE process has exited — rapid create/destroy cycles can fail.
+            if (_excelProcessIdentity is { } lingeringIdentity)
             {
-                using var excelProc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
-                if (!excelProc.HasExited)
+                _logger.LogDebug(
+                    "[DIAG-DISPOSE-PROCESS-WAIT] [Thread {CallingThread}] Waiting for Excel process {ProcessId} to exit for {FileName}",
+                    callingThread, lingeringIdentity.ProcessId, Path.GetFileName(_workbookPath));
+                SessionDiagnostics.WriteStdErr(
+                    $"[DIAG-DISPOSE-PROCESS-WAIT] [Thread {callingThread}] Waiting for Excel process {lingeringIdentity.ProcessId} to exit for {Path.GetFileName(_workbookPath)}");
+
+                var lingeringProcessTerminated = false;
+                FinalizeOwnedProcessTeardown(
+                    lingeringIdentity,
+                    identity => OwnedProcessGuard.TryTerminate(
+                        identity,
+                        TimeSpan.FromSeconds(5),
+                        TimeSpan.FromSeconds(3),
+                        out lingeringProcessTerminated));
+
+                if (lingeringProcessTerminated)
                 {
-                    // INSTRUMENTATION: Track process linger detection
-                    _logger.LogDebug(
-                        "[DIAG-DISPOSE-PROCESS-WAIT] [Thread {CallingThread}] Waiting for Excel process {ProcessId} to exit for {FileName}",
-                        callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+                    _logger.LogInformation(
+                        "[DIAG-DISPOSE-PROCESS-LINGER-KILLED] [Thread {CallingThread}] Force-killed lingering Excel process {ProcessId} for {FileName}",
+                        callingThread, lingeringIdentity.ProcessId, Path.GetFileName(_workbookPath));
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-PROCESS-WAIT] [Thread {callingThread}] Waiting for Excel process {_excelProcessId.Value} to exit for {Path.GetFileName(_workbookPath)}");
-
-                    if (!excelProc.WaitForExit(5000))
-                    {
-                        // INSTRUMENTATION: Track process linger timeout (THE KEY SYMPTOM)
-                        _logger.LogWarning(
-                            "[DIAG-DISPOSE-PROCESS-LINGER] [Thread {CallingThread}] Excel process {ProcessId} did not exit within 5s for {FileName}. Force-killing to prevent zombie accumulation.",
-                            callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-DISPOSE-PROCESS-LINGER] [Thread {callingThread}] Excel process {_excelProcessId.Value} did not exit within 5s for {Path.GetFileName(_workbookPath)}. Force-killing to prevent zombie accumulation.");
-
-                        // Force-kill: Excel was already told to Quit() and COM refs were released.
-                        // A process still running after 5s is hung and will leak desktop resources.
-                        try
-                        {
-                            excelProc.Kill();
-                            excelProc.WaitForExit(3000);
-                            // INSTRUMENTATION: Track final force-kill of lingering process
-                            _logger.LogInformation(
-                                "[DIAG-DISPOSE-PROCESS-LINGER-KILLED] [Thread {CallingThread}] Force-killed lingering Excel process {ProcessId} for {FileName}",
-                                callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
-                            SessionDiagnostics.WriteStdErr(
-                                $"[DIAG-DISPOSE-PROCESS-LINGER-KILLED] [Thread {callingThread}] Force-killed lingering Excel process {_excelProcessId.Value} for {Path.GetFileName(_workbookPath)}");
-                        }
-                        catch (Exception killEx)
-                        {
-                            // INSTRUMENTATION: Track final force-kill failure (CRITICAL - this is the leak)
-                            _logger.LogWarning(killEx,
-                                "[DIAG-DISPOSE-PROCESS-LINGER-KILL-FAILED] [Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}",
-                                callingThread, _excelProcessId.Value);
-                            SessionDiagnostics.WriteStdErr(
-                                $"[DIAG-DISPOSE-PROCESS-LINGER-KILL-FAILED] [Thread {callingThread}] Failed to force-kill Excel process {_excelProcessId.Value}: {killEx.GetType().Name}: {killEx.Message}");
-                        }
-                    }
-                    else
-                    {
-                        // INSTRUMENTATION: Track normal process exit
-                        _logger.LogDebug(
-                            "[DIAG-DISPOSE-PROCESS-EXITED] [Thread {CallingThread}] Excel process {ProcessId} exited normally for {FileName}",
-                            callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-DISPOSE-PROCESS-EXITED] [Thread {callingThread}] Excel process {_excelProcessId.Value} exited normally for {Path.GetFileName(_workbookPath)}");
-                    }
+                        $"[DIAG-DISPOSE-PROCESS-LINGER-KILLED] [Thread {callingThread}] Force-killed lingering Excel process {lingeringIdentity.ProcessId} for {Path.GetFileName(_workbookPath)}");
                 }
                 else
                 {
-                    // INSTRUMENTATION: Process already gone (fast path)
                     _logger.LogDebug(
-                        "[DIAG-DISPOSE-PROCESS-ALREADY-GONE] [Thread {CallingThread}] Excel process {ProcessId} already exited for {FileName}",
-                        callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+                        "[DIAG-DISPOSE-PROCESS-EXITED] [Thread {CallingThread}] Excel process {ProcessId} exited normally or its PID was reused for {FileName}",
+                        callingThread, lingeringIdentity.ProcessId, Path.GetFileName(_workbookPath));
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-PROCESS-ALREADY-GONE] [Thread {callingThread}] Excel process {_excelProcessId.Value} already exited for {Path.GetFileName(_workbookPath)}");
+                        $"[DIAG-DISPOSE-PROCESS-EXITED] [Thread {callingThread}] Excel process {lingeringIdentity.ProcessId} exited normally or its PID was reused for {Path.GetFileName(_workbookPath)}");
                 }
             }
-            catch (ArgumentException)
-            {
-                // Process already terminated — this is the expected fast path
-                _logger.LogDebug(
-                    "[DIAG-DISPOSE-PROCESS-NOT-FOUND] [Thread {CallingThread}] Excel process {ProcessId} not found (already exited)",
-                    callingThread, _excelProcessId.Value);
-                SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-PROCESS-NOT-FOUND] [Thread {callingThread}] Excel process {_excelProcessId.Value} not found (already exited)");
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Process object is not associated with a running process
-                _logger.LogDebug(ex,
-                    "[DIAG-DISPOSE-PROCESS-INVALID] [Thread {CallingThread}] Excel process {ProcessId} object invalid",
-                    callingThread, _excelProcessId.Value);
-                SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-PROCESS-INVALID] [Thread {callingThread}] Excel process {_excelProcessId.Value} object invalid: {ex.Message}");
-            }
-        }
 
-        if (_excelProcessId.HasValue)
+            _logger.LogDebug("[Thread {CallingThread}] Dispose COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+        }
+        catch (InvalidOperationException ex) when (_excelProcessIdentity is { })
         {
-            SessionManager.UntrackExcelProcess(_excelProcessId.Value);
+            _logger.LogError(
+                ex,
+                "[DIAG-DISPOSE-PROCESS-LINGER-KILL-FAILED] [Thread {CallingThread}] Excel teardown failed for {FileName}; the exact process identity remains tracked",
+                callingThread,
+                Path.GetFileName(_workbookPath));
+            SessionDiagnostics.WriteStdErr(
+                $"[DIAG-DISPOSE-PROCESS-LINGER-KILL-FAILED] [Thread {callingThread}] {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            // COM cleanup runs on the STA thread; this local resource must also be
+            // released even when final process termination cannot be confirmed.
+            _logger.LogDebug("[Thread {CallingThread}] Disposing CancellationTokenSource for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+            _shutdownCts.Dispose();
+        }
+    }
+
+    internal static void FinalizeOwnedProcessTeardown(
+        ExcelProcessIdentity identity,
+        Func<ExcelProcessIdentity, bool> confirmExit)
+    {
+        ArgumentNullException.ThrowIfNull(confirmExit);
+        if (!confirmExit(identity))
+        {
+            throw new InvalidOperationException(
+                $"Excel process {identity.ProcessId} did not exit or its exit could not be confirmed. " +
+                "Its exact PID/start-time identity remains tracked for later pipe-scoped cleanup.");
         }
 
-        // Dispose cancellation token source
-        _logger.LogDebug("[Thread {CallingThread}] Disposing CancellationTokenSource for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        _shutdownCts.Dispose();
+        SessionManager.UntrackExcelProcess(identity);
+    }
 
-        _logger.LogDebug("[Thread {CallingThread}] Dispose COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+    internal static bool TryTerminateOwnedProcess(
+        ExcelProcessIdentity identity,
+        TimeSpan waitBeforeTermination,
+        TimeSpan waitAfterTermination) =>
+        OwnedProcessGuard.TryTerminate(
+            identity,
+            waitBeforeTermination,
+            waitAfterTermination,
+            out _);
+
+    internal static void FinalizeFailedStartupOwnedProcess(
+        ExcelProcessIdentity identity,
+        Func<ExcelProcessIdentity, bool> attemptTermination,
+        Func<ExcelProcessIdentity, bool> confirmExit)
+    {
+        ArgumentNullException.ThrowIfNull(attemptTermination);
+        ArgumentNullException.ThrowIfNull(confirmExit);
+        if (!attemptTermination(identity) && !confirmExit(identity))
+        {
+            throw new InvalidOperationException(
+                $"Excel process {identity.ProcessId} remained live or inaccessible after startup " +
+                "cleanup. Its exact PID/start-time identity remains tracked for ProcessExit cleanup.");
+        }
+
+        SessionManager.UntrackExcelProcess(identity);
+    }
+
+    bool IExcelBatchTeardownState.TryConfirmOwnedProcessTeardown()
+    {
+        if (_excelProcessIdentity is not { } identity
+            || !OwnedProcessGuard.TryConfirmExited(identity))
+        {
+            return false;
+        }
+
+        SessionManager.UntrackExcelProcess(identity);
+        return true;
     }
 
 }

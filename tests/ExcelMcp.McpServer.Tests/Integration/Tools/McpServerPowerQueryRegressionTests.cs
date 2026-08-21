@@ -96,6 +96,64 @@ public class McpServerPowerQueryRegressionTests : IAsyncLifetime, IAsyncDisposab
     }
 
     [Fact]
+    public async Task PowerQuery_ListIsCompactAndViewReturnsFullM_ViaMcpProtocol()
+    {
+        const string queryName = "McpCompactRead";
+        var workbookPath = Path.Join(_tempDir, $"CompactRead_{Guid.NewGuid():N}.xlsx");
+        var sessionId = await CreateSessionAsync(workbookPath);
+        var padding = string.Join(
+            Environment.NewLine,
+            Enumerable.Repeat("// MCP list must not serialize this padding", 250));
+        var mCode = $"let{Environment.NewLine}{padding}{Environment.NewLine}    Source = #table({{\"Value\"}}, {{{{1}}}}){Environment.NewLine}in{Environment.NewLine}    Source";
+
+        try
+        {
+            var createResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["session_id"] = sessionId,
+                ["query_name"] = queryName,
+                ["m_code"] = mCode,
+                ["load_destination"] = "connection-only"
+            }, ToolTimeout);
+            AssertSuccess(createResult, "powerquery.create compact read");
+
+            var listResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "list",
+                ["session_id"] = sessionId
+            }, ToolTimeout);
+
+            Assert.True(listResult.Length < 1_000);
+            using (var listJson = JsonDocument.Parse(listResult))
+            {
+                var query = Assert.Single(
+                    listJson.RootElement.GetProperty("queries").EnumerateArray(),
+                    item => item.GetProperty("name").GetString() == queryName);
+                Assert.False(query.TryGetProperty("formula", out _));
+                Assert.InRange(query.GetProperty("formulaPreview").GetString()!.Length, 1, 80);
+                Assert.Equal(mCode.Length, query.GetProperty("characterCount").GetInt32());
+                Assert.Equal("connection-only", query.GetProperty("loadMode").GetString());
+            }
+
+            var viewResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "view",
+                ["session_id"] = sessionId,
+                ["query_name"] = queryName
+            }, ToolTimeout);
+
+            using var viewJson = JsonDocument.Parse(viewResult);
+            Assert.Equal(mCode, viewJson.RootElement.GetProperty("mCode").GetString());
+            Assert.Equal("connection-only", viewJson.RootElement.GetProperty("loadMode").GetString());
+        }
+        finally
+        {
+            await TryCloseSessionAsync(sessionId);
+        }
+    }
+
+    [Fact]
     public async Task PowerQuery_LoadToDataModel_CompletesViaMcpProtocol()
     {
         var workbookPath = Path.Join(_tempDir, $"LoadToDataModel_{Guid.NewGuid():N}.xlsx");

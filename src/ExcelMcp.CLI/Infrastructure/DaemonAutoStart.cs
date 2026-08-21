@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.Service;
 
@@ -9,14 +10,14 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 /// </summary>
 internal static class DaemonAutoStart
 {
-    internal static readonly TimeSpan InitialPingTimeout = TimeSpan.FromSeconds(2);
+    internal static readonly TimeSpan InitialPingTimeout = DaemonConnectionPolicy.InitialProbeTimeout;
     internal static readonly TimeSpan BusyDaemonConnectTimeout = TimeSpan.FromSeconds(3);
     internal static readonly TimeSpan BusyDaemonRetryInterval = TimeSpan.FromMilliseconds(500);
     internal static readonly TimeSpan BusyDaemonWaitTimeout = TimeSpan.FromSeconds(10);
     internal static readonly TimeSpan StartupReadyConnectTimeout = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan StartupReadyRetryInterval = TimeSpan.FromMilliseconds(250);
-    internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(10);
-    internal static readonly TimeSpan StartupLockTimeout = StartupReadyTimeout + TimeSpan.FromSeconds(1);
+    internal static readonly TimeSpan StartupReadyTimeout = DaemonConnectionPolicy.StartupReadyTimeout;
+    internal static readonly TimeSpan StartupLockTimeout = DaemonStartupLock.Timeout;
 
     /// <summary>
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
@@ -31,66 +32,188 @@ internal static class DaemonAutoStart
     public static async Task<ServiceClient> EnsureAndConnectAsync(CancellationToken cancellationToken = default)
     {
         var pipeName = GetPipeName();
+        var startupDeadline = OperationDeadline.Start(StartupReadyTimeout);
+        using var startupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        startupCts.CancelAfter(StartupReadyTimeout);
 
-        // Fast path: daemon already running and responsive
-        if (await PingAsync(pipeName, InitialPingTimeout, cancellationToken))
+        try
+        {
+            return await EnsureAndConnectCoreAsync(
+                pipeName,
+                startupDeadline,
+                CreateRuntime(pipeName),
+                startupCts.Token);
+        }
+        catch (OperationCanceledException) when (
+            startupCts.IsCancellationRequested
+            && !cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Daemon did not become ready within {FormatDuration(StartupReadyTimeout)}.");
+        }
+    }
+
+    internal static async Task<ServiceClient> EnsureAndConnectCoreAsync(
+        string pipeName,
+        OperationDeadline startupDeadline,
+        Runtime runtime,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+
+        if (await runtime.PingAsync(
+            startupDeadline.Cap(InitialPingTimeout),
+            cancellationToken))
         {
             return new ServiceClient(pipeName);
         }
 
-        // Ping failed — check OS mutex to distinguish "daemon busy" from "daemon not running".
-        // The daemon holds this mutex for its entire lifetime, so its presence means
-        // the daemon is running but temporarily unresponsive (e.g., during a heavy refresh).
-        // This prevents starting a duplicate daemon (and a duplicate tray icon).
-        if (IsDaemonMutexHeld(pipeName))
+        if (runtime.IsDaemonMutexHeld())
         {
-            // Daemon is running but busy — wait briefly for it to become responsive.
-            // If the mutex is still held after the wait window, do NOT try to start a
-            // second daemon: it will immediately exit because the existing process still
-            // owns the mutex. Surface an actionable recovery error instead.
-            var waitUntil = DateTime.UtcNow + BusyDaemonWaitTimeout;
-            while (DateTime.UtcNow < waitUntil)
+            var startupInProgress = RecheckStartupAfterDaemonObservation(
+                startupAlreadyObserved: false,
+                runtime.IsStartupInProgress);
+            var responsivenessDeadline = startupInProgress
+                ? startupDeadline
+                : OperationDeadline.Start(startupDeadline.Cap(BusyDaemonWaitTimeout));
+            while (true)
             {
-                await Task.Delay(BusyDaemonRetryInterval, cancellationToken);
+                if (!startupInProgress && runtime.IsStartupInProgress())
+                {
+                    startupInProgress = true;
+                    responsivenessDeadline = startupDeadline;
+                }
 
-                // Re-check mutex: if the daemon exited while we waited, stop waiting
-                if (!IsDaemonMutexHeld(pipeName))
+                if (responsivenessDeadline.IsExpired)
+                {
                     break;
+                }
 
-                var remaining = waitUntil - DateTime.UtcNow;
-                if (remaining <= TimeSpan.Zero)
+                await Task.Delay(
+                    responsivenessDeadline.Cap(BusyDaemonRetryInterval),
+                    cancellationToken);
+
+                if (!runtime.IsDaemonMutexHeld())
+                {
                     break;
+                }
 
-                if (await PingAsync(pipeName, Min(remaining, BusyDaemonConnectTimeout), cancellationToken))
+                var connectTimeout = responsivenessDeadline.Cap(BusyDaemonConnectTimeout);
+                if (connectTimeout <= TimeSpan.Zero)
+                {
+                    break;
+                }
+
+                if (await runtime.PingAsync(connectTimeout, cancellationToken))
+                {
                     return new ServiceClient(pipeName);
+                }
             }
 
-            if (IsDaemonMutexHeld(pipeName))
+            if (!startupInProgress && runtime.IsStartupInProgress())
             {
+                startupInProgress = true;
+                if (await runtime.WaitForResponsiveDaemonAsync(
+                    startupDeadline,
+                    cancellationToken))
+                {
+                    return new ServiceClient(pipeName);
+                }
+            }
+            var daemonStillRunning = runtime.IsDaemonMutexHeld();
+            startupInProgress = RecheckStartupAfterDaemonObservation(
+                startupInProgress,
+                runtime.IsStartupInProgress);
+            if (ShouldContinueStartupWait(
+                    startupInProgress,
+                    daemonStillRunning,
+                    startupDeadline.IsExpired)
+                && await runtime.WaitForResponsiveDaemonAsync(
+                    startupDeadline,
+                    cancellationToken))
+            {
+                return new ServiceClient(pipeName);
+            }
+
+            if (daemonStillRunning)
+            {
+                if (startupInProgress)
+                {
+                    throw new TimeoutException(
+                        $"Daemon startup did not become ready within {FormatDuration(StartupReadyTimeout)}.");
+                }
+
                 throw new TimeoutException(
                     $"Daemon is running but not responding after {FormatDuration(BusyDaemonWaitTimeout)}. " +
                     "Stop it with 'excelcli service stop' or terminate the stuck excelcli process, then retry.");
             }
-
-            // Daemon exited while we waited — start a replacement.
         }
 
-        if (!await TryStartDaemonWithStartupLockAsync(pipeName, cancellationToken))
-        {
-            if (await WaitForResponsiveDaemonAsync(pipeName, StartupReadyTimeout, cancellationToken))
-                return new ServiceClient(pipeName);
-
-            throw new TimeoutException(
-                $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
-        }
-
-        if (await PingAsync(pipeName, StartupReadyConnectTimeout, cancellationToken))
+        var startOutcome = await runtime.TryStartDaemonAsync(
+            startupDeadline,
+            cancellationToken);
+        if (startOutcome == StartOutcome.Ready)
         {
             return new ServiceClient(pipeName);
         }
 
-        throw new TimeoutException($"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.");
+        if (await runtime.WaitForResponsiveDaemonAsync(
+            startupDeadline,
+            cancellationToken))
+        {
+            return new ServiceClient(pipeName);
+        }
+
+        throw new TimeoutException(startOutcome switch
+        {
+            StartOutcome.LockUnavailable =>
+                $"CLI daemon lifecycle operation did not complete and no responsive daemon became ready within {FormatDuration(StartupReadyTimeout)}.",
+            StartOutcome.ObserveReadiness =>
+                $"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.",
+            _ => throw new InvalidOperationException($"Unexpected daemon start outcome '{startOutcome}'.")
+        });
     }
+
+    private static Runtime CreateRuntime(string pipeName) =>
+        new(
+            (timeout, cancellationToken) => PingAsync(pipeName, timeout, cancellationToken),
+            () => IsDaemonMutexHeld(pipeName),
+            () => IsDaemonStartupInProgress(pipeName),
+            (deadline, cancellationToken) =>
+                TryStartDaemonWithStartupLockAsync(pipeName, deadline, cancellationToken),
+            (deadline, cancellationToken) =>
+                WaitForResponsiveDaemonAsync(pipeName, deadline, cancellationToken));
+
+    internal sealed record Runtime(
+        Func<TimeSpan, CancellationToken, Task<bool>> PingAsync,
+        Func<bool> IsDaemonMutexHeld,
+        Func<bool> IsStartupInProgress,
+        Func<OperationDeadline, CancellationToken, Task<StartOutcome>> TryStartDaemonAsync,
+        Func<OperationDeadline, CancellationToken, Task<bool>> WaitForResponsiveDaemonAsync);
+
+    internal enum StartOutcome
+    {
+        LockUnavailable,
+        ObserveReadiness,
+        Ready
+    }
+
+    internal static bool RecheckStartupAfterDaemonObservation(
+        bool startupAlreadyObserved,
+        Func<bool> startupMarkerProbe)
+    {
+        ArgumentNullException.ThrowIfNull(startupMarkerProbe);
+        var startupObservedAfterDaemon = startupMarkerProbe();
+        return startupAlreadyObserved || startupObservedAfterDaemon;
+    }
+
+    internal static bool ShouldContinueStartupWait(
+        bool startupObserved,
+        bool daemonObserved,
+        bool startupDeadlineExpired) =>
+        startupObserved
+        && daemonObserved
+        && !startupDeadlineExpired;
 
     /// <summary>
     /// Checks whether a daemon process currently holds the daemon mutex for the given pipe name.
@@ -98,16 +221,28 @@ internal static class DaemonAutoStart
     /// </summary>
     internal static bool IsDaemonMutexHeld(string pipeName)
     {
+        return IsMutexHeld(GetDaemonMutexName(pipeName))
+            || DaemonStartupLock.GetLegacyDaemonMutexNames(pipeName)
+                .Any(IsMutexHeld);
+    }
+
+    /// <summary>
+    /// Checks whether a CLI process currently holds the active-startup marker.
+    /// </summary>
+    internal static bool IsDaemonStartupInProgress(string pipeName)
+    {
+        return IsMutexHeld(GetDaemonStartingMarkerName(pipeName));
+    }
+
+    private static bool IsMutexHeld(string mutexName)
+    {
         Mutex? mutex = null;
         try
         {
-            // OpenExisting succeeds if any process has this named mutex open.
-            // The daemon opens it with initiallyOwned:true and holds it for its entire lifetime.
-            mutex = Mutex.OpenExisting(GetDaemonMutexName(pipeName));
+            mutex = Mutex.OpenExisting(mutexName);
             if (mutex.WaitOne(TimeSpan.Zero))
             {
                 mutex.ReleaseMutex();
-                DaemonProcessTracker.Clear(pipeName);
                 return false;
             }
 
@@ -116,16 +251,19 @@ internal static class DaemonAutoStart
         catch (AbandonedMutexException)
         {
             try { mutex?.ReleaseMutex(); } catch (ApplicationException) { }
-            DaemonProcessTracker.Clear(pipeName);
             return false;
         }
         catch (WaitHandleCannotBeOpenedException)
         {
-            return false; // No process has this mutex — daemon is not running
+            return false;
         }
-        catch (Exception)
+        catch (IOException)
         {
-            return false; // Access denied or other error — assume not running
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
         }
         finally
         {
@@ -138,22 +276,43 @@ internal static class DaemonAutoStart
     /// Used by both the daemon (to acquire) and the client (to detect a running daemon).
     /// </summary>
     internal static string GetDaemonMutexName(string pipeName) =>
-        $"ExcelMcpCli_{pipeName}";
+        DaemonStartupLock.GetDaemonMutexName(pipeName);
 
     internal static string GetDaemonStartupLockName(string pipeName) =>
-        $"{GetDaemonMutexName(pipeName)}_startup";
+        DaemonStartupLock.GetStartupMutexName(pipeName);
 
-    private static Task<bool> TryStartDaemonWithStartupLockAsync(string pipeName, CancellationToken cancellationToken)
+    internal static string GetDaemonStartingMarkerName(string pipeName) =>
+        DaemonStartupLock.GetStartingMarkerName(pipeName);
+
+    internal static Task<T> WithStartupLockAsync<T>(
+        string pipeName,
+        Func<Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        return DaemonStartupLock.WithLockAsync(
+            pipeName,
+            action,
+            cancellationToken);
+    }
+
+    private static Task<StartOutcome> TryStartDaemonWithStartupLockAsync(
+        string pipeName,
+        OperationDeadline startupDeadline,
+        CancellationToken cancellationToken)
     {
         return Task.Run(() =>
         {
             using var startupMutex = new Mutex(initiallyOwned: false, GetDaemonStartupLockName(pipeName), out _);
+            Mutex? startingMarker = null;
             var startupLockAcquired = false;
+            var startingMarkerAcquired = false;
             try
             {
                 try
                 {
-                    startupLockAcquired = startupMutex.WaitOne(StartupLockTimeout);
+                    var lockTimeout = startupDeadline.Cap(StartupLockTimeout);
+                    startupLockAcquired = lockTimeout > TimeSpan.Zero
+                        && startupMutex.WaitOne(lockTimeout);
                 }
                 catch (AbandonedMutexException)
                 {
@@ -161,43 +320,104 @@ internal static class DaemonAutoStart
                 }
 
                 if (!startupLockAcquired)
-                    return false;
+                    return StartOutcome.LockUnavailable;
 
                 // Another CLI process may have started the daemon while this process waited.
-                if (PingAsync(pipeName, InitialPingTimeout, cancellationToken).GetAwaiter().GetResult())
-                    return true;
+                var pingTimeout = startupDeadline.Cap(InitialPingTimeout);
+                if (pingTimeout > TimeSpan.Zero
+                    && PingAsync(pipeName, pingTimeout, cancellationToken).GetAwaiter().GetResult())
+                {
+                    return StartOutcome.Ready;
+                }
+
+                if (IsDaemonMutexHeld(pipeName))
+                {
+                    return StartOutcome.ObserveReadiness;
+                }
+
+                startingMarker = new Mutex(
+                    initiallyOwned: false,
+                    GetDaemonStartingMarkerName(pipeName),
+                    out _);
+                try
+                {
+                    startingMarkerAcquired = startingMarker.WaitOne(TimeSpan.Zero);
+                }
+                catch (AbandonedMutexException)
+                {
+                    startingMarkerAcquired = true;
+                }
+
+                if (!startingMarkerAcquired)
+                {
+                    throw new InvalidOperationException(
+                        $"Could not acquire the daemon starting marker for CLI pipe '{pipeName}'.");
+                }
+
+                var cleanupResult = OwnedProcessCleanup
+                    .CleanupAsync(pipeName, cancellationToken)
+                    .GetAwaiter()
+                    .GetResult();
+                if (!cleanupResult.Success)
+                {
+                    throw new InvalidOperationException(
+                        $"{cleanupResult.ErrorMessage ?? $"Tracked processes for CLI pipe '{pipeName}' could not be stopped."} " +
+                        "Run 'excelcli service stop' and retry.");
+                }
 
                 // No daemon running — start it.
-                StartDaemonAsync(pipeName, cancellationToken).GetAwaiter().GetResult();
-                return true;
+                StartDaemonAsync(
+                    pipeName,
+                    startupDeadline,
+                    cancellationToken).GetAwaiter().GetResult();
+                return StartOutcome.Ready;
             }
             finally
             {
+                if (startingMarkerAcquired)
+                {
+                    startingMarker!.ReleaseMutex();
+                }
+                startingMarker?.Dispose();
+
                 if (startupLockAcquired)
+                {
                     startupMutex.ReleaseMutex();
+                }
             }
         }, cancellationToken);
     }
 
-    private static async Task<bool> WaitForResponsiveDaemonAsync(string pipeName, TimeSpan timeout, CancellationToken cancellationToken)
+    private static async Task<bool> WaitForResponsiveDaemonAsync(
+        string pipeName,
+        OperationDeadline startupDeadline,
+        CancellationToken cancellationToken)
     {
-        var waitUntil = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < waitUntil)
+        while (!startupDeadline.IsExpired)
         {
-            await Task.Delay(StartupReadyRetryInterval, cancellationToken);
+            await Task.Delay(
+                startupDeadline.Cap(StartupReadyRetryInterval),
+                cancellationToken);
 
-            var remaining = waitUntil - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
+            var connectTimeout = startupDeadline.Cap(StartupReadyConnectTimeout);
+            if (connectTimeout <= TimeSpan.Zero)
+            {
                 break;
+            }
 
-            if (await PingAsync(pipeName, Min(remaining, StartupReadyConnectTimeout), cancellationToken))
+            if (await PingAsync(pipeName, connectTimeout, cancellationToken))
+            {
                 return true;
+            }
         }
 
         return false;
     }
 
-    private static async Task StartDaemonAsync(string pipeName, CancellationToken cancellationToken)
+    private static async Task StartDaemonAsync(
+        string pipeName,
+        OperationDeadline startupDeadline,
+        CancellationToken cancellationToken)
     {
         var exePath = ResolveDaemonExecutablePath();
 
@@ -211,21 +431,27 @@ internal static class DaemonAutoStart
             WorkingDirectory = Path.GetDirectoryName(exePath) ?? Environment.CurrentDirectory
         };
 
-        try
-        {
-            using var daemonProcess = Process.Start(startInfo)
-                ?? throw new InvalidOperationException($"Failed to start daemon process '{exePath}'.");
+        var daemonProcess = StartDaemonProcess(
+            startupDeadline,
+            cancellationToken,
+            exePath,
+            () => Process.Start(startInfo));
 
-            // Wait for daemon to be ready.
-            var waitUntil = DateTime.UtcNow + StartupReadyTimeout;
-            while (DateTime.UtcNow < waitUntil)
+        using (daemonProcess)
+        {
+            while (!startupDeadline.IsExpired)
             {
-                await Task.Delay(StartupReadyRetryInterval, cancellationToken);
+                await Task.Delay(
+                    startupDeadline.Cap(StartupReadyRetryInterval),
+                    cancellationToken);
                 if (daemonProcess.HasExited)
                 {
                     if (daemonProcess.ExitCode == 0)
                     {
-                        if (await WaitForResponsiveDaemonAsync(pipeName, waitUntil - DateTime.UtcNow, cancellationToken))
+                        if (await WaitForResponsiveDaemonAsync(
+                            pipeName,
+                            startupDeadline,
+                            cancellationToken))
                         {
                             GC.KeepAlive(daemonProcess);
                             return;
@@ -241,23 +467,49 @@ internal static class DaemonAutoStart
                         $"Daemon process exited before becoming ready (exit code {daemonProcess.ExitCode}).");
                 }
 
-                var remaining = waitUntil - DateTime.UtcNow;
-                if (remaining <= TimeSpan.Zero)
+                var connectTimeout = startupDeadline.Cap(StartupReadyConnectTimeout);
+                if (connectTimeout <= TimeSpan.Zero)
+                {
                     break;
+                }
 
-                if (await PingAsync(pipeName, Min(remaining, StartupReadyConnectTimeout), cancellationToken))
+                if (await PingAsync(pipeName, connectTimeout, cancellationToken))
                 {
                     GC.KeepAlive(daemonProcess);
                     return;
                 }
             }
         }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to start daemon: {ex.Message}", ex);
-        }
 
         throw new TimeoutException($"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.");
+    }
+
+    internal static Process StartDaemonProcess(
+        OperationDeadline startupDeadline,
+        CancellationToken cancellationToken,
+        string executablePath,
+        Func<Process?> processStarter)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
+        ArgumentNullException.ThrowIfNull(processStarter);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (startupDeadline.IsExpired)
+        {
+            throw new TimeoutException(
+                $"Daemon startup deadline expired before process '{executablePath}' could be launched.");
+        }
+
+        try
+        {
+            return processStarter()
+                ?? throw new InvalidOperationException($"Failed to start daemon process '{executablePath}'.");
+        }
+        catch (Win32Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to start daemon process '{executablePath}': {ex.Message}",
+                ex);
+        }
     }
 
     private static string ResolveDaemonExecutablePath()
@@ -284,12 +536,21 @@ internal static class DaemonAutoStart
             : $"{duration.TotalMilliseconds:0} ms";
     }
 
-    private static TimeSpan Min(TimeSpan left, TimeSpan right) => left <= right ? left : right;
-
     private static async Task<bool> PingAsync(string pipeName, TimeSpan connectTimeout, CancellationToken cancellationToken)
     {
-        var requestTimeout = connectTimeout + TimeSpan.FromSeconds(1);
-        using var client = new ServiceClient(pipeName, connectTimeout: connectTimeout, requestTimeout: requestTimeout);
-        return await client.PingAsync(cancellationToken);
+        if (connectTimeout <= TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        using var client = new ServiceClient(
+            pipeName,
+            connectTimeout: connectTimeout,
+            requestTimeout: connectTimeout);
+        var response = await client.SendAsync(
+            new ServiceRequest { Command = "service.ping" },
+            connectTimeout,
+            cancellationToken);
+        return response.Success;
     }
 }

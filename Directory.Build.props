@@ -18,6 +18,14 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
 
     <!-- Build settings -->
+    <!-- A stale CLI cannot stop its daemon before its normal output is replaced.
+         The cleanup script sets this to build a current client in a unique,
+         isolated tree without touching or sharing intermediate project files. -->
+    <BaseOutputPath Condition="'$(ExcelMcpCleanupRoot)' != ''">$(ExcelMcpCleanupRoot)\bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(ExcelMcpCleanupRoot)' != ''">$(ExcelMcpCleanupRoot)\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath Condition="'$(ExcelMcpCleanupRoot)' != ''">$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <DefaultItemExcludes Condition="'$(ExcelMcpCleanupRoot)' != ''">$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>14</LangVersion>
@@ -62,12 +70,17 @@
   </PropertyGroup>
 
   <!--
-    Pre-build cleanup: gracefully stop ExcelMCP Service and kill Excel processes.
-    Prevents file locking during build. Skipped in CI (no Excel/Service there).
+    Pre-build cleanup: before the CLI project replaces its output, ask the
+    current CLI cleanup implementation to stop only the daemon and Excel
+    processes tracked for the selected pipe. Restricting this target to the CLI
+    project prevents parallel solution builds from launching cleanup clients
+    that lock the CLI output.
+    Skipped in CI (no Excel/Service there).
   -->
-  <Target Name="StopExcelMcpProcesses" BeforeTargets="Build" Condition="'$(CI)' != 'true' AND '$(ExcelMcpSkipCleanup)' != 'true'">
+  <Target Name="StopExcelMcpProcesses"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND '$(CI)' != 'true' AND '$(ExcelMcpSkipCleanup)' != 'true'">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelMcpProcesses.ps1&quot;"
-          IgnoreExitCode="true"
           StandardOutputImportance="low" />
   </Target>
 

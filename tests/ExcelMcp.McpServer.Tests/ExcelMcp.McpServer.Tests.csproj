@@ -38,6 +38,10 @@
     <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Helpers\OleDataSpaceTestFile.cs" />
+  </ItemGroup>
+
   <!-- Golden files for API contract tests -->
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

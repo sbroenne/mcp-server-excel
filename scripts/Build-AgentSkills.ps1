@@ -272,10 +272,10 @@ function Generate-CliReference {
     $content.Add("## Common Pitfalls")
     $content.Add("")
     $content.Add("- ``--values-file`` requires an existing JSON or CSV file; use ``--values`` for inline JSON.")
-    $content.Add("- ``--timeout`` must be greater than zero; omit it to use the command default.")
+    $content.Add("- ``--timeout`` ranges are action-specific: session open/create accepts 10-3600; Power Query refresh/refresh-all accepts 0-2147483 (0 keeps the default); other generated timeout actions accept 1-2147483.")
     $content.Add("- ``pythoninexcel get-result --max-wait-seconds`` must be at least 1 and shorter than the session operation timeout.")
     $content.Add("- ``--values`` and list parameters use JSON arrays; range values use a two-dimensional array.")
-    $content.Add("- Power Query operations may take 30 seconds or longer; use a generous positive timeout.")
+    $content.Add("- Power Query operations may take 30 seconds or longer; use a deliberate data-operation timeout or 0 for the default.")
     $content.Add("")
 
     $refsDir = Join-Path $SkillPath "references"

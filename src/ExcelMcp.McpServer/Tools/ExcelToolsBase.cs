@@ -311,6 +311,14 @@ public static class ExcelToolsBase
         string? exceptionType = ex.GetType().Name;
         string? hresult = null;
         string? innerError = null;
+        var errorCategory = ex switch
+        {
+            ArgumentException => "InvalidInput",
+            TimeoutException => "Timeout",
+            OperationCanceledException => "Cancelled",
+            System.Runtime.InteropServices.COMException => "ComInterop",
+            _ => null
+        };
 
         if (ex is System.Runtime.InteropServices.COMException comEx)
         {
@@ -332,6 +340,7 @@ public static class ExcelToolsBase
             success = false,
             error = errorMessage,
             errorMessage,
+            errorCategory,
             isError = true,
             exceptionType,
             hresult,
@@ -359,7 +368,6 @@ public static class ExcelToolsBase
         }, JsonOptions);
     }
 }
-
 
 
 

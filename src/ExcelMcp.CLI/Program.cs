@@ -2,6 +2,7 @@ using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -82,11 +83,11 @@ internal sealed class Program
             {
                 branch.SetDescription("Service lifecycle management: start, stop, status.");
                 branch.AddCommand<ServiceStartCommand>("start")
-                    .WithDescription("Start the ExcelMCP Service if not already running.");
+                    .WithDescription("Start the ExcelMCP Service if needed and wait up to 30 seconds for readiness.");
                 branch.AddCommand<ServiceStopCommand>("stop")
-                    .WithDescription("Gracefully stop the ExcelMCP Service.");
+                    .WithDescription("Stop the CLI service and its pipe-owned Excel processes.");
                 branch.AddCommand<ServiceStatusCommand>("status")
-                    .WithDescription("Show service status (running, PID, sessions, uptime).");
+                    .WithDescription("Show stopped, starting, running, or unresponsive daemon state; readiness checks wait up to 10 seconds.");
             });
 
             // Batch command — execute multiple commands in a single process launch
@@ -104,9 +105,9 @@ internal sealed class Program
                 branch.AddCommand<SessionCloseCommand>("close")
                     .WithDescription("Close a session. Use --save to persist changes.");
                 branch.AddCommand<SessionListCommand>("list")
-                    .WithDescription("List active sessions.");
-                branch.AddCommand<SessionSaveCommand>("save")
-                    .WithDescription("Save a session without closing it.");
+                    .WithDescription("List active sessions; transport failures return unresponsive instead of an empty list.");
+                branch.AddCommand<SessionTestCommand>("test")
+                    .WithDescription("Test file existence, validity, openability, and IRM/AIP read-only requirements.");
             });
 
             // Sheet commands
@@ -251,13 +252,64 @@ internal sealed class Program
                 return 0;
             }
         }
-        DaemonProcessTracker.RegisterCurrentProcess(pipeName);
-        Action<IReadOnlyCollection<int>> excelProcessTracker =
-            _ => DaemonProcessTracker.UpdateExcelProcesses(
+        Mutex? legacyDaemonMutex = null;
+        var ownsLegacyDaemonMutex = false;
+        try
+        {
+            legacyDaemonMutex = new Mutex(
+                initiallyOwned: true,
+                DaemonStartupLock.GetLegacyDaemonMutexName(pipeName),
+                out var legacyCreatedNew);
+            ownsLegacyDaemonMutex = legacyCreatedNew;
+            if (!legacyCreatedNew)
+            {
+                try
+                {
+                    ownsLegacyDaemonMutex = legacyDaemonMutex.WaitOne(TimeSpan.Zero);
+                }
+                catch (AbandonedMutexException)
+                {
+                    ownsLegacyDaemonMutex = true;
+                }
+            }
+
+            if (!ownsLegacyDaemonMutex)
+            {
+                legacyDaemonMutex.Dispose();
+                if (ownsDaemonMutex)
+                {
+                    daemonMutex.ReleaseMutex();
+                }
+                daemonMutex.Dispose();
+                return 0;
+            }
+        }
+        catch (IOException)
+        {
+            legacyDaemonMutex?.Dispose();
+            legacyDaemonMutex = null;
+        }
+        catch (ArgumentException)
+        {
+            legacyDaemonMutex?.Dispose();
+            legacyDaemonMutex = null;
+        }
+
+        var daemonIdentity = DaemonProcessTracker.RegisterCurrentProcess(pipeName);
+        Action<ExcelProcessIdentity> excelProcessTracker =
+            process => DaemonProcessTracker.RecordExcelProcesses(
                 pipeName,
-                Sbroenne.ExcelMcp.ComInterop.Session.SessionManager.GetTrackedExcelProcessIds);
-        Sbroenne.ExcelMcp.ComInterop.Session.SessionManager.TrackedExcelProcessesChanged += excelProcessTracker;
-        excelProcessTracker([]);
+                daemonIdentity,
+                [
+                    new DaemonProcessTracker.ProcessIdentity(
+                        process.ProcessId,
+                        process.StartedAtUtcFileTime)
+                ]);
+        SessionManager.ExcelProcessIdentityTracked += excelProcessTracker;
+        foreach (var process in SessionManager.GetTrackedExcelProcesses())
+        {
+            excelProcessTracker(process);
+        }
 
         Service.ExcelMcpService? service = null;
         try
@@ -309,20 +361,41 @@ internal sealed class Program
             }
             finally
             {
+                PersistCurrentExcelProcesses(pipeName, daemonIdentity);
                 service.Dispose();
                 service = null;
             }
         }
         finally
         {
-            service?.Dispose();
-            Sbroenne.ExcelMcp.ComInterop.Session.SessionManager.TrackedExcelProcessesChanged -= excelProcessTracker;
-            DaemonProcessTracker.Clear(pipeName);
+            if (service != null)
+            {
+                PersistCurrentExcelProcesses(pipeName, daemonIdentity);
+                service.Dispose();
+            }
+            SessionManager.ExcelProcessIdentityTracked -= excelProcessTracker;
 
             // Release the daemon mutex so a new daemon can start if needed.
+            if (ownsLegacyDaemonMutex)
+                legacyDaemonMutex!.ReleaseMutex();
+            legacyDaemonMutex?.Dispose();
             if (ownsDaemonMutex)
                 daemonMutex.ReleaseMutex();
             daemonMutex.Dispose();
         }
+    }
+
+    private static void PersistCurrentExcelProcesses(
+        string pipeName,
+        DaemonProcessTracker.ProcessIdentity daemonIdentity)
+    {
+        _ = DaemonProcessTracker.TryRecordExcelProcesses(
+                pipeName,
+                daemonIdentity,
+                SessionManager.GetTrackedExcelProcesses()
+                    .Select(process => new DaemonProcessTracker.ProcessIdentity(
+                        process.ProcessId,
+                        process.StartedAtUtcFileTime))
+                    .ToList());
     }
 }

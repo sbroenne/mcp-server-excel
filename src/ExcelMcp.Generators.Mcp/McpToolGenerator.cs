@@ -125,6 +125,7 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("using System.ComponentModel;");
         sb.AppendLine("using System.Threading;");
+        sb.AppendLine("using ModelContextProtocol.Protocol;");
         sb.AppendLine("using ModelContextProtocol.Server;");
         sb.AppendLine("using Sbroenne.ExcelMcp.Generated;");
         if (hasProgress)
@@ -253,6 +254,7 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             sb.AppendLine("        IProgress<ProgressNotificationValue> progress = default!,");
         }
+        sb.AppendLine("        RequestContext<CallToolRequestParams> requestContext = default!,");
         sb.AppendLine("        CancellationToken cancellationToken = default");
         sb.AppendLine("    )");
         sb.AppendLine("    {");
@@ -271,21 +273,6 @@ public class McpToolGenerator : IIncrementalGenerator
         var registryName = info.CategoryPascal;
         var toolName = info.McpToolName;
 
-        var hasPreProcessing = false;
-        foreach (var p in mcpParams)
-        {
-            if (p.PreProcessingCode != null)
-            {
-                if (!hasPreProcessing)
-                {
-                    sb.AppendLine("        // Pre-process parameters");
-                    hasPreProcessing = true;
-                }
-                sb.AppendLine($"        {p.PreProcessingCode}");
-            }
-        }
-        if (hasPreProcessing) sb.AppendLine();
-
         // Set ambient progress context so DispatchToCore can inject it into Core methods
         if (hasProgress)
         {
@@ -302,19 +289,44 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}return ExcelToolsBase.ExecuteToolAction(");
         sb.AppendLine($"{indent}    \"{toolName}\",");
         sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString(action),");
-        sb.AppendLine($"{indent}    () => ServiceRegistry.{registryName}.RouteAction(");
-        sb.AppendLine($"{indent}        action,");
+        sb.AppendLine($"{indent}    () =>");
+        sb.AppendLine($"{indent}    {{");
+        if (mcpParams.Count > 0)
+        {
+            sb.AppendLine($"{indent}        ServiceRegistry.{registryName}.ValidateActionParameters(");
+            sb.AppendLine($"{indent}            ServiceRegistry.{registryName}.ToActionString(action),");
+            sb.AppendLine($"{indent}            ServiceRegistry.GetSuppliedParameterNames(");
+            for (int i = 0; i < mcpParams.Count; i++)
+            {
+                var parameter = mcpParams[i];
+                var comma = i < mcpParams.Count - 1 ? "," : "),";
+                sb.AppendLine(
+                    $"{indent}                (\"{parameter.RouteActionParamName}\", requestContext.Params.Arguments?.ContainsKey(\"{parameter.Name}\") == true ? true : (bool?)null){comma}");
+            }
+            sb.AppendLine($"{indent}            allowFileParameters: true);");
+            sb.AppendLine();
+        }
+        foreach (var parameter in mcpParams.Where(parameter => parameter.PreProcessingCode != null))
+        {
+            sb.AppendLine($"{indent}        {parameter.PreProcessingCode}");
+        }
+        if (mcpParams.Any(parameter => parameter.PreProcessingCode != null))
+        {
+            sb.AppendLine();
+        }
+        sb.AppendLine($"{indent}        return ServiceRegistry.{registryName}.RouteAction(");
+        sb.AppendLine($"{indent}            action,");
 
         if (!info.NoSession)
         {
-            sb.AppendLine($"{indent}        session_id,");
+            sb.AppendLine($"{indent}            session_id,");
         }
         else
         {
-            sb.AppendLine($"{indent}        \"\",");
+            sb.AppendLine($"{indent}            \"\",");
         }
 
-        sb.AppendLine($"{indent}        ExcelToolsBase.ForwardToServiceFunc,");
+        sb.AppendLine($"{indent}            ExcelToolsBase.ForwardToServiceFunc,");
 
         // Named arguments to RouteAction
         for (int i = 0; i < mcpParams.Count; i++)
@@ -323,10 +335,11 @@ public class McpToolGenerator : IIncrementalGenerator
             var routeArgName = p.RouteActionParamName;
             var routeArgValue = p.RouteActionValue;
             var comma = i < mcpParams.Count - 1 ? "," : "";
-            sb.AppendLine($"{indent}        {routeArgName}: {routeArgValue}{comma}");
+            sb.AppendLine($"{indent}            {routeArgName}: {routeArgValue}{comma}");
         }
 
-        sb.AppendLine($"{indent}    ));");
+        sb.AppendLine($"{indent}        );");
+        sb.AppendLine($"{indent}    }});");
 
         // Close progress try/finally block
         if (hasProgress)
@@ -363,7 +376,6 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             paramInfoByName.TryGetValue(ep.Name, out var pInfo);
             var snakeName = StringHelper.ToSnakeCase(ep.Name);
-            var defaultExpr = GetDefaultExpression(ep.TypeName, pInfo);
 
             // Determine MCP type and conversion
             if (pInfo != null && pInfo.IsEnum && pInfo.EnumTypeName != null)
@@ -386,10 +398,9 @@ public class McpToolGenerator : IIncrementalGenerator
                 else
                 {
                     var localVarName = $"_{ep.Name}Parsed";
-                    var parseExpression = $"System.Enum.TryParse<{pInfo.EnumTypeName}>({snakeName}?.Replace(\"-\", string.Empty).Replace(\"_\", string.Empty), ignoreCase: true, out var parsed{StringHelper.ToPascalCase(ep.Name)}) ? parsed{StringHelper.ToPascalCase(ep.Name)} : default";
-                    var preProcessingCode = defaultExpr == "null"
-                        ? $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? ({pInfo.EnumTypeName}?)({parseExpression}) : null;"
-                        : $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? {parseExpression} : {defaultExpr};";
+                    var aliasArguments = BuildEnumAliasArguments(pInfo);
+                    var preProcessingCode =
+                        $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? ({pInfo.EnumTypeName}?)ServiceRegistry.ParseEnumValue<{pInfo.EnumTypeName}>({snakeName}, default, \"{ep.Name}\"{aliasArguments}) : null;";
 
                     result.Add(new McpParameter(
                         name: snakeName,
@@ -403,23 +414,20 @@ public class McpToolGenerator : IIncrementalGenerator
             }
             else if (ep.TypeName.Contains("TimeSpan"))
             {
-                // TimeSpan → int seconds in MCP
-                var secondsName = ep.Name.EndsWith("timeout", StringComparison.OrdinalIgnoreCase)
-                    ? ep.Name + "Seconds"
-                    : ep.Name + "Seconds";
+                // Public timeout inputs are whole seconds. Conversion happens once in service dispatch.
+                var secondsName = ep.Name + "Seconds";
                 var snakeSecondsName = StringHelper.ToSnakeCase(secondsName);
-                // Use the original name for MCP (the int seconds version)
-                var localVarName = $"_{ep.Name}";
+                var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
                 result.Add(new McpParameter(
                     name: snakeSecondsName,
                     mcpTypeName: "int?",
                     routeActionParamName: ep.Name,
-                    routeActionValue: localVarName,
+                    routeActionValue: snakeSecondsName,
                     description: ep.DescriptionWithRequired != null
-                        ? ep.DescriptionWithRequired + " (in seconds)"
-                        : "Timeout in seconds",
+                        ? ep.DescriptionWithRequired + $" Accepted range: {minimumSeconds}-2147483 seconds."
+                        : $"Timeout in whole seconds; range {minimumSeconds}-2147483",
                     defaultExpression: "null",
-                    preProcessingCode: $"var {localVarName} = {snakeSecondsName}.HasValue ? System.TimeSpan.FromSeconds({snakeSecondsName}.Value) : (System.TimeSpan?)null;"));
+                    preProcessingCode: null));
             }
             else if (ep.TypeName.StartsWith("System.Collections.Generic.List<string>") ||
                      ep.TypeName.StartsWith("List<string>"))
@@ -443,8 +451,9 @@ public class McpToolGenerator : IIncrementalGenerator
                 var mcpType = ep.TypeName;
 
                 // All exposed params are optional in MCP (not all actions use every param).
-                // If the default is null, ensure the type is nullable to match RouteAction.
-                if (defaultExpr == "null" && !mcpType.EndsWith("?"))
+                // Use null as the category-wide omission sentinel, even when an individual action
+                // has a Core default. Core dispatch applies that default after action validation.
+                if (!mcpType.EndsWith("?"))
                     mcpType += "?";
 
                 result.Add(new McpParameter(
@@ -453,7 +462,7 @@ public class McpToolGenerator : IIncrementalGenerator
                     routeActionParamName: ep.Name,
                     routeActionValue: snakeName,
                     description: ep.DescriptionWithRequired,
-                    defaultExpression: defaultExpr,
+                    defaultExpression: "null",
                     preProcessingCode: null));
             }
         }
@@ -461,24 +470,15 @@ public class McpToolGenerator : IIncrementalGenerator
         return result;
     }
 
-    private static string GetDefaultExpression(string typeName, ParameterInfo? pInfo)
+    private static string BuildEnumAliasArguments(ParameterInfo parameter)
     {
-        if (pInfo?.DefaultValue != null)
-            return pInfo.DefaultValue;
+        if (parameter.EnumAliases.Count == 0 || parameter.EnumTypeName == null)
+            return string.Empty;
 
-        // All optional params default to null
-        if (typeName.EndsWith("?"))
-            return "null";
-
-        // Bool defaults
-        if (typeName == "bool")
-            return "false";
-
-        // Int defaults
-        if (typeName == "int")
-            return "0";
-
-        return "null";
+        return ", " + string.Join(
+            ", ",
+            parameter.EnumAliases.Select(alias =>
+                $"(\"{EscapeStringLiteral(alias.Alias)}\", {parameter.EnumTypeName}.{alias.MemberName})"));
     }
 
     private static string GetClassName(ServiceInfo info)

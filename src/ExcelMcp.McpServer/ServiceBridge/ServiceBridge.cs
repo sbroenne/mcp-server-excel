@@ -243,7 +243,7 @@ public static class ServiceBridge
     /// </summary>
     public static async Task<ServiceResponse> CreateSessionAsync(
         string excelPath,
-        bool macroEnabled = false,
+        bool? macroEnabled = null,
         bool show = false,
         int? timeoutSeconds = null,
         CancellationToken cancellationToken = default)
@@ -262,7 +262,7 @@ public static class ServiceBridge
     /// </summary>
     public static async Task<ServiceResponse> CloseSessionAsync(
         string sessionId,
-        bool save = true,
+        bool save = false,
         CancellationToken cancellationToken = default)
     {
         return await SendAsync("session.close", sessionId, new { save }, cancellationToken: cancellationToken);
@@ -274,16 +274,6 @@ public static class ServiceBridge
     public static async Task<ServiceResponse> ListSessionsAsync(CancellationToken cancellationToken = default)
     {
         return await SendAsync("session.list", cancellationToken: cancellationToken);
-    }
-
-    /// <summary>
-    /// Saves a session via the service.
-    /// </summary>
-    public static async Task<ServiceResponse> SaveSessionAsync(
-        string sessionId,
-        CancellationToken cancellationToken = default)
-    {
-        return await SendAsync("session.save", sessionId, cancellationToken: cancellationToken);
     }
 
     /// <summary>

@@ -15,7 +15,9 @@ internal static class CliErrorOutput
             null,
             ex.GetType().Name,
             null,
-            ex.InnerException?.Message));
+            ex.InnerException?.Message,
+            null,
+            null));
         return 1;
     }
 
@@ -28,13 +30,33 @@ internal static class CliErrorOutput
             response.SessionId,
             response.ExceptionType,
             response.HResult,
-            response.InnerError));
+            response.InnerError,
+            null,
+            null));
+        return 1;
+    }
+
+    public static int WriteDaemonError(
+        ServiceResponse response,
+        string daemonState,
+        bool running)
+    {
+        Console.WriteLine(Serialize(
+            response.ErrorMessage,
+            response.ErrorCategory,
+            response.Command,
+            response.SessionId,
+            response.ExceptionType,
+            response.HResult,
+            response.InnerError,
+            daemonState,
+            running));
         return 1;
     }
 
     public static int WriteError(string errorMessage, string? errorCategory = null)
     {
-        Console.WriteLine(Serialize(errorMessage, errorCategory, null, null, null, null, null));
+        Console.WriteLine(Serialize(errorMessage, errorCategory, null, null, null, null, null, null, null));
         return 1;
     }
 
@@ -45,7 +67,9 @@ internal static class CliErrorOutput
         string? sessionId,
         string? exceptionType,
         string? hresult,
-        string? innerError)
+        string? innerError,
+        string? daemonState,
+        bool? running)
     {
         return JsonSerializer.Serialize(new ErrorEnvelope
         {
@@ -58,7 +82,9 @@ internal static class CliErrorOutput
             IsError = true,
             ExceptionType = exceptionType,
             HResult = hresult,
-            InnerError = innerError
+            InnerError = innerError,
+            DaemonState = daemonState,
+            Running = running
         }, ServiceProtocol.JsonOptions);
     }
 
@@ -90,5 +116,11 @@ internal static class CliErrorOutput
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? InnerError { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? DaemonState { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? Running { get; init; }
     }
 }

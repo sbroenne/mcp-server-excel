@@ -24,9 +24,6 @@ public enum FileAction
     [System.Text.Json.Serialization.JsonStringEnumMemberName("create")]
     Create,
 
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("close-workbook")]
-    CloseWorkbook,
-
     [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
     Test
 }
@@ -81,5 +78,4 @@ public enum FileAction
 // CalculationModeAction is now generated from ICalculationModeCommands interface
 // See Sbroenne.ExcelMcp.Generated.CalculationAction in ServiceRegistry.Calculation.g.cs
 #pragma warning restore CS1591
-
 

@@ -32,65 +32,82 @@ public sealed class AnalysisServiceRegistryRoutingTests
         Assert.Equal(action, parsedAction);
         Assert.Equal(expectedAction, ServiceRegistry.Analysis.ToActionString(action));
 
-        var routed = ServiceRegistry.Analysis.RouteAction(
-            action,
-            "session-1",
-            (command, sessionId, args) => JsonSerializer.Serialize(new { command, sessionId, args }),
-            sheetName: "Model",
-            formulaCell: "B1",
-            goal: 40d,
-            changingCell: "A1",
-            scenarioName: "Plan",
-            changingCells: "A1:A2",
-            values: [10d, 20d],
-            comment: "Planning inputs",
-            locked: false,
-            hidden: false,
-            reportType: "pivot-table",
-            resultCells: "B1",
-            tableRange: "D1:F4",
-            rowInputCell: "A1",
-            columnInputCell: "A2");
+        static string Forward(string command, string sessionId, object? args) =>
+            JsonSerializer.Serialize(new { command, sessionId, args });
+
+        var routed = action switch
+        {
+            AnalysisAction.GoalSeek => ServiceRegistry.Analysis.RouteAction(
+                action, "session-1", Forward, sheetName: "Model",
+                formulaCell: "B1", goal: 40d, changingCell: "A1"),
+            AnalysisAction.ListScenarios => ServiceRegistry.Analysis.RouteAction(
+                action, "session-1", Forward, sheetName: "Model"),
+            AnalysisAction.CreateScenario => ServiceRegistry.Analysis.RouteAction(
+                action, "session-1", Forward, sheetName: "Model",
+                scenarioName: "Plan", changingCells: "A1:A2", values: [10d, 20d],
+                comment: "Planning inputs", locked: false, hidden: false),
+            AnalysisAction.UpdateScenario => ServiceRegistry.Analysis.RouteAction(
+                action, "session-1", Forward, sheetName: "Model",
+                scenarioName: "Plan", changingCells: "A1:A2", values: [10d, 20d]),
+            AnalysisAction.ShowScenario or AnalysisAction.DeleteScenario =>
+                ServiceRegistry.Analysis.RouteAction(
+                    action, "session-1", Forward, sheetName: "Model", scenarioName: "Plan"),
+            AnalysisAction.CreateScenarioSummary => ServiceRegistry.Analysis.RouteAction(
+                action, "session-1", Forward, sheetName: "Model",
+                reportType: "pivot-table", resultCells: "B1"),
+            AnalysisAction.CreateDataTable => ServiceRegistry.Analysis.RouteAction(
+                action, "session-1", Forward, sheetName: "Model",
+                tableRange: "D1:F4", rowInputCell: "A1", columnInputCell: "A2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
 
         using var routedJson = JsonDocument.Parse(routed);
         Assert.Equal($"analysis.{expectedAction}", routedJson.RootElement.GetProperty("command").GetString());
         Assert.Equal("session-1", routedJson.RootElement.GetProperty("sessionId").GetString());
 
-        var cliRoute = ServiceRegistry.Analysis.RouteCliArgs(
-            expectedAction,
-            sheetName: "Model",
-            formulaCell: "B1",
-            goal: 40d,
-            changingCell: "A1",
-            scenarioName: "Plan",
-            changingCells: "A1:A2",
-            values: [10d, 20d],
-            comment: "Planning inputs",
-            locked: false,
-            hidden: false,
-            reportType: "pivot-table",
-            resultCells: "B1",
-            tableRange: "D1:F4",
-            rowInputCell: "A1",
-            columnInputCell: "A2");
+        var cliRoute = action switch
+        {
+            AnalysisAction.GoalSeek => ServiceRegistry.Analysis.RouteCliArgs(
+                expectedAction, sheetName: "Model",
+                formulaCell: "B1", goal: 40d, changingCell: "A1"),
+            AnalysisAction.ListScenarios => ServiceRegistry.Analysis.RouteCliArgs(
+                expectedAction, sheetName: "Model"),
+            AnalysisAction.CreateScenario => ServiceRegistry.Analysis.RouteCliArgs(
+                expectedAction, sheetName: "Model",
+                scenarioName: "Plan", changingCells: "A1:A2", values: [10d, 20d],
+                comment: "Planning inputs", locked: false, hidden: false),
+            AnalysisAction.UpdateScenario => ServiceRegistry.Analysis.RouteCliArgs(
+                expectedAction, sheetName: "Model",
+                scenarioName: "Plan", changingCells: "A1:A2", values: [10d, 20d]),
+            AnalysisAction.ShowScenario or AnalysisAction.DeleteScenario =>
+                ServiceRegistry.Analysis.RouteCliArgs(
+                    expectedAction, sheetName: "Model", scenarioName: "Plan"),
+            AnalysisAction.CreateScenarioSummary => ServiceRegistry.Analysis.RouteCliArgs(
+                expectedAction, sheetName: "Model",
+                reportType: "pivot-table", resultCells: "B1"),
+            AnalysisAction.CreateDataTable => ServiceRegistry.Analysis.RouteCliArgs(
+                expectedAction, sheetName: "Model",
+                tableRange: "D1:F4", rowInputCell: "A1", columnInputCell: "A2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
 
         Assert.Equal($"analysis.{expectedAction}", cliRoute.Command);
         Assert.NotNull(cliRoute.Args);
     }
 
     [Fact]
-    public void GeneratedGoalSeekRoute_PreservesOmittedGoalForCoreValidation()
+    public void GeneratedGoalSeekRoute_RejectsOmittedRequiredGoal()
     {
-        var routed = ServiceRegistry.Analysis.RouteAction(
-            AnalysisAction.GoalSeek,
-            "session-1",
-            (_, _, args) => JsonSerializer.Serialize(args),
-            sheetName: "Model",
-            formulaCell: "B1",
-            goal: null,
-            changingCell: "A1");
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Analysis.RouteAction(
+                AnalysisAction.GoalSeek,
+                "session-1",
+                (_, _, args) => JsonSerializer.Serialize(args),
+                sheetName: "Model",
+                formulaCell: "B1",
+                goal: null,
+                changingCell: "A1"));
 
-        using var routedJson = JsonDocument.Parse(routed);
-        Assert.Equal(JsonValueKind.Null, routedJson.RootElement.GetProperty("Goal").ValueKind);
+        Assert.Equal("goal", exception.ParamName);
     }
 }

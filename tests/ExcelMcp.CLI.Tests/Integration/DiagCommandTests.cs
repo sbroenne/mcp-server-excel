@@ -183,16 +183,14 @@ public sealed class DiagCommandTests
     [Fact]
     public async Task ValidateParams_MissingCount_ReturnsValidationError()
     {
-        // count is int with no default → should be required
-        // But int can't be "empty" — Spectre.Console may handle differently
-        // This test documents the actual behavior
-        var result = await CliProcessHelper.RunAsync("diag validate-params --name \"test\"");
+        var (result, json) = await CliProcessHelper.RunJsonAsync(
+            "diag validate-params --name \"test\"");
         _output.WriteLine($"Exit: {result.ExitCode}, Stdout: {result.Stdout}");
 
-        // int without default gets default(int) = 0 from Spectre.Console
-        // So this should succeed with count=0
-        var json = JsonDocument.Parse(result.Stdout);
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("count", json.RootElement.GetProperty("error").GetString());
+        Assert.Contains("required", json.RootElement.GetProperty("error").GetString());
     }
 
     // ============================================

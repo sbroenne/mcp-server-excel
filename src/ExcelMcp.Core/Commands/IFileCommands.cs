@@ -8,12 +8,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public interface IFileCommands
 {
     /// <summary>
-    /// Tests if a file exists and is a valid Excel file
+    /// Tests file existence, Excel extension validity, openability, and deterministic
+    /// IRM/AIP read-only and visible-session requirements without opening Excel
     /// </summary>
     /// <param name="filePath">Path to the Excel file to validate</param>
-    /// <returns>File validation details including existence, size, extension, and validity information</returns>
+    /// <returns>Canonical file metadata shared by CLI and MCP</returns>
     FileValidationInfo Test(string filePath);
 }
-
 
 

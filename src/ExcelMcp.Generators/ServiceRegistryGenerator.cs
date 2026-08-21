@@ -90,6 +90,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             var skillManifestCode = GenerateSkillManifest(allCategories);
             context.AddSource("_SkillManifest.g.cs", SourceText.From(skillManifestCode, Encoding.UTF8));
 
+            var contractCode = GenerateContractRegistry(allCategories);
+            context.AddSource("ServiceRegistry.Contracts.g.cs", SourceText.From(contractCode, Encoding.UTF8));
+
             // Emit shared dispatch helper methods (DeserializeArgs, ParseEnumValue, etc.)
             var helpersCode = GenerateDispatchHelpers();
             context.AddSource("ServiceRegistry.DispatchHelpers.g.cs", SourceText.From(helpersCode, Encoding.UTF8));
@@ -280,10 +283,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             var p = allExposedParams[i];
             var comma = i < allExposedParams.Count - 1 ? "," : ")";
-            sb.AppendLine($"            {p.TypeName} {p.Name} = {p.DefaultValue ?? "null"}{comma}");
+            sb.AppendLine($"            {p.TypeName} {p.Name} = null{comma}");
         }
 
         sb.AppendLine("        {");
+        GenerateSuppliedParameterValidationCall(sb, info, allExposedParams, "            ");
+        GenerateFileOrValuePairValidation(sb, info, "            ");
         sb.AppendLine("            return action switch");
         sb.AppendLine("            {");
         foreach (var method in info.Methods)
@@ -298,6 +303,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         // Generate CLI RouteCliArgs method
         GenerateCliRouteMethod(sb, info);
+        GenerateActionContractMethods(sb, info, allExposedParams);
 
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -324,11 +330,14 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             var p = allExposedParams[i];
             var comma = i < allExposedParams.Count - 1 ? "," : ")";
-            sb.AppendLine($"            {p.TypeName} {p.Name} = {p.DefaultValue ?? "null"}{comma}");
+            sb.AppendLine($"            {p.TypeName} {p.Name} = null{comma}");
         }
 
         sb.AppendLine("        {");
         sb.AppendLine($"            var command = $\"{info.Category}.{{action}}\";");
+        sb.AppendLine();
+        GenerateSuppliedParameterValidationCall(sb, info, allExposedParams, "            ", actionExpression: "action");
+        GenerateFileOrValuePairValidation(sb, info, "            ");
         sb.AppendLine();
 
         // Generate switch statement with per-action validation
@@ -337,26 +346,30 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var method in info.Methods)
         {
-            bool hasFileOrValue = method.Parameters.Any(p => p.IsFileOrValue);
-
             sb.AppendLine($"                case \"{method.ActionName}\":");
-            // Use block scope when FileOrValue resolution generates local variables
-            // to avoid duplicate variable names across switch cases
-            if (hasFileOrValue)
+            if (method.Parameters.Any(p => p.IsFileOrValue))
                 sb.AppendLine("                {");
 
-            // Resolve FileOrValue parameters (read file content if file path provided)
-            foreach (var p in method.Parameters.Where(p => p.IsFileOrValue))
+            foreach (var parameter in method.Parameters.Where(p => p.IsEnum))
             {
-                sb.AppendLine($"                    var resolved{StringHelper.ToPascalCase(p.Name)} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue({p.Name}, {p.Name}{p.FileSuffix});");
+                if (parameter.IsFromString)
+                {
+                    var exposedName = parameter.ExposedName ?? parameter.Name;
+                    GenerateEnumValidationStatement(sb, parameter, exposedName, exposedName, "                    ");
+                }
+                else
+                {
+                    GenerateTypedEnumValidationStatement(sb, parameter, parameter.Name, parameter.Name, "                    ");
+                }
             }
 
-            GenerateRequiredParameterValidation(sb, method, "                    ");
+            GenerateTimeoutValidation(sb, info, method, "                    ");
+            GenerateRequiredParameterValidation(sb, method, "                    ", includeFileOrValue: false);
 
             var argsExpr = BuildCliArgsExpression(method);
             sb.AppendLine($"                    return (command, {argsExpr});");
 
-            if (hasFileOrValue)
+            if (method.Parameters.Any(p => p.IsFileOrValue))
                 sb.AppendLine("                }");
         }
 
@@ -373,6 +386,230 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         GenerateCliSettings(sb, info, allExposedParams);
     }
 
+    private static void GenerateSuppliedParameterValidationCall(
+        StringBuilder sb,
+        ServiceInfo info,
+        List<ExposedParameter> allExposedParams,
+        string indent,
+        string? actionExpression = null)
+    {
+        if (allExposedParams.Count == 0)
+            return;
+
+        actionExpression ??= $"ToActionString(action)";
+        sb.AppendLine($"{indent}ValidateActionParameters(");
+        sb.AppendLine($"{indent}    {actionExpression},");
+        sb.AppendLine($"{indent}    ServiceRegistry.GetSuppliedParameterNames(");
+        for (int i = 0; i < allExposedParams.Count; i++)
+        {
+            var parameter = allExposedParams[i];
+            var comma = i < allExposedParams.Count - 1 ? "," : "),";
+            sb.AppendLine($"{indent}        (\"{parameter.Name}\", {parameter.Name}){comma}");
+        }
+        sb.AppendLine($"{indent}    allowFileParameters: true);");
+    }
+
+    private static void GenerateFileOrValuePairValidation(
+        StringBuilder sb,
+        ServiceInfo info,
+        string indent)
+    {
+        foreach (var parameter in info.Methods
+                     .SelectMany(method => method.Parameters)
+                     .Where(parameter => parameter.IsFileOrValue)
+                     .GroupBy(parameter => parameter.Name, StringComparer.OrdinalIgnoreCase)
+                     .Select(group => group.First()))
+        {
+            sb.AppendLine(
+                $"{indent}Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ValidateFileOrValuePair({parameter.Name}, {parameter.Name}{parameter.FileSuffix}, \"{parameter.Name}\");");
+        }
+    }
+
+    private static void GenerateTimeoutValidation(
+        StringBuilder sb,
+        ServiceInfo info,
+        MethodInfo method,
+        string indent,
+        string? argsPrefix = null)
+    {
+        var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
+        foreach (var parameter in method.Parameters.Where(parameter => IsTimeSpanType(parameter.TypeName)))
+        {
+            var propertyName = parameter.ExposedName ?? parameter.Name;
+            var valueExpression = argsPrefix == null
+                ? propertyName
+                : $"{argsPrefix}.{StringHelper.ToPascalCase(propertyName)}";
+            sb.AppendLine(
+                $"{indent}Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ValidateTimeoutSeconds({valueExpression}, \"{propertyName}\", minimumSeconds: {minimumSeconds});");
+        }
+    }
+
+    private static void GenerateActionContractMethods(
+        StringBuilder sb,
+        ServiceInfo info,
+        List<ExposedParameter> allExposedParams)
+    {
+        sb.AppendLine("        /// <summary>Validates explicitly supplied parameters for an action.</summary>");
+        sb.AppendLine("        public static void ValidateActionParameters(");
+        sb.AppendLine("            string action,");
+        sb.AppendLine("            System.Collections.Generic.IEnumerable<string> suppliedParameters,");
+        sb.AppendLine("            bool allowFileParameters)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var validParameters = action switch");
+        sb.AppendLine("            {");
+        foreach (var method in info.Methods)
+        {
+            var serviceParameters = GetActionParameterNames(method, includeFileParameters: false);
+            var routeParameters = GetActionParameterNames(method, includeFileParameters: true);
+            if (serviceParameters.SequenceEqual(routeParameters, StringComparer.Ordinal))
+            {
+                sb.AppendLine($"                \"{method.ActionName}\" => {BuildStringArrayExpression(serviceParameters)},");
+            }
+            else
+            {
+                sb.AppendLine($"                \"{method.ActionName}\" => allowFileParameters");
+                sb.AppendLine($"                    ? {BuildStringArrayExpression(routeParameters)}");
+                sb.AppendLine($"                    : {BuildStringArrayExpression(serviceParameters)},");
+            }
+        }
+        sb.AppendLine("                _ => throw new System.ArgumentException($\"Unknown action: {action}\")");
+        sb.AppendLine("            };");
+        sb.AppendLine("            var validSet = new System.Collections.Generic.HashSet<string>(validParameters, System.StringComparer.Ordinal);");
+        sb.AppendLine("            var invalid = suppliedParameters");
+        sb.AppendLine("                .Where(parameter => !validSet.Contains(parameter))");
+        sb.AppendLine("                .Distinct(System.StringComparer.Ordinal)");
+        sb.AppendLine("                .OrderBy(parameter => parameter, System.StringComparer.Ordinal)");
+        sb.AppendLine("                .ToArray();");
+        sb.AppendLine("            if (invalid.Length > 0)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                throw new System.ArgumentException(");
+        sb.AppendLine("                    $\"Parameter(s) {string.Join(\", \", invalid)} are not valid for action '{action}'.\");");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        sb.AppendLine("        /// <summary>Validates raw service arguments before Core dispatch.</summary>");
+        sb.AppendLine("        public static void ValidateActionArguments(string action, string? argsJson)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var rawPropertyNames = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true);");
+        sb.AppendLine(
+            $"            var canonicalPropertyNames = new System.Collections.Generic.HashSet<string>({BuildStringArrayExpression(allExposedParams.Select(parameter => parameter.Name).ToList())}, System.StringComparer.Ordinal);");
+        sb.AppendLine("            var invalidPropertyNames = rawPropertyNames");
+        sb.AppendLine("                .Where(parameter => !canonicalPropertyNames.Contains(parameter))");
+        sb.AppendLine("                .Distinct(System.StringComparer.Ordinal)");
+        sb.AppendLine("                .OrderBy(parameter => parameter, System.StringComparer.Ordinal)");
+        sb.AppendLine("                .ToArray();");
+        sb.AppendLine("            if (invalidPropertyNames.Length > 0)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                throw new System.ArgumentException(");
+        sb.AppendLine("                    $\"Unknown or non-canonical parameter(s): {string.Join(\", \", invalidPropertyNames)}.\");");
+        sb.AppendLine("            }");
+        sb.AppendLine("            ValidateActionParameters(action, rawPropertyNames, allowFileParameters: true);");
+        var validatedMethods = info.Methods
+            .Where(method => method.Parameters.Count > 0)
+            .ToList();
+        if (validatedMethods.Count > 0)
+        {
+            sb.AppendLine("            switch (action)");
+            sb.AppendLine("            {");
+            foreach (var method in validatedMethods)
+            {
+                sb.AppendLine($"                case \"{method.ActionName}\":");
+                sb.AppendLine("                {");
+                foreach (var parameter in method.Parameters.Where(parameter =>
+                             IsRequiredParameter(parameter) &&
+                             parameter.AllowsEmptyString))
+                {
+                    var propertyName = parameter.ExposedName ?? parameter.Name;
+                    sb.AppendLine(
+                        $"                    ServiceRegistry.RequireJsonStringArgument(argsJson, \"{propertyName}\", \"{method.ActionName}\");");
+                }
+                sb.AppendLine($"                    var args = DeserializeArgs<{method.MethodName}Args>(argsJson);");
+                foreach (var parameter in method.Parameters.Where(parameter => parameter.IsFileOrValue))
+                {
+                    var pascalName = StringHelper.ToPascalCase(parameter.Name);
+                    sb.AppendLine(
+                        $"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ValidateFileOrValueInput(args.{pascalName}, args.{pascalName}{parameter.FileSuffix}, \"{parameter.Name}\", required: {(IsRequiredParameter(parameter) ? "true" : "false")});");
+                }
+                var requiredStringParameters = method.Parameters
+                    .Where(parameter =>
+                        !parameter.IsFileOrValue &&
+                        !parameter.IsEnum &&
+                        StringHelper.IsStringType(parameter.TypeName) &&
+                        IsRequiredParameter(parameter) &&
+                        !parameter.AllowsEmptyString)
+                    .ToList();
+                if (requiredStringParameters.Count > 0)
+                {
+                    sb.AppendLine(
+                        $"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireAllNotEmpty(\"{method.ActionName}\",");
+                    for (int i = 0; i < requiredStringParameters.Count; i++)
+                    {
+                        var parameter = requiredStringParameters[i];
+                        var propertyName = parameter.ExposedName ?? parameter.Name;
+                        var propertyExpression = $"args.{StringHelper.ToPascalCase(propertyName)}";
+                        var comma = i < requiredStringParameters.Count - 1 ? "," : ");";
+                        sb.AppendLine(
+                            $"                        ({propertyExpression}, \"{propertyName}\"){comma}");
+                    }
+                }
+                foreach (var parameter in method.Parameters.Where(parameter =>
+                             !parameter.IsFileOrValue &&
+                             !parameter.IsEnum &&
+                             !StringHelper.IsStringType(parameter.TypeName) &&
+                             IsRequiredParameter(parameter)))
+                {
+                    var propertyName = parameter.ExposedName ?? parameter.Name;
+                    var propertyExpression = $"args.{StringHelper.ToPascalCase(propertyName)}";
+                    sb.AppendLine($"                    if ({propertyExpression} is null)");
+                    sb.AppendLine(
+                        $"                        throw new System.ArgumentException(\"{propertyName} is required for {method.ActionName} action.\", \"{propertyName}\");");
+                }
+                foreach (var parameter in method.Parameters.Where(p => p.IsEnum))
+                {
+                    var propertyName = parameter.IsFromString && parameter.ExposedName != null
+                        ? parameter.ExposedName
+                        : parameter.Name;
+                    var propertyExpression = $"args.{StringHelper.ToPascalCase(propertyName)}";
+                    if (IsRequiredParameter(parameter))
+                    {
+                        sb.AppendLine($"                    if (string.IsNullOrWhiteSpace({propertyExpression}))");
+                        sb.AppendLine($"                        throw new System.ArgumentException(\"{propertyName} is required for {method.ActionName} action.\", \"{propertyName}\");");
+                    }
+                    GenerateEnumValidationStatement(sb, parameter, propertyExpression, propertyName, "                    ");
+                }
+                GenerateTimeoutValidation(sb, info, method, "                    ", argsPrefix: "args");
+                sb.AppendLine("                    break;");
+                sb.AppendLine("                }");
+            }
+            sb.AppendLine("                }");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine();
+    }
+
+    private static List<string> GetActionParameterNames(MethodInfo method, bool includeFileParameters)
+    {
+        var result = new List<string>();
+        foreach (var parameter in method.Parameters)
+        {
+            result.Add(parameter.ExposedName ?? parameter.Name);
+            if (includeFileParameters && parameter.IsFileOrValue && parameter.FileSuffix != null)
+            {
+                result.Add(parameter.Name + parameter.FileSuffix);
+            }
+        }
+        return result;
+    }
+
+    private static string BuildStringArrayExpression(List<string> values)
+    {
+        if (values.Count == 0)
+            return "System.Array.Empty<string>()";
+
+        return $"new[] {{ {string.Join(", ", values.Select(value => $"\"{value}\""))} }}";
+    }
+
     private static void GenerateRouteFromSettings(StringBuilder sb, ServiceInfo info, List<ExposedParameter> allExposedParams)
     {
         sb.AppendLine("        /// <summary>");
@@ -381,6 +618,20 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        /// </summary>");
         sb.AppendLine("        public static (string Command, object? Args) RouteFromSettings(string action, CliSettings settings)");
         sb.AppendLine("        {");
+        if (allExposedParams.Count > 0)
+        {
+            sb.AppendLine("            ValidateActionParameters(");
+            sb.AppendLine("                action,");
+            sb.AppendLine("                ServiceRegistry.GetSuppliedParameterNames(");
+            for (int i = 0; i < allExposedParams.Count; i++)
+            {
+                var parameter = allExposedParams[i];
+                var comma = i < allExposedParams.Count - 1 ? "," : "),";
+                sb.AppendLine(
+                    $"                    (\"{parameter.Name}\", settings.{StringHelper.ToPascalCase(parameter.Name)}){comma}");
+            }
+            sb.AppendLine("                allowFileParameters: true);");
+        }
         sb.AppendLine("            return RouteCliArgs(");
         sb.AppendLine("                action,");
 
@@ -388,8 +639,15 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             var p = allExposedParams[i];
             var comma = i < allExposedParams.Count - 1 ? "," : ");";
+            var parameterInfo = FindParameterInfo(info, p.Name);
 
-            if (IsNestedCollectionType(p.TypeName))
+            if (parameterInfo is { IsEnum: true, IsFromString: false })
+            {
+                var enumType = parameterInfo.EnumTypeName ?? parameterInfo.TypeName.TrimEnd('?');
+                sb.AppendLine(
+                    $"                {p.Name}: !string.IsNullOrEmpty(settings.{StringHelper.ToPascalCase(p.Name)}) ? ({enumType}?)ServiceRegistry.ParseEnumValue<{enumType}>(settings.{StringHelper.ToPascalCase(p.Name)}, default, \"{p.Name}\"{BuildEnumAliasArguments(parameterInfo)}) : null{comma}");
+            }
+            else if (IsNestedCollectionType(p.TypeName))
             {
                 // CLI Settings stores nested collections as string (JSON).
                 // Deserialize back to the original type for RouteCliArgs.
@@ -405,10 +663,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 // Deserialize back to the original type for RouteCliArgs.
                 var nonNullableType = p.TypeName.TrimEnd('?');
                 sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeList<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
-            }
-            else if (IsTimeSpanType(p.TypeName))
-            {
-                sb.AppendLine($"                {p.Name}: Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ParseTimeSpanOrSeconds(settings.{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\"){comma}");
             }
             else
             {
@@ -506,11 +760,19 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             // raw JSON. LLMs pass JSON arrays instead of repeated CLI flags.
             // Deserialized back to the original type in RouteFromSettings.
             var isCollectionForJson = IsNestedCollectionType(p.TypeName) || IsSimpleListType(p.TypeName);
-            var cliTypeName = isCollectionForJson || IsTimeSpanType(p.TypeName) ? "string?" : p.TypeName;
+            var parameterInfo = FindParameterInfo(info, p.Name);
+            var isTimeoutSeconds = parameterInfo != null && IsTimeSpanType(parameterInfo.TypeName);
+            var cliTypeName = isCollectionForJson ||
+                              parameterInfo is { IsEnum: true, IsFromString: false }
+                ? "string?"
+                : p.TypeName;
             if (isCollectionForJson && !escapedDescription.Contains("JSON"))
                 escapedDescription += " (JSON format)";
-            if (IsTimeSpanType(p.TypeName) && escapedDescription.IndexOf("seconds", StringComparison.OrdinalIgnoreCase) < 0)
-                escapedDescription += " Accepts seconds (e.g. 600) or TimeSpan format (e.g. 00:10:00).";
+            if (isTimeoutSeconds && escapedDescription.IndexOf("seconds", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
+                escapedDescription += $" Whole seconds only; range {minimumSeconds}-2147483.";
+            }
 
             // Add short aliases for backward compatibility with pre-generator CLI parameter names
             var shortAlias = GetShortAlias(p.Name);
@@ -533,6 +795,17 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
     }
 
+    private static ParameterInfo? FindParameterInfo(ServiceInfo info, string exposedName)
+    {
+        return info.Methods
+            .SelectMany(method => method.Parameters)
+            .FirstOrDefault(parameter =>
+                string.Equals(
+                    parameter.ExposedName ?? parameter.Name,
+                    exposedName,
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string BuildCliArgsExpression(MethodInfo method)
     {
         if (method.Parameters.Count == 0)
@@ -541,13 +814,16 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         var props = new List<string>();
         foreach (var p in method.Parameters)
         {
-            string valueName;
             if (p.IsFileOrValue)
             {
-                // Use resolved variable (ResolveFileOrValue applied in RouteCliArgs)
-                valueName = $"resolved{StringHelper.ToPascalCase(p.Name)}";
+                var fileValueJsonName = char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1);
+                props.Add($"{fileValueJsonName} = {p.Name}");
+                props.Add($"{fileValueJsonName}{p.FileSuffix} = {p.Name}{p.FileSuffix}");
+                continue;
             }
-            else if (p.IsFromString && p.ExposedName != null)
+
+            string valueName;
+            if (p.IsFromString && p.ExposedName != null)
             {
                 // CLI passes string directly to service using exposed name
                 valueName = p.ExposedName;
@@ -581,6 +857,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 methodParams.Add($"string? {p.Name} = null");
                 methodParams.Add($"string? {p.Name}{p.FileSuffix} = null");
             }
+            else if (IsTimeSpanType(p.TypeName))
+            {
+                var defaultStr = p.HasDefault ? " = null" : "";
+                methodParams.Add($"int? {p.Name}{defaultStr}");
+            }
             else if (p.IsFromString && p.IsEnum)
             {
                 // Expose as string
@@ -600,18 +881,22 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static string Forward{method.MethodName}({string.Join(", ", methodParams)})");
         sb.AppendLine("        {");
 
-        // Generate transforms (only for FileOrValue parameters)
-        // Note: FromString enum parameters are passed as-is to the service (service does parsing)
+        // FromString enum parameters are passed as-is to the service (service does parsing).
         foreach (var p in method.Parameters)
         {
-            if (p.IsFileOrValue)
+            if (p.IsFromString && p.IsEnum)
             {
-                sb.AppendLine($"            var resolved{StringHelper.ToPascalCase(p.Name)} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue({p.Name}, {p.Name}{p.FileSuffix});");
+                var exposedName = p.ExposedName ?? p.Name;
+                GenerateEnumValidationStatement(sb, p, exposedName, exposedName, "            ");
             }
-            // FromString enum parameters: pass raw string to service (no pre-parsing)
+            else if (p.IsEnum)
+            {
+                GenerateTypedEnumValidationStatement(sb, p, p.Name, p.Name, "            ");
+            }
         }
 
-        GenerateRequiredParameterValidation(sb, method, "            ");
+        GenerateTimeoutValidation(sb, info, method, "            ");
+        GenerateRequiredParameterValidation(sb, method, "            ", includeFileOrValue: false);
 
         // Build the request object - always use method-specific command constant
         if (method.Parameters.Count == 0)
@@ -624,12 +909,15 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine("            {");
             foreach (var p in method.Parameters)
             {
-                string valueExpr;
                 if (p.IsFileOrValue)
                 {
-                    valueExpr = $"resolved{StringHelper.ToPascalCase(p.Name)}";
+                    sb.AppendLine($"                {StringHelper.ToPascalCase(p.Name)} = {p.Name},");
+                    sb.AppendLine($"                {StringHelper.ToPascalCase(p.Name)}{p.FileSuffix} = {p.Name}{p.FileSuffix},");
+                    continue;
                 }
-                else if (p.IsFromString && p.ExposedName != null)
+
+                string valueExpr;
+                if (p.IsFromString && p.ExposedName != null)
                 {
                     // FromString parameters: pass the exposed name (raw string) to service
                     valueExpr = p.ExposedName;
@@ -649,32 +937,130 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
-    private static void GenerateRequiredParameterValidation(StringBuilder sb, MethodInfo method, string indent)
+    private static void GenerateEnumValidationStatement(
+        StringBuilder sb,
+        ParameterInfo parameter,
+        string valueExpression,
+        string exposedName,
+        string indent)
+    {
+        var enumType = parameter.EnumTypeName ?? parameter.TypeName.TrimEnd('?');
+        var defaultExpression = parameter.HasDefault &&
+                                parameter.DefaultValue != null &&
+                                parameter.DefaultValue != "null"
+            ? parameter.DefaultValue
+            : $"default({enumType})";
+        var parseCall =
+            $"ServiceRegistry.ParseEnumValue<{enumType}>({valueExpression}, {defaultExpression}, \"{exposedName}\"{BuildEnumAliasArguments(parameter)})";
+
+        if (parameter.TypeName.EndsWith("?"))
+        {
+            sb.AppendLine($"{indent}if (!string.IsNullOrEmpty({valueExpression}))");
+            sb.AppendLine($"{indent}    _ = {parseCall};");
+        }
+        else
+        {
+            sb.AppendLine($"{indent}_ = {parseCall};");
+        }
+    }
+
+    private static string BuildEnumAliasArguments(ParameterInfo parameter)
+    {
+        if (parameter.EnumAliases.Count == 0 || parameter.EnumTypeName == null)
+            return string.Empty;
+
+        return ", " + string.Join(
+            ", ",
+            parameter.EnumAliases.Select(alias =>
+                $"(\"{EscapeStringLiteral(alias.Alias)}\", {parameter.EnumTypeName}.{alias.MemberName})"));
+    }
+
+    private static void GenerateTypedEnumValidationStatement(
+        StringBuilder sb,
+        ParameterInfo parameter,
+        string valueExpression,
+        string parameterName,
+        string indent)
+    {
+        var enumType = parameter.EnumTypeName ?? parameter.TypeName.TrimEnd('?');
+        sb.AppendLine($"{indent}ServiceRegistry.ValidateEnumValue<{enumType}>({valueExpression}, \"{parameterName}\");");
+    }
+
+    private static string EscapeStringLiteral(string value)
+    {
+        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+    }
+
+    private static void GenerateRequiredParameterValidation(
+        StringBuilder sb,
+        MethodInfo method,
+        string indent,
+        bool includeFileOrValue = true)
     {
         var requiredParameters = method.Parameters
             .Where(p =>
-                (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) &&
-                (p.IsFileOrValue || StringHelper.IsStringType(p.TypeName) || (p.IsFromString && p.IsEnum)))
+                IsRequiredParameter(p) &&
+                !p.AllowsEmptyString &&
+                ((includeFileOrValue && p.IsFileOrValue) ||
+                 (!p.IsFileOrValue && StringHelper.IsStringType(p.TypeName)) ||
+                 (p.IsFromString && p.IsEnum)))
             .ToList();
 
-        if (requiredParameters.Count == 0)
+        if (requiredParameters.Count > 0)
         {
-            return;
+            sb.AppendLine($"{indent}Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireAllNotEmpty(\"{method.ActionName}\",");
+            for (int i = 0; i < requiredParameters.Count; i++)
+            {
+                var parameter = requiredParameters[i];
+                var parameterName = parameter.IsFromString && parameter.IsEnum
+                    ? parameter.ExposedName ?? parameter.Name
+                    : parameter.Name;
+                var valueExpression = parameter.IsFileOrValue
+                    ? $"resolved{StringHelper.ToPascalCase(parameter.Name)}"
+                    : parameterName;
+                var comma = i < requiredParameters.Count - 1 ? "," : ");";
+                sb.AppendLine($"{indent}    ({valueExpression}, \"{parameterName}\"){comma}");
+            }
         }
 
-        sb.AppendLine($"{indent}Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireAllNotEmpty(\"{method.ActionName}\",");
-        for (int i = 0; i < requiredParameters.Count; i++)
+        foreach (var parameter in method.Parameters.Where(p =>
+                     IsRequiredParameter(p) &&
+                     p.AllowsEmptyString))
         {
-            var parameter = requiredParameters[i];
-            var parameterName = parameter.IsFromString && parameter.IsEnum
-                ? parameter.ExposedName ?? parameter.Name
-                : parameter.Name;
-            var valueExpression = parameter.IsFileOrValue
-                ? $"resolved{StringHelper.ToPascalCase(parameter.Name)}"
-                : parameterName;
-            var comma = i < requiredParameters.Count - 1 ? "," : ");";
-            sb.AppendLine($"{indent}    ({valueExpression}, \"{parameterName}\"){comma}");
+            var parameterName = parameter.ExposedName ?? parameter.Name;
+            sb.AppendLine($"{indent}if ({parameterName} is null)");
+            sb.AppendLine(
+                $"{indent}    throw new System.ArgumentException(\"{parameterName} is required for {method.ActionName} action.\", \"{parameterName}\");");
         }
+
+        foreach (var parameter in method.Parameters.Where(p =>
+                     IsRequiredParameter(p) &&
+                     !p.IsFileOrValue &&
+                     !StringHelper.IsStringType(p.TypeName) &&
+                     !(p.IsFromString && p.IsEnum)))
+        {
+            var parameterName = parameter.ExposedName ?? parameter.Name;
+            sb.AppendLine($"{indent}if ({parameterName} is null)");
+            sb.AppendLine(
+                $"{indent}    throw new System.ArgumentException(\"{parameterName} is required for {method.ActionName} action.\", \"{parameterName}\");");
+        }
+
+        foreach (var parameter in method.Parameters.Where(p =>
+                     p.IsEnum &&
+                     !p.IsFromString &&
+                     IsRequiredParameter(p)))
+        {
+            sb.AppendLine($"{indent}if (!{parameter.Name}.HasValue)");
+            sb.AppendLine($"{indent}    throw new System.ArgumentException(\"{parameter.Name} is required for {method.ActionName} action.\", \"{parameter.Name}\");");
+        }
+    }
+
+    private static bool IsRequiredParameter(ParameterInfo parameter)
+    {
+        return parameter.IsRequired ||
+               (!parameter.HasDefault &&
+                !parameter.TypeName.EndsWith("?") &&
+                !parameter.IsParams);
     }
 
     private static void GenerateArgsClass(StringBuilder sb, MethodInfo method)
@@ -692,6 +1078,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             var pascalName = StringHelper.ToPascalCase(propertyName);
             var argsType = MakeArgsPropertyType(p);
             sb.AppendLine($"            public {argsType} {pascalName} {{ get; set; }}");
+            if (p.IsFileOrValue)
+            {
+                sb.AppendLine(
+                    $"            public string? {StringHelper.ToPascalCase(p.Name)}{p.FileSuffix} {{ get; set; }}");
+            }
         }
         sb.AppendLine("        }");
         sb.AppendLine();
@@ -704,7 +1095,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     /// </summary>
     private static string MakeArgsPropertyType(ParameterInfo p)
     {
-        // Enums are kept as string? so service handlers can use existing Parse* methods
+        if (IsTimeSpanType(p.TypeName))
+            return "int?";
+
+        // Enums and FileOrValue inputs stay strings so service handlers can normalize them.
         if (p.IsFromString || p.IsFileOrValue || p.IsEnum)
             return "string?";
 
@@ -723,7 +1117,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             foreach (var p in method.Parameters)
             {
-                var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
+                var isRequired = IsRequiredParameter(p);
 
                 if (p.IsFileOrValue)
                 {
@@ -738,10 +1132,21 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                     }
                     if (isRequired)
                         result[p.Name].RequiredByActions.Add(method.ActionName);
+                    if (!result[p.Name].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                        result[p.Name].ApplicableByActions.Add(method.ActionName);
 
                     var fileParamName = $"{p.Name}{p.FileSuffix}";
-                    if (!result.ContainsKey(fileParamName))
-                        result[fileParamName] = new ExposedParameter(fileParamName, "string?", $"Path to file containing {p.Name}", "null");
+                    if (!result.TryGetValue(fileParamName, out var fileParameter))
+                    {
+                        fileParameter = new ExposedParameter(
+                            fileParamName,
+                            "string?",
+                            $"Path to a readable file containing {p.Name}; use instead of inline {p.Name}, not together",
+                            "null");
+                        result[fileParamName] = fileParameter;
+                    }
+                    if (!fileParameter.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                        fileParameter.ApplicableByActions.Add(method.ActionName);
                 }
                 else if (p.IsFromString && p.IsEnum)
                 {
@@ -756,21 +1161,26 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                     }
                     if (isRequired)
                         result[exposedName].RequiredByActions.Add(method.ActionName);
+                    if (!result[exposedName].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                        result[exposedName].ApplicableByActions.Add(method.ActionName);
                 }
                 else
                 {
                     if (!result.TryGetValue(p.Name, out var existing) ||
                         (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
                     {
-                        var typeName = p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
-                        var defaultVal = p.HasDefault ? p.DefaultValue : "null";
-                        var ep = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, defaultVal);
+                        var typeName = IsTimeSpanType(p.TypeName)
+                            ? "int?"
+                            : p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
+                        var ep = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, "null");
                         if (result.TryGetValue(p.Name, out var prev))
                             ep.RequiredByActions.AddRange(prev.RequiredByActions);
                         result[p.Name] = ep;
                     }
                     if (isRequired)
                         result[p.Name].RequiredByActions.Add(method.ActionName);
+                    if (!result[p.Name].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                        result[p.Name].ApplicableByActions.Add(method.ActionName);
                 }
             }
         }
@@ -879,6 +1289,45 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
+    private static string GenerateContractRegistry(List<ServiceInfo> categories)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("#pragma warning disable CS1591");
+        sb.AppendLine();
+        sb.AppendLine("namespace Sbroenne.ExcelMcp.Generated;");
+        sb.AppendLine();
+        sb.AppendLine("public static partial class ServiceRegistry");
+        sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>Validates a generated service command before transport dispatch.</summary>");
+        sb.AppendLine("    public static void ValidateCommandArguments(string command, string? argsJson)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var parts = command.Split('.', 2);");
+        sb.AppendLine("        if (parts.Length != 2) return;");
+        sb.AppendLine("        switch (parts[0])");
+        sb.AppendLine("        {");
+        foreach (var categoryGroup in categories
+                     .GroupBy(category => category.Category, StringComparer.Ordinal)
+                     .OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"            case \"{categoryGroup.Key}\":");
+            foreach (var category in categoryGroup)
+            {
+                sb.AppendLine($"                if ({category.CategoryPascal}.ValidActions.Contains(parts[1], System.StringComparer.OrdinalIgnoreCase))");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    {category.CategoryPascal}.ValidateActionArguments(parts[1], argsJson);");
+                sb.AppendLine("                    break;");
+                sb.AppendLine("                }");
+            }
+            sb.AppendLine($"                throw new System.ArgumentException($\"Unknown action: {{parts[1]}}\");");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
     private static string GenerateCliManifest(List<ServiceInfo> categories)
     {
         var sb = new StringBuilder();
@@ -979,13 +1428,21 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
             // Build required-by-actions map for each param
             var paramRequiredMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var paramApplicableMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var totalActions = cat.Methods.Count;
             foreach (var method in cat.Methods)
             {
                 foreach (var p in method.Parameters)
                 {
-                    var pName = p.ExposedName ?? StringHelper.ToKebabCase(p.Name);
-                    var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
+                    var pName = StringHelper.ToKebabCase(p.ExposedName ?? p.Name);
+                    if (!paramApplicableMap.TryGetValue(pName, out var applicableActions))
+                    {
+                        applicableActions = new List<string>();
+                        paramApplicableMap[pName] = applicableActions;
+                    }
+                    applicableActions.Add(method.ActionName);
+
+                    var isRequired = IsRequiredParameter(p);
                     if (isRequired)
                     {
                         if (!paramRequiredMap.TryGetValue(pName, out var reqActions))
@@ -1021,6 +1478,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                     var suffix = requiredActions.Count == totalActions
                         ? "(required)"
                         : $"(required for: {string.Join(", ", requiredActions)})";
+                    baseDescription = string.IsNullOrEmpty(baseDescription) ? suffix : $"{baseDescription} {suffix}";
+                }
+                if (paramApplicableMap.TryGetValue(paramName, out var applicableActions) &&
+                    applicableActions.Count < totalActions)
+                {
+                    var suffix = $"(valid for: {string.Join(", ", applicableActions)})";
                     baseDescription = string.IsNullOrEmpty(baseDescription) ? suffix : $"{baseDescription} {suffix}";
                 }
 
@@ -1091,15 +1554,78 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        return System.Text.Json.JsonSerializer.Deserialize<T>(argsJson, DispatchJsonOptions) ?? new T();");
         sb.AppendLine("    }");
         sb.AppendLine();
+        sb.AppendLine("    /// <summary>Requires a named raw JSON argument to be present as a string; the empty string is valid.</summary>");
+        sb.AppendLine("    public static void RequireJsonStringArgument(string? argsJson, string parameterName, string action)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        using var document = System.Text.Json.JsonDocument.Parse(argsJson ?? \"{}\");");
+        sb.AppendLine("        if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object");
+        sb.AppendLine("            || !document.RootElement.TryGetProperty(parameterName, out var value)");
+        sb.AppendLine("            || value.ValueKind != System.Text.Json.JsonValueKind.String)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            throw new System.ArgumentException(");
+        sb.AppendLine("                $\"{parameterName} is required as a JSON string for {action} action.\",");
+        sb.AppendLine("                parameterName);");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// Parses an enum value from a string with kebab-case and snake_case support.");
-        sb.AppendLine("    /// Returns defaultValue if the string is null, empty, or cannot be parsed.");
+        sb.AppendLine("    /// Parses an enum value from a string with kebab-case, snake_case, and explicit alias support.");
+        sb.AppendLine("    /// Returns defaultValue only when the value is omitted; unknown supplied values are rejected.");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    internal static T ParseEnumValue<T>(string? value, T defaultValue) where T : struct, System.Enum");
+        sb.AppendLine("    public static T ParseEnumValue<T>(");
+        sb.AppendLine("        string? value,");
+        sb.AppendLine("        T defaultValue,");
+        sb.AppendLine("        string parameterName,");
+        sb.AppendLine("        params (string Alias, T Value)[] aliases) where T : struct, System.Enum");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrEmpty(value)) return defaultValue;");
         sb.AppendLine("        var cleaned = value.Replace(\"-\", \"\").Replace(\"_\", \"\");");
-        sb.AppendLine("        return System.Enum.TryParse<T>(cleaned, ignoreCase: true, out var result) ? result : defaultValue;");
+        sb.AppendLine("        foreach (var enumName in System.Enum.GetNames<T>())");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var cleanedName = enumName.Replace(\"_\", \"\");");
+        sb.AppendLine("            if (string.Equals(cleaned, cleanedName, System.StringComparison.OrdinalIgnoreCase))");
+        sb.AppendLine("                return System.Enum.Parse<T>(enumName);");
+        sb.AppendLine("        }");
+        sb.AppendLine("        foreach (var alias in aliases)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (string.Equals(value, alias.Alias, System.StringComparison.OrdinalIgnoreCase))");
+        sb.AppendLine("                return alias.Value;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        var validValues = System.Enum.GetNames<T>().Concat(aliases.Select(alias => alias.Alias));");
+        sb.AppendLine("        throw new System.ArgumentException(");
+        sb.AppendLine("            $\"Invalid value '{value}' for parameter '{parameterName}'. Valid values: {string.Join(\", \", validValues)}.\",");
+        sb.AppendLine("            parameterName);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Rejects undefined values supplied through a typed enum transport.</summary>");
+        sb.AppendLine("    public static void ValidateEnumValue<T>(T? value, string parameterName) where T : struct, System.Enum");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (!value.HasValue || System.Enum.IsDefined(value.Value)) return;");
+        sb.AppendLine("        throw new System.ArgumentException(");
+        sb.AppendLine("            $\"Invalid value '{value.Value}' for parameter '{parameterName}'. Valid values: {string.Join(\", \", System.Enum.GetNames<T>())}.\",");
+        sb.AppendLine("            parameterName);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Returns parameter names whose category-wide values were explicitly supplied.</summary>");
+        sb.AppendLine("    public static System.Collections.Generic.IReadOnlyList<string> GetSuppliedParameterNames(");
+        sb.AppendLine("        params (string Name, object? Value)[] parameters)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return parameters.Where(parameter => parameter.Value != null).Select(parameter => parameter.Name).ToArray();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Returns property names explicitly present in a raw JSON arguments object.</summary>");
+        sb.AppendLine("    public static System.Collections.Generic.IReadOnlyList<string> GetJsonPropertyNames(");
+        sb.AppendLine("        string? argsJson,");
+        sb.AppendLine("        bool includeNullValues = false)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (string.IsNullOrWhiteSpace(argsJson)) return System.Array.Empty<string>();");
+        sb.AppendLine("        using var document = System.Text.Json.JsonDocument.Parse(argsJson);");
+        sb.AppendLine("        if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)");
+        sb.AppendLine("            throw new System.ArgumentException(\"Command arguments must be a JSON object.\", nameof(argsJson));");
+        sb.AppendLine("        return document.RootElement.EnumerateObject()");
+        sb.AppendLine("            .Where(property => includeNullValues || property.Value.ValueKind != System.Text.Json.JsonValueKind.Null)");
+        sb.AppendLine("            .Select(property => property.Name)");
+        sb.AppendLine("            .ToArray();");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
@@ -1187,6 +1713,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine("            Sbroenne.ExcelMcp.ComInterop.Session.IExcelBatch batch,");
         sb.AppendLine("            string? argsJson)");
         sb.AppendLine("        {");
+        sb.AppendLine("            ValidateActionArguments(ToActionString(action), argsJson);");
         sb.AppendLine("            switch (action)");
         sb.AppendLine("            {");
 
@@ -1220,10 +1747,31 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine($"                    var args = DeserializeArgs<{method.MethodName}Args>(argsJson);");
         }
 
+        foreach (var p in method.Parameters.Where(p => p.IsFileOrValue))
+        {
+            var pascalName = StringHelper.ToPascalCase(p.Name);
+            sb.AppendLine(
+                $"                    var resolved{pascalName} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue(args.{pascalName}, args.{pascalName}{p.FileSuffix}, \"{p.Name}\");");
+            if (IsRequiredParameter(p))
+            {
+                sb.AppendLine(
+                    $"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty(resolved{pascalName}, \"{p.Name}\", \"{method.ActionName}\");");
+            }
+        }
+
+        foreach (var p in method.Parameters.Where(p => IsTimeSpanType(p.TypeName)))
+        {
+            var propName = p.ExposedName ?? p.Name;
+            var pascalProp = StringHelper.ToPascalCase(propName);
+            var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
+            sb.AppendLine(
+                $"                    var {p.Name} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ParseTimeoutSeconds(args.{pascalProp}, \"{propName}\", minimumSeconds: {minimumSeconds});");
+        }
+
         foreach (var p in method.Parameters.Where(p =>
                      p.IsFromString &&
                      p.IsEnum &&
-                     (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?")))))
+                     IsRequiredParameter(p)))
         {
             var propName = p.ExposedName ?? p.Name;
             var pascalProp = StringHelper.ToPascalCase(propName);
@@ -1240,18 +1788,22 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
             if (isNullableEnum)
             {
-                sb.AppendLine($"                    var {p.Name} = !string.IsNullOrEmpty(args.{pascalProp}) ? ({enumType}?)ParseEnumValue<{enumType}>(args.{pascalProp}, default) : null;");
+                sb.AppendLine($"                    var {p.Name} = !string.IsNullOrEmpty(args.{pascalProp}) ? ({enumType}?)ParseEnumValue<{enumType}>(args.{pascalProp}, default, \"{propName}\"{BuildEnumAliasArguments(p)}) : null;");
             }
             else
             {
                 var defaultExpr = (p.HasDefault && p.DefaultValue != null) ? p.DefaultValue : $"default({enumType})";
-                sb.AppendLine($"                    var {p.Name} = ParseEnumValue<{enumType}>(args.{pascalProp}, {defaultExpr});");
+                sb.AppendLine($"                    var {p.Name} = ParseEnumValue<{enumType}>(args.{pascalProp}, {defaultExpr}, \"{propName}\"{BuildEnumAliasArguments(p)});");
             }
         }
 
         // Parse [FromString] non-enum, non-string parameters into local variables
         // These are stored as string? in args but need type conversion (e.g., bool?, TimeSpan?)
-        foreach (var p in method.Parameters.Where(p => p.IsFromString && !p.IsEnum && !StringHelper.IsStringType(p.TypeName)))
+        foreach (var p in method.Parameters.Where(p =>
+                     p.IsFromString &&
+                     !p.IsEnum &&
+                     !StringHelper.IsStringType(p.TypeName) &&
+                     !IsTimeSpanType(p.TypeName)))
         {
             var propName = p.ExposedName ?? p.Name;
             var pascalProp = StringHelper.ToPascalCase(propName);
@@ -1280,7 +1832,18 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var p in method.Parameters)
         {
-            if (p.IsEnum || (p.IsFromString && !StringHelper.IsStringType(p.TypeName)))
+            if (p.IsFileOrValue)
+            {
+                var resolvedName = $"resolved{StringHelper.ToPascalCase(p.Name)}";
+                callArgs.Add(p.TypeName.EndsWith("?") ? resolvedName : resolvedName + "!");
+            }
+            else if (IsTimeSpanType(p.TypeName))
+            {
+                callArgs.Add(p.TypeName.EndsWith("?")
+                    ? p.Name
+                    : $"{p.Name} ?? default(System.TimeSpan)");
+            }
+            else if (p.IsEnum || (p.IsFromString && !StringHelper.IsStringType(p.TypeName)))
             {
                 // Already parsed to local variable
                 callArgs.Add(p.Name);

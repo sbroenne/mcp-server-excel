@@ -6,7 +6,7 @@ Read, write, calculate, and format cells while managing worksheets, workbooks, n
 
 ---
 
-## 📁 File Operations (6 operations)
+## 📁 File Operations (5 operations)
 
 Open, create, and close Excel workbooks. Every other tool works on a session opened here.
 
@@ -14,9 +14,8 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **List Sessions:** View all active Excel sessions
 - **Open:** Open workbook and create session (returns session ID for all subsequent operations). IRM/AIP-protected files are automatically detected and opened read-only with Excel visible for credential authentication — no extra parameters needed.
 - **Close:** Close session with optional save
-- **Close Workbook:** Close workbook without closing Excel
 - **Create Empty:** Create new .xlsx or .xlsm workbook
-- **Test:** Verify workbook can be opened and is accessible. Returns `isIrmProtected` flag for IRM/AIP-protected files.
+- **Test:** Report existence, extension validity, openability, and IRM/AIP requirements through `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
 
 ---
 

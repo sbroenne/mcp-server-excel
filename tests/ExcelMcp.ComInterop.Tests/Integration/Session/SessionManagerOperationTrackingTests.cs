@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -215,28 +216,337 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
+    public void TrackExcelProcess_SynchronousPersistenceRunsBeforeReturn()
+    {
+        var persistenceObserved = false;
+        void PersistIdentity(ExcelProcessIdentity identity)
+        {
+            if (identity.ProcessId == Environment.ProcessId)
+            {
+                persistenceObserved = true;
+            }
+        }
+
+        ExcelProcessIdentity? trackedIdentity = null;
+        SessionManager.ExcelProcessIdentityTracked += PersistIdentity;
+        try
+        {
+            trackedIdentity = SessionManager.TrackExcelProcessIdentity(Environment.ProcessId);
+
+            Assert.True(persistenceObserved);
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityTracked -= PersistIdentity;
+            if (trackedIdentity is { } identity)
+            {
+                SessionManager.UntrackExcelProcess(identity);
+            }
+        }
+    }
+
+    [Fact]
+    public void TrackExcelProcess_SynchronousPersistenceFailurePropagates()
+    {
+        using var process = Process.GetCurrentProcess();
+        var identity = new ExcelProcessIdentity(
+            process.Id,
+            process.StartTime.ToUniversalTime().ToFileTimeUtc());
+        void FailPersistence(ExcelProcessIdentity _) =>
+            throw new IOException("synthetic durable persistence failure");
+
+        SessionManager.ExcelProcessIdentityTracked += FailPersistence;
+        try
+        {
+            var exception = Assert.ThrowsAny<InvalidOperationException>(() =>
+                SessionManager.TrackExcelProcess(identity));
+
+            Assert.Contains("persist", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.IsType<IOException>(exception.InnerException);
+            var persistenceException = Assert.IsType<ExcelProcessPersistenceException>(exception);
+            Assert.Equal(identity, persistenceException.Identity);
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityTracked -= FailPersistence;
+            SessionManager.UntrackExcelProcess(identity);
+        }
+    }
+
+    [Fact]
+    public void LegacyProcessTrackingMembers_RemainUsable()
+    {
+        using var notificationReceived = new ManualResetEventSlim();
+        void LegacySubscriber(IReadOnlyCollection<int> processIds)
+        {
+            if (processIds.Contains(Environment.ProcessId))
+            {
+                notificationReceived.Set();
+            }
+        }
+
+        SessionManager.TrackedExcelProcessesChanged += LegacySubscriber;
+        try
+        {
+            SessionManager.TrackExcelProcess(Environment.ProcessId);
+
+            Assert.True(notificationReceived.Wait(TimeSpan.FromSeconds(5)));
+            Assert.Contains(Environment.ProcessId, SessionManager.GetTrackedExcelProcessIds());
+        }
+        finally
+        {
+            SessionManager.TrackedExcelProcessesChanged -= LegacySubscriber;
+            SessionManager.UntrackExcelProcess(Environment.ProcessId);
+        }
+    }
+
+    [Fact]
+    public void TryTerminateOwnedProcess_MismatchedStartTime_DoesNotTerminateReusedPid()
+    {
+        using var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var staleIdentity = new ExcelProcessIdentity(
+            currentProcess.Id,
+            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc() + 1);
+
+        var terminated = ExcelBatch.TryTerminateOwnedProcess(
+            staleIdentity,
+            waitBeforeTermination: TimeSpan.Zero,
+            waitAfterTermination: TimeSpan.FromSeconds(1));
+
+        Assert.True(terminated);
+        Assert.False(currentProcess.HasExited);
+    }
+
+    [Fact]
+    public void FinalizeOwnedProcessTeardown_TerminationFailureRetainsExactIdentity()
+    {
+        using var currentProcess = Process.GetCurrentProcess();
+        var identity = new ExcelProcessIdentity(
+            currentProcess.Id,
+            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+        var unrelatedIdentity = identity with
+        {
+            StartedAtUtcFileTime = identity.StartedAtUtcFileTime - 1
+        };
+        SessionManager.TrackExcelProcess(identity);
+        SessionManager.TrackExcelProcess(unrelatedIdentity);
+        ExcelProcessIdentity? observedIdentity = null;
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() =>
+                ExcelBatch.FinalizeOwnedProcessTeardown(
+                    identity,
+                    candidate =>
+                    {
+                        observedIdentity = candidate;
+                        return false;
+                    }));
+
+            Assert.Equal(identity, observedIdentity);
+            Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains(unrelatedIdentity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains(
+                identity.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                exception.Message,
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            SessionManager.UntrackExcelProcess(identity);
+            SessionManager.UntrackExcelProcess(unrelatedIdentity);
+        }
+    }
+
+    [Fact]
+    public void FinalizeOwnedProcessTeardown_ConfirmedExitUntracksOnlyExactIdentity()
+    {
+        using var currentProcess = Process.GetCurrentProcess();
+        var identity = new ExcelProcessIdentity(
+            currentProcess.Id,
+            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+        var unrelatedIdentity = identity with
+        {
+            StartedAtUtcFileTime = identity.StartedAtUtcFileTime - 1
+        };
+        SessionManager.TrackExcelProcess(identity);
+        SessionManager.TrackExcelProcess(unrelatedIdentity);
+
+        try
+        {
+            ExcelBatch.FinalizeOwnedProcessTeardown(identity, candidate => candidate == identity);
+
+            Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains(unrelatedIdentity, SessionManager.GetTrackedExcelProcesses());
+            Assert.False(currentProcess.HasExited);
+        }
+        finally
+        {
+            SessionManager.UntrackExcelProcess(identity);
+            SessionManager.UntrackExcelProcess(unrelatedIdentity);
+        }
+    }
+
+    [Fact]
+    public void FinalizeFailedStartupOwnedProcess_ConfirmedExitUntracksExactIdentity()
+    {
+        using var currentProcess = Process.GetCurrentProcess();
+        var identity = new ExcelProcessIdentity(
+            currentProcess.Id,
+            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+        var unrelatedIdentity = identity with
+        {
+            StartedAtUtcFileTime = identity.StartedAtUtcFileTime - 1
+        };
+        SessionManager.TrackExcelProcess(identity);
+        SessionManager.TrackExcelProcess(unrelatedIdentity);
+
+        try
+        {
+            ExcelBatch.FinalizeFailedStartupOwnedProcess(
+                identity,
+                _ => false,
+                candidate => candidate == identity);
+
+            Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains(unrelatedIdentity, SessionManager.GetTrackedExcelProcesses());
+            Assert.False(currentProcess.HasExited);
+        }
+        finally
+        {
+            SessionManager.UntrackExcelProcess(identity);
+            SessionManager.UntrackExcelProcess(unrelatedIdentity);
+        }
+    }
+
+    [Fact]
+    public void FinalizeFailedStartupOwnedProcess_LiveUnkillableIdentityRemainsTracked()
+    {
+        using var currentProcess = Process.GetCurrentProcess();
+        var identity = new ExcelProcessIdentity(
+            currentProcess.Id,
+            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+        SessionManager.TrackExcelProcess(identity);
+        ExcelProcessIdentity? terminationCandidate = null;
+        ExcelProcessIdentity? confirmationCandidate = null;
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() =>
+                ExcelBatch.FinalizeFailedStartupOwnedProcess(
+                    identity,
+                    candidate =>
+                    {
+                        terminationCandidate = candidate;
+                        return false;
+                    },
+                    candidate =>
+                    {
+                        confirmationCandidate = candidate;
+                        return false;
+                    }));
+
+            Assert.Equal(identity, terminationCandidate);
+            Assert.Equal(identity, confirmationCandidate);
+            Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains("remains tracked", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(currentProcess.HasExited);
+        }
+        finally
+        {
+            SessionManager.UntrackExcelProcess(identity);
+        }
+    }
+
+    [Fact]
+    public void UntrackExcelProcess_OldIdentityDoesNotRemoveReusedPidIdentity()
+    {
+        using var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var replacementIdentity = new ExcelProcessIdentity(
+            currentProcess.Id,
+            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+        var oldIdentity = replacementIdentity with
+        {
+            StartedAtUtcFileTime = replacementIdentity.StartedAtUtcFileTime - 1
+        };
+
+        SessionManager.TrackExcelProcess(oldIdentity);
+        SessionManager.TrackExcelProcess(replacementIdentity);
+        try
+        {
+            SessionManager.UntrackExcelProcess(oldIdentity);
+
+            Assert.DoesNotContain(oldIdentity, SessionManager.GetTrackedExcelProcesses());
+            Assert.Contains(replacementIdentity, SessionManager.GetTrackedExcelProcesses());
+        }
+        finally
+        {
+            SessionManager.UntrackExcelProcess(oldIdentity);
+            SessionManager.UntrackExcelProcess(replacementIdentity);
+        }
+    }
+
+    [Fact]
+    public void TrackExcelProcess_NotificationIncludesCapturedStartTime()
+    {
+        using var notificationReceived = new ManualResetEventSlim();
+        ExcelProcessIdentity? observedIdentity = null;
+        void CaptureSubscriber(IReadOnlyCollection<ExcelProcessIdentity> processes)
+        {
+            observedIdentity = processes.Single(process => process.ProcessId == Environment.ProcessId);
+            notificationReceived.Set();
+        }
+
+        using var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var expectedStartTime = currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc();
+        ExcelProcessIdentity? trackedIdentity = null;
+        SessionManager.TrackedExcelProcessIdentitiesChanged += CaptureSubscriber;
+        try
+        {
+            trackedIdentity = SessionManager.TrackExcelProcessIdentity(Environment.ProcessId);
+
+            Assert.True(notificationReceived.Wait(TimeSpan.FromSeconds(5)));
+            Assert.Equal(
+                new ExcelProcessIdentity(Environment.ProcessId, expectedStartTime),
+                observedIdentity);
+        }
+        finally
+        {
+            SessionManager.TrackedExcelProcessIdentitiesChanged -= CaptureSubscriber;
+            if (trackedIdentity is { } identity)
+            {
+                SessionManager.UntrackExcelProcess(identity);
+            }
+        }
+    }
+
+    [Fact]
     public void TrackExcelProcess_SubscriberFailure_DoesNotBreakSessionLifecycle()
     {
         using var notificationReceived = new ManualResetEventSlim();
-        void ThrowingSubscriber(IReadOnlyCollection<int> _)
+        void ThrowingSubscriber(IReadOnlyCollection<ExcelProcessIdentity> _)
         {
             notificationReceived.Set();
             throw new InvalidOperationException("Simulated tracker failure.");
         }
 
-        SessionManager.TrackedExcelProcessesChanged += ThrowingSubscriber;
+        SessionManager.TrackedExcelProcessIdentitiesChanged += ThrowingSubscriber;
+        ExcelProcessIdentity? trackedIdentity = null;
         try
         {
             var exception = Record.Exception(() =>
-                SessionManager.TrackExcelProcess(Environment.ProcessId));
+                trackedIdentity = SessionManager.TrackExcelProcessIdentity(Environment.ProcessId));
 
             Assert.Null(exception);
             Assert.True(notificationReceived.Wait(TimeSpan.FromSeconds(5)));
         }
         finally
         {
-            SessionManager.TrackedExcelProcessesChanged -= ThrowingSubscriber;
-            SessionManager.UntrackExcelProcess(Environment.ProcessId);
+            SessionManager.TrackedExcelProcessIdentitiesChanged -= ThrowingSubscriber;
+            if (trackedIdentity is { } identity)
+            {
+                SessionManager.UntrackExcelProcess(identity);
+            }
         }
     }
 
@@ -427,4 +737,3 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
     #endregion
 }
-

@@ -198,6 +198,23 @@ dotnet build -c Release
 # Code follows style guidelines (automatic via EditorConfig)
 ```
 
+Before the CLI project replaces its output, local builds call
+`scripts\Stop-ExcelMcpProcesses.ps1` once. The script delegates cleanup to
+`excelcli service stop`. Cleanup is scoped to `EXCELMCP_CLI_PIPE` and validates
+tracked PID start times. Excel identities remain recorded for their daemon
+generation through shutdown, so a failed final Excel exit cannot lose ownership
+metadata. Daemon, startup, and tracker mutexes use separate semantic namespaces
+over a case-insensitive SHA-256 pipe identity, so case variants, suffixes,
+separators, special characters, and long pipe names cannot collide across
+pipes or mutex roles. If the normal
+CLI binary predates ownership-lifecycle sources, the
+script first builds a current cleanup client in an isolated temporary output;
+this stops the tracked daemon before its loaded normal-output assemblies are
+replaced. A true first build with no CLI binary remains a safe no-op. Cleanup
+never sweeps all Excel processes. `Test-E2E.ps1` and
+`Test-CliWorkflow.ps1` allocate a private pipe for each invocation so parallel
+worktrees cannot stop each other's daemon or Excel instances.
+
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
 - ✅ Test round-trip persistence (create → save → reload → verify)

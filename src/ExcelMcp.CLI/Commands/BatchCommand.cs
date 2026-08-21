@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
@@ -62,6 +63,37 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             }
         }
 
+        var validationErrors = new Dictionary<int, string>();
+        for (int i = 0; i < commands.Count; i++)
+        {
+            var cmd = commands[i];
+            var argsJson = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
+                ? cmd.Args.Value.GetRawText()
+                : null;
+            try
+            {
+                ServiceRegistry.ValidateCommandArguments(cmd.Command, argsJson);
+            }
+            catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
+            {
+                validationErrors[i] = ex.Message;
+            }
+        }
+
+        if (validationErrors.Count == commands.Count ||
+            (settings.StopOnError && validationErrors.ContainsKey(0)))
+        {
+            foreach (var validationError in validationErrors.OrderBy(error => error.Key))
+            {
+                WriteValidationError(validationError.Key, commands[validationError.Key].Command, validationError.Value);
+                if (settings.StopOnError)
+                {
+                    break;
+                }
+            }
+            return 1;
+        }
+
         // Connect to daemon (auto-starts if needed)
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
 
@@ -72,15 +104,27 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         {
             var cmd = commands[i];
             var sessionId = cmd.SessionId ?? activeSession;
+            if (validationErrors.TryGetValue(i, out var validationError))
+            {
+                WriteValidationError(i, cmd.Command, validationError);
+
+                hasErrors = true;
+                if (settings.StopOnError)
+                {
+                    break;
+                }
+                continue;
+            }
+            var argsJson = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
+                ? cmd.Args.Value.GetRawText()
+                : null;
 
             // Build the service request
             var request = new ServiceRequest
             {
                 Command = cmd.Command,
                 SessionId = sessionId,
-                Args = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
-                    ? cmd.Args.Value.GetRawText()
-                    : null,
+                Args = argsJson,
                 Source = "cli-batch"
             };
 
@@ -130,6 +174,17 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
 
         return hasErrors ? 1 : 0;
+    }
+
+    private static void WriteValidationError(int index, string command, string error)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(new BatchResult
+        {
+            Index = index,
+            Command = command,
+            Success = false,
+            Error = error
+        }, BatchJsonOptions));
     }
 
     /// <summary>
@@ -238,8 +293,9 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
     private static readonly JsonSerializerOptions BatchJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        PropertyNameCaseInsensitive = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
     };
 
     // ── Models ──────────────────────────────────────────────────────

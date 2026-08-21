@@ -89,7 +89,7 @@ public interface IConditionalFormattingCommands
     [ServiceAction("add-rule")]
     OperationResult AddRule(
         IExcelBatch batch,
-        [RequiredParameter, FromString("sheetName")] string sheetName,
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
         [RequiredParameter, FromString("rangeAddress")] string rangeAddress,
         [RequiredParameter, FromString("ruleType")] string ruleType,
         [FromString("operatorType")] string? operatorType,
@@ -141,13 +141,13 @@ public interface IConditionalFormattingCommands
     /// Excel COM: Range.FormatConditions.Delete()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Target worksheet name</param>
+    /// <param name="sheetName">Target worksheet name (empty for active sheet)</param>
     /// <param name="rangeAddress">Range address to clear rules from (e.g., A1:D10)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     [ServiceAction("clear-rules")]
     OperationResult ClearRules(
         IExcelBatch batch,
-        [RequiredParameter, FromString("sheetName")] string sheetName,
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
         [RequiredParameter, FromString("rangeAddress")] string rangeAddress);
 
     /// <summary>
@@ -167,7 +167,7 @@ public interface IConditionalFormattingCommands
     [ServiceAction("list-rules")]
     ConditionalFormatListResult ListRules(
         IExcelBatch batch,
-        [RequiredParameter, FromString("sheetName")] string sheetName,
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
         [RequiredParameter, FromString("rangeAddress")] string rangeAddress);
 
     /// <summary>
@@ -182,6 +182,5 @@ public interface IConditionalFormattingCommands
     [ServiceAction("list-worksheet-rules")]
     ConditionalFormatListResult ListWorksheetRules(
         IExcelBatch batch,
-        [RequiredParameter, FromString("sheetName")] string sheetName);
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName);
 }
-

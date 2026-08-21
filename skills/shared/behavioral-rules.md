@@ -172,6 +172,12 @@ After completing operations, report:
 
 ### Session Lifecycle
 
+Use `file(action: 'test')` or `excelcli -q session test <path>` before opening
+when access or information protection is uncertain. The shared result reports
+`canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
+IRM/AIP files report `canOpen:false` until the required interactive Excel
+authentication occurs; open them with a visible session.
+
 Always close sessions when done:
 
 ```
@@ -268,10 +274,35 @@ Choose load destination based on workflow:
 
 | Destination | When to Use |
 |-------------|-------------|
-| `worksheet` | View data, simple analysis |
-| `data-model` | DAX measures, PivotTables, relationships |
-| `both` | View data AND use in DAX |
+| `worksheet` / `load-to-table` | View data, simple analysis |
+| `data-model` / `load-to-data-model` | DAX measures, PivotTables, relationships |
+| `both` / `load-to-both` | View data AND use in DAX |
 | `connection-only` | Data staging, intermediate queries |
+
+Values are case-insensitive. Unknown enum values and parameters that do not
+belong to the selected action are rejected instead of being defaulted or ignored.
+
+### Canonical Public Inputs
+
+- Public timeouts are integer seconds: MCP uses `timeout_seconds`, CLI uses
+  `--timeout`, and batch JSON uses `timeout`. Do not send TimeSpan strings or
+  numeric strings.
+- Session open/create accepts 10-3600 seconds. Its operation timeout controls
+  workbook startup and operations that do not provide a dedicated data-operation
+  timeout.
+- Power Query refresh/refresh-all accepts 0-2147483; omitted or `0` uses the
+  30-minute data-operation default. Connection, Data Model, PivotTable, and VBA
+  timeouts accept 1-2147483.
+- Power Query refresh/refresh-all use their data-operation timeout instead of
+  layering the session operation timeout. `load-to` has no caller timeout and
+  uses the fixed 30-minute data-operation timeout; create/update/evaluate use the
+  session operation timeout.
+- For required generated inline/file pairs, supply exactly one form. Optional
+  pairs may omit both, but inline and file forms are always mutually exclusive.
+  Batch aliases are
+  `mCodeFile`, `vbaCodeFile`, `daxFormulaFile`, `daxQueryFile`, `dmvQueryFile`,
+  `schemaFile`, and `xmlDataFile`; MCP uses snake_case and CLI uses kebab-case.
+  The file must exist and be readable.
 
 ### Refresh After Create
 
