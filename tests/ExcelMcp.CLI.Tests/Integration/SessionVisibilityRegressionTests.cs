@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -151,15 +152,12 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
         }
     }
 
-    [Fact]
+    [ConfiguredIrmFact]
     [Trait("RunType", "OnDemand")]
     public async Task SessionOpen_RealIrmWorkbookWithShow_ReturnsWithinTimeoutBudget_WhenConfigured()
     {
-        var irmTestFile = GetConfiguredIrmTestFilePath();
-        if (irmTestFile == null)
-        {
-            return;
-        }
+        var irmTestFile = GetConfiguredIrmTestFilePath()
+            ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
         string? sessionId = null;
         try

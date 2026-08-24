@@ -522,16 +522,13 @@ public class ExcelBatchTests : IAsyncLifetime
         }
     }
 
-    [Fact]
+    [ConfiguredIrmFact]
     [Trait("RunType", "OnDemand")]
     public async Task BeginBatch_RealIrmWorkbook_CompletesStartupWithinBudget_WhenConfigured()
     {
         // Real IRM startup depends on interactive auth/enterprise policy and cannot run in CI.
-        var irmTestFile = GetConfiguredIrmTestFilePath();
-        if (irmTestFile == null)
-        {
-            return;
-        }
+        var irmTestFile = GetConfiguredIrmTestFilePath()
+            ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
         var startingExcelPids = Process.GetProcessesByName("EXCEL")
             .Select(process => process.Id)
@@ -701,8 +698,6 @@ public class ExcelBatchTests : IAsyncLifetime
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
-
-
 
 
 

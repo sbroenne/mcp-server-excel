@@ -3,6 +3,7 @@
 
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -90,16 +91,13 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         await Task.Delay(TimeSpan.FromSeconds(2));
     }
 
-    [Fact]
+    [ConfiguredIrmFact]
     [Trait("RunType", "OnDemand")]
     public async Task FileOpen_RealIrmWorkbook_ReturnsWithinTimeoutBudget_WhenConfigured()
     {
         // Real IRM/AIP workbooks require local auth state and are intentionally opt-in only.
-        var irmTestFile = GetConfiguredIrmTestFilePath();
-        if (irmTestFile == null)
-        {
-            return;
-        }
+        var irmTestFile = GetConfiguredIrmTestFilePath()
+            ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
         var testResult = await CallToolAsync("file", new Dictionary<string, object?>
         {

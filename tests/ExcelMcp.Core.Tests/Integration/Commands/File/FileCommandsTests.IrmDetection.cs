@@ -107,16 +107,13 @@ public partial class FileCommandsTests
         Assert.False(info.IsIrmProtected, "Legacy .xls (OLE2) must not be flagged as IRM-protected");
     }
 
-    [Fact]
+    [ConfiguredIrmFact]
     [Trait("RunType", "OnDemand")]
     public void Test_RealIrmProtectedFile_DetectsProtection_WhenConfigured()
     {
         // Real protected workbooks require local credentials and cannot run safely in CI.
-        var irmTestFile = GetConfiguredIrmTestFilePath();
-        if (irmTestFile == null)
-        {
-            return;
-        }
+        var irmTestFile = GetConfiguredIrmTestFilePath()
+            ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
         // Act
         var info = _fileCommands.Test(irmTestFile);

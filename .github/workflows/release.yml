@@ -208,14 +208,9 @@ jobs:
 
     - name: Update Project Versions
       run: |
-        $version = $env:VERSION
-
-        # Update MCP Registry server.json (top-level version and package version)
-        $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
-        $serverContent = Get-Content $serverJsonPath -Raw
-        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
-        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
-        Set-Content $serverJsonPath $serverContent
+        .\scripts\Update-McpRegistryMetadata.ps1 `
+          -ServerJsonPath "src\ExcelMcp.McpServer\.mcp\server.json" `
+          -Version $env:VERSION
       shell: pwsh
 
     - name: Restore
@@ -464,12 +459,9 @@ jobs:
 
     - name: Update server.json Version
       run: |
-        $version = $env:VERSION
-        $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
-        $serverContent = Get-Content $serverJsonPath -Raw
-        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
-        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
-        Set-Content $serverJsonPath $serverContent
+        .\scripts\Update-McpRegistryMetadata.ps1 `
+          -ServerJsonPath "src\ExcelMcp.McpServer\.mcp\server.json" `
+          -Version $env:VERSION
       shell: pwsh
 
     - name: Wait for NuGet Propagation
@@ -517,7 +509,6 @@ jobs:
         Set-Location src/ExcelMcp.McpServer/.mcp
         ../../../mcp-publisher.exe publish --verbose
       shell: pwsh
-      continue-on-error: true
 
   # =============================================================================
   # Job 7: Create Git Tag

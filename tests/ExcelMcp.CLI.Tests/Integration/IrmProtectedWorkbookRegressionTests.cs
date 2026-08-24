@@ -80,15 +80,12 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
             "CLI session open must fail fast for protected workbooks when --show is omitted.");
     }
 
-    [Fact]
+    [ConfiguredIrmFact]
     [Trait("RunType", "OnDemand")]
     public async Task SessionOpen_RealIrmWorkbook_WithShow_CompletesWithinTimeoutBudget_WhenConfigured()
     {
-        var irmTestFile = GetConfiguredIrmTestFilePath();
-        if (irmTestFile == null)
-        {
-            return;
-        }
+        var irmTestFile = GetConfiguredIrmTestFilePath()
+            ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
         Assert.True(FileAccessValidator.IsIrmProtected(irmTestFile),
             "TEST_IRM_FILE must point to a real IRM/AIP-protected workbook for this regression.");
