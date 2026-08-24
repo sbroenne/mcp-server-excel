@@ -670,6 +670,37 @@ jobs:
         $notes = $template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $changelogBody.Trim())
         Set-Content -Path release_notes.md -Value $notes -NoNewline
 
+    - name: Generate SHA-256 checksums
+      shell: pwsh
+      run: |
+        $expectedArchives = @(
+          "ExcelMcp-MCP-Server-${{ env.VERSION }}-windows.zip"
+          "ExcelMcp-CLI-${{ env.VERSION }}-windows.zip"
+        )
+        $archivePaths = @(
+          Get-ChildItem -Path artifacts/mcp-server-zip -Filter *.zip -File
+          Get-ChildItem -Path artifacts/cli-zip -Filter *.zip -File
+        )
+
+        $actualNames = @($archivePaths | ForEach-Object Name)
+        foreach ($expectedArchive in $expectedArchives) {
+          if ($expectedArchive -notin $actualNames) {
+            throw "Cannot publish checksums: expected runtime archive '$expectedArchive' was not downloaded."
+          }
+        }
+        if ($archivePaths.Count -ne $expectedArchives.Count) {
+          throw "Cannot publish checksums: expected exactly $($expectedArchives.Count) runtime archives, found $($archivePaths.Count)."
+        }
+
+        $checksumLines = foreach ($archivePath in ($archivePaths | Sort-Object Name)) {
+          $hash = (Get-FileHash -Path $archivePath.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($archivePath.Name)"
+        }
+        [System.IO.File]::WriteAllLines(
+          (Join-Path $PWD "SHA256SUMS"),
+          $checksumLines,
+          [System.Text.UTF8Encoding]::new($false))
+
     - name: Create Release
       run: |
         VERSION=${{ env.VERSION }}
@@ -682,6 +713,7 @@ jobs:
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        ARTIFACTS="$ARTIFACTS SHA256SUMS"
 
         echo "Creating release with artifacts:$ARTIFACTS"
 

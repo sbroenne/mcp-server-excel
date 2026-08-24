@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -64,6 +65,20 @@ public sealed class PluginBootstrapBuildTests
             content);
         Assert.Contains(@"skills-ref validate source\plugins\excel-mcp\skills\excel-mcp", content);
         Assert.Contains(@"skills-ref validate source\plugins\excel-cli\skills\excel-cli", content);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public void ReleaseWorkflow_PublishesSha256SumsForWindowsRuntimeArchives()
+    {
+        var workflowPath = Path.Combine(RepoRoot, ".github", "workflows", "release.yml");
+        var content = File.ReadAllText(workflowPath);
+
+        Assert.Contains("SHA256SUMS", content, StringComparison.Ordinal);
+        Assert.Contains("Get-FileHash", content, StringComparison.Ordinal);
+        Assert.Contains("artifacts/mcp-server-zip/*.zip", content, StringComparison.Ordinal);
+        Assert.Contains("artifacts/cli-zip/*.zip", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -481,6 +496,9 @@ public sealed class PluginBootstrapBuildTests
             Assert.Equal(tag, state.RootElement.GetProperty("latestTag").GetString());
             Assert.Equal(version, state.RootElement.GetProperty("latestVersion").GetString());
             Assert.Equal(assetName, state.RootElement.GetProperty("assetName").GetString());
+            Assert.Matches(
+                "^[0-9a-f]{64}$",
+                state.RootElement.GetProperty("expectedSha256").GetString()!);
 
             var binaryPath = state.RootElement.GetProperty("binaryPath").GetString();
             Assert.False(string.IsNullOrWhiteSpace(binaryPath));
@@ -488,8 +506,154 @@ public sealed class PluginBootstrapBuildTests
             Assert.EndsWith(executableName, binaryPath, StringComparison.OrdinalIgnoreCase);
 
             Assert.Equal(1, ReadMockCallCount(userProfile, "rest"));
+            Assert.Equal(1, ReadMockCallCount(userProfile, "checksum"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "web"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "expand"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_MissingChecksumAsset_FailsClosed(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-missing-checksum-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+            var version = "2.0.0";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var result = await RunPowerShellFileAsync(
+                CreateDownloadHarnessScript(sandbox),
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", $"v{version}",
+                    "-AssetName", assetName,
+                    "-Mode", "missing-checksum-asset"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("SHA256SUMS", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("does not contain", result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, ReadMockCallCount(userProfile, "web"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip", "malformed-checksum", "malformed")]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip", "missing-checksum-entry", "does not contain")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip", "malformed-checksum", "malformed")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip", "missing-checksum-entry", "does not contain")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_InvalidChecksumMetadata_FailsClosed(
+        string pluginName,
+        string executableName,
+        string assetNameFormat,
+        string mode,
+        string expectedMessage)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-invalid-checksum-{pluginName}-{mode}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+            var version = "2.0.0";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var result = await RunPowerShellFileAsync(
+                CreateDownloadHarnessScript(sandbox),
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", $"v{version}",
+                    "-AssetName", assetName,
+                    "-Mode", mode
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("SHA256SUMS", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains(expectedMessage, result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, ReadMockCallCount(userProfile, "web"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_TamperedDownload_FailsClosed(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-tampered-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+            var version = "2.0.0";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var result = await RunPowerShellFileAsync(
+                CreateDownloadHarnessScript(sandbox),
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", $"v{version}",
+                    "-AssetName", assetName,
+                    "-Mode", "checksum-mismatch"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("SHA-256 mismatch", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Equal(2, ReadMockCallCount(userProfile, "web"));
+            Assert.Equal(0, ReadMockCallCount(userProfile, "expand"));
         }
         finally
         {
@@ -836,6 +1000,73 @@ public sealed class PluginBootstrapBuildTests
     [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_ChecksumUnavailableWithVerifiedWarmCache_FallsBackToCachedRuntime(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-checksum-offline-fallback-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            Directory.CreateDirectory(userProfile);
+            var harnessPath = CreateDownloadHarnessScript(sandbox);
+            var version = "1.2.3";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+            var env = new Dictionary<string, string>
+            {
+                ["USERPROFILE"] = userProfile,
+                ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                ["OS"] = "Windows_NT"
+            };
+
+            var firstResult = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", $"v{version}",
+                    "-AssetName", assetName,
+                    "-Mode", "success"
+                ],
+                environmentVariables: env);
+
+            Assert.Equal(0, firstResult.ExitCode);
+            ResetMockCalls(userProfile);
+            env["COPILOT_AGENT_SESSION_ID"] = "session-b";
+
+            var offlineResult = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", $"v{version}",
+                    "-AssetName", assetName,
+                    "-Mode", "checksum-download-fail",
+                    "-QuietMode"
+                ],
+                environmentVariables: env);
+
+            Assert.Equal(0, offlineResult.ExitCode);
+            Assert.EndsWith(executableName, offlineResult.Stdout.Trim(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Could not check for updates", offlineResult.Stderr, StringComparison.Ordinal);
+            Assert.Equal(1, ReadMockCallCount(userProfile, "checksum"));
+            Assert.Equal(0, ReadMockCallCount(userProfile, "web"));
+            Assert.Equal(0, ReadMockCallCount(userProfile, "expand"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
     public async Task DownloadBootstrap_CachedArchiveRemoved_ReusesExtractedRuntimeWithoutDownloading(
         string pluginName,
         string executableName,
@@ -1009,11 +1240,15 @@ public sealed class PluginBootstrapBuildTests
 
             Assert.Equal(0, firstResult.ExitCode);
 
-            // Recreate the wedge: a truncated archive left behind by an interrupted transfer,
-            // with the extracted runtime gone. The cached tag still matches, so a presence-only
-            // check would skip the download and then fail extraction on every single run.
+            // Replace the cached archive with a different but still readable ZIP. Archive probing
+            // alone accepts it, so only the published SHA-256 can detect the tampering.
             var pluginCache = Path.Combine(userProfile, ".copilot", "plugin-runtime", "mcp-server-excel", pluginName);
-            File.WriteAllText(Path.Combine(pluginCache, "downloads", assetName), "truncated");
+            var tamperedDirectory = Path.Combine(sandbox, "tampered");
+            Directory.CreateDirectory(tamperedDirectory);
+            File.WriteAllText(Path.Combine(tamperedDirectory, executableName), "tampered runtime");
+            var cachedArchivePath = Path.Combine(pluginCache, "downloads", assetName);
+            File.Delete(cachedArchivePath);
+            ZipFile.CreateFromDirectory(tamperedDirectory, cachedArchivePath);
             Directory.Delete(Path.Combine(pluginCache, "releases", version), recursive: true);
 
             ResetMockCalls(userProfile);
@@ -1039,11 +1274,10 @@ public sealed class PluginBootstrapBuildTests
             Assert.EndsWith(executableName, secondResult.Stdout.Trim(), StringComparison.OrdinalIgnoreCase);
             Assert.True(File.Exists(secondResult.Stdout.Trim()), "Expected a usable runtime after self-healing.");
 
-            // The corrupt archive must be discarded and refetched rather than reused.
+            // The tampered archive must be discarded and refetched rather than reused.
             Assert.Equal(1, ReadMockCallCount(userProfile, "web"));
 
-            // Validating the archive up front means extraction is attempted exactly once. A
-            // presence-only check would extract the corrupt file, fail, and only then recover.
+            // Hash validation happens before extraction, so only the verified replacement is read.
             Assert.Equal(1, ReadMockCallCount(userProfile, "expand"));
         }
         finally
@@ -1995,6 +2229,15 @@ public sealed class PluginBootstrapBuildTests
 
             $callDir = Join-Path $env:USERPROFILE "mock-calls"
             New-Item -ItemType Directory -Path $callDir -Force | Out-Null
+            $fixtureDirectory = Join-Path $env:USERPROFILE "fixture-runtime"
+            $fixtureArchivePath = Join-Path $env:USERPROFILE "fixture-runtime.zip"
+            New-Item -ItemType Directory -Path $fixtureDirectory -Force | Out-Null
+            Set-Content -Path (Join-Path $fixtureDirectory $ExecutableName) -Value "fake runtime" -Encoding UTF8
+            if (Test-Path $fixtureArchivePath) {
+                Remove-Item -Path $fixtureArchivePath -Force
+            }
+            [System.IO.Compression.ZipFile]::CreateFromDirectory($fixtureDirectory, $fixtureArchivePath)
+            $fixtureSha256 = (Get-FileHash -Path $fixtureArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
 
             function Add-MockCall {
                 param([Parameter(Mandatory = $true)][string]$Name)
@@ -2032,6 +2275,17 @@ public sealed class PluginBootstrapBuildTests
                             )
                         }
                     }
+                    "missing-checksum-asset" {
+                        return [pscustomobject]@{
+                            tag_name = $Tag
+                            assets = @(
+                                [pscustomobject]@{
+                                    name = $AssetName
+                                    browser_download_url = "https://example.test/$AssetName"
+                                }
+                            )
+                        }
+                    }
                     default {
                         return [pscustomobject]@{
                             tag_name = $Tag
@@ -2043,6 +2297,10 @@ public sealed class PluginBootstrapBuildTests
                                 [pscustomobject]@{
                                     name = $AssetName
                                     browser_download_url = "https://example.test/$AssetName"
+                                },
+                                [pscustomobject]@{
+                                    name = "SHA256SUMS"
+                                    browser_download_url = "https://example.test/SHA256SUMS"
                                 }
                             )
                         }
@@ -2055,6 +2313,29 @@ public sealed class PluginBootstrapBuildTests
                     [string]$Uri,
                     [string]$OutFile
                 )
+
+                if ($Uri.EndsWith("/SHA256SUMS", [System.StringComparison]::Ordinal)) {
+                    Add-MockCall -Name "checksum"
+                    if ($Mode -eq "checksum-download-fail") {
+                        throw "Simulated checksum download failure"
+                    }
+
+                    switch ($Mode) {
+                        "malformed-checksum" {
+                            Set-Content -Path $OutFile -Value "not a checksum manifest" -Encoding ASCII
+                        }
+                        "missing-checksum-entry" {
+                            Set-Content -Path $OutFile -Value "$fixtureSha256  another-asset.zip" -Encoding ASCII
+                        }
+                        "checksum-mismatch" {
+                            Set-Content -Path $OutFile -Value "$('0' * 64)  $AssetName" -Encoding ASCII
+                        }
+                        default {
+                            Set-Content -Path $OutFile -Value "$fixtureSha256  $AssetName" -Encoding ASCII
+                        }
+                    }
+                    return
+                }
 
                 Add-MockCall -Name "web"
 
@@ -2070,20 +2351,10 @@ public sealed class PluginBootstrapBuildTests
                     return
                 }
 
-                # A real archive, so that the bootstrap's integrity validation is exercised for
-                # what it is rather than being satisfied by an arbitrary placeholder file.
-                $stagingDir = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString("N"))
-                New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
-                try {
-                    Set-Content -Path (Join-Path $stagingDir $ExecutableName) -Value "fake runtime" -Encoding UTF8
-                    if (Test-Path $OutFile) {
-                        Remove-Item -Path $OutFile -Force
-                    }
-
-                    [System.IO.Compression.ZipFile]::CreateFromDirectory($stagingDir, $OutFile)
-                } finally {
-                    Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
+                if (Test-Path $OutFile) {
+                    Remove-Item -Path $OutFile -Force
                 }
+                Copy-Item -Path $fixtureArchivePath -Destination $OutFile
             }
 
             function Expand-Archive {

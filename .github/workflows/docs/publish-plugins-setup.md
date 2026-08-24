@@ -312,6 +312,7 @@ TAG=$(git tag --points-at "$HEAD_SHA" --sort=-version:refname | grep -E '^v[0-9]
 
 - Published plugins ship **wrapper/download logic and metadata only**.
 - Self-contained Windows runtimes stay in the main repo GitHub Releases and are fetched by the plugin on first invocation.
+- Each release publishes `SHA256SUMS` in GNU-style `<hash>  <filename>` format for both Windows runtime ZIPs. Bootstrap downloads and cached archives must match the exact asset entry before extraction.
 - `publish-plugins.yml` now validates that built plugin artifacts do **not** contain committed `.exe`, `.dll`, `.deps.json`, or `.runtimeconfig.json` payloads.
 - MCP configuration is portable root `mcp.json` with explicit transport type and `${PLUGIN_ROOT}` arguments; legacy `.mcp.json` is rejected.
 - Standard skills stay under `skills/`; any future Copilot-only files belong under `com.github.copilot/`.
