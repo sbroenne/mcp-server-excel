@@ -39,6 +39,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Helpers\ConfiguredIrmFactAttribute.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Helpers\OleDataSpaceTestFile.cs" />
   </ItemGroup>
 

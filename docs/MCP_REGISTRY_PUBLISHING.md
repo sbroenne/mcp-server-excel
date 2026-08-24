@@ -54,18 +54,20 @@ The publishing process is automated as `publish-mcp-registry` job in `.github/wo
 
 ### 1. Version Update
 The workflow:
-- Updates `server.json` with the new version number (top-level `version` and `packages[].version`)
+- Parses `server.json`, updates both the top-level `version` and the MCP Server
+  package version, then validates that both values match the release version.
 
 ### 2. Wait for NuGet Propagation
 - The MCP Registry uses NuGet as the deployment mechanism
 - The job waits for the NuGet package README to propagate (validates `mcp-name:` tag)
 - Polls up to 3 times with 10-minute intervals
 
-### 3. MCP Registry Publishing (Non-Blocking)
+### 3. MCP Registry Publishing
 - Downloads the MCP Publisher CLI tool
 - Authenticates using GitHub OIDC (no secrets required)
 - Publishes `server.json` to the MCP Registry
-- Uses `continue-on-error: true` to ensure release completes even if MCP Registry publishing fails
+- Fails the registry job if publication fails so the release workflow cannot report
+  the registry update as successful when it was not published
 
 ## Authentication
 
@@ -95,7 +97,7 @@ After release, verify publication:
 **Solution**: 
 - Verify `id-token: write` permission is set in the workflow job
 - Ensure repository is configured for GitHub OIDC
-- MCP Registry publishing failures don't block the release (`continue-on-error: true`)
+- Resolve the failure and rerun the workflow after confirming the registry state
 
 ### Version Not Updated
 
@@ -103,4 +105,5 @@ After release, verify publication:
 
 **Solution**: 
 - Check the `publish-mcp-registry` job logs
-- Re-run the workflow or manually update `server.json` and run mcp-publisher
+- Confirm both `server.json` version fields were stamped with the release version
+  before rerunning the workflow or publishing manually

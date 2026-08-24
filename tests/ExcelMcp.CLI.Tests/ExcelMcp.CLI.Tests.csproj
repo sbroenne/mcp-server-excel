@@ -38,6 +38,7 @@
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\CoreTestHelper.cs" Link="Helpers\CoreTestHelper.cs" />
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\TempDirectoryFixture.cs" Link="Helpers\TempDirectoryFixture.cs" />
     <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Helpers\OleDataSpaceTestFile.cs" />
+    <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Helpers\ConfiguredIrmFactAttribute.cs" />
   </ItemGroup>
 
   <ItemGroup>
