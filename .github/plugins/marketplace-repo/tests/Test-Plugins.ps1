@@ -138,6 +138,7 @@ try {
         latestVersion = $productVersion
         assetName = "unused.zip"
         assetUrl = "https://example.invalid/unused.zip"
+        expectedSha256 = "0" * 64
         cachedReleaseTag = "test"
         binaryPath = $fakeBinary
     }
@@ -172,6 +173,7 @@ try {
         latestVersion = $mcpProductVersion
         assetName = "unused.zip"
         assetUrl = "https://example.invalid/unused.zip"
+        expectedSha256 = "0" * 64
         cachedReleaseTag = "test"
         binaryPath = $fakeMcpBinary
     }

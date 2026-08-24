@@ -42,6 +42,7 @@ When you run the release workflow, all components are released together:
 |----------|--------|--------------|
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
+| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
@@ -105,7 +106,7 @@ The main release workflow runs automatically (10 jobs), then the plugin publish 
 
 After workflow completes:
 
-- [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, VSIX, MCPB, skills ZIP)
+- [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, `SHA256SUMS`, VSIX, MCPB, skills ZIP)
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
@@ -153,7 +154,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 
 **Surface note:**
 - The release automation publishes plugin bundles (manifest, skills, agents, hooks, MCP config, helper scripts) to the published repo.
-- Those bundles intentionally exclude self-contained runtime binaries; plugin-local wrapper/download logic retrieves the newest Windows release asset on first use and re-checks freshness at most once per chat session.
+- Those bundles intentionally exclude self-contained runtime binaries; plugin-local wrapper/download logic retrieves the newest Windows release asset on first use, verifies it against the exact release's `SHA256SUMS` asset, and re-checks freshness at most once per chat session.
 - The published repo is the marketplace; this source repo only owns inputs, overlays, and automation.
 - Those artifacts can be relevant across multiple plugin-capable clients, but marketplace registration, discovery, and installation UX remain client-specific.
 - The current workflow and docs only claim a verified GitHub Copilot install flow; they do **not** claim automatic publication into VS Code or Claude-specific plugin marketplaces.
