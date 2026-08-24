@@ -87,6 +87,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
       - name: Restore
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
@@ -146,6 +153,12 @@ jobs:
         run: |
           & scripts/check-plugin-readmes.ps1
           if ($LASTEXITCODE -ne 0) { throw "Plugin README validation failed." }
+
+      - name: npm launcher tests
+        shell: pwsh
+        run: |
+          npm ci --prefix npm-packages/mcp-server-excel --ignore-scripts
+          npm test --prefix npm-packages/mcp-server-excel
 
       # --- Excel-free build smoke checks (absorbed from the old Build CLI /
       #     Build MCP Server workflows) ---

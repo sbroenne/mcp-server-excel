@@ -14,7 +14,7 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
-- **Node.js** - Only required for `npx` commands (`add-mcp` auto-configuration, agent skills). Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
+- **Node.js** - Required for the recommended `npx` installation and other `npx` commands. Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
 
 ---
 
@@ -26,6 +26,7 @@ Use this order to avoid setup confusion:
    - **VS Code Extension** (GitHub Copilot users) — auto-configures everything
    - **Claude Desktop MCPB** — one-click MCP installation
    - **GitHub Copilot Plugin** (Copilot CLI users) — marketplace installation
+   - **npm package** (other MCP clients) — runs the self-contained server through `npx`
    - **Manual MCP setup** (other MCP clients like Cursor, Windsurf)
 2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB/plugin install)
 3. **Optional:** also install the [CLI](INSTALLATION-CLI.md) (`excelcli`) for scripting/RPA
@@ -80,7 +81,21 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 
 **Best for:** Other MCP clients (Cursor, Windsurf, Cline, Claude Code, Codex), advanced users
 
-### Step 1: Download MCP Server
+### Step 1: Choose npm or the Standalone Executable
+
+#### Option A: npm (Recommended)
+
+Run the self-contained server directly through npm:
+
+```powershell
+npx -y @sbroenne/mcp-server-excel --version
+```
+
+The npm package includes the Windows server, so it does not require .NET or a
+separate download from GitHub Releases. npm caches the package after the first
+run.
+
+#### Option B: Standalone Executable
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Download **`ExcelMcp-MCP-Server-{version}-windows.zip`**
@@ -93,7 +108,9 @@ Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tool
 
 The ZIP contains `mcp-excel.exe` — a fully self-contained executable (no .NET runtime needed).
 
-### Step 2: Add to PATH (Recommended)
+### Step 2: Add the Standalone Executable to PATH
+
+Skip this step when using npm.
 
 To use `mcp-excel` as a command without specifying the full path:
 
@@ -116,25 +133,25 @@ Or manually: **Settings → System → About → Advanced system settings → En
 Use [`add-mcp`](https://github.com/neondatabase/add-mcp) to configure all detected coding agents with a single command:
 
 ```powershell
-npx add-mcp "mcp-excel" --name excel-mcp
+npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp
 ```
 
 This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more. Use flags to customize:
 
 ```powershell
 # Configure specific agents only
-npx add-mcp "mcp-excel" --name excel-mcp -a cursor -a claude-code
+npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp -a cursor -a claude-code
 
 # Configure globally (user-wide, all projects)
-npx add-mcp "mcp-excel" --name excel-mcp -g
+npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp -g
 
 # Non-interactive (skip prompts)
-npx add-mcp "mcp-excel" --name excel-mcp --all -y
+npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp --all -y
 ```
 
-> **Requires:** [Node.js](https://nodejs.org/) for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if not already available. No permanent `add-mcp` installation needed — `npx` downloads, runs, and cleans up automatically.
+> **Requires:** [Node.js](https://nodejs.org/) for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if not already available. No permanent `add-mcp` installation is needed.
 
-> **Note:** If `mcp-excel` is not on your PATH, use the full path instead: `npx add-mcp "C:\Tools\ExcelMcp\mcp-excel.exe" --name excel-mcp`
+> **Standalone alternative:** Use `npx add-mcp "C:\Tools\ExcelMcp\mcp-excel.exe" --name excel-mcp` after extracting the ZIP.
 
 #### Option B: Manual Configuration
 
@@ -148,13 +165,14 @@ Create `.vscode/mcp.json` in your workspace:
 {
   "servers": {
     "excel-mcp": {
-      "command": "mcp-excel"
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel"]
     }
   }
 }
 ```
 
-> If `mcp-excel` is not on PATH, use the full path: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
+> For the standalone executable, replace `command` with `mcp-excel` and omit `args`.
 
 **For GitHub Copilot (Visual Studio):**
 
@@ -164,7 +182,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "servers": {
     "excel-mcp": {
-      "command": "mcp-excel"
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel"]
     }
   }
 }
@@ -180,8 +199,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "mcp-excel",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel"],
       "env": {}
     }
   }
@@ -201,8 +220,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "mcp-excel",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel"],
       "env": {}
     }
   }
@@ -221,8 +240,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "mcp-excel",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel"],
       "env": {}
     }
   }
@@ -241,8 +260,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "mcp-excel",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel"],
       "env": {}
     }
   }
@@ -291,7 +310,7 @@ dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ```
 
-> **Why NuGet is secondary:** The standalone exe distribution requires no .NET runtime, making it easier to install for most users. NuGet is available as an alternative for users who prefer package managers or already have .NET installed in their workflow.
+> **Why NuGet is secondary:** The recommended npm package and the standalone exe require no .NET runtime. NuGet remains available for users who already have .NET installed in their workflow.
 
 ---
 
@@ -300,12 +319,18 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ### Check Current Version
 
 ```powershell
-mcp-excel --version
+npx -y @sbroenne/mcp-server-excel --version
 ```
 
 ### Update to New Version
 
-**Standalone exe (primary):**
+**npm (primary):**
+
+Unpinned `npx` configurations resolve the newest published package. Restart the
+MCP client to start the new version. If the configuration pins a version, update
+the version after the package name.
+
+**Standalone exe:**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Download the new ZIP: `ExcelMcp-MCP-Server-{version}-windows.zip`
@@ -334,7 +359,8 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 
 ### 1. "mcp-excel is not recognized as an internal or external command"
 
-**Solution:** `mcp-excel.exe` is not on your PATH.
+This error applies to the standalone executable. Either use the recommended npm
+configuration or add `mcp-excel.exe` to your PATH.
 
 Either:
 - Add the directory containing `mcp-excel.exe` to your PATH (see Step 2 above)
@@ -351,7 +377,7 @@ Test-Path "C:\Tools\ExcelMcp\mcp-excel.exe"
 
 **Verify it runs:**
 ```powershell
-mcp-excel --version
+npx -y @sbroenne/mcp-server-excel --version
 ```
 
 ### 3. "Workbook is locked" or "Cannot open file"
@@ -372,6 +398,8 @@ ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 ## Uninstallation
 
 ```powershell
+# npm: no global installation to remove
+
 # Standalone exe: simply delete the extracted files
 Remove-Item "C:\Tools\ExcelMcp\mcp-excel.exe" -Force
 

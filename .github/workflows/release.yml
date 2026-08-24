@@ -1,7 +1,7 @@
 name: Release All Components
 
 # Unified release workflow for all ExcelMcp components:
-# - MCP Server (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
+# - MCP Server (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
 # - CLI (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
@@ -14,6 +14,7 @@ name: Release All Components
 #
 # Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+# - NPM_TOKEN: Granular npm publish token used to bootstrap new packages; trusted publishing takes precedence once configured
 # - VSCE_TOKEN: VS Code Marketplace PAT
 # - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
 #
@@ -199,6 +200,13 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
+        package-manager-cache: false
+
     - name: Set Version
       run: |
         $version = "${{ needs.version.outputs.version }}"
@@ -224,7 +232,7 @@ jobs:
     - name: Pack NuGet (secondary distribution)
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg -p:Version=${{ env.VERSION }}
 
-    - name: Publish MCP Server (standalone exe — primary distribution)
+    - name: Publish MCP Server (standalone exe)
       run: |
         dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
           --configuration Release `
@@ -266,6 +274,24 @@ jobs:
         Compress-Archive -Path "mcp-server-release/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
 
+    - name: Test npm Launcher
+      run: |
+        npm ci --prefix npm-packages/mcp-server-excel --ignore-scripts
+        npm test --prefix npm-packages/mcp-server-excel
+      shell: pwsh
+
+    - name: Build and Test npm Packages
+      run: |
+        .\scripts\Build-NpmPackages.ps1 `
+          -Version $env:VERSION `
+          -RuntimeExecutable "mcp-server-publish\mcp-excel.exe" `
+          -OutputDirectory "npm-artifacts"
+
+        .\scripts\Test-NpmPackages.ps1 `
+          -LauncherPackage "npm-artifacts\sbroenne-mcp-server-excel-$env:VERSION.tgz" `
+          -RuntimePackage "npm-artifacts\sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
+      shell: pwsh
+
     - name: Upload ZIP Artifact
       uses: actions/upload-artifact@v7
       with:
@@ -277,6 +303,12 @@ jobs:
       with:
         name: mcp-server-nupkg
         path: nupkg/*.nupkg
+
+    - name: Upload npm Artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: mcp-server-npm
+        path: npm-artifacts/*.tgz
 
   # =============================================================================
   # Job 3: Build and Publish VS Code Extension
@@ -439,11 +471,11 @@ jobs:
         path: artifacts/skills/excel-skills-*.zip
 
   # =============================================================================
-  # Job 6: Wait for NuGet Propagation + MCP Registry
+  # Job 6: Wait for Package Propagation + MCP Registry
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
-    needs: [version, create-tag, build-mcp-server]
+    needs: [version, publish]
     runs-on: windows-latest
     permissions:
       id-token: write
@@ -464,31 +496,52 @@ jobs:
           -Version $env:VERSION
       shell: pwsh
 
-    - name: Wait for NuGet Propagation
+    - name: Wait for NuGet and npm Propagation
       run: |
         $version = $env:VERSION
-        $packageId = "sbroenne.excelmcp.mcpserver"
-        $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
+        $nugetPackageId = "sbroenne.excelmcp.mcpserver"
+        $nugetReadmeUrl = "https://api.nuget.org/v3-flatcontainer/$nugetPackageId/$version/readme"
+        $npmPackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
 
-        Write-Output "Waiting for NuGet CDN propagation..."
+        Write-Output "Waiting for NuGet and npm propagation..."
         $maxAttempts = 3
         $pollInterval = 600  # 10 minutes
 
-        # First check immediately; subsequent checks wait pollInterval seconds
         for ($i = 1; $i -le $maxAttempts; $i++) {
           Write-Output "Attempt $i of $maxAttempts..."
+          $nugetReady = $false
+          $npmReady = $false
+
           try {
-            $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction Stop
-            if ($response.StatusCode -eq 200) {
-              $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
-              if ($content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
-                Write-Output "README propagated successfully"
-                break
-              }
-            }
+            $response = Invoke-WebRequest -Uri $nugetReadmeUrl -UseBasicParsing -ErrorAction Stop
+            $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
+            $nugetReady = $response.StatusCode -eq 200 -and
+              $content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel"
           } catch {
-            Write-Output "README not yet available"
+            Write-Output "NuGet README not yet available"
           }
+
+          try {
+            $npmPackage = Invoke-RestMethod -Uri $npmPackageUrl -ErrorAction Stop
+            $npmReady = $npmPackage.mcpName -eq "io.github.sbroenne/mcp-server-excel"
+          } catch {
+            Write-Output "npm package not yet available"
+          }
+
+          if ($nugetReady -and $npmReady) {
+            Write-Output "NuGet and npm metadata propagated successfully"
+            break
+          }
+
+          if ($i -eq $maxAttempts) {
+            if (-not $nugetReady) {
+              throw "NuGet package metadata did not propagate after $maxAttempts attempts."
+            }
+            if (-not $npmReady) {
+              throw "npm package metadata did not propagate after $maxAttempts attempts."
+            }
+          }
+
           if ($i -lt $maxAttempts) {
             Write-Output "Waiting $pollInterval seconds before retry..."
             Start-Sleep -Seconds $pollInterval
@@ -545,7 +598,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-      id-token: write  # Required for NuGet OIDC
+      id-token: write  # Required for NuGet and npm OIDC
 
     steps:
     - uses: actions/checkout@v7
@@ -559,6 +612,8 @@ jobs:
       uses: actions/setup-node@v7
       with:
         node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
+        package-manager-cache: false
 
     - name: Set Version
       run: |
@@ -577,6 +632,12 @@ jobs:
       with:
         name: cli-nupkg
         path: cli-nupkg
+
+    - name: Download npm Packages
+      uses: actions/download-artifact@v8
+      with:
+        name: mcp-server-npm
+        path: npm-packages
 
     - name: Download VS Code VSIX
       uses: actions/download-artifact@v8
@@ -605,6 +666,38 @@ jobs:
           --skip-duplicate
         Write-Output "Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
       shell: pwsh
+
+    - name: Publish to npm
+      run: |
+        npm install --global npm@11
+
+        function Publish-NpmPackage {
+          param(
+            [string]$PackageName,
+            [string]$Tarball
+          )
+
+          npm view "$PackageName@$env:VERSION" version --json 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "$PackageName@$env:VERSION is already published; skipping."
+            return
+          }
+
+          npm publish $Tarball --access public
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to publish $PackageName@$env:VERSION."
+          }
+        }
+
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/mcp-server-excel-win32-x64" `
+          -Tarball "npm-packages/sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/mcp-server-excel" `
+          -Tarball "npm-packages/sbroenne-mcp-server-excel-$env:VERSION.tgz"
+      shell: pwsh
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Publish to VS Code Marketplace
       uses: HaaLeo/publish-vscode-extension@v2

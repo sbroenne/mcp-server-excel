@@ -5,6 +5,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 [![GitHub Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 [![GitHub Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
+[![npm](https://img.shields.io/npm/v/%40sbroenne%2Fmcp-server-excel)](https://www.npmjs.com/package/@sbroenne/mcp-server-excel)
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
@@ -27,20 +28,25 @@ Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drive
 **Quick Setup Options:**
 
 1. **VS Code Extension** - [One-click install](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for GitHub Copilot
-2. **Standalone exe** - Works with Claude Desktop, Cursor, Cline, Windsurf, and other MCP clients
+2. **npm** - Run through `npx` with no .NET installation or manual executable setup
 3. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
 
 **Manual Installation (All MCP Clients):**
 
-**Primary — Standalone exe (no .NET runtime required):**
+**Primary — npm (no .NET runtime required):**
 
 ```powershell
-# Download from latest release:
-# https://github.com/sbroenne/mcp-server-excel/releases/latest
-# ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+npx -y @sbroenne/mcp-server-excel
+```
 
-# Add to PATH, then configure your MCP client:
-# { "command": "mcp-excel" }
+Configure MCP clients with `command: "npx"` and
+`args: ["-y", "@sbroenne/mcp-server-excel"]`.
+
+**Standalone executable:**
+
+```powershell
+# Download ExcelMcp-MCP-Server-{version}-windows.zip from GitHub Releases,
+# extract mcp-excel.exe, and configure the client with { "command": "mcp-excel" }.
 ```
 
 **Secondary — .NET Global Tool (requires .NET 10 runtime):**
