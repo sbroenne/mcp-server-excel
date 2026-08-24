@@ -2,7 +2,7 @@
 
 Complete guide for publishing and managing all ExcelMcp NuGet packages using OIDC Trusted Publishing.
 
-> **Distribution Channels:** NuGet is the **secondary** distribution channel. The **primary** channel is standalone self-contained executables distributed via GitHub Releases — no .NET runtime required. See [INSTALLATION.md](INSTALLATION.md) for the recommended installation methods.
+> **Distribution Channels:** NuGet is the **secondary** distribution channel. The MCP Server is primarily distributed through npm and as a standalone self-contained executable — neither requires a .NET runtime. See [INSTALLATION-MCP-SERVER.md](INSTALLATION-MCP-SERVER.md) for the recommended installation methods.
 
 ## Table of Contents
 

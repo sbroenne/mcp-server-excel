@@ -15,6 +15,16 @@
       },
       "packageArguments": [],
       "environmentVariables": []
+    },
+    {
+      "registryType": "npm",
+      "identifier": "@sbroenne/mcp-server-excel",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": []
     }
   ],
   "repository": {
