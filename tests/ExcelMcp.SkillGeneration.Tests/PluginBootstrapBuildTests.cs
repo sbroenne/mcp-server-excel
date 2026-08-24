@@ -51,6 +51,82 @@ public sealed class PluginBootstrapBuildTests
     }
 
     [Fact]
+    public void CanonicalPluginGuidance_UsesCurrentAssetsAndSnakeCaseMcpParameters()
+    {
+        var files = Directory
+            .GetFiles(Path.Combine(RepoRoot, "skills", "shared"), "*.md")
+            .Concat(
+            [
+                Path.Combine(RepoRoot, "skills", "templates", "SKILL.mcp.sbn"),
+                Path.Combine(RepoRoot, "skills", "excel-mcp", "references", "claude-desktop.md"),
+                Path.Combine(RepoRoot, "skills", "excel-mcp", "README.md"),
+                Path.Combine(RepoRoot, "skills", "excel-cli", "README.md"),
+                Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "README.md"),
+                Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "README.md"),
+                Path.Combine(RepoRoot, ".github", "plugins", "marketplace-repo", "README.md")
+            ])
+            .ToArray();
+
+        string[] retiredNames =
+        [
+            "ExcelMcp-CLI-latest-windows.zip",
+            "excel-mcp-server.exe",
+            "excel-mcp-bundle.mcpb"
+        ];
+
+        var unquotedCamelCaseArgument = new Regex(
+            """(?<!["A-Za-z0-9_])(?<name>[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)(?=\s*[:=])""",
+            RegexOptions.CultureInvariant);
+        var quotedCamelCaseArgument = new Regex(
+            "\"(?<name>[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)\"\\s*:",
+            RegexOptions.CultureInvariant);
+        var allowedUnquotedNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "canOpen",
+            "itemName"
+        };
+        var allowedQuotedNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "chartName",
+            "errorMessage",
+            "mcpServers",
+            "suggestedNextActions"
+        };
+
+        var violations = new List<string>();
+        foreach (var file in files)
+        {
+            var text = File.ReadAllText(file);
+            var relativePath = Path.GetRelativePath(RepoRoot, file);
+
+            violations.AddRange(
+                retiredNames
+                    .Where(text.Contains)
+                    .Select(name => $"{relativePath}: retired name '{name}'"));
+
+            violations.AddRange(
+                unquotedCamelCaseArgument
+                    .Matches(text)
+                    .Select(match => match.Groups["name"].Value)
+                    .Where(name => !allowedUnquotedNames.Contains(name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(name => $"{relativePath}: camelCase MCP argument '{name}'"));
+
+            violations.AddRange(
+                quotedCamelCaseArgument
+                    .Matches(text)
+                    .Select(match => match.Groups["name"].Value)
+                    .Where(name => !allowedQuotedNames.Contains(name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(name => $"{relativePath}: camelCase MCP argument '{name}'"));
+        }
+
+        Assert.True(
+            violations.Count == 0,
+            $"Canonical plugin guidance contains stale names or MCP arguments:{Environment.NewLine}{string.Join(Environment.NewLine, violations)}");
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_PreservesCurrentBootstrapAssetsAndDropsLegacyBootstrapFiles()
@@ -444,6 +520,60 @@ public sealed class PluginBootstrapBuildTests
             Assert.Equal(1, ReadMockCallCount(userProfile, "rest"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "web"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "expand"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_WithPluginData_UsesHostManagedRuntimeDirectory(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-plugin-data-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            var pluginData = Path.Combine(sandbox, "plugin-data");
+            Directory.CreateDirectory(userProfile);
+            Directory.CreateDirectory(pluginData);
+
+            var harnessPath = CreateDownloadHarnessScript(sandbox);
+            var version = "1.2.3";
+            var tag = $"v{version}";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var result = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "success"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["PLUGIN_DATA"] = pluginData,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.Equal(0, result.ExitCode);
+
+            var statePath = Path.Combine(pluginData, "runtime", "bootstrap-state.json");
+            Assert.True(File.Exists(statePath), $"Expected host-managed bootstrap state at {statePath}");
+            Assert.False(File.Exists(GetBootstrapStatePath(userProfile, pluginName)));
         }
         finally
         {
@@ -1490,6 +1620,55 @@ public sealed class PluginBootstrapBuildTests
         }
     }
 
+    [Fact]
+    public void StartCliWrapper_RelaysRedirectedStandardOutputAndError()
+    {
+        var script = File.ReadAllText(GetPluginScriptPath("excel-cli", "start-cli.ps1"));
+
+        Assert.Contains("$startInfo.RedirectStandardOutput = $true", script, StringComparison.Ordinal);
+        Assert.Contains("$startInfo.RedirectStandardError = $true", script, StringComparison.Ordinal);
+        Assert.Contains("$process.StandardOutput.ReadToEndAsync()", script, StringComparison.Ordinal);
+        Assert.Contains("$process.StandardError.ReadToEndAsync()", script, StringComparison.Ordinal);
+        Assert.Contains("[Console]::Error.Write($stderr)", script, StringComparison.Ordinal);
+        Assert.Contains("Write-Output -NoEnumerate $stdout", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task StartCliWrapper_PreservesPipelineOutput()
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox("start-cli-pipeline-output");
+        try
+        {
+            var binDirectory = Path.Combine(sandbox, "bin");
+            Directory.CreateDirectory(binDirectory);
+
+            var wrapperPath = Path.Combine(binDirectory, "start-cli.ps1");
+            File.Copy(GetPluginScriptPath("excel-cli", "start-cli.ps1"), wrapperPath);
+            File.WriteAllText(
+                Path.Combine(binDirectory, "download.ps1"),
+                """
+                param([switch]$PassThru, [switch]$Quiet)
+                (Get-Command "cmd.exe").Source
+                """);
+
+            var result = await RunPowerShellFileAsync(
+                wrapperPath,
+                ["/d", "/s", "/c", "echo pipeline-output & echo pipeline-error 1>&2"]);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("pipeline-output", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("pipeline-error", result.Stderr, StringComparison.Ordinal);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
     [SupportedOSPlatform("windows")]
     private static string[] SplitCommandLine(string commandLine)
     {
@@ -1970,7 +2149,7 @@ public sealed class PluginBootstrapBuildTests
         // The bootstrap reads ambient environment. Scrub the variables it consults so that a
         // developer machine or CI runner which happens to define them cannot silently change
         // what these tests exercise; callers opt back in by passing them explicitly.
-        foreach (var ambientName in new[] { "COPILOT_AGENT_SESSION_ID", "GITHUB_TOKEN", "GH_TOKEN" })
+        foreach (var ambientName in new[] { "COPILOT_AGENT_SESSION_ID", "PLUGIN_DATA", "GITHUB_TOKEN", "GH_TOKEN" })
         {
             startInfo.Environment.Remove(ambientName);
         }

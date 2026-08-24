@@ -36,12 +36,15 @@ This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that di
 
 ### Step 3: First Use Bootstraps `excelcli`
 
-The plugin now ships **wrapper/download logic** instead of a bundled executable. On first real invocation it:
+The plugin ships **wrapper/download logic** instead of a bundled executable. On first real invocation it:
 
-1. Checks the runtime cache under `~/.copilot\plugin-runtime\mcp-server-excel\excel-cli`
+1. Uses the host-managed persistent plugin data directory (`PLUGIN_DATA\runtime`) for its cache
 2. Queries the newest GitHub Release from `sbroenne/mcp-server-excel`
 3. Downloads the self-contained Windows CLI asset if needed
 4. Reuses that runtime for the rest of the chat session without repeated freshness checks
+
+The optional global shim runs outside an Agent Plugins host and uses
+`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` as its standalone cache.
 
 You do **not** need a separate standalone install just to use the plugin.
 

@@ -65,9 +65,24 @@ if ($null -eq $PassthroughArgs) {
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
 $startInfo.FileName = $binaryPath
 $startInfo.Arguments = (($PassthroughArgs | ForEach-Object { ConvertTo-NativeArgument -Value $_ }) -join ' ')
-# Inherit this process's stdin/stdout/stderr so interactive and piped usage keep working.
 $startInfo.UseShellExecute = $false
+$startInfo.RedirectStandardOutput = $true
+$startInfo.RedirectStandardError = $true
 
 $process = [System.Diagnostics.Process]::Start($startInfo)
+$stdoutTask = $process.StandardOutput.ReadToEndAsync()
+$stderrTask = $process.StandardError.ReadToEndAsync()
 $process.WaitForExit()
+
+$stdout = $stdoutTask.GetAwaiter().GetResult()
+$stderr = $stderrTask.GetAwaiter().GetResult()
+
+if (-not [string]::IsNullOrEmpty($stderr)) {
+    [Console]::Error.Write($stderr)
+}
+
+if (-not [string]::IsNullOrEmpty($stdout)) {
+    Write-Output -NoEnumerate $stdout
+}
+
 exit $process.ExitCode

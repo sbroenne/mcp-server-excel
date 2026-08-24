@@ -63,20 +63,26 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli
 excel-cli/
 ├── SKILL.md           # Main skill definition with CLI command guidance
 ├── README.md          # This file
-└── references/        # Exact CLI command/action/flag reference
-    └── cli-commands.md
+├── VERSION             # Published plugin version
+└── references/        # CLI command reference and workflow guidance
+    └── *.md
 ```
 
 ## CLI Tool Installation
 
-The **GitHub Copilot `excel-cli` plugin** installs the skill package only.
+The **GitHub Copilot `excel-cli` plugin** installs the skill plus a runtime
+bootstrap wrapper. The wrapper downloads and caches the latest self-contained
+Windows CLI runtime on first use.
 
 ### Via GitHub Copilot Plugin
 
-If you install `excel-cli` through the GitHub Copilot plugin marketplace, install `excelcli` separately and keep using the plugin for workflow guidance:
+Plugin-driven flows can use the bundled wrapper directly. To make `excelcli`
+available on PATH for shell commands, run the optional global shim installer
+from the installed plugin folder:
 
 ```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+pwsh -ExecutionPolicy Bypass -File `
+  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
 
 ### Via Skill Package
@@ -85,13 +91,9 @@ Plain skill-only installs still need `excelcli` available separately on PATH (fo
 
 ### Manual Download (Standalone)
 
-For other environments, download the standalone CLI:
-```powershell
-# Download from releases
-$url = "https://github.com/sbroenne/mcp-server-excel/releases/latest/download/ExcelMcp-CLI-latest-windows.zip"
-Invoke-WebRequest -Uri $url -OutFile ExcelMcp-CLI.zip
-Expand-Archive -Path ExcelMcp-CLI.zip -DestinationPath $env:ProgramFiles\ExcelMcp
-```
+For other environments, download `ExcelMcp-CLI-{version}-windows.zip` from the
+[latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest),
+extract it to a permanent directory, and add that directory to PATH.
 
 ### Via NuGet Package Manager (Secondary)
 

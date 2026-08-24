@@ -40,7 +40,11 @@ The plugin does **not** rely on a bundled `mcp-excel.exe`. Its Agent Plugins 1.0
 
 - checks GitHub Releases for the newest `ExcelMcp-MCP-Server-*-windows.zip`
 - downloads and caches the latest self-contained Windows server on first invocation
+- stores the cache under the host-managed `PLUGIN_DATA\runtime` directory
 - re-checks freshness at most once per Copilot chat session
+
+The optional global registration runs outside an Agent Plugins host and uses
+`~\.copilot\plugin-runtime\mcp-server-excel\excel-mcp` as its standalone cache.
 
 If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
 

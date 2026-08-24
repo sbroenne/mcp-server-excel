@@ -27,13 +27,13 @@ You MUST explicitly refresh the Data Model to sync changes.
 
 ```
 # WRONG: Data still shows old values
-table(append, tableName="Sales", csvData="...")  # Worksheet updated
-datamodel(evaluate, daxQuery="...")               # Returns OLD values!
+table(append, table_name="Sales", rows=[["..."]])  # Worksheet updated
+datamodel(evaluate, dax_query="...")               # Returns OLD values!
 
 # CORRECT: Refresh Data Model after worksheet changes
-table(append, tableName="Sales", csvData="...")  # Worksheet updated
+table(append, table_name="Sales", rows=[["..."]])  # Worksheet updated
 datamodel(refresh)                                 # Sync to Data Model
-datamodel(evaluate, daxQuery="...")               # Returns NEW values!
+datamodel(evaluate, dax_query="...")               # Returns NEW values!
 ```
 
 **When refresh is automatic:**
@@ -63,19 +63,19 @@ datamodel(evaluate, daxQuery="...")               # Returns NEW values!
 | Source | Method |
 |--------|--------|
 | Worksheet Excel Table | table with add-to-data-model action |
-| External file (CSV, etc.) | powerquery with loadDestination='data-model' |
-| Database/web source | powerquery with loadDestination='data-model' |
+| External file (CSV, etc.) | powerquery with load_destination='data-model' |
+| Database/web source | powerquery with load_destination='data-model' |
 
 **DAX Formatting**:
 
-DAX formulas are preserved exactly by default on WRITE operations (create-measure, update-measure), subject to Excel locale separator translation. Set `formatDax=true` only with explicit user consent; it sends DAX to daxformatter.com. Remote formatting adds ~100-500ms network latency per write operation. If formatting fails (network issues, API errors), the original DAX is saved unchanged - operations never fail due to formatting.
+DAX formulas are preserved exactly by default on WRITE operations (create-measure, update-measure), subject to Excel locale separator translation. Set `format_dax=true` only with explicit user consent; it sends DAX to daxformatter.com. Remote formatting adds ~100-500ms network latency per write operation. If formatting fails (network issues, API errors), the original DAX is saved unchanged - operations never fail due to formatting.
 
 **Action disambiguation**:
 
 - list-tables: List all tables currently in the Data Model
 - list-measures: List all DAX measures (returns raw DAX from Excel)
-- create-measure: Create a new DAX measure (DAX preserved by default; `formatDax=true` opts into remote formatting)
-- update-measure: Modify existing measure's formula/format/description (DAX preserved by default; `formatDax=true` opts into remote formatting)
+- create-measure: Create a new DAX measure (DAX preserved by default; `format_dax=true` opts into remote formatting)
+- update-measure: Modify existing measure's formula/format/description (DAX preserved by default; `format_dax=true` opts into remote formatting)
 - delete-measure: Remove a measure
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)
@@ -172,10 +172,10 @@ Reference: [Microsoft DMV Documentation](https://learn.microsoft.com/en-us/analy
 
 **DAX measure creation**:
 
-- tableName: Which table the measure belongs to (for organization)
-- measureName: Display name for the measure
-- daxFormula: DAX expression (e.g., "SUM(Sales[Revenue])")
-- formatString: Optional number format (#,##0.00, 0%, $#,##0, etc.)
+- table_name: Which table the measure belongs to (for organization)
+- measure_name: Display name for the measure
+- dax_formula: DAX expression (e.g., "SUM(Sales[Revenue])")
+- format_type: Optional number format (#,##0.00, 0%, $#,##0, etc.)
 
 **Common DAX patterns**:
 
@@ -225,7 +225,7 @@ A PivotChart is a single object connected to the Data Model. Creating a PivotTab
 - Creating measures before adding source table to Data Model → Error
 - Using worksheet table names instead of Data Model table names
 - Forgetting that delete-table removes ALL measures on that table
-- Not specifying tableName when creating measures (required for organization)
+- Not specifying `table_name` when creating measures (required for organization)
 
 **Server-specific quirks**:
 
