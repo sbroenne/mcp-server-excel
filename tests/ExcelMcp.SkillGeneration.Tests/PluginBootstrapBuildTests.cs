@@ -409,6 +409,23 @@ public sealed class PluginBootstrapBuildTests
             Assert.Equal(
                 File.ReadAllText(sourceValidationScript),
                 File.ReadAllText(publishedValidationScript));
+
+            var publishedInstructionsPath = Path.Combine(
+                publishedRepoDir,
+                ".github",
+                "copilot-instructions.md");
+            var sourceInstructionsPath = Path.Combine(
+                RepoRoot,
+                ".github",
+                "plugins",
+                "marketplace-repo",
+                ".github",
+                "copilot-instructions.md");
+            Assert.True(File.Exists(sourceInstructionsPath));
+            Assert.True(File.Exists(publishedInstructionsPath));
+            Assert.Equal(
+                File.ReadAllText(sourceInstructionsPath),
+                File.ReadAllText(publishedInstructionsPath));
         }
         finally
         {

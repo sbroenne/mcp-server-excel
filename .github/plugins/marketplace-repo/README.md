@@ -4,6 +4,12 @@ Windows-only GitHub Copilot CLI plugins for ExcelMcp.
 
 This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel).
 
+> [!WARNING]
+> This repository is generated publication output. Do not edit it directly:
+> publication overwrites unsynchronized changes. Update the canonical files in
+> the [source repository](https://github.com/sbroenne/mcp-server-excel) and
+> follow its [plugin publication guide](https://github.com/sbroenne/mcp-server-excel/blob/main/.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates).
+
 ## Plugins
 
 - **excel-mcp** — MCP server plugin for conversational Excel automation

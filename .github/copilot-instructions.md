@@ -85,6 +85,9 @@ Use the existing repository checks rather than reproducing them:
 - Add a changeset for user-visible features, fixes, or breaking changes. Do not
   edit `CHANGELOG.md` manually. Internal, documentation-only, test-only, and CI
   changes use the `skip-changelog` PR label instead.
+- Plugin publication changes must follow
+  `.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates`; do
+  not edit the generated published repository independently.
 - Keep customer names, workbook names, local paths, credentials, and other
   confidential context out of public commits, issues, and pull requests.
 
