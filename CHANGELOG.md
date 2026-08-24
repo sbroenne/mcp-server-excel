@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.1] - 2026-08-24
+
+### Patch Changes
+
+- [#811](https://github.com/sbroenne/mcp-server-excel/pull/811) [`d43a165`](https://github.com/sbroenne/mcp-server-excel/commit/d43a165f85d08e79117cccfd1ecb58cb4bff479f) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reliable Agent Plugin packages**: ExcelMcp plugins now use the host-provided persistent cache, preserve CLI pipeline output, and ship current installation and tool examples.
+
+- [#809](https://github.com/sbroenne/mcp-server-excel/pull/809) [`cbbc529`](https://github.com/sbroenne/mcp-server-excel/commit/cbbc529be9c88553cb0c68f2637d47e8a48fab97) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reliable MCP Registry releases** ([#808](https://github.com/sbroenne/mcp-server-excel/issues/808)): Releases now stamp and verify both MCP Registry version fields, and report publishing failures instead of hiding them.
+
+- [#813](https://github.com/sbroenne/mcp-server-excel/pull/813) [`3ad8ca3`](https://github.com/sbroenne/mcp-server-excel/commit/3ad8ca383101636fe5ef9df90f16fd46810538ee) Thanks [@sbroenne](https://github.com/sbroenne)! - **Verified plugin runtime downloads**: The ExcelMcp Copilot plugins now check downloaded and cached Windows runtime ZIPs against SHA-256 checksums published with the exact GitHub release before extraction.
+
 ## [2.0.0] - 2026-08-21
 
 ### Major Changes
