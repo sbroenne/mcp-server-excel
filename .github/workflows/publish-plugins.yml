@@ -254,6 +254,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Setup Python for Agent Skills validation
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
       - name: Test Agent Plugin packaging
         run: >
           dotnet test source/tests/ExcelMcp.SkillGeneration.Tests/ExcelMcp.SkillGeneration.Tests.csproj
@@ -269,6 +274,14 @@ jobs:
           cd source
           & .\scripts\Build-Plugins.ps1 -Version $VERSION
         shell: pwsh
+
+      - name: Validate Agent Skills with skills-ref
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check `
+            "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
+          skills-ref validate source\plugins\excel-mcp\skills\excel-mcp
+          skills-ref validate source\plugins\excel-cli\skills\excel-cli
 
       - name: Validate wrapper-only plugin payloads
         shell: pwsh

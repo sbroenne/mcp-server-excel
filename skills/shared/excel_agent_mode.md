@@ -49,7 +49,7 @@ AI navigates through a completed workbook, explaining findings while the user wa
 ```
 1. file(open, path='analysis.xlsx')
 2. window(show)
-3. window(set-state, windowState='maximized')      → Full screen for best visibility
+3. window(set-state, window_state='maximized')      → Full screen for best visibility
 4. window(set-status-bar, text='Reviewing Sales sheet...')
 5. "On the Sales sheet, you can see quarterly revenue trending up 15%..."
 6. worksheet(activate, name='Analysis')            → Switch to next sheet
@@ -77,13 +77,13 @@ AI performs operations one at a time, showing results between each step for trou
 4. window(set-status-bar, text='Inspecting Power Query...')
 5. powerquery(list)
 6. "Found 3 queries. Let me check each one..."
-7. powerquery(view, queryName='Sales')
+7. powerquery(view, query_name='Sales')
 8. window(set-status-bar, text='Refreshing Sales query...')
-9. powerquery(refresh, queryName='Sales')
+9. powerquery(refresh, query_name='Sales')
 10. screenshot(capture-sheet)                      → Show result
 11. "Sales query refreshed successfully. 150 rows loaded. Moving to next..."
 12. window(set-status-bar, text='Refreshing Products query...')
-13. powerquery(refresh, queryName='Products')
+13. powerquery(refresh, query_name='Products')
 14. "Products query failed: [error]. Let me fix the M code..."
 15. window(clear-status-bar)
 ```

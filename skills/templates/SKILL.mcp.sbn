@@ -95,7 +95,7 @@ Always convert tabular data to Excel Tables:
 
 ```
 1. range set-values (write data including headers)
-2. table create tableName="SalesData" rangeAddress="A1:D100"
+2. table(action: 'create', table_name: 'SalesData', range_address: 'A1:D100')
 ```
 
 **Why:** Structured references, auto-expand, required for Data Model/DAX.
@@ -104,7 +104,7 @@ Always convert tabular data to Excel Tables:
 
 ```
 1. file(action: 'open', path: '...')  → sessionId
-2. All operations use sessionId
+2. All operations use `session_id`
 3. file(action: 'close', save: true)  → saves and closes
 ```
 
@@ -116,7 +116,7 @@ DAX operations require tables in the Data Model:
 
 ```
 Step 1: Create table → Table exists
-Step 2: table(action: 'add-to-datamodel') → Table in Data Model
+Step 2: table(action: 'add-to-data-model') → Table in Data Model
 Step 3: datamodel(action: 'create-measure') → NOW this works
 ```
 
@@ -125,7 +125,7 @@ Step 3: datamodel(action: 'create-measure') → NOW this works
 **BEST PRACTICE: Test-First Workflow**
 
 ```
-1. powerquery(action: 'evaluate', mCode: '...') → Test WITHOUT persisting
+1. powerquery(action: 'evaluate', m_code: '...') → Test WITHOUT persisting
 2. powerquery(action: 'create', ...) → Store validated query
 3. powerquery(action: 'refresh', ...) → Load data
 ```
@@ -153,7 +153,7 @@ Error responses include actionable hints:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
+  "suggestedNextActions": ["table(action: 'add-to-data-model', table_name: 'Sales')"]
 }
 ```
 

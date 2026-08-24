@@ -248,6 +248,111 @@ public class SkillMdQualityTests
         Assert.Contains("action:", content);
     }
 
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void CanonicalMcpGuidance_UsesSnakeCaseInputs()
+    {
+        var allowedCamelCaseTokens = new HashSet<string>(StringComparer.Ordinal)
+        {
+            // MCP and CLI response properties.
+            "canOpen",
+            "chartName",
+            "errorMessage",
+            "formulaPreview",
+            "groupedFieldName",
+            "isIrmProtected",
+            "loadMode",
+            "majorUnit",
+            "minorUnit",
+            "newName",
+            "oldName",
+            "requiresVisibleSession",
+            "sessionId",
+            "suggestedNextActions",
+            "willOpenReadOnly",
+
+            // CLI batch JSON aliases.
+            "daxFormulaFile",
+            "daxQueryFile",
+            "dmvQueryFile",
+            "mCodeFile",
+            "schemaFile",
+            "vbaCodeFile",
+            "xmlDataFile",
+
+            // External configuration and XML names.
+            "mcpServers",
+            "noNamespaceSchemaLocation",
+            "schemaLocation",
+
+            // Contract enum values and conditional-format response properties.
+            "aboveAverage",
+            "aboveBelow",
+            "aboveStdDev",
+            "barColorNegative",
+            "belowAverage",
+            "belowStdDev",
+            "colorScale",
+            "colorScaleCriteria",
+            "dataBar",
+            "datePeriod",
+            "equalAboveAverage",
+            "equalBelowAverage",
+            "fillColor",
+            "fontBold",
+            "fontColor",
+            "fontItalic",
+            "iconSet",
+            "interiorColor",
+            "last7Days",
+            "lastMonth",
+            "lastWeek",
+            "leftToRight",
+            "maxType",
+            "maxValue",
+            "minType",
+            "minValue",
+            "nextMonth",
+            "nextWeek",
+            "rightToLeft",
+            "showIconOnly",
+            "showValue",
+            "borderStyle",
+            "thisMonth",
+            "thisWeek",
+            "timePeriod",
+            "topBottom"
+        };
+
+        var canonicalFiles = Directory.GetFiles(Path.Combine(SkillsFolder, "shared"), "*.md")
+            .Append(Path.Combine(SkillsFolder, "templates", "SKILL.mcp.sbn"))
+            .Append(Path.Combine(SkillsFolder, "excel-mcp", "references", "claude-desktop.md"));
+        var unexpectedTokens = new List<string>();
+
+        foreach (var path in canonicalFiles)
+        {
+            var relativePath = Path.GetRelativePath(SkillsFolder, path);
+            var lines = File.ReadAllLines(path);
+
+            for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+            {
+                foreach (Match match in Regex.Matches(lines[lineIndex], @"\b[a-z]+[A-Z][A-Za-z0-9]*\b"))
+                {
+                    if (!allowedCamelCaseTokens.Contains(match.Value))
+                    {
+                        unexpectedTokens.Add($"{relativePath}:{lineIndex + 1}: {match.Value}");
+                    }
+                }
+            }
+        }
+
+        Assert.True(
+            unexpectedTokens.Count == 0,
+            "Canonical MCP guidance contains unexpected camelCase tokens. MCP inputs must use snake_case:\n" +
+            string.Join('\n', unexpectedTokens));
+    }
+
     private static void AssertNoEmptyDescriptions(string skillPath, string skillType)
     {
         Assert.True(File.Exists(skillPath), $"{skillType} SKILL.md should exist");

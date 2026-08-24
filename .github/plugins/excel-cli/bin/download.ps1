@@ -14,7 +14,11 @@ $RepoOwner = "sbroenne"
 $RepoName = "mcp-server-excel"
 $ReleaseApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 $ReleasePageUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
-$CacheRoot = Join-Path $env:USERPROFILE ".copilot\plugin-runtime\mcp-server-excel\$PluginName"
+$CacheRoot = if (-not [string]::IsNullOrWhiteSpace($env:PLUGIN_DATA)) {
+    Join-Path $env:PLUGIN_DATA "runtime"
+} else {
+    Join-Path $env:USERPROFILE ".copilot\plugin-runtime\mcp-server-excel\$PluginName"
+}
 $DownloadsDir = Join-Path $CacheRoot "downloads"
 $ReleasesDir = Join-Path $CacheRoot "releases"
 $StatePath = Join-Path $CacheRoot "bootstrap-state.json"
