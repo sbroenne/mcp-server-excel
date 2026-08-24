@@ -8,7 +8,7 @@ All ExcelMcp components are released together with a single version tag:
 
 | Component | Primary Distribution | Secondary Distribution | Description |
 |-----------|---------------------|----------------------|-------------|
-| **MCP Server** | Standalone exe ZIP | NuGet (.NET tool) | `mcp-excel.exe` — no .NET runtime required |
+| **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel` or `mcp-excel.exe` — no .NET runtime required |
 | **CLI** | Standalone exe ZIP | NuGet (.NET tool) | `excelcli.exe` — no .NET runtime required |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
@@ -27,19 +27,21 @@ When you run the release workflow, all components are released together:
 1. **CLI** → Standalone self-contained exe (`excelcli.exe`) shipped as:
    - ZIP file (primary distribution)
    - NuGet package (secondary distribution)
-2. **MCP Server** → Standalone self-contained exe (`mcp-excel.exe`) + ZIP [primary] + NuGet pack [secondary]
+2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained exe ZIP [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
 6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
-8. **MCP Registry** → Updated after NuGet propagation
+8. **MCP Registry** → Updated after NuGet and npm propagation
 9. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
 
 ### Release Artifacts
 
 | Artifact | Format | Distribution |
 |----------|--------|--------------|
+| `@sbroenne/mcp-server-excel@{version}` | npm | npm registry (primary launcher package) |
+| `@sbroenne/mcp-server-excel-win32-x64@{version}` | npm | npm registry (self-contained Windows runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
@@ -80,9 +82,9 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 The workflow will:
 1. Calculate the next version from the latest git tag
-2. Build all components (standalone exes + NuGet packages)
+2. Build all components (npm packages, standalone exes, and NuGet packages)
 3. Create and push the git tag (`v1.5.7`)
-4. Publish to NuGet.org, VS Code Marketplace, MCP Registry
+4. Publish to npm, NuGet.org, VS Code Marketplace, and MCP Registry
 5. Create GitHub Release with all artifacts
 6. Auto-PR to update `CHANGELOG.md`
 
@@ -91,13 +93,13 @@ The workflow will:
 The main release workflow runs automatically (10 jobs), then the plugin publish workflow runs automatically if the release succeeds:
 
 1. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
-2. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
+2. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates and tests npm packages, ZIP, and NuGet pack
 3. **build-vscode** (5-8 min) → Builds self-contained VSIX (bundles exes), publishes to VS Code Marketplace
 4. **build-mcpb** (3-5 min) → Builds Claude Desktop bundle
 5. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package (for direct skill extraction via `npx skills add`)
 6. **create-tag** → Creates git tag (waits for all builds)
-7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
-8. **publish** → Publishes to NuGet.org and VS Code Marketplace
+7. **publish-mcp-registry** (10-30 min) → Waits for NuGet and npm propagation, updates MCP Registry
+8. **publish** → Publishes to npm, NuGet.org, and VS Code Marketplace
 9. **create-release** → Creates GitHub Release with all artifacts (release notes generated from compiled changesets), then creates auto-PR to commit the updated CHANGELOG.md
 10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed
 
@@ -106,6 +108,7 @@ The main release workflow runs automatically (10 jobs), then the plugin publish 
 After workflow completes:
 
 - [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, VSIX, MCPB, skills ZIP)
+- [ ] npm launcher and Windows runtime packages are available at the release version
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
@@ -239,14 +242,15 @@ Configure these GitHub repository secrets and variables:
 | Type | Name | Purpose |
 |------|------|---------|
 | Secret | `NUGET_USER` | NuGet.org username (for OIDC trusted publishing) |
+| Secret | `NPM_TOKEN` | Granular npm publish token for the first package publish and fallback authentication |
 | Secret | `VSCE_TOKEN` | VS Code Marketplace PAT |
 | Secret | `APPINSIGHTS_CONNECTION_STRING` | Application Insights (optional telemetry) |
 | Secret | `PLUGINS_REPO_TOKEN` | Cross-repo PAT (`public_repo`) or app token (`contents:write`) for publishing plugins to `sbroenne/mcp-server-excel-plugins` |
 
 > **Notes:**
 > - NuGet uses OIDC trusted publishing (no API key needed). The `NUGET_USER` is just the NuGet.org profile name for OIDC token exchange.
+> - npm trusted publishing cannot bootstrap a new package. Use `NPM_TOKEN` for the first release, configure `release.yml` as the trusted publisher for both npm packages, then remove the token; npm automatically prefers OIDC and generates provenance.
 > - The follow-on plugin publish workflow uses a stored cross-repo token (`PLUGINS_REPO_TOKEN`) with write access to the published plugin repo. A PAT needs `public_repo`; an app token needs `contents:write`.
-> - **No npm tokens required** — agent skills are distributed through GitHub Release ZIP and direct skill extraction (`npx skills add`), not npm registry.
 
 ## Troubleshooting
 
@@ -254,6 +258,12 @@ Configure these GitHub repository secrets and variables:
 
 - Verify `NUGET_USER` secret is set to your NuGet.org profile name (not email)
 - Check NuGet.org trusted publishers are configured for OIDC
+
+### npm Publishing Fails
+
+- For the first release, verify `NPM_TOKEN` can publish public packages under the `@sbroenne` scope
+- After the first release, configure both packages to trust the `release.yml` GitHub Actions workflow
+- Confirm the workflow has `id-token: write` and uses npm 11 or later
 
 ### VS Code Marketplace Fails
 
@@ -288,5 +298,5 @@ Configure these GitHub repository secrets and variables:
 4. **Reduced coordination** — no need to remember multiple tag patterns
 5. **Complete changelog** — all changes documented in one place, auto-updated via PR
 6. **Faster releases** — parallel builds for independent components
-7. **Dual distribution** — standalone exe (primary, no .NET needed) + NuGet (secondary, for .NET users)
+7. **Multiple distribution choices** — npm and standalone exe (primary, no .NET needed) + NuGet (secondary, for .NET users)
 8. **Self-contained VS Code** — extension bundles everything, no external dependencies

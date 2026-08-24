@@ -380,14 +380,16 @@ Invoke-ValidationStep `
 Invoke-ValidationStep `
     -Heading "Building MCP Server release deliverables..." `
     -FailureSummary "MCP Server release deliverable validation failed!" `
-    -SuccessSummary "MCP Server release deliverables passed - NuGet package and standalone ZIP were built locally" `
+    -SuccessSummary "MCP Server release deliverables passed - npm, NuGet, and standalone ZIP packages were built locally" `
     -Action {
         $mcpNupkgDir = Join-Path $preCommitArtifactsDir "mcp-server-nupkg"
+        $mcpNpmDir = Join-Path $preCommitArtifactsDir "mcp-server-npm"
         $mcpPublishDir = Join-Path $preCommitArtifactsDir "mcp-server-publish"
         $mcpReleaseDir = Join-Path $preCommitArtifactsDir "mcp-server-release"
         $mcpZipPath = Join-Path $preCommitArtifactsDir "ExcelMcp-MCP-Server-$version-windows.zip"
 
         Reset-Directory -Path $mcpNupkgDir
+        Reset-Directory -Path $mcpNpmDir
         Reset-Directory -Path $mcpPublishDir
         Reset-Directory -Path $mcpReleaseDir
 
@@ -410,6 +412,16 @@ Invoke-ValidationStep `
 
             Rename-Item $publishedExe "mcp-excel.exe"
 
+            npm ci --prefix npm-packages\mcp-server-excel --ignore-scripts
+            npm test --prefix npm-packages\mcp-server-excel
+            .\scripts\Build-NpmPackages.ps1 `
+                -Version $version `
+                -RuntimeExecutable $renamedExe `
+                -OutputDirectory $mcpNpmDir
+            .\scripts\Test-NpmPackages.ps1 `
+                -LauncherPackage (Join-Path $mcpNpmDir "sbroenne-mcp-server-excel-$version.tgz") `
+                -RuntimePackage (Join-Path $mcpNpmDir "sbroenne-mcp-server-excel-win32-x64-$version.tgz")
+
             Copy-Item (Join-Path $mcpPublishDir "mcp-excel.exe") $mcpReleaseDir
             Copy-Item "README.md" $mcpReleaseDir
             Copy-Item "LICENSE" $mcpReleaseDir
@@ -422,6 +434,10 @@ Invoke-ValidationStep `
 
             if (-not (Get-ChildItem $mcpNupkgDir -Filter "*.nupkg" -ErrorAction Stop)) {
                 throw "MCP Server NuGet package was not created."
+            }
+
+            if ((Get-ChildItem $mcpNpmDir -Filter "*.tgz" -ErrorAction Stop).Count -ne 2) {
+                throw "MCP Server npm packages were not created."
             }
 
             if (-not (Test-Path $mcpZipPath)) {

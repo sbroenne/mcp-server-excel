@@ -101,7 +101,7 @@ Quick reference:
 ## Release Process (Maintainers)
 
 **Release:** Use `workflow_dispatch` on the release workflow with version bump (major/minor/patch) or custom version. Releases ALL components with same version:
-- MCP Server → NuGet + ZIP
+- MCP Server → npm + NuGet + ZIP
 - CLI → NuGet + ZIP
 - VS Code Extension → Marketplace + VSIX
 - MCPB → Claude Desktop bundle

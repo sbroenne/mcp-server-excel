@@ -15,7 +15,12 @@
 **Claude Desktop (MCPB)**
 - Download `excel-mcp-{{VERSION}}.mcpb` and double-click to install
 
-**Standalone Executables** (Primary — no .NET runtime required)
+**npm MCP Server** (Primary — no .NET runtime required)
+```powershell
+npx -y @sbroenne/mcp-server-excel
+```
+
+**Standalone Executables** (no .NET runtime required)
 - MCP Server: Download `ExcelMcp-MCP-Server-{{VERSION}}-windows.zip`, extract `mcp-excel.exe`
 - CLI: Download `ExcelMcp-CLI-{{VERSION}}-windows.zip`, extract `excelcli.exe`
 - Add the exe(s) to your PATH, then configure your MCP client with command `mcp-excel`
@@ -34,7 +39,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ### Requirements
 - Windows OS
 - Microsoft Excel 2016+
-- No .NET runtime required for VS Code Extension, MCPB, or standalone executables
+- No .NET runtime required for npm, VS Code Extension, MCPB, or standalone executables
 - .NET 10 Runtime required for NuGet (.NET tool) installation only
 
 ### Documentation

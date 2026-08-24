@@ -12,6 +12,8 @@ bld/
 [Bb]in/
 !.github/plugins/**/bin/
 !.github/plugins/**/bin/**
+!npm-packages/mcp-server-excel/bin/
+!npm-packages/mcp-server-excel/bin/**
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
