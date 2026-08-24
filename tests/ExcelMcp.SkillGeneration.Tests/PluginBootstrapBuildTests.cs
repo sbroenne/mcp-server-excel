@@ -52,6 +52,22 @@ public sealed class PluginBootstrapBuildTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    [Trait("Feature", "AgentPluginSpec")]
+    public void PublishWorkflow_ValidatesBothSkillsWithPinnedOfficialSkillsRef()
+    {
+        var workflowPath = Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml");
+        var content = File.ReadAllText(workflowPath);
+
+        Assert.Contains("actions/setup-python@v6", content);
+        Assert.Contains(
+            "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref",
+            content);
+        Assert.Contains(@"skills-ref validate source\plugins\excel-mcp\skills\excel-mcp", content);
+        Assert.Contains(@"skills-ref validate source\plugins\excel-cli\skills\excel-cli", content);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
     public async Task BuildPlugins_PreservesCurrentBootstrapAssetsAndDropsLegacyBootstrapFiles()
     {
@@ -380,6 +396,36 @@ public sealed class PluginBootstrapBuildTests
                 Path.Combine(publishedRepoDir, "plugins", "excel-cli"),
                 "bin/download-cli.ps1",
                 "bin/bootstrap-state.json");
+
+            var publishedValidationScript = Path.Combine(publishedRepoDir, "tests", "Test-Plugins.ps1");
+            var sourceValidationScript = Path.Combine(
+                RepoRoot,
+                ".github",
+                "plugins",
+                "marketplace-repo",
+                "tests",
+                "Test-Plugins.ps1");
+            Assert.True(File.Exists(publishedValidationScript));
+            Assert.Equal(
+                File.ReadAllText(sourceValidationScript),
+                File.ReadAllText(publishedValidationScript));
+
+            var publishedInstructionsPath = Path.Combine(
+                publishedRepoDir,
+                ".github",
+                "copilot-instructions.md");
+            var sourceInstructionsPath = Path.Combine(
+                RepoRoot,
+                ".github",
+                "plugins",
+                "marketplace-repo",
+                ".github",
+                "copilot-instructions.md");
+            Assert.True(File.Exists(sourceInstructionsPath));
+            Assert.True(File.Exists(publishedInstructionsPath));
+            Assert.Equal(
+                File.ReadAllText(sourceInstructionsPath),
+                File.ReadAllText(publishedInstructionsPath));
         }
         finally
         {
@@ -444,6 +490,68 @@ public sealed class PluginBootstrapBuildTests
             Assert.Equal(1, ReadMockCallCount(userProfile, "rest"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "web"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "expand"));
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "excelcli.exe", "ExcelMcp-CLI-{0}-windows.zip")]
+    [InlineData("excel-mcp", "mcp-excel.exe", "ExcelMcp-MCP-Server-{0}-windows.zip")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task DownloadBootstrap_PluginHost_UsesPluginDataRuntime(
+        string pluginName,
+        string executableName,
+        string assetNameFormat)
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox($"download-plugin-data-{pluginName}");
+        try
+        {
+            var userProfile = Path.Combine(sandbox, "user");
+            var pluginData = Path.Combine(sandbox, "plugin-data");
+            Directory.CreateDirectory(userProfile);
+            Directory.CreateDirectory(pluginData);
+
+            var harnessPath = CreateDownloadHarnessScript(sandbox);
+            var version = "1.2.3";
+            var tag = $"v{version}";
+            var assetName = string.Format(CultureInfo.InvariantCulture, assetNameFormat, version);
+
+            var result = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-ScriptPath", GetPluginScriptPath(pluginName, "download.ps1"),
+                    "-ExecutableName", executableName,
+                    "-Tag", tag,
+                    "-AssetName", assetName,
+                    "-Mode", "success"
+                ],
+                environmentVariables: new Dictionary<string, string>
+                {
+                    ["USERPROFILE"] = userProfile,
+                    ["PLUGIN_DATA"] = pluginData,
+                    ["COPILOT_AGENT_SESSION_ID"] = "session-a",
+                    ["OS"] = "Windows_NT"
+                });
+
+            Assert.Equal(0, result.ExitCode);
+
+            var pluginDataStatePath = Path.Combine(pluginData, "runtime", "bootstrap-state.json");
+            Assert.True(File.Exists(pluginDataStatePath), $"Expected plugin bootstrap state at {pluginDataStatePath}");
+            Assert.False(File.Exists(GetBootstrapStatePath(userProfile, pluginName)));
+
+            using var state = JsonDocument.Parse(File.ReadAllText(pluginDataStatePath));
+            var binaryPath = state.RootElement.GetProperty("binaryPath").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(binaryPath));
+            Assert.StartsWith(
+                Path.Combine(pluginData, "runtime"),
+                binaryPath!,
+                StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -1267,6 +1375,53 @@ public sealed class PluginBootstrapBuildTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
+    public void CanonicalPluginDocumentation_DoesNotUseRetiredNamesOrFlags()
+    {
+        var retiredDocumentation = new (string Pattern, string Description)[]
+        {
+            (Regex.Escape("ExcelMcp-CLI-latest-windows.zip"), "nonexistent unversioned CLI release asset"),
+            (Regex.Escape("excel-mcp-server.exe"), "retired MCP executable name"),
+            (Regex.Escape("excel-mcp-bundle.mcpb"), "retired MCPB asset name"),
+            (Regex.Escape("file(action: 'open', filePath"), "retired MCP file path parameter"),
+            (Regex.Escape("file(action: 'close', sessionId"), "retired MCP session parameter"),
+            (@"(?<![A-Za-z0-9-])--range-address(?![A-Za-z0-9-])", "retired CLI range flag"),
+            (@"(?<![A-Za-z0-9-])--sheet-name(?![A-Za-z0-9-])", "retired CLI worksheet flag"),
+            (@"(?<![A-Za-z0-9-])--source-table-name(?![A-Za-z0-9-])", "retired CLI PivotTable source flag")
+        };
+        var documentationRoots = new[]
+        {
+            Path.Combine(RepoRoot, ".github", "plugins", "excel-cli"),
+            Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp"),
+            Path.Combine(RepoRoot, "docs", "guides"),
+            Path.Combine(RepoRoot, "skills", "excel-mcp")
+        };
+        var failures = new List<string>();
+
+        var documentationFiles = documentationRoots.SelectMany(
+                root => Directory.GetFiles(root, "*.md", SearchOption.AllDirectories))
+            .Append(Path.Combine(RepoRoot, ".github", "plugins", "marketplace-repo", "README.md"));
+
+        foreach (var path in documentationFiles)
+        {
+            var content = File.ReadAllText(path);
+            foreach (var retired in retiredDocumentation)
+            {
+                if (Regex.IsMatch(content, retired.Pattern))
+                {
+                    failures.Add($"{Path.GetRelativePath(RepoRoot, path)}: {retired.Description}");
+                }
+            }
+        }
+
+        Assert.True(
+            failures.Count == 0,
+            "Canonical plugin documentation contains retired names or flags:\n" +
+            string.Join('\n', failures));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
     public async Task BuildBootstrapScripts_CheckPassesForCommittedCopies()
     {
         var scriptPath = Path.Combine(RepoRoot, "scripts", "Build-BootstrapScripts.ps1");
@@ -1483,6 +1638,79 @@ public sealed class PluginBootstrapBuildTests
             var parsed = SplitCommandLine($"excelcli.exe {commandLine}").Skip(1).ToArray();
 
             Assert.Equal(expected, parsed);
+        }
+        finally
+        {
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public async Task StartCliWrapper_RelaysOutputThroughPowerShellPipeline()
+    {
+        Assert.True(OperatingSystem.IsWindows(), "Plugin bootstrap packaging tests require Windows.");
+
+        var sandbox = CreateSandbox("start-cli-pipeline-output");
+        try
+        {
+            var pluginBinDirectory = Path.Combine(sandbox, "plugin", "bin");
+            Directory.CreateDirectory(pluginBinDirectory);
+            File.Copy(
+                GetPluginScriptPath("excel-cli", "start-cli.ps1"),
+                Path.Combine(pluginBinDirectory, "start-cli.ps1"));
+
+            File.WriteAllText(
+                Path.Combine(pluginBinDirectory, "download.ps1"),
+                """
+                [CmdletBinding()]
+                param(
+                    [switch]$PassThru,
+                    [switch]$Quiet
+                )
+
+                Write-Output (Get-Command "cscript.exe").Source
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            var echoScriptPath = Path.Combine(sandbox, "echo-streams.js");
+            File.WriteAllText(
+                echoScriptPath,
+                """
+                WScript.StdOut.Write("pipeline-ok");
+                WScript.StdErr.Write("pipeline-error");
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            var harnessPath = Path.Combine(sandbox, "invoke-wrapper.ps1");
+            File.WriteAllText(
+                harnessPath,
+                """
+                [CmdletBinding()]
+                param(
+                    [Parameter(Mandatory = $true)]
+                    [string]$WrapperPath,
+
+                    [Parameter(Mandatory = $true)]
+                    [string]$EchoScriptPath
+                )
+
+                $captured = (& $WrapperPath //nologo $EchoScriptPath | Out-String).Trim()
+                Write-Output "captured=$captured"
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            var result = await RunPowerShellFileAsync(
+                harnessPath,
+                [
+                    "-WrapperPath", Path.Combine(pluginBinDirectory, "start-cli.ps1"),
+                    "-EchoScriptPath", echoScriptPath
+                ]);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Equal("captured=pipeline-ok", result.Stdout.Trim());
+            Assert.Equal("pipeline-error", result.Stderr.Trim());
         }
         finally
         {

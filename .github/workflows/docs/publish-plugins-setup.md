@@ -217,16 +217,35 @@ Keep the requested release tag aligned with the plugin manifest/version the work
 
 ---
 
-## Maintenance
+## Maintenance and updates
 
-### Updating Plugin Structure
+### Updating plugins and published output
 
-If you change the plugin structure (add/remove files, change manifest schema):
-1. Update `Build-Plugins.ps1` to reflect new structure
-2. Update the matching canonical source template under `.github/plugins/`
-3. Test locally: `./scripts/Build-Plugins.ps1 -Version 0.0.0`
-4. Commit changes to source repo
-5. Workflow will use updated script on next release
+The source repository is the only editable source for plugin publication. The
+published repository is generated output: unsynchronized hand edits in
+`sbroenne/mcp-server-excel-plugins` are prohibited and can be overwritten by the
+next publication.
+
+For every plugin change:
+
+1. Change the canonical source first under `.github/plugins/`, `skills/`, or the
+   owning build, sync, and workflow files in `sbroenne/mcp-server-excel`.
+2. Build or regenerate the plugin packages with `scripts/Build-Plugins.ps1`.
+3. Run `scripts/Sync-PublishedPluginRepo.ps1` against a clean checkout of
+   `sbroenne/mcp-server-excel-plugins` to produce the complete publication tree.
+4. Inspect the generated diff and run the focused generation, sync, instruction,
+   and plugin validation, including the generated repository's
+   `tests/Test-Plugins.ps1`. Fix failures in the source repository, regenerate,
+   and repeat; do not patch the generated output.
+5. Only after the generated diff and tests are clean should the source pull
+   request be merged and the release publication path be allowed to run.
+
+Merging a source pull request alone does **not** publish plugins. A normal
+successful `Release All Components` run on `main` triggers
+`publish-plugins.yml`. Maintainers can also run `publish-plugins.yml` manually
+with an existing source release tag to re-sync or repair publication. The
+workflow directly commits and pushes the generated output to
+`sbroenne/mcp-server-excel-plugins/main`.
 
 ### Changing Published Repo Name
 

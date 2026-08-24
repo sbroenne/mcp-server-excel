@@ -12,26 +12,26 @@ Two distinct slicer types exist:
 
 | Action | Description | Required Parameters |
 |--------|-------------|---------------------|
-| `create-slicer` | Create PivotTable slicer | pivotTableName, fieldName |
+| `create-slicer` | Create PivotTable slicer | pivot_table_name, field_name |
 | `list-slicers` | List all PivotTable slicers | (none) |
-| `set-slicer-selection` | Set PivotTable slicer filter | slicerName, selectedItems |
-| `delete-slicer` | Delete PivotTable slicer | slicerName |
-| `create-table-slicer` | Create Table slicer | tableName, columnName |
+| `set-slicer-selection` | Set PivotTable slicer filter | slicer_name, selected_items |
+| `delete-slicer` | Delete PivotTable slicer | slicer_name |
+| `create-table-slicer` | Create Table slicer | table_name, column_name |
 | `list-table-slicers` | List all Table slicers | (none) |
-| `set-table-slicer-selection` | Set Table slicer filter | slicerName, selectedItems |
-| `delete-table-slicer` | Delete Table slicer | slicerName |
+| `set-table-slicer-selection` | Set Table slicer filter | slicer_name, selected_items |
+| `delete-table-slicer` | Delete Table slicer | slicer_name |
 
-**CRITICAL: Required Parameters** - The "Required Parameters" column above is strict. Missing any required parameter will cause an error. Pay special attention to `pivotTableName` for PivotTable slicers and `slicerName` for selection/deletion operations.
+**CRITICAL: Required Parameters** - The "Required Parameters" column above is strict. Missing any required parameter will cause an error. Pay special attention to `pivot_table_name` for PivotTable slicers and `slicer_name` for selection/deletion operations.
 
 **Naming Convention**:
 
-- If `slicerName` not provided, auto-generates `{FieldName}Slicer` or `{ColumnName}Slicer`
+- If `slicer_name` is not provided, the tool auto-generates `{FieldName}Slicer` or `{ColumnName}Slicer`
 - Slicer names must be unique within workbook
 - Use `list-slicers` or `list-table-slicers` to check existing names
 
 **Selection Behavior**:
 
-- `selectedItems` is a list of strings: `["Value1", "Value2"]`
+- `selected_items` is a list of strings: `["Value1", "Value2"]`
 - Empty list `[]` clears all filters (shows all items)
 - Values must match exactly (case-sensitive)
 - Invalid values are silently ignored
@@ -53,7 +53,7 @@ The `--selected-items` parameter requires a JSON array. Use proper shell escapin
 
 **Positioning**:
 
-- `destinationSheet` specifies which worksheet hosts the slicer
+- `destination_sheet` specifies which worksheet hosts the slicer
 - `position` is a cell address for top-left corner (e.g., `'E1'`, `'G5'`)
 - The slicer's top-left corner aligns to the specified cell
 - Default position if not specified: Excel chooses

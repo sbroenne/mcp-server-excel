@@ -31,7 +31,8 @@ discovering later that DAX measures are missing means rebuilding.
 $session = (excelcli -q session open C:\data\sales.xlsx | ConvertFrom-Json).sessionId
 
 excelcli -q pivottable create-from-table --session $session `
-  --source-table-name SalesTable --pivot-table-name SalesPivot
+  --table-name SalesTable --pivot-table-name SalesPivot `
+  --destination-sheet Analysis --destination-cell A3
 
 excelcli -q pivottablefield add-row-field    --session $session --pivot-table-name SalesPivot --field-name Region
 excelcli -q pivottablefield add-column-field --session $session --pivot-table-name SalesPivot --field-name Quarter
@@ -46,7 +47,7 @@ Configure fields in that order — rows, columns, values, then filters — and
 the layout but do not repaint the PivotTable. This matters most for Data Model
 (OLAP) PivotTables, where an unrefreshed pivot can look empty.
 
-`pivotTableName` is required for nearly every PivotTable operation. The only
+`--pivot-table-name` is required for nearly every PivotTable operation. The only
 exception is `list`.
 
 ## Build one on the Data Model
@@ -60,7 +61,9 @@ excelcli -q datamodel create-measure --session $session `
   --table-name SalesTable --measure-name Revenue `
   --dax-formula "SUMX(SalesTable, SalesTable[Quantity]*SalesTable[UnitPrice])"
 
-excelcli -q pivottable create-from-datamodel --session $session --pivot-table-name RevenuePivot
+excelcli -q pivottable create-from-datamodel --session $session `
+  --pivot-table-name RevenuePivot --table-name SalesTable `
+  --destination-sheet Analysis --destination-cell A3
 ```
 
 The measure is automatically available to the PivotTable — no calculated field
@@ -83,14 +86,15 @@ Do **not** create a PivotTable and then a separate chart from its cells. Create 
 PivotChart directly — it is one object bound to the same cache:
 
 ```powershell
-excelcli -q chart create-from-pivottable --session $session --pivot-table-name SalesPivot
+excelcli -q chart create-from-pivottable --session $session --sheet Analysis `
+  --pivot-table-name SalesPivot --chart-type ColumnClustered
 ```
 
 ## Verify
 
 ```powershell
 excelcli -q pivottable list --session $session
-excelcli -q screenshot capture-sheet --session $session --sheet-name Analysis
+excelcli -q screenshot capture-sheet --session $session --sheet Analysis
 ```
 
 A screenshot is the fastest way for an assistant to confirm a layout actually looks

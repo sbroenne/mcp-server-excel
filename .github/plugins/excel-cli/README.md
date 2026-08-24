@@ -36,12 +36,16 @@ This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that di
 
 ### Step 3: First Use Bootstraps `excelcli`
 
-The plugin now ships **wrapper/download logic** instead of a bundled executable. On first real invocation it:
+The plugin ships **wrapper/download logic** instead of a bundled executable. On first real invocation it:
 
-1. Checks the runtime cache under `~/.copilot\plugin-runtime\mcp-server-excel\excel-cli`
+1. Uses the host-managed persistent plugin data directory (`PLUGIN_DATA\runtime`) for its cache
 2. Queries the newest GitHub Release from `sbroenne/mcp-server-excel`
 3. Downloads the self-contained Windows CLI asset if needed
 4. Reuses that runtime for the rest of the chat session without repeated freshness checks
+
+The optional global shim runs outside an Agent Plugins host and uses
+`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` as its standalone cache.
+Standalone shim use checks for updates at most once every 24 hours.
 
 You do **not** need a separate standalone install just to use the plugin.
 
@@ -112,17 +116,17 @@ excelcli -q session create C:\Reports\Sales.xlsx
 
 # Write headers
 excelcli -q range set-values --session <id> --sheet Sheet1 `
-  --range-address A1:C1 `
+  --range A1:C1 `
   --values '[["Date","Product","Revenue"]]'
 
 # Write data rows
 excelcli -q range set-values --session <id> --sheet Sheet1 `
-  --range-address A2:C3 `
+  --range A2:C3 `
   --values '[["2024-01-15","Widget",1500],["2024-01-16","Gadget",2300]]'
 
 # Create Excel Table
 excelcli -q table create --session <id> --sheet Sheet1 `
-  --table-name SalesData --range-address A1:C3
+  --table-name SalesData --range A1:C3
 
 # Save and close
 excelcli -q session close --session <id> --save
@@ -136,7 +140,7 @@ excelcli -q session close --session <id> --save
 - **Session Management** — Open once, run many operations, close cleanly
 - **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
 - **Built-in Help** — `excelcli --help` and `excelcli <command> --help`
-- **Runtime Bootstrap** — Resolves the newest Windows CLI release once per Copilot chat session and caches it locally
+- **Runtime Bootstrap** — Uses the persistent plugin cache and resolves release freshness once per Copilot chat session
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for sign-in
 
 ---

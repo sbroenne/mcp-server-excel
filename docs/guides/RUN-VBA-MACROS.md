@@ -61,7 +61,7 @@ hold the session until the default limit expires.
 
 ```powershell
 excelcli -q vba update --session $session --module-name Module1 --vba-code $code
-excelcli -q vba import --session $session --module-name Helpers --file-path .\Helpers.bas
+excelcli -q vba import --session $session --module-name Helpers --vba-code-file .\Helpers.bas
 ```
 
 `update` replaces the whole module body. `import` adds a module from a `.bas`
@@ -77,8 +77,8 @@ silently discards it. If you are adding VBA to an `.xlsx`, save-as `.xlsm` first
 After running a macro, check the effect rather than trusting a success flag:
 
 ```powershell
-excelcli -q range get-values --session $session --sheet-name Summary --range-address A1:D20
-excelcli -q screenshot capture-sheet --session $session --sheet-name Summary
+excelcli -q range get-values --session $session --sheet Summary --range A1:D20
+excelcli -q screenshot capture-sheet --session $session --sheet Summary
 ```
 
 ## Known gotchas

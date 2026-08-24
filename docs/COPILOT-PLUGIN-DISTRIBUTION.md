@@ -50,7 +50,7 @@ Agent Plugins discovers skills from the fixed `skills/` directory and MCP server
 
 Each generated plugin receives an exact copy of its canonical skill directory, including every referenced file. This prevents stale published references and preserves skill-specific files such as `references/calculation.md`.
 
-Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed, then reuses it for the rest of the chat session. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
+Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed. Agent Plugins hosts provide `PLUGIN_DATA`; the bootstrap stores persistent runtime state under `PLUGIN_DATA\runtime`, checks release freshness once per Copilot session, and then reuses the verified runtime. Standalone shims fall back to `~\.copilot\plugin-runtime\mcp-server-excel\<plugin>` and check for updates at most once every 24 hours. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
 
 ## Installation
 

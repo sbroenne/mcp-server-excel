@@ -23,9 +23,9 @@ If you need the same styling on multiple non-contiguous ranges, use `format-rang
 ## Quick Pattern: Write, Format, Auto-Fit
 
 ```
-range(action: 'set-values', rangeAddress: 'A1:D4', values: [[...], [...]])
-range(action: 'set-number-format', rangeAddress: 'C2:D4', formatCode: '$#,##0.00')
-range_format(action: 'auto-fit-columns', rangeAddress: 'A:D')
+range(action: 'set-values', range_address: 'A1:D4', values: [[...], [...]])
+range(action: 'set-number-format', range_address: 'C2:D4', format_code: '$#,##0.00')
+range_format(action: 'auto-fit-columns', range_address: 'A:D')
 ```
 
 ## Quick Pattern: Repeated Section Headers
@@ -34,11 +34,11 @@ Use `format-ranges` when the same header or section style repeats across disjoin
 
 ```
 range_format(action: 'format-ranges',
-    rangeAddresses: ['A1:G1', 'A12:G12', 'A24:G24'],
+    range_addresses: ['A1:G1', 'A12:G12', 'A24:G24'],
     bold: true,
-    fillColor: '#243F60',
-    fontColor: '#FFFFFF',
-    horizontalAlignment: 'center')
+    fill_color: '#243F60',
+    font_color: '#FFFFFF',
+    horizontal_alignment: 'center')
 ```
 
 All target ranges are validated before formatting begins. If any target range is invalid, nothing is formatted.
@@ -49,11 +49,11 @@ All target ranges are validated before formatting begins. If any target range is
 Pass ALL properties in **one call**:
 
 ```
-range_format(action: 'format-range', rangeAddress: 'A1:D1',
+range_format(action: 'format-range', range_address: 'A1:D1',
     bold: true,
-    fillColor: '#4472C4',
-    fontColor: '#FFFFFF',
-    horizontalAlignment: 'center')
+    fill_color: '#4472C4',
+    font_color: '#FFFFFF',
+    horizontal_alignment: 'center')
 ```
 
 ## Quick Pattern: Semantic Status Cells
@@ -61,8 +61,8 @@ range_format(action: 'format-range', rangeAddress: 'A1:D1',
 Use `set-style` when the meaning (Good/Bad/Neutral) matters and theme-awareness is useful:
 
 ```
-range_format(action: 'set-style', rangeAddress: 'B2:B10', styleName: 'Good')
-range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
+range_format(action: 'set-style', range_address: 'B2:B10', style_name: 'Good')
+range_format(action: 'set-style', range_address: 'C2:C10', style_name: 'Bad')
 ```
 
 ## format-range Properties
@@ -72,15 +72,15 @@ range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
 | `bold` | bool | `true` |
 | `italic` | bool | `true` |
 | `underline` | bool | `true` |
-| `fontSize` | number | `14` |
-| `fontName` | string | `"Calibri"` |
-| `fontColor` | hex color | `"#FFFFFF"` |
-| `fillColor` | hex color | `"#4472C4"` |
-| `horizontalAlignment` | string | `"center"`, `"left"`, `"right"` |
-| `verticalAlignment` | string | `"middle"`, `"top"`, `"bottom"` |
-| `wrapText` | bool | `true` |
-| `borderStyle` | string | `"thin"`, `"medium"`, `"thick"` |
-| `borderColor` | hex color | `"#000000"` |
+| `font_size` | number | `14` |
+| `font_name` | string | `"Calibri"` |
+| `font_color` | hex color | `"#FFFFFF"` |
+| `fill_color` | hex color | `"#4472C4"` |
+| `horizontal_alignment` | string | `"center"`, `"left"`, `"right"` |
+| `vertical_alignment` | string | `"middle"`, `"top"`, `"bottom"` |
+| `wrap_text` | bool | `true` |
+| `border_style` | string | `"thin"`, `"medium"`, `"thick"` |
+| `border_color` | hex color | `"#000000"` |
 | `orientation` | int | `-90` to `90` (degrees) |
 
 ## set-style Presets
@@ -88,7 +88,7 @@ range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
 Built-in style names: `Normal`, `Heading 1`, `Heading 2`, `Heading 3`, `Heading 4`, `Title`, `Good`, `Bad`, `Neutral`, `Currency`, `Percent`, `Comma`
 
 ```
-range_format(action: 'set-style', rangeAddress: 'A1:D1', styleName: 'Heading 1')
+range_format(action: 'set-style', range_address: 'A1:D1', style_name: 'Heading 1')
 ```
 
 ## Format Codes
@@ -124,7 +124,7 @@ than raw ones and will render as `#####` at the default column width.
 
 **SetNumberFormat**: Apply one format to entire range.
 
-- `formatCode`: Format code from table above
+- `format_code`: Format code from table above
 
 **SetNumberFormats**: Apply different formats per cell.
 
@@ -136,10 +136,10 @@ than raw ones and will render as `#####` at the default column width.
 Use modern threaded comments only when the installed desktop Excel build exposes them:
 
 ```text
-range_link(action: 'add-threaded-comment', sheetName: 'Review', cellAddress: 'B2', text: 'Check this value')
-range_link(action: 'add-threaded-comment-reply', sheetName: 'Review', cellAddress: 'B2', text: 'Confirmed')
-range_link(action: 'list-threaded-comments', sheetName: 'Review', cellAddress: 'B2')
-range_link(action: 'delete-threaded-comment', sheetName: 'Review', cellAddress: 'B2')
+range_link(action: 'add-threaded-comment', sheet_name: 'Review', cell_address: 'B2', text: 'Check this value')
+range_link(action: 'add-threaded-comment-reply', sheet_name: 'Review', cell_address: 'B2', text: 'Confirmed')
+range_link(action: 'list-threaded-comments', sheet_name: 'Review', cell_address: 'B2')
+range_link(action: 'delete-threaded-comment', sheet_name: 'Review', cell_address: 'B2')
 ```
 
 These actions expose local Excel PIA comment text, author, date, and replies. Microsoft 365 service features such as @mentions, assignments, reactions, presence, sharing, and coauthoring state are not available through local Excel COM.

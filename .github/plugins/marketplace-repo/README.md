@@ -4,6 +4,12 @@ Windows-only GitHub Copilot CLI plugins for ExcelMcp.
 
 This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel).
 
+> [!WARNING]
+> This repository is generated publication output. Do not edit it directly:
+> publication overwrites unsynchronized changes. Update the canonical files in
+> the [source repository](https://github.com/sbroenne/mcp-server-excel) and
+> follow its [plugin publication guide](https://github.com/sbroenne/mcp-server-excel/blob/main/.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates).
+
 ## Plugins
 
 - **excel-mcp** — MCP server plugin for conversational Excel automation
@@ -36,7 +42,7 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-Both plugins publish wrapper/bootstrap assets plus skills. On first use they fetch the newest self-contained Windows runtime from the main `sbroenne/mcp-server-excel` GitHub Releases feed, then reuse it for the rest of the chat session.
+Both plugins publish wrapper/bootstrap assets plus skills. On first use they fetch the newest self-contained Windows runtime from the main `sbroenne/mcp-server-excel` GitHub Releases feed. The bootstrap compares the release tag and executable version once per Copilot session, stores runtime state in the host-provided `PLUGIN_DATA` directory, and reuses the verified runtime for the rest of the session. Standalone shim use checks for updates at most once every 24 hours.
 
 ## Notes
 

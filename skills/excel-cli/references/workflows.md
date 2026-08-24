@@ -31,7 +31,7 @@ Excel's Power Pivot has key limitations compared to Power BI/SSAS:
 
 ### Data Model Prerequisites
 ```
-1. Load table (powerquery refresh loadDestination="data-model")
+1. Load table (powerquery load-to with `load_destination="data-model"`)
 2. THEN create relationships (datamodel_relationship with create-relationship action)
 3. THEN create measures (datamodel create-measure)
 ```
@@ -60,5 +60,5 @@ After Power Query: powerquery list, powerquery view
 After refresh:     datamodel list-tables
 After measure:     datamodel list-measures, datamodel evaluate
 After relationship: datamodel_relationship list-relationships
-After chart/layout: screenshot(capture, rangeAddress='A1:M50') (visual verification)
+After chart/layout: screenshot(capture, range_address='A1:M50') (visual verification)
 ```

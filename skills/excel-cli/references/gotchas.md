@@ -117,9 +117,9 @@ Power Query connections that reference external files or URLs have a "refresh on
 Range addresses in M1 notation (e.g., `A1:D10`) work fine, but range names with spaces, hyphens, or special characters must be enclosed in single quotes or backticks:
 
 ```
-rangeAddress: 'Sales Data'      ← Correct (with spaces)
-rangeAddress: Sales Data        ← WRONG (fails)
-rangeAddress: `Sales Data`      ← Also correct (backticks)
+range_address: 'Sales Data'      ← Correct (with spaces)
+range_address: Sales Data        ← WRONG (fails)
+range_address: `Sales Data`      ← Also correct (backticks)
 ```
 
 Same rule applies for sheet names: `'Sheet Name'!A1:D10`.

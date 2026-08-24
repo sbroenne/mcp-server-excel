@@ -93,7 +93,7 @@ When creating or modifying Excel files:
 
 **Use `format-range` for visual layout (header rows, custom colours) — ALL properties in ONE call:**
 - `set-style('Heading 1')` does NOT apply a fill colour; if you want a coloured header row use `format-range`
-- Pass bold, fillColor, fontColor, and alignment together in a single call — do not call `format-range` multiple times for the same range
+- Pass `bold`, `fill_color`, `font_color`, and alignment together in a single call — do not call `format-range` multiple times for the same range
 - If the same formatting payload repeats across multiple non-contiguous ranges, prefer one `format-ranges` call over repeated `format-range` calls
 
 **Apply each formatting operation once** — do not reapply the same properties to the same range unless a later step explicitly changes them.
@@ -136,7 +136,7 @@ Always convert tabular data to Excel Tables (ListObjects):
 
 ```
 1. range set-values (write data including headers)
-2. table create tableName="SalesData" rangeAddress="A1:D100"
+2. table(action: 'create', table_name: 'SalesData', range_address: 'A1:D100')
 ```
 
 **Why Tables over plain ranges:**
@@ -184,8 +184,8 @@ Always close sessions when done:
 
 ```
 1. file(action: 'open', path: '...')  → sessionId
-2. All operations use sessionId
-3. file(action: 'close', sessionId: '...', save: true)  → saves and closes
+2. All operations use `session_id`
+3. file(action: 'close', session_id: '...', save: true)  → saves and closes
 ```
 
 **Why**: Unclosed sessions leave Excel processes running, consuming memory and locking files.
@@ -312,7 +312,7 @@ belong to the selected action are rejected instead of being defaulted or ignored
 
 ```
 Step 1: powerquery(action: 'create', ...) → Query created
-Step 2: powerquery(action: 'refresh', queryName: '...') → Data loaded
+Step 2: powerquery(action: 'refresh', query_name: '...') → Data loaded
 ```
 
 Without refresh, the query exists but contains no data.
@@ -327,7 +327,7 @@ Excel MCP errors include actionable context:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
+  "suggestedNextActions": ["table(action: 'add-to-data-model', table_name: 'Sales')"]
 }
 ```
 
