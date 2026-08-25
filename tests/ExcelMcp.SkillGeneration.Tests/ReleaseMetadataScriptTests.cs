@@ -1,11 +1,12 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Xml.Linq;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 
 /// <summary>
-/// Integration tests for the release metadata updater used by the MCP Registry workflow.
+/// Integration tests for release metadata synchronization and workflow wiring.
 /// </summary>
 public sealed class ReleaseMetadataScriptTests
 {
@@ -14,6 +15,113 @@ public sealed class ReleaseMetadataScriptTests
         RepoRoot,
         "scripts",
         "Update-McpRegistryMetadata.ps1");
+    private static readonly string UpdateReleaseVersionScript = Path.Combine(
+        RepoRoot,
+        "scripts",
+        "Update-ReleaseVersionMetadata.ps1");
+    private static readonly string BuildChangelogScript = Path.Combine(
+        RepoRoot,
+        "scripts",
+        "Build-Changelog.ps1");
+    private static readonly string ReleaseWorkflow = Path.Combine(
+        RepoRoot,
+        ".github",
+        "workflows",
+        "release.yml");
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task UpdateReleaseVersion_StampsEveryPersistentVersionSource()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            CopyReleaseMetadataFiles(sandbox);
+
+            var result = await RunPowerShellScriptAsync(
+                UpdateReleaseVersionScript,
+                ["-RepoRoot", sandbox, "-Version", "9.8.7"]);
+
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            AssertReleaseVersions(sandbox, "9.8.7");
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void SourceTree_PersistentVersionsMatchCanonicalPackageVersion()
+    {
+        var expectedVersion = ReadJsonProperty(
+            Path.Combine(RepoRoot, "package.json"),
+            "version");
+
+        AssertReleaseVersions(RepoRoot, expectedVersion);
+
+        Assert.Equal(
+            "0.0.0",
+            ReadJsonProperty(
+                Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "plugin.json"),
+                "version"));
+        Assert.Equal(
+            "0.0.0",
+            ReadJsonProperty(
+                Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "plugin.json"),
+                "version"));
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseFlow_UsesAndCommitsCanonicalVersionUpdater()
+    {
+        var buildChangelog = File.ReadAllText(BuildChangelogScript);
+        Assert.Contains(
+            "& $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version",
+            buildChangelog,
+            StringComparison.Ordinal);
+
+        var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
+        Assert.Contains(
+            @".\scripts\Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION",
+            releaseWorkflow,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "$content = $content -replace '<Version>",
+            releaseWorkflow,
+            StringComparison.Ordinal);
+
+        var stagedPaths = new[]
+        {
+            "CHANGELOG.md",
+            "package.json",
+            "package-lock.json",
+            "Directory.Build.props",
+            "mcpb/manifest.json",
+            "src/ExcelMcp.McpServer/.mcp/server.json",
+            "vscode-extension/package.json",
+            "vscode-extension/package-lock.json",
+            ".changeset"
+        };
+
+        var stagingStart = releaseWorkflow.IndexOf("git add -A", StringComparison.Ordinal);
+        Assert.True(stagingStart >= 0);
+        var stagingEnd = releaseWorkflow.IndexOf(
+            "if git diff --cached --quiet",
+            stagingStart,
+            StringComparison.Ordinal);
+        Assert.True(stagingEnd > stagingStart);
+        var stagingCommand = releaseWorkflow[stagingStart..stagingEnd];
+
+        Assert.All(
+            stagedPaths,
+            path => Assert.Contains(path, stagingCommand, StringComparison.Ordinal));
+    }
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -28,7 +136,9 @@ public sealed class ReleaseMetadataScriptTests
                 Path.Combine(RepoRoot, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
                 metadataPath);
 
-            var result = await RunUpdaterAsync(metadataPath, "9.8.7");
+            var result = await RunPowerShellScriptAsync(
+                UpdateMetadataScript,
+                ["-ServerJsonPath", metadataPath, "-Version", "9.8.7"]);
 
             Assert.True(result.ExitCode == 0, result.CombinedOutput);
             using var document = JsonDocument.Parse(File.ReadAllText(metadataPath));
@@ -57,7 +167,9 @@ public sealed class ReleaseMetadataScriptTests
             var metadataPath = Path.Combine(sandbox, "server.json");
             await File.WriteAllTextAsync(metadataPath, """{"version":"1.0.0","packages":[]}""");
 
-            var result = await RunUpdaterAsync(metadataPath, "9.8.7");
+            var result = await RunPowerShellScriptAsync(
+                UpdateMetadataScript,
+                ["-ServerJsonPath", metadataPath, "-Version", "9.8.7"]);
 
             Assert.NotEqual(0, result.ExitCode);
             Assert.Contains("exactly one", result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
@@ -73,6 +185,91 @@ public sealed class ReleaseMetadataScriptTests
         var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcpReleaseMetadata-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sandbox);
         return sandbox;
+    }
+
+    private static void CopyReleaseMetadataFiles(string sandbox)
+    {
+        var relativePaths = new[]
+        {
+            "Directory.Build.props",
+            "package.json",
+            "package-lock.json",
+            Path.Combine("mcpb", "manifest.json"),
+            Path.Combine("src", "ExcelMcp.McpServer", ".mcp", "server.json"),
+            Path.Combine("vscode-extension", "package.json"),
+            Path.Combine("vscode-extension", "package-lock.json")
+        };
+
+        foreach (var relativePath in relativePaths)
+        {
+            var destinationPath = Path.Combine(sandbox, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.Copy(Path.Combine(RepoRoot, relativePath), destinationPath);
+        }
+    }
+
+    private static void AssertReleaseVersions(string root, string expectedVersion)
+    {
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(Path.Combine(root, "package.json"), "version"));
+
+        var props = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
+        var propertyGroup = Assert.Single(
+            props.Root!.Elements("PropertyGroup"),
+            group => group.Element("Version") != null);
+        Assert.Equal(expectedVersion, propertyGroup.Element("Version")!.Value);
+        Assert.Equal($"{expectedVersion}.0", propertyGroup.Element("AssemblyVersion")!.Value);
+        Assert.Equal($"{expectedVersion}.0", propertyGroup.Element("FileVersion")!.Value);
+
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(Path.Combine(root, "mcpb", "manifest.json"), "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(
+                Path.Combine(root, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
+                "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(
+                Path.Combine(root, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
+                "packages",
+                "0",
+                "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(Path.Combine(root, "package-lock.json"), "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(Path.Combine(root, "package-lock.json"), "packages", "", "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(Path.Combine(root, "vscode-extension", "package.json"), "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(Path.Combine(root, "vscode-extension", "package-lock.json"), "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(
+                Path.Combine(root, "vscode-extension", "package-lock.json"),
+                "packages",
+                "",
+                "version"));
+    }
+
+    private static string ReadJsonProperty(string path, params string[] segments)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var element = document.RootElement;
+        foreach (var segment in segments)
+        {
+            element = element.ValueKind == JsonValueKind.Array
+                ? element[Convert.ToInt32(segment, System.Globalization.CultureInfo.InvariantCulture)]
+                : element.GetProperty(segment);
+        }
+
+        return element.GetString()!;
     }
 
     private static string FindRepoRoot()
@@ -91,7 +288,9 @@ public sealed class ReleaseMetadataScriptTests
         throw new DirectoryNotFoundException("Could not locate repository root from test output directory.");
     }
 
-    private static async Task<ScriptResult> RunUpdaterAsync(string metadataPath, string version)
+    private static async Task<ScriptResult> RunPowerShellScriptAsync(
+        string scriptPath,
+        IReadOnlyList<string> arguments)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -106,11 +305,11 @@ public sealed class ReleaseMetadataScriptTests
         startInfo.ArgumentList.Add("-ExecutionPolicy");
         startInfo.ArgumentList.Add("Bypass");
         startInfo.ArgumentList.Add("-File");
-        startInfo.ArgumentList.Add(UpdateMetadataScript);
-        startInfo.ArgumentList.Add("-ServerJsonPath");
-        startInfo.ArgumentList.Add(metadataPath);
-        startInfo.ArgumentList.Add("-Version");
-        startInfo.ArgumentList.Add(version);
+        startInfo.ArgumentList.Add(scriptPath);
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
 
         using var process = Process.Start(startInfo);
         Assert.NotNull(process);

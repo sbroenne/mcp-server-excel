@@ -307,24 +307,9 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Update Project Versions
+    - name: Synchronize Release Metadata
       run: |
-        $version = $env:VERSION
-
-        # Update Directory.Build.props (single source of truth for all project versions)
-        $propsPath = "Directory.Build.props"
-        $content = Get-Content $propsPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
-        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $propsPath $content
-      shell: pwsh
-
-    - name: Update Extension Version
-      run: |
-        $version = $env:VERSION
-        cd vscode-extension
-        npm version "$version" --no-git-tag-version
+        .\scripts\Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
       shell: pwsh
 
     - name: Sync Extension Changelog
@@ -625,8 +610,8 @@ jobs:
       contents: write
 
     steps:
-    # The changelog commit-back reads main's current tip and writes the new
-    # commit through the Git Data API (see "Commit Changelog Update"), so it
+    # The release metadata commit-back reads main's current tip and writes the new
+    # commit through the Git Data API (see "Commit Release Metadata Update"), so it
     # does not rebase locally. A shallow checkout is enough here.
     - uses: actions/checkout@v7
 
@@ -723,9 +708,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Commit the CHANGELOG.md / package.json changes produced by
-    # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions)
-    # directly back to main.
+    # Commit the changelog and persistent version metadata changes produced by
+    # Build-Changelog.ps1 above (plus consumed changesets) directly back to main.
     #
     # WHY THIS USES THE GIT DATA API INSTEAD OF A PR:
     #
@@ -751,7 +735,7 @@ jobs:
     # call is unambiguously authenticated as the admin bypass actor via gh api,
     # so the ref update on main is allowed to bypass the ruleset. No side
     # branch, no PR, nothing to get stuck.
-    - name: Commit Changelog Update
+    - name: Commit Release Metadata Update
       env:
         GH_TOKEN: ${{ secrets.RELEASE_PAT }}
       run: |
@@ -761,15 +745,16 @@ jobs:
         REPO="${{ github.repository }}"
 
         if [ -z "${GH_TOKEN:-}" ]; then
-          echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so the changelog can be committed back to main."
+          echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so release metadata can be committed back to main."
           exit 1
         fi
 
-        # Stage exactly the files Build-Changelog.ps1 touches: the regenerated
-        # CHANGELOG.md / package.json plus the consumed .changeset/*.md fragments.
-        git add -A CHANGELOG.md package.json .changeset
+        # Stage exactly the files Build-Changelog.ps1 touches.
+        git add -A CHANGELOG.md package.json package-lock.json Directory.Build.props \
+          mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json \
+          vscode-extension/package.json vscode-extension/package-lock.json .changeset
         if git diff --cached --quiet; then
-          echo "No changelog changes to commit -- skipping."
+          echo "No release metadata changes to commit -- skipping."
           exit 0
         fi
 
@@ -780,7 +765,7 @@ jobs:
         # below, the ref PATCH fails loudly rather than clobbering that work.
         BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
         BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
-        echo "Basing changelog commit on main@$BASE_SHA"
+        echo "Basing release metadata commit on main@$BASE_SHA"
 
         # Build Git tree entries from the staged diff: modified/added files get a
         # fresh blob; deleted changeset fragments get sha=null to remove them.
@@ -809,14 +794,14 @@ jobs:
           | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
 
         new_commit=$(jq -n \
-          --arg msg "chore: update CHANGELOG.md for v${VERSION} release [skip ci]" \
+          --arg msg "chore: update release metadata for v${VERSION} [skip ci]" \
           --arg tree "$new_tree" --arg parent "$BASE_SHA" \
           '{message:$msg, tree:$tree, parents:[$parent]}' \
           | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
 
         gh api "repos/$REPO/git/refs/heads/main" --method PATCH \
           -f sha="$new_commit" -F force=false >/dev/null
-        echo "Committed changelog update for v${VERSION} to main@$new_commit."
+        echo "Committed release metadata for v${VERSION} to main@$new_commit."
       # Intentionally NOT continue-on-error: a silently swallowed failure here
       # is exactly what caused several past releases to be missing their
-      # changelog commit-back. Let it fail loudly so it gets noticed and fixed.
+      # release metadata commit-back. Let it fail loudly so it gets noticed and fixed.

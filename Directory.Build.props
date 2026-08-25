@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <!-- Common properties for all projects -->
-    <Version>1.7.1</Version>
-    <AssemblyVersion>1.7.1.0</AssemblyVersion>
-    <FileVersion>1.7.1.0</FileVersion>
+    <Version>2.0.1</Version>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
+    <FileVersion>2.0.1.0</FileVersion>
     <Authors>Stefan Broenner</Authors>
     <Company>Open Source Developer</Company>
     <Product>Sbroenne.ExcelMcp</Product>
