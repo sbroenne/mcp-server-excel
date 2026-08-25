@@ -208,10 +208,12 @@ Use `pivottable` only when the user needs interactive analysis capabilities.
 
 ## Charting Data Model Data - Use PivotChart Directly
 
-**WRONG**: Create PivotTable → Create separate Chart from PivotTable data
-**RIGHT**: Use `chart create-from-pivottable` to create a PivotChart directly
+**WRONG**: Create a regular chart from the PivotTable's displayed cell range
+**RIGHT**: Use `chart create-from-pivottable` to create and verify a live PivotChart
 
-A PivotChart is a single object connected to the Data Model. Creating a PivotTable + separate chart is unnecessary extra work and creates two objects to maintain.
+The action links the PivotChart to the existing PivotTable, so field changes and
+refreshes update the chart. It fails rather than returning a static chart when
+Excel cannot establish that link.
 
 ## Star Schema Architecture
 

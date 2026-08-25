@@ -4,14 +4,9 @@
 
 ## Implementation Status
 
-**Phase 1 (MVP): 🚧 IN PROGRESS** (As of November 22, 2025)
-- 🚧 Core interface and strategy pattern design
-- 🚧 Regular Chart and PivotChart lifecycle operations
-- 🚧 MCP Server integration planning
-- ⏸️ CLI commands (after core implementation)
-- ⏸️ Integration tests (after core implementation)
-
-**Target: 20-25 core operations covering 90% of chart automation use cases**
+The chart API is implemented with **33 operations** shared by Core, the generated
+MCP Server tool, and the generated CLI command group. Integration tests cover
+regular charts plus range, table, OLAP, and Data Model PivotChart sources.
 
 ---
 
@@ -28,7 +23,7 @@ This specification defines a **Chart API** for ExcelMcp that provides complete c
 2. **Two-Type Strategy Pattern** - Regular vs PivotChart behavior differences handled transparently
 3. **Unified API** - Same method signatures for both chart types (strategy handles implementation)
 4. **Complete ChartType Enum** - All 70+ Excel chart types exposed (grouped by category)
-5. **Positioning Required** - Both Regular and PivotCharts require left/top/width/height coordinates
+5. **Flexible Positioning** - Use a target cell range, point coordinates, or automatic placement
 
 ### Goals
 
@@ -64,7 +59,10 @@ Excel charts are **visual representations of data** that provide:
 - **Data Source**: PivotTable/PivotCache
 - **Behavior**: Dynamic - updates automatically when PivotTable changes
 - **Series Management**: Automatic sync with PivotTable value fields
-- **Creation**: `PivotCache.CreatePivotChart()` or `Shapes.AddChart2()` + link
+- **Creation**: Select the source PivotTable, call `Shapes.AddChart2()`, bind its
+  range, and verify `Chart.PivotLayout.PivotTable` references the requested
+  PivotTable. This matches Excel's Insert PivotChart behavior for regular and
+  OLAP/Data Model sources.
 - **Use Cases**: Interactive analysis, drill-down reports, OLAP cubes
 
 ### Excel COM Object Model
@@ -86,10 +84,21 @@ dynamic shape = shapes.AddChart(
 dynamic chart = shape.Chart;
 
 // PivotChart creation (from PivotTable)
-dynamic pivotCache = pivotTable.PivotCache();
-dynamic pivotChart = pivotCache.CreatePivotChart(
-    Destination: worksheet.Range["H1"]  // Top-left position
-);
+sourceWorksheet.Activate();
+pivotTable.TableRange1.Select();
+var pivotChartShape = targetWorksheet.Shapes.AddChart2(
+    Style: -1,
+    XlChartType: (int)chartType,
+    Left: left,
+    Top: top,
+    Width: width,
+    Height: height,
+    NewLayout: true);
+var pivotChart = pivotChartShape.Chart;
+pivotChart.SetSourceData(pivotTable.TableRange1);
+
+// Required truth check: never report a regular chart as a PivotChart.
+var linkedPivotTable = pivotChart.PivotLayout.PivotTable;
 
 // Chart object hierarchy
 dynamic chart = chartObject.Chart;  // OR shape.Chart
@@ -157,7 +166,8 @@ public interface IChartCommands
         string? chartName = null);
     
     /// <summary>
-    /// Creates a PivotChart from an existing PivotTable
+    /// Creates and verifies a live PivotChart from an existing PivotTable.
+    /// Fails without keeping a chart if PivotLayout does not link to that table.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
@@ -752,25 +762,44 @@ for (int i = 1; i <= chartObjects.Count; i++)
     "styleId": "int"
   },
   "actions": [
-    // Lifecycle (7 ops)
+    // Lifecycle (8 operations)
     "list",                     // List all charts
     "read",                     // Get chart details
     "create-from-range",        // Create Regular Chart
-    "create-from-pivottable",   // Create PivotChart
+    "create-from-table",        // Create Regular Chart from an Excel Table
+    "create-from-pivottable",   // Create and verify a live PivotChart
     "delete",                   // Delete chart
     "move",                     // Move/resize chart
-    
-    // Data Source (3 ops)
+    "fit-to-range",             // Fit chart geometry to a cell range
+
+    // Data source and series (4 operations)
     "set-source-range",         // Set data source (Regular only)
     "add-series",               // Add series (Regular only, PivotChart returns error)
     "remove-series",            // Remove series (Regular only, PivotChart returns error)
-    
-    // Appearance (5 ops)
+    "set-series-chart-type",    // Create combo charts
+
+    // Appearance and analysis (21 operations)
     "set-chart-type",           // Change chart type
     "set-title",                // Set chart title
     "set-axis-title",           // Set axis title
+    "get-axis-number-format",
+    "set-axis-number-format",
     "show-legend",              // Show/hide legend
-    "set-style"                 // Apply style (1-48)
+    "set-style",                // Apply style (1-48)
+    "set-placement",
+    "set-data-labels",
+    "get-axis-scale",
+    "set-axis-scale",
+    "get-gridlines",
+    "set-gridlines",
+    "set-series-format",
+    "get-plot-options",
+    "set-plot-options",
+    "set-area-format",
+    "list-trendlines",
+    "add-trendline",
+    "delete-trendline",
+    "set-trendline"
   ]
 }
 ```
@@ -784,9 +813,11 @@ for (int i = 1; i <= chartObjects.Count; i++)
 excelcli chart list <session-id>
 excelcli chart read <session-id> <chart-name>
 excelcli chart create-from-range <session-id> <sheet> <range> <type> <left> <top> [width] [height] [name]
+excelcli chart create-from-table <session-id> <table-name> <sheet> <type> <left> <top> [width] [height] [name]
 excelcli chart create-from-pivottable <session-id> <pivot-name> <sheet> <type> <left> <top> [width] [height] [name]
 excelcli chart delete <session-id> <chart-name>
 excelcli chart move <session-id> <chart-name> [left] [top] [width] [height]
+excelcli chart fit-to-range <session-id> <chart-name> <sheet> <range>
 
 # === DATA SOURCE ===
 excelcli chart set-source-range <session-id> <chart-name> <range>
@@ -840,7 +871,7 @@ var result = await chartCommands.CreateFromPivotTable(
     top: 100
 );
 
-// PivotChart automatically syncs with PivotTable
+// PivotLayout is verified before success, so the chart stays in sync with the PivotTable.
 // To add data series, use pivottable tool:
 await pivotCommands.AddValueField(batch, "SalesPivot", "Revenue", AggregationFunction.Sum);
 // PivotChart updates automatically!
@@ -850,32 +881,14 @@ await pivotCommands.AddValueField(batch, "SalesPivot", "Revenue", AggregationFun
 
 ## Success Criteria
 
-### Phase 1 (MVP) - 🚧 IN PROGRESS
-
-**Lifecycle Operations (6/6):**
-- 🚧 `List` - List all charts
-- 🚧 `Read` - Get chart configuration
-- 🚧 `CreateFromRange` - Create Regular Chart
-- 🚧 `CreateFromPivotTable` - Create PivotChart
-- 🚧 `Delete` - Delete chart
-- 🚧 `Move` - Move/resize chart
-
-**Data Source Operations (3/3):**
-- 🚧 `SetSourceRange` - Set range (Regular only)
-- 🚧 `AddSeries` - Add series (Regular only, PivotChart error)
-- 🚧 `RemoveSeries` - Remove series (Regular only, PivotChart error)
-
-**Appearance Operations (5/5):**
-- 🚧 `SetChartType` - Change chart type (all 70+ types)
-- 🚧 `SetTitle` - Set chart title
-- 🚧 `SetAxisTitle` - Set axis title
-- 🚧 `ShowLegend` - Show/hide legend
-- 🚧 `SetStyle` - Apply chart style
-
-**Integration:**
-- 🚧 MCP Server tool (`chart` with ~15 actions)
-- 🚧 CLI commands (all 15 operations)
-- 🚧 Integration tests with both chart types
+- All **33 chart operations** are generated for both MCP and CLI from the Core
+  interfaces.
+- `create-from-pivottable` succeeds only when `PivotLayout.PivotTable` resolves
+  to the requested PivotTable.
+- Range and OLAP/Data Model PivotCharts remain live when value fields change or
+  the PivotTable refreshes.
+- Unsupported PivotChart types fail clearly and do not leave a regular chart
+  behind.
 
 ### Future Enhancements (Phase 2)
 
