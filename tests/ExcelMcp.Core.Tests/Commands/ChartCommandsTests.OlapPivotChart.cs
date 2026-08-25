@@ -76,8 +76,7 @@ public class ChartCommandsOlapTests
             "RegionalSalesTable",
             "PivotChart Average Revenue",
             "AVERAGE('RegionalSalesTable'[Sales])",
-            null,
-            "#,##0.00");
+            formatType: "Decimal");
 
         var pivotCommands = new PivotTableCommands();
         pivotCommands.Refresh(batch, pivotTableName, null);
