@@ -236,11 +236,6 @@ public static partial class ExcelFileTool
 
         // Determine if macro-enabled from extension
         bool macroEnabled = path.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
-        var extension = macroEnabled ? ".xlsm" : ".xlsx";
-        if (!path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-        {
-            path = Path.ChangeExtension(path, extension);
-        }
 
         var timeoutSeconds = (int)timeout.TotalSeconds;
         var response = ServiceBridge.ServiceBridge.SendAsync(

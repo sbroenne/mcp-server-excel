@@ -54,6 +54,58 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task FileCreate_UnsupportedExtension_ReturnsOriginalPathAndDoesNotCreateXlsx()
+    {
+        var tempDirectory = CreateTempDirectory("FileCreateUnsupportedExtension");
+        var unsupportedPath = Path.Join(tempDirectory, $"UnsupportedCreate_{Guid.NewGuid():N}.txt");
+        var renamedPath = Path.ChangeExtension(unsupportedPath, ".xlsx");
+        string? sessionId = null;
+
+        try
+        {
+            var result = await CallToolAsync("file", new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["path"] = unsupportedPath
+            });
+
+            Output.WriteLine($"Unsupported file create result: {result}");
+
+            using var json = JsonDocument.Parse(result);
+            var root = json.RootElement;
+            if (root.GetProperty("success").GetBoolean()
+                && root.TryGetProperty("session_id", out var sessionIdProperty))
+            {
+                sessionId = sessionIdProperty.GetString();
+                TrackSession(sessionId);
+            }
+
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.True(root.GetProperty("isError").GetBoolean());
+            Assert.Equal(unsupportedPath, root.GetProperty("filePath").GetString());
+
+            var errorMessage = root.GetProperty("errorMessage").GetString();
+            Assert.NotNull(errorMessage);
+            Assert.Contains("Invalid file extension '.txt'", errorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(".xlsx", errorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(".xlsm", errorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(renamedPath), $"MCP file.create must not create '{renamedPath}'.");
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                await CloseSessionAsync(sessionId, save: false);
+            }
+
+            if (File.Exists(renamedPath))
+            {
+                File.Delete(renamedPath);
+            }
+        }
+    }
+
+    [Fact]
     public async Task FileTest_UsesTheSharedServiceResultShape()
     {
         var path = Path.Join(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.xlsx");
