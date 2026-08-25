@@ -771,7 +771,7 @@ VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQU
 
 ### window
 
-Control Excel window visibility, position, state, status bar, and worksheet-specific views. Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes, split panes, set zoom, and control gridlines, headings, and outline symbols. Set status bar text to give users real-time feedback during operations. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel. Visibility changes are reflected in session metadata (session list shows updated state). WINDOW STATE values: 'normal', 'minimized', 'maximized'. ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'. STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default. WORKSHEET VIEW: View properties belong to a workbook window and apply to the named active worksheet. 'freeze-panes' uses row and column counts above/left of the pane boundary. 'set-split' creates movable panes and disables frozen panes. Zoom must be between 10 and 400 percent
+Control Excel window visibility, position, state, status bar, and worksheet-specific views. Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes, split panes, set zoom, and control gridlines, headings, outline symbols, and formula display. Set status bar text to give users real-time feedback during operations. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel. Visibility changes are reflected in session metadata (session list shows updated state). WINDOW STATE values: 'normal', 'minimized', 'maximized'. ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'. STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default. WORKSHEET VIEW: View properties belong to a workbook window and apply to the named active worksheet. 'freeze-panes' uses row and column counts above/left of the pane boundary. 'set-split' creates movable panes and disables frozen panes. Zoom must be between 10 and 400 percent
 
 **Actions:** `show`, `hide`, `bring-to-front`, `get-info`, `set-state`, `set-position`, `arrange`, `set-status-bar`, `clear-status-bar`, `get-view`, `freeze-panes`, `unfreeze-panes`, `set-split`, `set-zoom`, `set-display-options`
 
@@ -794,6 +794,7 @@ Control Excel window visibility, position, state, status bar, and worksheet-spec
 | `--show-gridlines` | Whether to display cell gridlines (valid for: set-display-options) |
 | `--show-headings` | Whether to display row and column headings (valid for: set-display-options) |
 | `--show-outline-symbols` | Whether to display outline level symbols (valid for: set-display-options) |
+| `--show-formulas` | Whether to display formulas instead of their calculated values (valid for: set-display-options) |
 | `--output` | Write output to file instead of stdout. For image results, decodes and saves as binary file |
 
 ### workbook
