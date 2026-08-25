@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Xunit;
 
@@ -38,6 +39,15 @@ public sealed class ReleaseMetadataScriptTests
         try
         {
             CopyReleaseMetadataFiles(sandbox);
+            var manifestPath = Path.Combine(sandbox, "mcpb", "manifest.json");
+            var manifest = JsonNode.Parse(await File.ReadAllTextAsync(manifestPath))!.AsObject();
+            manifest["nestedMetadata"] = new JsonObject
+            {
+                ["version"] = "nested-version"
+            };
+            await File.WriteAllTextAsync(
+                manifestPath,
+                manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
             var result = await RunPowerShellScriptAsync(
                 UpdateReleaseVersionScript,
@@ -45,6 +55,9 @@ public sealed class ReleaseMetadataScriptTests
 
             Assert.True(result.ExitCode == 0, result.CombinedOutput);
             AssertReleaseVersions(sandbox, "9.8.7");
+            Assert.Equal(
+                "nested-version",
+                ReadJsonProperty(manifestPath, "nestedMetadata", "version"));
         }
         finally
         {

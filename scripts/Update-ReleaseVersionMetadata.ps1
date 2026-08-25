@@ -48,7 +48,7 @@ function Set-RootJsonVersion {
         throw "Release metadata version could not be located in: $Path"
     }
 
-    $content = [regex]::Replace($content, $pattern, "`${1}$Version`${2}", 1)
+    $content = [regex]::new($pattern).Replace($content, "`${1}$Version`${2}", 1)
     [System.IO.File]::WriteAllText(
         $Path,
         $content,
