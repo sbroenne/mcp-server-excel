@@ -160,6 +160,11 @@ public class CalculationModeCommands : ICalculationModeCommands
     /// </summary>
     public OperationResult SetMode(IExcelBatch batch, CalculationMode mode)
     {
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, $"Unknown calculation mode: {mode}");
+        }
+
         return batch.Execute((ctx, ct) =>
         {
             int newValue = (int)mode;
@@ -168,21 +173,10 @@ public class CalculationModeCommands : ICalculationModeCommands
                 CalculationMode.Automatic => "automatic",
                 CalculationMode.Manual => "manual",
                 CalculationMode.SemiAutomatic => "semi-automatic",
-                _ => "unknown"
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, $"Unknown calculation mode: {mode}")
             };
 
-            try
-            {
-                ctx.App.Calculation = (Excel.XlCalculation)newValue;
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set calculation mode to {newMode}: {ex.Message}"
-                };
-            }
+            ctx.App.Calculation = (Excel.XlCalculation)newValue;
 
             return new OperationResult
             {
@@ -197,6 +191,11 @@ public class CalculationModeCommands : ICalculationModeCommands
     /// </summary>
     public OperationResult Calculate(IExcelBatch batch, CalculationScope scope, string? sheetName = null, string? rangeAddress = null)
     {
+        if (!Enum.IsDefined(scope))
+        {
+            throw new ArgumentOutOfRangeException(nameof(scope), scope, $"Unknown calculation scope: {scope}");
+        }
+
         // Validate parameters
         if (scope == CalculationScope.Sheet && string.IsNullOrWhiteSpace(sheetName))
         {
@@ -218,73 +217,57 @@ public class CalculationModeCommands : ICalculationModeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
+            switch (scope)
             {
-                switch (scope)
-                {
-                    case CalculationScope.Workbook:
-                        ctx.App.Calculate();
+                case CalculationScope.Workbook:
+                    ctx.App.Calculate();
+                    return new OperationResult
+                    {
+                        Success = true,
+                        Message = "Calculation complete for all workbooks"
+                    };
+
+                case CalculationScope.Sheet:
+                    dynamic? worksheet = null;
+                    try
+                    {
+                        worksheet = ctx.Book.Worksheets[sheetName];
+                        worksheet.Calculate();
                         return new OperationResult
                         {
                             Success = true,
-                            Message = "Calculation complete for all workbooks"
+                            Message = $"Calculation complete for sheet '{sheetName}'"
                         };
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref worksheet);
+                    }
 
-                    case CalculationScope.Sheet:
-                        dynamic? worksheet = null;
-                        try
-                        {
-                            worksheet = ctx.Book.Worksheets[sheetName];
-                            worksheet.Calculate();
-                            return new OperationResult
-                            {
-                                Success = true,
-                                Message = $"Calculation complete for sheet '{sheetName}'"
-                            };
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref worksheet);
-                        }
-
-                    case CalculationScope.Range:
-                        dynamic? ws = null;
-                        dynamic? rng = null;
-                        try
-                        {
-                            ws = ctx.Book.Worksheets[sheetName];
-                            rng = ws.Range[rangeAddress];
-                            rng.Calculate();
-                            return new OperationResult
-                            {
-                                Success = true,
-                                Message = $"Calculation complete for range '{rangeAddress}' on sheet '{sheetName}'"
-                            };
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref rng);
-                            ComUtilities.Release(ref ws);
-                        }
-
-                    default:
+                case CalculationScope.Range:
+                    dynamic? ws = null;
+                    dynamic? rng = null;
+                    try
+                    {
+                        ws = ctx.Book.Worksheets[sheetName];
+                        rng = ws.Range[rangeAddress];
+                        rng.Calculate();
                         return new OperationResult
                         {
-                            Success = false,
-                            ErrorMessage = $"Unknown calculation scope: {scope}"
+                            Success = true,
+                            Message = $"Calculation complete for range '{rangeAddress}' on sheet '{sheetName}'"
                         };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Calculation failed: {ex.Message}"
-                };
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref rng);
+                        ComUtilities.Release(ref ws);
+                    }
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(scope), scope, $"Unknown calculation scope: {scope}");
             }
         });
     }
 }
-
 

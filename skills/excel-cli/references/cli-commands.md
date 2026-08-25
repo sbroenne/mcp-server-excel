@@ -234,7 +234,7 @@ Data Model (Power Pivot) - DAX measures and table management. CRITICAL: WORKSHEE
 | `--timeout` | Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch (valid for: refresh) |
 | `--dax-formula` | DAX formula. Public callers must supply either inline daxFormula or a readable daxFormulaFile, not both. (required for: create-measure) (valid for: create-measure, update-measure) |
 | `--dax-formula-file` | Path to a readable file containing daxFormula; use instead of inline daxFormula, not together (valid for: create-measure, update-measure) |
-| `--format-type` | Optional: Format type (Currency, Decimal, Percentage, General) (valid for: create-measure, update-measure) |
+| `--format-type` | Optional format type: General, Currency, Decimal, Percentage, or WholeNumber (case-insensitive). Null or empty defaults to General on create and keeps the existing format on update. (valid for: create-measure, update-measure) |
 | `--description` | Optional: Description of the measure (valid for: create-measure, update-measure) |
 | `--format-dax` | Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy. (valid for: create-measure, update-measure) |
 | `--dax-query` | DAX EVALUATE query. Public callers must supply either inline daxQuery or a readable daxQueryFile, not both. (required for: evaluate) (valid for: evaluate) |

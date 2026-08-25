@@ -72,8 +72,8 @@ DAX formulas are preserved exactly by default on WRITE operations (create-measur
 
 - list-tables: List all tables currently in the Data Model
 - list-measures: List all DAX measures (returns raw DAX from Excel)
-- create-measure: Create a new DAX measure (DAX preserved by default; `format_dax=true` opts into remote formatting)
-- update-measure: Modify existing measure's formula/format/description (DAX preserved by default; `format_dax=true` opts into remote formatting)
+- create-measure: Create a new DAX measure (DAX preserved by default; `format_dax=true` opts into remote formatting). `format_type` accepts General, Currency, Decimal, Percentage, or WholeNumber case-insensitively; omission or an empty value defaults to General.
+- update-measure: Modify an existing measure's formula, format, or description (DAX preserved by default; `format_dax=true` opts into remote formatting). The same `format_type` values are accepted; omission or an empty value keeps the existing format.
 - delete-measure: Remove a measure
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)
@@ -173,7 +173,7 @@ Reference: [Microsoft DMV Documentation](https://learn.microsoft.com/en-us/analy
 - `table_name`: Which table the measure belongs to (for organization)
 - `measure_name`: Display name for the measure
 - `dax_formula`: DAX expression (e.g., "SUM(Sales[Revenue])")
-- `format_type`: Optional number format (#,##0.00, 0%, $#,##0, etc.)
+- `format_type`: Optional named format: General, Currency, Decimal, Percentage, or WholeNumber (case-insensitive). Unknown values are rejected.
 
 **Common DAX patterns**:
 

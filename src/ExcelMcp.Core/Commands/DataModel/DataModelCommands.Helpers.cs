@@ -215,10 +215,33 @@ public partial class DataModelCommands
     }
 
     /// <summary>
+    /// Validates a measure format before entering Excel COM.
+    /// </summary>
+    /// <param name="formatType">Format type to validate</param>
+    private static void ValidateMeasureFormatType(string? formatType)
+    {
+        if (string.IsNullOrEmpty(formatType))
+        {
+            return;
+        }
+
+        if (formatType.Equals("General", StringComparison.OrdinalIgnoreCase) ||
+            formatType.Equals("Currency", StringComparison.OrdinalIgnoreCase) ||
+            formatType.Equals("Decimal", StringComparison.OrdinalIgnoreCase) ||
+            formatType.Equals("Percentage", StringComparison.OrdinalIgnoreCase) ||
+            formatType.Equals("WholeNumber", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw UnknownMeasureFormatType(formatType);
+    }
+
+    /// <summary>
     /// Gets the appropriate format object from the model for measure creation
     /// </summary>
     /// <param name="model">Model COM object</param>
-    /// <param name="formatType">Format type (Currency, Decimal, Percentage, General)</param>
+    /// <param name="formatType">Format type (General, Currency, Decimal, Percentage, WholeNumber)</param>
     /// <returns>FormatInformation COM object (never null - always returns at least ModelFormatGeneral)</returns>
     private static object GetFormatObject(Excel.Model model, string? formatType)
     {
@@ -242,7 +265,7 @@ public partial class DataModelCommands
                 "decimal" => (object)model.ModelFormatDecimalNumber,
                 "percentage" => (object)model.ModelFormatPercentageNumber,
                 "wholenumber" => (object)model.ModelFormatWholeNumber,
-                _ => (object)model.ModelFormatGeneral  // Fallback to General for unknown types
+                _ => throw UnknownMeasureFormatType(formatType)
             };
         }
         catch (Exception ex) when (ex is COMException or RuntimeBinderException)
@@ -251,6 +274,11 @@ public partial class DataModelCommands
             return model.ModelFormatGeneral;
         }
     }
+
+    private static ArgumentException UnknownMeasureFormatType(string formatType) =>
+        new(
+            $"Unknown measure format type: '{formatType}'. Valid values: General, Currency, Decimal, Percentage, WholeNumber.",
+            nameof(formatType));
 
     /// <summary>
     /// Extracts format information from a ModelFormat* COM object as a structured object.
@@ -269,6 +297,14 @@ public partial class DataModelCommands
         {
             // Try to detect the format type by checking for type-specific properties
             // Each ModelFormat* type has different properties available
+
+            if (formatInfo is Excel.ModelFormatWholeNumber wholeNumber)
+            {
+                result.Type = "WholeNumber";
+                result.DecimalPlaces = 0;
+                result.UseThousandSeparator = wholeNumber.UseThousandSeparator;
+                return result;
+            }
 
             // Check for Currency (has Symbol and DecimalPlaces)
             // COM property probing: access throws COMException or RuntimeBinderException if property doesn't exist on this format type
