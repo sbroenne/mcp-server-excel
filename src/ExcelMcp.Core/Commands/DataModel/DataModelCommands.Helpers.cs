@@ -13,6 +13,22 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class DataModelCommands
 {
+    private const string GeneralMeasureFormat = "General";
+    private const string CurrencyMeasureFormat = "Currency";
+    private const string DecimalMeasureFormat = "Decimal";
+    private const string PercentageMeasureFormat = "Percentage";
+    private const string WholeNumberMeasureFormat = "WholeNumber";
+
+    private static readonly Dictionary<string, Func<Excel.Model, object>> MeasureFormatFactories =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [GeneralMeasureFormat] = static model => model.ModelFormatGeneral,
+            [CurrencyMeasureFormat] = static model => model.ModelFormatCurrency,
+            [DecimalMeasureFormat] = static model => model.ModelFormatDecimalNumber,
+            [PercentageMeasureFormat] = static model => model.ModelFormatPercentageNumber,
+            [WholeNumberMeasureFormat] = static model => model.ModelFormatWholeNumber
+        };
+
     private static DataModelColumnInfo CreateColumnInfo(object column)
     {
         var typedColumn = (Excel.ModelTableColumn)column;
@@ -225,11 +241,7 @@ public partial class DataModelCommands
             return;
         }
 
-        if (formatType.Equals("General", StringComparison.OrdinalIgnoreCase) ||
-            formatType.Equals("Currency", StringComparison.OrdinalIgnoreCase) ||
-            formatType.Equals("Decimal", StringComparison.OrdinalIgnoreCase) ||
-            formatType.Equals("Percentage", StringComparison.OrdinalIgnoreCase) ||
-            formatType.Equals("WholeNumber", StringComparison.OrdinalIgnoreCase))
+        if (MeasureFormatFactories.ContainsKey(formatType))
         {
             return;
         }
@@ -252,21 +264,19 @@ public partial class DataModelCommands
         // Solution: Always return a format object - use ModelFormatGeneral as default
         // See: docs/KNOWN-ISSUES.md for investigation details
 
-        if (string.IsNullOrEmpty(formatType) || formatType.Equals("General", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(formatType))
         {
             return model.ModelFormatGeneral;  // Default format
         }
 
+        if (!MeasureFormatFactories.TryGetValue(formatType, out var createFormat))
+        {
+            throw UnknownMeasureFormatType(formatType);
+        }
+
         try
         {
-            return formatType.ToLowerInvariant() switch
-            {
-                "currency" => (object)model.ModelFormatCurrency,
-                "decimal" => (object)model.ModelFormatDecimalNumber,
-                "percentage" => (object)model.ModelFormatPercentageNumber,
-                "wholenumber" => (object)model.ModelFormatWholeNumber,
-                _ => throw UnknownMeasureFormatType(formatType)
-            };
+            return createFormat(model);
         }
         catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
@@ -277,7 +287,7 @@ public partial class DataModelCommands
 
     private static ArgumentException UnknownMeasureFormatType(string formatType) =>
         new(
-            $"Unknown measure format type: '{formatType}'. Valid values: General, Currency, Decimal, Percentage, WholeNumber.",
+            $"Unknown measure format type: '{formatType}'. Valid values: {string.Join(", ", MeasureFormatFactories.Keys)}.",
             nameof(formatType));
 
     /// <summary>
@@ -291,7 +301,7 @@ public partial class DataModelCommands
     /// <returns>Structured format info with Type, Symbol, DecimalPlaces, UseThousandSeparator as applicable</returns>
     private static MeasureFormatInfo GetFormatInfo(dynamic formatInfo)
     {
-        var result = new MeasureFormatInfo { Type = "General" };
+        var result = new MeasureFormatInfo { Type = GeneralMeasureFormat };
 
         try
         {
@@ -300,7 +310,7 @@ public partial class DataModelCommands
 
             if (formatInfo is Excel.ModelFormatWholeNumber wholeNumber)
             {
-                result.Type = "WholeNumber";
+                result.Type = WholeNumberMeasureFormat;
                 result.DecimalPlaces = 0;
                 result.UseThousandSeparator = wholeNumber.UseThousandSeparator;
                 return result;
@@ -313,7 +323,7 @@ public partial class DataModelCommands
                 string? symbol = formatInfo.Symbol?.ToString();
                 if (!string.IsNullOrEmpty(symbol))
                 {
-                    result.Type = "Currency";
+                    result.Type = CurrencyMeasureFormat;
                     result.Symbol = symbol;
                     result.DecimalPlaces = Convert.ToInt32(formatInfo.DecimalPlaces);
                     return result;
@@ -328,7 +338,7 @@ public partial class DataModelCommands
                 bool useThousands = formatInfo.UseThousandSeparator;
                 int decimals = Convert.ToInt32(formatInfo.DecimalPlaces);
                 // If we got here without exception, it's likely Percentage or Decimal
-                result.Type = "Percentage";
+                result.Type = PercentageMeasureFormat;
                 result.DecimalPlaces = decimals;
                 result.UseThousandSeparator = useThousands;
                 return result;
@@ -339,7 +349,7 @@ public partial class DataModelCommands
             try
             {
                 int decimals = Convert.ToInt32(formatInfo.DecimalPlaces);
-                result.Type = decimals == 0 ? "WholeNumber" : "Decimal";
+                result.Type = decimals == 0 ? WholeNumberMeasureFormat : DecimalMeasureFormat;
                 result.DecimalPlaces = decimals;
                 return result;
             }

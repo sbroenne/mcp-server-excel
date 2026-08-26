@@ -1,25 +1,35 @@
-using System.Reflection;
+using System.Dynamic;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
+[Trait("Layer", "Core")]
+[Trait("Category", "Unit")]
+[Trait("Feature", "Range")]
+[Trait("Speed", "Fast")]
 public class RangeHelpersExceptionTests
 {
     [Fact]
-    public void ResolveRange_DoesNotCatchBaseException()
+    public void ResolveRange_WhenNamedRangeLookupThrowsUnexpectedError_PropagatesError()
     {
-        var method = typeof(RangeHelpers).GetMethod(
-            nameof(RangeHelpers.ResolveRange),
-            [typeof(object), typeof(string), typeof(string), typeof(string).MakeByRefType()]);
+        var expected = new InvalidOperationException("Unexpected lookup failure.");
 
-        Assert.NotNull(method);
+        var actual = Assert.Throws<InvalidOperationException>(() =>
+            RangeHelpers.ResolveRange(
+                new ThrowingWorkbook(expected),
+                string.Empty,
+                "TestRange",
+                out _));
 
-        var catchTypes = method.GetMethodBody()!
-            .ExceptionHandlingClauses
-            .Where(clause => clause.Flags == ExceptionHandlingClauseOptions.Clause)
-            .Select(clause => clause.CatchType);
+        Assert.Same(expected, actual);
+    }
 
-        Assert.DoesNotContain(typeof(Exception), catchTypes);
+    private sealed class ThrowingWorkbook(Exception exception) : DynamicObject
+    {
+        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        {
+            throw exception;
+        }
     }
 }

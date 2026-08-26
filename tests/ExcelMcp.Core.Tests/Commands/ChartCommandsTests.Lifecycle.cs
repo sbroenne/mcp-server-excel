@@ -295,6 +295,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         // Arrange
         using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
         const string pivotTableName = "UnsupportedTypePivot";
+        const string pivotSheetName = "UnsupportedTypePivotSheet";
 
         batch.Execute((ctx, ct) =>
         {
@@ -317,7 +318,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
                     Excel.XlPivotTableSourceType.xlDatabase,
                     sourceRange);
                 pivotSheet = ctx.Book.Worksheets.Add();
-                pivotSheet.Name = "UnsupportedTypePivotSheet";
+                pivotSheet.Name = pivotSheetName;
                 pivotDestination = pivotSheet.Range["A1"];
                 pivotTable = pivotCache.CreatePivotTable(
                     pivotDestination,
@@ -343,12 +344,15 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
             }
         });
 
+        int chartCountBefore = _commands.List(batch).Charts.Count(
+            chart => chart.SheetName == pivotSheetName);
+
         // Act
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _commands.CreateFromPivotTable(
                 batch,
                 pivotTableName,
-                "UnsupportedTypePivotSheet",
+                pivotSheetName,
                 ChartType.XYScatter,
                 300,
                 50,
@@ -358,9 +362,9 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
         // Assert
         Assert.Contains("linked PivotChart", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(
-            _commands.List(batch).Charts,
-            chart => chart.Name == "UnsupportedPivotChart");
+        int chartCountAfter = _commands.List(batch).Charts.Count(
+            chart => chart.SheetName == pivotSheetName);
+        Assert.Equal(chartCountBefore, chartCountAfter);
     }
 
     [Fact]

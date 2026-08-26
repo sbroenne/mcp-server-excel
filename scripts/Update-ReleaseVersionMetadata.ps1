@@ -108,9 +108,9 @@ function Set-ProjectVersions {
     }
 
     foreach ($replacement in $replacements.GetEnumerator()) {
-        $matches = [regex]::Matches($content, $replacement.Key)
-        if ($matches.Count -ne 1) {
-            throw "Expected exactly one '$($replacement.Key)' value in $Path, found $($matches.Count)."
+        $versionMatches = [regex]::Matches($content, $replacement.Key)
+        if ($versionMatches.Count -ne 1) {
+            throw "Expected exactly one '$($replacement.Key)' value in $Path, found $($versionMatches.Count)."
         }
 
         $content = [regex]::Replace($content, $replacement.Key, $replacement.Value)

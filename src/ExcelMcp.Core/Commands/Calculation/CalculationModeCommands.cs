@@ -109,6 +109,13 @@ public interface ICalculationModeCommands
 /// </summary>
 public class CalculationModeCommands : ICalculationModeCommands
 {
+    private static readonly Dictionary<CalculationMode, string> CalculationModeNames = new()
+    {
+        [CalculationMode.Automatic] = "automatic",
+        [CalculationMode.Manual] = "manual",
+        [CalculationMode.SemiAutomatic] = "semi-automatic"
+    };
+
     /// <summary>
     /// Gets the current calculation mode and state.
     /// </summary>
@@ -117,13 +124,9 @@ public class CalculationModeCommands : ICalculationModeCommands
         return batch.Execute((ctx, ct) =>
         {
             int modeValue = (int)ctx.App.Calculation;
-            string mode = modeValue switch
-            {
-                -4105 => "automatic",    // xlCalculationAutomatic
-                -4135 => "manual",       // xlCalculationManual
-                2 => "semi-automatic",   // xlCalculationSemiautomatic
-                _ => "unknown"
-            };
+            string mode = CalculationModeNames.TryGetValue((CalculationMode)modeValue, out var modeName)
+                ? modeName
+                : "unknown";
 
             // Get calculation state (if available)
             string calcState = "unknown";
@@ -160,7 +163,7 @@ public class CalculationModeCommands : ICalculationModeCommands
     /// </summary>
     public OperationResult SetMode(IExcelBatch batch, CalculationMode mode)
     {
-        if (!Enum.IsDefined(mode))
+        if (!CalculationModeNames.TryGetValue(mode, out var newMode))
         {
             throw new ArgumentOutOfRangeException(nameof(mode), mode, $"Unknown calculation mode: {mode}");
         }
@@ -168,14 +171,6 @@ public class CalculationModeCommands : ICalculationModeCommands
         return batch.Execute((ctx, ct) =>
         {
             int newValue = (int)mode;
-            string newMode = mode switch
-            {
-                CalculationMode.Automatic => "automatic",
-                CalculationMode.Manual => "manual",
-                CalculationMode.SemiAutomatic => "semi-automatic",
-                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, $"Unknown calculation mode: {mode}")
-            };
-
             ctx.App.Calculation = (Excel.XlCalculation)newValue;
 
             return new OperationResult
@@ -270,4 +265,3 @@ public class CalculationModeCommands : ICalculationModeCommands
         });
     }
 }
-
