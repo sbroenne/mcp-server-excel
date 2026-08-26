@@ -1,5 +1,9 @@
 ## Agent skills
 
+### Repository rules
+
+Follow `.github/copilot-instructions.md` and the path-specific files under `.github/instructions/`.
+
 ### Issue tracker
 
 Work requests are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
