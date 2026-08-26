@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.2] - 2026-08-26
+
+### Patch Changes
+
+- [#815](https://github.com/sbroenne/mcp-server-excel/pull/815) [`9a13dba`](https://github.com/sbroenne/mcp-server-excel/commit/9a13dba5ae43594259145d0779231604e3622318) Thanks [@sbroenne](https://github.com/sbroenne)! - ExcelMcp now reports calculation, range, file, Data Model, VBA timeout, and
+  window errors consistently across CLI and MCP. PivotTable chart creation now
+  produces genuinely linked PivotCharts, and worksheet view controls include
+  formula display. Local builds and plugin bundles now report the current released
+  version instead of stale `1.7.x` metadata.
+
 ## [2.0.1] - 2026-08-24
 
 ### Patch Changes
