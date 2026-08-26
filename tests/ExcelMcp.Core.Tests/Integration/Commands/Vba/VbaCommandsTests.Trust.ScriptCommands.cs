@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -80,6 +81,64 @@ End Sub";
         // Assert - No exception thrown; to be thorough, ensure module still exists
         var listResult = _scriptCommands.List(batch);
         Assert.Contains(listResult.Scripts, s => s.Name == "TestModule");
+    }
+
+    [Fact(Timeout = 60000)]
+    [Trait("RunType", "OnDemand")]
+    [Trait("Speed", "Slow")]
+    public async Task ScriptCommands_Run_WhenMacroExceedsCallerTimeout_CancelsAndPoisonsBatch()
+    {
+        await Task.Yield();
+
+        var testFile = _fixture.CreateTestFile();
+        const string vbaCode = """
+            Sub WaitForTimeout()
+                Application.Wait Now + TimeSerial(0, 0, 15)
+            End Sub
+            """;
+
+        var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromMinutes(2),
+            testFile);
+
+        try
+        {
+            _ = _scriptCommands.Import(batch, "TimeoutModule", vbaCode);
+
+            var runStopwatch = Stopwatch.StartNew();
+            Assert.ThrowsAny<OperationCanceledException>(() =>
+                _scriptCommands.Run(
+                    batch,
+                    "TimeoutModule.WaitForTimeout",
+                    TimeSpan.FromSeconds(1)));
+            runStopwatch.Stop();
+
+            Assert.InRange(
+                runStopwatch.Elapsed,
+                TimeSpan.FromMilliseconds(500),
+                TimeSpan.FromSeconds(10));
+            Assert.True(batch.HasTimedOutOperation);
+
+            var retryStopwatch = Stopwatch.StartNew();
+            var retryException = Assert.Throws<TimeoutException>(() => _scriptCommands.List(batch));
+            retryStopwatch.Stop();
+
+            Assert.True(
+                retryStopwatch.Elapsed < TimeSpan.FromSeconds(1),
+                $"A poisoned batch should fail immediately, but took {retryStopwatch.Elapsed}.");
+            Assert.Contains("previous operation", retryException.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            var disposeStopwatch = Stopwatch.StartNew();
+            batch.Dispose();
+            disposeStopwatch.Stop();
+
+            Assert.True(
+                disposeStopwatch.Elapsed < TimeSpan.FromSeconds(30),
+                $"Timed-out VBA cleanup took {disposeStopwatch.Elapsed}.");
+        }
     }
 
     [Fact]
@@ -315,7 +374,4 @@ End Sub";
         Assert.Equal("Second", result.Values[0][1]?.ToString());
     }
 }
-
-
-
 

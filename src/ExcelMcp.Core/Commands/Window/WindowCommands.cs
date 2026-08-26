@@ -213,10 +213,8 @@ public partial class WindowCommands : IWindowCommands
                 ctx.App.Visible = true;
             }
 
-            // Get screen dimensions via Excel's UsableWidth/UsableHeight
-            // These are in points and represent the available screen area
-            double screenWidth = Convert.ToDouble(ctx.App.UsableWidth);
-            double screenHeight = Convert.ToDouble(ctx.App.UsableHeight);
+            IntPtr hwnd = new(ctx.App.Hwnd);
+            WindowBounds workArea = WindowWorkArea.GetBoundsInPoints(hwnd);
 
             // Set to normal state so position/size can be changed
             if (preset != "full-screen")
@@ -230,40 +228,45 @@ public partial class WindowCommands : IWindowCommands
             switch (preset.ToLowerInvariant())
             {
                 case "left-half":
-                    ctx.App.Left = 0;
-                    ctx.App.Top = 0;
-                    ctx.App.Width = screenWidth / 2;
-                    ctx.App.Height = screenHeight;
+                    SetWindowBounds(
+                        ctx.App,
+                        new WindowBounds(workArea.Left, workArea.Top, workArea.Width / 2, workArea.Height));
                     break;
 
                 case "right-half":
-                    ctx.App.Left = screenWidth / 2;
-                    ctx.App.Top = 0;
-                    ctx.App.Width = screenWidth / 2;
-                    ctx.App.Height = screenHeight;
+                    SetWindowBounds(
+                        ctx.App,
+                        new WindowBounds(
+                            workArea.Left + (workArea.Width / 2),
+                            workArea.Top,
+                            workArea.Width / 2,
+                            workArea.Height));
                     break;
 
                 case "top-half":
-                    ctx.App.Left = 0;
-                    ctx.App.Top = 0;
-                    ctx.App.Width = screenWidth;
-                    ctx.App.Height = screenHeight / 2;
+                    SetWindowBounds(
+                        ctx.App,
+                        new WindowBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height / 2));
                     break;
 
                 case "bottom-half":
-                    ctx.App.Left = 0;
-                    ctx.App.Top = screenHeight / 2;
-                    ctx.App.Width = screenWidth;
-                    ctx.App.Height = screenHeight / 2;
+                    SetWindowBounds(
+                        ctx.App,
+                        new WindowBounds(
+                            workArea.Left,
+                            workArea.Top + (workArea.Height / 2),
+                            workArea.Width,
+                            workArea.Height / 2));
                     break;
 
                 case "center":
-                    double centerWidth = screenWidth * 0.6;
-                    double centerHeight = screenHeight * 0.6;
-                    ctx.App.Left = (screenWidth - centerWidth) / 2;
-                    ctx.App.Top = (screenHeight - centerHeight) / 2;
-                    ctx.App.Width = centerWidth;
-                    ctx.App.Height = centerHeight;
+                    SetWindowBounds(
+                        ctx.App,
+                        new WindowBounds(
+                            workArea.Left + (workArea.Width * 0.2),
+                            workArea.Top + (workArea.Height * 0.2),
+                            workArea.Width * 0.6,
+                            workArea.Height * 0.6));
                     break;
 
                 case "full-screen":
@@ -285,6 +288,14 @@ public partial class WindowCommands : IWindowCommands
                 Message = $"Excel window arranged to '{preset}'"
             };
         });
+    }
+
+    private static void SetWindowBounds(Excel.Application app, WindowBounds bounds)
+    {
+        app.Left = bounds.Left;
+        app.Top = bounds.Top;
+        app.Width = bounds.Width;
+        app.Height = bounds.Height;
     }
 
     /// <summary>

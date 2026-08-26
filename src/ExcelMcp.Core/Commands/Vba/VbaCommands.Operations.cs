@@ -24,6 +24,10 @@ public partial class VbaCommands
             throw new ArgumentException(validationError, nameof(batch));
         }
 
+        using var timeoutCts = timeout.HasValue
+            ? new CancellationTokenSource(timeout.Value)
+            : null;
+
         return batch.Execute((ctx, ct) =>
         {
             var originalCulture = CultureInfo.CurrentCulture;
@@ -73,23 +77,28 @@ public partial class VbaCommands
             }
             finally
             {
-                if (originalAutomationSecurity != null)
+                try
                 {
-                    try
+                    if (originalAutomationSecurity != null)
                     {
-                        // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
-                        // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
-                        ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
-                    }
-                    catch (COMException)
-                    {
+                        try
+                        {
+                            // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
+                            // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
+                            ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
+                        }
+                        catch (COMException)
+                        {
+                        }
                     }
                 }
-
-                CultureInfo.CurrentCulture = originalCulture;
-                CultureInfo.CurrentUICulture = originalUiCulture;
+                finally
+                {
+                    CultureInfo.CurrentCulture = originalCulture;
+                    CultureInfo.CurrentUICulture = originalUiCulture;
+                }
             }
-        });
+        }, timeoutCts?.Token ?? default);
     }
 
     /// <inheritdoc />
@@ -169,6 +178,5 @@ public partial class VbaCommands
         });
     }
 }
-
 
 

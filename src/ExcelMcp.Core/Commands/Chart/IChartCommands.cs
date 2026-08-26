@@ -21,13 +21,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// CREATE OPTIONS:
 /// - create-from-range: Create from cell range (e.g., 'A1:D10')
 /// - create-from-table: Create from Excel Table (uses table's data range)
-/// - create-from-pivottable: Create linked PivotChart
+/// - create-from-pivottable: Create and verify a live PivotChart link; never falls back to a regular chart
 ///
 /// Use chartconfig for series, titles, legends, styles, placement mode.
 /// </summary>
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
-    Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (linked PivotChart). Use chart_config for series, titles, legends, and styling.")]
+    Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). Use chart_config for series, titles, legends, and styling.")]
 public interface IChartCommands
 {
     // === LIFECYCLE OPERATIONS ===
@@ -102,7 +102,9 @@ public interface IChartCommands
         string? targetRange = null);
 
     /// <summary>
-    /// Creates a PivotChart from an existing PivotTable.
+    /// Creates a live PivotChart from an existing PivotTable.
+    /// Verifies the PivotLayout link to the requested PivotTable and fails without
+    /// keeping a chart if Excel cannot create that link.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the source PivotTable</param>

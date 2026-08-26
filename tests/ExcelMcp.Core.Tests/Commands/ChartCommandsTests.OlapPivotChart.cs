@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -13,8 +16,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// These tests use <see cref="DataModelPivotTableFixture"/> which creates a workbook
 /// with Power Pivot Data Model, DAX measures, and OLAP-based PivotTables.
 ///
-/// This tests the OLAP-specific chart creation path which uses Shapes.AddChart() + SetSourceData()
-/// instead of PivotCache.CreatePivotChart() (which fails for OLAP sources).
+/// These tests verify that OLAP chart creation follows Excel's linked PivotChart behavior.
 /// </summary>
 [Collection("DataModel")]
 [Trait("Category", "Integration")]
@@ -39,10 +41,11 @@ public class ChartCommandsOlapTests
         // Arrange - Use the Data Model PivotTable from fixture
         // The fixture creates "DataModelPivot" PivotTable on sheet "ModelData"
         string pivotTableName = "DataModelPivot";
-        string sheetName = "ModelData";
+        string sheetName = "OlapDashboard";
 
         // Act
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        new SheetCommands().Create(batch, sheetName);
         var result = _commands.CreateFromPivotTable(
             batch,
             pivotTableName,
@@ -61,10 +64,36 @@ public class ChartCommandsOlapTests
         Assert.Equal(ChartType.ColumnClustered, result.ChartType);
         Assert.NotNull(result.ChartName);
 
-        // Verify chart exists in list
+        // Verify Excel reports a real PivotChart linked to the source Data Model PivotTable.
+        var chartInfo = _commands.Read(batch, result.ChartName);
+        Assert.True(chartInfo.IsPivotChart);
+        Assert.Equal(pivotTableName, chartInfo.LinkedPivotTable);
+
+        // Verify the live link follows OLAP PivotTable field changes.
+        var dataModelCommands = new DataModelCommands();
+        dataModelCommands.CreateMeasure(
+            batch,
+            "RegionalSalesTable",
+            "PivotChart Average Revenue",
+            "AVERAGE('RegionalSalesTable'[Sales])",
+            formatType: "Decimal");
+
+        var pivotCommands = new PivotTableCommands();
+        pivotCommands.Refresh(batch, pivotTableName, null);
+        pivotCommands.AddValueField(
+            batch,
+            pivotTableName,
+            "[Measures].[PivotChart Average Revenue]",
+            AggregationFunction.Average,
+            "Average Revenue");
+
+        // Verify the chart still resolves through PivotLayout and exposes both value fields.
         var charts = _commands.List(batch);
         Assert.True(charts.Success);
-        Assert.Contains(charts.Charts, c => c.Name == result.ChartName);
+        var linkedChart = Assert.Single(charts.Charts, c => c.Name == result.ChartName);
+        Assert.True(linkedChart.IsPivotChart);
+        Assert.Equal(pivotTableName, linkedChart.LinkedPivotTable);
+        Assert.Equal(2, linkedChart.SeriesCount);
     }
 
     [Fact]
@@ -228,7 +257,3 @@ public class ChartCommandsOlapTests
         Assert.Equal(expectedHeight, chartInfo.Height);
     }
 }
-
-
-
-

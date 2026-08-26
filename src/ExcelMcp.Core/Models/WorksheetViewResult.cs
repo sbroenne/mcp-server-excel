@@ -28,4 +28,7 @@ public class WorksheetViewResult : OperationResult
 
     /// <summary>Whether outline symbols are displayed.</summary>
     public bool DisplayOutlineSymbols { get; set; }
+
+    /// <summary>Whether formulas are displayed instead of their calculated values.</summary>
+    public bool DisplayFormulas { get; set; }
 }

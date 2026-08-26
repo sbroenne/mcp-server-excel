@@ -96,6 +96,31 @@ public partial class WindowCommandsTests
     }
 
     [Fact]
+    public void SetDisplayOptions_ShowFormulasRoundTripsAndLeavesOtherOptionsUnchanged()
+    {
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+        const string sheetName = "ViewFormulas";
+        new SheetCommands().Create(batch, sheetName);
+        var initialView = _commands.GetView(batch, sheetName);
+
+        var show = _commands.SetDisplayOptions(batch, sheetName, showFormulas: true);
+        var formulasShown = _commands.GetView(batch, sheetName);
+
+        Assert.True(show.Success, show.ErrorMessage);
+        Assert.True(formulasShown.DisplayFormulas);
+        Assert.Equal(initialView.DisplayGridlines, formulasShown.DisplayGridlines);
+        Assert.Equal(initialView.DisplayHeadings, formulasShown.DisplayHeadings);
+        Assert.Equal(initialView.DisplayOutlineSymbols, formulasShown.DisplayOutlineSymbols);
+
+        var hide = _commands.SetDisplayOptions(batch, sheetName, showFormulas: false);
+        var formulasHidden = _commands.GetView(batch, sheetName);
+
+        Assert.True(hide.Success, hide.ErrorMessage);
+        Assert.False(formulasHidden.DisplayFormulas);
+    }
+
+    [Fact]
     public void FreezePanes_WithoutRowsOrColumns_ReturnsFailure()
     {
         var testFile = _fixture.CreateTestFile();

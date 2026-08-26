@@ -17,7 +17,9 @@ Best for: Simple data in worksheet ranges
 ```
 chart(create-from-pivottable, pivot_table_name)
 ```
-Best for: Data Model data - creates a single PivotChart object (don't create separate PivotTable + Chart)
+Best for: Interactive PivotTable and Data Model visuals. The action creates a live
+PivotChart, verifies its `PivotLayout` link to the requested PivotTable, and fails
+instead of returning a regular chart if Excel cannot create that link.
 
 ### From Table
 ```
@@ -112,7 +114,7 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 
 ## Best Practices
 
-1. **PivotCharts for Data Model**: Use `create-from-pivottable` not PivotTable + separate chart
+1. **PivotCharts for Data Model**: Use `create-from-pivottable`; it preserves live field and refresh updates
 2. **Format numbers**: Set axis number format for readability
 3. **Use gridlines sparingly**: Minor gridlines often add clutter
 4. **Trendlines for insights**: Add R² to show fit quality

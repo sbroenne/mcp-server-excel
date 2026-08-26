@@ -271,8 +271,21 @@ public partial class RangeCommandsTests
         Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-}
+    [Fact]
+    public void GetValues_InvalidRange_ReportsSheetAndAddress()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.GetValues(batch, sheetName, "NotARange"));
+
+        Assert.Contains($"Sheet '{sheetName}' exists", exception.Message);
+        Assert.Contains("range 'NotARange' is invalid", exception.Message);
+        Assert.Contains("Verify the range address format", exception.Message);
+    }
+
+}
 
 
 

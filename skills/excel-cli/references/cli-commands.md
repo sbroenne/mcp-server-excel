@@ -55,7 +55,7 @@ Control Excel recalculation (automatic vs manual). Set manual mode before bulk w
 
 ### chart
 
-Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING (choose one): - targetRange (PREFERRED): Cell range like 'F2:K15' — positions chart within cells, no point math needed. - left/top: Manual positioning in points (72 points = 1 inch). - Neither: Auto-positions chart below all existing content (used range + other charts). COLLISION DETECTION: All create/move/fit-to-range operations automatically check for overlaps with data and other charts. Warnings are returned in the result message if collisions are detected. Always verify layout with screenshot(capture) and an explicit range that includes the chart. CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter. CREATE OPTIONS: - create-from-range: Create from cell range (e.g., 'A1:D10') - create-from-table: Create from Excel Table (uses table's data range) - create-from-pivottable: Create linked PivotChart Use chartconfig for series, titles, legends, styles, placement mode
+Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING (choose one): - targetRange (PREFERRED): Cell range like 'F2:K15' — positions chart within cells, no point math needed. - left/top: Manual positioning in points (72 points = 1 inch). - Neither: Auto-positions chart below all existing content (used range + other charts). COLLISION DETECTION: All create/move/fit-to-range operations automatically check for overlaps with data and other charts. Warnings are returned in the result message if collisions are detected. Always verify layout with screenshot(capture) and an explicit range that includes the chart. CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter. CREATE OPTIONS: - create-from-range: Create from cell range (e.g., 'A1:D10') - create-from-table: Create from Excel Table (uses table's data range) - create-from-pivottable: Create and verify a live PivotChart link; never falls back to a regular chart Use chartconfig for series, titles, legends, styles, placement mode
 
 **Actions:** `list`, `read`, `create-from-range`, `create-from-table`, `create-from-pivottable`, `delete`, `move`, `fit-to-range`
 
@@ -234,7 +234,7 @@ Data Model (Power Pivot) - DAX measures and table management. CRITICAL: WORKSHEE
 | `--timeout` | Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch (valid for: refresh) |
 | `--dax-formula` | DAX formula. Public callers must supply either inline daxFormula or a readable daxFormulaFile, not both. (required for: create-measure) (valid for: create-measure, update-measure) |
 | `--dax-formula-file` | Path to a readable file containing daxFormula; use instead of inline daxFormula, not together (valid for: create-measure, update-measure) |
-| `--format-type` | Optional: Format type (Currency, Decimal, Percentage, General) (valid for: create-measure, update-measure) |
+| `--format-type` | Optional format type: General, Currency, Decimal, Percentage, or WholeNumber (case-insensitive). Null or empty defaults to General on create and keeps the existing format on update. (valid for: create-measure, update-measure) |
 | `--description` | Optional: Description of the measure (valid for: create-measure, update-measure) |
 | `--format-dax` | Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy. (valid for: create-measure, update-measure) |
 | `--dax-query` | DAX EVALUATE query. Public callers must supply either inline daxQuery or a readable daxQueryFile, not both. (required for: evaluate) (valid for: evaluate) |
@@ -771,7 +771,7 @@ VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQU
 
 ### window
 
-Control Excel window visibility, position, state, status bar, and worksheet-specific views. Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes, split panes, set zoom, and control gridlines, headings, and outline symbols. Set status bar text to give users real-time feedback during operations. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel. Visibility changes are reflected in session metadata (session list shows updated state). WINDOW STATE values: 'normal', 'minimized', 'maximized'. ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'. STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default. WORKSHEET VIEW: View properties belong to a workbook window and apply to the named active worksheet. 'freeze-panes' uses row and column counts above/left of the pane boundary. 'set-split' creates movable panes and disables frozen panes. Zoom must be between 10 and 400 percent
+Control Excel window visibility, position, state, status bar, and worksheet-specific views. Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes, split panes, set zoom, and control gridlines, headings, outline symbols, and formula display. Set status bar text to give users real-time feedback during operations. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel. Visibility changes are reflected in session metadata (session list shows updated state). WINDOW STATE values: 'normal', 'minimized', 'maximized'. ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'. STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default. WORKSHEET VIEW: View properties belong to a workbook window and apply to the named active worksheet. 'freeze-panes' uses row and column counts above/left of the pane boundary. 'set-split' creates movable panes and disables frozen panes. Zoom must be between 10 and 400 percent
 
 **Actions:** `show`, `hide`, `bring-to-front`, `get-info`, `set-state`, `set-position`, `arrange`, `set-status-bar`, `clear-status-bar`, `get-view`, `freeze-panes`, `unfreeze-panes`, `set-split`, `set-zoom`, `set-display-options`
 
@@ -794,6 +794,7 @@ Control Excel window visibility, position, state, status bar, and worksheet-spec
 | `--show-gridlines` | Whether to display cell gridlines (valid for: set-display-options) |
 | `--show-headings` | Whether to display row and column headings (valid for: set-display-options) |
 | `--show-outline-symbols` | Whether to display outline level symbols (valid for: set-display-options) |
+| `--show-formulas` | Whether to display formulas instead of their calculated values (valid for: set-display-options) |
 | `--output` | Write output to file instead of stdout. For image results, decodes and saves as binary file |
 
 ### workbook

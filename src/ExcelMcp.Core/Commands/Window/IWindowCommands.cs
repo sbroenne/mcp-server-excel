@@ -34,7 +34,7 @@ public class WindowInfoResult : OperationResult
 /// <summary>
 /// Control Excel window visibility, position, state, status bar, and worksheet-specific views.
 /// Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes,
-/// split panes, set zoom, and control gridlines, headings, and outline symbols.
+/// split panes, set zoom, and control gridlines, headings, outline symbols, and formula display.
 /// Set status bar text to give users real-time feedback during operations.
 ///
 /// VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel.
@@ -53,7 +53,7 @@ public class WindowInfoResult : OperationResult
 /// </summary>
 [ServiceCategory("window", "Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
-    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, and outline symbols. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
 public interface IWindowCommands
 {
     /// <summary>
@@ -188,7 +188,7 @@ public interface IWindowCommands
         [RequiredParameter] int zoom);
 
     /// <summary>
-    /// Changes worksheet gridlines, row/column headings, or outline symbols.
+    /// Changes worksheet gridlines, row/column headings, outline symbols, or formula display.
     /// Omitted options remain unchanged.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -196,11 +196,13 @@ public interface IWindowCommands
     /// <param name="showGridlines">Whether to display cell gridlines</param>
     /// <param name="showHeadings">Whether to display row and column headings</param>
     /// <param name="showOutlineSymbols">Whether to display outline level symbols</param>
+    /// <param name="showFormulas">Whether to display formulas instead of their calculated values</param>
     [ServiceAction("set-display-options")]
     OperationResult SetDisplayOptions(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
         bool? showGridlines = null,
         bool? showHeadings = null,
-        bool? showOutlineSymbols = null);
+        bool? showOutlineSymbols = null,
+        bool? showFormulas = null);
 }

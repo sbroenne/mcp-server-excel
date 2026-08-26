@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "excel-mcp",
   "display_name": "Excel (Windows)",
-  "version": "1.7.0",
+  "version": "2.0.1",
   "description": "Manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
   "long_description": "Automate the real Microsoft Excel application from Claude. 31 specialized tools with 325 operations for Power Query, DAX and the Data Model, VBA, PivotTables, Charts, Conditional Formatting, and more. Unlike file-parser libraries, it drives Excel through its official COM API, so PivotTables, macros, charts, the Data Model and workbook formatting are preserved. Windows-only, requires Microsoft Excel desktop application (2016 or later).",
   "author": {

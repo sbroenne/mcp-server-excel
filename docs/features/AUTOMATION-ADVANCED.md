@@ -70,18 +70,18 @@ Show, position, and arrange the Excel window — great for watching the AI work 
 - **Arrange:** Arrange the Excel window using preset layouts
 
 **Workbook View & Panes:**
-- **Get View:** Read view type, zoom, pane state, and display options
+- **Get View:** Read zoom, pane state, and display options, including formula display
 - **Freeze / Unfreeze Panes:** Freeze rows/columns at a worksheet boundary or remove frozen panes
 - **Set Split:** Configure movable horizontal and vertical panes
 - **Set Zoom:** Change worksheet zoom
-- **Set Display Options:** Toggle gridlines, headings, formula display, and related window options
+- **Set Display Options:** Independently toggle gridlines, headings, outline symbols, and formula display; omitted options stay unchanged
 
 **Status Bar:**
 - **Set Status Bar:** Display custom text in Excel's status bar for real-time feedback
 - **Clear Status Bar:** Restore the default status bar text
 
 **Notes:**
-- **Arrange presets:** `left-half` / `right-half` (side-by-side with other applications), `top-half` / `bottom-half` (stacked view), `center` (centered window, 60% of screen), and `full-screen` (maximized).
+- **Arrange presets:** Layouts use the work area of the monitor currently containing Excel, including secondary-monitor origins and display scaling. `left-half` / `right-half` support side-by-side use, `top-half` / `bottom-half` provide stacked views, `center` uses 60% of the work area, and `full-screen` maximizes Excel on that monitor.
 - **Use cases:** Interactive "agent mode" where users watch Excel respond to AI commands in real time, side-by-side layouts (Excel on one half, AI assistant on the other), and visibility changes that are reflected in session metadata.
 
 ---

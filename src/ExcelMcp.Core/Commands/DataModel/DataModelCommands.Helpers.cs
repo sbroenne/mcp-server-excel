@@ -13,6 +13,22 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class DataModelCommands
 {
+    private const string GeneralMeasureFormat = "General";
+    private const string CurrencyMeasureFormat = "Currency";
+    private const string DecimalMeasureFormat = "Decimal";
+    private const string PercentageMeasureFormat = "Percentage";
+    private const string WholeNumberMeasureFormat = "WholeNumber";
+
+    private static readonly Dictionary<string, Func<Excel.Model, object>> MeasureFormatFactories =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [GeneralMeasureFormat] = static model => model.ModelFormatGeneral,
+            [CurrencyMeasureFormat] = static model => model.ModelFormatCurrency,
+            [DecimalMeasureFormat] = static model => model.ModelFormatDecimalNumber,
+            [PercentageMeasureFormat] = static model => model.ModelFormatPercentageNumber,
+            [WholeNumberMeasureFormat] = static model => model.ModelFormatWholeNumber
+        };
+
     private static DataModelColumnInfo CreateColumnInfo(object column)
     {
         var typedColumn = (Excel.ModelTableColumn)column;
@@ -215,10 +231,29 @@ public partial class DataModelCommands
     }
 
     /// <summary>
+    /// Validates a measure format before entering Excel COM.
+    /// </summary>
+    /// <param name="formatType">Format type to validate</param>
+    private static void ValidateMeasureFormatType(string? formatType)
+    {
+        if (string.IsNullOrEmpty(formatType))
+        {
+            return;
+        }
+
+        if (MeasureFormatFactories.ContainsKey(formatType))
+        {
+            return;
+        }
+
+        throw UnknownMeasureFormatType(formatType);
+    }
+
+    /// <summary>
     /// Gets the appropriate format object from the model for measure creation
     /// </summary>
     /// <param name="model">Model COM object</param>
-    /// <param name="formatType">Format type (Currency, Decimal, Percentage, General)</param>
+    /// <param name="formatType">Format type (General, Currency, Decimal, Percentage, WholeNumber)</param>
     /// <returns>FormatInformation COM object (never null - always returns at least ModelFormatGeneral)</returns>
     private static object GetFormatObject(Excel.Model model, string? formatType)
     {
@@ -229,21 +264,19 @@ public partial class DataModelCommands
         // Solution: Always return a format object - use ModelFormatGeneral as default
         // See: docs/KNOWN-ISSUES.md for investigation details
 
-        if (string.IsNullOrEmpty(formatType) || formatType.Equals("General", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(formatType))
         {
             return model.ModelFormatGeneral;  // Default format
         }
 
+        if (!MeasureFormatFactories.TryGetValue(formatType, out var createFormat))
+        {
+            throw UnknownMeasureFormatType(formatType);
+        }
+
         try
         {
-            return formatType.ToLowerInvariant() switch
-            {
-                "currency" => (object)model.ModelFormatCurrency,
-                "decimal" => (object)model.ModelFormatDecimalNumber,
-                "percentage" => (object)model.ModelFormatPercentageNumber,
-                "wholenumber" => (object)model.ModelFormatWholeNumber,
-                _ => (object)model.ModelFormatGeneral  // Fallback to General for unknown types
-            };
+            return createFormat(model);
         }
         catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
@@ -251,6 +284,11 @@ public partial class DataModelCommands
             return model.ModelFormatGeneral;
         }
     }
+
+    private static ArgumentException UnknownMeasureFormatType(string formatType) =>
+        new(
+            $"Unknown measure format type: '{formatType}'. Valid values: {string.Join(", ", MeasureFormatFactories.Keys)}.",
+            nameof(formatType));
 
     /// <summary>
     /// Extracts format information from a ModelFormat* COM object as a structured object.
@@ -263,12 +301,20 @@ public partial class DataModelCommands
     /// <returns>Structured format info with Type, Symbol, DecimalPlaces, UseThousandSeparator as applicable</returns>
     private static MeasureFormatInfo GetFormatInfo(dynamic formatInfo)
     {
-        var result = new MeasureFormatInfo { Type = "General" };
+        var result = new MeasureFormatInfo { Type = GeneralMeasureFormat };
 
         try
         {
             // Try to detect the format type by checking for type-specific properties
             // Each ModelFormat* type has different properties available
+
+            if (formatInfo is Excel.ModelFormatWholeNumber wholeNumber)
+            {
+                result.Type = WholeNumberMeasureFormat;
+                result.DecimalPlaces = 0;
+                result.UseThousandSeparator = wholeNumber.UseThousandSeparator;
+                return result;
+            }
 
             // Check for Currency (has Symbol and DecimalPlaces)
             // COM property probing: access throws COMException or RuntimeBinderException if property doesn't exist on this format type
@@ -277,7 +323,7 @@ public partial class DataModelCommands
                 string? symbol = formatInfo.Symbol?.ToString();
                 if (!string.IsNullOrEmpty(symbol))
                 {
-                    result.Type = "Currency";
+                    result.Type = CurrencyMeasureFormat;
                     result.Symbol = symbol;
                     result.DecimalPlaces = Convert.ToInt32(formatInfo.DecimalPlaces);
                     return result;
@@ -292,7 +338,7 @@ public partial class DataModelCommands
                 bool useThousands = formatInfo.UseThousandSeparator;
                 int decimals = Convert.ToInt32(formatInfo.DecimalPlaces);
                 // If we got here without exception, it's likely Percentage or Decimal
-                result.Type = "Percentage";
+                result.Type = PercentageMeasureFormat;
                 result.DecimalPlaces = decimals;
                 result.UseThousandSeparator = useThousands;
                 return result;
@@ -303,7 +349,7 @@ public partial class DataModelCommands
             try
             {
                 int decimals = Convert.ToInt32(formatInfo.DecimalPlaces);
-                result.Type = decimals == 0 ? "WholeNumber" : "Decimal";
+                result.Type = decimals == 0 ? WholeNumberMeasureFormat : DecimalMeasureFormat;
                 result.DecimalPlaces = decimals;
                 return result;
             }

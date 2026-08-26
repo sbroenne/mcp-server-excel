@@ -42,7 +42,11 @@ if ($null -eq $mcpPackage.PSObject.Properties['version']) {
 
 $server.version = $Version
 $mcpPackage.version = $Version
-$server | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $ServerJsonPath -NoNewline
+$content = ($server | ConvertTo-Json -Depth 20) -replace "`r?`n", "`n"
+[System.IO.File]::WriteAllText(
+    $ServerJsonPath,
+    "$content`n",
+    [System.Text.UTF8Encoding]::new($false))
 
 $updatedServer = Get-Content -LiteralPath $ServerJsonPath -Raw | ConvertFrom-Json
 $updatedMcpPackages = @(

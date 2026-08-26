@@ -131,24 +131,24 @@ public class DataModelPivotTableFixture : IAsyncLifetime
                 "SalesTable",
                 "Total Sales",
                 "SUM(SalesTable[Amount])",
-                "Total sales amount",
-                "#,##0.00");
+                formatType: "Decimal",
+                description: "Total sales amount");
 
             dataModelCommands.CreateMeasure(
                 batch,
                 "SalesTable",
                 "Average Sale",
                 "AVERAGE(SalesTable[Amount])",
-                "Average sale amount",
-                "#,##0.00");
+                formatType: "Decimal",
+                description: "Average sale amount");
 
             dataModelCommands.CreateMeasure(
                 batch,
                 "SalesTable",
                 "Total Customers",
                 "DISTINCTCOUNT(SalesTable[CustomerID])",
-                "Count of unique customers",
-                "#,##0");
+                formatType: "WholeNumber",
+                description: "Count of unique customers");
 
             CreationResult.MeasuresCreated = 3;
 
@@ -175,8 +175,8 @@ public class DataModelPivotTableFixture : IAsyncLifetime
                 "RegionalSalesTable",
                 "TotalRevenue",
                 "SUM([Sales])",
-                "Total Revenue from all regions",
-                "#,##0");
+                formatType: "WholeNumber",
+                description: "Total Revenue from all regions");
 
             CreationResult.MeasuresCreated++;
 
@@ -186,16 +186,16 @@ public class DataModelPivotTableFixture : IAsyncLifetime
                 "DisambiguationTable",
                 "ACR",  // Could be confused with "ACRTypeKey" column
                 "SUM([Amount])",
-                "ACR Amount measure",
-                "#,##0.00");
+                formatType: "Decimal",
+                description: "ACR Amount measure");
 
             dataModelCommands.CreateMeasure(
                 batch,
                 "DisambiguationTable",
                 "Discount",  // Could be confused with "DiscountCode" column
                 "SUM([Amount]) * 0.1",
-                "Discount measure",
-                "#,##0.00");
+                formatType: "Decimal",
+                description: "Discount measure");
 
             CreationResult.MeasuresCreated += 2;  // Now 6 total
 
@@ -557,7 +557,6 @@ public class DataModelPivotTableCreationResult
     public long CreationTimeMs { get; set; }
     public string? ErrorMessage { get; set; }
 }
-
 
 
 

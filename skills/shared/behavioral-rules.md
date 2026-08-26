@@ -220,10 +220,10 @@ When displaying Data Model data:
 
 When creating charts from Data Model:
 
-- **Use**: `chart create-from-pivottable` (creates PivotChart)
-- **NOT**: Create PivotTable → Create separate Chart from the PivotTable
+- **Use**: `chart create-from-pivottable` (creates and verifies a live PivotChart)
+- **NOT**: Create a regular chart from the PivotTable's displayed cell range
 
-**Why**: A PivotChart is a single object connected to the Data Model. Creating PivotTable + Chart is redundant - two objects instead of one.
+**Why**: The verified PivotLayout link keeps field changes and refreshes live.
 
 ## Data Modification Rules
 

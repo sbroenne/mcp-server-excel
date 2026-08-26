@@ -8,16 +8,13 @@
     at the top of CHANGELOG.md. This script then:
       1. Normalizes the changesets-generated version header to the Keep a Changelog
          style already used in this file: `## [X.Y.Z] - YYYY-MM-DD`.
-      2. Forces the root package.json version to exactly match the real release
-         version (the source of truth remains the git tag / workflow input — this
-         package.json only exists to host the changesets tool and must not drift).
+      2. Synchronizes all persistent source-tree version metadata with the real
+         release version. Build-time placeholder manifests remain unchanged.
       3. Extracts the newly-inserted section body to a separate file so it can be
          used verbatim as GitHub Release notes.
 
-    Safe to run locally for a dry run: it mutates CHANGELOG.md, package.json, and
-    deletes consumed fragments in .changeset/, same as the real release step. Use
-    `git checkout -- CHANGELOG.md package.json` and `git clean -fd .changeset` to
-    revert a local dry run.
+    Safe to run locally for a dry run: it mutates CHANGELOG.md, release metadata,
+    and deletes consumed fragments in .changeset/, same as the real release step.
 
 .PARAMETER Version
     The version being released, e.g. "1.9.1" (no leading "v").
@@ -53,6 +50,7 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path $RepoRoot).Path
 $changelogPath = Join-Path $RepoRoot 'CHANGELOG.md'
 $packageJsonPath = Join-Path $RepoRoot 'package.json'
+$updateReleaseVersionScript = Join-Path $PSScriptRoot 'Update-ReleaseVersionMetadata.ps1'
 if (-not $OutputNotesPath) {
     $OutputNotesPath = Join-Path $RepoRoot 'release_notes_body.md'
 }
@@ -62,6 +60,9 @@ if (-not (Test-Path $changelogPath)) {
 }
 if (-not (Test-Path $packageJsonPath)) {
     throw "package.json not found at $packageJsonPath (required to host the changesets tool)"
+}
+if (-not (Test-Path $updateReleaseVersionScript)) {
+    throw "Release version metadata updater not found at $updateReleaseVersionScript"
 }
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Version '$Version' must be a plain semver value without a leading 'v' (e.g. 1.9.1)."
@@ -125,6 +126,7 @@ else {
 }
 
 if ([string]::IsNullOrWhiteSpace($newSection)) {
+    & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version
     Write-Output 'No pending changesets found — nothing to add to the changelog.'
     Set-Content -LiteralPath $OutputNotesPath -Value "_No changes recorded for this release._" -NoNewline
     exit 0
@@ -170,14 +172,10 @@ if (-not [string]::IsNullOrWhiteSpace($priorVersions)) { $sections += $priorVers
 $finalContent = ($sections -join "`n`n").TrimEnd() + "`n"
 Set-Content -LiteralPath $changelogPath -Value $finalContent -NoNewline
 
-# --- Step 6: keep package.json's bookkeeping version in exact sync with the real
-# release version (changesets' own auto-bump may not match if a contributor picked
-# a different bump type than the maintainer ultimately released).
-$packageJson = Get-Content -LiteralPath $packageJsonPath -Raw | ConvertFrom-Json
-$packageJson.version = $Version
-# Preserve key order/formatting reasonably well: ConvertTo-Json + npm-style 2-space indent.
-($packageJson | ConvertTo-Json -Depth 10) -replace "`r?`n", "`n" | Set-Content -LiteralPath $packageJsonPath -NoNewline
-Add-Content -LiteralPath $packageJsonPath -Value "`n"
+# --- Step 6: synchronize every persistent source-tree version. This runs after
+# changesets so its calculated package.json bump cannot override the selected
+# release version.
+& $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version
 
 # --- Step 7: write the release-notes body (verbatim section content, no header
 # duplication needed since GitHub Release titles already carry the version).
