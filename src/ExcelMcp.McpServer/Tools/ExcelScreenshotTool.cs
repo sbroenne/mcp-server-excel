@@ -50,13 +50,13 @@ public static class ExcelScreenshotTool
         var jsonResponse = ExcelToolsBase.ExecuteToolAction(
             "screenshot",
             ServiceRegistry.Screenshot.ToActionString(action),
-            () => ServiceRegistry.Screenshot.RouteAction(
+            () => RouteScreenshotAction(
                 action,
                 session_id,
-                ExcelToolsBase.ForwardToServiceFunc,
-                sheetName: sheet_name,
-                rangeAddress: range_address,
-                quality: quality
+                sheet_name,
+                range_address,
+                quality,
+                ExcelToolsBase.ForwardToServiceFunc
             ));
 
         // Parse the JSON response to extract image data
@@ -98,5 +98,22 @@ public static class ExcelScreenshotTool
                 Content = [new TextContentBlock { Text = jsonResponse }]
             };
         }
+    }
+
+    internal static string RouteScreenshotAction(
+        ScreenshotAction action,
+        string sessionId,
+        string? sheetName,
+        string rangeAddress,
+        ScreenshotQuality quality,
+        Func<string, string, object?, string> forwardToService)
+    {
+        return ServiceRegistry.Screenshot.RouteAction(
+            action,
+            sessionId,
+            forwardToService,
+            sheetName: sheetName,
+            rangeAddress: action == ScreenshotAction.CaptureRange ? rangeAddress : null,
+            quality: quality);
     }
 }
