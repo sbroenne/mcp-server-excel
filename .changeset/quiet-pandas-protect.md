@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": patch
+"excelmcp": patch
 ---
 
 **Prevent exception details from entering telemetry.** Crash analytics now keep

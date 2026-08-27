@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": patch
+"excelmcp": patch
 ---
 
 **Publish transparent usage analytics.** A weekly privacy-checked public report
