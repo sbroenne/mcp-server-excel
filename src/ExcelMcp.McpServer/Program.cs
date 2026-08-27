@@ -19,6 +19,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 public class Program
 {
     private static readonly object TestTransportLock = new();
+    private static int _globalExceptionHandlersRegistered;
 
     // Test transport configuration - set by tests before calling Main()
     // These are intentionally static for test injection, but we still guard them so
@@ -406,6 +407,11 @@ public class Program
     /// </summary>
     private static void RegisterGlobalExceptionHandlers()
     {
+        if (Interlocked.Exchange(ref _globalExceptionHandlersRegistered, 1) != 0)
+        {
+            return;
+        }
+
         // Handle exceptions that escape all catch blocks
         AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
         {

@@ -1,0 +1,588 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-27T12:55:03Z",
+  "windows": {
+    "reportingDays": 90,
+    "comparisonDays": 14,
+    "versionDays": 14
+  },
+  "privacy": {
+    "minimumUsersPerDimension": 10,
+    "excluded": [
+      "user identifiers",
+      "session identifiers",
+      "file hashes",
+      "geography",
+      "messages",
+      "stack traces"
+    ]
+  },
+  "summary": {
+    "users": 3323,
+    "sessions": 87650,
+    "activatedSessions": 18755,
+    "activationRate": 21.4,
+    "toolInvocations": 955506,
+    "repeatUserRate": 65.37,
+    "multiSessionRate": 71.43
+  },
+  "comparison": {
+    "currentUsers": 1613,
+    "previousUsers": 1424,
+    "userChangePct": 13.27,
+    "currentSessions": 23550,
+    "previousSessions": 20031,
+    "sessionChangePct": 17.57,
+    "currentInvocations": 321292,
+    "previousInvocations": 224648,
+    "invocationChangePct": 43.02
+  },
+  "operations": [
+    {
+      "name": "range/get-values",
+      "invocations": 127476,
+      "users": 2188,
+      "successRate": 99.45,
+      "p50Ms": 56.1,
+      "p95Ms": 1479.4,
+      "p99Ms": 5851.7
+    },
+    {
+      "name": "range/set-values",
+      "invocations": 82471,
+      "users": 1835,
+      "successRate": 99.87,
+      "p50Ms": 71,
+      "p95Ms": 1637.4,
+      "p99Ms": 8148.1
+    },
+    {
+      "name": "file/open",
+      "invocations": 72916,
+      "users": 2726,
+      "successRate": 99.3,
+      "p50Ms": 3492.5,
+      "p95Ms": 33515.9,
+      "p99Ms": 117268.1
+    },
+    {
+      "name": "file/close",
+      "invocations": 56107,
+      "users": 2496,
+      "successRate": 99.19,
+      "p50Ms": 3488.7,
+      "p95Ms": 13313.2,
+      "p99Ms": 45047.6
+    },
+    {
+      "name": "range/set-formulas",
+      "invocations": 38465,
+      "users": 1024,
+      "successRate": 99.92,
+      "p50Ms": 90.6,
+      "p95Ms": 1882.5,
+      "p99Ms": 11179
+    },
+    {
+      "name": "range/get-used-range",
+      "invocations": 31364,
+      "users": 2007,
+      "successRate": 99.23,
+      "p50Ms": 94.6,
+      "p95Ms": 2553.7,
+      "p99Ms": 13845.3
+    },
+    {
+      "name": "range_format/format-range",
+      "invocations": 30242,
+      "users": 1130,
+      "successRate": 99.85,
+      "p50Ms": 34,
+      "p95Ms": 1389.1,
+      "p99Ms": 8164.4
+    },
+    {
+      "name": "range/get-formulas",
+      "invocations": 28863,
+      "users": 1077,
+      "successRate": 99.9,
+      "p50Ms": 80.3,
+      "p95Ms": 1558.2,
+      "p99Ms": 6070.3
+    },
+    {
+      "name": "file/list",
+      "invocations": 23736,
+      "users": 2086,
+      "successRate": 100,
+      "p50Ms": 2,
+      "p95Ms": 511.2,
+      "p99Ms": 1706.3
+    },
+    {
+      "name": "worksheet/list",
+      "invocations": 22965,
+      "users": 2368,
+      "successRate": 100,
+      "p50Ms": 93.5,
+      "p95Ms": 2038.1,
+      "p99Ms": 10854.5
+    },
+    {
+      "name": "screenshot/capture",
+      "invocations": 17169,
+      "users": 1079,
+      "successRate": 100,
+      "p50Ms": 4107.4,
+      "p95Ms": 11966.2,
+      "p99Ms": 106858.7
+    },
+    {
+      "name": "range_format/set-column-width",
+      "invocations": 16750,
+      "users": 775,
+      "successRate": 99.92,
+      "p50Ms": 19.9,
+      "p95Ms": 1646.5,
+      "p99Ms": 14138.2
+    },
+    {
+      "name": "vba/run",
+      "invocations": 15867,
+      "users": 435,
+      "successRate": 99.46,
+      "p50Ms": 203.9,
+      "p95Ms": 120361.6,
+      "p99Ms": 300998.3
+    },
+    {
+      "name": "range_edit/find",
+      "invocations": 14850,
+      "users": 657,
+      "successRate": 97.06,
+      "p50Ms": 119,
+      "p95Ms": 4785.1,
+      "p99Ms": 30044.5
+    },
+    {
+      "name": "range/set-number-format",
+      "invocations": 13628,
+      "users": 796,
+      "successRate": 99.69,
+      "p50Ms": 49.4,
+      "p95Ms": 1074.1,
+      "p99Ms": 6091.8
+    },
+    {
+      "name": "calculation_mode/calculate",
+      "invocations": 12656,
+      "users": 948,
+      "successRate": 99.98,
+      "p50Ms": 14,
+      "p95Ms": 1913,
+      "p99Ms": 12289.2
+    },
+    {
+      "name": "calculation_mode/set-mode",
+      "invocations": 9433,
+      "users": 903,
+      "successRate": 100,
+      "p50Ms": 58.2,
+      "p95Ms": 1428.1,
+      "p99Ms": 5293
+    },
+    {
+      "name": "range_format/merge-cells",
+      "invocations": 9406,
+      "users": 464,
+      "successRate": 100,
+      "p50Ms": 21,
+      "p95Ms": 1203.8,
+      "p99Ms": 19996.1
+    },
+    {
+      "name": "worksheet/create",
+      "invocations": 9264,
+      "users": 1074,
+      "successRate": 98.97,
+      "p50Ms": 34.8,
+      "p95Ms": 1499.4,
+      "p99Ms": 6661.7
+    },
+    {
+      "name": "vba/update",
+      "invocations": 8420,
+      "users": 284,
+      "successRate": 99.51,
+      "p50Ms": 140.2,
+      "p95Ms": 2106.1,
+      "p99Ms": 6246
+    },
+    {
+      "name": "range/clear-contents",
+      "invocations": 8218,
+      "users": 776,
+      "successRate": 99.94,
+      "p50Ms": 65.5,
+      "p95Ms": 1517.4,
+      "p99Ms": 7574.2
+    },
+    {
+      "name": "range_format/format-ranges",
+      "invocations": 7656,
+      "users": 604,
+      "successRate": 99.91,
+      "p50Ms": 81.1,
+      "p95Ms": 1870.7,
+      "p99Ms": 7721.5
+    },
+    {
+      "name": "vba/view",
+      "invocations": 6513,
+      "users": 298,
+      "successRate": 99.74,
+      "p50Ms": 138.3,
+      "p95Ms": 2031.1,
+      "p99Ms": 8754.5
+    },
+    {
+      "name": "powerquery/evaluate",
+      "invocations": 6497,
+      "users": 279,
+      "successRate": 99.4,
+      "p50Ms": 5701,
+      "p95Ms": 120012,
+      "p99Ms": 321321
+    },
+    {
+      "name": "vba/import",
+      "invocations": 6461,
+      "users": 551,
+      "successRate": 98.81,
+      "p50Ms": 187.1,
+      "p95Ms": 2236.5,
+      "p99Ms": 6037.3
+    }
+  ],
+  "toolFamilies": [
+    {
+      "name": "range",
+      "invocations": 349454,
+      "users": 2561,
+      "sharePct": 39.35,
+      "successRate": 99.57,
+      "p95Ms": 1716.3
+    },
+    {
+      "name": "file",
+      "invocations": 160076,
+      "users": 2909,
+      "sharePct": 18.03,
+      "successRate": 99.37,
+      "p95Ms": 21667.3
+    },
+    {
+      "name": "range_format",
+      "invocations": 85246,
+      "users": 1391,
+      "sharePct": 9.6,
+      "successRate": 99.88,
+      "p95Ms": 1531.9
+    },
+    {
+      "name": "vba",
+      "invocations": 44106,
+      "users": 767,
+      "sharePct": 4.97,
+      "successRate": 99.5,
+      "p95Ms": 27072.4
+    },
+    {
+      "name": "worksheet",
+      "invocations": 42443,
+      "users": 2450,
+      "sharePct": 4.78,
+      "successRate": 99.37,
+      "p95Ms": 4930.2
+    },
+    {
+      "name": "powerquery",
+      "invocations": 33373,
+      "users": 442,
+      "sharePct": 3.76,
+      "successRate": 99.71,
+      "p95Ms": 70680.5
+    },
+    {
+      "name": "range_edit",
+      "invocations": 24255,
+      "users": 903,
+      "sharePct": 2.73,
+      "successRate": 97.64,
+      "p95Ms": 4105.3
+    },
+    {
+      "name": "calculation_mode",
+      "invocations": 22919,
+      "users": 1094,
+      "sharePct": 2.58,
+      "successRate": 99.99,
+      "p95Ms": 1710.7
+    },
+    {
+      "name": "screenshot",
+      "invocations": 21487,
+      "users": 1297,
+      "sharePct": 2.42,
+      "successRate": 99.36,
+      "p95Ms": 12394.8
+    },
+    {
+      "name": "table",
+      "invocations": 16983,
+      "users": 976,
+      "sharePct": 1.91,
+      "successRate": 99.48,
+      "p95Ms": 3854.6
+    },
+    {
+      "name": "datamodel",
+      "invocations": 14008,
+      "users": 258,
+      "sharePct": 1.58,
+      "successRate": 99.81,
+      "p95Ms": 27551.6
+    },
+    {
+      "name": "pivottable_field",
+      "invocations": 9901,
+      "users": 286,
+      "sharePct": 1.11,
+      "successRate": 99.99,
+      "p95Ms": 5755
+    },
+    {
+      "name": "window",
+      "invocations": 7616,
+      "users": 715,
+      "sharePct": 0.86,
+      "successRate": 99.92,
+      "p95Ms": 1203.9
+    },
+    {
+      "name": "conditionalformat",
+      "invocations": 6671,
+      "users": 405,
+      "sharePct": 0.75,
+      "successRate": 99.72,
+      "p95Ms": 1225.5
+    },
+    {
+      "name": "chart_config",
+      "invocations": 6421,
+      "users": 311,
+      "sharePct": 0.72,
+      "successRate": 99.24,
+      "p95Ms": 1714.4
+    },
+    {
+      "name": "namedrange",
+      "invocations": 6364,
+      "users": 399,
+      "sharePct": 0.72,
+      "successRate": 99.72,
+      "p95Ms": 6201.1
+    },
+    {
+      "name": "chart",
+      "invocations": 6060,
+      "users": 468,
+      "sharePct": 0.68,
+      "successRate": 98.22,
+      "p95Ms": 2060.4
+    },
+    {
+      "name": "pivottable",
+      "invocations": 5971,
+      "users": 388,
+      "sharePct": 0.67,
+      "successRate": 98.51,
+      "p95Ms": 26286.8
+    },
+    {
+      "name": "worksheet_style",
+      "invocations": 5629,
+      "users": 426,
+      "sharePct": 0.63,
+      "successRate": 99.57,
+      "p95Ms": 1503
+    },
+    {
+      "name": "range_link",
+      "invocations": 3120,
+      "users": 149,
+      "sharePct": 0.35,
+      "successRate": 99.55,
+      "p95Ms": 2563.5
+    }
+  ],
+  "versions": [
+    {
+      "version": "1.10.5",
+      "invocations": 84670,
+      "sessions": 948,
+      "activatedSessions": 948,
+      "activationRate": 100,
+      "users": 248
+    },
+    {
+      "version": "1.10.7",
+      "invocations": 57717,
+      "sessions": 798,
+      "activatedSessions": 798,
+      "activationRate": 100,
+      "users": 269
+    },
+    {
+      "version": "1.10.9",
+      "invocations": 24751,
+      "sessions": 220,
+      "activatedSessions": 220,
+      "activationRate": 100,
+      "users": 128
+    },
+    {
+      "version": "1.10.3",
+      "invocations": 20004,
+      "sessions": 426,
+      "activatedSessions": 426,
+      "activationRate": 100,
+      "users": 111
+    },
+    {
+      "version": "2.0.0",
+      "invocations": 19423,
+      "sessions": 364,
+      "activatedSessions": 364,
+      "activationRate": 100,
+      "users": 147
+    },
+    {
+      "version": "1.8.71",
+      "invocations": 14359,
+      "sessions": 203,
+      "activatedSessions": 203,
+      "activationRate": 100,
+      "users": 33
+    },
+    {
+      "version": "1.10.8",
+      "invocations": 12758,
+      "sessions": 163,
+      "activatedSessions": 163,
+      "activationRate": 100,
+      "users": 79
+    },
+    {
+      "version": "2.0.1",
+      "invocations": 10551,
+      "sessions": 279,
+      "activatedSessions": 279,
+      "activationRate": 100,
+      "users": 128
+    },
+    {
+      "version": "1.8.70",
+      "invocations": 10485,
+      "sessions": 187,
+      "activatedSessions": 187,
+      "activationRate": 100,
+      "users": 52
+    },
+    {
+      "version": "1.8.61",
+      "invocations": 8824,
+      "sessions": 65,
+      "activatedSessions": 65,
+      "activationRate": 100,
+      "users": 15
+    },
+    {
+      "version": "1.8.68",
+      "invocations": 8701,
+      "sessions": 196,
+      "activatedSessions": 196,
+      "activationRate": 100,
+      "users": 56
+    },
+    {
+      "version": "1.9.5",
+      "invocations": 7052,
+      "sessions": 133,
+      "activatedSessions": 133,
+      "activationRate": 100,
+      "users": 44
+    },
+    {
+      "version": "1.8.44",
+      "invocations": 5641,
+      "sessions": 7561,
+      "activatedSessions": 135,
+      "activationRate": 1.79,
+      "users": 128
+    },
+    {
+      "version": "2.0.2",
+      "invocations": 4598,
+      "sessions": 144,
+      "activatedSessions": 144,
+      "activationRate": 100,
+      "users": 87
+    },
+    {
+      "version": "1.9.4",
+      "invocations": 3120,
+      "sessions": 64,
+      "activatedSessions": 64,
+      "activationRate": 100,
+      "users": 19
+    },
+    {
+      "version": "1.8.42",
+      "invocations": 1496,
+      "sessions": 3130,
+      "activatedSessions": 24,
+      "activationRate": 0.77,
+      "users": 12
+    },
+    {
+      "version": "1.8.55",
+      "invocations": 1415,
+      "sessions": 31,
+      "activatedSessions": 31,
+      "activationRate": 100,
+      "users": 11
+    },
+    {
+      "version": "1.8.49",
+      "invocations": 1408,
+      "sessions": 110,
+      "activatedSessions": 20,
+      "activationRate": 18.18,
+      "users": 27
+    }
+  ],
+  "exceptions": [
+    {
+      "source": "TaskScheduler.UnobservedTaskException",
+      "type": "AggregateException",
+      "innerTypes": "",
+      "failureSite": "",
+      "exceptions": 1796,
+      "users": 359,
+      "sessions": 811
+    }
+  ],
+  "interpretation": "## What changed\r\n\r\n- The latest comparison window shows broad growth: users increased by 13.27 percent, sessions by 17.57 percent, and tool invocations by 43.02 percent.\r\n- Invocation growth is substantially faster than user growth, indicating deeper use per active user rather than acquisition alone.\r\n\r\n## Reliability and performance\r\n\r\n- Overall operation success remains high. Range operations report 99.57 percent success and file operations 99.37 percent.\r\n- Range editing is the clearest reliability outlier at 97.64 percent. The find operation reports 97.06 percent across 14850 invocations.\r\n- Tail latency deserves attention: file open reaches 33515.9 ms at p95, while Power Query evaluation reaches 120012 ms.\r\n\r\n## Adoption\r\n\r\n- Range work represents 39.35 percent of invocations and file lifecycle work 18.03 percent, confirming that basic workbook interaction remains the core workload.\r\n- Version 1.10.5 led engaged use with 84670 invocations. Version 2.0.2 reached 87 users in the latest window.\r\n- Version 1.8.44 generated 7561 sessions but only 135 activated sessions, a 1.79 percent activation rate. Session totals for that version should not be interpreted as engaged adoption.\r\n\r\n## Recommendations\r\n\r\n- Prioritize investigation of range editing failures and file-open tail latency.\r\n- Track activated sessions separately from process starts in every public trend.\r\n- Treat the current exception section as transitional until sanitized classification is present across released versions.",
+  "interpretationModel": "GitHub Copilot CLI"
+}

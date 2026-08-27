@@ -387,7 +387,8 @@ The Application Insights connection string is **embedded at build time** via MSB
 ### **What is Tracked**
 
 - **Tool invocations**: Tool name, action, duration (ms), success/failure
-- **Unhandled exceptions**: Exception type and redacted stack trace
+- **Unhandled exceptions**: Exception type, approved source, and project-owned
+  failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
 
@@ -398,9 +399,13 @@ The Application Insights connection string is **embedded at build time** via MSB
 - Excel data, formulas, or cell values
 - Connection strings, credentials, or passwords
 
-### **Sensitive Data Redaction**
+### **Sensitive Data Protection**
 
-All telemetry passes through `SensitiveDataRedactingProcessor` which removes:
+Tool telemetry contains only allowlisted operation metadata. Explicit exception
+telemetry is rebuilt from safe classifications and never contains the original
+message or stack. An ingestion-time workspace transform rejects exception rows
+without ExcelMcp's sanitization marker. `SensitiveDataRedactor` is retained for
+local diagnostic text and recognizes:
 - Windows file paths (`C:\Users\...` → `[REDACTED_PATH]`)
 - UNC paths (`\\server\share\...` → `[REDACTED_PATH]`)
 - Connection string secrets (`Password=...` → `[REDACTED_CREDENTIAL]`)
@@ -455,6 +460,30 @@ After deploying Azure resources:
 
 The release workflow sets this as an environment variable, and MSBuild embeds it at build time.
 
+### **Public Usage Analytics Automation**
+
+The weekly `usage-analytics.yml` workflow queries aggregate telemetry through a
+read-only Azure workload identity, gives GitHub Copilot only the sanitized JSON,
+validates every generated numeric claim, and persists the report to the
+`analytics-data` branch. The Pages build restores that report read-only.
+
+One-time maintainer setup:
+
+```powershell
+.\infrastructure\azure\configure-analytics-oidc.ps1
+
+# Fine-grained personal token with Account permission: Copilot Requests (read)
+gh secret set COPILOT_GITHUB_TOKEN
+```
+
+Use a manual dry run before enabling publication:
+
+```powershell
+gh workflow run usage-analytics.yml -f publish=false
+```
+
+After inspecting the artifact, publish a validated run with `publish=true`.
+
 ### **Telemetry Architecture**
 
 ```text
@@ -468,10 +497,10 @@ Runtime:
   ExcelMcpTelemetry.TrackToolInvocation()
       │ (tracks: tool, action, duration, success)
       ▼
-  SensitiveDataRedactingProcessor
-      │ (removes: paths, credentials, emails)
+  Allowlisted telemetry construction
+      │ (exception messages and stacks are omitted)
       ▼
-  TelemetryClient → Application Insights
+  TelemetryClient → ingestion privacy transform → Application Insights
 ```
 
 ### **Files Overview**
@@ -479,12 +508,11 @@ Runtime:
 | File | Purpose |
 |------|---------|
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
-| `Telemetry/ExcelMcpTelemetryInitializer.cs` | Sets User.Id and Session.Id on telemetry |
-| `Telemetry/SensitiveDataRedactingProcessor.cs` | Redacts PII before transmission |
+| `Telemetry/SensitiveDataRedactor.cs` | Redacts sensitive local diagnostic text |
 | `Program.cs` | Application Insights WorkerService configuration |
 | `ExcelMcp.McpServer.csproj` | MSBuild target that generates TelemetryConfig.g.cs |
 | `Directory.Build.props.user.template` | Template for local dev connection string |
-| `infrastructure/azure/appinsights.bicep` | Azure resource definitions |
+| `infrastructure/azure/appinsights-resources.bicep` | Azure resources and ingestion privacy transforms |
 | `infrastructure/azure/deploy-appinsights.ps1` | Deployment script |
 
 ## ✂️ **Trimming and Native AOT Compatibility**
