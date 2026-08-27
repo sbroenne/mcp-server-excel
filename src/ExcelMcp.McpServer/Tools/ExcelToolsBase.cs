@@ -265,7 +265,8 @@ public static class ExcelToolsBase
         try
         {
             using var document = JsonDocument.Parse(response);
-            return !document.RootElement.TryGetProperty("success", out var success)
+            return document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("success", out var success)
                 || success.ValueKind != JsonValueKind.False;
         }
         catch (JsonException)
@@ -397,5 +398,4 @@ public static class ExcelToolsBase
         }, JsonOptions);
     }
 }
-
 
