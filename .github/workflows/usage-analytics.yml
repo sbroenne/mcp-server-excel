@@ -117,7 +117,7 @@ jobs:
             echo "::error::COPILOT_GITHUB_TOKEN is not configured"
             exit 1
           }
-          copilot -p "Read analytics.json, which contains only pre-validated aggregate telemetry. Write interpretation.md with exactly these H2 headings: What changed; Reliability and performance; Adoption; Recommendations. Use concise prose and bullet points. Every numeric claim must use an exact number already present in analytics.json. Do not add links, HTML, identifiers, geography, messages, stack traces, or speculation presented as fact. Distinguish observations from recommendations." \
+          copilot -p "Read analytics.json, which contains only pre-checked anonymous totals. Write interpretation.md for a general public audience with exactly these H2 headings: What changed; How well it worked; How people use it; What we will improve. Use short sentences and everyday language. Explain internal names in plain English and never include raw action names. Do not use technical analytics or software-error jargon, including p50, p95, p99, percentile, invocation, cohort, telemetry, sanitized, AggregateException, COMException, or tail latency. Every numeric claim must use an exact number already present in analytics.json. Do not add links, HTML, identifiers, geography, messages, stack traces, or guesses presented as fact. Clearly separate observations from planned improvements." \
             --allow-tool=write \
             --no-ask-user
 

@@ -97,14 +97,8 @@ AppExceptions
 | where TimeGenerated > ago(90d)
 | where tostring(Properties['Sanitized']) == 'true'
     or isnotempty(tostring(Properties['Source']))
-| extend Source=tostring(Properties['Source']),
-         ExceptionType=tostring(Properties['ExceptionType']),
-         InnerExceptionTypes=tostring(Properties['InnerExceptionTypes']),
-         FailureSite=tostring(Properties['FailureSite'])
 | summarize Exceptions=count(), Users=dcount(UserId), Sessions=dcount(SessionId)
-    by Source, ExceptionType, InnerExceptionTypes, FailureSite
-| order by Exceptions desc
-| take 25
+| extend Category='background-task-problem'
 '@
 }
 
@@ -268,10 +262,7 @@ $report = [ordered]@{
             Where-Object { [int]$_.Users -ge $MinimumUsers } |
             ForEach-Object {
                 [ordered]@{
-                    source = [string]$_.Source
-                    type = [string]$_.ExceptionType
-                    innerTypes = [string]$_.InnerExceptionTypes
-                    failureSite = [string]$_.FailureSite
+                    category = [string]$_.Category
                     exceptions = Convert-ToNumber $_.Exceptions
                     users = Convert-ToNumber $_.Users
                     sessions = Convert-ToNumber $_.Sessions
@@ -296,22 +287,17 @@ foreach ($version in $report.versions) {
     }
 }
 foreach ($exception in $report.exceptions) {
-    foreach ($value in @(
-        $exception.source,
-        $exception.type,
-        $exception.innerTypes,
-        $exception.failureSite
-    )) {
-        if ($value.Length -gt 300 -or $value -notmatch '^[A-Za-z0-9_.,+<>/-]*$') {
-            throw "Analytics contains an unsafe exception dimension."
-        }
+    if ($exception.category -ne "background-task-problem") {
+        throw "Analytics contains an unsafe exception category."
     }
 }
 
 $json = $report | ConvertTo-Json -Depth 8
 $forbidden = @(
     '"UserId"', '"SessionId"', '"FileSessionId"', '"ClientIP"',
-    '"ClientCity"', '"ClientCountryOrRegion"', '"Message"', '"StackTrace"'
+    '"ClientCity"', '"ClientCountryOrRegion"', '"Message"', '"StackTrace"',
+    '"ExceptionType"', '"InnerExceptionTypes"', '"FailureSite"',
+    'TaskScheduler.UnobservedTaskException', 'AggregateException', 'COMException'
 )
 foreach ($term in $forbidden) {
     if ($json.Contains($term, [StringComparison]::OrdinalIgnoreCase)) {

@@ -574,15 +574,12 @@
   ],
   "exceptions": [
     {
-      "source": "TaskScheduler.UnobservedTaskException",
-      "type": "AggregateException",
-      "innerTypes": "",
-      "failureSite": "",
+      "category": "background-task-problem",
       "exceptions": 1796,
       "users": 359,
       "sessions": 811
     }
   ],
-  "interpretation": "## What changed\r\n\r\n- The latest comparison window shows broad growth: users increased by 13.27 percent, sessions by 17.57 percent, and tool invocations by 43.02 percent.\r\n- Invocation growth is substantially faster than user growth, indicating deeper use per active user rather than acquisition alone.\r\n\r\n## Reliability and performance\r\n\r\n- Overall operation success remains high. Range operations report 99.57 percent success and file operations 99.37 percent.\r\n- Range editing is the clearest reliability outlier at 97.64 percent. The find operation reports 97.06 percent across 14850 invocations.\r\n- Tail latency deserves attention: file open reaches 33515.9 ms at p95, while Power Query evaluation reaches 120012 ms.\r\n\r\n## Adoption\r\n\r\n- Range work represents 39.35 percent of invocations and file lifecycle work 18.03 percent, confirming that basic workbook interaction remains the core workload.\r\n- Version 1.10.5 led engaged use with 84670 invocations. Version 2.0.2 reached 87 users in the latest window.\r\n- Version 1.8.44 generated 7561 sessions but only 135 activated sessions, a 1.79 percent activation rate. Session totals for that version should not be interpreted as engaged adoption.\r\n\r\n## Recommendations\r\n\r\n- Prioritize investigation of range editing failures and file-open tail latency.\r\n- Track activated sessions separately from process starts in every public trend.\r\n- Treat the current exception section as transitional until sanitized classification is present across released versions.",
+  "interpretation": "## What changed\n\nUse grew across every measure in the latest 14 days. Users increased by 13.27 percent, times started by 17.57 percent, and actions by 43.02 percent.\n\nActions grew faster than users, which suggests that people are doing more with Excel MCP after they start using it.\n\n## How well it worked\n\nMost actions finished without reporting an error. Reading and writing cells finished without an error 99.57 percent of the time.\n\nFinding cells had the most room to improve, finishing without an error 97.06 percent of the time. Opening workbooks, running macros, checking refreshed data, and taking screenshots sometimes took much longer than usual.\n\n## How people use it\n\nReading and writing cells made up 39.35 percent of all actions. Opening and closing workbooks made up another 18.03 percent.\n\nRelease 1.10.5 handled the most actions. Release 2.0.2 was used by 87 users during the latest period.\n\n## What we will improve\n\nWe will investigate failures when finding cells and look for ways to make opening workbooks faster.\n\nWe will keep starts separate from real work so brief availability checks do not look like active use.\n\nWe will continue improving the quality of the background problem reports shown on this page.",
   "interpretationModel": "GitHub Copilot CLI"
 }

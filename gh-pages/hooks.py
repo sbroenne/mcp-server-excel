@@ -29,7 +29,8 @@ import logging
 import posixpath
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
+from html import escape
 from pathlib import Path
 
 log = logging.getLogger("mkdocs.hooks.generate")
@@ -324,6 +325,88 @@ def _analytics_table(
     return "\n".join(lines)
 
 
+_ANALYTICS_FAMILY_NAMES = {
+    "range": "Reading and writing cells",
+    "file": "Opening and closing workbooks",
+    "range_format": "Formatting cells",
+    "vba": "Running and editing macros",
+    "worksheet": "Working with worksheets",
+    "powerquery": "Refreshing and checking data",
+    "range_edit": "Finding, sorting, and editing cells",
+    "calculation_mode": "Calculating formulas",
+    "screenshot": "Taking screenshots",
+    "table": "Working with Excel tables",
+    "datamodel": "Working with the Data Model",
+}
+
+_ANALYTICS_OPERATION_NAMES = {
+    "range/get-values": "Read cell values",
+    "range/set-values": "Write cell values",
+    "file/open": "Open a workbook",
+    "file/close": "Close a workbook",
+    "range/set-formulas": "Write formulas",
+    "range/get-used-range": "Find the used area",
+    "range_format/format-range": "Format cells",
+    "range/get-formulas": "Read formulas",
+    "file/list": "List open workbooks",
+    "worksheet/list": "List worksheets",
+    "screenshot/capture": "Take a screenshot",
+    "range_format/set-column-width": "Set column width",
+    "vba/run": "Run a macro",
+    "range_edit/find": "Find cells",
+    "range/set-number-format": "Set number format",
+}
+
+
+def _analytics_name(value: object, names: dict[str, str]) -> str:
+    """Replace an internal action name with a reader-friendly label."""
+    raw = str(value)
+    if raw in names:
+        return names[raw]
+    return raw.replace("/", " ").replace("_", " ").replace("-", " ").title()
+
+
+def _analytics_duration(milliseconds: object) -> str:
+    """Express elapsed time in units a general reader can scan."""
+    value = float(milliseconds)
+    if value < 1_000:
+        return f"{value:,.0f} ms"
+    if value < 60_000:
+        return f"{value / 1_000:,.1f} sec"
+    return f"{value / 60_000:,.1f} min"
+
+
+def _analytics_bar_chart(
+    rows: list[dict[str, object]],
+    *,
+    label_field: str,
+    value_field: str,
+    value_suffix: str = "",
+) -> str:
+    """Render an accessible horizontal comparison chart."""
+    maximum = max((float(row[value_field]) for row in rows), default=0)
+    lines = ['<div class="analytics-bars" role="list">']
+    for row in rows:
+        value = float(row[value_field])
+        width = 0 if maximum == 0 else max(2, value / maximum * 100)
+        label = escape(str(row[label_field]))
+        display_value = f"{_analytics_cell(row[value_field])}{value_suffix}"
+        lines.extend(
+            [
+                '  <div class="analytics-bars__row" role="listitem">',
+                '    <div class="analytics-bars__label">',
+                f"      <span>{label}</span><strong>{escape(display_value)}</strong>",
+                "    </div>",
+                '    <div class="analytics-bars__track" aria-hidden="true">',
+                f'      <span style="width: {width:.2f}%"></span>',
+                "    </div>",
+                "  </div>",
+            ]
+        )
+    lines.append("</div>")
+    return "\n".join(lines)
+
+
 def _render_usage_analytics() -> str:
     source_rel = ".github/usage-analytics.json"
     report = json.loads(_read(source_rel))
@@ -336,139 +419,202 @@ def _render_usage_analytics() -> str:
     summary = report["summary"]
     comparison = report["comparison"]
     privacy = report["privacy"]
+    generated = datetime.fromisoformat(report["generatedAtUtc"].replace("Z", "+00:00"))
+    reporting_days = int(report["windows"]["reportingDays"])
+    comparison_days = int(report["windows"]["comparisonDays"])
+    reporting_start = generated - timedelta(days=reporting_days)
+    current_start = generated - timedelta(days=comparison_days)
+    previous_start = generated - timedelta(days=comparison_days * 2)
+    date_format = "%b %d, %Y"
+
+    family_rows = [
+        {
+            **row,
+            "friendlyName": _analytics_name(row["name"], _ANALYTICS_FAMILY_NAMES),
+            "share": f"{_analytics_cell(row['sharePct'])}%",
+        }
+        for row in report["toolFamilies"]
+    ]
+    operation_rows = [
+        {
+            **row,
+            "friendlyName": _analytics_name(row["name"], _ANALYTICS_OPERATION_NAMES),
+            "success": f"{_analytics_cell(row['successRate'])}%",
+            "usualTime": _analytics_duration(row["p50Ms"]),
+            "slowerTime": _analytics_duration(row["p95Ms"]),
+            "slowestTime": _analytics_duration(row["p99Ms"]),
+        }
+        for row in report["operations"]
+    ]
+    comparison_rows = [
+        {
+            "metric": "Users",
+            "current": comparison["currentUsers"],
+            "previous": comparison["previousUsers"],
+            "change": f"{comparison['userChangePct']}%",
+        },
+        {
+            "metric": "Times started",
+            "current": comparison["currentSessions"],
+            "previous": comparison["previousSessions"],
+            "change": f"{comparison['sessionChangePct']}%",
+        },
+        {
+            "metric": "Actions",
+            "current": comparison["currentInvocations"],
+            "previous": comparison["previousInvocations"],
+            "change": f"{comparison['invocationChangePct']}%",
+        },
+    ]
     sections = [
-        "!!! info \"Public, aggregate telemetry\"\n"
-        "    This page contains anonymous cohort-level metrics only. "
-        "The narrative is generated by GitHub Copilot from the same published "
-        "aggregates and passes deterministic privacy and numeric-claim checks.",
+        "!!! info \"Anonymous public report\"\n"
+        "    This page shows broad usage patterns, not individual activity. "
+        f"A result appears only when at least {privacy['minimumUsersPerDimension']} "
+        "users contributed to it. Names, file details, locations, and the content "
+        "of workbooks are never included.",
         "",
-        f"**Generated:** `{report['generatedAtUtc']}`  \n"
-        f"**Reporting window:** {report['windows']['reportingDays']} days  \n"
-        f"**Minimum cohort:** {privacy['minimumUsersPerDimension']} anonymous users",
+        f"**Last updated:** {generated.strftime(date_format)}  \n"
+        f"**Period covered:** {reporting_start.strftime(date_format)} to "
+        f"{generated.strftime(date_format)}",
         "",
-        "## Current snapshot",
+        "## At a glance",
+        "",
+        '<div class="grid cards analytics-cards" markdown>',
+        "",
+        f"- :material-account-group: **{_analytics_cell(summary['users'])} users**",
+        "",
+        f"    Used Excel MCP during the last {reporting_days} days.",
+        "",
+        f"- :material-lightning-bolt: **{_analytics_cell(summary['toolInvocations'])} actions**",
+        "",
+        "    Completed across workbooks, cells, data, charts, and automation.",
+        "",
+        f"- :material-calendar-refresh: **{_analytics_cell(summary['repeatUserRate'])}% returned**",
+        "",
+        "    Used Excel MCP on at least two different days.",
+        "",
+        f"- :material-replay: **{_analytics_cell(summary['multiSessionRate'])}% came back**",
+        "",
+        "    Started Excel MCP more than once.",
+        "",
+        "</div>",
+        "",
+        "## How usage is changing",
+        "",
+        f"The latest period is **{current_start.strftime(date_format)} to "
+        f"{generated.strftime(date_format)}**. It is compared with "
+        f"**{previous_start.strftime(date_format)} to "
+        f"{current_start.strftime(date_format)}**.",
         "",
         _analytics_table(
-            ("Users", "Sessions", "Activated sessions", "Activation", "Tool calls"),
-            (
-                "users",
-                "sessions",
-                "activatedSessions",
-                "activationRate",
-                "toolInvocations",
-            ),
-            [summary],
-        ),
-        "",
-        "Activation is the share of server process sessions that performed at "
-        "least one tool call. Startup-only sessions are excluded from engaged-use "
-        "interpretation.",
-        "",
-        "## Recent change",
-        "",
-        _analytics_table(
-            ("Metric", "Current", "Previous", "Change"),
+            ("Measure", f"Latest {comparison_days} days", f"Previous {comparison_days} days", "Change"),
             ("metric", "current", "previous", "change"),
-            [
-                {
-                    "metric": "Users",
-                    "current": comparison["currentUsers"],
-                    "previous": comparison["previousUsers"],
-                    "change": f"{comparison['userChangePct']}%",
-                },
-                {
-                    "metric": "Sessions",
-                    "current": comparison["currentSessions"],
-                    "previous": comparison["previousSessions"],
-                    "change": f"{comparison['sessionChangePct']}%",
-                },
-                {
-                    "metric": "Tool calls",
-                    "current": comparison["currentInvocations"],
-                    "previous": comparison["previousInvocations"],
-                    "change": f"{comparison['invocationChangePct']}%",
-                },
-            ],
+            comparison_rows,
         ),
         "",
-        "## Copilot interpretation",
+        "## What the numbers tell us",
+        "",
+        "!!! note \"Summary written by GitHub Copilot\"\n"
+        "    Copilot reads only the anonymous totals used to build this page. Its "
+        "summary is checked automatically so it cannot add private details or "
+        "numbers that are not in the report.",
         "",
         interpretation.strip(),
         "",
-        "## Leading tool families",
+        "## What people use most",
         "",
-        _analytics_table(
-            ("Family", "Calls", "Users", "Share", "Success", "p95 ms"),
-            ("name", "invocations", "users", "sharePct", "successRate", "p95Ms"),
-            report["toolFamilies"][:10],
+        "The bars compare the most-used parts of Excel MCP. The percentage is "
+        "each area's share of all recorded actions.",
+        "",
+        _analytics_bar_chart(
+            family_rows[:6],
+            label_field="friendlyName",
+            value_field="sharePct",
+            value_suffix="%",
         ),
         "",
-        "## Leading operations",
-        "",
         _analytics_table(
-            ("Operation", "Calls", "Users", "Success", "p50 ms", "p95 ms", "p99 ms"),
-            (
-                "name",
-                "invocations",
-                "users",
-                "successRate",
-                "p50Ms",
-                "p95Ms",
-                "p99Ms",
-            ),
-            report["operations"][:15],
+            ("Area", "Actions", "Users", "Share"),
+            ("friendlyName", "invocations", "users", "share"),
+            family_rows[:6],
         ),
         "",
-        "## Version adoption",
+        "## Most common actions",
         "",
         _analytics_table(
-            ("Version", "Calls", "Sessions", "Activated", "Activation", "Users"),
-            (
-                "version",
-                "invocations",
-                "sessions",
-                "activatedSessions",
-                "activationRate",
-                "users",
-            ),
-            report["versions"][:15],
+            ("Action", "Times used", "Users", "Finished without an error", "Usual time"),
+            ("friendlyName", "invocations", "users", "success", "usualTime"),
+            operation_rows[:8],
         ),
         "",
-        "## Sanitized exception signals",
+        "??? info \"See detailed speed and reliability data\"\n\n"
+        + "\n".join(
+            "    " + line
+            for line in _analytics_table(
+                (
+                    "Action",
+                    "Times used",
+                    "Finished without an error",
+                    "Usual time",
+                    "Slower cases",
+                    "Slowest cases",
+                ),
+                (
+                    "friendlyName",
+                    "invocations",
+                    "success",
+                    "usualTime",
+                    "slowerTime",
+                    "slowestTime",
+                ),
+                operation_rows[:15],
+            ).splitlines()
+        ),
+        "",
+        "??? info \"See which releases are in active use\"\n\n"
+        "    A start does not always lead to work: editors and assistants may "
+        "start Excel MCP briefly to check whether it is available. “Used” counts "
+        "only starts followed by at least one action.\n\n"
+        + "\n".join(
+            "    " + line
+            for line in _analytics_table(
+                ("Release", "Actions", "Times started", "Times used", "Users"),
+                ("version", "invocations", "sessions", "activatedSessions", "users"),
+                report["versions"][:15],
+            ).splitlines()
+        ),
+        "",
+        "## Problems we are watching",
         "",
     ]
     exceptions = report["exceptions"]
     if exceptions:
+        total_exceptions = sum(int(row["exceptions"]) for row in exceptions)
         sections.append(
-            _analytics_table(
-                ("Source", "Type", "Inner types", "Failure site", "Count", "Users"),
-                (
-                    "source",
-                    "type",
-                    "innerTypes",
-                    "failureSite",
-                    "exceptions",
-                    "users",
-                ),
-                exceptions[:15],
-            )
+            f"Excel MCP reported **{_analytics_cell(total_exceptions)} background "
+            "task problems** during this period. These reports came from at least "
+            f"**{_analytics_cell(max(int(row['users']) for row in exceptions))} "
+            "users**. They are not the same as failed user actions, and one "
+            "underlying problem can produce more than one report."
         )
     else:
         sections.append(
-            "No exception cohort met the public minimum-user threshold in this window."
+            "No broadly shared background problem appeared during this period."
         )
     sections.extend(
         [
             "",
-            "## Methodology and privacy",
+            "## How this report protects privacy",
             "",
-            "The public workflow queries fixed Kusto projections and exports only "
-            "counts, rates, percentiles, operation names, versions, and sanitized "
-            "exception classifications. Small dimension cohorts are suppressed. "
-            "User IDs, session IDs, file hashes, geography, messages, and stack "
-            "traces never enter the report or the Copilot working directory.",
+            "The report is built from anonymous counts, percentages, and timings. "
+            f"Breakdowns are hidden unless at least "
+            f"{privacy['minimumUsersPerDimension']} users contributed. We do not "
+            "publish or give Copilot user or session codes, file fingerprints, "
+            "locations, messages, workbook content, error messages, or technical "
+            "error details.",
             "",
-            "Source: [`Update-UsageAnalytics.ps1`](https://github.com/sbroenne/"
+            "You can inspect exactly how the report is built in "
+            "[`Update-UsageAnalytics.ps1`](https://github.com/sbroenne/"
             "mcp-server-excel/blob/main/scripts/Update-UsageAnalytics.ps1) and "
             "[`usage-analytics.yml`](https://github.com/sbroenne/mcp-server-excel/"
             "blob/main/.github/workflows/usage-analytics.yml).",

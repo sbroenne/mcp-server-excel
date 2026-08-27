@@ -24,9 +24,9 @@ if ($interpretation.Length -lt 100 -or $interpretation.Length -gt 4000) {
 
 $requiredHeadings = @(
     "## What changed",
-    "## Reliability and performance",
-    "## Adoption",
-    "## Recommendations"
+    "## How well it worked",
+    "## How people use it",
+    "## What we will improve"
 )
 foreach ($heading in $requiredHeadings) {
     if ($interpretation -notmatch "(?m)^$([regex]::Escape($heading))\s*$") {
@@ -41,6 +41,8 @@ $forbiddenPatterns = [ordered]@{
     "Windows path" = '[A-Za-z]:\\'
     "UNC path" = '\\\\[^\\\s]+\\'
     "identifier field" = '(?i)\b(UserId|SessionId|FileSessionId|ClientIP|ClientCity|ClientCountryOrRegion|StackTrace)\b'
+    "technical jargon" = '(?i)\b(p50|p95|p99|percentile|invocations?|cohort|telemetry|saniti[sz]ed|AggregateException|COMException|tail latency)\b'
+    "internal action name" = '(?i)\b[a-z]+(?:_[a-z]+)+\b|\b[a-z]+/[a-z-]+\b'
 }
 foreach ($entry in $forbiddenPatterns.GetEnumerator()) {
     if ($interpretation -match $entry.Value) {

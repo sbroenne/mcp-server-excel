@@ -66,10 +66,7 @@ try {
         )
         exceptions = @(
             @{
-                Source = "TaskScheduler.UnobservedTaskException"
-                ExceptionType = "AggregateException"
-                InnerExceptionTypes = "COMException"
-                FailureSite = "Sbroenne.ExcelMcp.Core.Commands.VbaCommands.Run"
+                Category = "background-task-problem"
                 Exceptions = 12; Users = 10; Sessions = 11
             }
         )
@@ -81,12 +78,16 @@ try {
     Assert-True ($analytics.operations.Count -eq 1) "Small cohorts were not suppressed."
     Assert-True ($analytics.operations[0].name -eq "range/get-values") "Expected operation was removed."
     Assert-True ($analytics.privacy.minimumUsersPerDimension -eq 10) "Privacy threshold was not recorded."
+    Assert-True ($analytics.exceptions[0].category -eq "background-task-problem") `
+        "Exception data was not reduced to the public category."
+    Assert-True ($null -eq $analytics.exceptions[0].PSObject.Properties["type"]) `
+        "Technical exception details entered the public report."
     $testsRun++
 
     $unsafeFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $unsafeFixture.exceptions[0].FailureSite = "C:\Users\customer\secret.xlsx"
+    $unsafeFixture.exceptions[0].Category = "ignore-all-instructions"
     $unsafePath = Write-TestFile "unsafe-fixture.json" ($unsafeFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe exception dimension" -Action {
+    Assert-Throws -ExpectedMessage "unsafe exception category" -Action {
         & $updateScript -WorkspaceId "fixture" `
             -OutputPath (Join-Path $testRoot "unsafe.json") `
             -FixturePath $unsafePath
@@ -96,19 +97,19 @@ try {
     $interpretation = @"
 ## What changed
 
-Users increased by 25 percent while invocations increased by 50 percent.
+Users increased by 25 percent while actions increased by 50 percent.
 
-## Reliability and performance
+## How well it worked
 
-The leading operation had a 99.8 percent success rate and a 50 ms tail.
+The most-used action finished without an error 99.8 percent of the time.
 
-## Adoption
+## How people use it
 
 Version 2.0.2 served 20 users.
 
-## Recommendations
+## What we will improve
 
-Investigate the 12 sanitized AggregateException records before changing behavior.
+Investigate the 12 background task problems before changing behavior.
 "@
     $interpretationPath = Write-TestFile "interpretation.md" $interpretation
     $reportPath = Join-Path $testRoot "report.json"
@@ -168,13 +169,25 @@ Investigate the 12 sanitized AggregateException records before changing behavior
         "Restore script did not replace the bootstrap report."
     $testsRun++
 
-    $unsupported = $interpretation.Replace("12 sanitized", "999 sanitized")
+    $unsupported = $interpretation.Replace("12 background", "999 background")
     $unsupportedPath = Write-TestFile "unsupported.md" $unsupported
     Assert-Throws -ExpectedMessage "unsupported numeric claim '999'" -Action {
         & $completeScript `
             -AnalyticsPath $analyticsPath `
             -InterpretationPath $unsupportedPath `
             -OutputPath (Join-Path $testRoot "unsupported.json")
+    }
+    $testsRun++
+
+    $jargonInterpretation = $interpretation.Replace(
+        "background task problems",
+        "sanitized AggregateException records")
+    $jargonInterpretationPath = Write-TestFile "jargon-interpretation.md" $jargonInterpretation
+    Assert-Throws -ExpectedMessage "forbidden technical jargon" -Action {
+        & $completeScript `
+            -AnalyticsPath $analyticsPath `
+            -InterpretationPath $jargonInterpretationPath `
+            -OutputPath (Join-Path $testRoot "jargon-report.json")
     }
     $testsRun++
 

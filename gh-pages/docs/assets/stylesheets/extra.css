@@ -139,3 +139,38 @@
     font-size: 1.6rem;
   }
 }
+
+/* Public analytics: simple, accessible comparisons without a chart library. */
+.analytics-cards strong {
+  font-size: 1.05rem;
+}
+
+.analytics-bars {
+  margin: 1rem 0 1.4rem;
+}
+
+.analytics-bars__row {
+  margin: 0.65rem 0;
+}
+
+.analytics-bars__label {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.analytics-bars__track {
+  height: 0.55rem;
+  overflow: hidden;
+  margin-top: 0.18rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+
+.analytics-bars__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--md-primary-fg-color);
+}
