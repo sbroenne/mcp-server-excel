@@ -20,9 +20,10 @@ The canonical feature reference is organized into intent-based pages under `docs
 Material's search dialog needs the same treatment, but its partial is ~45 lines
 of markup and feature flags, so forking it to add one attribute would pin a
 large slice of Material internals. That one stays a string patch in
-`hooks.py`. `audit_site.py` asserts all four fixes are present in the built
-HTML, so an upstream change that breaks any of them fails the build instead of
-silently regressing accessibility.
+`hooks.py`. `audit_site.py` asserts that these overrides remain active and also
+checks content-image alt text, nested breadcrumbs, metadata, links, and
+machine-readable outputs. An upstream change that breaks them therefore fails
+the build instead of silently regressing accessibility.
 
 ## Setup (one-time)
 
@@ -67,4 +68,3 @@ Two further checks run on a schedule rather than per pull request:
 | --- | --- | --- |
 | `link-check.yml` | Weekly | Runs lychee over the built site and files an issue on link rot. Not a PR check: external endpoints rate-limit and would make it flaky. |
 | `star-history.yml` | Daily, plus PRs touching the scripts | Records and persists the star snapshot. Split out of the Pages build so that job no longer needs `contents: write` while installing pip packages. |
-

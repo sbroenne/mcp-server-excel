@@ -28,6 +28,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # hooks.py derives sitemap dates from git history. A shallow checkout
+          # makes the strict MkDocs build fail before the link check can run.
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v7

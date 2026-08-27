@@ -12,7 +12,7 @@
   --md-accent-fg-color: #107c41;
 
   --mcp-hero-bg-1: #217346; /* Excel green */
-  --mcp-hero-bg-2: #33a85c; /* Excel green (lighter) */
+  --mcp-hero-bg-2: #1d7a4c; /* Keeps white text above WCAG AA contrast */
 }
 
 /* Dark mode: lift the greens slightly for contrast on the slate background */

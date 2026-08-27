@@ -15,6 +15,7 @@ fast.
 from __future__ import annotations
 
 import gzip
+import html as html_lib
 import json
 import re
 import sys
@@ -166,6 +167,19 @@ def audit_html(path: Path) -> None:
     for img in re.findall(r"<img\b[^>]*>", html):
         src_match = re.search(r'src=["\']?([^"\'\s>]+)', img)
         src = src_match.group(1) if src_match else ""
+        alt_match = re.search(
+            r'\balt=(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))',
+            img,
+        )
+        alt = ""
+        if alt_match:
+            alt = next(
+                (value for value in alt_match.groups() if value is not None),
+                "",
+            )
+        if not html_lib.unescape(alt).strip():
+            fail(f"{name}: <img> without meaningful alt text: {src or img[:60]}")
+
         parts = urlsplit(src)
         exempt = (
             parts.netloc in BADGE_HOSTS
@@ -484,6 +498,70 @@ def audit_jsonld(html_files: list[Path]) -> None:
                 fail(f"{page_name(path)}: invalid JSON-LD: {exc}")
 
 
+def audit_breadcrumbs(html_files: list[Path]) -> None:
+    """Nested documentation pages must expose their section in breadcrumbs."""
+    sections = {
+        "features": ("Features", f"{SITE_URL}features/"),
+        "guides": ("Guides", f"{SITE_URL}guides/"),
+        "reference": ("Reference", f"{SITE_URL}reference/"),
+    }
+    flat_sections = {
+        "installation-cli/index.html": ("Installation", f"{SITE_URL}installation/"),
+        "installation-mcp-server/index.html": (
+            "Installation",
+            f"{SITE_URL}installation/",
+        ),
+    }
+
+    for path in html_files:
+        name = page_name(path)
+        parent = flat_sections.get(name)
+        if parent is None:
+            parts = name.split("/")
+            if len(parts) >= 3 and parts[0] in sections:
+                parent = sections[parts[0]]
+        if parent is None:
+            continue
+
+        html_text = path.read_text(encoding="utf-8", errors="replace")
+        breadcrumb = None
+        for block in re.findall(
+            r'<script type=["\']?application/ld\+json["\']?>(.*?)</script>',
+            html_text,
+            re.DOTALL,
+        ):
+            try:
+                data = json.loads(block)
+            except json.JSONDecodeError:
+                continue
+            if data.get("@type") == "BreadcrumbList":
+                breadcrumb = data
+                break
+
+        if breadcrumb is None:
+            fail(f"{name}: no BreadcrumbList structured data")
+            continue
+
+        items = breadcrumb.get("itemListElement", [])
+        expected_name, expected_url = parent
+        if len(items) < 3:
+            fail(
+                f"{name}: breadcrumb omits parent section {expected_name} "
+                f"(found {len(items)} items, want at least 3)"
+            )
+            continue
+
+        section_item = items[-2]
+        if (
+            section_item.get("name") != expected_name
+            or section_item.get("item") != expected_url
+        ):
+            fail(
+                f"{name}: breadcrumb parent is not "
+                f"{expected_name} ({expected_url})"
+            )
+
+
 def main() -> int:
     if not SITE_DIR.is_dir():
         print(f"ERROR: {SITE_DIR} not found - run 'mkdocs build' first", file=sys.stderr)
@@ -506,6 +584,7 @@ def main() -> int:
     audit_offsite_links(html_files)
     audit_accessibility(html_files)
     audit_jsonld(html_files)
+    audit_breadcrumbs(html_files)
     audit_sitemap()
     audit_llms(html_files)
     audit_tools_json()

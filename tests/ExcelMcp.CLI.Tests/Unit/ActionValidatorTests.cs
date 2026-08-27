@@ -99,6 +99,37 @@ public sealed class ActionValidatorTests
         Assert.Contains("read-connection", actual);
     }
 
+    [Fact]
+    public void SheetDescription_DoesNotReferenceUnregisteredStyleCommand()
+    {
+        Assert.DoesNotContain(
+            "Use sheetstyle",
+            ServiceRegistry.Sheet.Description,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GeneratedCommandDescriptions_AreConcise()
+    {
+        var offenders = typeof(ServiceRegistry)
+            .GetNestedTypes(BindingFlags.Public)
+            .Select(type => new
+            {
+                type.Name,
+                Description = type
+                    .GetField("Description", BindingFlags.Public | BindingFlags.Static)?
+                    .GetRawConstantValue() as string
+            })
+            .Where(item => item.Description is { Length: > 180 })
+            .Select(item => $"{item.Name} ({item.Description!.Length} characters)")
+            .ToArray();
+
+        Assert.True(
+            offenders.Length == 0,
+            "Top-level CLI command descriptions must stay under 180 characters: " +
+            string.Join(", ", offenders));
+    }
+
     private static string[] GetExpectedActions(Type enumType, Type registryType)
     {
         // Find ToActionString method in the ServiceRegistry nested type (e.g., ServiceRegistry.Range.ToActionString)
@@ -154,4 +185,3 @@ public sealed class ActionValidatorTests
         public IReadOnlyList<string> Raw { get; } = Array.Empty<string>();
     }
 }
-

@@ -44,7 +44,10 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 1. **Create feature branch**: `git checkout -b feature/your-feature`
 2. **Make changes**: Code, tests, documentation
-3. **Run the pre-commit hook**: install it once with `Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit`, then let it run on every commit — it enforces 14 automated gates (COM leak detection, MCP/CLI coverage parity, Release build, packaging deliverables, smoke tests, and more). Never bypass it with `--no-verify`.
+3. **Run the pre-commit hook**: follow the
+   [pre-commit setup guide](PRE-COMMIT-SETUP.md), then let it run on every
+   commit. It checks COM cleanup, MCP/CLI parity, the Release build, packaging,
+   smoke tests, and other required gates. Never bypass it with `--no-verify`.
 4. **Push branch**: `git push origin feature/your-feature`
 5. **Create PR**: Use GitHub's PR template
 6. **Address review**: Make requested changes, including any automated review comments (Copilot, GitHub Advanced Security)
