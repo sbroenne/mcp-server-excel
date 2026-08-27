@@ -58,6 +58,10 @@ hide:
     Check out [PowerPoint MCP Server](https://powerpointmcpserver.dev/) — the
     sister project, built the same way.
 
+!!! tip "Also automating Windows apps and browsers?"
+    Check out [Windows MCP Server](https://windowsmcpserver.dev/) — automate
+    Windows apps and browsers from your AI assistant.
+
 ## Key features
 
 <div class="grid cards" markdown>
