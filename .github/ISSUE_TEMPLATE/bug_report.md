@@ -13,14 +13,14 @@ A clear and concise description of what the bug is.
 ## Component
 Which component is this bug related to?
 - [ ] **MCP Server** (Model Context Protocol server for AI assistants - `mcp-excel`)
-- [ ] **CLI** (Command-line interface - `ExcelMcp.exe`)
+- [ ] **CLI** (Command-line interface - `excelcli.exe`)
 - [ ] **Core Library** (Shared functionality)
 - [ ] **Not sure**
 
 ## Command/Usage
 **For CLI:**
-```
-ExcelMcp <command> <arguments>
+```text
+excelcli <command> <action> <arguments>
 ```
 
 **For MCP Server:**
@@ -36,7 +36,7 @@ A clear and concise description of what actually happened.
 
 ## Error Message
 If applicable, paste the full error message:
-```
+```text
 [Error message here]
 ```
 
@@ -45,7 +45,7 @@ If applicable, paste the full error message:
 - **Excel Version**: [e.g. Excel 365, Excel 2019]
 - **ExcelMcp Version**: [e.g. v1.0.0]
 - **.NET Version**: [Run `dotnet --version`]
-- **Installation Method**: [NuGet tool / Binary download / Source build]
+- **Installation Method**: [VS Code extension / MCPB / Copilot plugin / .NET tool / Binary download / Source build]
 - **File Format**: [e.g. .xlsx, .xlsm]
 - **VBA Trust Enabled**: [Yes/No - if VBA-related issue]
 - **AI Assistant** (if using MCP Server): [e.g., GitHub Copilot, Claude Desktop, ChatGPT, etc.]
@@ -60,10 +60,8 @@ If possible, attach a sample Excel file that reproduces the issue (remove sensit
 - [ ] Macro security settings allow programmatic access
 
 ## Steps to Reproduce
-1. Go to '...'  
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+List the exact commands, tool calls, workbook setup, and steps that reproduce
+the problem.
 
 ## Additional Context
 Add any other context about the problem here.

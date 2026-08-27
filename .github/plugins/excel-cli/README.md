@@ -90,7 +90,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation
 - **Python in Excel** (2 ops) — Set/get Python formulas and results
 - **Screenshot** (2 ops) — Capture ranges/sheets as PNG
-- **File & Session** (6 ops) — Create, open, close, session management
+- **File Operations** (5 ops) — Create, open, close, list, and test files
 - **Window Management** (15 ops) — Show/hide, panes, zoom, display options, positioning
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)

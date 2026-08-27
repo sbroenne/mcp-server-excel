@@ -1,141 +1,148 @@
-# MCPB Build & Packaging Guide
+# MCPB Build and Packaging Guide
 
-This document contains developer information for building and submitting the Excel MCP Server to the Claude Desktop directory.
+This guide explains how maintainers build the Excel MCP Server bundle for
+Claude Desktop. End-user installation instructions are in
+[README.md](README.md).
 
 ## Directory Contents
 
-```
+```text
 mcpb/
-├── Build-McpBundle.ps1   # Packaging script
-├── manifest.json         # MCPB manifest for Claude directory
-├── icon-512.png          # Server icon (512x512 PNG)
-├── README.md             # End-user documentation (ships with package)
-├── BUILD.md              # This file (developer documentation)
-└── artifacts/            # Build output (gitignored)
+|-- Build-McpBundle.ps1   # Packaging script
+|-- manifest.json         # MCPB manifest
+|-- icon-512.png          # Package icon
+|-- README.md             # End-user documentation included in the bundle
+|-- BUILD.md              # This maintainer guide
+`-- artifacts/            # Generated output (gitignored)
 ```
 
 ## Prerequisites
 
 - .NET 10 SDK
-- Windows x64 development machine
+- Windows to run the packaged executable verification
 
-## Building the MCPB Package
+The script can cross-compile on another operating system, but it skips the
+Windows executable launch check.
 
-From the `mcpb` directory:
+## Build the Bundle
+
+Run the script from the `mcpb` directory:
 
 ```powershell
 .\Build-McpBundle.ps1
 ```
 
-This creates `mcpb/artifacts/ExcelMcp.McpServer-win-x64.zip`.
-
-### Build Options
+The default output is `artifacts\excel-mcp-{version}.mcpb`. The version comes
+from `Directory.Build.props` unless you pass it explicitly.
 
 ```powershell
-# Specify version
-.\Build-McpBundle.ps1 -Version "1.2.0"
+# Use an explicit version
+.\Build-McpBundle.ps1 -Version "1.2.3"
 
-# Custom output directory
-.\Build-McpBundle.ps1 -OutputDir "./dist"
+# Write artifacts to another directory
+.\Build-McpBundle.ps1 -OutputDir ".\dist"
 ```
 
 ## Package Contents
 
-The MCPB zip file contains:
+An `.mcpb` file is a ZIP-compatible archive with this layout:
 
+```text
+excel-mcp-{version}.mcpb
+|-- manifest.json
+|-- icon-512.png
+|-- README.md
+|-- LICENSE
+|-- CHANGELOG.md
+`-- server/
+    `-- excel-mcp-server.exe
 ```
-ExcelMcp.McpServer-win-x64.zip/
-├── Sbroenne.ExcelMcp.McpServer.exe  # Self-contained executable (~15 MB)
-├── .mcp/
-│   └── server.json                   # MCP server configuration
-├── manifest.json                     # MCPB manifest
-├── README.md                         # End-user documentation
-└── icon-512.png                      # Server icon (512x512)
-```
 
-## Release Workflow
+`Build-McpBundle.ps1` publishes the MCP Server as a self-contained Windows x64
+single-file executable, renames it to match the manifest entry point, copies
+the package metadata, and verifies the executable on Windows.
 
-1. **Create GitHub Release:**
-   - Tag format: `v1.x.x`
-   - Upload `ExcelMcp.McpServer-win-x64.zip` as release asset
+## Manifest and Tool Metadata
 
-2. **Update manifest.json download URL:**
-   - Verify the `install.win32.download` URL points to the release asset
-   - URL format: `https://github.com/sbroenne/mcp-server-excel/releases/latest/download/ExcelMcp.McpServer-win-x64.zip`
-
-3. **Submit to Claude Directory:**
-   - Follow Anthropic's submission process
-   - Include the manifest.json content
-
-## Manifest Schema
-
-The manifest follows MCPB version 0.3 specification:
+`manifest.json` follows MCPB manifest version 0.3 and declares the packaged
+binary entry point:
 
 ```json
 {
-  "manifestVersion": "0.3",
+  "manifest_version": "0.3",
   "server": {
-    "id": "excel-mcp-server",
-    "name": "Excel MCP Server",
     "type": "binary",
-    "platforms": ["win32"]
-  },
-  "install": {
-    "win32": {
-      "download": "https://github.com/.../ExcelMcp.McpServer-win-x64.zip",
-      "command": "Sbroenne.ExcelMcp.McpServer.exe"
+    "entry_point": "server/excel-mcp-server",
+    "mcp_config": {
+      "command": "${__dirname}/server/excel-mcp-server",
+      "args": [],
+      "env": {}
     }
   }
 }
 ```
 
-## Tool Annotations
+The build stamps the package version into a staged copy of the manifest. Do not
+add a release download URL or an `install.win32` block; the executable is
+included in the bundle.
 
-All 22 MCP tools include the `Destructive = true` annotation since they can modify Excel files:
+The MCP Server generates its 31 tool schemas from the Core contracts and manual
+MCP tool definitions. Destructive metadata is set per tool: most tools can
+modify workbooks, while tools such as `screenshot` and `window` do not modify
+workbook content.
 
-```csharp
-[McpServerTool(Name = "range", Title = "Excel Range Operations", Destructive = true)]
+## Release Workflow
+
+The unified release workflow builds and publishes the MCPB artifact with the
+MCP Server, CLI, VS Code extension, and NuGet packages. Do not edit the manifest
+or upload a differently named ZIP by hand.
+
+See [Release Strategy](../docs/RELEASE-STRATEGY.md) for the release process. To
+rebuild locally before a release:
+
+```powershell
+.\Build-McpBundle.ps1
 ```
+
+## Verify the Archive
+
+PowerShell's `Expand-Archive` expects a `.zip` extension. Copy the generated
+bundle before inspecting it:
+
+```powershell
+$bundle = Get-ChildItem .\artifacts\excel-mcp-*.mcpb |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+$zip = [IO.Path]::ChangeExtension($bundle.FullName, ".zip")
+Copy-Item $bundle.FullName $zip
+Expand-Archive $zip -DestinationPath .\test-extract
+Get-ChildItem .\test-extract -Recurse
+Remove-Item $zip
+Remove-Item .\test-extract -Recurse
+```
+
+The packaging script also prints every archive entry after a successful build.
 
 ## Technical Notes
 
 ### Why Self-Contained?
 
-- Users don't need .NET SDK installed
-- Avoids version conflicts
-- Single executable deployment (~15 MB compressed)
+- Users do not need the .NET runtime or SDK.
+- The package uses the same tested runtime as the standalone release.
+- A single executable avoids local dependency version conflicts.
 
 ### Why No Trimming?
 
-Excel COM interop uses `Type.GetTypeFromProgID()` which requires reflection. Trimming would break COM activation with IL2072 errors.
+Excel COM interop relies on runtime type activation and reflection. Trimming can
+remove required interop metadata, so the package sets `PublishTrimmed=false`.
 
-### Why Windows x64 Only?
+### Why Windows x64?
 
-- COM interop requires Windows
-- x64 is the most common architecture
-- ARM64 Windows can run x64 binaries via emulation
+- Excel COM automation requires Windows.
+- Windows on ARM can run the x64 package through emulation.
 
-## Verification
+## Submission References
 
-After building, verify the package:
-
-```powershell
-# List zip contents
-Expand-Archive ./artifacts/ExcelMcp.McpServer-win-x64.zip -DestinationPath ./test-extract
-dir ./test-extract
-Remove-Item -Recurse ./test-extract
-```
-
-## Submission Guidelines Reference
-
-See the [MCPB Submission Guide](https://support.claude.com/en/articles/12922832-local-mcp-server-submission-guide) for:
-- Tool annotation requirements (readOnlyHint, destructiveHint)
-- README requirements (minimum 3 examples with expected behavior)
-- Privacy policy requirements
-- manifest_version requirements (≥ 0.3)
-
-## Links
-
-- [MCPB Specification](https://modelcontextprotocol.io/docs/registry)
-- [Claude Desktop Documentation](https://docs.anthropic.com/claude/docs/claude-for-desktop)
-- [Submission Guidelines](https://support.claude.com/en/articles/12922832-local-mcp-server-submission-guide)
+- [MCPB submission guide](https://support.claude.com/en/articles/12922832-local-mcp-server-submission-guide)
+- [Claude Desktop documentation](https://support.claude.com/)
+- [MCP documentation](https://modelcontextprotocol.io/)
