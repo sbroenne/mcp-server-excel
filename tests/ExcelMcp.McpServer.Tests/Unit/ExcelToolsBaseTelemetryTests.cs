@@ -65,6 +65,24 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
+    public void ExecuteToolAction_InvalidJsonResponse_TracksFailure()
+    {
+        ToolInvocation? invocation = null;
+
+        var response = ExcelToolsBase.ExecuteToolAction(
+            "chart",
+            "get-axis-number-format",
+            path: null,
+            operation: () => "not-json",
+            trackInvocation: (tool, action, duration, success, path) =>
+                invocation = new ToolInvocation(tool, action, duration, success, path));
+
+        Assert.Equal("not-json", response);
+        Assert.NotNull(invocation);
+        Assert.False(invocation.Success);
+    }
+
+    [Fact]
     public void ExecuteToolAction_ThrownException_TracksFailureWithoutTelemetryDetails()
     {
         ToolInvocation? invocation = null;

@@ -271,7 +271,7 @@ public static class ExcelToolsBase
         }
         catch (JsonException)
         {
-            return true;
+            return false;
         }
     }
 
@@ -398,4 +398,3 @@ public static class ExcelToolsBase
         }, JsonOptions);
     }
 }
-
