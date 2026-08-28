@@ -241,6 +241,10 @@ Investigate the 12 background task problems before changing behavior.
         -TempPath $testRoot `
         -ApiInvoker $persistInvoker
     Assert-True (($requests | Where-Object {
+        $_ -eq "api repos/owner/repository/contents/.github/usage-analytics.json?ref=analytics-data"
+    }).Count -eq 1) `
+        "Persist script split the branch query into a second API endpoint."
+    Assert-True (($requests | Where-Object {
         $_ -like "api --silent --method PUT repos/owner/repository/contents/.github/usage-analytics.json --input *"
     }).Count -eq 1) `
         "Persist script did not write through the Contents API."
@@ -251,8 +255,10 @@ Investigate the 12 background task problems before changing behavior.
     $bootstrapPath = Write-TestFile "bootstrap.json" ($report | ConvertTo-Json -Depth 10)
     $restoredText = [IO.File]::ReadAllText($reportPath)
     $restoredContent = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($restoredText))
+    $restoreRequests = [Collections.Generic.List[string]]::new()
     $restoreInvoker = {
         param([string[]]$Arguments)
+        $restoreRequests.Add(($Arguments -join " "))
         [pscustomobject]@{
             ExitCode = 0
             Output = @((@{ content = $restoredContent } | ConvertTo-Json -Compress))
@@ -264,6 +270,9 @@ Investigate the 12 background task problems before changing behavior.
         -ReportPath $bootstrapPath `
         -RemotePath ".github/usage-analytics.json" `
         -ApiInvoker $restoreInvoker
+    Assert-True ($restoreRequests[0] -eq
+        "api repos/owner/repository/contents/.github/usage-analytics.json?ref=analytics-data") `
+        "Restore script split the branch query into a second API endpoint."
     Assert-True ([IO.File]::ReadAllText($bootstrapPath) -eq $restoredText) `
         "Restore script did not replace the bootstrap report."
     $testsRun++

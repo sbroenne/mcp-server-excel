@@ -64,7 +64,7 @@ if ($refResult.ExitCode -ne 0) {
 }
 
 $contentResult = Invoke-GitHubApi @(
-    "api", "repos/$Repository/contents/$RemotePath" + "?ref=$Branch"
+    "api", ("repos/$Repository/contents/$RemotePath" + "?ref=$Branch")
 )
 $contentText = @($contentResult.Output) -join "`n"
 $existingSha = $null
