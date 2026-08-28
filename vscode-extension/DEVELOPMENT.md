@@ -56,12 +56,17 @@ The extension uses VS Code's `chatSkills` contribution point in `package.json` t
 
 ```json
 "chatSkills": [
-  { "name": "excel-mcp", "path": "./skills/excel-mcp/SKILL.md" },
-  { "name": "excel-cli", "path": "./skills/excel-cli/SKILL.md" }
+   {
+      "name": "excel-mcp",
+      "description": "Excel MCP Server skill for Windows workbook automation.",
+      "path": "./skills/excel-mcp/SKILL.md"
+   }
 ]
 ```
 
-Skills are automatically available to GitHub Copilot when the extension is active — no file-copying needed.
+The explicit name and description populate VS Code's Extension Features table;
+the matching frontmatter in `SKILL.md` supplies runtime discovery metadata.
+Skills are automatically available to GitHub Copilot when the extension is active.
 
 ### Activation
 

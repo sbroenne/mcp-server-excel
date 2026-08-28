@@ -15,6 +15,7 @@ out/tests/**
 # Development configuration and tooling
 .vscode/**
 .github/**
+scripts/**
 tsconfig.json
 eslint.config.mjs
 node_modules/**
