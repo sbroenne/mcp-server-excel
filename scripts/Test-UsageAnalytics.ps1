@@ -102,7 +102,7 @@ try {
         )
         versionReliability = @(
             @{
-                Version = "2.0.4"; Actions = 700; ExpectedNegatives = 3
+                Version = "2.0.5"; Actions = 700; ExpectedNegatives = 3
                 Failures = 7; FailureRate = 1; InputState = 2
                 ExternalDependency = 1; TimeoutCancellation = 1
                 ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
@@ -140,7 +140,7 @@ try {
     Assert-True ($analytics.reliability.Count -eq 1) `
         "Workbook lifecycle failures entered the public report."
     Assert-True (
-        $analytics.windows.categorizedReliabilityMinimumVersion -eq "2.0.4") `
+        $analytics.windows.categorizedReliabilityMinimumVersion -eq "2.0.5") `
         "The categorized reliability version boundary is missing."
     Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
     Assert-True ($analytics.versionAdoption.Count -eq 3) `
@@ -242,7 +242,7 @@ The categorized data includes 7 failures and 3 expected negative results across 
 
 ## How people use it
 
-Release 2.0.4 reported 7 failures across 700 actions.
+Release 2.0.5 reported 7 failures across 700 actions.
 
 ## What we will improve
 
@@ -325,7 +325,7 @@ Investigate the 12 background task problems before changing behavior.
     }
     $testsRun++
 
-    $unsupportedVersion = $interpretation.Replace("Release 2.0.4", "Release 2.0.9")
+    $unsupportedVersion = $interpretation.Replace("Release 2.0.5", "Release 2.0.9")
     $unsupportedVersionPath = Write-TestFile "unsupported-version.md" $unsupportedVersion
     Assert-Throws -ExpectedMessage "unsupported numeric claim '2.0.9'" -Action {
         & $completeScript `
