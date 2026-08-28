@@ -81,15 +81,14 @@ function Add-Failure([string]$message) { $script:errors.Add($message) }
 # ---------------------------------------------------------------------------
 # Emitted sources can survive dotnet clean, so the default refresh above is required before
 # trusting this file. Automated callers may skip it only after their own Release solution build.
-$manifestFile = Get-ChildItem -Path (Join-Path $rootDir "src\ExcelMcp.Core\obj") -Recurse -Filter "_SkillManifest.g.cs" -ErrorAction SilentlyContinue |
-    Sort-Object { $_.FullName -notmatch "GeneratedFiles" } |
-    Select-Object -First 1
+$manifestPath = Join-Path $rootDir "src\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs"
 
-if (-not $manifestFile) {
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     Write-Host "ERROR: Could not find generated _SkillManifest.g.cs. Run without -SkipBuild or complete a Release build first." -ForegroundColor Red
     exit 1
 }
 
+$manifestFile = Get-Item -LiteralPath $manifestPath
 $manifestContent = Get-Content $manifestFile.FullName -Raw
 $startMarker = 'public const string Json = @"'
 $startIdx = $manifestContent.IndexOf($startMarker)
