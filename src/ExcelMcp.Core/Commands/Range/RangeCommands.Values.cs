@@ -38,6 +38,11 @@ public partial class RangeCommands
 
                 // Get values as 2D array - handle single cell case
                 object valueOrArray = range.Value2;
+                object? formulaOrArray = ContainsKnownExcelError(valueOrArray)
+                    ? range.Formula2
+                    : null;
+                int startRow = Convert.ToInt32(range.Row);
+                int startColumn = Convert.ToInt32(range.Column);
 
                 if (valueOrArray is object[,] values)
                 {
@@ -50,7 +55,15 @@ public partial class RangeCommands
                         var row = new List<object?>();
                         for (int c = 1; c <= result.ColumnCount; c++)
                         {
-                            row.Add(values[r, c]);
+                            string formula = formulaOrArray is object[,] formulas
+                                ? GetReturnedFormula(formulas[r, c])
+                                : string.Empty;
+                            row.Add(ConvertErrorForRead(
+                                values[r, c],
+                                formula,
+                                startRow + r - 1,
+                                startColumn + c - 1,
+                                result.CellErrors));
                         }
                         result.Values.Add(row);
                     }
@@ -60,7 +73,14 @@ public partial class RangeCommands
                     // Single cell - wrap value in 1x1 array
                     result.RowCount = 1;
                     result.ColumnCount = 1;
-                    result.Values.Add([valueOrArray]);
+                    result.Values.Add([
+                        ConvertErrorForRead(
+                            valueOrArray,
+                            GetReturnedFormula(formulaOrArray),
+                            startRow,
+                            startColumn,
+                            result.CellErrors)
+                    ]);
                 }
 
                 result.Success = true;
@@ -76,6 +96,30 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    private static string GetReturnedFormula(object? formula)
+    {
+        string text = formula?.ToString() ?? string.Empty;
+        return text.StartsWith('=') ? text : string.Empty;
+    }
+
+    private static bool ContainsKnownExcelError(object? valueOrArray)
+    {
+        if (valueOrArray is object[,] values)
+        {
+            foreach (object? value in values)
+            {
+                if (ExcelErrorMapper.TryGet(value, out _, out _))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return ExcelErrorMapper.TryGet(valueOrArray, out _, out _);
     }
 
     /// <inheritdoc />
@@ -229,6 +273,4 @@ public partial class RangeCommands
         }
     }
 }
-
-
 

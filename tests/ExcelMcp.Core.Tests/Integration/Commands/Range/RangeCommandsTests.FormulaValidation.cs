@@ -178,7 +178,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        // Current Excel versions report an unsupported function as #VALUE!.
+        // Current Excel versions report an unsupported function as #NAME?.
         _commands.SetFormulas(batch, sheetName, "A1", [
             ["=UNDEFINEDFUNCTION()"]
         ]);
@@ -192,9 +192,84 @@ public partial class RangeCommandsTests
 
         var error = result.CellErrors[0];
         Assert.Equal("A1", error.CellAddress);
-        Assert.Equal(-2146826259, error.ErrorCode);  // #VALUE! error code
-        Assert.Contains("argument", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("#NAME?", error.ErrorName);
+        Assert.Equal(-2146826259, error.ErrorCode);
+        Assert.False(string.IsNullOrWhiteSpace(error.Formula));
+        Assert.Contains("formula name", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.NotNull(error.Suggestion);
+    }
+
+    [Fact]
+    [Trait("Feature", "Range")]
+    public void RangeReads_WithStandardFormulaErrors_ReturnCanonicalNamesAndDiagnostics()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+        string[] expectedNames = ["#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A"];
+        int[] expectedCodes =
+        [
+            -2146826288,
+            -2146826281,
+            -2146826273,
+            -2146826265,
+            -2146826259,
+            -2146826252,
+            -2146826246
+        ];
+
+        _commands.SetFormulas(batch, sheetName, "A1:G1",
+        [
+            [
+                "=SUM(A2:A3 C2:C3)",
+                "=1/0",
+                "=\"text\"+1",
+                "=INDIRECT(\"A0\")",
+                "=UNDEFINEDFUNCTION()",
+                "=SQRT(-1)",
+                "=NA()"
+            ]
+        ]);
+        batch.Execute((ctx, ct) =>
+        {
+            ctx.App.CalculateFull();
+            return 0;
+        });
+
+        var formulaResult = _commands.GetFormulas(batch, sheetName, "A1:G1");
+        var valueResult = _commands.GetValues(batch, sheetName, "A1:G1");
+
+        Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
+        Assert.True(valueResult.Success, valueResult.ErrorMessage);
+        Assert.Equal(expectedNames, formulaResult.Values[0]);
+        Assert.Equal(expectedNames, valueResult.Values[0]);
+
+        Assert.NotNull(formulaResult.CellErrors);
+        Assert.Equal(expectedNames.Length, formulaResult.CellErrors.Count);
+        for (int index = 0; index < expectedNames.Length; index++)
+        {
+            var error = formulaResult.CellErrors[index];
+            Assert.Equal($"{(char)('A' + index)}1", error.CellAddress);
+            Assert.Equal(expectedCodes[index], error.ErrorCode);
+            Assert.Equal(expectedCodes[index], error.CurrentValue);
+            Assert.StartsWith(expectedNames[index], error.ErrorMessage, StringComparison.Ordinal);
+            Assert.False(string.IsNullOrWhiteSpace(error.Suggestion));
+        }
+
+        string valueJson = System.Text.Json.JsonSerializer.Serialize(
+            valueResult,
+            System.Text.Json.JsonSerializerOptions.Web);
+        using var valueDocument = System.Text.Json.JsonDocument.Parse(valueJson);
+        var valueErrors = valueDocument.RootElement.GetProperty("cellErrors");
+        Assert.Equal(expectedNames.Length, valueErrors.GetArrayLength());
+        for (int index = 0; index < expectedNames.Length; index++)
+        {
+            var error = valueErrors[index];
+            Assert.Equal($"{(char)('A' + index)}1", error.GetProperty("cellAddress").GetString());
+            Assert.Equal(expectedNames[index], error.GetProperty("errorName").GetString());
+            Assert.Equal(expectedCodes[index], error.GetProperty("errorCode").GetInt32());
+            Assert.False(string.IsNullOrWhiteSpace(error.GetProperty("formula").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(error.GetProperty("suggestion").GetString()));
+        }
     }
 
     [Fact]
