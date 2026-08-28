@@ -11,6 +11,24 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.4] - 2026-08-28
+
+### Patch Changes
+
+- [#816](https://github.com/sbroenne/mcp-server-excel/pull/816) [`3684583`](https://github.com/sbroenne/mcp-server-excel/commit/36845831ec3b92697a2ab2d36e6c023fb63fef18) Thanks [@sbroenne](https://github.com/sbroenne)! - **Publish transparent usage analytics.** A weekly privacy-checked public report
+  now shows overall use, feature adoption, errors by release, and broad problem
+  trends with a clearly labeled GitHub Copilot interpretation.
+
+- [#816](https://github.com/sbroenne/mcp-server-excel/pull/816) [`3684583`](https://github.com/sbroenne/mcp-server-excel/commit/36845831ec3b92697a2ab2d36e6c023fb63fef18) Thanks [@sbroenne](https://github.com/sbroenne)! - **Prevent exception details from entering telemetry.** Crash analytics now keep
+  only safe error classifications; exception messages and stack traces are
+  discarded both in the MCP Server and by an Azure ingestion privacy filter.
+  Automatic framework trace logs are also blocked.
+
+- [#825](https://github.com/sbroenne/mcp-server-excel/pull/825) [`654ac27`](https://github.com/sbroenne/mcp-server-excel/commit/654ac27e12fa62eff77b1c25586f59905be637e8) Thanks [@sbroenne](https://github.com/sbroenne)! - **Improve the VS Code extension's metadata and development guidance.** The Chat
+  Skills table now shows the skill name and description instead of empty
+  placeholders, package validation prevents incomplete Marketplace metadata, and
+  skill installation guidance now reflects the extension's actual bundled files.
+
 ## [2.0.3] - 2026-08-27
 
 ### Patch Changes
