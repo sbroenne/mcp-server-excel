@@ -9,97 +9,178 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OutputPath,
 
-    [ValidateRange(10, 1000)]
-    [int]$MinimumUsers = 10,
-
     [string]$FixturePath
 )
 
 $ErrorActionPreference = "Stop"
+$reliabilitySinceUtc = "2026-08-27T17:05:06Z"
+$excludedActions = @("file/open", "file/close")
 $queries = [ordered]@{
     overview = @'
-let sessions = AppEvents
-| where TimeGenerated > ago(90d)
-| summarize HasStart=countif(Name == 'SessionStart') > 0,
-            Invocations=countif(Name != 'SessionStart') by SessionId;
 let engagement = AppEvents
 | where TimeGenerated > ago(90d)
-| summarize ActiveDays=dcount(startofday(TimeGenerated)),
-            Sessions=dcount(SessionId) by UserId
-| summarize RepeatUserRate=round(100.0 * countif(ActiveDays >= 2) / count(), 2),
-            MultiSessionRate=round(100.0 * countif(Sessions >= 2) / count(), 2);
-sessions
-| summarize Sessions=count(),
-            ActivatedSessions=countif(Invocations > 0),
-            ToolInvocations=sum(Invocations)
-| extend ActivationRate=round(100.0 * ActivatedSessions / Sessions, 2)
-| extend Users=toscalar(AppEvents | where TimeGenerated > ago(90d) | summarize dcount(UserId))
-| extend RepeatUserRate=toscalar(engagement | project RepeatUserRate),
-         MultiSessionRate=toscalar(engagement | project MultiSessionRate)
+| where Name !in ('SessionStart', 'file/open', 'file/close')
+| summarize ActiveDays=dcount(startofday(TimeGenerated)) by UserId
+| summarize RepeatUserRate=round(100.0 * countif(ActiveDays >= 2) / count(), 2);
+AppEvents
+| where TimeGenerated > ago(90d)
+| where Name !in ('SessionStart', 'file/open', 'file/close')
+| summarize Users=dcount(UserId),
+            ToolInvocations=count()
+| extend RepeatUserRate=toscalar(engagement | project RepeatUserRate)
 '@
     trend = @'
 let current = AppEvents
 | where TimeGenerated between (ago(14d) .. now())
-| summarize Users=dcount(UserId), Sessions=dcount(SessionId),
-            Invocations=countif(Name != 'SessionStart');
+| where Name !in ('SessionStart', 'file/open', 'file/close')
+| summarize Users=dcount(UserId), Invocations=count();
 let previous = AppEvents
 | where TimeGenerated between (ago(28d) .. ago(14d))
-| summarize Users=dcount(UserId), Sessions=dcount(SessionId),
-            Invocations=countif(Name != 'SessionStart');
+| where Name !in ('SessionStart', 'file/open', 'file/close')
+| summarize Users=dcount(UserId), Invocations=count();
 current
 | extend PreviousUsers=toscalar(previous | project Users),
-         PreviousSessions=toscalar(previous | project Sessions),
          PreviousInvocations=toscalar(previous | project Invocations)
 | extend UserChangePct=round(100.0 * (Users-PreviousUsers) / PreviousUsers, 2),
-         SessionChangePct=round(100.0 * (Sessions-PreviousSessions) / PreviousSessions, 2),
          InvocationChangePct=round(100.0 * (Invocations-PreviousInvocations) / PreviousInvocations, 2)
+'@
+    weekly = @'
+AppEvents
+| where TimeGenerated >= startofweek(ago(84d))
+    and TimeGenerated < startofweek(now())
+| where Name !in ('SessionStart', 'file/open', 'file/close')
+| summarize Users=dcount(UserId),
+            Actions=count()
+    by Week=startofweek(TimeGenerated)
+| order by Week asc
+'@
+    versionAdoption = @'
+let weeklyUsers = AppRequests
+| where TimeGenerated >= startofweek(ago(77d))
+    and TimeGenerated <= now()
+| where Name !in ('file/open', 'file/close')
+| extend Week=startofweek(TimeGenerated),
+         Version=tostring(split(AppVersion, '+')[0])
+| where isnotempty(Version)
+| summarize arg_max(TimeGenerated, Version) by Week, UserId;
+let counts = weeklyUsers
+| summarize Users=count() by Week, Version;
+let popularVersions = counts
+| summarize Users=sum(Users) by Version
+| top 4 by Users
+| project Version;
+let newestVersions = counts
+| summarize by Version
+| extend ParsedVersion=parse_version(Version)
+| where isnotnull(ParsedVersion)
+| top 4 by ParsedVersion
+| project Version;
+let displayedVersions = union popularVersions, newestVersions
+| distinct Version;
+let grouped = counts
+| extend Version=iff(Version in (displayedVersions), Version, 'Other')
+| summarize Users=sum(Users) by Week, Version;
+grouped
+| join kind=inner (
+    grouped
+    | summarize TotalUsers=sum(Users) by Week
+) on Week
+| extend SharePct=round(100.0 * Users / TotalUsers, 2)
+| project Week, Version, Users, SharePct
+| order by Week asc, Users desc
 '@
     operations = @'
 AppRequests
 | where TimeGenerated > ago(90d)
-| summarize Invocations=count(), Users=dcount(UserId),
-            SuccessRate=round(100.0 * countif(Success == true) / count(), 2),
-            P50Ms=round(percentile(DurationMs, 50), 1),
-            P95Ms=round(percentile(DurationMs, 95), 1),
-            P99Ms=round(percentile(DurationMs, 99), 1) by Name
+| where Name !in ('file/open', 'file/close')
+| summarize Invocations=count(), Users=dcount(UserId) by Name
 | order by Invocations desc
 | take 25
 '@
     families = @'
-let total=toscalar(AppRequests | where TimeGenerated > ago(90d) | count);
+let total=toscalar(
+    AppRequests
+    | where TimeGenerated > ago(90d)
+    | where Name !in ('file/open', 'file/close')
+    | count);
 AppRequests
 | where TimeGenerated > ago(90d)
+| where Name !in ('file/open', 'file/close')
 | extend ToolFamily=tostring(split(Name, '/')[0])
-| summarize Invocations=count(), Users=dcount(UserId),
-            SuccessRate=round(100.0 * countif(Success == true) / count(), 2),
-            P95Ms=round(percentile(DurationMs, 95), 1) by ToolFamily
+| summarize Invocations=count(), Users=dcount(UserId) by ToolFamily
 | extend SharePct=round(100.0 * Invocations / total, 2)
 | order by Invocations desc
 | take 20
 '@
-    versions = @'
-AppEvents
-| where TimeGenerated > ago(14d)
-| extend Version=tostring(split(AppVersion, '+')[0])
-| summarize Invocations=countif(Name != 'SessionStart'), UserSketch=hll(UserId)
-    by Version, SessionId
-| summarize Invocations=sum(Invocations), Sessions=count(),
-            ActivatedSessions=countif(Invocations > 0),
-            UserSketch=hll_merge(UserSketch) by Version
-| extend ActivationRate=round(100.0 * ActivatedSessions / Sessions, 2),
-         Users=dcount_hll(UserSketch)
-| project-away UserSketch
-| order by Invocations desc
-| take 25
-'@
-    exceptions = @'
-AppExceptions
+    heroFeatures = @'
+let total=toscalar(
+    AppRequests
+    | where TimeGenerated > ago(90d)
+    | where Name !in ('file/open', 'file/close')
+    | count);
+AppRequests
 | where TimeGenerated > ago(90d)
-| where tostring(Properties['Sanitized']) == 'true'
-    or isnotempty(tostring(Properties['Source']))
-| summarize Exceptions=count(), Users=dcount(UserId), Sessions=dcount(SessionId)
-| extend Category='background-task-problem'
+| where Name !in ('file/open', 'file/close')
+| extend ToolFamily=tostring(split(Name, '/')[0])
+| extend HeroFeature=case(
+    ToolFamily == 'powerquery', 'power-query',
+    ToolFamily in ('datamodel', 'datamodelrel'), 'power-pivot-dax',
+    ToolFamily in (
+        'pivottable', 'pivottable_field', 'chart', 'chart_config',
+        'slicer', 'drawing', 'screenshot', 'conditionalformat'
+    ), 'pivottables-charts',
+    ToolFamily in (
+        'range', 'range_format', 'range_edit', 'range_link',
+        'table', 'calculation_mode'
+    ), 'tables-ranges',
+    ToolFamily == 'vba', 'vba',
+    ToolFamily in (
+        'worksheet', 'worksheet_style', 'workbook', 'file',
+        'namedrange', 'connection', 'querytable'
+    ), 'worksheets-connections',
+    ToolFamily == 'window', 'agent-mode',
+    ToolFamily == 'pythoninexcel', 'python-in-excel',
+    'other'
+)
+| summarize Invocations=count(), Users=dcount(UserId) by HeroFeature
+| extend SharePct=round(100.0 * Invocations / total, 2)
+| order by Invocations desc
 '@
+    reliability = @"
+AppRequests
+| where TimeGenerated >= datetime($reliabilitySinceUtc)
+| where Name !in ('file/open', 'file/close')
+| extend Version=tostring(split(AppVersion, '+')[0])
+| where parse_version(Version) >= parse_version('2.0.3')
+| summarize Actions=count(),
+            Errors=countif(Success != true),
+            Users=dcount(UserId) by Name
+| where Errors > 0
+| extend ErrorRate=round(100.0 * Errors / Actions, 2)
+| order by Errors desc
+| take 20
+"@
+    versionReliability = @"
+AppRequests
+| where TimeGenerated >= datetime($reliabilitySinceUtc)
+| where Name !in ('file/open', 'file/close')
+| extend Version=tostring(split(AppVersion, '+')[0])
+| where parse_version(Version) >= parse_version('2.0.3')
+| summarize Actions=count(),
+            Errors=countif(Success != true),
+            Users=dcount(UserId) by Version
+| extend ErrorRate=round(100.0 * Errors / Actions, 2)
+| order by Actions desc
+| take 25
+"@
+    exceptions = @"
+AppExceptions
+| where TimeGenerated >= datetime($reliabilitySinceUtc)
+| where tostring(Properties['Sanitized']) == 'true'
+| summarize Exceptions=count(), Users=dcount(UserId), Sessions=dcount(SessionId)
+| where Exceptions > 0
+| extend Category='background-task-problem'
+"@
 }
 
 function Invoke-LogAnalyticsQuery {
@@ -181,85 +262,116 @@ $report = [ordered]@{
     windows = [ordered]@{
         reportingDays = 90
         comparisonDays = 14
-        versionDays = 14
+        trendWeeks = 12
+        reliabilitySinceUtc = $reliabilitySinceUtc
     }
     privacy = [ordered]@{
-        minimumUsersPerDimension = $MinimumUsers
         excluded = @(
             "user identifiers",
             "session identifiers",
-            "file hashes",
-            "geography",
-            "messages",
-            "stack traces"
+            "names and account details",
+            "locations",
+            "workbook contents",
+            "cell values and formulas",
+            "prompts and messages",
+            "file names and paths",
+            "error messages and stack traces"
         )
     }
     summary = [ordered]@{
         users = Convert-ToNumber $overview.Users
-        sessions = Convert-ToNumber $overview.Sessions
-        activatedSessions = Convert-ToNumber $overview.ActivatedSessions
-        activationRate = Convert-ToNumber $overview.ActivationRate
         toolInvocations = Convert-ToNumber $overview.ToolInvocations
         repeatUserRate = Convert-ToNumber $overview.RepeatUserRate
-        multiSessionRate = Convert-ToNumber $overview.MultiSessionRate
     }
     comparison = [ordered]@{
         currentUsers = Convert-ToNumber $trend.Users
         previousUsers = Convert-ToNumber $trend.PreviousUsers
         userChangePct = Convert-ToNumber $trend.UserChangePct
-        currentSessions = Convert-ToNumber $trend.Sessions
-        previousSessions = Convert-ToNumber $trend.PreviousSessions
-        sessionChangePct = Convert-ToNumber $trend.SessionChangePct
         currentInvocations = Convert-ToNumber $trend.Invocations
         previousInvocations = Convert-ToNumber $trend.PreviousInvocations
         invocationChangePct = Convert-ToNumber $trend.InvocationChangePct
     }
+    weekly = @(
+        $results.weekly |
+            ForEach-Object {
+                [ordered]@{
+                    week = ([DateTime]$_.Week).ToString("yyyy-MM-dd")
+                    users = Convert-ToNumber $_.Users
+                    actions = Convert-ToNumber $_.Actions
+                }
+            }
+    )
+    versionAdoption = @(
+        $results.versionAdoption |
+            ForEach-Object {
+                [ordered]@{
+                    week = ([DateTime]$_.Week).ToString("yyyy-MM-dd")
+                    version = [string]$_.Version
+                    users = Convert-ToNumber $_.Users
+                    sharePct = Convert-ToNumber $_.SharePct
+                }
+            }
+    )
     operations = @(
         $results.operations |
-            Where-Object { [int]$_.Users -ge $MinimumUsers } |
+            Where-Object { $excludedActions -notcontains [string]$_.Name } |
             ForEach-Object {
                 [ordered]@{
                     name = [string]$_.Name
                     invocations = Convert-ToNumber $_.Invocations
                     users = Convert-ToNumber $_.Users
-                    successRate = Convert-ToNumber $_.SuccessRate
-                    p50Ms = Convert-ToNumber $_.P50Ms
-                    p95Ms = Convert-ToNumber $_.P95Ms
-                    p99Ms = Convert-ToNumber $_.P99Ms
                 }
             }
     )
     toolFamilies = @(
         $results.families |
-            Where-Object { [int]$_.Users -ge $MinimumUsers } |
             ForEach-Object {
                 [ordered]@{
                     name = [string]$_.ToolFamily
                     invocations = Convert-ToNumber $_.Invocations
                     users = Convert-ToNumber $_.Users
                     sharePct = Convert-ToNumber $_.SharePct
-                    successRate = Convert-ToNumber $_.SuccessRate
-                    p95Ms = Convert-ToNumber $_.P95Ms
                 }
             }
     )
-    versions = @(
-        $results.versions |
-            Where-Object { [int]$_.Users -ge $MinimumUsers } |
+    heroFeatures = @(
+        $results.heroFeatures |
+            ForEach-Object {
+                [ordered]@{
+                    name = [string]$_.HeroFeature
+                    invocations = Convert-ToNumber $_.Invocations
+                    users = Convert-ToNumber $_.Users
+                    sharePct = Convert-ToNumber $_.SharePct
+                }
+            }
+    )
+    reliability = @(
+        $results.reliability |
+            Where-Object { $excludedActions -notcontains [string]$_.Name } |
+            ForEach-Object {
+                [ordered]@{
+                    name = [string]$_.Name
+                    actions = Convert-ToNumber $_.Actions
+                    errors = Convert-ToNumber $_.Errors
+                    errorRate = Convert-ToNumber $_.ErrorRate
+                    users = Convert-ToNumber $_.Users
+                }
+            }
+    )
+    versionReliability = @(
+        $results.versionReliability |
             ForEach-Object {
                 [ordered]@{
                     version = [string]$_.Version
-                    invocations = Convert-ToNumber $_.Invocations
-                    sessions = Convert-ToNumber $_.Sessions
-                    activatedSessions = Convert-ToNumber $_.ActivatedSessions
-                    activationRate = Convert-ToNumber $_.ActivationRate
+                    actions = Convert-ToNumber $_.Actions
+                    errors = Convert-ToNumber $_.Errors
+                    errorRate = Convert-ToNumber $_.ErrorRate
                     users = Convert-ToNumber $_.Users
                 }
             }
     )
     exceptions = @(
         $results.exceptions |
-            Where-Object { [int]$_.Users -ge $MinimumUsers } |
             ForEach-Object {
                 [ordered]@{
                     category = [string]$_.Category
@@ -275,15 +387,36 @@ foreach ($operation in $report.operations) {
     if ($operation.name -notmatch '^[a-z0-9_/-]+$') {
         throw "Analytics contains an unsafe operation dimension."
     }
+    foreach ($operation in $report.reliability) {
+        if ($operation.name -notmatch '^[a-z0-9_/-]+$') {
+            throw "Analytics contains an unsafe reliability dimension."
+        }
+    }
 }
 foreach ($family in $report.toolFamilies) {
     if ($family.name -notmatch '^[a-z0-9_-]+$') {
         throw "Analytics contains an unsafe tool-family dimension."
     }
+    foreach ($feature in $report.heroFeatures) {
+        if ($feature.name -notmatch '^[a-z0-9-]+$') {
+            throw "Analytics contains an unsafe homepage-feature dimension."
+        }
+    }
 }
-foreach ($version in $report.versions) {
+foreach ($version in $report.versionReliability) {
     if ($version.version -notmatch '^[0-9A-Za-z.+-]+$') {
         throw "Analytics contains an unsafe version dimension."
+    }
+}
+foreach ($week in $report.weekly) {
+    if ($week.week -notmatch '^\d{4}-\d{2}-\d{2}$') {
+        throw "Analytics contains an unsafe weekly date."
+    }
+    foreach ($release in $report.versionAdoption) {
+        if ($release.week -notmatch '^\d{4}-\d{2}-\d{2}$' -or
+            $release.version -notmatch '^(?:[0-9A-Za-z.+-]+|Other)$') {
+            throw "Analytics contains an unsafe release-adoption dimension."
+        }
     }
 }
 foreach ($exception in $report.exceptions) {
@@ -308,6 +441,9 @@ if ($json -match '[A-Za-z]:\\' -or
     $json -match '\\\\[^\\\s]+\\' -or
     $json -match '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}') {
     throw "Generated analytics contains path or email-shaped content."
+}
+if ($json -match '"file/(?:open|close)"') {
+    throw "Generated analytics contains excluded workbook lifecycle actions."
 }
 
 $resolvedOutputPath = [IO.Path]::GetFullPath($OutputPath)

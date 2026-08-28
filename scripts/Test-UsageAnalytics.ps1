@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Tests analytics aggregation, cohort privacy, and Copilot output validation.
+    Tests analytics aggregation, privacy boundaries, and Copilot output validation.
 #>
 $ErrorActionPreference = "Stop"
 $updateScript = Join-Path $PSScriptRoot "Update-UsageAnalytics.ps1"
@@ -42,26 +42,53 @@ New-Item -ItemType Directory -Path $testRoot | Out-Null
 try {
     $fixture = @{
         overview = @(@{
-            Users = 100; Sessions = 200; ActivatedSessions = 150
-            ActivationRate = 75; ToolInvocations = 1000
-            RepeatUserRate = 60; MultiSessionRate = 70
+            Users = 100; ToolInvocations = 1000; RepeatUserRate = 60
         })
         trend = @(@{
             Users = 50; PreviousUsers = 40; UserChangePct = 25
-            Sessions = 80; PreviousSessions = 60; SessionChangePct = 33.33
             Invocations = 600; PreviousInvocations = 400; InvocationChangePct = 50
         })
+        weekly = @(
+            @{ Week = "2026-08-09"; Users = 30; Actions = 300 },
+            @{ Week = "2026-08-16"; Users = 40; Actions = 500 }
+        )
+        versionAdoption = @(
+            @{ Week = "2026-08-09"; Version = "2.0.2"; Users = 30; SharePct = 75 },
+            @{ Week = "2026-08-09"; Version = "2.0.3"; Users = 10; SharePct = 25 },
+            @{ Week = "2026-08-16"; Version = "2.0.3"; Users = 40; SharePct = 100 }
+        )
         operations = @(
-            @{ Name = "range/get-values"; Invocations = 500; Users = 10; SuccessRate = 99.8; P50Ms = 10; P95Ms = 50; P99Ms = 100 },
-            @{ Name = "rare/action"; Invocations = 9; Users = 9; SuccessRate = 100; P50Ms = 1; P95Ms = 2; P99Ms = 3 }
+            @{ Name = "range/get-values"; Invocations = 500; Users = 10 },
+            @{ Name = "rare/action"; Invocations = 9; Users = 9 },
+            @{ Name = "file/open"; Invocations = 200; Users = 20 }
         )
         families = @(
-            @{ ToolFamily = "range"; Invocations = 500; Users = 10; SharePct = 50; SuccessRate = 99.8; P95Ms = 50 }
+            @{ ToolFamily = "range"; Invocations = 500; Users = 10; SharePct = 50 }
         )
-        versions = @(
+        heroFeatures = @(
             @{
-                Version = "2.0.2"; Invocations = 700; Sessions = 80
-                ActivatedSessions = 60; ActivationRate = 75; Users = 20
+                HeroFeature = "tables-ranges"; Invocations = 500
+                Users = 10; SharePct = 50
+            },
+            @{
+                HeroFeature = "power-query"; Invocations = 200
+                Users = 5; SharePct = 20
+            }
+        )
+        reliability = @(
+            @{
+                Name = "range/get-values"; Actions = 100; Errors = 2
+                ErrorRate = 2; Users = 8
+            },
+            @{
+                Name = "file/close"; Actions = 100; Errors = 3
+                ErrorRate = 3; Users = 8
+            }
+        )
+        versionReliability = @(
+            @{
+                Version = "2.0.3"; Actions = 700; Errors = 7
+                ErrorRate = 1; Users = 20
             }
         )
         exceptions = @(
@@ -75,9 +102,27 @@ try {
     $analyticsPath = Join-Path $testRoot "analytics.json"
     & $updateScript -WorkspaceId "fixture" -OutputPath $analyticsPath -FixturePath $fixturePath
     $analytics = Get-Content -LiteralPath $analyticsPath -Raw | ConvertFrom-Json
-    Assert-True ($analytics.operations.Count -eq 1) "Small cohorts were not suppressed."
+    Assert-True ($analytics.operations.Count -eq 2) "Low-use operations were removed."
     Assert-True ($analytics.operations[0].name -eq "range/get-values") "Expected operation was removed."
-    Assert-True ($analytics.privacy.minimumUsersPerDimension -eq 10) "Privacy threshold was not recorded."
+    Assert-True ($null -eq ($analytics.operations | Where-Object name -Like "file/*")) `
+        "Workbook open or close actions entered the public report."
+    Assert-True ($null -eq $analytics.operations[0].PSObject.Properties["successRate"]) `
+        "Historical success rates entered the public report."
+    Assert-True ($analytics.reliability[0].name -eq "range/get-values") `
+        "Corrected reliability data was not included."
+    Assert-True ($analytics.reliability.Count -eq 1) `
+        "Workbook lifecycle failures entered the public report."
+    Assert-True (
+        ([DateTime]$analytics.windows.reliabilitySinceUtc).ToUniversalTime().ToString(
+            "yyyy-MM-ddTHH:mm:ssZ") -eq "2026-08-27T17:05:06Z") `
+        "The reliability measurement boundary is missing."
+    Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
+    Assert-True ($analytics.versionAdoption.Count -eq 3) `
+        "Weekly release adoption was not included."
+    Assert-True ($analytics.versionAdoption[1].version -eq "2.0.3") `
+        "Release adoption labels were not preserved."
+    Assert-True ($analytics.heroFeatures[0].name -eq "tables-ranges") `
+        "Homepage feature usage was not included."
     Assert-True ($analytics.exceptions[0].category -eq "background-task-problem") `
         "Exception data was not reduced to the public category."
     Assert-True ($null -eq $analytics.exceptions[0].PSObject.Properties["type"]) `
@@ -97,15 +142,15 @@ try {
     $interpretation = @"
 ## What changed
 
-Users increased by 25 percent while actions increased by 50 percent.
+Users increased by 25 percent while the report covered 1,000 actions.
 
 ## How well it worked
 
-The most-used action finished without an error 99.8 percent of the time.
+The corrected data includes 2 errors across 100 actions.
 
 ## How people use it
 
-Version 2.0.2 served 20 users.
+Release 2.0.3 reported 7 errors across 700 actions.
 
 ## What we will improve
 

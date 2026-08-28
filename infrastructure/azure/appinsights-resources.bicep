@@ -7,7 +7,7 @@ param appInsightsName string
 param retentionInDays int
 param tags object
 
-// Name of the workspace-transform DCR that drops noisy or unsanitized telemetry at ingestion time.
+// Name of the workspace-transform DCR that drops noisy or unsafe telemetry at ingestion time.
 var telemetrySanitizationDcrName = 'dcr-excelmcp-drop-noisy-metrics'
 
 // Log Analytics Workspace (required backend for Application Insights)
@@ -43,6 +43,8 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 //   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process (that
 // - AppExceptions can otherwise include exception messages and stack traces auto-collected
 //   by the Worker Service SDK. Only ExcelMcp's explicitly sanitized exception records survive.
+// - AppTraces can contain framework-generated host paths and client names. ExcelMcp uses
+//   explicit structured events instead, so trace logs are rejected in full.
 resource telemetrySanitizationDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   name: telemetrySanitizationDcrName
   location: location
@@ -78,6 +80,16 @@ resource telemetrySanitizationDcr 'Microsoft.Insights/dataCollectionRules@2023-0
         ]
         // Fail closed: old clients and SDK auto-collection do not carry this marker.
         transformKql: 'source | where tostring(Properties["Sanitized"]) == "true"'
+      }
+      {
+        streams: [
+          'Microsoft-Table-AppTraces'
+        ]
+        destinations: [
+          'excelmcpLogs'
+        ]
+        // Framework logs are not part of the approved telemetry contract.
+        transformKql: 'source | where false'
       }
     ]
     destinations: {

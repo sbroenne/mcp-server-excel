@@ -51,11 +51,13 @@ foreach ($entry in $forbiddenPatterns.GetEnumerator()) {
 }
 
 $allowedNumbers = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-foreach ($match in [regex]::Matches($analyticsText, '(?<![\w.])-?\d+(?:\.\d+)?')) {
-    [void]$allowedNumbers.Add($match.Value)
+$numberPattern = '(?<![\w.])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
+foreach ($match in [regex]::Matches($analyticsText, $numberPattern)) {
+    [void]$allowedNumbers.Add($match.Value.Replace(",", ""))
 }
-foreach ($match in [regex]::Matches($interpretation, '(?<![\w.])-?\d+(?:\.\d+)?')) {
-    if (-not $allowedNumbers.Contains($match.Value)) {
+foreach ($match in [regex]::Matches($interpretation, $numberPattern)) {
+    $normalizedValue = $match.Value.Replace(",", "")
+    if (-not $allowedNumbers.Contains($normalizedValue)) {
         throw "Interpretation contains unsupported numeric claim '$($match.Value)'."
     }
 }

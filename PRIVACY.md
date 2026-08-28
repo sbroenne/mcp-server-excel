@@ -29,6 +29,8 @@ ExcelMcp's MCP Server collects **limited, anonymous telemetry** to improve the s
 - ❌ **File names or paths** - File paths are hashed locally; actual paths are never transmitted
 - ❌ **Personal information** - No names, emails, or account information
 - ❌ **Spreadsheet data** - Cell values, formulas, and data remain completely private
+- ❌ **Prompts or messages** - Requests and conversations are never transmitted
+- ❌ **Host or client details** - Working directories and MCP client names are not collected
 - ❌ **User accounts** - No registration or sign-in required
 
 ### Purpose of Telemetry
@@ -47,6 +49,7 @@ Telemetry is sent to **Azure Application Insights**, a Microsoft service. Data i
 - Retained for analytics purposes only
 - Filtered at ingestion so exception records without ExcelMcp's explicit
   sanitization marker are discarded
+- Filtered at ingestion so framework trace logs are discarded in full
 
 ## How It Works
 

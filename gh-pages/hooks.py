@@ -327,7 +327,7 @@ def _analytics_table(
 
 _ANALYTICS_FAMILY_NAMES = {
     "range": "Reading and writing cells",
-    "file": "Opening and closing workbooks",
+    "file": "Managing workbooks",
     "range_format": "Formatting cells",
     "vba": "Running and editing macros",
     "worksheet": "Working with worksheets",
@@ -337,6 +337,18 @@ _ANALYTICS_FAMILY_NAMES = {
     "screenshot": "Taking screenshots",
     "table": "Working with Excel tables",
     "datamodel": "Working with the Data Model",
+}
+
+_ANALYTICS_HERO_FEATURE_NAMES = {
+    "power-query": "Power Query & M code",
+    "power-pivot-dax": "Power Pivot & DAX",
+    "pivottables-charts": "PivotTables & charts",
+    "tables-ranges": "Tables & ranges",
+    "vba": "VBA macros",
+    "worksheets-connections": "Worksheets & connections",
+    "agent-mode": "Agent mode",
+    "python-in-excel": "Python in Excel",
+    "other": "Other features",
 }
 
 _ANALYTICS_OPERATION_NAMES = {
@@ -364,16 +376,6 @@ def _analytics_name(value: object, names: dict[str, str]) -> str:
     if raw in names:
         return names[raw]
     return raw.replace("/", " ").replace("_", " ").replace("-", " ").title()
-
-
-def _analytics_duration(milliseconds: object) -> str:
-    """Express elapsed time in units a general reader can scan."""
-    value = float(milliseconds)
-    if value < 1_000:
-        return f"{value:,.0f} ms"
-    if value < 60_000:
-        return f"{value / 1_000:,.1f} sec"
-    return f"{value / 60_000:,.1f} min"
 
 
 def _analytics_bar_chart(
@@ -407,6 +409,137 @@ def _analytics_bar_chart(
     return "\n".join(lines)
 
 
+def _analytics_week_chart(
+    rows: list[dict[str, object]],
+    *,
+    value_field: str,
+    title: str,
+) -> str:
+    """Render weekly values as an accessible compact bar chart."""
+    maximum = max((float(row[value_field]) for row in rows), default=0)
+    midpoint = maximum / 2
+    lines = [
+        '<div class="analytics-week-chart" role="group" '
+        f'aria-label="{escape(title)}">',
+        f"  <strong>{escape(title)}</strong>",
+        '  <div class="analytics-week-chart__body">',
+        '    <div class="analytics-week-chart__y-axis" aria-hidden="true">',
+        f"      <span>{escape(_analytics_cell(maximum))}</span>",
+        f"      <span>{escape(_analytics_cell(midpoint))}</span>",
+        "      <span>0</span>",
+        "    </div>",
+        '  <div class="analytics-week-chart__plot" role="list">',
+    ]
+    for row in rows:
+        value = float(row[value_field])
+        height = 0 if maximum == 0 else max(2, value / maximum * 100)
+        week = datetime.fromisoformat(str(row["week"]))
+        label = week.strftime("%b %d")
+        display_value = _analytics_cell(row[value_field])
+        lines.extend(
+            [
+                '    <div class="analytics-week-chart__week" role="listitem" '
+                f'aria-label="Week of {escape(label)}: {escape(display_value)}">',
+                f'      <span style="height: {height:.2f}%" aria-hidden="true"></span>',
+                f"      <small>{escape(label)}</small>",
+                "    </div>",
+            ]
+        )
+    lines.extend(["    </div>", "  </div>", "</div>"])
+    return "\n".join(lines)
+
+
+def _analytics_version_chart(rows: list[dict[str, object]]) -> str:
+    """Render weekly release adoption as a 100% stacked column chart."""
+    palette = (
+        "#4051b5",
+        "#008b8b",
+        "#d97706",
+        "#db2777",
+        "#7c3aed",
+        "#15803d",
+        "#dc2626",
+        "#64748b",
+        "#0891b2",
+    )
+    weeks: dict[str, dict[str, dict[str, object]]] = {}
+    totals: dict[str, int] = {}
+    for row in rows:
+        week = str(row["week"])
+        version = str(row["version"])
+        weeks.setdefault(week, {})[version] = row
+        totals[version] = totals.get(version, 0) + int(row["users"])
+
+    versions = sorted(
+        totals,
+        key=lambda version: (version == "Other", -totals[version], version),
+    )
+    colors = {
+        version: palette[index % len(palette)]
+        for index, version in enumerate(versions)
+    }
+    lines = [
+        '<div class="analytics-version-chart" role="group" '
+        'aria-label="Share of users by release each week">',
+        '  <div class="analytics-version-chart__legend" aria-hidden="true">',
+    ]
+    for version in versions:
+        lines.append(
+            '    <span><i style="background: '
+            f'{colors[version]}"></i>{escape(version)}</span>'
+        )
+    lines.extend(
+        [
+            "  </div>",
+            '  <div class="analytics-version-chart__body">',
+            '    <div class="analytics-version-chart__y-axis" aria-hidden="true">',
+            "      <span>100%</span>",
+            "      <span>50%</span>",
+            "      <span>0%</span>",
+            "    </div>",
+            '    <div class="analytics-version-chart__plot" role="list">',
+        ]
+    )
+    for week_value in sorted(weeks):
+        week = datetime.fromisoformat(week_value)
+        label = week.strftime("%b %d")
+        entries = weeks[week_value]
+        summary = ", ".join(
+            f"{version}: {_analytics_cell(entries[version]['sharePct'])}%"
+            for version in versions
+            if version in entries
+        )
+        lines.extend(
+            [
+                '      <div class="analytics-version-chart__week" role="listitem" '
+                f'aria-label="Week of {escape(label)}. {escape(summary)}">',
+                '        <div class="analytics-version-chart__stack" aria-hidden="true">',
+            ]
+        )
+        for version in versions:
+            if version not in entries:
+                continue
+            row = entries[version]
+            share = float(row["sharePct"])
+            title = (
+                f"{version}: {_analytics_cell(row['sharePct'])}% "
+                f"({_analytics_cell(row['users'])} users)"
+            )
+            lines.append(
+                f'          <span title="{escape(title)}" '
+                f'style="height: {share:.2f}%; background: {colors[version]}"></span>'
+            )
+        lines.extend(
+            [
+                "        </div>",
+                f"        <small>{escape(label)}</small>",
+                "      </div>",
+            ]
+        )
+    lines.extend(["    </div>", "  </div>", "</div>"])
+    return "\n".join(lines)
+
+
 def _render_usage_analytics() -> str:
     source_rel = ".github/usage-analytics.json"
     report = json.loads(_read(source_rel))
@@ -418,33 +551,48 @@ def _render_usage_analytics() -> str:
 
     summary = report["summary"]
     comparison = report["comparison"]
-    privacy = report["privacy"]
     generated = datetime.fromisoformat(report["generatedAtUtc"].replace("Z", "+00:00"))
     reporting_days = int(report["windows"]["reportingDays"])
     comparison_days = int(report["windows"]["comparisonDays"])
     reporting_start = generated - timedelta(days=reporting_days)
     current_start = generated - timedelta(days=comparison_days)
     previous_start = generated - timedelta(days=comparison_days * 2)
+    reliability_since = datetime.fromisoformat(
+        report["windows"]["reliabilitySinceUtc"].replace("Z", "+00:00")
+    )
     date_format = "%b %d, %Y"
 
-    family_rows = [
+    hero_rows = [
         {
             **row,
-            "friendlyName": _analytics_name(row["name"], _ANALYTICS_FAMILY_NAMES),
+            "friendlyName": _analytics_name(
+                row["name"], _ANALYTICS_HERO_FEATURE_NAMES
+            ),
             "share": f"{_analytics_cell(row['sharePct'])}%",
         }
-        for row in report["toolFamilies"]
+        for row in report["heroFeatures"]
     ]
     operation_rows = [
         {
             **row,
             "friendlyName": _analytics_name(row["name"], _ANALYTICS_OPERATION_NAMES),
-            "success": f"{_analytics_cell(row['successRate'])}%",
-            "usualTime": _analytics_duration(row["p50Ms"]),
-            "slowerTime": _analytics_duration(row["p95Ms"]),
-            "slowestTime": _analytics_duration(row["p99Ms"]),
         }
         for row in report["operations"]
+    ]
+    reliability_rows = [
+        {
+            **row,
+            "friendlyName": _analytics_name(row["name"], _ANALYTICS_OPERATION_NAMES),
+            "errorRateDisplay": f"{_analytics_cell(row['errorRate'])}%",
+        }
+        for row in report["reliability"]
+    ]
+    release_rows = [
+        {
+            **row,
+            "errorRateDisplay": f"{_analytics_cell(row['errorRate'])}%",
+        }
+        for row in report["versionReliability"]
     ]
     comparison_rows = [
         {
@@ -454,12 +602,6 @@ def _render_usage_analytics() -> str:
             "change": f"{comparison['userChangePct']}%",
         },
         {
-            "metric": "Times started",
-            "current": comparison["currentSessions"],
-            "previous": comparison["previousSessions"],
-            "change": f"{comparison['sessionChangePct']}%",
-        },
-        {
             "metric": "Actions",
             "current": comparison["currentInvocations"],
             "previous": comparison["previousInvocations"],
@@ -467,11 +609,16 @@ def _render_usage_analytics() -> str:
         },
     ]
     sections = [
+        "Excel MCP Server lets GitHub Copilot, Claude, and other AI assistants "
+        "automate the real Microsoft Excel application. This public report shows "
+        "how the open-source project is used and where reliability can improve.",
+        "",
+        "New to the project? [Install Excel MCP Server](/installation/) to get started.",
+        "",
         "!!! info \"Anonymous public report\"\n"
         "    This page shows broad usage patterns, not individual activity. "
-        f"A result appears only when at least {privacy['minimumUsersPerDimension']} "
-        "users contributed to it. Names, file details, locations, and the content "
-        "of workbooks are never included.",
+        "Names, file details, locations, and the content of workbooks are never "
+        "included.",
         "",
         f"**Last updated:** {generated.strftime(date_format)}  \n"
         f"**Period covered:** {reporting_start.strftime(date_format)} to "
@@ -487,19 +634,41 @@ def _render_usage_analytics() -> str:
         "",
         f"- :material-lightning-bolt: **{_analytics_cell(summary['toolInvocations'])} actions**",
         "",
-        "    Completed across workbooks, cells, data, charts, and automation.",
+        "    Recorded across workbooks, cells, data, charts, and automation.",
         "",
         f"- :material-calendar-refresh: **{_analytics_cell(summary['repeatUserRate'])}% returned**",
         "",
         "    Used Excel MCP on at least two different days.",
         "",
-        f"- :material-replay: **{_analytics_cell(summary['multiSessionRate'])}% came back**",
-        "",
-        "    Started Excel MCP more than once.",
-        "",
         "</div>",
         "",
-        "## How usage is changing",
+        f"## Usage over the last {report['windows']['trendWeeks']} complete weeks",
+        "",
+        "Each bar is one full week, which makes changes easier to compare.",
+        "",
+        _analytics_week_chart(
+            report["weekly"],
+            value_field="users",
+            title="Users each week",
+        ),
+        "",
+        _analytics_week_chart(
+            report["weekly"],
+            value_field="actions",
+            title="Actions each week",
+        ),
+        "",
+        "## Release upgrades over time",
+        "",
+        "Each column is one week; the final column is the current week so far. A "
+        "user appears once, under the latest release they used that week. This "
+        "makes it easy to see newer releases replace older ones without overall "
+        "user growth changing the scale. Less common releases are grouped as "
+        "**Other**.",
+        "",
+        _analytics_version_chart(report["versionAdoption"]),
+        "",
+        "## The latest two weeks",
         "",
         f"The latest period is **{current_start.strftime(date_format)} to "
         f"{generated.strftime(date_format)}**. It is compared with "
@@ -523,70 +692,80 @@ def _render_usage_analytics() -> str:
         "",
         "## What people use most",
         "",
-        "The bars compare the most-used parts of Excel MCP. The percentage is "
-        "each area's share of all recorded actions.",
+        "The bars group actions by the main features highlighted on the Excel MCP "
+        "homepage. The percentage is each feature's share of meaningful actions. "
+        "Smaller capabilities are grouped as **Other features**.",
         "",
         _analytics_bar_chart(
-            family_rows[:6],
+            hero_rows,
             label_field="friendlyName",
             value_field="sharePct",
             value_suffix="%",
         ),
         "",
         _analytics_table(
-            ("Area", "Actions", "Users", "Share"),
+            ("Homepage feature", "Actions", "Users", "Share"),
             ("friendlyName", "invocations", "users", "share"),
-            family_rows[:6],
+            hero_rows,
         ),
         "",
         "## Most common actions",
         "",
         _analytics_table(
-            ("Action", "Times used", "Users", "Finished without an error", "Usual time"),
-            ("friendlyName", "invocations", "users", "success", "usualTime"),
+            ("Action", "Times used", "Users"),
+            ("friendlyName", "invocations", "users"),
             operation_rows[:8],
         ),
         "",
-        "??? info \"See detailed speed and reliability data\"\n\n"
-        + "\n".join(
-            "    " + line
-            for line in _analytics_table(
-                (
-                    "Action",
-                    "Times used",
-                    "Finished without an error",
-                    "Usual time",
-                    "Slower cases",
-                    "Slowest cases",
+    ]
+    if reliability_rows:
+        sections.extend(
+            [
+                "## Actions reporting errors",
+                "",
+                f"Accurate error counting began on "
+                f"**{reliability_since.strftime(date_format)}** with the latest "
+                "patch release. Earlier releases are excluded because they did not "
+                "count every kind of failed action.",
+                "",
+                _analytics_table(
+                    ("Action", "Actions", "Errors", "Error rate", "Users"),
+                    (
+                        "friendlyName",
+                        "actions",
+                        "errors",
+                        "errorRateDisplay",
+                        "users",
+                    ),
+                    reliability_rows[:15],
                 ),
-                (
-                    "friendlyName",
-                    "invocations",
-                    "success",
-                    "usualTime",
-                    "slowerTime",
-                    "slowestTime",
+                "",
+            ]
+        )
+    if release_rows:
+        sections.extend(
+            [
+                "## Errors by release",
+                "",
+                "This comparison can reveal a problem introduced in a release. It "
+                "is not a direct quality score: different releases may be used for "
+                "different kinds of work. The action count shows how much data each "
+                "rate is based on.",
+                "",
+                _analytics_table(
+                    ("Release", "Actions", "Errors", "Error rate", "Users"),
+                    ("version", "actions", "errors", "errorRateDisplay", "users"),
+                    release_rows[:15],
                 ),
-                operation_rows[:15],
-            ).splitlines()
-        ),
-        "",
-        "??? info \"See which releases are in active use\"\n\n"
-        "    A start does not always lead to work: editors and assistants may "
-        "start Excel MCP briefly to check whether it is available. “Used” counts "
-        "only starts followed by at least one action.\n\n"
-        + "\n".join(
-            "    " + line
-            for line in _analytics_table(
-                ("Release", "Actions", "Times started", "Times used", "Users"),
-                ("version", "invocations", "sessions", "activatedSessions", "users"),
-                report["versions"][:15],
-            ).splitlines()
-        ),
-        "",
+                "",
+            ]
+        )
+    sections.extend(
+        [
         "## Problems we are watching",
         "",
-    ]
+        ]
+    )
     exceptions = report["exceptions"]
     if exceptions:
         total_exceptions = sum(int(row["exceptions"]) for row in exceptions)
@@ -606,12 +785,14 @@ def _render_usage_analytics() -> str:
             "",
             "## How this report protects privacy",
             "",
-            "The report is built from anonymous counts, percentages, and timings. "
-            f"Breakdowns are hidden unless at least "
-            f"{privacy['minimumUsersPerDimension']} users contributed. We do not "
-            "publish or give Copilot user or session codes, file fingerprints, "
-            "locations, messages, workbook content, error messages, or technical "
-            "error details.",
+            "The report is built from anonymous counts and percentages. "
+            "We do not publish or give Copilot user or session codes, file "
+            "fingerprints, locations, messages, workbook content, error messages, "
+            "or technical error details.",
+            "",
+            "Excel MCP never intentionally collects workbook contents, cell values, "
+            "formulas, prompts, messages, file names or paths, names, email addresses, "
+            "or account details. Read the full [privacy policy](/privacy/).",
             "",
             "You can inspect exactly how the report is built in "
             "[`Update-UsageAnalytics.ps1`](https://github.com/sbroenne/"

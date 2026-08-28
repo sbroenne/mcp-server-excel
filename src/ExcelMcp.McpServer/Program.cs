@@ -154,10 +154,13 @@ public class Program
             .AddEnvironmentVariables()
             .AddCommandLine(args);
 
-        ConfigureStdioLogging(builder.Logging);
-
         // Configure Application Insights
         ConfigureTelemetry(builder);
+
+        // Application Insights registers an ILogger provider that can forward framework
+        // messages containing host paths or client names. Configure console logging last
+        // so ClearProviders removes it while leaving explicit usage telemetry enabled.
+        ConfigureStdioLogging(builder.Logging);
 
         // Configure MCP Server - use test transport if configured, otherwise stdio
         var mcpBuilder = builder.Services
