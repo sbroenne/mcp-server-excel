@@ -139,6 +139,48 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseFlow_PackagesAndTagsCurrentChangelog()
+    {
+        var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
+        var prepareRelease = ExtractWorkflowJob(releaseWorkflow, "prepare-release");
+        var buildVsCode = ExtractWorkflowJob(releaseWorkflow, "build-vscode");
+        var buildMcpb = ExtractWorkflowJob(releaseWorkflow, "build-mcpb");
+        var createTag = ExtractWorkflowJob(releaseWorkflow, "create-tag");
+        var createRelease = ExtractWorkflowJob(releaseWorkflow, "create-release");
+
+        Assert.Contains("./scripts/Build-Changelog.ps1", prepareRelease, StringComparison.Ordinal);
+        Assert.Contains("name: release-changelog", prepareRelease, StringComparison.Ordinal);
+        Assert.Contains("needs: [version, prepare-release]", buildVsCode, StringComparison.Ordinal);
+        Assert.Contains("name: release-changelog", buildVsCode, StringComparison.Ordinal);
+        Assert.Contains(
+            "Copy-Item \"release-changelog/CHANGELOG.md\" \"CHANGELOG.md\" -Force",
+            buildVsCode,
+            StringComparison.Ordinal);
+        Assert.Contains("needs: [version, prepare-release]", buildMcpb, StringComparison.Ordinal);
+        Assert.Contains("name: release-changelog", buildMcpb, StringComparison.Ordinal);
+        Assert.Contains(
+            "Copy-Item \"release-changelog/CHANGELOG.md\" \"CHANGELOG.md\" -Force",
+            buildMcpb,
+            StringComparison.Ordinal);
+
+        var commitIndex = createTag.IndexOf("Commit Release Metadata Update", StringComparison.Ordinal);
+        var tagIndex = createTag.IndexOf("Create and push tag", StringComparison.Ordinal);
+        Assert.Contains("prepare-release", createTag, StringComparison.Ordinal);
+        Assert.True(commitIndex >= 0, "The tag job must commit the generated release metadata.");
+        Assert.True(tagIndex > commitIndex, "Release metadata must be committed before the tag is created.");
+        Assert.Contains("git tag -a \"$TAG\" \"$RELEASE_COMMIT\"", createTag, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "artifacts/release-changelog/release_notes_body.md",
+            createRelease,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("./scripts/Build-Changelog.ps1", createRelease, StringComparison.Ordinal);
+        Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
     public async Task UpdateMetadata_StampsSeparatedTopLevelAndPackageVersions()
     {
         var sandbox = CreateSandbox();
@@ -283,6 +325,30 @@ public sealed class ReleaseMetadataScriptTests
         }
 
         return element.GetString()!;
+    }
+
+    private static string ExtractWorkflowJob(string workflow, string jobName)
+    {
+        workflow = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var marker = $"\n  {jobName}:\n";
+        var start = workflow.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Workflow job '{jobName}' was not found.");
+
+        start += marker.Length;
+        var end = workflow.IndexOf("\n  ", start, StringComparison.Ordinal);
+        while (end >= 0)
+        {
+            var nextLineEnd = workflow.IndexOf('\n', end + 1);
+            var line = nextLineEnd >= 0 ? workflow[end..nextLineEnd] : workflow[end..];
+            if (line.Length > 3 && line[3] != ' ')
+            {
+                break;
+            }
+
+            end = workflow.IndexOf("\n  ", end + 3, StringComparison.Ordinal);
+        }
+
+        return end >= 0 ? workflow[start..end] : workflow[start..];
     }
 
     private static string FindRepoRoot()

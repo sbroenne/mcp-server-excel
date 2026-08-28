@@ -38,9 +38,13 @@ env:
   DOTNET_VERSION: '10.0.x'
   NODE_VERSION: '22'
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   # =============================================================================
-  # Job 0: Calculate Version and Create Tag
+  # Job 0: Calculate Version
   # =============================================================================
   version:
     name: Calculate Version
@@ -104,7 +108,47 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # =============================================================================
-  # Job 1: Build CLI (standalone exe — primary + NuGet pack — secondary)
+  # Job 1: Prepare the changelog before packaging
+  # =============================================================================
+  prepare-release:
+    name: Prepare Release Changelog
+    needs: [version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install changesets CLI
+      run: npm ci --registry https://registry.npmjs.org/
+
+    - name: Compile changesets into CHANGELOG.md
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $releaseDate = Get-Date -AsUTC -Format 'yyyy-MM-dd'
+        Set-Content -Path release_date.txt -Value $releaseDate -NoNewline
+        ./scripts/Build-Changelog.ps1 -Version "${{ needs.version.outputs.version }}" -Date $releaseDate
+
+    - name: Upload Prepared Changelog
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-changelog
+        path: |
+          CHANGELOG.md
+          release_notes_body.md
+          release_date.txt
+
+  # =============================================================================
+  # Job 2: Build CLI (standalone exe — primary + NuGet pack — secondary)
   # =============================================================================
   build-cli:
     name: CLI
@@ -283,7 +327,7 @@ jobs:
   # =============================================================================
   build-vscode:
     name: VS Code Extension
-    needs: [version]
+    needs: [version, prepare-release]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -312,9 +356,15 @@ jobs:
         .\scripts\Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
       shell: pwsh
 
-    - name: Sync Extension Changelog
+    - name: Download Prepared Changelog
+      uses: actions/download-artifact@v8
+      with:
+        name: release-changelog
+        path: release-changelog
+
+    - name: Sync Prepared Changelog
       run: |
-        Copy-Item "CHANGELOG.md" "vscode-extension/CHANGELOG.md" -Force
+        Copy-Item "release-changelog/CHANGELOG.md" "CHANGELOG.md" -Force
       shell: pwsh
 
     - name: Install Dependencies
@@ -351,7 +401,7 @@ jobs:
   # =============================================================================
   build-mcpb:
     name: MCPB Bundle
-    needs: [version]
+    needs: [version, prepare-release]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -368,6 +418,16 @@ jobs:
       run: |
         $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Download Prepared Changelog
+      uses: actions/download-artifact@v8
+      with:
+        name: release-changelog
+        path: release-changelog
+
+    - name: Sync Prepared Changelog
+      run: Copy-Item "release-changelog/CHANGELOG.md" "CHANGELOG.md" -Force
       shell: pwsh
 
     - name: Build MCPB Bundle
@@ -500,7 +560,7 @@ jobs:
   # =============================================================================
   create-tag:
     name: Create Git Tag
-    needs: [version, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
+    needs: [version, prepare-release, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -508,6 +568,110 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install changesets CLI
+        run: npm ci --registry https://registry.npmjs.org/
+
+      - name: Download Prepared Changelog
+        uses: actions/download-artifact@v8
+        with:
+          name: release-changelog
+          path: prepared-release
+
+      - name: Compile and Verify Release Metadata
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $releaseDate = Get-Content -Raw prepared-release/release_date.txt
+          ./scripts/Build-Changelog.ps1 -Version "${{ needs.version.outputs.version }}" -Date $releaseDate
+
+          $generatedChangelog = (Get-FileHash CHANGELOG.md -Algorithm SHA256).Hash
+          $preparedChangelog = (Get-FileHash prepared-release/CHANGELOG.md -Algorithm SHA256).Hash
+          if ($generatedChangelog -ne $preparedChangelog) {
+            throw 'Generated CHANGELOG.md differs from the changelog used to build release artifacts.'
+          }
+
+          $generatedNotes = (Get-FileHash release_notes_body.md -Algorithm SHA256).Hash
+          $preparedNotes = (Get-FileHash prepared-release/release_notes_body.md -Algorithm SHA256).Hash
+          if ($generatedNotes -ne $preparedNotes) {
+            throw 'Generated release notes differ from the notes prepared before artifact builds.'
+          }
+
+      - name: Commit Release Metadata Update
+        id: release_commit
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          set -euo pipefail
+
+          VERSION=${{ needs.version.outputs.version }}
+          REPO="${{ github.repository }}"
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so release metadata can be committed back to main."
+            exit 1
+          fi
+
+          # Stage exactly the files Build-Changelog.ps1 touches.
+          git add -A CHANGELOG.md package.json package-lock.json Directory.Build.props \
+            mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json \
+            vscode-extension/package.json vscode-extension/package-lock.json .changeset
+
+          BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
+          if git diff --cached --quiet; then
+            echo "No release metadata changes to commit; tagging main@$BASE_SHA."
+            echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Base the metadata commit on the current main tip so the update is a
+          # fast-forward even when main advanced while release artifacts built.
+          BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
+          echo "Basing release metadata commit on main@$BASE_SHA"
+
+          tree_entries='[]'
+          while IFS=$'\t' read -r status path; do
+            [ -z "$path" ] && continue
+            if [ "$status" = "D" ]; then
+              echo "  delete  $path"
+              entry=$(jq -n --arg path "$path" '{path:$path, mode:"100644", type:"blob", sha:null}')
+            else
+              echo "  write   $path"
+              git show ":$path" | base64 -w0 > blob.b64
+              blob_sha=$(gh api "repos/$REPO/git/blobs" --method POST \
+                -f encoding=base64 -F content=@blob.b64 --jq '.sha')
+              rm -f blob.b64
+              staged_sha=$(git rev-parse ":$path")
+              if [ "$blob_sha" != "$staged_sha" ]; then
+                echo "::error::Uploaded blob for $path does not match the staged content."
+                exit 1
+              fi
+              entry=$(jq -n --arg path "$path" --arg sha "$blob_sha" \
+                '{path:$path, mode:"100644", type:"blob", sha:$sha}')
+            fi
+            tree_entries=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$tree_entries")
+          done < <(git diff --cached --name-status)
+
+          new_tree=$(jq -n --arg base "$BASE_TREE" --argjson tree "$tree_entries" \
+            '{base_tree:$base, tree:$tree}' \
+            | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
+
+          new_commit=$(jq -n \
+            --arg msg "chore: update release metadata for v${VERSION} [skip ci]" \
+            --arg tree "$new_tree" --arg parent "$BASE_SHA" \
+            '{message:$msg, tree:$tree, parents:[$parent]}' \
+            | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
+
+          gh api "repos/$REPO/git/refs/heads/main" --method PATCH \
+            -f sha="$new_commit" -F force=false >/dev/null
+          echo "sha=$new_commit" >> "$GITHUB_OUTPUT"
+          echo "Committed release metadata for v${VERSION} to main@$new_commit."
 
       - name: Configure Git
         run: |
@@ -517,8 +681,10 @@ jobs:
       - name: Create and push tag
         run: |
           TAG="${{ needs.version.outputs.tag }}"
-          echo "Creating tag: $TAG"
-          git tag -a "$TAG" -m "Release $TAG"
+          RELEASE_COMMIT="${{ steps.release_commit.outputs.sha }}"
+          git fetch origin main
+          echo "Creating tag $TAG at release metadata commit $RELEASE_COMMIT"
+          git tag -a "$TAG" "$RELEASE_COMMIT" -m "Release $TAG"
           git push origin "$TAG"
 
   # =============================================================================
@@ -604,15 +770,12 @@ jobs:
   # =============================================================================
   create-release:
     name: Create GitHub Release
-    needs: [version, create-tag, publish]
+    needs: [version, prepare-release, create-tag, publish]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-    # The release metadata commit-back reads main's current tip and writes the new
-    # commit through the Git Data API (see "Commit Release Metadata Update"), so it
-    # does not rebase locally. A shallow checkout is enough here.
     - uses: actions/checkout@v7
 
     - name: Set Version
@@ -629,29 +792,11 @@ jobs:
         echo "Downloaded artifacts:"
         find artifacts -type f -name "*" | head -20
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-
-    - name: Install changesets CLI
-      run: npm install --no-save --registry https://registry.npmjs.org/
-
-    - name: Compile changesets into CHANGELOG.md
-      id: changelog
-      shell: pwsh
-      env:
-        # @changesets/changelog-github needs a token to look up PR/commit info for changelog entries.
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        $releaseDate = Get-Date -AsUTC -Format 'yyyy-MM-dd'
-        ./scripts/Build-Changelog.ps1 -Version "${{ env.VERSION }}" -Date $releaseDate
-
     - name: Render Release Notes
       shell: pwsh
       run: |
         $template = Get-Content -Raw '.github/release-notes-template.md'
-        $changelogBody = Get-Content -Raw release_notes_body.md
+        $changelogBody = Get-Content -Raw artifacts/release-changelog/release_notes_body.md
         $notes = $template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $changelogBody.Trim())
         Set-Content -Path release_notes.md -Value $notes -NoNewline
 
@@ -707,106 +852,3 @@ jobs:
           --notes-file release_notes.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # Commit the changelog and persistent version metadata changes produced by
-    # Build-Changelog.ps1 above (plus consumed changesets) directly back to main.
-    #
-    # WHY THIS USES THE GIT DATA API INSTEAD OF A PR:
-    #
-    # main is protected by a ruleset whose ONLY bypass actor is the "Repository
-    # admin" role (bypass_mode: always). This repo is user-owned, so the
-    # github-actions bot cannot be added as a bypass actor (GitHub only allows
-    # that for GitHub Apps in organizations). The default GITHUB_TOKEN therefore
-    # can neither push to main nor satisfy the required PR / status-check /
-    # Copilot-review rules for a bookkeeping commit.
-    #
-    # RELEASE_PAT is owned by the repo owner, who IS the admin bypass actor, so
-    # an admin-authenticated write to main bypasses those rules. Two earlier
-    # approaches both failed in real releases:
-    #   * `git push HEAD:main` from inside the runner -- rejected by the ruleset
-    #     (v1.10.1); a raw push is not reliably attributed to the PAT's admin
-    #     identity, so the bypass did not apply.
-    #   * changelog PR + `gh pr merge --admin` -- RELEASE_PAT is a fine-grained
-    #     token WITHOUT "pull requests: write", so `createPullRequest` fails with
-    #     "Resource not accessible by personal access token" (this broke v1.10.2).
-    #
-    # The Git Data API path below (create blob -> tree -> commit -> update ref)
-    # only needs "contents: write" -- which the PAT provably has -- and every
-    # call is unambiguously authenticated as the admin bypass actor via gh api,
-    # so the ref update on main is allowed to bypass the ruleset. No side
-    # branch, no PR, nothing to get stuck.
-    - name: Commit Release Metadata Update
-      env:
-        GH_TOKEN: ${{ secrets.RELEASE_PAT }}
-      run: |
-        set -euo pipefail
-
-        VERSION=${{ env.VERSION }}
-        REPO="${{ github.repository }}"
-
-        if [ -z "${GH_TOKEN:-}" ]; then
-          echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so release metadata can be committed back to main."
-          exit 1
-        fi
-
-        # Stage exactly the files Build-Changelog.ps1 touches.
-        git add -A CHANGELOG.md package.json package-lock.json Directory.Build.props \
-          mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json \
-          vscode-extension/package.json vscode-extension/package-lock.json .changeset
-        if git diff --cached --quiet; then
-          echo "No release metadata changes to commit -- skipping."
-          exit 0
-        fi
-
-        # Base the new commit on the CURRENT tip of main: the release build can
-        # run for a long time, so main may have advanced since this job checked
-        # out. Making our commit's parent that tip keeps the ref update a
-        # fast-forward; if main advances again between this read and the update
-        # below, the ref PATCH fails loudly rather than clobbering that work.
-        BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
-        BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
-        echo "Basing release metadata commit on main@$BASE_SHA"
-
-        # Build Git tree entries from the staged diff: modified/added files get
-        # their normalized staged blob; deleted changeset fragments get sha=null.
-        tree_entries='[]'
-        while IFS=$'\t' read -r status path; do
-          [ -z "$path" ] && continue
-          if [ "$status" = "D" ]; then
-            echo "  delete  $path"
-            entry=$(jq -n --arg path "$path" '{path:$path, mode:"100644", type:"blob", sha:null}')
-          else
-            echo "  write   $path"
-            git show ":$path" | base64 -w0 > blob.b64
-            blob_sha=$(gh api "repos/$REPO/git/blobs" --method POST \
-              -f encoding=base64 -F content=@blob.b64 --jq '.sha')
-            rm -f blob.b64
-            staged_sha=$(git rev-parse ":$path")
-            if [ "$blob_sha" != "$staged_sha" ]; then
-              echo "::error::Uploaded blob for $path does not match the staged content."
-              exit 1
-            fi
-            entry=$(jq -n --arg path "$path" --arg sha "$blob_sha" \
-              '{path:$path, mode:"100644", type:"blob", sha:$sha}')
-          fi
-          tree_entries=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$tree_entries")
-        done < <(git diff --cached --name-status)
-
-        # Create the tree, the commit (parented on the current main tip), and
-        # fast-forward main to it -- all as the admin bypass actor.
-        new_tree=$(jq -n --arg base "$BASE_TREE" --argjson tree "$tree_entries" \
-          '{base_tree:$base, tree:$tree}' \
-          | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
-
-        new_commit=$(jq -n \
-          --arg msg "chore: update release metadata for v${VERSION} [skip ci]" \
-          --arg tree "$new_tree" --arg parent "$BASE_SHA" \
-          '{message:$msg, tree:$tree, parents:[$parent]}' \
-          | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
-
-        gh api "repos/$REPO/git/refs/heads/main" --method PATCH \
-          -f sha="$new_commit" -F force=false >/dev/null
-        echo "Committed release metadata for v${VERSION} to main@$new_commit."
-      # Intentionally NOT continue-on-error: a silently swallowed failure here
-      # is exactly what caused several past releases to be missing their
-      # release metadata commit-back. Let it fail loudly so it gets noticed and fixed.
