@@ -11,6 +11,15 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.5] - 2026-08-28
+
+### Patch Changes
+
+- [#826](https://github.com/sbroenne/mcp-server-excel/pull/826) [`be26b87`](https://github.com/sbroenne/mcp-server-excel/commit/be26b87716ec527298dc333d9799278d3caa6634) Thanks [@sbroenne](https://github.com/sbroenne)! - **Separate expected results from product failures in anonymous reliability
+  reporting.** MCP telemetry now records only fixed outcome and failure-class
+  labels, keeps unknown failures visible, and preserves structured recovery
+  categories across MCP and CLI responses.
+
 ## [2.0.4] - 2026-08-28
 
 ### Patch Changes
