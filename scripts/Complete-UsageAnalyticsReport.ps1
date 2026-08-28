@@ -51,7 +51,7 @@ foreach ($entry in $forbiddenPatterns.GetEnumerator()) {
 }
 
 $allowedNumbers = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-$numberPattern = '(?<![\w.])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
+$numberPattern = '(?<![\w.])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)*'
 foreach ($match in [regex]::Matches($analyticsText, $numberPattern)) {
     [void]$allowedNumbers.Add($match.Value.Replace(",", ""))
 }

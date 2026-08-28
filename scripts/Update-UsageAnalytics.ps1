@@ -21,7 +21,10 @@ let engagement = AppEvents
 | where TimeGenerated > ago(90d)
 | where Name !in ('SessionStart', 'file/open', 'file/close')
 | summarize ActiveDays=dcount(startofday(TimeGenerated)) by UserId
-| summarize RepeatUserRate=round(100.0 * countif(ActiveDays >= 2) / count(), 2);
+| summarize RepeatUserRate=iif(
+    count() == 0,
+    0.0,
+    round(100.0 * countif(ActiveDays >= 2) / count(), 2));
 AppEvents
 | where TimeGenerated > ago(90d)
 | where Name !in ('SessionStart', 'file/open', 'file/close')
@@ -41,8 +44,14 @@ let previous = AppEvents
 current
 | extend PreviousUsers=toscalar(previous | project Users),
          PreviousInvocations=toscalar(previous | project Invocations)
-| extend UserChangePct=round(100.0 * (Users-PreviousUsers) / PreviousUsers, 2),
-         InvocationChangePct=round(100.0 * (Invocations-PreviousInvocations) / PreviousInvocations, 2)
+| extend UserChangePct=iif(
+             PreviousUsers == 0,
+             0.0,
+             round(100.0 * (Users-PreviousUsers) / PreviousUsers, 2)),
+         InvocationChangePct=iif(
+             PreviousInvocations == 0,
+             0.0,
+             round(100.0 * (Invocations-PreviousInvocations) / PreviousInvocations, 2))
 '@
     weekly = @'
 AppEvents
@@ -108,7 +117,7 @@ AppRequests
 | where Name !in ('file/open', 'file/close')
 | extend ToolFamily=tostring(split(Name, '/')[0])
 | summarize Invocations=count(), Users=dcount(UserId) by ToolFamily
-| extend SharePct=round(100.0 * Invocations / total, 2)
+| extend SharePct=iif(total == 0, 0.0, round(100.0 * Invocations / total, 2))
 | order by Invocations desc
 | take 20
 '@
@@ -143,7 +152,7 @@ AppRequests
     'other'
 )
 | summarize Invocations=count(), Users=dcount(UserId) by HeroFeature
-| extend SharePct=round(100.0 * Invocations / total, 2)
+| extend SharePct=iif(total == 0, 0.0, round(100.0 * Invocations / total, 2))
 | order by Invocations desc
 '@
     reliability = @"
@@ -221,7 +230,11 @@ function Invoke-LogAnalyticsQuery {
 
 function Convert-ToNumber {
     param([object]$Value)
-    if ($null -eq $Value -or $Value -isnot [ValueType]) {
+    $numericTypes = @(
+        [int], [long], [double], [decimal], [single]
+    )
+    if ($null -eq $Value -or
+        -not ($numericTypes | Where-Object { $_.IsInstanceOfType($Value) })) {
         throw "Analytics query returned a non-numeric value."
     }
     return $Value
@@ -387,20 +400,20 @@ foreach ($operation in $report.operations) {
     if ($operation.name -notmatch '^[a-z0-9_/-]+$') {
         throw "Analytics contains an unsafe operation dimension."
     }
-    foreach ($operation in $report.reliability) {
-        if ($operation.name -notmatch '^[a-z0-9_/-]+$') {
-            throw "Analytics contains an unsafe reliability dimension."
-        }
+}
+foreach ($reliabilityItem in $report.reliability) {
+    if ($reliabilityItem.name -notmatch '^[a-z0-9_/-]+$') {
+        throw "Analytics contains an unsafe reliability dimension."
     }
 }
 foreach ($family in $report.toolFamilies) {
     if ($family.name -notmatch '^[a-z0-9_-]+$') {
         throw "Analytics contains an unsafe tool-family dimension."
     }
-    foreach ($feature in $report.heroFeatures) {
-        if ($feature.name -notmatch '^[a-z0-9-]+$') {
-            throw "Analytics contains an unsafe homepage-feature dimension."
-        }
+}
+foreach ($feature in $report.heroFeatures) {
+    if ($feature.name -notmatch '^[a-z0-9-]+$') {
+        throw "Analytics contains an unsafe homepage-feature dimension."
     }
 }
 foreach ($version in $report.versionReliability) {
@@ -412,11 +425,11 @@ foreach ($week in $report.weekly) {
     if ($week.week -notmatch '^\d{4}-\d{2}-\d{2}$') {
         throw "Analytics contains an unsafe weekly date."
     }
-    foreach ($release in $report.versionAdoption) {
-        if ($release.week -notmatch '^\d{4}-\d{2}-\d{2}$' -or
-            $release.version -notmatch '^(?:[0-9A-Za-z.+-]+|Other)$') {
-            throw "Analytics contains an unsafe release-adoption dimension."
-        }
+}
+foreach ($release in $report.versionAdoption) {
+    if ($release.week -notmatch '^\d{4}-\d{2}-\d{2}$' -or
+        $release.version -notmatch '^(?:[0-9A-Za-z.+-]+|Other)$') {
+        throw "Analytics contains an unsafe release-adoption dimension."
     }
 }
 foreach ($exception in $report.exceptions) {

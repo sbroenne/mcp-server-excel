@@ -40,7 +40,8 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 //   src/ExcelMcp.McpServer/Program.cs (DroppedHttpClientMetricNames) - update both when changed.
 // - HeartbeatState and AppPerformanceCounters (Requests/Sec, Private Bytes, % Processor Time, ...)
 //   are emitted by Microsoft.ApplicationInsights.WorkerService 3.1.2 with no corresponding
-//   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process (that
+//   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process, so the
+//   ingestion-time transform is the enforcement boundary.
 // - AppExceptions can otherwise include exception messages and stack traces auto-collected
 //   by the Worker Service SDK. Only ExcelMcp's explicitly sanitized exception records survive.
 // - AppTraces can contain framework-generated host paths and client names. ExcelMcp uses

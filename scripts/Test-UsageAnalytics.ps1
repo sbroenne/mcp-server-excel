@@ -139,6 +139,60 @@ try {
     }
     $testsRun++
 
+    $querySource = [IO.File]::ReadAllText($updateScript)
+    Assert-True ($querySource -match 'iif\(\s*count\(\) == 0,\s*0\.0,') `
+        "The repeat-use query does not guard an empty reporting window."
+    Assert-True ($querySource -match 'iif\(\s*PreviousUsers == 0,\s*0\.0,') `
+        "The user comparison does not guard an empty previous window."
+    Assert-True ($querySource -match 'iif\(\s*PreviousInvocations == 0,\s*0\.0,') `
+        "The action comparison does not guard an empty previous window."
+    $testsRun++
+
+    $invalidReliabilityFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $invalidReliabilityFixture.operations = @()
+    $invalidReliabilityFixture.reliability[0].Name = "unsafe name"
+    $invalidReliabilityPath = Write-TestFile "invalid-reliability-fixture.json" `
+        ($invalidReliabilityFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "unsafe reliability dimension" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "invalid-reliability.json") `
+            -FixturePath $invalidReliabilityPath
+    }
+
+    $invalidFeatureFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $invalidFeatureFixture.families = @()
+    $invalidFeatureFixture.heroFeatures[0].HeroFeature = "unsafe feature"
+    $invalidFeaturePath = Write-TestFile "invalid-feature-fixture.json" `
+        ($invalidFeatureFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "unsafe homepage-feature dimension" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "invalid-feature.json") `
+            -FixturePath $invalidFeaturePath
+    }
+
+    $invalidReleaseFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $invalidReleaseFixture.weekly = @()
+    $invalidReleaseFixture.versionAdoption[0].Version = "unsafe version"
+    $invalidReleasePath = Write-TestFile "invalid-release-fixture.json" `
+        ($invalidReleaseFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "unsafe release-adoption dimension" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "invalid-release.json") `
+            -FixturePath $invalidReleasePath
+    }
+    $testsRun++
+
+    $nonNumericFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $nonNumericFixture.overview[0].Users = $true
+    $nonNumericPath = Write-TestFile "non-numeric-fixture.json" `
+        ($nonNumericFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "non-numeric value" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "non-numeric.json") `
+            -FixturePath $nonNumericPath
+    }
+    $testsRun++
+
     $interpretation = @"
 ## What changed
 
@@ -221,6 +275,16 @@ Investigate the 12 background task problems before changing behavior.
             -AnalyticsPath $analyticsPath `
             -InterpretationPath $unsupportedPath `
             -OutputPath (Join-Path $testRoot "unsupported.json")
+    }
+    $testsRun++
+
+    $unsupportedVersion = $interpretation.Replace("Release 2.0.3", "Release 2.0.9")
+    $unsupportedVersionPath = Write-TestFile "unsupported-version.md" $unsupportedVersion
+    Assert-Throws -ExpectedMessage "unsupported numeric claim '2.0.9'" -Action {
+        & $completeScript `
+            -AnalyticsPath $analyticsPath `
+            -InterpretationPath $unsupportedVersionPath `
+            -OutputPath (Join-Path $testRoot "unsupported-version.json")
     }
     $testsRun++
 
