@@ -79,6 +79,8 @@ function Add-Failure([string]$message) { $script:errors.Add($message) }
 # ---------------------------------------------------------------------------
 # 1. Parse the authoritative generated skill manifest
 # ---------------------------------------------------------------------------
+# Emitted sources can survive dotnet clean, so the default refresh above is required before
+# trusting this file. Automated callers may skip it only after their own Release solution build.
 $manifestFile = Get-ChildItem -Path (Join-Path $rootDir "src\ExcelMcp.Core\obj") -Recurse -Filter "_SkillManifest.g.cs" -ErrorAction SilentlyContinue |
     Sort-Object { $_.FullName -notmatch "GeneratedFiles" } |
     Select-Object -First 1
