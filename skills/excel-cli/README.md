@@ -25,14 +25,8 @@ excelcli -q session close --session 1 --save
 
 ### GitHub Copilot
 
-The [Excel MCP Server VS Code extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) installs this skill automatically to `~/.copilot/skills/excel-cli/`.
-
-Enable skills in VS Code settings:
-```json
-{
-  "chat.useAgentSkills": true
-}
-```
+The VS Code extension bundles only the MCP Server skill. Install this CLI skill
+separately with `npx skills`, as shown below, after installing `excelcli`.
 
 ### Other Platforms
 

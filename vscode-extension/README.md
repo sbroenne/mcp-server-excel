@@ -39,7 +39,8 @@ This extension includes an **Agent Skill** following the [agentskills.io](https:
 
 - **[excel-mcp](https://excelmcpserver.dev/skills/)** - MCP Server tool guidance
 
-**VS Code setup:** Enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills. Skills are registered via VS Code's `chatSkills` contribution point and managed automatically.
+The skill is registered automatically through VS Code's `chatSkills`
+contribution point. No separate skill installation or preview setting is needed.
 
 
 ## 💬 Example Prompts
