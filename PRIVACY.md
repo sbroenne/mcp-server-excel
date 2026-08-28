@@ -22,7 +22,8 @@ data that a tool returns to your chosen AI assistant.
 - **Session information** - A random session ID generated each time the server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
-- **Unhandled exceptions** - Error types (not error messages or stack traces with sensitive data)
+- **Unhandled exceptions** - Error type, approved source, and project-owned failure site only
+  (never exception messages or stack traces)
 
 ### What We DO NOT Collect
 
@@ -30,6 +31,8 @@ data that a tool returns to your chosen AI assistant.
 - ❌ **File names or paths** - File paths are hashed locally; actual paths are never transmitted
 - ❌ **Personal information** - No names, emails, or account information
 - ❌ **Spreadsheet data** - Cell values, formulas, and query results are never included in telemetry
+- ❌ **Prompts or messages** - Requests and conversations are never transmitted
+- ❌ **Host or client details** - Working directories and MCP client names are not collected
 - ❌ **User accounts** - No registration or sign-in required
 
 ### Purpose of Telemetry
@@ -46,6 +49,9 @@ Telemetry is sent to **Azure Application Insights**, a Microsoft service. Data i
 - Transmitted over HTTPS
 - Stored in accordance with Microsoft's data handling policies
 - Retained for analytics purposes only
+- Filtered at ingestion so exception records without ExcelMcp's explicit
+  sanitization marker are discarded
+- Filtered at ingestion so framework trace logs are discarded in full
 
 ## How It Works
 

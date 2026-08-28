@@ -7,10 +7,8 @@ param appInsightsName string
 param retentionInDays int
 param tags object
 
-// Name of the workspace-transform DCR that drops noisy AppMetrics rows at ingestion time
-// (see dropNoisyMetricsDcr below). Referenced via resourceId() on the workspace to avoid
-// a circular symbolic dependency between the workspace and the DCR.
-var dropNoisyMetricsDcrName = 'dcr-excelmcp-drop-noisy-metrics'
+// Name of the workspace-transform DCR that drops noisy or unsafe telemetry at ingestion time.
+var telemetrySanitizationDcrName = 'dcr-excelmcp-drop-noisy-metrics'
 
 // Log Analytics Workspace (required backend for Application Insights)
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -28,16 +26,13 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
     workspaceCapping: {
       dailyQuotaGb: 2 // Cap at 2 GB/day to prevent runaway costs
     }
-    // Applies dropNoisyMetricsDcr's ingestion-time transform to tables (e.g. AppMetrics)
-    // that don't have a table-specific DCR of their own.
-    defaultDataCollectionRuleResourceId: resourceId('Microsoft.Insights/dataCollectionRules', dropNoisyMetricsDcrName)
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
   }
 }
 
-// Workspace-transform DCR: drops noisy .NET HttpClient meter instruments and HeartbeatState rows
-// from AppMetrics, and drops the entire AppPerformanceCounters table, before billing/ingestion.
+// Workspace-transform DCR: drops noisy metrics and rejects exception rows unless the
+// application explicitly marked them as sanitized.
 // These were driving the vast majority of billed ingestion for this short-lived CLI/MCP server:
 // - http.client.* gauges/histograms come from the SDK's own outbound HTTP calls (AI ingestion
 //   endpoint) - not useful telemetry (see PR #661, PR #725). The http.client.* portion of this
@@ -45,12 +40,14 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 //   src/ExcelMcp.McpServer/Program.cs (DroppedHttpClientMetricNames) - update both when changed.
 // - HeartbeatState and AppPerformanceCounters (Requests/Sec, Private Bytes, % Processor Time, ...)
 //   are emitted by Microsoft.ApplicationInsights.WorkerService 3.1.2 with no corresponding
-//   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process (that
-//   SDK version has no PerformanceCollectorModule/heartbeat feature at all - see the NOTE in
-//   Program.cs's ConfigureTelemetry). This DCR transform is therefore the only mechanism
-//   suppressing them, not a defense-in-depth backstop for an in-process disable.
-resource dropNoisyMetricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
-  name: dropNoisyMetricsDcrName
+//   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process, so the
+//   ingestion-time transform is the enforcement boundary.
+// - AppExceptions can otherwise include exception messages and stack traces auto-collected
+//   by the Worker Service SDK. Only ExcelMcp's explicitly sanitized exception records survive.
+// - AppTraces can contain framework-generated host paths and client names. ExcelMcp uses
+//   explicit structured events instead, so trace logs are rejected in full.
+resource telemetrySanitizationDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
+  name: telemetrySanitizationDcrName
   location: location
   tags: tags
   kind: 'WorkspaceTransforms'
@@ -75,6 +72,26 @@ resource dropNoisyMetricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11'
         // Drop all rows - performance counters are not useful telemetry for a short-lived CLI/MCP server.
         transformKql: 'source | where false'
       }
+      {
+        streams: [
+          'Microsoft-Table-AppExceptions'
+        ]
+        destinations: [
+          'excelmcpLogs'
+        ]
+        // Fail closed: old clients and SDK auto-collection do not carry this marker.
+        transformKql: 'source | where tostring(Properties["Sanitized"]) == "true"'
+      }
+      {
+        streams: [
+          'Microsoft-Table-AppTraces'
+        ]
+        destinations: [
+          'excelmcpLogs'
+        ]
+        // Framework logs are not part of the approved telemetry contract.
+        transformKql: 'source | where false'
+      }
     ]
     destinations: {
       logAnalytics: [
@@ -84,6 +101,16 @@ resource dropNoisyMetricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11'
         }
       ]
     }
+  }
+}
+
+// Associate only after both resources exist. Referencing the DCR from the initial
+// workspace PUT makes a fresh deployment fail because the DCR depends on the workspace.
+resource telemetrySanitizationAssociation 'Microsoft.Insights/dataCollectionRuleAssociations@2023-03-11' = {
+  name: 'default'
+  scope: logAnalytics
+  properties: {
+    dataCollectionRuleId: telemetrySanitizationDcr.id
   }
 }
 

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Globalization;
+using System.Diagnostics;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
@@ -25,6 +26,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 /// </summary>
 public static class ExcelMcpTelemetry
 {
+    private const string RedactedExceptionMessage = "[REDACTED]";
+    private const int MaxExceptionDepth = 16;
+
     /// <summary>
     /// Unique session ID for correlating telemetry within a single MCP server process.
     /// Changes each time the MCP server starts.
@@ -182,16 +186,120 @@ public static class ExcelMcpTelemetry
     {
         if (_telemetryClient == null || exception == null) return;
 
-        // Redact sensitive data from exception
-        var (type, _, _) = SensitiveDataRedactor.RedactException(exception);
-
-        // Track as exception in Application Insights (for Failures blade)
-        var telemetry = new ExceptionTelemetry(exception);
-        telemetry.Properties["Source"] = source;
-        telemetry.Properties["ExceptionType"] = type;
-        telemetry.Properties["AppVersion"] = GetVersion();
-        ApplyContext(telemetry);
+        var telemetry = CreateSanitizedExceptionTelemetry(exception, source);
         _telemetryClient.TrackException(telemetry);
+    }
+
+    internal static ExceptionTelemetry CreateSanitizedExceptionTelemetry(
+        Exception exception,
+        string source)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        var exceptions = EnumerateExceptions(exception)
+            .Take(MaxExceptionDepth)
+            .ToArray();
+        var exceptionType = exception.GetType().Name;
+        var safeSource = NormalizeExceptionSource(source);
+        var failureSite = FindOwnedFailureSite(exceptions);
+        var properties = new Dictionary<string, string>
+        {
+            ["Sanitized"] = bool.TrueString.ToLowerInvariant(),
+            ["Source"] = safeSource,
+            ["ExceptionType"] = exceptionType,
+            ["InnerExceptionTypes"] = string.Join(
+                ",",
+                exceptions
+                    .Skip(1)
+                    .Select(item => item.GetType().Name)
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)),
+            ["AppVersion"] = GetVersion()
+        };
+
+        if (failureSite != null)
+        {
+            properties["FailureSite"] = failureSite;
+        }
+
+        var details = exceptions.Select((item, index) =>
+            new ExceptionDetailsInfo(
+                id: index + 1,
+                outerId: index == 0 ? 0 : 1,
+                typeName: item.GetType().FullName ?? item.GetType().Name,
+                message: RedactedExceptionMessage,
+                hasFullStack: false,
+                stack: string.Empty,
+                parsedStack: Array.Empty<Microsoft.ApplicationInsights.DataContracts.StackFrame>()));
+        var problemId = failureSite == null
+            ? $"{exceptionType} at {safeSource}"
+            : $"{exceptionType} at {failureSite}";
+        var telemetry = new ExceptionTelemetry(
+            details,
+            SeverityLevel.Critical,
+            problemId,
+            properties);
+        ApplyContext(telemetry);
+        return telemetry;
+    }
+
+    private static IEnumerable<Exception> EnumerateExceptions(Exception exception)
+    {
+        yield return exception;
+
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var innerException in aggregate.Flatten().InnerExceptions)
+            {
+                foreach (var nestedException in EnumerateExceptions(innerException))
+                {
+                    yield return nestedException;
+                }
+            }
+
+            yield break;
+        }
+
+        if (exception.InnerException != null)
+        {
+            foreach (var innerException in EnumerateExceptions(exception.InnerException))
+            {
+                yield return innerException;
+            }
+        }
+    }
+
+    private static string NormalizeExceptionSource(string source) =>
+        source switch
+        {
+            "AppDomain.UnhandledException" => source,
+            "TaskScheduler.UnobservedTaskException" => source,
+            "McpServer.RunAsync" => source,
+            _ => "Unknown"
+        };
+
+    private static string? FindOwnedFailureSite(IEnumerable<Exception> exceptions)
+    {
+        foreach (var exception in exceptions)
+        {
+            var frames = new StackTrace(exception, false).GetFrames();
+            if (frames == null)
+            {
+                continue;
+            }
+
+            foreach (var frame in frames)
+            {
+                var method = frame.GetMethod();
+                var declaringType = method?.DeclaringType?.FullName;
+                if (declaringType?.StartsWith("Sbroenne.ExcelMcp.", StringComparison.Ordinal) == true)
+                {
+                    return $"{declaringType}.{method!.Name}";
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -251,5 +359,4 @@ public static class ExcelMcpTelemetry
         telemetry.Context.Component.Version = GetVersion();
     }
 }
-
 

@@ -1,0 +1,169 @@
+name: Weekly Usage Analytics
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  pull_request:
+    paths:
+      - '.github/workflows/usage-analytics.yml'
+      - 'scripts/*UsageAnalytics*.ps1'
+      - 'gh-pages/**'
+      - '.github/usage-analytics.json'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Persist the validated report to analytics-data
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: usage-analytics
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test analytics privacy gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Test analytics scripts
+        shell: pwsh
+        run: ./scripts/Test-UsageAnalytics.ps1
+
+  collect:
+    name: Collect sanitized aggregates
+    if: github.event_name != 'pull_request'
+    needs: test
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Query sanitized aggregate telemetry
+        shell: pwsh
+        run: |
+          $workspaceId = az monitor log-analytics workspace show `
+            --resource-group excelmcp-observability `
+            --workspace-name excelmcp-logs `
+            --query customerId `
+            --output tsv `
+            --only-show-errors
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($workspaceId)) {
+            throw "Unable to resolve the Log Analytics workspace."
+          }
+
+          $agentDirectory = Join-Path $env:RUNNER_TEMP "usage-analytics-agent"
+          New-Item -ItemType Directory -Path $agentDirectory | Out-Null
+          ./scripts/Update-UsageAnalytics.ps1 `
+            -WorkspaceId $workspaceId `
+            -OutputPath (Join-Path $agentDirectory "analytics.json")
+
+      - name: End Azure session
+        if: always()
+        run: az logout
+
+      - name: Upload sanitized aggregates
+        uses: actions/upload-artifact@v7
+        with:
+          name: usage-analytics-input
+          path: ${{ runner.temp }}/usage-analytics-agent/analytics.json
+          if-no-files-found: error
+          retention-days: 1
+
+  interpret:
+    name: Interpret and validate report
+    needs: collect
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download sanitized aggregates
+        uses: actions/download-artifact@v8
+        with:
+          name: usage-analytics-input
+          path: ${{ runner.temp }}/usage-analytics-agent
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+
+      - name: Install Copilot CLI
+        run: npm install --global @github/copilot@1.0.80
+
+      - name: Interpret sanitized aggregates
+        working-directory: ${{ runner.temp }}/usage-analytics-agent
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+        run: |
+          test -n "$COPILOT_GITHUB_TOKEN" || {
+            echo "::error::COPILOT_GITHUB_TOKEN is not configured"
+            exit 1
+          }
+          copilot -p "Read analytics.json, which contains only pre-checked anonymous totals. Write an interesting, useful interpretation.md for a general public audience with exactly these H2 headings: What changed; How well it worked; How people use it; What we will improve. Do more than repeat the tables. Connect the 90-day overview, weekly history, release-upgrade trend, latest comparison, repeat use, popular areas, and common actions. Explain what the relationship between users and actions may suggest. Mention advanced uses when the numbers support them. Workbook opening and closing are intentionally excluded as setup work, so do not discuss them. State reliability limitations plainly when corrected data is not yet available. Draw only cautious conclusions, using words such as suggests or may rather than claiming a cause. Format English numbers consistently: use comma thousands separators for counts of 1,000 or more and periods as decimal separators. Use one to three short paragraphs under each heading, short sentences, and everyday language. Explain internal names in plain English and never include raw action names. Do not use technical analytics or software-error jargon, including p50, p95, p99, percentile, invocation, cohort, telemetry, sanitized, AggregateException, COMException, or tail latency. Every numeric claim must use an exact number already present in analytics.json. Do not add links, HTML, identifiers, geography, messages, stack traces, or guesses presented as fact. Clearly separate observations from planned improvements." \
+            --allow-tool=write \
+            --no-ask-user
+
+      - name: Validate interpretation and assemble report
+        shell: pwsh
+        run: |
+          $agentDirectory = Join-Path $env:RUNNER_TEMP "usage-analytics-agent"
+          ./scripts/Complete-UsageAnalyticsReport.ps1 `
+            -AnalyticsPath (Join-Path $agentDirectory "analytics.json") `
+            -InterpretationPath (Join-Path $agentDirectory "interpretation.md") `
+            -OutputPath (Join-Path $agentDirectory "usage-analytics.json")
+
+      - name: Upload validated report
+        uses: actions/upload-artifact@v7
+        with:
+          name: usage-analytics-report
+          path: ${{ runner.temp }}/usage-analytics-agent/usage-analytics.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish validated report
+    if: github.event_name == 'schedule' || inputs.publish == true
+    needs: interpret
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download validated report
+        uses: actions/download-artifact@v8
+        with:
+          name: usage-analytics-report
+          path: ${{ runner.temp }}/usage-analytics-report
+
+      - name: Persist to analytics-data branch
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./scripts/Persist-UsageAnalytics.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch 'analytics-data' `
+            -ReportPath (Join-Path $env:RUNNER_TEMP 'usage-analytics-report/usage-analytics.json') `
+            -RemotePath '.github/usage-analytics.json' `
+            -CommitSha '${{ github.sha }}' `
+            -TempPath $env:RUNNER_TEMP

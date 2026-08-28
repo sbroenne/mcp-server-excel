@@ -147,6 +147,7 @@ nav:
       - Screenshots: reference/screenshot.md
       - Dashboards & reports: reference/dashboard.md
   - Resources:
+    - Usage analytics: usage-analytics.md
     - Examples & use cases: use-cases.md
     - Agent Skills: skills.md
     - FAQ: faq.md
