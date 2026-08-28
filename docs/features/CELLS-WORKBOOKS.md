@@ -48,6 +48,35 @@ Read and write cell values, formulas, and formatting across any range of cells.
 - **Replace:** Find and replace values in a range
 - **Sort:** Sort a range by one or more columns
 
+### Explicit ISO date values
+
+`range set-values` accepts typed objects inside its existing 2D `values` array:
+
+```json
+[
+  [
+    { "type": "date", "value": "2026-08-27" },
+    { "type": "datetime", "value": "2026-08-27T14:30:00" },
+    {
+      "type": "datetime-offset",
+      "value": "2026-08-27T14:30:00+02:00",
+      "numberFormat": "yyyy-mm-dd hh:mm"
+    }
+  ]
+]
+```
+
+`date` uses the exact `yyyy-MM-dd` form. `datetime` is a local wall-clock value
+without a timezone and allows fractional seconds. `datetime-offset` requires `Z`
+or a numeric offset and is normalized to UTC because Excel cells do not retain
+timezone information. Excel serial values honor the workbook's 1900 or 1904 date
+system.
+
+Typed dates default to `yyyy-mm-dd`; typed datetimes default to
+`yyyy-mm-dd hh:mm:ss`. Set `numberFormat` on a typed object to override the
+default. Existing numbers, booleans, nulls, and strings remain supported, and a
+plain ISO-looking string stays text rather than being guessed as a date.
+
 **Discovery & Utilities:**
 - **Get Used Range:** Get the worksheet's used range
 - **Get Current Region:** Get the contiguous data region around a cell

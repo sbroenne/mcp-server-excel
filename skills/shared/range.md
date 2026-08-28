@@ -18,6 +18,25 @@ If you are looking for percentage, currency, date, or text display formatting, u
 If you are looking for auto-fit, width, height, borders, fill, or font styling, use `range_format`.
 If you need the same styling on multiple non-contiguous ranges, use `format-ranges` instead of repeating `format-range`.
 
+## Typed ISO Date Values
+
+Use explicit objects inside the existing `set-values` matrix when a cell must contain an Excel date value:
+
+```text
+range(action: 'set-values', range_address: 'A1:C1', values: [[
+    {"type":"date","value":"2026-08-27"},
+    {"type":"datetime","value":"2026-08-27T14:30:00"},
+    {"type":"datetime-offset","value":"2026-08-27T14:30:00+02:00","numberFormat":"yyyy-mm-dd hh:mm"}
+]])
+```
+
+- `date` requires `yyyy-MM-dd`.
+- `datetime` requires `yyyy-MM-ddTHH:mm:ss`, allows fractional seconds, and must not include a timezone.
+- `datetime-offset` requires `Z` or a numeric offset and is stored as UTC because Excel cells have no timezone.
+- `numberFormat` is optional. Defaults are `yyyy-mm-dd` for dates and `yyyy-mm-dd hh:mm:ss` for both datetime types.
+- Serial values follow the workbook's 1900 or 1904 date system.
+- Plain strings stay text; the server never guesses that an ordinary string is a date.
+
 ## Quick Pattern: Write, Format, Auto-Fit
 
 ```

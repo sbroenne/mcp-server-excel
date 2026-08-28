@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
@@ -83,6 +84,7 @@ public partial class RangeCommands
     {
         // Resolve values from inline parameter or file
         var resolvedValues = ParameterTransforms.ResolveValuesOrFile(values, valuesFile);
+        var preparedValues = PrepareCellValues(resolvedValues);
 
         // SMART FORMULA DETECTION: Check if any value starts with "=" and auto-route to SetFormulas
         bool hasFormulas = DetectFormulas(resolvedValues, out var detectedFormulas);
@@ -137,6 +139,8 @@ public partial class RangeCommands
 
                 if (rows > 0 && cols > 0)
                 {
+                    bool use1904DateSystem = Convert.ToBoolean(ctx.Book.Date1904);
+
                     // Create 1-based array for Excel COM compatibility
                     object[,] arrayValues = (object[,])Array.CreateInstance(typeof(object), [rows, cols], [1, 1]);
 
@@ -144,13 +148,14 @@ public partial class RangeCommands
                     {
                         for (int c = 1; c <= cols; c++)
                         {
-                            // Convert JsonElement to proper C# type for COM interop
-                            // MCP framework deserializes JSON to JsonElement, not primitives
-                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(resolvedValues[r - 1][c - 1]);
+                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(
+                                preparedValues[r - 1][c - 1],
+                                use1904DateSystem);
                         }
                     }
 
                     range.Value2 = arrayValues;
+                    ApplyTypedNumberFormats(range, preparedValues, ctx.FormatTranslator);
                 }
 
                 setResult.Success = true;
@@ -177,6 +182,70 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    private static List<List<PreparedCellValue>> PrepareCellValues(
+        List<List<object?>> values)
+    {
+        var prepared = new List<List<PreparedCellValue>>(values.Count);
+        for (int rowIndex = 0; rowIndex < values.Count; rowIndex++)
+        {
+            var row = new List<PreparedCellValue>(values[rowIndex].Count);
+            for (int columnIndex = 0; columnIndex < values[rowIndex].Count; columnIndex++)
+            {
+                row.Add(TypedCellValueParser.Parse(
+                    values[rowIndex][columnIndex],
+                    rowIndex + 1,
+                    columnIndex + 1));
+            }
+
+            prepared.Add(row);
+        }
+
+        return prepared;
+    }
+
+    private static void ApplyTypedNumberFormats(
+        dynamic range,
+        List<List<PreparedCellValue>> values,
+        NumberFormatTranslator formatTranslator)
+    {
+        if (!values.SelectMany(row => row).Any(value => value.IsTypedDate))
+        {
+            return;
+        }
+
+        dynamic? cells = null;
+        try
+        {
+            cells = range.Cells;
+            for (int rowIndex = 0; rowIndex < values.Count; rowIndex++)
+            {
+                for (int columnIndex = 0; columnIndex < values[rowIndex].Count; columnIndex++)
+                {
+                    var value = values[rowIndex][columnIndex];
+                    if (!value.IsTypedDate)
+                    {
+                        continue;
+                    }
+
+                    dynamic? cell = null;
+                    try
+                    {
+                        cell = cells[rowIndex + 1, columnIndex + 1];
+                        cell.NumberFormat = formatTranslator.TranslateToLocale(value.NumberFormat!);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref cells);
+        }
     }
 
     /// <summary>
@@ -229,6 +298,4 @@ public partial class RangeCommands
         }
     }
 }
-
-
 

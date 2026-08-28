@@ -82,6 +82,19 @@ range.Value2 = values;  // Bulk write
 object[,] data = range.Value2;  // Bulk read
 ```
 
+`set-values` keeps its 2D array contract and accepts explicit typed date cells:
+
+```json
+[[{"type":"date","value":"2026-08-27"}]]
+```
+
+Supported types are `date` (`yyyy-MM-dd`), `datetime` (ISO local date/time
+without an offset), and `datetime-offset` (ISO date/time with `Z` or a numeric
+offset). Offset values normalize to UTC, serial values honor the workbook's 1900
+or 1904 date system, and an optional `numberFormat` overrides the documented ISO
+default. Primitive values remain supported and strings are never inferred as
+dates.
+
 #### 2. **Formula Operations**  
 ```csharp
 // Excel COM: Range.Formula property (string array)

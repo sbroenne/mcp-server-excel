@@ -12,11 +12,16 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 ///
 /// BEST PRACTICE: Use 'get-values' to check existing data before overwriting.
 /// Use 'clear-contents' (not 'clear-all') to preserve cell formatting when clearing data.
-/// set-values preserves existing formatting; use set-number-format after if format change needed.
+/// set-values preserves existing formatting for primitive values. Explicit typed date values apply
+/// their numberFormat or the documented ISO default.
 ///
 /// DATA FORMAT: values and formulas are 2D JSON arrays representing rows and columns.
 /// Example: [[row1col1, row1col2], [row2col1, row2col2]]
 /// Single cell returns [[value]] (always 2D).
+/// Explicit dates use {"type":"date","value":"2026-08-27"}, local datetimes use
+/// {"type":"datetime","value":"2026-08-27T14:30:00"}, and timezone-bearing datetimes use
+/// {"type":"datetime-offset","value":"2026-08-27T14:30:00+02:00"}. Ordinary strings are never
+/// guessed as dates.
 ///
 /// REQUIRED PARAMETERS:
 /// - sheetName + rangeAddress for cell operations (e.g., sheetName='Sheet1', rangeAddress='A1:D10')
@@ -28,7 +33,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. TYPED DATES: Use {\"type\":\"date\",\"value\":\"2026-08-27\"}, {\"type\":\"datetime\",\"value\":\"2026-08-27T14:30:00\"}, or {\"type\":\"datetime-offset\",\"value\":\"2026-08-27T14:30:00+02:00\"}; ordinary strings remain text. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
@@ -50,11 +55,16 @@ public interface IRangeCommands
     /// JSON file: must contain a 2D array like [[1,2],[3,4]].
     /// CSV file: rows become array rows, comma-separated values become columns.
     /// Every row must be rectangular and match the target range column count.
+    /// Typed date objects accept type=date with yyyy-MM-dd, type=datetime without a timezone,
+    /// or type=datetime-offset with Z/an offset. Offset values are normalized to UTC because Excel
+    /// stores no timezone. Typed values may include numberFormat; otherwise date uses yyyy-mm-dd and
+    /// both datetime types use yyyy-mm-dd hh:mm:ss. Serial values follow the workbook's 1900/1904
+    /// date system. Ordinary strings and existing primitive values keep their current behavior.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address matching data dimensions (e.g., 'A1' for [[value]], 'A1:B2' for [[v1,v2],[v3,v4]])</param>
-    /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Optional if valuesFile is provided.</param>
+    /// <param name="values">2D array of primitive or typed date values. Typed object: {"type":"date|datetime|datetime-offset","value":"ISO 8601","numberFormat":"optional Excel format"}. Optional if valuesFile is provided.</param>
     /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
     [ServiceAction("set-values")]
     OperationResult SetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null);
@@ -301,6 +311,5 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
-
 
 

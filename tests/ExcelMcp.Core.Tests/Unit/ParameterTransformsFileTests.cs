@@ -145,6 +145,21 @@ public sealed class ParameterTransformsFileTests : IDisposable
     }
 
     [Fact]
+    public void ResolveValuesOrFile_JsonFile_PreservesTypedDateObject()
+    {
+        var path = CreateTempFile(
+            "typed-date.json",
+            """[[{"type":"date","value":"2026-08-27","numberFormat":"dd-mmm-yyyy"}]]""");
+
+        var result = ParameterTransforms.ResolveValuesOrFile(null, path);
+
+        var typedValue = Assert.IsType<System.Text.Json.JsonElement>(result[0][0]);
+        Assert.Equal("date", typedValue.GetProperty("type").GetString());
+        Assert.Equal("2026-08-27", typedValue.GetProperty("value").GetString());
+        Assert.Equal("dd-mmm-yyyy", typedValue.GetProperty("numberFormat").GetString());
+    }
+
+    [Fact]
     public void ResolveValuesOrFile_InvalidJson_ThrowsArgumentException()
     {
         var path = CreateTempFile("bad.json", "{ this is not valid }");

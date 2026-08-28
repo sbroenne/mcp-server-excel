@@ -118,6 +118,33 @@ public static class RangeHelpers
         // Already a proper type (from CLI or tests)
         return value;
     }
+
+    /// <summary>
+    /// Converts a prepared range value to the COM-compatible value for the workbook's date system.
+    /// </summary>
+    internal static object ConvertToCellValue(
+        PreparedCellValue value,
+        bool use1904DateSystem)
+    {
+        if (value.IsTypedDate)
+        {
+            return TypedCellValueParser.ToExcelSerial(
+                value.DateTimeValue,
+                use1904DateSystem,
+                value.RowIndex,
+                value.ColumnIndex);
+        }
+
+        var primitiveValue = ConvertToCellValue(value.PrimitiveValue);
+        if (primitiveValue is string { Length: > 0 } text)
+        {
+            // A leading apostrophe tells Excel to keep a JSON string as text instead of
+            // locale-coercing date-like or numeric-looking content during the bulk write.
+            return $"'{text}";
+        }
+
+        return primitiveValue;
+    }
 }
 
 /// <summary>
@@ -241,4 +268,3 @@ public partial class RangeCommands
         });
     }
 }
-
