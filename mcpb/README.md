@@ -58,7 +58,7 @@ These examples work with any Excel file, including a new empty workbook.
 
 ### Example 3: Power Query and Data Model Analysis
 
-**You say:** *"Use Power Query to import this CSV file: C:/Data/products.csv. Add the data to the Data Model and create measures for Total Revenue and Average Rating."*
+**You say:** *"Use Power Query to import this CSV file: C:\Data\products.csv. Add the data to the Data Model and create measures for Total Revenue and Average Rating."*
 
 **What happens:**
 - Imports the CSV using Power Query
@@ -88,12 +88,17 @@ These examples work with any Excel file, including a new empty workbook.
 
 ## Privacy & Security
 
-Excel MCP Server runs **entirely on your computer**. Your Excel data:
-- Never leaves your machine
-- Is not sent to any external servers
-- Is not used for training AI models
+Excel MCP Server drives the Excel application on your computer. Workbook files
+stay on your local filesystem, but requested tool results are returned to
+Claude through the MCP client.
 
-**Anonymous Telemetry:** We collect anonymous usage statistics (tool usage, performance metrics, error rates) to improve the software. No file contents, file names, or personal data are collected.
+**Optional network features:** Remote M/DAX formatting sends only the supplied
+code and requires explicit consent. Python in Excel runs Python code and
+referenced worksheet data in Microsoft's cloud.
+
+**Anonymous telemetry:** The MCP Server collects tool usage, performance, and
+error-rate metrics. Telemetry excludes file contents, file names, paths, and
+personal data.
 
 See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 

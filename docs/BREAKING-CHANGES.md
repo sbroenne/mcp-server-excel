@@ -1,97 +1,105 @@
 # Breaking Changes
 
-> **Version:** 1.7.0 (MCP-Daemon Unification)  
-> **PR:** [#433](https://github.com/sbroenne/mcp-server-excel/pull/433)  
-> **Date:** February 2026
+This page summarizes changes that require updates to scripts or integrations.
+For the complete release history, see [CHANGELOG.md](../CHANGELOG.md).
 
-**📌 Note for AI Assistants:** LLMs will automatically discover these changes via `tools/list` (MCP) and `--help` (CLI). This document is informational for human developers.
+AI assistants should discover the current contract through MCP `tools/list` or
+`excelcli --help` rather than relying on hardcoded parameter lists.
 
----
+## 2.0.0 - Canonical File Lifecycle
 
-## MCP Server Changes
+Released on August 21, 2026 in
+[#807](https://github.com/sbroenne/mcp-server-excel/pull/807).
 
-### 1. `excelPath` Parameter Removed (11 Tools)
+### File and Session Commands
 
-**Removed from:** `calculation_mode`, `conditionalformat`, `connection`, `namedrange`, `range`, `range_edit`, `range_format`, `range_link`, `table`, `table_column`, `vba`
+The CLI and MCP Server now use the same 5 file operations: `list`, `open`,
+`create`, `close`, and `test`.
 
-**Why:** Daemon architecture — session already knows the file context. Only `sessionId` required.
+- The standalone CLI `save` command was removed. Save when closing a session
+  with `excelcli session close --session <id> --save`.
+- The MCP `close-workbook` no-op was removed. Use `file` with
+  `action: "close"` and set `save` explicitly.
+- File testing now reports openability and IRM/AIP requirements through the
+  same result model used by both entry points.
+- IRM detection now requires the rights-management data-space marker. Ordinary
+  password-encrypted OOXML files are no longer treated as IRM-protected files.
 
----
+### Power Query List Results
 
-### 2. `file` Parameter Renames
+`powerquery list` now returns bounded M previews and exact worksheet/Data Model
+load state instead of serializing full formulas.
 
-- `excelPath` → `path`
-- `showExcel` → `show`
+- Use `powerquery view` to read one query's complete M code.
+- Inspection errors now fail the operation instead of silently omitting a
+  query.
+- `PowerQueryInfo.Formula` remains available for source and binary
+  compatibility, but it is obsolete and excluded from list JSON.
 
----
+### Public Inputs
 
-### 3. `connection` (-4 params)
+CLI, batch JSON, and MCP inputs now use integer seconds for timeouts and enforce
+the same ranges. Inline-or-file inputs are also resolved consistently across
+both entry points. Update scripts that supplied other timeout types or depended
+on entry-point-specific aliases.
 
-**Removed:** `newCommandText`, `newConnectionString`, `newDescription`
+## 1.7.0 - MCP and Daemon Unification
 
-**Why:** `set-properties` reuses existing params instead of separate `new*` versions.
+Released in February 2026 in
+[#433](https://github.com/sbroenne/mcp-server-excel/pull/433).
 
----
+### MCP Server Changes
 
-### 4. `datamodel` (+4 params, 2 renames)
+#### `excelPath` Removed from Session-Based Tools
 
-**Added:** `daxFormulaFile`, `daxQueryFile`, `dmvQueryFile`, `timeout`
+The `excelPath` parameter was removed from `calculation_mode`,
+`conditionalformat`, `connection`, `namedrange`, `range`, `range_edit`,
+`range_format`, `range_link`, `table`, `table_column`, and `vba`. The session
+already identifies the workbook, so these tools require only `sessionId`.
 
-**Renamed:** `formatString` → `formatType`, `newTableName` → `newName`
+#### File Parameter Renames
 
----
+- `excelPath` became `path`.
+- `showExcel` became `show`.
 
-### 5. `datamodel_relationship` (5 action renames + 5 param renames)
+#### Connection Parameters
 
-**Actions renamed:**
-- `list` → `list-relationships`
-- `read` → `read-relationship`
-- `create` → `create-relationship`
-- `update` → `update-relationship`
-- `delete` → `delete-relationship`
+`newCommandText`, `newConnectionString`, and `newDescription` were removed.
+The `set-properties` action now reuses the standard parameters.
 
-**Parameters shortened:** `fromTableName` → `fromTable`, `toTableName` → `toTable`, `fromColumnName` → `fromColumn`, `toColumnName` → `toColumn`, `isActive` → `active`
+#### Data Model Parameters
 
----
+The Data Model tool added `daxFormulaFile`, `daxQueryFile`, `dmvQueryFile`, and
+`timeout`. It also renamed:
 
-## CLI Changes
+- `formatString` to `formatType`
+- `newTableName` to `newName`
 
-### 1. Action Rename
+#### Data Model Relationship Names
 
-`table add-to-datamodel` → `table add-to-data-model`
+Actions were renamed to `list-relationships`, `read-relationship`,
+`create-relationship`, `update-relationship`, and `delete-relationship`.
 
----
+Parameters were shortened:
 
-### 2. Parameter Renames (9 Commands)
+- `fromTableName` to `fromTable`
+- `toTableName` to `toTable`
+- `fromColumnName` to `fromColumn`
+- `toColumnName` to `toColumn`
+- `isActive` to `active`
 
-Short → descriptive naming in: `calculationmode`, `conditionalformat`, `connection`, `datamodel`, `namedrange`, `powerquery`, `vba`
+### CLI Changes
 
-Examples: `--sheet` → `--sheet-name`, `--mcode` → `--m-code`, `--expression` → `--dax-formula`
+- `table add-to-datamodel` became `table add-to-data-model`.
+- Parameters in `calculationmode`, `conditionalformat`, `connection`,
+  `datamodel`, `namedrange`, `powerquery`, and `vba` use descriptive names such
+  as `--sheet-name`, `--m-code`, and `--dax-formula`.
+- PivotTable field and calculation actions moved into the expanded PivotTable
+  command surface.
 
----
+### Updating Existing Integrations
 
-### 3. `pivottable` Command (+23 Actions)
-
-Merged actions from `pivottablefield` and `pivottablecalc` into single command. All original 7 actions preserved.
-
----
-
-## Summary
-
-- **MCP:** 297 → 287 parameters (-10)
-- **CLI:** Parameter renames in 9 commands, 1 action rename, 23 new pivottable actions
-- **Architecture:** Unified daemon service for both MCP and CLI
-
----
-
-## For Human Developers
-
-**Update hardcoded scripts:**
-1. Remove `excelPath` from 11 session-based MCP tools
-2. Update `file`, `connection`, `datamodel`, `datamodel_relationship` parameter names
-3. Update CLI parameter names (use `excelcli <command> --help` to see current names)
-4. Rename `add-to-datamodel` → `add-to-data-model` in table commands
-
-**For AI Assistants:**
-- Query tools dynamically — no hardcoded parameter names needed
-- Use `tools/list` (MCP) or `--help` (CLI) to discover current schemas
+1. Remove `excelPath` from session-based MCP tool calls.
+2. Update the file, connection, Data Model, and relationship parameter names.
+3. Read current CLI parameter names with `excelcli <command> --help`.
+4. Replace `table add-to-datamodel` with `table add-to-data-model`.

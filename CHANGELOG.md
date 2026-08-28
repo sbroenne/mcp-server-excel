@@ -11,6 +11,17 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.3] - 2026-08-27
+
+### Patch Changes
+
+- [#818](https://github.com/sbroenne/mcp-server-excel/pull/818) [`cfcd7a5`](https://github.com/sbroenne/mcp-server-excel/commit/cfcd7a582d9b953911311891d71248bb5d415c05) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix worksheet screenshots failing when using `capture-sheet`, and report failed MCP tool operations accurately in privacy-safe usage telemetry.
+
+- [#819](https://github.com/sbroenne/mcp-server-excel/pull/819) [`288ccea`](https://github.com/sbroenne/mcp-server-excel/commit/288ccea074c09898cf6bed7322a28a7eec9896af) Thanks [@sbroenne](https://github.com/sbroenne)! - **Clearer documentation and command help:** `excelcli --help` now presents a
+  concise command index, tool descriptions point to valid commands, and public
+  documentation accurately explains privacy, packaging, breaking changes, and
+  installation workflows.
+
 ## [2.0.2] - 2026-08-26
 
 ### Patch Changes

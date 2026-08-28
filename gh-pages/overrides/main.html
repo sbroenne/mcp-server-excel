@@ -153,6 +153,12 @@
   {% if page.url.startswith("features/") and page.url != "features/" %}
     {% set _ = crumbs.append({"name": "Features", "url": "https://excelmcpserver.dev/features/"}) %}
   {% endif %}
+  {% if page.url.startswith("guides/") and page.url != "guides/" %}
+    {% set _ = crumbs.append({"name": "Guides", "url": "https://excelmcpserver.dev/guides/"}) %}
+  {% endif %}
+  {% if page.url.startswith("reference/") and page.url != "reference/" %}
+    {% set _ = crumbs.append({"name": "Reference", "url": "https://excelmcpserver.dev/reference/"}) %}
+  {% endif %}
   {% if page.url in ["installation-cli/", "installation-mcp-server/"] %}
     {% set _ = crumbs.append({"name": "Installation", "url": "https://excelmcpserver.dev/installation/"}) %}
   {% endif %}
