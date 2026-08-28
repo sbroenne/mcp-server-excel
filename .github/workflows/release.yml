@@ -767,8 +767,8 @@ jobs:
         BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
         echo "Basing release metadata commit on main@$BASE_SHA"
 
-        # Build Git tree entries from the staged diff: modified/added files get a
-        # fresh blob; deleted changeset fragments get sha=null to remove them.
+        # Build Git tree entries from the staged diff: modified/added files get
+        # their normalized staged blob; deleted changeset fragments get sha=null.
         tree_entries='[]'
         while IFS=$'\t' read -r status path; do
           [ -z "$path" ] && continue
@@ -777,10 +777,15 @@ jobs:
             entry=$(jq -n --arg path "$path" '{path:$path, mode:"100644", type:"blob", sha:null}')
           else
             echo "  write   $path"
-            base64 -w0 "$path" > blob.b64
+            git show ":$path" | base64 -w0 > blob.b64
             blob_sha=$(gh api "repos/$REPO/git/blobs" --method POST \
               -f encoding=base64 -F content=@blob.b64 --jq '.sha')
             rm -f blob.b64
+            staged_sha=$(git rev-parse ":$path")
+            if [ "$blob_sha" != "$staged_sha" ]; then
+              echo "::error::Uploaded blob for $path does not match the staged content."
+              exit 1
+            fi
             entry=$(jq -n --arg path "$path" --arg sha "$blob_sha" \
               '{path:$path, mode:"100644", type:"blob", sha:$sha}')
           fi
