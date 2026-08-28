@@ -14,7 +14,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $categorizedReliabilitySinceUtc = "2026-08-28T09:25:22Z"
-$categorizedReliabilityMinimumVersion = "2.0.4"
+$categorizedReliabilityMinimumVersion = "2.0.5"
 $excludedActions = @("file/open", "file/close")
 $queries = [ordered]@{
     overview = @'
