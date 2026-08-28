@@ -316,7 +316,7 @@ Invoke-ValidationStep `
     -SuccessSummary "Documentation count validation passed - all docs match the canonical counts" `
     -Action {
         $docCountScript = Join-Path $rootDir "scripts\check-doc-counts.ps1"
-        & $docCountScript
+        & $docCountScript -SkipBuild
     }
 
 if ($requiresExcelE2E) {

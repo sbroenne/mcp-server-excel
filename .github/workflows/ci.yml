@@ -132,7 +132,7 @@ jobs:
       - name: Documentation tool/operation counts
         shell: pwsh
         run: |
-          & scripts/check-doc-counts.ps1
+          & scripts/check-doc-counts.ps1 -SkipBuild
           if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
 
       - name: Dynamic cast audit (documented ((dynamic)) casts)

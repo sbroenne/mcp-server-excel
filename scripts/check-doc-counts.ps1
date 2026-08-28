@@ -38,13 +38,40 @@
     so if anyone adds an action, adds/removes a tool, or renames diag/file, this fails until the
     docs are updated.
 
+    By default, the script refreshes the Release compiler-generated files used by this check so
+    persisted files under obj cannot report stale counts. Use -SkipBuild only when the caller
+    has already completed a Release solution build in the current working tree.
+
+.PARAMETER SkipBuild
+    Skip the Release solution build. Intended for CI and pre-commit callers that build the
+    solution immediately before invoking this script.
+
 .NOTES
-    Run after a Release build so the generated manifest and SKILL.md files are current.
     Exit code 0 = all counts consistent. Exit code 1 = a mismatch was found.
 #>
 
+[CmdletBinding()]
+param(
+    [switch]$SkipBuild
+)
+
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
+
+if (-not $SkipBuild) {
+    Write-Host "Refreshing generated Release count metadata..." -ForegroundColor Cyan
+    & dotnet build (Join-Path $rootDir "src\ExcelMcp.Core\ExcelMcp.Core.csproj") --configuration Release --no-restore -p:NuGetAudit=false --verbosity minimal
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Core Release build failed. Run dotnet restore, then retry this check." -ForegroundColor Red
+        exit 1
+    }
+
+    & dotnet build (Join-Path $rootDir "src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj") --configuration Release --no-restore --no-dependencies -p:NuGetAudit=false --verbosity minimal
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: MCP Server Release build failed. Run dotnet restore, then retry this check." -ForegroundColor Red
+        exit 1
+    }
+}
 
 $errors = [System.Collections.Generic.List[string]]::new()
 function Add-Failure([string]$message) { $script:errors.Add($message) }
@@ -52,15 +79,16 @@ function Add-Failure([string]$message) { $script:errors.Add($message) }
 # ---------------------------------------------------------------------------
 # 1. Parse the authoritative generated skill manifest
 # ---------------------------------------------------------------------------
-$manifestFile = Get-ChildItem -Path (Join-Path $rootDir "src\ExcelMcp.Core\obj") -Recurse -Filter "_SkillManifest.g.cs" -ErrorAction SilentlyContinue |
-    Sort-Object { $_.FullName -notmatch "GeneratedFiles" } |
-    Select-Object -First 1
+# Emitted sources can survive dotnet clean, so the default refresh above is required before
+# trusting this file. Automated callers may skip it only after their own Release solution build.
+$manifestPath = Join-Path $rootDir "src\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs"
 
-if (-not $manifestFile) {
-    Write-Host "ERROR: Could not find generated _SkillManifest.g.cs. Run a Release build first." -ForegroundColor Red
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    Write-Host "ERROR: Could not find generated _SkillManifest.g.cs. Run without -SkipBuild or complete a Release build first." -ForegroundColor Red
     exit 1
 }
 
+$manifestFile = Get-Item -LiteralPath $manifestPath
 $manifestContent = Get-Content $manifestFile.FullName -Raw
 $startMarker = 'public const string Json = @"'
 $startIdx = $manifestContent.IndexOf($startMarker)
