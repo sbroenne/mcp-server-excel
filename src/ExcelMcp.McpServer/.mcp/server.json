@@ -3,13 +3,13 @@
   "name": "io.github.sbroenne/mcp-server-excel",
   "title": "MCP Server for Excel",
   "description": "Excel automation for AI - Sheets, Power Query, DAX, VBA, Tables, Ranges and more. Windows only.",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "websiteUrl": "https://excelmcpserver.dev/",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "Sbroenne.ExcelMcp.McpServer",
-      "version": "2.0.4",
+      "version": "2.0.5",
       "transport": {
         "type": "stdio"
       },
