@@ -207,6 +207,32 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // =====================================================================
         _output.WriteLine("\n✓ Step 5: Table operations...");
 
+        var preflightTableResult = await CallToolAsync("table", new Dictionary<string, object?>
+        {
+            ["action"] = "preflight",
+            ["path"] = _testExcelFile,
+            ["session_id"] = sessionId,
+            ["table_name"] = "DataTable",
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1:B3",
+            ["has_headers"] = true
+        });
+        AssertSuccess(preflightTableResult, "Preflight table");
+        using (var preflightJson = JsonDocument.Parse(preflightTableResult))
+        {
+            Assert.True(preflightJson.RootElement.GetProperty("safeToCreate").GetBoolean());
+            Assert.Equal("$A$1:$B$3", preflightJson.RootElement.GetProperty("effectiveRange").GetString());
+            var finding = Assert.Single(
+                preflightJson.RootElement.GetProperty("findings").EnumerateArray().ToArray());
+            Assert.Equal("ExcludedContiguousColumns", finding.GetProperty("kind").GetString());
+            Assert.Equal("Warning", finding.GetProperty("severity").GetString());
+            Assert.True(finding.GetProperty("isHeuristic").GetBoolean());
+            Assert.Equal(
+                "$C$1:$C$3",
+                Assert.Single(finding.GetProperty("addresses").EnumerateArray().ToArray()).GetString());
+            Assert.False(string.IsNullOrWhiteSpace(finding.GetProperty("remediation").GetString()));
+        }
+
         var createTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "create",
@@ -226,7 +252,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
-        _output.WriteLine("  ✓ table: Create and List passed");
+        _output.WriteLine("  ✓ table: Preflight, Create, and List passed");
 
         // =====================================================================
         // STEP 6: NAMED RANGE OPERATIONS
@@ -816,4 +842,3 @@ End Sub
         return json.RootElement.TryGetProperty(propertyName, out var prop) ? prop.GetString() : null;
     }
 }
-
