@@ -329,22 +329,23 @@ public sealed class ReleaseMetadataScriptTests
 
     private static string ExtractWorkflowJob(string workflow, string jobName)
     {
-        var marker = $"{Environment.NewLine}  {jobName}:{Environment.NewLine}";
+        workflow = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var marker = $"\n  {jobName}:\n";
         var start = workflow.IndexOf(marker, StringComparison.Ordinal);
         Assert.True(start >= 0, $"Workflow job '{jobName}' was not found.");
 
         start += marker.Length;
-        var end = workflow.IndexOf($"{Environment.NewLine}  ", start, StringComparison.Ordinal);
+        var end = workflow.IndexOf("\n  ", start, StringComparison.Ordinal);
         while (end >= 0)
         {
-            var nextLineEnd = workflow.IndexOf(Environment.NewLine, end + Environment.NewLine.Length, StringComparison.Ordinal);
+            var nextLineEnd = workflow.IndexOf('\n', end + 1);
             var line = nextLineEnd >= 0 ? workflow[end..nextLineEnd] : workflow[end..];
-            if (line.Length > Environment.NewLine.Length + 2 && line[Environment.NewLine.Length + 2] != ' ')
+            if (line.Length > 3 && line[3] != ' ')
             {
                 break;
             }
 
-            end = workflow.IndexOf($"{Environment.NewLine}  ", end + Environment.NewLine.Length + 2, StringComparison.Ordinal);
+            end = workflow.IndexOf("\n  ", end + 3, StringComparison.Ordinal);
         }
 
         return end >= 0 ? workflow[start..end] : workflow[start..];
