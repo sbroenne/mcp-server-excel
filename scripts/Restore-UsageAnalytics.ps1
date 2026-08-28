@@ -26,7 +26,7 @@ if (-not (Test-Path -LiteralPath $resolvedReportPath -PathType Leaf)) {
 }
 
 $result = & $ApiInvoker -Arguments @(
-    "api", "repos/$Repository/contents/$RemotePath" + "?ref=$Branch"
+    "api", ("repos/$Repository/contents/$RemotePath" + "?ref=$Branch")
 )
 if ($null -eq $result -or
     $null -eq $result.PSObject.Properties["ExitCode"] -or
