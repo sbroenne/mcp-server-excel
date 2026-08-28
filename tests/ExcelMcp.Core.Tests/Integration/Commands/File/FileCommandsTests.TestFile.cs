@@ -42,6 +42,7 @@ public partial class FileCommandsTests
         Assert.False(info.IsValid);
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
+        Assert.Null(info.IsError);
         Assert.NotNull(info.Message);
         Assert.Contains("not found", info.Message, StringComparison.OrdinalIgnoreCase);
     }

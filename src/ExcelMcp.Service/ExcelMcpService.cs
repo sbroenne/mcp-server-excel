@@ -333,7 +333,12 @@ public sealed class ExcelMcpService : IDisposable
                 "xmlmap" => await DispatchSimpleAsync<XmlMapAction>(action, request,
                     ServiceRegistry.XmlMap.TryParseAction,
                     (a, batch) => ServiceRegistry.XmlMap.DispatchToCore(_xmlMapCommands, a, batch, request.Args)),
-                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
+                _ => new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "InvalidInput",
+                    ErrorMessage = $"Unknown command category: {category}"
+                }
             };
 
             return AttachRequestContext(request, response);
@@ -354,7 +359,12 @@ public sealed class ExcelMcpService : IDisposable
             "ping" => new ServiceResponse { Success = true },
             "shutdown" => HandleShutdown(),
             "status" => HandleStatus(),
-            _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown service action: {action}" }
+            _ => new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown service action: {action}"
+            }
         };
     }
 
@@ -382,7 +392,12 @@ public sealed class ExcelMcpService : IDisposable
     {
         if (action is not ("create" or "open" or "close" or "list" or "test"))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown session action: {action}"
+            };
         }
 
         ValidateSessionActionArguments(action, request.Args);
@@ -431,7 +446,12 @@ public sealed class ExcelMcpService : IDisposable
             maximumSeconds: 3600);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "filePath is required"
+            };
         }
 
         var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
@@ -441,6 +461,7 @@ public sealed class ExcelMcpService : IDisposable
             return new ServiceResponse
             {
                 Success = false,
+                ErrorCategory = "Conflict",
                 ErrorMessage = $"File already exists: {fullPath}. Use session open to open an existing workbook."
             };
         }
@@ -452,6 +473,7 @@ public sealed class ExcelMcpService : IDisposable
             return new ServiceResponse
             {
                 Success = false,
+                ErrorCategory = "InvalidInput",
                 ErrorMessage = $"Invalid file extension '{extension}'. session create supports .xlsx and .xlsm only."
             };
         }
@@ -490,7 +512,12 @@ public sealed class ExcelMcpService : IDisposable
             maximumSeconds: 3600);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "filePath is required"
+            };
         }
         var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
 
@@ -517,7 +544,12 @@ public sealed class ExcelMcpService : IDisposable
 
         if (string.IsNullOrWhiteSpace(request.SessionId))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "sessionId is required"
+            };
         }
 
         bool closed;
@@ -549,7 +581,12 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        return new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+        return new ServiceResponse
+        {
+            Success = false,
+            ErrorCategory = "SessionNotFound",
+            ErrorMessage = $"Session '{request.SessionId}' not found"
+        };
     }
 
     private ServiceResponse HandleSessionTest(ServiceRequest request)
@@ -557,7 +594,12 @@ public sealed class ExcelMcpService : IDisposable
         var args = ServiceRegistry.DeserializeArgs<SessionTestArgs>(request.Args);
         if (string.IsNullOrWhiteSpace(args.FilePath))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "filePath is required"
+            };
         }
 
         try
@@ -635,7 +677,12 @@ public sealed class ExcelMcpService : IDisposable
 
         if (!tryParse(actionString, out var action))
 
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown action: {actionString}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown action: {actionString}"
+            };
 
 
 
@@ -650,7 +697,12 @@ public sealed class ExcelMcpService : IDisposable
     private ServiceResponse DispatchSessionless(string actionString, ServiceRequest request)
     {
         if (!ServiceRegistry.Diag.TryParseAction(actionString, out var action))
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown action: {actionString}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown action: {actionString}"
+            };
 
         return WrapResult(ServiceRegistry.Diag.DispatchToCore(_diagCommands, action, request.Args));
     }
@@ -711,7 +763,12 @@ public sealed class ExcelMcpService : IDisposable
 
 
 
-        return new ServiceResponse { Success = false, ErrorMessage = $"Unknown sheet action: {actionString}" };
+        return new ServiceResponse
+        {
+            Success = false,
+            ErrorCategory = "InvalidInput",
+            ErrorMessage = $"Unknown sheet action: {actionString}"
+        };
 
     }
 
@@ -733,7 +790,12 @@ public sealed class ExcelMcpService : IDisposable
             if (ServiceRegistry.RangeLink.TryParseAction(actionString, out var rla))
                 return WrapResult(ServiceRegistry.RangeLink.DispatchToCore(_rangeCommands, rla, batch, request.Args));
 
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown range action: {actionString}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown range action: {actionString}"
+            };
         });
     }
 
@@ -754,7 +816,12 @@ public sealed class ExcelMcpService : IDisposable
 
                 return WrapResult(ServiceRegistry.TableColumn.DispatchToCore(_tableCommands, tca, batch, request.Args));
 
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown table action: {actionString}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown table action: {actionString}"
+            };
 
         });
 
@@ -763,7 +830,12 @@ public sealed class ExcelMcpService : IDisposable
     private async Task<ServiceResponse> DispatchWindowAsync(string actionString, ServiceRequest request)
     {
         if (!ServiceRegistry.Window.TryParseAction(actionString, out var windowAction))
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown window action: {actionString}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown window action: {actionString}"
+            };
 
         return await WithSessionAsync(request.SessionId, batch =>
         {
@@ -791,7 +863,12 @@ public sealed class ExcelMcpService : IDisposable
     {
         if (!ServiceRegistry.Workbook.TryParseAction(actionString, out var workbookAction))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown workbook action: {actionString}" };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown workbook action: {actionString}"
+            };
         }
 
         return await WithSessionAsync(request.SessionId, batch =>
@@ -861,7 +938,12 @@ public sealed class ExcelMcpService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" });
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "sessionId is required"
+            });
         }
 
         var sessionError = TryBeginUsableSession(sessionId, out var batch);
@@ -1121,9 +1203,27 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse? TryBeginUsableSession(string sessionId, out IExcelBatch? batch)
     {
-        if (!_sessionManager.TryBeginOperation(sessionId, out batch, out var errorMessage))
+        if (!_sessionManager.TryBeginOperation(
+            sessionId,
+            out batch,
+            out var errorMessage,
+            out var sessionError))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = errorMessage };
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = sessionError switch
+                {
+                    SessionOperationError.MissingSessionId => "InvalidInput",
+                    SessionOperationError.NotFound => "SessionNotFound",
+                    SessionOperationError.Closing
+                        or SessionOperationError.Quarantined => "SessionUnavailable",
+                    SessionOperationError.TimedOutOrCancelled => "SessionInvalidated",
+                    SessionOperationError.ExcelProcessDied => "ExcelProcessDied",
+                    _ => null
+                },
+                ErrorMessage = errorMessage
+            };
         }
 
         return null;

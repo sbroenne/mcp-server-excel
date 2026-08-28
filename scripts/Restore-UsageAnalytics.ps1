@@ -42,7 +42,7 @@ if ($result.ExitCode -eq 0) {
     $bytes = [Convert]::FromBase64String(($response.content -replace "\s", ""))
     $text = [Text.Encoding]::UTF8.GetString($bytes)
     $report = $text | ConvertFrom-Json
-    if ($report.schemaVersion -ne 1 -or
+    if ($report.schemaVersion -ne 2 -or
         [string]::IsNullOrWhiteSpace([string]$report.interpretation)) {
         throw "Persisted analytics report is incomplete or has an unsupported schema."
     }

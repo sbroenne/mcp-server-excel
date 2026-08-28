@@ -1,11 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatedAtUtc": "2026-08-28T06:52:44Z",
   "windows": {
     "reportingDays": 90,
     "comparisonDays": 14,
     "trendWeeks": 12,
-    "reliabilitySinceUtc": "2026-08-27T17:05:06Z"
+    "categorizedReliabilitySinceUtc": "2026-08-28T09:25:22Z",
+    "categorizedReliabilityMinimumVersion": "2.0.4"
   },
   "privacy": {
     "excluded": [
@@ -672,7 +673,9 @@
       "sharePct": 0.02
     }
   ],
-  "reliability": [
+  "reliability": [],
+  "failureClasses": [],
+  "legacyReliability": [
     {
       "name": "range/set-values",
       "actions": 111,
@@ -800,7 +803,7 @@
       "users": 8
     }
   ],
-  "versionReliability": [
+  "legacyVersionReliability": [
     {
       "version": "2.0.3",
       "actions": 1018,
@@ -809,7 +812,8 @@
       "users": 17
     }
   ],
+  "versionReliability": [],
   "exceptions": [],
-  "interpretation": "## What changed\n\nOver the last 90 days, 2,916 users asked Excel MCP to carry out 837,077 meaningful actions. 60.34 percent used it on at least two different days. This suggests that many people continue using the project after first trying it.\n\nGrowth remained strong in the latest 14 days. Users increased from 1,107 to 1,280, a rise of 15.63 percent. Actions increased from 201,195 to 282,279, a larger rise of 40.3 percent. Actions growing faster than users suggests that people are doing more work with Excel MCP, not only discovering it.\n\nThe longer view supports that pattern. The first complete week shown had 383 users and 34,944 actions. The latest complete week had 830 users and 124,514 actions. It followed a peak of 148,405 actions, so use remains high even though weekly totals naturally vary.\n\n## How well it worked\n\nCorrected error counting now covers 1,018 actions from 17 users on release 2.0.3. It recorded 48 errors, or 4.72 percent of actions. This is still an early result, so it is a starting point rather than a verdict on the release.\n\nWriting cell values accounted for 10 errors. Writing formulas and checking the Excel data model each accounted for 6, while listing worksheets accounted for 5. Writing formulas had a 27.27 percent error rate based on 22 actions. Showing both the count and the rate prevents a small number of actions from looking more important than they are.\n\n## How people use it\n\nTables and ranges account for 66.01 percent of meaningful actions. Worksheets and connections add 11.86 percent, while PivotTables and charts add 7.9 percent. Practical spreadsheet work is clearly the center of how people use Excel MCP.\n\nUse also reaches the project's specialist features. VBA macros account for 5.88 percent of actions, Power Query for 4.4 percent, and Power Pivot and DAX for 1.86 percent. Agent mode accounts for 1.01 percent, while Python in Excel is still emerging at 0.02 percent.\n\nThe upgrade chart shows several releases in active use. In the current week, 2.0.2 is the largest individually shown release at 15.13 percent, followed by 2.0.1 at 13.92 percent and 2.0.0 at 12.72 percent. The newest 2.0.3 release accounts for 2.28 percent so far.\n\n## What we will improve\n\nWe will first investigate errors when writing cell values and formulas because tables and ranges make up the largest part of use. We will also examine problems when checking the data model and listing worksheets.\n\nWe will watch the upgrade chart to see how quickly newer fixes reach users. We will also keep action counts beside error rates, helping us focus on repeated problems instead of large percentages based on very few actions.",
+  "interpretation": "## What changed\n\nOver the last 90 days, 2,916 users asked Excel MCP to carry out 837,077 meaningful actions. 60.34 percent used it on at least two different days. This suggests that many people continue using the project after first trying it.\n\nGrowth remained strong in the latest 14 days. Users increased from 1,107 to 1,280, a rise of 15.63 percent. Actions increased from 201,195 to 282,279, a larger rise of 40.3 percent.\n\n## How well it worked\n\nCategorized reliability begins with release 2.0.4. Earlier releases did not record the safe outcome labels needed to separate expected results from product failures, so their rows are not reclassified. There is not yet enough categorized data to describe release reliability.\n\n## How people use it\n\nTables and ranges account for 66.01 percent of meaningful actions. Worksheets and connections add 11.86 percent, while PivotTables and charts add 7.9 percent. Practical spreadsheet work is clearly the center of how people use Excel MCP.\n\nUse also reaches specialist features. VBA macros account for 5.88 percent of actions, Power Query for 4.4 percent, and Power Pivot and DAX for 1.86 percent.\n\n## What we will improve\n\nWe will use the new categories to separate caller-correctable results, Excel or outside-service problems, and Excel MCP faults. Unknown failures will remain visible rather than being guessed. Excel performance work is deliberately deferred unless later evidence shows a problem owned by Excel MCP.",
   "interpretationModel": "GitHub Copilot CLI"
 }

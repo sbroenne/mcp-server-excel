@@ -13,7 +13,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$reliabilitySinceUtc = "2026-08-27T17:05:06Z"
+$categorizedReliabilitySinceUtc = "2026-08-28T09:25:22Z"
+$categorizedReliabilityMinimumVersion = "2.0.4"
 $excludedActions = @("file/open", "file/close")
 $queries = [ordered]@{
     overview = @'
@@ -157,34 +158,75 @@ AppRequests
 '@
     reliability = @"
 AppRequests
-| where TimeGenerated >= datetime($reliabilitySinceUtc)
+| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
 | where Name !in ('file/open', 'file/close')
 | extend Version=tostring(split(AppVersion, '+')[0])
-| where parse_version(Version) >= parse_version('2.0.3')
+| where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
+| extend Outcome=tostring(Properties['Outcome']),
+         FailureClass=tostring(Properties['FailureClass'])
+| where Outcome in ('succeeded', 'expected-negative', 'failed')
 | summarize Actions=count(),
-            Errors=countif(Success != true),
+            ExpectedNegatives=countif(Outcome == 'expected-negative'),
+            Failures=countif(Outcome == 'failed'),
+            InputState=countif(Outcome == 'failed' and FailureClass == 'input-state'),
+            ExternalDependency=countif(Outcome == 'failed' and FailureClass == 'external-dependency'),
+            TimeoutCancellation=countif(Outcome == 'failed' and FailureClass == 'timeout-cancellation'),
+            ExcelRuntime=countif(Outcome == 'failed' and FailureClass == 'excel-runtime'),
+            InternalProductFault=countif(Outcome == 'failed' and FailureClass == 'internal-product-fault'),
+            Unclassified=countif(Outcome == 'failed' and FailureClass == 'unclassified'),
             Users=dcount(UserId) by Name
-| where Errors > 0
-| extend ErrorRate=round(100.0 * Errors / Actions, 2)
-| order by Errors desc
+| where ExpectedNegatives > 0 or Failures > 0
+| extend FailureRate=round(100.0 * Failures / Actions, 2)
+| order by Failures desc, ExpectedNegatives desc
 | take 20
+"@
+    failureClasses = @"
+AppRequests
+| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
+| where Name !in ('file/open', 'file/close')
+| extend Version=tostring(split(AppVersion, '+')[0])
+| where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
+| extend Outcome=tostring(Properties['Outcome']),
+         FailureClass=tostring(Properties['FailureClass'])
+| extend Bucket=case(
+    Outcome == 'expected-negative', 'expected-negative',
+    Outcome == 'failed' and FailureClass == 'input-state', 'input-state',
+    Outcome == 'failed' and FailureClass == 'external-dependency', 'external-dependency',
+    Outcome == 'failed' and FailureClass == 'timeout-cancellation', 'timeout-cancellation',
+    Outcome == 'failed' and FailureClass == 'excel-runtime', 'excel-runtime',
+    Outcome == 'failed' and FailureClass == 'internal-product-fault', 'internal-product-fault',
+    Outcome == 'failed', 'unclassified',
+    'succeeded')
+| where Bucket != 'succeeded'
+| summarize Actions=count(), Users=dcount(UserId) by Bucket
+| order by Actions desc
 "@
     versionReliability = @"
 AppRequests
-| where TimeGenerated >= datetime($reliabilitySinceUtc)
+| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
 | where Name !in ('file/open', 'file/close')
 | extend Version=tostring(split(AppVersion, '+')[0])
-| where parse_version(Version) >= parse_version('2.0.3')
+| where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
+| extend Outcome=tostring(Properties['Outcome']),
+         FailureClass=tostring(Properties['FailureClass'])
+| where Outcome in ('succeeded', 'expected-negative', 'failed')
 | summarize Actions=count(),
-            Errors=countif(Success != true),
+            ExpectedNegatives=countif(Outcome == 'expected-negative'),
+            Failures=countif(Outcome == 'failed'),
+            InputState=countif(Outcome == 'failed' and FailureClass == 'input-state'),
+            ExternalDependency=countif(Outcome == 'failed' and FailureClass == 'external-dependency'),
+            TimeoutCancellation=countif(Outcome == 'failed' and FailureClass == 'timeout-cancellation'),
+            ExcelRuntime=countif(Outcome == 'failed' and FailureClass == 'excel-runtime'),
+            InternalProductFault=countif(Outcome == 'failed' and FailureClass == 'internal-product-fault'),
+            Unclassified=countif(Outcome == 'failed' and FailureClass == 'unclassified'),
             Users=dcount(UserId) by Version
-| extend ErrorRate=round(100.0 * Errors / Actions, 2)
+| extend FailureRate=round(100.0 * Failures / Actions, 2)
 | order by Actions desc
 | take 25
 "@
     exceptions = @"
 AppExceptions
-| where TimeGenerated >= datetime($reliabilitySinceUtc)
+| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
 | where tostring(Properties['Sanitized']) == 'true'
 | summarize Exceptions=count(), Users=dcount(UserId), Sessions=dcount(SessionId)
 | where Exceptions > 0
@@ -270,13 +312,14 @@ if ($null -eq $overview -or $null -eq $trend) {
 }
 
 $report = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     generatedAtUtc = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
     windows = [ordered]@{
         reportingDays = 90
         comparisonDays = 14
         trendWeeks = 12
-        reliabilitySinceUtc = $reliabilitySinceUtc
+        categorizedReliabilitySinceUtc = $categorizedReliabilitySinceUtc
+        categorizedReliabilityMinimumVersion = $categorizedReliabilityMinimumVersion
     }
     privacy = [ordered]@{
         excluded = @(
@@ -365,8 +408,25 @@ $report = [ordered]@{
                 [ordered]@{
                     name = [string]$_.Name
                     actions = Convert-ToNumber $_.Actions
-                    errors = Convert-ToNumber $_.Errors
-                    errorRate = Convert-ToNumber $_.ErrorRate
+                    expectedNegatives = Convert-ToNumber $_.ExpectedNegatives
+                    failures = Convert-ToNumber $_.Failures
+                    failureRate = Convert-ToNumber $_.FailureRate
+                    inputState = Convert-ToNumber $_.InputState
+                    externalDependency = Convert-ToNumber $_.ExternalDependency
+                    timeoutCancellation = Convert-ToNumber $_.TimeoutCancellation
+                    excelRuntime = Convert-ToNumber $_.ExcelRuntime
+                    internalProductFault = Convert-ToNumber $_.InternalProductFault
+                    unclassified = Convert-ToNumber $_.Unclassified
+                    users = Convert-ToNumber $_.Users
+                }
+            }
+    )
+    failureClasses = @(
+        $results.failureClasses |
+            ForEach-Object {
+                [ordered]@{
+                    name = [string]$_.Bucket
+                    actions = Convert-ToNumber $_.Actions
                     users = Convert-ToNumber $_.Users
                 }
             }
@@ -377,8 +437,15 @@ $report = [ordered]@{
                 [ordered]@{
                     version = [string]$_.Version
                     actions = Convert-ToNumber $_.Actions
-                    errors = Convert-ToNumber $_.Errors
-                    errorRate = Convert-ToNumber $_.ErrorRate
+                    expectedNegatives = Convert-ToNumber $_.ExpectedNegatives
+                    failures = Convert-ToNumber $_.Failures
+                    failureRate = Convert-ToNumber $_.FailureRate
+                    inputState = Convert-ToNumber $_.InputState
+                    externalDependency = Convert-ToNumber $_.ExternalDependency
+                    timeoutCancellation = Convert-ToNumber $_.TimeoutCancellation
+                    excelRuntime = Convert-ToNumber $_.ExcelRuntime
+                    internalProductFault = Convert-ToNumber $_.InternalProductFault
+                    unclassified = Convert-ToNumber $_.Unclassified
                     users = Convert-ToNumber $_.Users
                 }
             }
@@ -404,6 +471,20 @@ foreach ($operation in $report.operations) {
 foreach ($reliabilityItem in $report.reliability) {
     if ($reliabilityItem.name -notmatch '^[a-z0-9_/-]+$') {
         throw "Analytics contains an unsafe reliability dimension."
+    }
+    $allowedFailureClasses = @(
+        "expected-negative",
+        "input-state",
+        "external-dependency",
+        "timeout-cancellation",
+        "excel-runtime",
+        "internal-product-fault",
+        "unclassified"
+    )
+    foreach ($failureClass in $report.failureClasses) {
+        if ($allowedFailureClasses -notcontains $failureClass.name) {
+            throw "Analytics contains an unsafe failure class."
+        }
     }
 }
 foreach ($family in $report.toolFamilies) {
@@ -443,6 +524,7 @@ $forbidden = @(
     '"UserId"', '"SessionId"', '"FileSessionId"', '"ClientIP"',
     '"ClientCity"', '"ClientCountryOrRegion"', '"Message"', '"StackTrace"',
     '"ExceptionType"', '"InnerExceptionTypes"', '"FailureSite"',
+    '"Error"', '"ErrorMessage"', '"Stack"', '"Path"', '"Prompt"',
     'TaskScheduler.UnobservedTaskException', 'AggregateException', 'COMException'
 )
 foreach ($term in $forbidden) {

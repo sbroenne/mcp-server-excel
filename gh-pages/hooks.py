@@ -369,6 +369,16 @@ _ANALYTICS_OPERATION_NAMES = {
     "range/set-number-format": "Set number format",
 }
 
+_ANALYTICS_FAILURE_CLASS_NAMES = {
+    "expected-negative": "Expected validation or state result",
+    "input-state": "Input or workbook state",
+    "external-dependency": "External dependency",
+    "timeout-cancellation": "Timeout or cancellation",
+    "excel-runtime": "Excel runtime",
+    "internal-product-fault": "Excel MCP product fault",
+    "unclassified": "Unclassified failure",
+}
+
 
 def _analytics_name(value: object, names: dict[str, str]) -> str:
     """Replace an internal action name with a reader-friendly label."""
@@ -543,7 +553,7 @@ def _analytics_version_chart(rows: list[dict[str, object]]) -> str:
 def _render_usage_analytics() -> str:
     source_rel = ".github/usage-analytics.json"
     report = json.loads(_read(source_rel))
-    if report.get("schemaVersion") != 1:
+    if report.get("schemaVersion") != 2:
         raise ValueError("usage analytics has an unsupported schema version")
     interpretation = report.get("interpretation")
     if not isinstance(interpretation, str) or not interpretation.strip():
@@ -557,9 +567,12 @@ def _render_usage_analytics() -> str:
     reporting_start = generated - timedelta(days=reporting_days)
     current_start = generated - timedelta(days=comparison_days)
     previous_start = generated - timedelta(days=comparison_days * 2)
-    reliability_since = datetime.fromisoformat(
-        report["windows"]["reliabilitySinceUtc"].replace("Z", "+00:00")
+    categorized_reliability_since = datetime.fromisoformat(
+        report["windows"]["categorizedReliabilitySinceUtc"].replace("Z", "+00:00")
     )
+    categorized_reliability_version = report["windows"][
+        "categorizedReliabilityMinimumVersion"
+    ]
     date_format = "%b %d, %Y"
 
     hero_rows = [
@@ -583,14 +596,23 @@ def _render_usage_analytics() -> str:
         {
             **row,
             "friendlyName": _analytics_name(row["name"], _ANALYTICS_OPERATION_NAMES),
-            "errorRateDisplay": f"{_analytics_cell(row['errorRate'])}%",
+            "failureRateDisplay": f"{_analytics_cell(row['failureRate'])}%",
         }
         for row in report["reliability"]
+    ]
+    failure_class_rows = [
+        {
+            **row,
+            "friendlyName": _analytics_name(
+                row["name"], _ANALYTICS_FAILURE_CLASS_NAMES
+            ),
+        }
+        for row in report["failureClasses"]
     ]
     release_rows = [
         {
             **row,
-            "errorRateDisplay": f"{_analytics_cell(row['errorRate'])}%",
+            "failureRateDisplay": f"{_analytics_cell(row['failureRate'])}%",
         }
         for row in report["versionReliability"]
     ]
@@ -718,23 +740,61 @@ def _render_usage_analytics() -> str:
         ),
         "",
     ]
+    sections.extend(
+        [
+            "## Reliability measurement",
+            "",
+            f"Outcome classification starts with release "
+            f"**{categorized_reliability_version}** from "
+            f"**{categorized_reliability_since.strftime(date_format)}**. Earlier "
+            "rows did not contain these labels and are not guessed or rewritten.",
+            "",
+            "A negative diagnostic result, such as finding that a workbook cannot "
+            "be opened, is counted as an expected result rather than a product "
+            "failure. Failures are grouped using fixed labels supplied by the "
+            "software. Unknown labels remain visible as **Unclassified failure**.",
+            "",
+        ]
+    )
+    if failure_class_rows:
+        sections.extend(
+            [
+                "### Outcomes and failure classes",
+                "",
+                _analytics_bar_chart(
+                    failure_class_rows,
+                    label_field="friendlyName",
+                    value_field="actions",
+                ),
+                "",
+                _analytics_table(
+                    ("Outcome or failure class", "Actions", "Users"),
+                    ("friendlyName", "actions", "users"),
+                    failure_class_rows,
+                ),
+                "",
+            ]
+        )
     if reliability_rows:
         sections.extend(
             [
-                "## Actions reporting errors",
-                "",
-                f"Accurate error counting began on "
-                f"**{reliability_since.strftime(date_format)}** with the latest "
-                "patch release. Earlier releases are excluded because they did not "
-                "count every kind of failed action.",
+                "### Reliability by action",
                 "",
                 _analytics_table(
-                    ("Action", "Actions", "Errors", "Error rate", "Users"),
+                    (
+                        "Action",
+                        "Actions",
+                        "Expected negative",
+                        "Failures",
+                        "Failure rate",
+                        "Users",
+                    ),
                     (
                         "friendlyName",
                         "actions",
-                        "errors",
-                        "errorRateDisplay",
+                        "expectedNegatives",
+                        "failures",
+                        "failureRateDisplay",
                         "users",
                     ),
                     reliability_rows[:15],
@@ -745,7 +805,7 @@ def _render_usage_analytics() -> str:
     if release_rows:
         sections.extend(
             [
-                "## Errors by release",
+                "### Reliability by release",
                 "",
                 "This comparison can reveal a problem introduced in a release. It "
                 "is not a direct quality score: different releases may be used for "
@@ -753,8 +813,22 @@ def _render_usage_analytics() -> str:
                 "rate is based on.",
                 "",
                 _analytics_table(
-                    ("Release", "Actions", "Errors", "Error rate", "Users"),
-                    ("version", "actions", "errors", "errorRateDisplay", "users"),
+                    (
+                        "Release",
+                        "Actions",
+                        "Expected negative",
+                        "Failures",
+                        "Failure rate",
+                        "Users",
+                    ),
+                    (
+                        "version",
+                        "actions",
+                        "expectedNegatives",
+                        "failures",
+                        "failureRateDisplay",
+                        "users",
+                    ),
                     release_rows[:15],
                 ),
                 "",
