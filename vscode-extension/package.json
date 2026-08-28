@@ -59,6 +59,8 @@
     ],
     "chatSkills": [
       {
+        "name": "excel-mcp",
+        "description": "Excel MCP Server skill for Windows workbook automation.",
         "path": "./skills/excel-mcp/SKILL.md"
       }
     ]
@@ -70,7 +72,8 @@
     "build:mcp-server": "npm run clean && npm run clean:bin && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -nodeReuse:false -o vscode-extension/bin --verbosity minimal",
     "copy:changelog": "node -e \"const fs=require('fs'); fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');\"",
     "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile",
-    "compile": "tsc -p ./",
+    "validate:features": "node scripts/validate-feature-metadata.mjs",
+    "compile": "npm run validate:features && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
     "lint": "oxlint src -D correctness -D suspicious -D perf --deny-warnings"
