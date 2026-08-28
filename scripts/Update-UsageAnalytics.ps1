@@ -472,19 +472,19 @@ foreach ($reliabilityItem in $report.reliability) {
     if ($reliabilityItem.name -notmatch '^[a-z0-9_/-]+$') {
         throw "Analytics contains an unsafe reliability dimension."
     }
-    $allowedFailureClasses = @(
-        "expected-negative",
-        "input-state",
-        "external-dependency",
-        "timeout-cancellation",
-        "excel-runtime",
-        "internal-product-fault",
-        "unclassified"
-    )
-    foreach ($failureClass in $report.failureClasses) {
-        if ($allowedFailureClasses -notcontains $failureClass.name) {
-            throw "Analytics contains an unsafe failure class."
-        }
+}
+$allowedFailureClasses = @(
+    "expected-negative",
+    "input-state",
+    "external-dependency",
+    "timeout-cancellation",
+    "excel-runtime",
+    "internal-product-fault",
+    "unclassified"
+)
+foreach ($failureClass in $report.failureClasses) {
+    if ($allowedFailureClasses -notcontains $failureClass.name) {
+        throw "Analytics contains an unsafe failure class."
     }
 }
 foreach ($family in $report.toolFamilies) {

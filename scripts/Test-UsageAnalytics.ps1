@@ -166,6 +166,7 @@ try {
     $testsRun++
 
     $unsafeClassFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $unsafeClassFixture.reliability = @()
     $unsafeClassFixture.failureClasses[0].Bucket = "private-error-message"
     $unsafeClassPath = Write-TestFile "unsafe-class-fixture.json" `
         ($unsafeClassFixture | ConvertTo-Json -Depth 8)

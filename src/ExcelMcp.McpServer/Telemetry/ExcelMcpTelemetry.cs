@@ -169,7 +169,6 @@ public static class ExcelMcpTelemetry
         }
         eventTelemetry.Properties["DurationMs"] = durationMs.ToString(CultureInfo.InvariantCulture);
         ApplyContext(eventTelemetry);
-        ApplyContext(eventTelemetry);
 
         // Track as request for Performance blade, Failures blade, Smart Detection
         var request = new RequestTelemetry
