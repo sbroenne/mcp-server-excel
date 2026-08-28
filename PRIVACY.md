@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** August 27, 2026
+**Last Updated:** August 28, 2026
 
 ## Overview
 
@@ -18,7 +18,11 @@ data that a tool returns to your chosen AI assistant.
 
 - **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values")
 - **Performance metrics** - How long operations take (duration in milliseconds)
-- **Success/failure rates** - Whether operations completed successfully
+- **Invocation outcome** - Whether an operation succeeded, returned an expected
+  negative diagnostic result, or failed
+- **Failure class** - A fixed privacy-safe label for input or state, an external
+  dependency, timeout or cancellation, Excel runtime, an internal product fault,
+  or an unclassified failure
 - **Session information** - A random session ID generated each time the server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
@@ -28,12 +32,14 @@ data that a tool returns to your chosen AI assistant.
 ### What We DO NOT Collect
 
 - ❌ **File contents** - Workbook content is never included in telemetry
-- ❌ **File names or paths** - File paths are hashed locally; actual paths are never transmitted
+- ❌ **File names or paths** - File paths are not included in telemetry
 - ❌ **Personal information** - No names, emails, or account information
 - ❌ **Spreadsheet data** - Cell values, formulas, and query results are never included in telemetry
 - ❌ **Prompts or messages** - Requests and conversations are never transmitted
 - ❌ **Host or client details** - Working directories and MCP client names are not collected
 - ❌ **User accounts** - No registration or sign-in required
+- ❌ **Error details** - Error messages, response content, exception names, and
+  stack traces are not included in invocation outcome telemetry
 
 ### Purpose of Telemetry
 
@@ -42,6 +48,10 @@ We use anonymous telemetry to:
 - Identify and fix performance issues
 - Prioritize development of new features
 - Detect and fix bugs
+
+Invocation telemetry reads only the structured category produced by ExcelMcp; it
+does not inspect response or error text. Unknown or missing categories remain
+**unclassified**.
 
 ### Telemetry Infrastructure
 

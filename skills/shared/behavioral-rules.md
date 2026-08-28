@@ -331,6 +331,12 @@ Excel MCP errors include actionable context:
 
 Follow `suggestedNextActions` when provided.
 
+Use the structured `errorCategory` when it is present. For `InvalidInput`,
+`NotFound`, or `Conflict`, correct the named input or workbook state before
+retrying. For `SessionNotFound`, reopen the workbook once and continue with the
+new session ID. A timeout, cancellation, or dead Excel process can invalidate
+and close the session; reopen it instead of retrying against the old session.
+
 ### Retry with Corrections
 
 If an operation fails:

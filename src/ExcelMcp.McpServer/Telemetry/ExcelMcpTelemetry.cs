@@ -122,27 +122,43 @@ public static class ExcelMcpTelemetry
     /// <param name="toolName">The MCP tool name (e.g., "range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
     /// <param name="durationMs">Duration in milliseconds</param>
-    /// <param name="success">Whether the operation succeeded</param>
-    /// <param name="excelPath">Optional Excel file path (will be hashed for privacy)</param>
-    public static void TrackToolInvocation(string toolName, string action, long durationMs, bool success, string? excelPath = null)
+    /// <param name="result">Privacy-safe outcome and optional failure classification.</param>
+    internal static void TrackToolInvocation(
+        string toolName,
+        string action,
+        long durationMs,
+        ToolInvocationResult result)
     {
         if (_telemetryClient == null) return;
 
+        var (eventTelemetry, requestTelemetry) =
+            CreateToolInvocationTelemetry(toolName, action, durationMs, result);
+        _telemetryClient.TrackEvent(eventTelemetry);
+        _telemetryClient.TrackRequest(requestTelemetry);
+    }
+
+    internal static (EventTelemetry Event, RequestTelemetry Request)
+        CreateToolInvocationTelemetry(
+            string toolName,
+            string action,
+            long durationMs,
+            ToolInvocationResult result)
+    {
         var operationName = $"{toolName}/{action}";
         var startTime = DateTimeOffset.UtcNow.AddMilliseconds(-durationMs);
         var duration = TimeSpan.FromMilliseconds(durationMs);
-
+        var requestSucceeded = result.Outcome != ToolInvocationOutcome.Failed;
         var properties = new Dictionary<string, string>
         {
             ["Tool"] = toolName,
             ["Action"] = action,
-            ["Success"] = success.ToString()
+            ["Success"] = requestSucceeded.ToString(),
+            ["Outcome"] = GetOutcomeValue(result.Outcome)
         };
 
-        // Add hashed file path for grouping (if provided)
-        if (!string.IsNullOrEmpty(excelPath))
+        if (result.FailureClass.HasValue)
         {
-            properties["FileSessionId"] = HashFilePath(excelPath);
+            properties["FailureClass"] = GetFailureClassValue(result.FailureClass.Value);
         }
 
         // Track as customEvent for analytics (tool usage, parameters, success/failure)
@@ -152,9 +168,7 @@ public static class ExcelMcpTelemetry
             eventTelemetry.Properties[property.Key] = property.Value;
         }
         eventTelemetry.Properties["DurationMs"] = durationMs.ToString(CultureInfo.InvariantCulture);
-
         ApplyContext(eventTelemetry);
-        _telemetryClient.TrackEvent(eventTelemetry);
 
         // Track as request for Performance blade, Failures blade, Smart Detection
         var request = new RequestTelemetry
@@ -162,8 +176,8 @@ public static class ExcelMcpTelemetry
             Name = operationName,
             Timestamp = startTime,
             Duration = duration,
-            ResponseCode = success ? "200" : "500",
-            Success = success
+            ResponseCode = requestSucceeded ? "200" : "500",
+            Success = requestSucceeded
         };
 
         // Copy properties to request for consistent filtering
@@ -173,8 +187,32 @@ public static class ExcelMcpTelemetry
         }
 
         ApplyContext(request);
-        _telemetryClient.TrackRequest(request);
+        return (eventTelemetry, request);
     }
+
+    private static string GetOutcomeValue(ToolInvocationOutcome outcome) =>
+        outcome switch
+        {
+            ToolInvocationOutcome.Succeeded => "succeeded",
+            ToolInvocationOutcome.ExpectedNegative => "expected-negative",
+            ToolInvocationOutcome.Failed => "failed",
+            _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null)
+        };
+
+    private static string GetFailureClassValue(ToolFailureClass failureClass) =>
+        failureClass switch
+        {
+            ToolFailureClass.InputState => "input-state",
+            ToolFailureClass.ExternalDependency => "external-dependency",
+            ToolFailureClass.TimeoutCancellation => "timeout-cancellation",
+            ToolFailureClass.ExcelRuntime => "excel-runtime",
+            ToolFailureClass.InternalProductFault => "internal-product-fault",
+            ToolFailureClass.Unclassified => "unclassified",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(failureClass),
+                failureClass,
+                null)
+        };
 
     /// <summary>
     /// Tracks an unhandled exception.
@@ -337,19 +375,6 @@ public static class ExcelMcpTelemetry
         }
     }
 
-    /// <summary>
-    /// Hashes a file path for privacy-preserving grouping.
-    /// Enables grouping telemetry by file without exposing actual file paths.
-    /// </summary>
-    /// <param name="filePath">The file path to hash</param>
-    /// <returns>First 12 characters of SHA256 hash (lowercase hex)</returns>
-    private static string HashFilePath(string filePath)
-    {
-        var bytes = Encoding.UTF8.GetBytes(filePath.ToLowerInvariant());
-        var hash = SHA256.HashData(bytes);
-        return Convert.ToHexString(hash)[..12].ToLowerInvariant();
-    }
-
     private static void ApplyContext(ITelemetry telemetry)
     {
         telemetry.Context.User.Id ??= UserId;
@@ -359,4 +384,3 @@ public static class ExcelMcpTelemetry
         telemetry.Context.Component.Version = GetVersion();
     }
 }
-

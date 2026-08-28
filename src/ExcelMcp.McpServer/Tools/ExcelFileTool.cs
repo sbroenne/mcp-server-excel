@@ -59,6 +59,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = $"timeout_seconds must be between 10 and 3600 seconds, got {timeout_seconds}",
+                errorCategory = "InvalidInput",
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
@@ -108,6 +109,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = $"File not found: {path}",
+                errorCategory = "NotFound",
                 filePath = path,
                 isError = true
             }, ExcelToolsBase.JsonOptions);

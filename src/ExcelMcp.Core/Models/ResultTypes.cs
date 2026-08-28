@@ -989,10 +989,10 @@ public class FileValidationInfo
     public string? Message { get; set; }
 
     /// <summary>
-    /// Indicates a validation failure in CLI and MCP result envelopes
+    /// File testing reports a diagnostic result, not a tool execution failure.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? IsError => Success ? null : true;
+    public bool? IsError { get; }
 }
 
 /// <summary>

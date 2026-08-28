@@ -214,6 +214,7 @@ public static class ServiceBridge
             {
                 Success = false,
                 Command = command,
+                ErrorCategory = "InvalidInput",
                 ErrorMessage = "sessionId is required. Use file 'open' action to start a session."
             };
         }

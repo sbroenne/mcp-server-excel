@@ -77,18 +77,36 @@ try {
         )
         reliability = @(
             @{
-                Name = "range/get-values"; Actions = 100; Errors = 2
-                ErrorRate = 2; Users = 8
+                Name = "range/get-values"; Actions = 100; ExpectedNegatives = 3
+                Failures = 7; FailureRate = 7; InputState = 2
+                ExternalDependency = 1; TimeoutCancellation = 1
+                ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
+                Users = 8
             },
             @{
-                Name = "file/close"; Actions = 100; Errors = 3
-                ErrorRate = 3; Users = 8
+                Name = "file/close"; Actions = 100; ExpectedNegatives = 0
+                Failures = 3; FailureRate = 3; InputState = 3
+                ExternalDependency = 0; TimeoutCancellation = 0
+                ExcelRuntime = 0; InternalProductFault = 0; Unclassified = 0
+                Users = 8
             }
+        )
+        failureClasses = @(
+            @{ Bucket = "expected-negative"; Actions = 3; Users = 2 },
+            @{ Bucket = "input-state"; Actions = 2; Users = 2 },
+            @{ Bucket = "external-dependency"; Actions = 1; Users = 1 },
+            @{ Bucket = "timeout-cancellation"; Actions = 1; Users = 1 },
+            @{ Bucket = "excel-runtime"; Actions = 1; Users = 1 },
+            @{ Bucket = "internal-product-fault"; Actions = 1; Users = 1 },
+            @{ Bucket = "unclassified"; Actions = 1; Users = 1 }
         )
         versionReliability = @(
             @{
-                Version = "2.0.3"; Actions = 700; Errors = 7
-                ErrorRate = 1; Users = 20
+                Version = "2.0.4"; Actions = 700; ExpectedNegatives = 3
+                Failures = 7; FailureRate = 1; InputState = 2
+                ExternalDependency = 1; TimeoutCancellation = 1
+                ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
+                Users = 20
             }
         )
         exceptions = @(
@@ -108,14 +126,22 @@ try {
         "Workbook open or close actions entered the public report."
     Assert-True ($null -eq $analytics.operations[0].PSObject.Properties["successRate"]) `
         "Historical success rates entered the public report."
+    Assert-True ($analytics.schemaVersion -eq 2) "Categorized analytics schema was not emitted."
     Assert-True ($analytics.reliability[0].name -eq "range/get-values") `
-        "Corrected reliability data was not included."
+        "Categorized reliability data was not included."
+    Assert-True ($analytics.reliability[0].expectedNegatives -eq 3) `
+        "Expected negative outcomes were not separated."
+    Assert-True ($analytics.reliability[0].internalProductFault -eq 1) `
+        "Internal product faults were not separated."
+    Assert-True ($analytics.reliability[0].unclassified -eq 1) `
+        "Unclassified failures were hidden."
+    Assert-True (($analytics.failureClasses | Where-Object name -eq "unclassified").actions -eq 1) `
+        "The explicit unclassified bucket was not published."
     Assert-True ($analytics.reliability.Count -eq 1) `
         "Workbook lifecycle failures entered the public report."
     Assert-True (
-        ([DateTime]$analytics.windows.reliabilitySinceUtc).ToUniversalTime().ToString(
-            "yyyy-MM-ddTHH:mm:ssZ") -eq "2026-08-27T17:05:06Z") `
-        "The reliability measurement boundary is missing."
+        $analytics.windows.categorizedReliabilityMinimumVersion -eq "2.0.4") `
+        "The categorized reliability version boundary is missing."
     Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
     Assert-True ($analytics.versionAdoption.Count -eq 3) `
         "Weekly release adoption was not included."
@@ -136,6 +162,18 @@ try {
         & $updateScript -WorkspaceId "fixture" `
             -OutputPath (Join-Path $testRoot "unsafe.json") `
             -FixturePath $unsafePath
+    }
+    $testsRun++
+
+    $unsafeClassFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $unsafeClassFixture.reliability = @()
+    $unsafeClassFixture.failureClasses[0].Bucket = "private-error-message"
+    $unsafeClassPath = Write-TestFile "unsafe-class-fixture.json" `
+        ($unsafeClassFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "unsafe failure class" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "unsafe-class.json") `
+            -FixturePath $unsafeClassPath
     }
     $testsRun++
 
@@ -200,11 +238,11 @@ Users increased by 25 percent while the report covered 1,000 actions.
 
 ## How well it worked
 
-The corrected data includes 2 errors across 100 actions.
+The categorized data includes 7 failures and 3 expected negative results across 100 actions.
 
 ## How people use it
 
-Release 2.0.3 reported 7 errors across 700 actions.
+Release 2.0.4 reported 7 failures across 700 actions.
 
 ## What we will improve
 
@@ -287,7 +325,7 @@ Investigate the 12 background task problems before changing behavior.
     }
     $testsRun++
 
-    $unsupportedVersion = $interpretation.Replace("Release 2.0.3", "Release 2.0.9")
+    $unsupportedVersion = $interpretation.Replace("Release 2.0.4", "Release 2.0.9")
     $unsupportedVersionPath = Write-TestFile "unsupported-version.md" $unsupportedVersion
     Assert-Throws -ExpectedMessage "unsupported numeric claim '2.0.9'" -Action {
         & $completeScript `

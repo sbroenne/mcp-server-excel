@@ -104,6 +104,48 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.False(response.Success);
         Assert.NotNull(response.ErrorMessage);
         Assert.NotEmpty(response.ErrorMessage);
+        Assert.Equal("SessionNotFound", response.ErrorCategory);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SessionCommandWithoutSessionId_ReturnsInvalidInputCategory()
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list"
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains("sessionId", response.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SessionCreateForExistingFile_ReturnsConflictCategory()
+    {
+        using var service = new ExcelMcpService();
+        var existingPath = Path.Combine(
+            Path.GetTempPath(),
+            $"{Guid.NewGuid():N}.xlsx");
+        File.WriteAllText(existingPath, string.Empty);
+
+        try
+        {
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.create",
+                Args = JsonSerializer.Serialize(new { filePath = existingPath })
+            });
+
+            Assert.False(response.Success);
+            Assert.Equal("Conflict", response.ErrorCategory);
+        }
+        finally
+        {
+            File.Delete(existingPath);
+        }
     }
 
     [Fact]
@@ -258,6 +300,7 @@ public sealed class ExcelMcpServiceErrorTests
         });
 
         Assert.False(response.Success);
+        Assert.Equal("SessionInvalidated", response.ErrorCategory);
         Assert.NotNull(response.ErrorMessage);
         Assert.Contains("timed out or was cancelled", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("reopen", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
