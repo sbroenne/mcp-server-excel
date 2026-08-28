@@ -34,7 +34,7 @@ When you run the release workflow, all components are released together:
 6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
 8. **MCP Registry** → Updated after NuGet propagation
-9. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
+9. **GitHub Release** → Created with all artifacts and the prepared changelog notes
 
 ### Release Artifacts
 
@@ -81,26 +81,29 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 The workflow will:
 1. Calculate the next version from the latest git tag
-2. Build all components (standalone exes + NuGet packages)
-3. Create and push the git tag (`v1.5.7`)
-4. Publish to NuGet.org, VS Code Marketplace, MCP Registry
-5. Create GitHub Release with all artifacts
-6. Auto-PR to update `CHANGELOG.md`
+2. Compile pending changesets into the current release changelog
+3. Build all components (standalone exes + NuGet packages), packaging that changelog where applicable
+4. Commit the generated release metadata and create the git tag (`v1.5.7`) at that commit
+5. Publish to NuGet.org, VS Code Marketplace, and MCP Registry
+6. Create the GitHub Release with all artifacts and the prepared release notes
 
 ### 3. Monitor Workflow
 
-The main release workflow runs automatically (10 jobs), then the plugin publish workflow runs automatically if the release succeeds:
+The main release workflow runs automatically (11 jobs), then the plugin publish workflow runs automatically if the release succeeds:
 
-1. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
-2. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
-3. **build-vscode** (5-8 min) → Builds self-contained VSIX (bundles exes), publishes to VS Code Marketplace
-4. **build-mcpb** (3-5 min) → Builds Claude Desktop bundle
-5. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package (for direct skill extraction via `npx skills add`)
-6. **create-tag** → Creates git tag (waits for all builds)
-7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
-8. **publish** → Publishes to NuGet.org and VS Code Marketplace
-9. **create-release** → Creates GitHub Release with all artifacts (release notes generated from compiled changesets), then creates auto-PR to commit the updated CHANGELOG.md
-10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed
+1. **version** → Calculates the version from the latest tag and dispatch input
+2. **prepare-release** → Compiles changesets and uploads the changelog and release notes used by packaging jobs
+3. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
+4. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
+5. **build-vscode** (5-8 min) → Builds the self-contained VSIX with the prepared changelog
+6. **build-mcpb** (3-5 min) → Builds the Claude Desktop bundle with the prepared changelog
+7. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package (for direct skill extraction via `npx skills add`)
+8. **create-tag** → Regenerates and verifies release metadata, commits it to `main`, then tags that exact commit
+9. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
+10. **publish** → Publishes to NuGet.org and VS Code Marketplace
+11. **create-release** → Creates the GitHub Release with all artifacts and the prepared release notes
+
+Afterward, **publish-plugins.yml** runs as a follow-on workflow and sync-gates republication of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed.
 
 ### 4. Verify Release
 
@@ -111,7 +114,7 @@ After workflow completes:
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
 - [ ] `publish-plugins.yml` completed; if the sync gate detected plugin-facing changes, `sbroenne/mcp-server-excel-plugins` was updated
-- [ ] Auto-PR created and merged to persist the `CHANGELOG.md` / `package.json` / consumed `.changeset/*.md` updates generated during the release
+- [ ] Release tag contains the current version in `CHANGELOG.md` and points to the release metadata commit on `main`
 
 ### 5. Agent Plugin Publishing (Automatic)
 
@@ -207,11 +210,12 @@ The release workflow injects the correct version from the tag.
 
 1. **Every PR** that changes user-visible behavior adds a small markdown fragment via `npx changeset` (from repo root), describing the change in 1-3 end-user-facing sentences. This is committed to `.changeset/<random-name>.md` alongside the PR.
 2. **CI enforces this** via `.github/workflows/changeset-check.yml`, which fails the PR if no fragment was added — unless the PR carries the `skip-changelog` label (docs/tests/CI/dependency-only changes).
-3. **At release time**, the `create-release` job in `release.yml` runs `scripts/Build-Changelog.ps1 -Version <version> -Date <date>`, which:
+3. **At release time**, the `prepare-release` job in `release.yml` runs `scripts/Build-Changelog.ps1 -Version <version> -Date <date>`, which:
    - Runs `npx changeset version` to consume every pending fragment, deleting them.
    - Normalizes the tool's generated version header to this repo's `## [X.Y.Z] - YYYY-MM-DD` (Keep a Changelog) style.
    - Extracts the new section verbatim into `release_notes_body.md`, used directly as the "What's New" body of the GitHub Release.
-4. **The updated `CHANGELOG.md`, `package.json` (a bookkeeping-only root manifest that hosts the changesets tool — never published to npm), and consumed `.changeset/*.md` deletions** are committed via the same auto-PR-to-`main` pattern used previously (branch protection requires a PR; the workflow step uses `continue-on-error: true`).
+4. **Artifact builds** consume that prepared changelog, so packaged VS Code and MCPB changelog files include the version being released.
+5. **After all builds pass**, the `create-tag` job regenerates the metadata using the same release date and verifies it byte-for-byte against the prepared artifact. It commits `CHANGELOG.md`, synchronized version metadata, and consumed `.changeset/*.md` deletions to `main` through the Git Data API, then points the release tag at that exact commit.
 
 Root `package.json` and `.changeset/config.json` (using `@changesets/changelog-github` for PR-linked entries) exist solely to drive this tooling — they have no bearing on the actual MCP Server / CLI / VS Code Extension / MCPB version, which remains fully controlled by the `version_bump` / `custom_version` workflow inputs as described above.
 
@@ -231,7 +235,7 @@ _No pending changes. New entries are added automatically from changesets when a 
 - **Bug fix description** (#124): what was broken and what's fixed now.
 ```
 
-> **Why auto-PR instead of direct push?** Branch protection requires pull requests for all changes to `main`. The `github-actions[bot]` cannot be added to the bypass list in GitHub Rulesets, so the workflow creates a PR with `continue-on-error: true` to handle this gracefully. Unlike the old sed-based rename, a missed merge here only delays committing an already-published release's changelog — it can no longer mislabel released content as "Unreleased" since the section is always left empty going forward.
+> **Why the Git Data API?** Branch protection prevents the default workflow token from pushing the bookkeeping commit directly. `RELEASE_PAT` belongs to the repository administrator and has `contents: write`, allowing the workflow to create a fast-forward metadata commit before tagging without opening a release-time pull request.
 
 ## Required Secrets and Variables
 
@@ -242,6 +246,7 @@ Configure these GitHub repository secrets and variables:
 | Secret | `NUGET_USER` | NuGet.org username (for OIDC trusted publishing) |
 | Secret | `VSCE_TOKEN` | VS Code Marketplace PAT |
 | Secret | `APPINSIGHTS_CONNECTION_STRING` | Application Insights (optional telemetry) |
+| Secret | `RELEASE_PAT` | Repository-admin token with `contents: write` for the pre-tag release metadata commit |
 | Secret | `PLUGINS_REPO_TOKEN` | Cross-repo PAT (`public_repo`) or app token (`contents:write`) for publishing plugins to `sbroenne/mcp-server-excel-plugins` |
 
 > **Notes:**
