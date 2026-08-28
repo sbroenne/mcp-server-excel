@@ -20,6 +20,18 @@ If you are looking for percentage, currency, date, or text display formatting, u
 If you are looking for auto-fit, width, height, borders, fill, or font styling, use `range_format`.
 If you need the same styling on multiple non-contiguous ranges, use `format-ranges` instead of repeating `format-range`.
 
+## Formula Errors in Range Reads
+
+`get-values` and `get-formulas` return formula errors in their `values` arrays as
+canonical Excel names such as `#REF!`, `#N/A`, and `#DIV/0!`, not raw negative
+COM integers. Both results also include cell error details with the affected
+cell, full formula text when Excel exposes it, raw error code, explanation,
+and suggested fix.
+
+Excel COM does not reliably identify the exact broken part of a reference.
+Use the returned cell address and full formula rather than inferring a
+sub-reference that Excel did not provide.
+
 ## Quick Pattern: Write, Format, Auto-Fit
 
 ```
