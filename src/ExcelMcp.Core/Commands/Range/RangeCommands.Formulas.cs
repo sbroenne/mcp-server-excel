@@ -123,6 +123,18 @@ public partial class RangeCommands
             return cellValue;
         }
 
+        return ConvertMappedErrorForRead(cellValue, formula, row, column, cellErrors, errorCode, error);
+    }
+
+    private static string ConvertMappedErrorForRead(
+        object? cellValue,
+        string formula,
+        int row,
+        int column,
+        List<RangeCellError> cellErrors,
+        int errorCode,
+        ExcelErrorMapper.ExcelErrorInfo error)
+    {
         cellErrors.Add(new RangeCellError
         {
             CellAddress = $"{GetColumnLetter(column)}{row}",
@@ -238,4 +250,3 @@ public partial class RangeCommands
         });
     }
 }
-

@@ -1039,14 +1039,15 @@ public class RangeValueResult : ResultBase
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
-    /// Formula errors found in the range, including canonical names, cell addresses,
-    /// formulas, raw COM codes, and suggested fixes.
+    /// Mapped Excel error values found in the range, including canonical names, cell
+    /// addresses, formulas, raw COM codes, and suggested fixes. This can include formula
+    /// errors and transient or service states such as #BUSY!, #CONNECT!, and #PYTHON!.
     /// </summary>
     public List<RangeCellError> CellErrors { get; set; } = [];
 
     /// <summary>
-    /// 2D array of cell values (row-major order). Formula errors use canonical Excel
-    /// names such as #REF!; their raw COM values are preserved in <see cref="CellErrors"/>.
+    /// 2D array of cell values (row-major order). Mapped Excel errors use canonical names
+    /// such as #REF!; their raw COM values are preserved in <see cref="CellErrors"/>.
     /// </summary>
     public List<List<object?>> Values { get; set; } = [];
 
@@ -1077,8 +1078,9 @@ public class RangeFormulaResult : ResultBase
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
-    /// Formula errors found in the range, including canonical names, cell addresses,
-    /// formulas, raw COM codes, and suggested fixes.
+    /// Mapped Excel error values found in the range, including canonical names, cell
+    /// addresses, formulas, raw COM codes, and suggested fixes. This can include formula
+    /// errors and transient or service states such as #BUSY!, #CONNECT!, and #PYTHON!.
     /// </summary>
     public List<RangeCellError> CellErrors { get; set; } = [];
 
@@ -1088,7 +1090,7 @@ public class RangeFormulaResult : ResultBase
     public List<List<string>> Formulas { get; set; } = [];
 
     /// <summary>
-    /// 2D array of cell values (calculated results). Formula errors use canonical Excel
+    /// 2D array of cell values (calculated results). Mapped Excel errors use canonical
     /// names such as #REF!; their raw COM values are preserved in <see cref="CellErrors"/>.
     /// </summary>
     public List<List<object?>> Values { get; set; } = [];

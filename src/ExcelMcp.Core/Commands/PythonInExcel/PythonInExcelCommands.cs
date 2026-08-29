@@ -254,32 +254,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
 
                 if (value is int errorCode && errorCode < 0)
                 {
-                    if (formulaReturnType == 1)
-                    {
-                        // Python Object mode: Value2 is always an error-shaped placeholder for rich
-                        // data types (e.g. a DataFrame) since COM cannot represent them. Text would
-                        // normally carry a type-name label (e.g. "DataFrame") but is not reliable
-                        // enough here to depend on - report the object without assuming its type.
-                        result.Success = true;
-                        result.IsPythonObject = true;
-                        result.TypeName = !string.IsNullOrEmpty(text) && text.Any(char.IsLetter) ? text : null;
-                        result.Message = "Cell holds a Python Object (rich data type such as a DataFrame). "
-                            + "Value2 cannot expose rich Python object data via COM automation - set returnType=0 "
-                            + "(Excel Value) instead if you need to read the underlying data.";
-                    }
-                    else if (ExcelErrorMapper.IsExcelFormulaError(errorCode))
-                    {
-                        result.Success = false;
-                        result.ErrorMessage = ExcelErrorMapper.GetMessage(errorCode);
-                    }
-                    else
-                    {
-                        // Excel Value mode (returnType=0) with a non-standard negative error code -
-                        // this is the Python code itself raising an error (syntax or runtime exception).
-                        result.Success = false;
-                        result.IsPythonError = true;
-                        result.ErrorMessage = ExcelErrorMapper.GetMessage(ExcelErrorMapper.PythonErrorCode);
-                    }
+                    PopulateErrorResult(result, errorCode, formulaReturnType, text);
                 }
                 else
                 {
@@ -299,6 +274,46 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    internal static void PopulateErrorResult(
+        PythonInExcelResult result,
+        int errorCode,
+        int formulaReturnType,
+        string displayedText)
+    {
+        bool isExcelFormulaError = ExcelErrorMapper.TryGet(errorCode, out var error)
+            && error.IsExcelFormulaError;
+        bool displaysExcelFormulaError = isExcelFormulaError
+            && string.Equals(displayedText.Trim(), error.Name, StringComparison.OrdinalIgnoreCase);
+
+        if (formulaReturnType == 1 && !displaysExcelFormulaError)
+        {
+            // Python Object mode uses error-shaped COM values for rich data types and can reuse a
+            // standard formula-error code such as #VALUE!. Only treat the code as a formula error
+            // when Excel also displays that canonical error name; otherwise preserve the object.
+            result.Success = true;
+            result.IsPythonObject = true;
+            result.TypeName = !string.IsNullOrEmpty(displayedText) && displayedText.Any(char.IsLetter)
+                ? displayedText
+                : null;
+            result.Message = "Cell holds a Python Object (rich data type such as a DataFrame). "
+                + "Value2 cannot expose rich Python object data via COM automation - set returnType=0 "
+                + "(Excel Value) instead if you need to read the underlying data.";
+        }
+        else if (isExcelFormulaError)
+        {
+            result.Success = false;
+            result.ErrorMessage = ExcelErrorMapper.GetMessage(errorCode);
+        }
+        else
+        {
+            // Excel Value mode (returnType=0) with a non-standard negative error code -
+            // this is the Python code itself raising an error (syntax or runtime exception).
+            result.Success = false;
+            result.IsPythonError = true;
+            result.ErrorMessage = ExcelErrorMapper.GetMessage(ExcelErrorMapper.PythonErrorCode);
+        }
     }
 
     /// <summary>
