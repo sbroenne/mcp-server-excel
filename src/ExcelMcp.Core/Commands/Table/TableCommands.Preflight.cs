@@ -364,13 +364,13 @@ public partial class TableCommands
         }
     }
 
-    private static bool HasSortSensitiveReference(
+    internal static bool HasSortSensitiveReference(
         string formula,
         int formulaRow,
         int firstTableColumn,
         int lastTableColumn)
     {
-        foreach (Match match in A1ReferenceRegex.Matches(formula))
+        foreach (Match match in EnumerateUnquotedA1References(formula))
         {
             string rowToken = match.Groups["row"].Value;
             if (!int.TryParse(rowToken.TrimStart('$'), NumberStyles.None, CultureInfo.InvariantCulture, out int referencedRow))
@@ -392,6 +392,41 @@ public partial class TableCommands
         }
 
         return false;
+    }
+
+    private static IEnumerable<Match> EnumerateUnquotedA1References(string formula)
+    {
+        int scanIndex = 0;
+        bool isInStringLiteral = false;
+
+        foreach (Match match in A1ReferenceRegex.Matches(formula))
+        {
+            while (scanIndex < match.Index)
+            {
+                if (formula[scanIndex] != '"')
+                {
+                    scanIndex++;
+                    continue;
+                }
+
+                if (isInStringLiteral
+                    && scanIndex + 1 < match.Index
+                    && formula[scanIndex + 1] == '"')
+                {
+                    scanIndex += 2;
+                    continue;
+                }
+
+                isInStringLiteral = !isInStringLiteral;
+                scanIndex++;
+            }
+
+            scanIndex = match.Index + match.Length;
+            if (!isInStringLiteral)
+            {
+                yield return match;
+            }
+        }
     }
 
     private static int GetColumnIndex(string columnName)
