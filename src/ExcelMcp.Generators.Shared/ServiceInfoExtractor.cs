@@ -82,7 +82,9 @@ public static class ServiceInfoExtractor
 
         foreach (var member in interfaceSymbol.GetMembers())
         {
-            if (member is IMethodSymbol method && method.MethodKind == MethodKind.Ordinary)
+            if (member is IMethodSymbol method
+                && method.MethodKind == MethodKind.Ordinary
+                && !HasServiceIgnoreAttribute(method))
             {
                 var actionName = GetActionName(method);
                 var methodMcpTool = GetMethodMcpTool(method) ?? mcpTool;
@@ -123,6 +125,10 @@ public static class ServiceInfoExtractor
             mcpToolDescription,
             hasMcpToolAttribute: mcpTool != null);
     }
+
+    private static bool HasServiceIgnoreAttribute(IMethodSymbol method) =>
+        method.GetAttributes().Any(attribute =>
+            attribute.AttributeClass?.Name == "ServiceIgnoreAttribute");
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)
     {

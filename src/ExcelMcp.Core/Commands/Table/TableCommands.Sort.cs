@@ -1,185 +1,367 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
 /// <summary>
-/// TableCommands partial class - Sort operations
+/// Table sort operations.
 /// </summary>
 public partial class TableCommands
 {
-    // Excel constants for sorting
     private const int xlYes = 1;
-    private const int xlAscending = 1;
-    private const int xlDescending = 2;
 
-    /// <summary>
-    /// Sorts a table by a single column
-    /// </summary>
+    /// <inheritdoc />
     public OperationResult Sort(
         IExcelBatch batch,
         string tableName,
         string columnName,
-        bool ascending = true)
+        bool ascending = true) =>
+        Sort(batch, tableName, columnName, ascending, validateIntegrity: false);
+
+    /// <inheritdoc />
+    public TableSortResult Sort(
+        IExcelBatch batch,
+        string tableName,
+        string columnName,
+        bool ascending = true,
+        bool validateIntegrity = false,
+        List<string>? keyColumns = null,
+        List<TableSortControlTotal>? controlTotals = null)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(columnName);
 
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? table = null;
-            dynamic? columns = null;
-            dynamic? column = null;
-            dynamic? sortRange = null;
-            dynamic? columnRange = null;
-
-            try
-            {
-                table = FindTable(ctx.Book, tableName);
-
-                // Find column
-                columns = table.ListColumns;
-                column = columns.Item(columnName);
-                if (column == null)
-                {
-                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
-                }
-
-                // Get ranges for sorting
-                sortRange = table.Range;
-                columnRange = column.Range;
-
-                // Perform sort
-                sortRange.Sort(
-                    Key1: columnRange,
-                    Order1: ascending ? xlAscending : xlDescending,
-                    Header: xlYes
-                );
-
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
-            }
-            finally
-            {
-                ComUtilities.Release(ref columnRange);
-                ComUtilities.Release(ref sortRange);
-                ComUtilities.Release(ref column);
-                ComUtilities.Release(ref columns);
-                ComUtilities.Release(ref table);
-            }
-        });
+        return SortCore(
+            batch,
+            tableName,
+            [new TableSortColumn { ColumnName = columnName, Ascending = ascending }],
+            validateIntegrity,
+            keyColumns,
+            controlTotals);
     }
 
     /// <inheritdoc />
     public OperationResult SortMulti(
         IExcelBatch batch,
         string tableName,
-        List<TableSortColumn> sortColumns)
+        List<TableSortColumn> sortColumns) =>
+        SortMulti(batch, tableName, sortColumns, validateIntegrity: false);
+
+    /// <inheritdoc />
+    public TableSortResult SortMulti(
+        IExcelBatch batch,
+        string tableName,
+        List<TableSortColumn> sortColumns,
+        bool validateIntegrity = false,
+        List<string>? keyColumns = null,
+        List<TableSortControlTotal>? controlTotals = null)
     {
-        // Security: Validate table name
+        ArgumentNullException.ThrowIfNull(sortColumns);
+        if (sortColumns.Count == 0)
+        {
+            throw new ArgumentException("At least one sort column must be specified.", nameof(sortColumns));
+        }
+
+        if (sortColumns.Count > 3)
+        {
+            throw new ArgumentException("Excel supports a maximum of 3 sort levels.", nameof(sortColumns));
+        }
+
+        foreach (TableSortColumn sortColumn in sortColumns)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sortColumn.ColumnName);
+        }
+
+        return SortCore(
+            batch,
+            tableName,
+            sortColumns,
+            validateIntegrity,
+            keyColumns,
+            controlTotals);
+    }
+
+    private static TableSortResult SortCore(
+        IExcelBatch batch,
+        string tableName,
+        IReadOnlyList<TableSortColumn> sortColumns,
+        bool validateIntegrity,
+        IReadOnlyList<string>? keyColumns,
+        IReadOnlyList<TableSortControlTotal>? controlTotals)
+    {
         ValidateTableName(tableName);
+        ValidateIntegrityArguments(keyColumns, controlTotals);
+
+        bool validationRequested = validateIntegrity
+            || keyColumns is { Count: > 0 }
+            || controlTotals is { Count: > 0 };
+        IReadOnlyList<string> requestedKeyColumns = keyColumns ?? [];
+        IReadOnlyList<TableSortControlTotal> requestedControlTotals = controlTotals ?? [];
 
         return batch.Execute((ctx, ct) =>
         {
-            if (sortColumns == null || sortColumns.Count == 0)
-            {
-                throw new ArgumentException("At least one sort column must be specified", nameof(sortColumns));
-            }
-
-            if (sortColumns.Count > 3)
-            {
-                throw new ArgumentException("Excel supports a maximum of 3 sort levels", nameof(sortColumns));
-            }
-
-            dynamic? table = null;
-            dynamic? sortRange = null;
-            dynamic? key1 = null, key2 = null, key3 = null;
-
+            Excel.ListObject? table = null;
+            Excel.Range? tableRange = null;
+            var keyRanges = new List<Excel.Range>();
             try
             {
-                table = FindTable(ctx.Book, tableName);
+                table = (Excel.ListObject)FindTable(ctx.Book, tableName);
+                tableRange = table.Range;
+                ResolveSortKeyRanges(table, sortColumns, keyRanges);
 
-                sortRange = table.Range;
-                dynamic? columns = null;
+                var result = new TableSortResult
+                {
+                    FilePath = batch.WorkbookPath,
+                    TableName = tableName,
+                    TableRange = Convert.ToString(tableRange.Address) ?? string.Empty,
+                    ValidationPerformed = validationRequested
+                };
+
+                if (!validationRequested)
+                {
+                    ApplySort(tableRange, keyRanges, sortColumns);
+                    result.Success = true;
+                    result.SortAttempted = true;
+                    result.SortCommitted = true;
+                    return result;
+                }
+
+                TableSortSnapshot snapshot = CaptureSortSnapshot(
+                    table,
+                    tableRange,
+                    requestedKeyColumns,
+                    requestedControlTotals,
+                    result,
+                    ct);
+                if (result.Findings.Any(finding => finding.Severity == TablePreflightSeverity.Blocker))
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "The table was not sorted because an integrity check could not be evaluated safely.";
+                    return result;
+                }
+
+                Exception? postSortException = null;
                 try
                 {
-                    columns = table.ListColumns;
+                    ApplySort(tableRange, keyRanges, sortColumns);
+                    result.SortAttempted = true;
 
-                    // Get column ranges
-                    for (int i = 0; i < sortColumns.Count; i++)
+                    TableSortState postSortState = CaptureTableSortState(
+                        table,
+                        calculateValues: requestedControlTotals.Count > 0,
+                        ct);
+                    bool integrityPreserved = ValidatePostSortIntegrity(
+                        snapshot,
+                        postSortState,
+                        requestedControlTotals,
+                        result);
+                    result.IntegrityPreserved = integrityPreserved;
+
+                    if (integrityPreserved)
                     {
-                        dynamic? col = null;
-                        try
-                        {
-                            col = columns.Item(sortColumns[i].ColumnName);
-                            if (col == null)
-                            {
-                                throw new InvalidOperationException($"Column '{sortColumns[i].ColumnName}' not found in table '{tableName}'");
-                            }
-
-                            if (i == 0) key1 = col.Range;
-                            else if (i == 1) key2 = col.Range;
-                            else if (i == 2) key3 = col.Range;
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref col);
-                        }
+                        result.Success = true;
+                        result.SortCommitted = true;
+                        return result;
                     }
                 }
-                finally
+#pragma warning disable CA1031 // Any failure after mutation must pass through rollback before preserving the original exception.
+                catch (Exception ex)
+#pragma warning restore CA1031
                 {
-                    ComUtilities.Release(ref columns);
+                    postSortException = ex;
+                    result.IntegrityPreserved = false;
                 }
 
-                // Perform sort based on number of columns
-                if (sortColumns.Count == 1)
+                result.RollbackAttempted = true;
+                string? rollbackError = null;
+                try
                 {
-                    sortRange.Sort(
-                        Key1: key1,
-                        Order1: sortColumns[0].Ascending ? xlAscending : xlDescending,
-                        Header: xlYes
-                    );
+                    RestoreSortSnapshot(table, snapshot);
+                    TableSortState restoredState = CaptureTableSortState(
+                        table,
+                        calculateValues: requestedControlTotals.Count > 0,
+                        CancellationToken.None);
+                    result.RollbackSucceeded = SnapshotWasRestored(snapshot, restoredState);
                 }
-                else if (sortColumns.Count == 2)
+#pragma warning disable CA1031 // Rollback must report an uncertain workbook state instead of hiding the original failed validation.
+                catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
                 {
-                    sortRange.Sort(
-                        Key1: key1,
-                        Order1: sortColumns[0].Ascending ? xlAscending : xlDescending,
-                        Key2: key2,
-                        Order2: sortColumns[1].Ascending ? xlAscending : xlDescending,
-                        Header: xlYes
-                    );
-                }
-                else if (sortColumns.Count == 3)
-                {
-                    sortRange.Sort(
-                        Key1: key1,
-                        Order1: sortColumns[0].Ascending ? xlAscending : xlDescending,
-                        Key2: key2,
-                        Order2: sortColumns[1].Ascending ? xlAscending : xlDescending,
-                        Key3: key3,
-                        Order3: sortColumns[2].Ascending ? xlAscending : xlDescending,
-                        Header: xlYes
-                    );
+                    result.RollbackSucceeded = false;
+                    rollbackError = ex.Message;
                 }
 
-                // Build description
-                var sortDesc = string.Join(", ", sortColumns.Select(sc => $"{sc.ColumnName} ({(sc.Ascending ? "asc" : "desc")})"));
+                result.Success = false;
+                result.SortCommitted = false;
+                if (postSortException is not null)
+                {
+                    if (result.RollbackSucceeded == true)
+                    {
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                            .Capture(postSortException)
+                            .Throw();
+                    }
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                    throw new InvalidOperationException(
+                        "Table sorting failed after mutation, and the original table contents could not be restored and verified."
+                            + (string.IsNullOrWhiteSpace(rollbackError) ? string.Empty : $" Rollback error: {rollbackError}"),
+                        postSortException);
+                }
+
+                result.ErrorMessage = result.RollbackSucceeded == true
+                    ? "Post-sort integrity validation failed. The original table contents were restored and verified."
+                    : "Post-sort integrity validation failed, and the original table contents could not be restored and verified."
+                        + (string.IsNullOrWhiteSpace(rollbackError) ? string.Empty : $" Rollback error: {rollbackError}");
+                return result;
             }
             finally
             {
-                ComUtilities.Release(ref key3);
-                ComUtilities.Release(ref key2);
-                ComUtilities.Release(ref key1);
-                ComUtilities.Release(ref sortRange);
+                for (int index = keyRanges.Count - 1; index >= 0; index--)
+                {
+                    Excel.Range? keyRange = keyRanges[index];
+                    ComUtilities.Release(ref keyRange);
+                }
+
+                ComUtilities.Release(ref tableRange);
                 ComUtilities.Release(ref table);
             }
         });
     }
+
+    private static void ValidateIntegrityArguments(
+        IReadOnlyList<string>? keyColumns,
+        IReadOnlyList<TableSortControlTotal>? controlTotals)
+    {
+        if (keyColumns is not null)
+        {
+            foreach (string keyColumn in keyColumns)
+            {
+                ArgumentException.ThrowIfNullOrWhiteSpace(keyColumn);
+            }
+
+            if (keyColumns.Distinct(StringComparer.OrdinalIgnoreCase).Count() != keyColumns.Count)
+            {
+                throw new ArgumentException("Row-key column names must be unique.", nameof(keyColumns));
+            }
+        }
+
+        if (controlTotals is null)
+        {
+            return;
+        }
+
+        foreach (TableSortControlTotal controlTotal in controlTotals)
+        {
+            ArgumentNullException.ThrowIfNull(controlTotal);
+            ArgumentException.ThrowIfNullOrWhiteSpace(controlTotal.ColumnName);
+            if (controlTotal.Tolerance < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(controlTotals),
+                    "Control-total tolerance cannot be negative.");
+            }
+        }
+
+        if (controlTotals
+            .Select(total => total.ColumnName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() != controlTotals.Count)
+        {
+            throw new ArgumentException("Control-total column names must be unique.", nameof(controlTotals));
+        }
+    }
+
+    private static void ResolveSortKeyRanges(
+        Excel.ListObject table,
+        IReadOnlyList<TableSortColumn> sortColumns,
+        List<Excel.Range> keyRanges)
+    {
+        Excel.ListColumns? columns = null;
+        try
+        {
+            columns = table.ListColumns;
+            foreach (TableSortColumn sortColumn in sortColumns)
+            {
+                Excel.ListColumn? matchedColumn = null;
+                try
+                {
+                    for (int index = 1; index <= columns.Count; index++)
+                    {
+                        Excel.ListColumn? candidate = null;
+                        try
+                        {
+                            candidate = columns.Item[index];
+                            if (string.Equals(
+                                candidate.Name,
+                                sortColumn.ColumnName,
+                                StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedColumn = candidate;
+                                candidate = null;
+                                break;
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref candidate);
+                        }
+                    }
+
+                    if (matchedColumn is null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Column '{sortColumn.ColumnName}' not found in table '{table.Name}'.");
+                    }
+
+                    keyRanges.Add(matchedColumn.Range);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref matchedColumn);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref columns);
+        }
+    }
+
+    private static void ApplySort(
+        Excel.Range sortRange,
+        List<Excel.Range> keyRanges,
+        IReadOnlyList<TableSortColumn> sortColumns)
+    {
+        // Reason: Excel's early-bound _Sort overload rejects valid ListObject range keys that the late-bound COM call accepts.
+        dynamic sortTarget = sortRange;
+        if (sortColumns.Count == 1)
+        {
+            sortTarget.Sort(
+                Key1: keyRanges[0],
+                Order1: sortColumns[0].Ascending ? 1 : 2,
+                Header: xlYes);
+            return;
+        }
+
+        if (sortColumns.Count == 2)
+        {
+            sortTarget.Sort(
+                Key1: keyRanges[0],
+                Order1: sortColumns[0].Ascending ? 1 : 2,
+                Key2: keyRanges[1],
+                Order2: sortColumns[1].Ascending ? 1 : 2,
+                Header: xlYes);
+            return;
+        }
+
+        sortTarget.Sort(
+            Key1: keyRanges[0],
+            Order1: sortColumns[0].Ascending ? 1 : 2,
+            Key2: keyRanges[1],
+            Order2: sortColumns[1].Ascending ? 1 : 2,
+            Key3: keyRanges[2],
+            Order3: sortColumns[2].Ascending ? 1 : 2,
+            Header: xlYes);
+    }
 }
-
-
-

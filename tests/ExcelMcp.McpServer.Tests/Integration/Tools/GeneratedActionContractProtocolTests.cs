@@ -229,6 +229,41 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Fact]
+    public async Task TableColumnSort_AcceptsIntegrityParametersBeforeSessionDispatch()
+    {
+        var result = await CallToolAsync(
+            "table_column",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "sort",
+                ["session_id"] = "missing-session",
+                ["table_name"] = "Sales",
+                ["column_name"] = "Amount",
+                ["validate_integrity"] = true,
+                ["key_columns"] = """["Id"]""",
+                ["control_totals"] = new object[]
+                {
+                    new Dictionary<string, object?>
+                    {
+                        ["columnName"] = "Amount",
+                        ["tolerance"] = 0
+                    }
+                }
+            });
+
+        using var document = ParseJsonResult(result, "table_column.sort");
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains(
+            "session",
+            document.RootElement.GetProperty("errorMessage").GetString(),
+            StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "controlTotals",
+            document.RootElement.GetProperty("errorMessage").GetString(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PowerQueryLoadTo_RejectsTimeoutSecondsAsActionInapplicable()
     {
         var result = await CallToolAsync(

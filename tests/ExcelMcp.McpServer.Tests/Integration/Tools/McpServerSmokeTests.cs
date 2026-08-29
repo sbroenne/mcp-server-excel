@@ -245,6 +245,46 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createTableResult, "Create table");
 
+        var sortTableResult = await CallToolAsync("table_column", new Dictionary<string, object?>
+        {
+            ["action"] = "sort",
+            ["session_id"] = sessionId,
+            ["table_name"] = "DataTable",
+            ["column_name"] = "Value",
+            ["validate_integrity"] = true,
+            ["key_columns"] = """["Name"]""",
+            ["control_totals"] = new object[]
+            {
+                new Dictionary<string, object?>
+                {
+                    ["columnName"] = "Value",
+                    ["tolerance"] = 0
+                }
+            }
+        });
+        AssertSuccess(sortTableResult, "Sort table with integrity validation");
+        using (var sortJson = JsonDocument.Parse(sortTableResult))
+        {
+            Assert.True(sortJson.RootElement.GetProperty("validationPerformed").GetBoolean());
+            Assert.True(sortJson.RootElement.GetProperty("integrityPreserved").GetBoolean());
+            Assert.True(sortJson.RootElement.GetProperty("sortCommitted").GetBoolean());
+            Assert.True(
+                sortJson.RootElement
+                    .GetProperty("checks")
+                    .GetProperty("rowKeys")
+                    .GetProperty("passed")
+                    .GetBoolean());
+            Assert.True(
+                Assert.Single(
+                        sortJson.RootElement
+                            .GetProperty("checks")
+                            .GetProperty("controlTotals")
+                            .EnumerateArray()
+                            .ToArray())
+                    .GetProperty("passed")
+                    .GetBoolean());
+        }
+
         var listTablesResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "list",
@@ -252,7 +292,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
-        _output.WriteLine("  ✓ table: Preflight, Create, and List passed");
+        _output.WriteLine("  ✓ table: Preflight, Create, validated Sort, and List passed");
 
         // =====================================================================
         // STEP 6: NAMED RANGE OPERATIONS

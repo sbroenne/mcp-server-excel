@@ -92,3 +92,10 @@ Example DAX queries for create-from-dax:
 - Use `rows` for inline 2D data or `rows_file` for JSON/CSV input when appending
 - `visible_only` only applies to the get-data action
 - Table names must be unique within workbook (Excel requirement)
+
+**Validated sorting**:
+
+- `table_column sort` and `sort-multi` preserve legacy behavior by default. Set `validate_integrity=true` to snapshot the table, report adjacency/formula warnings, and verify that complete rows and consistent calculated columns survive the sort.
+- `key_columns` is an optional JSON array of column names forming a unique composite row key. `control_totals` is an optional array of `{columnName, tolerance}` checks for numeric column sums. Supplying either also enables validation.
+- Invalid or duplicate requested row keys and invalid control totals block before sorting. Populated adjacent columns, sort-sensitive formulas, external row-aligned formulas, and mixed-formula columns are warnings because their relationship to the table is uncertain.
+- If a deterministic post-sort check fails, the server restores and verifies captured values and formulas. Check `sortCommitted`, `integrityPreserved`, `rollbackAttempted`, `rollbackSucceeded`, and `rollbackScope`. The rollback scope is `TableContent`; row-specific formatting is not restored, and a failed rollback means table state may have changed.

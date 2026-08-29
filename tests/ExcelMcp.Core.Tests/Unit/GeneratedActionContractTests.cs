@@ -6,6 +6,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Analysis;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
@@ -21,6 +22,29 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class GeneratedActionContractTests
 {
+    [Fact]
+    public void TableSort_PreservesLegacyCoreOverloadsAndGeneratesOneActionEach()
+    {
+        MethodInfo[] methods = typeof(ITableColumnCommands).GetMethods();
+
+        Assert.Contains(
+            methods,
+            method => method.Name == nameof(ITableColumnCommands.Sort)
+                && method.ReturnType == typeof(OperationResult)
+                && method.GetParameters().Length == 4);
+        Assert.Contains(
+            methods,
+            method => method.Name == nameof(ITableColumnCommands.Sort)
+                && method.ReturnType == typeof(TableSortResult)
+                && method.GetParameters().Length == 7);
+        Assert.Single(
+            ServiceRegistry.TableColumn.ValidActions,
+            action => action == "sort");
+        Assert.Single(
+            ServiceRegistry.TableColumn.ValidActions,
+            action => action == "sort-multi");
+    }
+
     [Theory]
     [InlineData("worksheet", PowerQueryLoadMode.LoadToTable)]
     [InlineData("TABLE", PowerQueryLoadMode.LoadToTable)]

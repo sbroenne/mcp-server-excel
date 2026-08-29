@@ -252,6 +252,19 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         Assert.DoesNotContain("Invalid value", combinedOutput, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task TableColumnSortHelp_ListsIntegrityOptions()
+    {
+        var result = await CliProcessHelper.RunAsync(
+            ["tablecolumn", "sort", "--help"],
+            timeoutMs: 30_000);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("--validate-integrity", result.Stdout, StringComparison.Ordinal);
+        Assert.Contains("--key-columns", result.Stdout, StringComparison.Ordinal);
+        Assert.Contains("--control-totals", result.Stdout, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("worksheet")]
     [InlineData("WORKSHEET")]

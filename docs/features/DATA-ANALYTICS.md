@@ -128,6 +128,7 @@ Create and manage Excel Tables (ListObjects) — structured ranges with styling,
 **Sorting:**
 - **Sort (Single Column):** Sort by one column
 - **Sort (Multi-Column):** Sort by up to 3 columns/levels
+- **Optional integrity validation:** Snapshot and verify complete row movement, calculated-column formulas, optional composite row keys, and numeric control totals. Uncertain adjacent or row-aligned data is reported as a warning; deterministic post-sort failures restore and verify captured values and formulas. Row-specific formatting is outside the rollback scope.
 
 **Number Formatting:**
 - **Get Column Number Formats:** Read number formats applied to columns

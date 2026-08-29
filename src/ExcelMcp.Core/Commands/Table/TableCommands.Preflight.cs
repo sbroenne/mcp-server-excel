@@ -139,8 +139,8 @@ public partial class TableCommands
         }
 
         InspectHeaders(effectiveRange, hasHeaders, result);
-        InspectExcludedContiguousColumns(effectiveRange, result);
-        InspectSortSensitiveFormulas(effectiveRange, hasHeaders, result, cancellationToken);
+        InspectExcludedContiguousColumns(effectiveRange, result.Findings);
+        InspectSortSensitiveFormulas(effectiveRange, hasHeaders, result.Findings, cancellationToken);
 
         result.SafeToCreate = result.Findings.All(
             finding => finding.Severity != TablePreflightSeverity.Blocker);
@@ -233,7 +233,7 @@ public partial class TableCommands
 
     private static void InspectExcludedContiguousColumns(
         Excel.Range effectiveRange,
-        TablePreflightResult result)
+        List<TablePreflightFinding> findings)
     {
         Excel.Range? effectiveColumns = null;
         Excel.Range? currentRegion = null;
@@ -277,7 +277,7 @@ public partial class TableCommands
 
             if (excludedRanges.Count > 0)
             {
-                result.Findings.Add(new TablePreflightFinding
+                findings.Add(new TablePreflightFinding
                 {
                     Kind = TablePreflightFindingKind.ExcludedContiguousColumns,
                     Severity = TablePreflightSeverity.Warning,
@@ -300,7 +300,7 @@ public partial class TableCommands
     private static void InspectSortSensitiveFormulas(
         Excel.Range effectiveRange,
         bool hasHeaders,
-        TablePreflightResult result,
+        List<TablePreflightFinding> findings,
         CancellationToken cancellationToken)
     {
         Excel.Range? rows = null;
@@ -346,7 +346,7 @@ public partial class TableCommands
 
             if (warningAddresses.Count > 0)
             {
-                result.Findings.Add(new TablePreflightFinding
+                findings.Add(new TablePreflightFinding
                 {
                     Kind = TablePreflightFindingKind.SortSensitiveFormula,
                     Severity = TablePreflightSeverity.Warning,

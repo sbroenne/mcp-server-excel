@@ -25,7 +25,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 [ServiceCategory("tablecolumn", "TableColumn")]
 [McpTool("table_column", Title = "Table Column Operations", Destructive = true, Category = "data",
-    Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter (criteria like >100, =Active), apply-filter-values (JSON array of exact values), clear-filters, get-filters. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}). COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use table for lifecycle and data operations.")]
+    Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter (criteria like >100, =Active), apply-filter-values (JSON array of exact values), clear-filters, get-filters. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}); optional integrity validation reports warnings, verifies complete rows and calculated columns, and rolls back failed checks. COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use table for lifecycle and data operations.")]
 public interface ITableColumnCommands
 {
     // === FILTER OPERATIONS ===
@@ -110,23 +110,96 @@ public interface ITableColumnCommands
     // === SORT OPERATIONS ===
 
     /// <summary>
+    /// Sorts a table by a single column without integrity validation.
+    /// Preserved for existing Core API consumers.
+    /// </summary>
+    [ServiceIgnore]
+    OperationResult Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
+
+    /// <summary>
     /// Sorts a table by a single column
     /// </summary>
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="columnName">Column to sort by</param>
     /// <param name="ascending">Sort order: true = ascending (A-Z, 0-9), false = descending (default: true)</param>
+    /// <param name="validateIntegrity">Capture and verify table integrity around the sort. Default false preserves legacy behavior.</param>
+    /// <param name="keyColumns">Optional unique composite row-key columns (JSON array in CLI/MCP). Supplying keys enables integrity validation.</param>
+    /// <param name="controlTotals">Optional numeric column sums and tolerances. Supplying totals enables integrity validation.</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("sort")]
-    OperationResult Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
+    TableSortResult Sort(
+        IExcelBatch batch,
+        string tableName,
+        string columnName,
+        bool ascending = true,
+        bool validateIntegrity = false,
+        List<string>? keyColumns = null,
+        List<TableSortControlTotal>? controlTotals = null)
+    {
+        if (validateIntegrity || keyColumns is { Count: > 0 } || controlTotals is { Count: > 0 })
+        {
+            throw new NotSupportedException(
+                "This ITableColumnCommands implementation does not support validated sorting.");
+        }
+
+        OperationResult legacy = Sort(batch, tableName, columnName, ascending);
+        return new TableSortResult
+        {
+            Success = legacy.Success,
+            ErrorMessage = legacy.ErrorMessage,
+            FilePath = legacy.FilePath,
+            Action = legacy.Action,
+            Message = legacy.Message,
+            TableName = tableName,
+            SortAttempted = legacy.Success,
+            SortCommitted = legacy.Success
+        };
+    }
+
+    /// <summary>
+    /// Sorts a table by multiple columns without integrity validation.
+    /// Preserved for existing Core API consumers.
+    /// </summary>
+    [ServiceIgnore]
+    OperationResult SortMulti(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
 
     /// <summary>
     /// Sorts a table by multiple columns
     /// </summary>
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="sortColumns">List of sort specifications: [{columnName: 'Col1', ascending: true}, ...] - applied in order</param>
+    /// <param name="validateIntegrity">Capture and verify table integrity around the sort. Default false preserves legacy behavior.</param>
+    /// <param name="keyColumns">Optional unique composite row-key columns (JSON array in CLI/MCP). Supplying keys enables integrity validation.</param>
+    /// <param name="controlTotals">Optional numeric column sums and tolerances. Supplying totals enables integrity validation.</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("sort-multi")]
-    OperationResult SortMulti(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
+    TableSortResult SortMulti(
+        IExcelBatch batch,
+        string tableName,
+        List<TableSortColumn> sortColumns,
+        bool validateIntegrity = false,
+        List<string>? keyColumns = null,
+        List<TableSortControlTotal>? controlTotals = null)
+    {
+        if (validateIntegrity || keyColumns is { Count: > 0 } || controlTotals is { Count: > 0 })
+        {
+            throw new NotSupportedException(
+                "This ITableColumnCommands implementation does not support validated sorting.");
+        }
+
+        OperationResult legacy = SortMulti(batch, tableName, sortColumns);
+        return new TableSortResult
+        {
+            Success = legacy.Success,
+            ErrorMessage = legacy.ErrorMessage,
+            FilePath = legacy.FilePath,
+            Action = legacy.Action,
+            Message = legacy.Message,
+            TableName = tableName,
+            SortAttempted = legacy.Success,
+            SortCommitted = legacy.Success
+        };
+    }
 
     // === NUMBER FORMATTING ===
 

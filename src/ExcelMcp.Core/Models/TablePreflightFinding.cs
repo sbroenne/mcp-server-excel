@@ -1,7 +1,7 @@
 namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
-/// One actionable result from a table-creation preflight.
+/// One actionable table-integrity finding.
 /// </summary>
 public sealed class TablePreflightFinding
 {
@@ -11,7 +11,7 @@ public sealed class TablePreflightFinding
     public TablePreflightFindingKind Kind { get; set; }
 
     /// <summary>
-    /// Whether the finding blocks creation or is advisory.
+    /// Whether the finding blocks the requested operation or is advisory.
     /// </summary>
     public TablePreflightSeverity Severity { get; set; }
 
