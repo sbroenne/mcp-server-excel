@@ -28,21 +28,31 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. SCOPED READS: get-values supports zero-based rowOffset, positive rowLimit, and comma-separated absolute worksheet columns such as A,D,F; scoped calls return paging metadata and read only requested cells. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
 
     /// <summary>
-    /// Gets values from a range as 2D array.
+    /// Gets values from a range as a 2D array, optionally limited to a row page and selected worksheet columns.
     /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]].
     /// Named ranges: Use empty sheetName and rangeAddress="NamedRange".
+    /// Scoped reads return total dimensions and deterministic continuation metadata without materializing the full source range.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
+    /// <param name="rowOffset">Zero-based row offset relative to the resolved source range. Must not exceed the source row count.</param>
+    /// <param name="rowLimit">Maximum rows to return. Must be positive when supplied; omitted returns all remaining rows.</param>
+    /// <param name="columns">Comma-separated absolute worksheet column letters to return in the requested order (e.g., 'A,D,F'). Each column must be within the source range.</param>
     [ServiceAction("get-values")]
-    RangeValueResult GetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    RangeValueResult GetValues(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string rangeAddress,
+        int rowOffset = 0,
+        int? rowLimit = null,
+        string? columns = null);
 
     /// <summary>
     /// Sets values in a range from 2D array or file.
@@ -301,6 +311,5 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
-
 
 

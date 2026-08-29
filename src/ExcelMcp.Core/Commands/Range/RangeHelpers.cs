@@ -118,6 +118,54 @@ public static class RangeHelpers
         // Already a proper type (from CLI or tests)
         return value;
     }
+
+    /// <summary>
+    /// Converts a 1-based worksheet column index to its Excel column letters.
+    /// </summary>
+    internal static string GetColumnLetter(int columnIndex)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(columnIndex, 1);
+
+        string columnName = string.Empty;
+        while (columnIndex > 0)
+        {
+            columnIndex--;
+            columnName = Convert.ToChar('A' + (columnIndex % 26)) + columnName;
+            columnIndex /= 26;
+        }
+
+        return columnName;
+    }
+
+    /// <summary>
+    /// Parses Excel column letters into a 1-based worksheet column index.
+    /// </summary>
+    internal static bool TryGetColumnIndex(string columnName, out int columnIndex)
+    {
+        columnIndex = 0;
+        if (string.IsNullOrEmpty(columnName))
+        {
+            return false;
+        }
+
+        foreach (char character in columnName)
+        {
+            if (character is < 'A' or > 'Z')
+            {
+                columnIndex = 0;
+                return false;
+            }
+
+            columnIndex = checked((columnIndex * 26) + character - 'A' + 1);
+            if (columnIndex > 16384)
+            {
+                columnIndex = 0;
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 /// <summary>
@@ -241,4 +289,3 @@ public partial class RangeCommands
         });
     }
 }
-

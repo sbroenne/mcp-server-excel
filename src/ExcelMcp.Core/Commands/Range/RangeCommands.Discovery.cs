@@ -46,6 +46,8 @@ public partial class RangeCommands
                 {
                     result.RowCount = values.GetLength(0);
                     result.ColumnCount = values.GetLength(1);
+                    result.TotalRowCount = result.RowCount;
+                    result.TotalColumnCount = result.ColumnCount;
 
                     for (int r = 1; r <= result.RowCount; r++)
                     {
@@ -100,6 +102,8 @@ public partial class RangeCommands
                 {
                     result.RowCount = values.GetLength(0);
                     result.ColumnCount = values.GetLength(1);
+                    result.TotalRowCount = result.RowCount;
+                    result.TotalColumnCount = result.ColumnCount;
 
                     for (int r = 1; r <= result.RowCount; r++)
                     {
@@ -164,6 +168,5 @@ public partial class RangeCommands
         });
     }
 }
-
 
 

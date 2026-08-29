@@ -13,18 +13,37 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public RangeValueResult GetValues(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeValueResult GetValues(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress,
+        int rowOffset = 0,
+        int? rowLimit = null,
+        string? columns = null)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(rowOffset);
+        if (rowLimit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rowLimit), rowLimit, "Row limit must be greater than zero.");
+        }
+
+        var selectedColumns = ParseSelectedColumns(columns);
+        bool isScopedRead = rowOffset != 0 || rowLimit.HasValue || selectedColumns != null;
         var result = new RangeValueResult
         {
             FilePath = batch.WorkbookPath,
             SheetName = sheetName,
-            RangeAddress = rangeAddress
+            RangeAddress = rangeAddress,
+            RowOffset = rowOffset,
+            SelectedColumns = selectedColumns?.Select(column => column.Name).ToList()
         };
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
+            Excel.Range? rows = null;
+            Excel.Range? rangeColumns = null;
+            Excel.Areas? areas = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -35,32 +54,92 @@ public partial class RangeCommands
 
                 // Get actual address from Excel
                 result.RangeAddress = range.Address;
+                rows = range.Rows;
+                rangeColumns = range.Columns;
+                result.TotalRowCount = Convert.ToInt32(rows.Count);
+                result.TotalColumnCount = Convert.ToInt32(rangeColumns.Count);
 
-                // Get values as 2D array - handle single cell case
-                object valueOrArray = range.Value2;
-
-                if (valueOrArray is object[,] values)
+                if (rowOffset > result.TotalRowCount)
                 {
-                    // Multi-cell range - process as 2D array
-                    result.RowCount = values.GetLength(0);
-                    result.ColumnCount = values.GetLength(1);
+                    throw new ArgumentOutOfRangeException(
+                        nameof(rowOffset),
+                        rowOffset,
+                        $"Row offset must be between 0 and the source row count ({result.TotalRowCount}).");
+                }
 
-                    for (int r = 1; r <= result.RowCount; r++)
+                if (isScopedRead)
+                {
+                    areas = range.Areas;
+                    if (Convert.ToInt32(areas.Count) != 1)
                     {
-                        var row = new List<object?>();
-                        for (int c = 1; c <= result.ColumnCount; c++)
-                        {
-                            row.Add(values[r, c]);
-                        }
-                        result.Values.Add(row);
+                        throw new ArgumentException(
+                            "Scoped reads do not support multi-area ranges. Read each area separately.",
+                            nameof(rangeAddress));
                     }
+                }
+
+                int sourceStartColumn = Convert.ToInt32(range.Column);
+                var resolvedColumns = ResolveSelectedColumns(
+                    selectedColumns,
+                    sourceStartColumn,
+                    result.TotalColumnCount);
+                int returnedColumnCount = resolvedColumns?.Count ?? result.TotalColumnCount;
+                int remainingRows = result.TotalRowCount - rowOffset;
+                int returnedRowCount = Math.Min(rowLimit ?? remainingRows, remainingRows);
+
+                result.RowCount = returnedRowCount;
+                result.ColumnCount = returnedColumnCount;
+                result.HasMoreRows = rowOffset + returnedRowCount < result.TotalRowCount;
+                result.NextRowOffset = result.HasMoreRows ? rowOffset + returnedRowCount : null;
+                result.IsTruncated =
+                    rowOffset > 0 ||
+                    returnedRowCount < result.TotalRowCount ||
+                    returnedColumnCount < result.TotalColumnCount;
+
+                if (returnedRowCount == 0)
+                {
+                    result.Success = true;
+                    return result;
+                }
+
+                if (!isScopedRead)
+                {
+                    PopulateValues(result.Values, range.Value2, returnedRowCount, returnedColumnCount);
+                }
+                else if (resolvedColumns == null)
+                {
+                    ReadRectangularSlice(
+                        range,
+                        rowOffset,
+                        1,
+                        returnedRowCount,
+                        returnedColumnCount,
+                        result.Values);
                 }
                 else
                 {
-                    // Single cell - wrap value in 1x1 array
-                    result.RowCount = 1;
-                    result.ColumnCount = 1;
-                    result.Values.Add([valueOrArray]);
+                    for (int rowIndex = 0; rowIndex < returnedRowCount; rowIndex++)
+                    {
+                        result.Values.Add(new List<object?>(returnedColumnCount));
+                    }
+
+                    foreach (var selectedColumn in resolvedColumns)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var columnValues = new List<List<object?>>(returnedRowCount);
+                        ReadRectangularSlice(
+                            range,
+                            rowOffset,
+                            selectedColumn.RelativeIndex,
+                            returnedRowCount,
+                            1,
+                            columnValues);
+
+                        for (int rowIndex = 0; rowIndex < returnedRowCount; rowIndex++)
+                        {
+                            result.Values[rowIndex].Add(columnValues[rowIndex][0]);
+                        }
+                    }
                 }
 
                 result.Success = true;
@@ -73,9 +152,131 @@ public partial class RangeCommands
             }
             finally
             {
+                ComUtilities.Release(ref areas);
+                ComUtilities.Release(ref rangeColumns);
+                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    private static List<(string Name, int AbsoluteIndex)>? ParseSelectedColumns(string? columns)
+    {
+        if (string.IsNullOrWhiteSpace(columns))
+        {
+            return null;
+        }
+
+        var selectedColumns = new List<(string Name, int AbsoluteIndex)>();
+        var seenColumns = new HashSet<int>();
+        foreach (string rawColumn in columns.Split(','))
+        {
+            string columnName = rawColumn.Trim().ToUpperInvariant();
+            if (columnName.Length > 3 ||
+                !RangeHelpers.TryGetColumnIndex(columnName, out int absoluteIndex))
+            {
+                throw new ArgumentException(
+                    $"Column '{rawColumn.Trim()}' is invalid. Use Excel column letters from A through XFD.",
+                    nameof(columns));
+            }
+
+            if (!seenColumns.Add(absoluteIndex))
+            {
+                throw new ArgumentException($"Column '{columnName}' was specified more than once.", nameof(columns));
+            }
+
+            selectedColumns.Add((columnName, absoluteIndex));
+        }
+
+        return selectedColumns;
+    }
+
+    private static List<(string Name, int RelativeIndex)>? ResolveSelectedColumns(
+        List<(string Name, int AbsoluteIndex)>? columns,
+        int sourceStartColumn,
+        int sourceColumnCount)
+    {
+        if (columns == null)
+        {
+            return null;
+        }
+
+        int sourceEndColumn = sourceStartColumn + sourceColumnCount - 1;
+        var resolvedColumns = new List<(string Name, int RelativeIndex)>(columns.Count);
+        foreach (var selectedColumn in columns)
+        {
+            if (selectedColumn.AbsoluteIndex < sourceStartColumn ||
+                selectedColumn.AbsoluteIndex > sourceEndColumn)
+            {
+                throw new ArgumentException(
+                    $"Column '{selectedColumn.Name}' is outside the resolved source range " +
+                    $"({RangeHelpers.GetColumnLetter(sourceStartColumn)}:{RangeHelpers.GetColumnLetter(sourceEndColumn)}).",
+                    nameof(columns));
+            }
+
+            resolvedColumns.Add((
+                selectedColumn.Name,
+                selectedColumn.AbsoluteIndex - sourceStartColumn + 1));
+        }
+
+        return resolvedColumns;
+    }
+
+    private static void ReadRectangularSlice(
+        Excel.Range sourceRange,
+        int rowOffset,
+        int relativeColumnIndex,
+        int rowCount,
+        int columnCount,
+        List<List<object?>> destination)
+    {
+        Excel.Range? cells = null;
+        Excel.Range? firstCell = null;
+        Excel.Range? slice = null;
+        try
+        {
+            cells = sourceRange.Cells;
+            firstCell = cells[rowOffset + 1, relativeColumnIndex];
+            if (rowCount == 1 && columnCount == 1)
+            {
+                PopulateValues(destination, firstCell.Value2, rowCount, columnCount);
+                return;
+            }
+
+            slice = firstCell.Resize[rowCount, columnCount];
+            PopulateValues(destination, slice.Value2, rowCount, columnCount);
+        }
+        finally
+        {
+            ComUtilities.Release(ref slice);
+            ComUtilities.Release(ref firstCell);
+            ComUtilities.Release(ref cells);
+        }
+    }
+
+    private static void PopulateValues(
+        List<List<object?>> destination,
+        object? valueOrArray,
+        int rowCount,
+        int columnCount)
+    {
+        if (valueOrArray is object[,] values)
+        {
+            for (int rowIndex = 1; rowIndex <= rowCount; rowIndex++)
+            {
+                var row = new List<object?>(columnCount);
+                for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++)
+                {
+                    row.Add(values[rowIndex, columnIndex]);
+                }
+
+                destination.Add(row);
+            }
+
+            return;
+        }
+
+        destination.Add([valueOrArray]);
     }
 
     /// <inheritdoc />
@@ -229,6 +430,3 @@ public partial class RangeCommands
         }
     }
 }
-
-
-

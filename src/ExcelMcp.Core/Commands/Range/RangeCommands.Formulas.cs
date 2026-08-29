@@ -72,7 +72,7 @@ public partial class RangeCommands
                                 int column = startColumn + c - 1;
                                 result.CellErrors.Add(new RangeCellError
                                 {
-                                    CellAddress = $"{GetColumnLetter(column)}{row}",
+                                    CellAddress = $"{RangeHelpers.GetColumnLetter(column)}{row}",
                                     Row = row,
                                     Column = column,
                                     CurrentValue = cellValue,
@@ -104,7 +104,7 @@ public partial class RangeCommands
                     {
                         result.CellErrors.Add(new RangeCellError
                         {
-                            CellAddress = $"{GetColumnLetter(startColumn)}{startRow}",
+                            CellAddress = $"{RangeHelpers.GetColumnLetter(startColumn)}{startRow}",
                             Row = startRow,
                             Column = startColumn,
                             CurrentValue = cellValue,
@@ -160,21 +160,6 @@ public partial class RangeCommands
             -2146826233 => "Check the Python formula syntax and runtime inputs.",
             _ => "Check the formula syntax and referenced values."
         };
-
-    /// <summary>
-    /// Converts 1-based column index to Excel column letter (1=A, 26=Z, 27=AA)
-    /// </summary>
-    private static string GetColumnLetter(int columnIndex)
-    {
-        string columnName = string.Empty;
-        while (columnIndex > 0)
-        {
-            columnIndex--;
-            columnName = Convert.ToChar('A' + (columnIndex % 26)) + columnName;
-            columnIndex /= 26;
-        }
-        return columnName;
-    }
 
     /// <inheritdoc />
     public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null)
@@ -260,5 +245,4 @@ public partial class RangeCommands
         });
     }
 }
-
 

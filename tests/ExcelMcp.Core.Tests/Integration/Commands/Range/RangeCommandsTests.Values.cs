@@ -1,6 +1,8 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -58,6 +60,13 @@ public partial class RangeCommandsTests
         Assert.True(result.Success);
         Assert.Equal(3, result.RowCount);
         Assert.Equal(3, result.ColumnCount);
+        Assert.Equal(3, result.TotalRowCount);
+        Assert.Equal(3, result.TotalColumnCount);
+        Assert.Equal(0, result.RowOffset);
+        Assert.False(result.HasMoreRows);
+        Assert.Null(result.NextRowOffset);
+        Assert.False(result.IsTruncated);
+        Assert.Null(result.SelectedColumns);
         Assert.Equal(3, result.Values.Count);
         Assert.Equal(
             1.0,
@@ -285,7 +294,239 @@ public partial class RangeCommandsTests
         Assert.Contains("Verify the range address format", exception.Message);
     }
 
+    [Fact]
+    public void GetValues_WithRowPage_ReturnsRequestedRowsAndPagingMetadata()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "B2:D6",
+        [
+            ["R1B", "R1C", "R1D"],
+            ["R2B", "R2C", "R2D"],
+            ["R3B", "R3C", "R3D"],
+            ["R4B", "R4C", "R4D"],
+            ["R5B", "R5C", "R5D"]
+        ]);
+
+        var result = _commands.GetValues(batch, sheetName, "B2:D6", rowOffset: 1, rowLimit: 2);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.RowCount);
+        Assert.Equal(3, result.ColumnCount);
+        Assert.Equal(5, result.TotalRowCount);
+        Assert.Equal(3, result.TotalColumnCount);
+        Assert.Equal(1, result.RowOffset);
+        Assert.True(result.HasMoreRows);
+        Assert.Equal(3, result.NextRowOffset);
+        Assert.True(result.IsTruncated);
+        Assert.Null(result.SelectedColumns);
+        Assert.Equal(["R2B", "R2C", "R2D"], result.Values[0]);
+        Assert.Equal(["R3B", "R3C", "R3D"], result.Values[1]);
+    }
+
+    [Fact]
+    public void GetValues_WithSelectedColumns_PreservesRequestedOrder()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "B2:E4",
+        [
+            ["R1B", "R1C", "R1D", "R1E"],
+            ["R2B", "R2C", "R2D", "R2E"],
+            ["R3B", "R3C", "R3D", "R3E"]
+        ]);
+
+        var result = _commands.GetValues(
+            batch,
+            sheetName,
+            "B2:E4",
+            rowOffset: 1,
+            rowLimit: 2,
+            columns: "E, B, D");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.RowCount);
+        Assert.Equal(3, result.ColumnCount);
+        Assert.Equal(3, result.TotalRowCount);
+        Assert.Equal(4, result.TotalColumnCount);
+        Assert.Equal(["E", "B", "D"], result.SelectedColumns);
+        Assert.True(result.IsTruncated);
+        Assert.False(result.HasMoreRows);
+        Assert.Null(result.NextRowOffset);
+        Assert.Equal(["R2E", "R2B", "R2D"], result.Values[0]);
+        Assert.Equal(["R3E", "R3B", "R3D"], result.Values[1]);
+    }
+
+    [Fact]
+    public void GetValues_WithNamedRangeAndScope_ReturnsRequestedCells()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var namedRangeCommands = new NamedRangeCommands();
+        var namedRangeName = $"ScopedData_{Guid.NewGuid():N}";
+
+        namedRangeCommands.Create(batch, namedRangeName, $"{sheetName}!$C$3:$F$6");
+        try
+        {
+            _commands.SetValues(batch, sheetName, "C3:F6",
+            [
+                ["R1C", "R1D", "R1E", "R1F"],
+                ["R2C", "R2D", "R2E", "R2F"],
+                ["R3C", "R3D", "R3E", "R3F"],
+                ["R4C", "R4D", "R4E", "R4F"]
+            ]);
+
+            var result = _commands.GetValues(
+                batch,
+                "",
+                namedRangeName,
+                rowOffset: 2,
+                rowLimit: 1,
+                columns: "F,C");
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(4, result.TotalRowCount);
+            Assert.Equal(4, result.TotalColumnCount);
+            Assert.Equal(["F", "C"], result.SelectedColumns);
+            Assert.Equal(["R3F", "R3C"], Assert.Single(result.Values));
+            Assert.True(result.HasMoreRows);
+            Assert.Equal(3, result.NextRowOffset);
+        }
+        finally
+        {
+            namedRangeCommands.Delete(batch, namedRangeName);
+        }
+    }
+
+    [Fact]
+    public void GetValues_WithOffsetAtEnd_ReturnsEmptyPage()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var result = _commands.GetValues(batch, sheetName, "A1:C4", rowOffset: 4, rowLimit: 10);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Empty(result.Values);
+        Assert.Equal(0, result.RowCount);
+        Assert.Equal(3, result.ColumnCount);
+        Assert.Equal(4, result.TotalRowCount);
+        Assert.Equal(3, result.TotalColumnCount);
+        Assert.Equal(4, result.RowOffset);
+        Assert.False(result.HasMoreRows);
+        Assert.Null(result.NextRowOffset);
+        Assert.True(result.IsTruncated);
+    }
+
+    [Theory]
+    [InlineData(-1, 1, null, "rowOffset")]
+    [InlineData(0, 0, null, "rowLimit")]
+    [InlineData(0, 1, "B,B", "columns")]
+    [InlineData(0, 1, "1", "columns")]
+    [InlineData(0, 1, "AAAAAAAAAAAAAAAAAAAA", "columns")]
+    public void GetValues_WithInvalidScopeSyntax_ThrowsBeforeOpeningExcel(
+        int rowOffset,
+        int? rowLimit,
+        string? columns,
+        string expectedParameter)
+    {
+        var exception = Assert.ThrowsAny<ArgumentException>(() =>
+            _commands.GetValues(null!, "Sheet1", "B2:D4", rowOffset, rowLimit, columns));
+
+        Assert.Equal(expectedParameter, exception.ParamName);
+    }
+
+    [Fact]
+    public void GetValues_WithColumnOutsideResolvedRange_ThrowsDescriptiveValidationError()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var exception = Assert.ThrowsAny<ArgumentException>(() =>
+            _commands.GetValues(batch, sheetName, "B2:D4", rowLimit: 1, columns: "A"));
+
+        Assert.Equal("columns", exception.ParamName);
+    }
+
+    [Fact]
+    public void GetValues_WithMultiAreaRangeAndScope_ThrowsDescriptiveValidationError()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var namedRangeName = $"MultiArea_{Guid.NewGuid():N}";
+        var namedRangeCommands = new NamedRangeCommands();
+
+        batch.Execute((ctx, ct) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? firstArea = null;
+            Excel.Range? secondArea = null;
+            Excel.Range? unionRange = null;
+            Excel.Names? names = null;
+            Excel.Name? name = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                firstArea = sheet.Range["A1:A2"];
+                secondArea = sheet.Range["C1:C2"];
+                unionRange = ctx.App.Union(firstArea, secondArea);
+                names = ctx.Book.Names;
+                name = names.Add(namedRangeName, unionRange);
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref name);
+                ComUtilities.Release(ref names);
+                ComUtilities.Release(ref unionRange);
+                ComUtilities.Release(ref secondArea);
+                ComUtilities.Release(ref firstArea);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        try
+        {
+            var exception = Assert.Throws<ArgumentException>(() =>
+                _commands.GetValues(batch, "", namedRangeName, rowLimit: 1));
+
+            Assert.Equal("rangeAddress", exception.ParamName);
+            Assert.Contains("multi-area", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            namedRangeCommands.Delete(batch, namedRangeName);
+        }
+    }
+
+    [Fact]
+    public void GetValues_WithLargeSourceRange_MaterializesOnlyRequestedCells()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "A99999:A100000", [["A-last-1"], ["A-last"]]);
+        _commands.SetValues(batch, sheetName, "Z99999:Z100000", [["Z-last-1"], ["Z-last"]]);
+
+        var result = _commands.GetValues(
+            batch,
+            sheetName,
+            "A1:Z100000",
+            rowOffset: 99998,
+            rowLimit: 2,
+            columns: "A,Z");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(100000, result.TotalRowCount);
+        Assert.Equal(26, result.TotalColumnCount);
+        Assert.Equal(2, result.RowCount);
+        Assert.Equal(2, result.ColumnCount);
+        Assert.Equal(["A", "Z"], result.SelectedColumns);
+        Assert.Equal(["A-last-1", "Z-last-1"], result.Values[0]);
+        Assert.Equal(["A-last", "Z-last"], result.Values[1]);
+    }
+
 }
-
-
-

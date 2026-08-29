@@ -1,5 +1,16 @@
 # range - Number Formats and Cell Formatting
 
+## Scoped Value Reads
+
+For a large source range, use `get-values` row paging and column selection instead of reading every cell:
+
+```text
+range(action: 'get-values', sheet_name: 'Data', range_address: 'A1:Z100000',
+    row_offset: 1000, row_limit: 100, columns: 'A,D,F')
+```
+
+`row_offset` is zero-based relative to the source range. `columns` contains absolute worksheet column letters and preserves the requested order. Continue with `nextRowOffset` while `hasMoreRows` is true. The response also reports total source dimensions, returned dimensions, and whether rows or columns were omitted. Omit all three scope parameters to keep the existing full-range read.
+
 **IMPORTANT: Always use US format codes.** The server automatically translates to the user's locale.
 
 **Discoverability note:** number display formats live on `range`; visual styling and auto-fit live on `range_format`.

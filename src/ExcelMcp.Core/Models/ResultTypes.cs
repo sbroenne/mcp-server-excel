@@ -1044,14 +1044,51 @@ public class RangeValueResult : ResultBase
     public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
-    /// Number of rows in the range
+    /// Number of rows in the returned values matrix
     /// </summary>
     public int RowCount { get; set; }
 
     /// <summary>
-    /// Number of columns in the range
+    /// Number of columns in the returned values matrix
     /// </summary>
     public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Total number of rows in the resolved source range
+    /// </summary>
+    public int TotalRowCount { get; set; }
+
+    /// <summary>
+    /// Total number of columns in the resolved source range
+    /// </summary>
+    public int TotalColumnCount { get; set; }
+
+    /// <summary>
+    /// Applied zero-based row offset relative to the source range
+    /// </summary>
+    public int RowOffset { get; set; }
+
+    /// <summary>
+    /// Whether rows remain after the returned page
+    /// </summary>
+    public bool HasMoreRows { get; set; }
+
+    /// <summary>
+    /// Zero-based offset for the next row page, when more rows remain
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? NextRowOffset { get; set; }
+
+    /// <summary>
+    /// Whether the result omits any source rows or columns
+    /// </summary>
+    public bool IsTruncated { get; set; }
+
+    /// <summary>
+    /// Explicit worksheet columns in returned matrix order; omitted when all source columns are returned
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? SelectedColumns { get; set; }
 }
 
 /// <summary>

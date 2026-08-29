@@ -37,7 +37,7 @@ Read and write cell values, formulas, and formatting across any range of cells.
 **Formatting split:** use `range` for number display formats such as dates, currency, percentages, and text display. Use `range_format` for visual styling, validation, auto-fit, and size/layout changes.
 
 **Data Operations:**
-- **Get/Set Values:** Read or write cell values
+- **Get/Set Values:** Read or write cell values. Large reads can page rows with a zero-based offset and positive limit, select comma-separated absolute worksheet columns, and use returned totals plus `nextRowOffset`/`hasMoreRows` to continue without materializing the full source range.
 - **Get/Set/Validate Formulas:** Read, write, or validate formula syntax across ranges
 - **Clear All/Contents/Formats:** Clear a range's contents, formats, or both
 - **Copy / Copy Values / Copy Formulas:** Copy a range, or just its values/formulas

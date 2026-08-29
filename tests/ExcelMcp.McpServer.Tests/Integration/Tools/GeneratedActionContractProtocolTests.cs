@@ -438,6 +438,30 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Fact]
+    public async Task ListTools_RangeSchema_ExposesScopedReadParameters()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var rangeTool = Assert.Single(tools, candidate => candidate.Name == "range");
+        var properties = rangeTool.JsonSchema.GetProperty("properties");
+
+        var rowOffset = properties.GetProperty("row_offset");
+        Assert.Equal("integer", rowOffset.GetProperty("type").GetString());
+        Assert.Contains("get-values", rowOffset.GetProperty("description").GetString(), StringComparison.Ordinal);
+
+        var rowLimit = properties.GetProperty("row_limit");
+        Assert.Equal("integer", rowLimit.GetProperty("type").GetString());
+        Assert.Contains("get-values", rowLimit.GetProperty("description").GetString(), StringComparison.Ordinal);
+
+        var columns = properties.GetProperty("columns");
+        Assert.Equal("string", columns.GetProperty("type").GetString());
+        Assert.Contains("get-values", columns.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains(
+            "zero-based rowOffset, positive rowLimit, and comma-separated absolute worksheet columns",
+            rangeTool.Description,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CreateSessionBridge_DoesNotDefaultMacroEnabledToFalse()
     {
         var method = typeof(ExcelServiceBridge).GetMethod(nameof(ExcelServiceBridge.CreateSessionAsync));
