@@ -55,6 +55,31 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
+    public void SetValues_AlreadyPrefixedStrings_RemainTextWithoutVisibleApostrophes()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var textResult = _commands.SetValues(
+            batch,
+            sheetName,
+            "A1:C1",
+            [["'=1+1", "'2026-08-27", "plain text"]]);
+        var formulaResult = _commands.SetValues(batch, sheetName, "D1", [["=1+1"]]);
+
+        Assert.True(textResult.Success, textResult.ErrorMessage);
+        Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
+        var readResult = _commands.GetValues(batch, sheetName, "A1:D1");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.Equal("=1+1", readResult.Values[0][0]);
+        Assert.Equal("2026-08-27", readResult.Values[0][1]);
+        Assert.Equal("plain text", readResult.Values[0][2]);
+        Assert.Equal(
+            2.0,
+            Convert.ToDouble(readResult.Values[0][3], CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public void SetValues_TypedDate_Uses1904WorkbookDateSystem()
     {
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);

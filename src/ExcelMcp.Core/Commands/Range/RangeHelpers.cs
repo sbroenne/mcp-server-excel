@@ -140,7 +140,7 @@ public static class RangeHelpers
         {
             // A leading apostrophe tells Excel to keep a JSON string as text instead of
             // locale-coercing date-like or numeric-looking content during the bulk write.
-            return $"'{text}";
+            return text.StartsWith('\'') ? text : $"'{text}";
         }
 
         return primitiveValue;

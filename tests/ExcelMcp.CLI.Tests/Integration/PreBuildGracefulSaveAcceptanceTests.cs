@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -109,7 +110,11 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
                 },
                 TimeSpan.FromMinutes(4));
 
-            Assert.Equal(0, build.ExitCode);
+            Assert.True(
+                build.ExitCode == 0,
+                $"Release rebuild failed.{Environment.NewLine}" +
+                $"stdout: {build.Stdout}{Environment.NewLine}" +
+                $"stderr: {build.Stderr}");
             Assert.True(
                 selectedDaemon.WaitForExit(15000),
                 $"Selected daemon {selectedDaemon.Id} did not exit.");
@@ -195,7 +200,7 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
             cliPath,
             pipeName,
             ["service", "status", "--quiet"],
-            TimeSpan.FromSeconds(10));
+            DaemonConnectionPolicy.ControlTimeout + TimeSpan.FromSeconds(2));
 
     private static Task<ProcessResult> RunCliAsync(
         string cliPath,
