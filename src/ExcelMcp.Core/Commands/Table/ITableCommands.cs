@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 [ServiceCategory("table", "Table")]
 [McpTool("table", Title = "Table Operations", Destructive = true, Category = "data",
-    Description = "Excel Tables (ListObjects) - lifecycle and data operations. SAFE CREATION: Use preflight to inspect merged cells, headers, excluded contiguous columns, formula-sort risks, and the effective range without changing the workbook. Create runs the same checks and rejects deterministic blockers; heuristic warnings remain advisory. CONVERT TO TABLE: Write data to a range, then use create. STYLING: Pass tableStyle on create or use set-style later; never apply range_format to table headers or data rows. Prefer append/resize/rename over delete+recreate. Deleting tables used by PivotTables or the Data Model breaks those objects. Use table_column for filtering, sorting, and columns.")]
+    Description = "Excel Tables (ListObjects) - lifecycle and data operations. SAFE CREATION: Use preflight to inspect a proposed range, or convert-range for explicit merged-header/header policies plus operation-level rollback and post-create validation. Create rejects deterministic preflight blockers; heuristic warnings remain advisory. STYLING: Pass tableStyle on create/convert-range or use set-style later; never apply range_format to table headers or data rows. Prefer append/resize/rename over delete+recreate. Deleting tables used by PivotTables or the Data Model breaks those objects. Use table_column for filtering, sorting, and columns.")]
 public interface ITableCommands
 {
     /// <summary>
@@ -47,6 +47,30 @@ public interface ITableCommands
     /// <param name="hasHeaders">True if the first row contains column headers (default: true)</param>
     [ServiceAction("preflight")]
     TablePreflightResult Preflight(IExcelBatch batch, string sheetName, string tableName, string rangeAddress, bool hasHeaders = true);
+
+    /// <summary>
+    /// Converts a range to a table as one operation with scoped rollback.
+    /// Preflights first, applies only explicitly requested header normalization,
+    /// validates the resulting table, and restores the source range if a later step fails.
+    /// This is not a workbook-wide transaction.
+    /// </summary>
+    /// <param name="sheetName">Name of the worksheet containing the source range</param>
+    /// <param name="tableName">Name for the new table (must be unique in workbook)</param>
+    /// <param name="rangeAddress">Cell range address, or one cell to expand to its CurrentRegion</param>
+    /// <param name="hasHeaders">Must be true. Use create for headerless ranges because Excel inserts a new header row.</param>
+    /// <param name="tableStyle">Optional table style name</param>
+    /// <param name="mergedHeaderPolicy">Report merged headers or explicitly unmerge and fill them</param>
+    /// <param name="headerPolicy">Report invalid headers or explicitly normalize them</param>
+    [ServiceAction("convert-range")]
+    TableRangeConversionResult ConvertRange(
+        IExcelBatch batch,
+        string sheetName,
+        string tableName,
+        string rangeAddress,
+        bool hasHeaders = true,
+        string? tableStyle = null,
+        [FromString] TableMergedHeaderPolicy mergedHeaderPolicy = TableMergedHeaderPolicy.Report,
+        [FromString] TableHeaderPolicy headerPolicy = TableHeaderPolicy.Report);
 
     /// <summary>
     /// Creates a new Excel Table from a range after running the same checks as Preflight.

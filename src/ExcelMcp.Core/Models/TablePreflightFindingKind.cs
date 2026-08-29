@@ -36,5 +36,15 @@ public enum TablePreflightFindingKind
     /// <summary>
     /// The requested table name already exists.
     /// </summary>
-    TableNameExists
+    TableNameExists,
+
+    /// <summary>
+    /// The effective range has only a header row, so Excel would insert a data row.
+    /// </summary>
+    HeaderOnlyRange,
+
+    /// <summary>
+    /// Header content would be silently converted or truncated by Excel.
+    /// </summary>
+    LossyHeaders
 }

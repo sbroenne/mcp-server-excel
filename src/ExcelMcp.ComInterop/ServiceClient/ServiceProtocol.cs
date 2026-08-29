@@ -80,8 +80,10 @@ public sealed class ServiceResponse
     /// <summary>Inner exception details, when available.</summary>
     public string? InnerError { get; init; }
 
+    /// <summary>JSON-serialized structured failure details, when available.</summary>
+    public string? ErrorDetails { get; init; }
+
     /// <summary>JSON-serialized result data.</summary>
     public string? Result { get; init; }
 }
-
 

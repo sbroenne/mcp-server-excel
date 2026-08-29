@@ -76,7 +76,7 @@ public sealed class ServiceClient : IDisposable
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
                 requestCts.CancelAfter(requestTimeout);
 
-                var callTask = proxy.ProcessCommandAsync(request);
+                var callTask = proxy.ProcessCommandAsync(request, requestCts.Token);
                 var disconnectTask = WaitForPipeDisconnectAsync(pipe, disconnectMonitorCts.Token);
                 var completed = await Task.WhenAny(callTask, disconnectTask);
                 if (completed == disconnectTask
@@ -88,7 +88,21 @@ public sealed class ServiceClient : IDisposable
                 }
 
                 await disconnectMonitorCts.CancelAsync();
-                return await callTask.WaitAsync(requestCts.Token);
+                try
+                {
+                    return await callTask.WaitAsync(requestCts.Token);
+                }
+                catch (OperationCanceledException) when (
+                    requestCts.IsCancellationRequested
+                    && string.Equals(
+                        request.Command,
+                        "table.convert-range",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    using var cleanupGraceCts = new CancellationTokenSource(
+                        TimeSpan.FromSeconds(35));
+                    return await callTask.WaitAsync(cleanupGraceCts.Token);
+                }
             }
             finally
             {

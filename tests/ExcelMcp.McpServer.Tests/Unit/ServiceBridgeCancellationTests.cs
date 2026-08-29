@@ -103,6 +103,25 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
     }
 
     [Fact]
+    public async Task SendAsync_TableConversionCancellation_ReturnsCooperativeRollbackDetails()
+    {
+        var backend = new CooperativeCancellationBackend();
+        Bridge.SetServiceFactoryForTests(() => backend);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        var response = await Bridge.SendAsync(
+            "table.convert-range",
+            sessionId: "session-convert",
+            cancellationToken: cts.Token);
+
+        Assert.False(response.Success);
+        Assert.Equal("Cancelled", response.ErrorCategory);
+        Assert.Equal("""{"rollback":{"verified":true}}""", response.ErrorDetails);
+        Assert.Empty(backend.ClosedSessions);
+        Assert.False(backend.Disposed);
+    }
+
+    [Fact]
     public async Task SendAsync_WhenServiceFactoryThrows_IncludesStartupFailureDetails()
     {
         Bridge.SetServiceFactoryForTests(static () => throw new FileNotFoundException("office runtime missing"));
@@ -161,7 +180,9 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
             _completeImmediately = completeImmediately;
         }
 
-        public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+        public Task<ServiceResponse> ProcessAsync(
+            ServiceRequest request,
+            CancellationToken cancellationToken = default)
         {
             if (_completeImmediately)
             {
@@ -207,7 +228,9 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
 
         public bool Disposed { get; private set; }
 
-        public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+        public Task<ServiceResponse> ProcessAsync(
+            ServiceRequest request,
+            CancellationToken cancellationToken = default)
         {
             _requestStarted.TrySetResult(true);
             return _response.Task;
@@ -242,6 +265,43 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
                 Success = false,
                 ErrorMessage = "disposed"
             });
+        }
+    }
+
+    private sealed class CooperativeCancellationBackend : IServiceBridgeBackend
+    {
+        public List<string> ClosedSessions { get; } = [];
+
+        public bool Disposed { get; private set; }
+
+        public async Task<ServiceResponse> ProcessAsync(
+            ServiceRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken)
+                .ContinueWith(
+                    _ => { },
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Cancelled",
+                ErrorMessage = "Conversion cancelled after verified rollback.",
+                ErrorDetails = """{"rollback":{"verified":true}}"""
+            };
+        }
+
+        public bool ForceCloseSession(string sessionId)
+        {
+            ClosedSessions.Add(sessionId);
+            return true;
+        }
+
+        public void Dispose()
+        {
+            Disposed = true;
         }
     }
 }

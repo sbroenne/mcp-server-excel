@@ -101,11 +101,12 @@ public sealed class ActionValidatorTests
     }
 
     [Fact]
-    public void TableActions_IncludePreflight()
+    public void TableActions_IncludeSafeCreationActions()
     {
         var actions = GetActualActions(typeof(ServiceRegistry.Table));
 
         Assert.Contains("preflight", actions);
+        Assert.Contains("convert-range", actions);
     }
 
     [Fact]

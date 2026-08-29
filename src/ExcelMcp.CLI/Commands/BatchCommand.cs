@@ -161,7 +161,12 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 Command = cmd.Command,
                 Success = response.Success,
                 Result = response.Success ? TryParseJsonElement(response.Result) : null,
-                Error = response.ErrorMessage
+                Error = response.ErrorMessage,
+                ErrorCategory = response.ErrorCategory,
+                ExceptionType = response.ExceptionType,
+                HResult = response.HResult,
+                InnerError = response.InnerError,
+                Details = TryParseJsonElement(response.ErrorDetails)
             };
 
             Console.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
@@ -328,5 +333,20 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
         [JsonPropertyName("error")]
         public string? Error { get; init; }
+
+        [JsonPropertyName("errorCategory")]
+        public string? ErrorCategory { get; init; }
+
+        [JsonPropertyName("exceptionType")]
+        public string? ExceptionType { get; init; }
+
+        [JsonPropertyName("hresult")]
+        public string? HResult { get; init; }
+
+        [JsonPropertyName("innerError")]
+        public string? InnerError { get; init; }
+
+        [JsonPropertyName("details")]
+        public JsonElement? Details { get; init; }
     }
 }

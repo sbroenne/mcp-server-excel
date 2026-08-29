@@ -17,6 +17,7 @@ internal static class CliErrorOutput
             null,
             ex.InnerException?.Message,
             null,
+            null,
             null));
         return 1;
     }
@@ -31,6 +32,7 @@ internal static class CliErrorOutput
             response.ExceptionType,
             response.HResult,
             response.InnerError,
+            response.ErrorDetails,
             null,
             null));
         return 1;
@@ -49,6 +51,7 @@ internal static class CliErrorOutput
             response.ExceptionType,
             response.HResult,
             response.InnerError,
+            response.ErrorDetails,
             daemonState,
             running));
         return 1;
@@ -56,7 +59,7 @@ internal static class CliErrorOutput
 
     public static int WriteError(string errorMessage, string? errorCategory = null)
     {
-        Console.WriteLine(Serialize(errorMessage, errorCategory, null, null, null, null, null, null, null));
+        Console.WriteLine(Serialize(errorMessage, errorCategory, null, null, null, null, null, null, null, null));
         return 1;
     }
 
@@ -68,6 +71,7 @@ internal static class CliErrorOutput
         string? exceptionType,
         string? hresult,
         string? innerError,
+        string? errorDetails,
         string? daemonState,
         bool? running)
     {
@@ -83,9 +87,21 @@ internal static class CliErrorOutput
             ExceptionType = exceptionType,
             HResult = hresult,
             InnerError = innerError,
+            Details = DeserializeErrorDetails(errorDetails),
             DaemonState = daemonState,
             Running = running
         }, ServiceProtocol.JsonOptions);
+    }
+
+    private static JsonElement? DeserializeErrorDetails(string? errorDetails)
+    {
+        if (string.IsNullOrWhiteSpace(errorDetails))
+        {
+            return null;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(errorDetails);
+        return document.RootElement.Clone();
     }
 
     private sealed class ErrorEnvelope
@@ -116,6 +132,9 @@ internal static class CliErrorOutput
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? InnerError { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public JsonElement? Details { get; init; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? DaemonState { get; init; }

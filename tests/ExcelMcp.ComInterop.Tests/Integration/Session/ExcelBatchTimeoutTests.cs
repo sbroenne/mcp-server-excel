@@ -210,6 +210,38 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
             "pre-emptive kill may not be working. Expected < 30s.");
     }
 
+    [Fact]
+    public void Execute_CooperativeCleanupScope_ObservesSessionTimeoutWithoutPoisoningBatch()
+    {
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(10),
+            _testFileCopy!);
+        using var cancellationScope = BatchExecutionCancellation.Push(
+            CancellationToken.None,
+            requiresCooperativeCleanup: true);
+        var cancellationObserved = false;
+
+        var exception = Assert.Throws<TimeoutException>(() =>
+            batch.Execute((_, ct) =>
+            {
+                while (true)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        cancellationObserved = true;
+                        ct.ThrowIfCancellationRequested();
+                    }
+
+                    Thread.Sleep(20);
+                }
+            }));
+
+        Assert.True(cancellationObserved);
+        Assert.Contains("cooperative cleanup", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(batch.HasTimedOutOperation);
+    }
+
     /// <summary>
     /// REGRESSION TEST: After timeout, the Excel process must be killed and cleaned up.
     /// Before Bug 8 fix, the hung Excel process would remain alive permanently.

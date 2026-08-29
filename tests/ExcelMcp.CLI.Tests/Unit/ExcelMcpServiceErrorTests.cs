@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
@@ -24,6 +25,82 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class ExcelMcpServiceErrorTests
 {
+    [Fact]
+    public void CreateErrorResponse_TableConversionFailure_PreservesRollbackDetailsAndComContext()
+    {
+        var details = new TableRangeConversionFailureDetails
+        {
+            FailureStage = TableConversionFailureStage.Styling,
+            TableName = "DataTable",
+            SheetName = "Data",
+            RequestedRange = "A1:B2",
+            EffectiveRange = "$A$1:$B$2",
+            Rollback = new TableRollbackResult
+            {
+                Required = true,
+                Attempted = true,
+                Completed = true,
+                Verified = true
+            }
+        };
+        var exception = new TableRangeConversionException(
+            "Conversion failed and rollback was verified.",
+            details,
+            Marshal.GetExceptionForHR(unchecked((int)0x800A03EC)));
+        MethodInfo method = typeof(ExcelMcpService).GetMethod(
+            "CreateErrorResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        var response = Assert.IsType<ServiceResponse>(
+            method.Invoke(null, [exception, "table.convert-range", "session-1"]));
+
+        Assert.False(response.Success);
+        Assert.Equal("TableConversion", response.ErrorCategory);
+        Assert.Equal("0x800A03EC", response.HResult);
+        Assert.NotNull(response.ErrorDetails);
+        using JsonDocument document = JsonDocument.Parse(response.ErrorDetails);
+        Assert.Equal(
+            "Styling",
+            document.RootElement.GetProperty("failureStage").GetString());
+        Assert.True(
+            document.RootElement.GetProperty("rollback").GetProperty("verified").GetBoolean());
+    }
+
+    [Fact]
+    public void CreateErrorResponse_CancelledTableConversion_PreservesTypedDetails()
+    {
+        var details = new TableRangeConversionFailureDetails
+        {
+            FailureStage = TableConversionFailureStage.Validation,
+            WasCancelled = true,
+            TableName = "DataTable",
+            Rollback = new TableRollbackResult
+            {
+                Required = true,
+                Attempted = true,
+                Completed = true,
+                Verified = true
+            }
+        };
+        var exception = new TableRangeConversionException(
+            "Conversion cancelled after verified rollback.",
+            details,
+            new OperationCanceledException());
+        MethodInfo method = typeof(ExcelMcpService).GetMethod(
+            "CreateErrorResponse",
+            BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        var response = Assert.IsType<ServiceResponse>(
+            method.Invoke(null, [exception, "table.convert-range", "session-1"]));
+
+        Assert.Equal("Cancelled", response.ErrorCategory);
+        Assert.NotNull(response.ErrorDetails);
+        using JsonDocument document = JsonDocument.Parse(response.ErrorDetails);
+        Assert.True(document.RootElement.GetProperty("wasCancelled").GetBoolean());
+        Assert.True(
+            document.RootElement.GetProperty("rollback").GetProperty("verified").GetBoolean());
+    }
+
     /// <summary>
     /// REGRESSION TEST for Bug 5 (#482): When an unexpected exception escapes
     /// the ProcessAsync routing switch (e.g. NullReferenceException on null Command),

@@ -5,7 +5,7 @@
 Excel Tables on worksheets are NOT automatically in the Data Model (Power Pivot).
 To analyze worksheet data with DAX measures:
 
-1. Ensure data is formatted as an Excel Table (use preflight, then create if needed)
+1. Ensure data is formatted as an Excel Table (prefer convert-range when cleanup or rollback may be needed)
 2. Use `add-to-data-model` action to add the table to Power Pivot
 3. Then use `datamodel` to create DAX measures on it
 
@@ -13,6 +13,7 @@ To analyze worksheet data with DAX measures:
 
 - create: Create NEW table from a range (requires `sheet_name`, `table_name`, and `range_address`). Pass `table_style` here to style at creation time.
 - preflight: Check a proposed table without changing the workbook. It returns the effective range, typed findings, and `safeToCreate`. Merged cells plus blank or duplicate headers are blockers. Excluded contiguous columns and formulas that may be unsafe to sort are heuristic warnings.
+- convert-range: Preflight, optionally normalize merged headers and invalid headers through explicit policies, create/style the table, validate formulas and calculated columns, and restore the affected range if a later step fails. It requires an existing header row (`has_headers=true`) and defaults only report blockers. This is operation-level rollback for the effective range, not a workbook-wide transaction.
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use `visible_only=true` for filtered data)
 - rename: Rename an existing table
@@ -34,7 +35,7 @@ Excel Tables manage their own header/row/totals formatting through table styles.
 | Goal | Correct approach |
 |------|-----------------|
 | Style a table | `table(action: 'set-style', table_style: 'TableStyleMedium2')` |
-| Style at creation | `table(action: 'create', table_style: 'TableStyleMedium2', ...)` |
+| Style at creation | `table(action: 'convert-range', table_style: 'TableStyleMedium2', ...)` |
 | Custom branding on table | Use a Medium/Dark table style that matches your palette — avoid overriding individual cells |
 
 Common table style choices:
@@ -84,7 +85,8 @@ Example DAX queries for create-from-dax:
 - Using datamodel to add tables (it only manages existing Data Model tables)
 - Confusing get-data (returns cell values) with read (returns metadata)
 - Forgetting `has_headers` when creating tables from headerless data
-- Skipping preflight when warnings about excluded columns or formula sorting need human review. Create always enforces deterministic blockers, but warnings do not block it.
+- Using normalization policies without reviewing the returned header changes. `convert-range` defaults to reporting blockers; normalization must be explicit.
+- Treating `convert-range` as a workbook transaction. Its rollback covers the effective source range and newly created table while Excel remains responsive.
 
 **Server-specific quirks**:
 

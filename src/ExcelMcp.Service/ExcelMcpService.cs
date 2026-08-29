@@ -12,16 +12,17 @@ using Sbroenne.ExcelMcp.Core.Commands.Drawing;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Service.Rpc;
-using StreamJsonRpc;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
+using Sbroenne.ExcelMcp.Service.Rpc;
+using StreamJsonRpc;
 
 namespace Sbroenne.ExcelMcp.Service;
 
@@ -107,7 +108,7 @@ public sealed class ExcelMcpService : IDisposable
 
     /// <summary>
     /// Records client activity to keep the idle timeout monitor alive.
-    /// Called by <see cref="Rpc.DaemonRpcTarget"/> on each incoming RPC call.
+    /// Called by <see cref="DaemonRpcTarget"/> on each incoming RPC call.
     /// </summary>
     internal void RecordActivity() => _lastActivityTime = DateTime.UtcNow;
 
@@ -252,8 +253,16 @@ public sealed class ExcelMcpService : IDisposable
     /// Processes a service request directly (in-process, no pipe).
     /// Used by the MCP Server for direct in-process communication.
     /// </summary>
-    public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+    public async Task<ServiceResponse> ProcessAsync(
+        ServiceRequest request,
+        CancellationToken cancellationToken = default)
     {
+        using var cancellationScope = BatchExecutionCancellation.Push(
+            cancellationToken,
+            string.Equals(
+                request.Command,
+                "table.convert-range",
+                StringComparison.OrdinalIgnoreCase));
         try
         {
             // Route command
@@ -959,48 +968,53 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (TimeoutException ex)
         {
-            // Operation timed out — Excel COM call is hung (IDispatch.Invoke stuck).
-            // Force-close the session to trigger the force-kill path in ExcelBatch.Dispose(),
-            // which will kill the hung Excel process and release the STA thread.
-            try
+            bool sessionClosed = false;
+            if (batch?.HasTimedOutOperation == true)
             {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
+                try
+                {
+                    _sessionManager.CloseSession(sessionId, save: false, force: true);
+                    sessionClosed = true;
+                }
+                catch (Exception cleanupEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+                }
             }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Timeout",
-                ErrorMessage = $"Excel operation timed out and the session has been closed: {ex.Message} " +
-                               "Please reopen the file with a new session.",
+                ErrorMessage = sessionClosed
+                    ? $"Excel operation timed out and the session has been closed: {ex.Message} Please reopen the file with a new session."
+                    : $"Excel operation timed out after cooperative cleanup: {ex.Message} The session remains open.",
                 ExceptionType = ex.GetType().Name
             });
         }
         catch (OperationCanceledException)
         {
-            // Caller cancelled (e.g., VS Code cancelled the tool call) while a COM operation
-            // may still be running on the STA thread. ExcelBatch.Execute sets _operationTimedOut
-            // on cancellation, but nobody calls Dispose() — the session stays alive with a
-            // stuck STA thread, and all subsequent requests queue up and hang.
-            // Force-close the session to kill the hung Excel process and release the STA thread.
-            try
+            bool sessionClosed = false;
+            if (batch?.HasTimedOutOperation == true)
             {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
+                try
+                {
+                    _sessionManager.CloseSession(sessionId, save: false, force: true);
+                    sessionClosed = true;
+                }
+                catch (Exception cleanupEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+                }
             }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Cancelled",
-                ErrorMessage = $"Operation was cancelled and the session has been closed. " +
-                               "The Excel COM thread may have been unresponsive. " +
-                               "Please reopen the file with a new session.",
+                ErrorMessage = sessionClosed
+                    ? "Operation was cancelled and the unresponsive session has been closed. Please reopen the file with a new session."
+                    : "Operation was cancelled before execution or after cooperative cleanup. The session remains open.",
                 ExceptionType = nameof(OperationCanceledException)
             });
         }
@@ -1020,6 +1034,10 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name,
                 HResult = $"0x{ex.HResult:X8}"
             });
+        }
+        catch (TableRangeConversionException ex)
+        {
+            return Task.FromResult(CreateErrorResponse(ex));
         }
         catch (InvalidOperationException ex) when (
             ex.Message.Contains("no longer running", StringComparison.OrdinalIgnoreCase) ||
@@ -1147,6 +1165,7 @@ public sealed class ExcelMcpService : IDisposable
             ExceptionType = response.ExceptionType,
             HResult = response.HResult,
             InnerError = response.InnerError,
+            ErrorDetails = response.ErrorDetails,
             Result = response.Result
         };
     }
@@ -1154,11 +1173,17 @@ public sealed class ExcelMcpService : IDisposable
     private static ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
     {
         var exceptionType = ex.GetType().Name;
-        string? hresult = ex is COMException comEx ? $"0x{comEx.HResult:X8}" : null;
+        string? hresult = FindComException(ex) is { } comEx ? $"0x{comEx.HResult:X8}" : null;
         string? innerError = null;
         var errorCategory = ex switch
         {
             PowerQueryCommandException pqEx => pqEx.ErrorCategory,
+            TableRangeConversionException conversionEx =>
+                conversionEx.Details.WasCancelled
+                    ? "Cancelled"
+                    : conversionEx.Details.WasTimedOut
+                        ? "Timeout"
+                        : "TableConversion",
             TimeoutException => "Timeout",
             ArgumentException or JsonException => "InvalidInput",
             COMException => "ComInterop",
@@ -1187,6 +1212,24 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = hresult,
                 InnerError = innerError
             },
+            TableRangeConversionException conversionEx => new ServiceResponse
+            {
+                Success = false,
+                Command = command,
+                SessionId = sessionId,
+                ErrorCategory = conversionEx.Details.WasCancelled
+                    ? "Cancelled"
+                    : conversionEx.Details.WasTimedOut
+                        ? "Timeout"
+                        : "TableConversion",
+                ErrorMessage = conversionEx.Message,
+                ExceptionType = exceptionType,
+                HResult = hresult,
+                InnerError = innerError,
+                ErrorDetails = JsonSerializer.Serialize(
+                    conversionEx.Details,
+                    ServiceProtocol.JsonOptions)
+            },
             _ => new ServiceResponse
             {
                 Success = false,
@@ -1199,6 +1242,19 @@ public sealed class ExcelMcpService : IDisposable
                 InnerError = innerError
             }
         };
+    }
+
+    private static COMException? FindComException(Exception exception)
+    {
+        for (Exception? current = exception; current != null; current = current.InnerException)
+        {
+            if (current is COMException comException)
+            {
+                return comException;
+            }
+        }
+
+        return null;
     }
 
     private ServiceResponse? TryBeginUsableSession(string sessionId, out IExcelBatch? batch)

@@ -83,7 +83,7 @@ Build a Power Pivot Data Model — manage tables, DAX measures, and relationship
 
 ---
 
-## 📇 Excel Tables (ListObjects) (28 operations)
+## 📇 Excel Tables (ListObjects) (29 operations)
 
 Create and manage Excel Tables (ListObjects) — structured ranges with styling, filtering, and sorting.
 
@@ -91,6 +91,7 @@ Create and manage Excel Tables (ListObjects) — structured ranges with styling,
 - **List:** List Excel Tables in a worksheet or workbook
 - **Read:** Get table structure (columns, range, style)
 - **Preflight:** Non-destructively check the effective range, merged cells, blank or duplicate headers, excluded contiguous columns, and formulas that may be unsafe to sort. Deterministic problems block creation; uncertain adjacency and formula findings are warnings.
+- **Convert Range:** Preflight a range with an existing header row, apply only explicitly requested merged-header/header normalization, create and style the table, validate formulas and calculated columns, and restore the affected range when a later step fails. This is operation-level rollback, not a workbook-wide transaction; use Create for headerless ranges.
 - **Create:** Create a new Excel Table from a range
 - **Rename:** Rename an existing table
 - **Resize:** Resize table range to match new data bounds

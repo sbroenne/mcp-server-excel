@@ -119,6 +119,7 @@ public static class ExcelToolsBase
                 exceptionType = response.ExceptionType,
                 hresult = response.HResult,
                 innerError = response.InnerError,
+                details = DeserializeErrorDetails(response.ErrorDetails),
                 isError = true
             }, JsonOptions);
         }
@@ -159,6 +160,7 @@ public static class ExcelToolsBase
                 exceptionType = response.ExceptionType,
                 hresult = response.HResult,
                 innerError = response.InnerError,
+                details = DeserializeErrorDetails(response.ErrorDetails),
                 isError = true
             }, JsonOptions);
         }
@@ -167,6 +169,17 @@ public static class ExcelToolsBase
         {
             success = true
         }, JsonOptions);
+    }
+
+    private static JsonElement? DeserializeErrorDetails(string? errorDetails)
+    {
+        if (string.IsNullOrWhiteSpace(errorDetails))
+        {
+            return null;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(errorDetails);
+        return document.RootElement.Clone();
     }
 
     /// <summary>

@@ -235,7 +235,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 
         var createTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
-            ["action"] = "create",
+            ["action"] = "convert-range",
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["table_name"] = "DataTable",
@@ -243,7 +243,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["range_address"] = "A1:C3",
             ["has_headers"] = true
         });
-        AssertSuccess(createTableResult, "Create table");
+        AssertSuccess(createTableResult, "Convert range to table");
+        using (var conversionJson = JsonDocument.Parse(createTableResult))
+        {
+            Assert.Equal("$A$1:$C$3", conversionJson.RootElement.GetProperty("effectiveRange").GetString());
+            Assert.True(conversionJson.RootElement.GetProperty("validation").GetProperty("isValid").GetBoolean());
+            Assert.False(conversionJson.RootElement.GetProperty("rollback").GetProperty("attempted").GetBoolean());
+            Assert.Equal("DataTable", conversionJson.RootElement.GetProperty("table").GetProperty("name").GetString());
+        }
 
         var listTablesResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
@@ -252,7 +259,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
-        _output.WriteLine("  ✓ table: Preflight, Create, and List passed");
+        _output.WriteLine("  ✓ table: Preflight, ConvertRange, and List passed");
 
         // =====================================================================
         // STEP 6: NAMED RANGE OPERATIONS

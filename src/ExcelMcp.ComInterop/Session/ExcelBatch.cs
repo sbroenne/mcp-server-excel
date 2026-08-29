@@ -721,6 +721,24 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+        CancellationToken ambientCancellationToken = BatchExecutionCancellation.Current;
+        bool requiresCooperativeCleanup =
+            BatchExecutionCancellation.RequiresCooperativeCleanup
+            && !cancellationToken.CanBeCanceled;
+        bool usesAmbientCancellation =
+            requiresCooperativeCleanup && ambientCancellationToken.CanBeCanceled;
+        using var ambientTimeoutCts = requiresCooperativeCleanup
+            ? new CancellationTokenSource(_operationTimeout)
+            : null;
+        using var ambientLinkedCts = usesAmbientCancellation
+            ? CancellationTokenSource.CreateLinkedTokenSource(
+                ambientCancellationToken,
+                ambientTimeoutCts!.Token)
+            : null;
+        if (requiresCooperativeCleanup)
+        {
+            cancellationToken = ambientLinkedCts?.Token ?? ambientTimeoutCts!.Token;
+        }
 
         // Fail fast if a previous operation timed out or was cancelled while the STA thread
         // was stuck in IDispatch.Invoke. The STA thread cannot process new work items until
@@ -817,21 +835,87 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 return tcs.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
             }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (
+            requiresCooperativeCleanup
+                ? ambientTimeoutCts!.IsCancellationRequested
+                    && !ambientCancellationToken.IsCancellationRequested
+                : !cancellationToken.IsCancellationRequested)
         {
-            // Session timeout occurred (not caller cancellation) — only happens in the else branch
-            _logger.LogError("Operation timed out after {Timeout} for {FileName}", _operationTimeout, Path.GetFileName(_workbookPath));
-            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
+            if (!requiresCooperativeCleanup)
+            {
+                _logger.LogError(
+                    "Operation timed out after {Timeout} for {FileName}",
+                    _operationTimeout,
+                    Path.GetFileName(_workbookPath));
+                _operationTimedOut = true;
+                throw new TimeoutException(
+                    $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+                    "Excel may be unresponsive or the operation is taking longer than expected.");
+            }
+
+            _logger.LogDebug(
+                "Operation timeout reached for {FileName}; waiting for bounded cooperative cleanup",
+                Path.GetFileName(_workbookPath));
+            try
+            {
+                _ = tcs.Task
+                    .WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException(
+                    $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}', but cooperative cleanup completed.");
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogError(
+                    "Operation timed out and cleanup did not complete for {FileName}",
+                    Path.GetFileName(_workbookPath));
+                _operationTimedOut = true;
+                throw new TimeoutException(
+                    $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+                    "Excel may be unresponsive and cleanup did not complete within 30 seconds.");
+            }
+
             throw new TimeoutException(
-                $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
-                "Excel may be unresponsive or the operation is taking longer than expected. " +
-                "Consider increasing timeoutSeconds when opening the session.");
+                $"Excel operation exceeded the {_operationTimeout.TotalSeconds}-second timeout for '{Path.GetFileName(_workbookPath)}' and completed during cleanup grace.");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (
+            requiresCooperativeCleanup
+                ? ambientCancellationToken.IsCancellationRequested
+                : cancellationToken.IsCancellationRequested)
         {
-            _logger.LogDebug("Operation cancelled or timed out for {FileName}", Path.GetFileName(_workbookPath));
-            _operationTimedOut = true; // STA thread may still be blocked — session is unusable
-            throw;
+            if (!requiresCooperativeCleanup)
+            {
+                _operationTimedOut = true;
+                throw;
+            }
+
+            _logger.LogDebug(
+                "Operation cancellation requested for {FileName}; waiting for bounded cooperative cleanup",
+                Path.GetFileName(_workbookPath));
+            try
+            {
+                _ = tcs.Task
+                    .WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (TimeoutException)
+            {
+                _operationTimedOut = true;
+                throw new TimeoutException(
+                    $"Excel operation cancellation cleanup did not complete within 30 seconds for '{Path.GetFileName(_workbookPath)}'.");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+
+            throw new OperationCanceledException(
+                usesAmbientCancellation ? ambientCancellationToken : cancellationToken);
         }
     }
 

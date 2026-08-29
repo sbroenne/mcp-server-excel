@@ -58,14 +58,14 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**31 specialized tools with 326 operations** for comprehensive Excel automation:
+**31 specialized tools with 327 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
 - **Power Query** (12 ops) — Create, update, refresh; optional remote M code formatting
 - **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
 - **PivotTables** (35 ops) — Fields, grouping, cache options, drill-through, calculations
-- **Excel Tables** (27 ops) — Lifecycle, filtering, sorting, DAX-backed tables
+- **Excel Tables** (29 ops) — Lifecycle, preflight, atomic conversion, filtering, sorting, DAX-backed tables
 - **Charts** (33 ops) — Combo series, plotting, placement, formatting, labels, trendlines
 - **Ranges** (51 ops) — Values, formulas, hyperlinks, threaded comments, formatting, validation
 - **Worksheets** (33 ops) — Lifecycle, outlines, protection, notes, images, shapes, page setup

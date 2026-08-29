@@ -5,13 +5,18 @@ namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 
 internal interface IServiceBridgeBackend : IDisposable
 {
-    Task<ServiceResponse> ProcessAsync(ServiceRequest request);
+    Task<ServiceResponse> ProcessAsync(
+        ServiceRequest request,
+        CancellationToken cancellationToken = default);
     bool ForceCloseSession(string sessionId);
 }
 
-internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : IServiceBridgeBackend
+internal sealed class ExcelMcpServiceBackend(ExcelMcpService service) : IServiceBridgeBackend
 {
-    public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => service.ProcessAsync(request);
+    public Task<ServiceResponse> ProcessAsync(
+        ServiceRequest request,
+        CancellationToken cancellationToken = default) =>
+        service.ProcessAsync(request, cancellationToken);
 
     public bool ForceCloseSession(string sessionId) => service.SessionManager.CloseSession(sessionId, save: false, force: true);
 
@@ -26,7 +31,7 @@ public static class ServiceBridge
 {
     private static readonly SemaphoreSlim _initLock = new(1, 1);
     private static readonly Func<IServiceBridgeBackend> DefaultServiceFactory =
-        static () => new ExcelMcpServiceBackend(new Service.ExcelMcpService());
+        static () => new ExcelMcpServiceBackend(new ExcelMcpService());
 
     private static IServiceBridgeBackend? _service;
     private static Func<IServiceBridgeBackend> _serviceFactory = DefaultServiceFactory;
@@ -105,11 +110,9 @@ public static class ServiceBridge
         };
 
         var service = _service!;
-        var processTask = Task.Run(async () => await service.ProcessAsync(request), CancellationToken.None);
-
         if (!timeoutSeconds.HasValue && !cancellationToken.CanBeCanceled)
         {
-            return await processTask;
+            return await service.ProcessAsync(request);
         }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -118,13 +121,25 @@ public static class ServiceBridge
             cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
         }
 
+        var processTask = Task.Run(
+            async () => await service.ProcessAsync(request, cts.Token),
+            CancellationToken.None);
+
         try
         {
             return await processTask.WaitAsync(cts.Token);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            var completedResponse = await TryGetCompletedResponseAsync(processTask);
+            TimeSpan completionGrace = string.Equals(
+                command,
+                "table.convert-range",
+                StringComparison.OrdinalIgnoreCase)
+                ? TimeSpan.FromSeconds(35)
+                : TimeSpan.FromMilliseconds(50);
+            var completedResponse = await TryGetCompletedResponseAsync(
+                processTask,
+                completionGrace);
             if (completedResponse != null)
             {
                 return completedResponse;
@@ -179,7 +194,9 @@ public static class ServiceBridge
         Dispose();
     }
 
-    private static async Task<ServiceResponse?> TryGetCompletedResponseAsync(Task<ServiceResponse> processTask)
+    private static async Task<ServiceResponse?> TryGetCompletedResponseAsync(
+        Task<ServiceResponse> processTask,
+        TimeSpan completionGrace)
     {
         if (processTask.IsCompleted)
         {
@@ -188,7 +205,7 @@ public static class ServiceBridge
 
         var completedTask = await Task.WhenAny(
             processTask,
-            Task.Delay(TimeSpan.FromMilliseconds(50))).ConfigureAwait(false);
+            Task.Delay(completionGrace)).ConfigureAwait(false);
 
         if (completedTask == processTask)
         {

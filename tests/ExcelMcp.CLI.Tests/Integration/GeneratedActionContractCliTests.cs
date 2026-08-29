@@ -72,6 +72,10 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "timeout",
         "2147483")]
     [InlineData(
+        "table convert-range --session missing-session --sheet-name Data --table-name Probe --range-address A1:B2 --merged-header-policy unsafe",
+        "mergedHeaderPolicy",
+        "unsafe")]
+    [InlineData(
         "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2 --chart-type 999",
         "chartType",
         "999")]
