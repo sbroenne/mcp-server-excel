@@ -1,13 +1,15 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Generated;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
 /// <summary>
-/// Unit tests for ServiceRegistry.DeserializeNestedCollection (generated helper).
+/// Unit tests for generated ServiceRegistry collection deserialization helpers.
 /// Covers bug regressions for issue #521:
 ///   --values inline JSON loses string quotes in PowerShell (stdin sentinel + better error).
+/// Covers typed object-list binding used by workbook integrity control totals.
 /// These tests must FAIL before the fix and PASS after.
 /// </summary>
 [Trait("Layer", "Core")]
@@ -34,6 +36,30 @@ public sealed class ServiceRegistryJsonParsingTests
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException!).Throw();
             throw; // unreachable
         }
+    }
+
+    private static T? DeserializeList<T>(string json) where T : class
+    {
+        var method = _registryType.GetMethod(
+            "DeserializeList",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var genericMethod = method.MakeGenericMethod(typeof(T));
+        return (T?)genericMethod.Invoke(null, [json]);
+    }
+
+    [Fact]
+    public void DeserializeList_ComplexCamelCaseObjects_PreservesFields()
+    {
+        const string json =
+            """[{"sheetName":"Summary","cellAddress":"B20","expectedValue":12345.67,"tolerance":0.01}]""";
+
+        var result = DeserializeList<List<WorkbookControlTotalExpectation>>(json);
+
+        var expectation = Assert.Single(result!);
+        Assert.Equal("Summary", expectation.SheetName);
+        Assert.Equal("B20", expectation.CellAddress);
+        Assert.Equal(12345.67d, expectation.ExpectedValue);
+        Assert.Equal(0.01d, expectation.Tolerance);
     }
 
     /// <summary>

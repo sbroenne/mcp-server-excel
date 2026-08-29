@@ -68,7 +68,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## What You Can Do
 
-**31 feature command categories with 325 operations** for comprehensive Excel automation:
+**31 feature command categories with 326 operations** for comprehensive Excel automation:
 
 - **Power Query** (12 ops) — Create, update, refresh queries; M code management
 - **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
@@ -77,7 +77,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Charts and Chart Config** (33 ops) — Combo series, plotting, placement, formatting
 - **Ranges** (51 ops) — Values, formulas, hyperlinks, threaded comments, formatting
 - **Worksheets** (33 ops) — Lifecycle, outlines, protection, notes, images, shapes
-- **Workbooks** (15 ops) — Metadata, properties, Save As/copy, PDF/XPS, external links
+- **Workbooks** (16 ops) — Integrity validation, metadata, properties, Save As/copy, PDF/XPS, external links
 - **VBA** (6 ops) — Module management and execution
 - **Connections** (11 ops) — OLEDB/ODBC management and refresh control
 - **QueryTables** (9 ops) — Text/CSV and legacy HTML imports

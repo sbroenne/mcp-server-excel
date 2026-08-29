@@ -5,21 +5,36 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
 /// <summary>
-/// Manage workbook metadata, document properties, Save As/copy operations, fixed-format exports, and external Excel links.
+/// Manage workbook metadata, integrity validation, document properties, Save As/copy operations, fixed-format exports, and external Excel links.
 /// SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls. The active session follows the new workbook path.
 /// FIXED FORMAT: PDF or XPS with standard or minimum quality.
 /// DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted.
+/// INTEGRITY: read-only checks for formula errors, external links, tables, and caller-supplied control totals.
 /// EXTERNAL LINKS: discovers, updates, or permanently breaks Excel workbook links.
 /// Printing and print preview are intentionally excluded because default-printer output and modal preview are unsafe for unattended automation.
 /// </summary>
 [ServiceCategory("workbook", "Workbook")]
 [McpTool("workbook", Title = "Workbook Operations", Destructive = true, Category = "structure",
-    Description = "Manage workbook metadata, document properties, Save As/copy operations, fixed-format PDF/XPS exports, and external Excel links. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: list, update, or permanently break Excel workbook links. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
+    Description = "Manage workbook metadata, read-only integrity validation, document properties, Save As/copy operations, fixed-format PDF/XPS exports, and external Excel links. INTEGRITY: validates formula results, external links, worksheet tables, and caller-supplied control totals without calculating, refreshing, editing, or saving. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: list, update, or permanently break Excel workbook links. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
 public interface IWorkbookCommands
 {
     /// <summary>Gets metadata for the active workbook.</summary>
     [ServiceAction("get-info")]
     WorkbookInfoResult GetInfo(IExcelBatch batch);
+
+    /// <summary>Performs read-only workbook integrity checks without calculating, refreshing, editing, or saving.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="checks">Checks to run; omit for formulas, links, tables, and supplied control totals</param>
+    /// <param name="worksheetNames">Optional worksheet names limiting formula and table checks</param>
+    /// <param name="controlTotals">Expected numeric cells with optional absolute tolerances</param>
+    /// <param name="maxFindings">Maximum finding details to return; counts still include omitted details. Range: 1-10000.</param>
+    [ServiceAction("validate-integrity")]
+    WorkbookIntegrityResult ValidateIntegrity(
+        IExcelBatch batch,
+        List<WorkbookIntegrityCheck>? checks = null,
+        List<string>? worksheetNames = null,
+        List<WorkbookControlTotalExpectation>? controlTotals = null,
+        int maxFindings = 500);
 
     /// <summary>Lists built-in and/or custom workbook document properties.</summary>
     [ServiceAction("list-document-properties")]

@@ -4,7 +4,7 @@
 
 ### analysis
 
-Excel what-if analysis with Goal Seek, scenarios, scenario reports, and one- or two-variable data tables. Solver is excluded because it is an optional VBA add-in that must be enabled by the user and is not part of the Excel PIA
+Excel what-if analysis with Goal Seek, scenarios, scenario reports, and one- or two-variable data tables
 
 **Actions:** `goal-seek`, `list-scenarios`, `create-scenario`, `update-scenario`, `show-scenario`, `delete-scenario`, `create-scenario-summary`, `create-data-table`
 
@@ -40,7 +40,7 @@ Execute multiple commands from a JSON file or stdin. Outputs NDJSON (one result 
 
 ### calculationmode
 
-Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes for faster performance, then recalculate once at the end
+Control Excel recalculation (automatic vs manual)
 
 **Actions:** `get-mode`, `set-mode`, `calculate`
 
@@ -55,7 +55,7 @@ Control Excel recalculation (automatic vs manual). Set manual mode before bulk w
 
 ### chart
 
-Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING (choose one): - targetRange (PREFERRED): Cell range like 'F2:K15' — positions chart within cells, no point math needed. - left/top: Manual positioning in points (72 points = 1 inch). - Neither: Auto-positions chart below all existing content (used range + other charts). COLLISION DETECTION: All create/move/fit-to-range operations automatically check for overlaps with data and other charts. Warnings are returned in the result message if collisions are detected. Always verify layout with screenshot(capture) and an explicit range that includes the chart. CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter. CREATE OPTIONS: - create-from-range: Create from cell range (e.g., 'A1:D10') - create-from-table: Create from Excel Table (uses table's data range) - create-from-pivottable: Create and verify a live PivotChart link; never falls back to a regular chart Use chartconfig for series, titles, legends, styles, placement mode
+Chart lifecycle - create, read, move, and delete embedded charts
 
 **Actions:** `list`, `read`, `create-from-range`, `create-from-table`, `create-from-pivottable`, `delete`, `move`, `fit-to-range`
 
@@ -78,7 +78,7 @@ Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING (c
 
 ### chartconfig
 
-Chart configuration - data source, series, type, title, axis labels, legend, and styling. SERIES MANAGEMENT: - add-series: Add data series with valuesRange (required) and optional categoryRange - remove-series: Remove series by 1-based index - set-source-range: Replace entire chart data source TITLES AND LABELS: - set-title: Set chart title (empty string hides title) - set-axis-title: Set axis labels (Category, Value, CategorySecondary, ValueSecondary) CHART STYLES: 1-48 (built-in Excel styles with different color schemes) DATA LABELS: Show values, percentages, series/category names. Positions: Center, InsideEnd, InsideBase, OutsideEnd, BestFit. TRENDLINES: Linear, Exponential, Logarithmic, Polynomial (order 2-6), Power, MovingAverage. PLACEMENT MODE: - 1: Move and size with cells - 2: Move but don't size with cells - 3: Don't move or size with cells (free floating) Use chart for lifecycle operations (create, delete, move, fit-to-range)
+Chart configuration - data source, series, type, title, axis labels, legend, and styling
 
 **Actions:** `set-source-range`, `add-series`, `remove-series`, `set-chart-type`, `set-title`, `set-axis-title`, `get-axis-number-format`, `set-axis-number-format`, `show-legend`, `set-style`, `set-placement`, `set-data-labels`, `get-axis-scale`, `set-axis-scale`, `get-gridlines`, `set-gridlines`, `set-series-format`, `set-series-chart-type`, `get-plot-options`, `set-plot-options`, `set-area-format`, `list-trendlines`, `add-trendline`, `delete-trendline`, `set-trendline`
 
@@ -142,7 +142,7 @@ Chart configuration - data source, series, type, title, axis labels, legend, and
 
 ### conditionalformat
 
-Conditional formatting - visual rules based on cell values. TYPES: cellValue (requires operatorType+formula1), expression (formula only), colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition. Both camelCase and kebab-case accepted. FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color. Visual rule types use dedicated parameters on add-rule and return their type-specific configuration from list-rules / list-worksheet-rules. OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween. For 'between' and 'notBetween', both formula1 and formula2 are required
+Conditional formatting - visual rules based on cell values
 
 **Actions:** `add-rule`, `clear-rules`, `list-rules`, `list-worksheet-rules`
 
@@ -199,7 +199,7 @@ Conditional formatting - visual rules based on cell values. TYPES: cellValue (re
 
 ### connection
 
-Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations. Power Query connections auto-redirect to powerquery. TIMEOUT: 30 min auto-timeout for refresh/load-to
+Data connections (OLEDB, ODBC, ODC import)
 
 **Actions:** `list`, `view`, `create`, `refresh`, `get-refresh-status`, `cancel-refresh`, `delete`, `load-to`, `get-properties`, `set-properties`, `test`
 
@@ -220,7 +220,7 @@ Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for dir
 
 ### datamodel
 
-Data Model (Power Pivot) - DAX measures and table management. CRITICAL: WORKSHEET TABLES AND DATA MODEL ARE SEPARATE! - After table append changes, Data Model still has OLD data - MUST call refresh to sync changes - Power Query refresh auto-syncs (no manual refresh needed) PREREQUISITE: Tables must be added to the Data Model first. Use table add-to-datamodel for worksheet tables, or powerquery to import and load data directly to the Data Model. DAX MEASURES: - Create with DAX formulas like 'SUM(Sales[Amount])' - DAX formulas are preserved exactly by default - Set formatDax=true only with user consent; it sends formulas to daxformatter.com - Read operations return raw DAX as stored DAX EVALUATE QUERIES: - Use evaluate to execute DAX EVALUATE queries against the Data Model - Returns tabular results from queries like 'EVALUATE TableName' - Supports complex DAX: SUMMARIZE, FILTER, CALCULATETABLE, TOPN, etc. DMV (DYNAMIC MANAGEMENT VIEW) QUERIES: - Use execute-dmv to query Data Model metadata via SQL-like syntax - Syntax: SELECT * FROM $SYSTEM.SchemaRowset (ONLY SELECT * supported) - Use DISCOVER_SCHEMA_ROWSETS to list all available DMVs Use datamodelrel for relationships between tables
+Data Model (Power Pivot) - DAX measures and table management
 
 **Actions:** `list-tables`, `list-columns`, `read-table`, `read-info`, `read-connection`, `list-measures`, `read`, `delete-measure`, `delete-table`, `rename-table`, `refresh`, `create-measure`, `update-measure`, `evaluate`, `execute-dmv`
 
@@ -245,7 +245,7 @@ Data Model (Power Pivot) - DAX measures and table management. CRITICAL: WORKSHEE
 
 ### datamodelrelationship
 
-Data Model relationships - link tables for cross-table DAX calculations. CRITICAL: Deleting or recreating tables removes ALL their relationships. Use list-relationships before table operations to backup, then recreate relationships after schema changes. RELATIONSHIP REQUIREMENTS: - Both tables must exist in the Data Model first - Columns must have compatible data types - fromTable/fromColumn = many-side (detail table, foreign key) - toTable/toColumn = one-side (lookup table, primary key) ACTIVE VS INACTIVE: - Only ONE active relationship can exist between two tables - Use active=false when creating alternative paths - DAX USERELATIONSHIP() activates inactive relationships
+Data Model relationships - link tables for cross-table DAX calculations
 
 **Actions:** `list-relationships`, `read-relationship`, `create-relationship`, `update-relationship`, `delete-relationship`
 
@@ -261,7 +261,7 @@ Data Model relationships - link tables for cross-table DAX calculations. CRITICA
 
 ### diag
 
-Diagnostic commands for testing CLI/MCP infrastructure without Excel. These commands validate parameter parsing, routing, JSON serialization, and error handling — no Excel COM session needed
+Diagnostic commands for testing CLI/MCP infrastructure without Excel
 
 **Actions:** `ping`, `echo`, `validate-params`
 
@@ -277,7 +277,7 @@ Diagnostic commands for testing CLI/MCP infrastructure without Excel. These comm
 
 ### drawing
 
-Worksheet drawing objects and sparklines. OBJECTS: list/read/update/delete images, AutoShapes, text boxes, connectors, and worksheet Forms controls. SHAPE TYPES: common geometric, arrow, and flowchart AutoShapes. FORMATTING: geometry, text, fill/line/font colors, rotation, visibility, locking, placement, and alternative text. FORMS CONTROLS: safe worksheet Forms controls only. linkedCell applies to CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner; inputRange applies only to DropDown and ListBox. ActiveX/OLE controls and macro assignment are intentionally excluded. SPARKLINES: list/read/create/update/delete line, column, and win/loss sparklines. COLORS: use #RRGGBB hexadecimal values
+Worksheet drawing objects and sparklines
 
 **Actions:** `list-objects`, `get-object`, `add-image`, `add-shape`, `add-text-box`, `add-connector`, `add-form-control`, `update-object`, `delete-object`, `list-sparklines`, `get-sparkline`, `add-sparkline`, `update-sparkline`, `delete-sparkline`
 
@@ -322,7 +322,7 @@ Worksheet drawing objects and sparklines. OBJECTS: list/read/update/delete image
 
 ### namedrange
 
-Named ranges for formulas/parameters. LIST: returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1'). WRITE: value is data to store. TIP: use range get-values/set-values with the named range as the range address for bulk data read/write
+Named ranges for formulas/parameters
 
 **Actions:** `list`, `write`, `read`, `update`, `create`, `delete`
 
@@ -336,7 +336,7 @@ Named ranges for formulas/parameters. LIST: returns visible user-defined names; 
 
 ### pivottable
 
-PivotTable lifecycle management: create from various sources, list, read details, refresh, and delete. Use pivottablefield for field operations, pivottablecalc for calculated fields and layout. BEST PRACTICE: Use 'list' before creating. Prefer 'refresh' or field modifications over delete+recreate. Delete+recreate loses field configurations, filters, sorting, and custom layouts. REFRESH: Call 'refresh' after configuring fields with pivottablefield to update the visual display. This is especially important for OLAP/Data Model PivotTables where field operations are structural only and don't automatically trigger a visual refresh. CREATE OPTIONS: - 'create-from-range': Use source sheet and range address for data range - 'create-from-table': Use an Excel Table (ListObject) as source - 'create-from-datamodel': Use a Power Pivot Data Model table as source
+PivotTable lifecycle management: create from various sources, list, read details, refresh, and delete
 
 **Actions:** `list`, `read`, `create-from-range`, `create-from-table`, `create-from-datamodel`, `delete`, `refresh`, `get-cache-options`, `set-cache-options`, `drill-through`
 
@@ -360,7 +360,7 @@ PivotTable lifecycle management: create from various sources, list, read details
 
 ### pivottablecalc
 
-PivotTable calculated fields/members, layout configuration, and data extraction. Use pivottable for lifecycle, pivottablefield for field placement. CALCULATED FIELDS (for regular PivotTables): - Create custom fields using formulas like '=Revenue-Cost' or '=Quantity*UnitPrice' - Can reference existing fields by name - After creating, use pivottablefield add-value-field to add to Values area - For complex multi-table calculations, prefer DAX measures with datamodel CALCULATED MEMBERS (for OLAP/Data Model PivotTables only): - Create using MDX expressions - Member types: Member, Set, Measure LAYOUT OPTIONS: - 0 = Compact (default, fields in single column) - 1 = Tabular (each field in separate column - best for export/analysis) - 2 = Outline (hierarchical with expand/collapse)
+PivotTable calculated fields/members, layout configuration, and data extraction
 
 **Actions:** `get-data`, `create-calculated-field`, `list-calculated-fields`, `delete-calculated-field`, `list-calculated-members`, `create-calculated-member`, `delete-calculated-member`, `set-layout`, `set-subtotals`, `set-grand-totals`
 
@@ -383,7 +383,7 @@ PivotTable calculated fields/members, layout configuration, and data extraction.
 
 ### pivottablefield
 
-PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. Use pivottable for lifecycle, pivottablecalc for calculated fields and layout. IMPORTANT: Field operations modify structure only. Call pivottable refresh after configuring fields to update the visual display, especially for OLAP/Data Model PivotTables. FIELD AREAS: - Row fields: Group data by categories (add-row-field) - Column fields: Create column headers (add-column-field) - Value fields: Aggregate numeric data with Sum, Count, Average, etc. (add-value-field) - Filter fields: Add report-level filters (add-filter-field) AGGREGATION FUNCTIONS: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP GROUPING: - Date fields: Group by Days, Months, Quarters, Years (group-by-date) - Numeric fields: Group by ranges with start/end/interval (group-by-numeric) NUMBER FORMAT: Use US format codes like '#,##0.00' for currency or '0.00%' for percentages
+PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping
 
 **Actions:** `list-fields`, `add-row-field`, `add-column-field`, `add-value-field`, `add-filter-field`, `remove-field`, `set-field-function`, `set-field-name`, `set-field-format`, `set-field-filter`, `sort-field`, `group-by-date`, `group-by-numeric`, `group-items`, `ungroup-field`
 
@@ -409,7 +409,7 @@ PivotTable field management: add/remove/configure fields, filtering, sorting, an
 
 ### powerquery
 
-Power Query M code and data loading. TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE): 1. evaluate - Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview) 2. create/update - Store VALIDATED query in workbook 3. refresh/load-to - Load data to destination Skip evaluate only for trivial literal tables. IF CREATE/UPDATE FAILS: Use evaluate to get the actual M engine error message, fix code, retry. DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly. Without explicit types, dates may be stored as numbers and Data Model relationships may fail. DESTINATIONS: 'worksheet' (default), 'data-model' (for DAX), 'both', 'connection-only'. Values are case-insensitive and unknown values are rejected. Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures. M-CODE: Preserved exactly by default. Set formatMCode=true only with explicit user consent; it sends M code to powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout. READS: list returns compact metadata, exact load state, and an M preview of at most 80 characters. Use view for one query's full M code
+Power Query M code and data loading
 
 **Actions:** `list`, `view`, `refresh`, `get-load-config`, `delete`, `create`, `update`, `load-to`, `refresh-all`, `rename`, `unload`, `evaluate`
 
@@ -431,7 +431,7 @@ Power Query M code and data loading. TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACT
 
 ### pythoninexcel
 
-Microsoft 365 "Python in Excel" (=PY()) formulas. REQUIRES: a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel. SET-FORMULA writes '=PY("<code>", returnType)' via Range.Formula2. returnType 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). The returnType argument must always be passed explicitly — omitting it causes a #NAME? error. GET-RESULT reads the computed value back, polling until the cloud round-trip finishes (a fresh formula reads as #BUSY! while the cloud Python sandbox is still computing). Completion is detected deterministically from Excel's calculation state plus a per-cell #BUSY! guard, so a converged result is not confused with the in-flight #BUSY! placeholder. If the cloud backend is still busy at the deadline (e.g. a cold start), GET-RESULT reports that and asks the caller to retry or raise maxWaitSeconds rather than returning a placeholder. If Excel evaluates PY() as #NAME?, both actions report that Python in Excel is unavailable in the current session instead of returning the raw worksheet error. DATA BINDING: reference live worksheet data inside the Python code with xl("A1:A6"), xl("Sheet1!A1:A6"), or a named range xl("MyRange") — all work when the formula is authored via this tool, the same as if typed interactively. TIP: xl() returns a pandas DataFrame/Series (not a plain list) unless you pass headers explicitly; prefer pandas methods (.sum()/.mean()/.max()) over Python builtins (sum()/len()) to avoid getting a Series back instead of a scalar total
+Microsoft 365 "Python in Excel" (=PY()) formulas
 
 **Actions:** `set-formula`, `get-result`
 
@@ -447,7 +447,7 @@ Microsoft 365 "Python in Excel" (=PY()) formulas. REQUIRES: a real Excel session
 
 ### querytable
 
-Worksheet QueryTable lifecycle and configuration for local COM text, CSV, and legacy web imports. Use powerquery for modern connectors and transformations
+Worksheet QueryTable lifecycle and configuration for local COM text, CSV, and legacy web imports
 
 **Actions:** `list`, `view`, `create-text`, `create-web`, `set-properties`, `refresh`, `get-refresh-status`, `cancel-refresh`, `delete`
 
@@ -475,7 +475,7 @@ Worksheet QueryTable lifecycle and configuration for local COM text, CSV, and le
 
 ### range
 
-Core range operations: get/set values and formulas, copy ranges, clear content, and discover data regions. Use rangeedit for insert/delete/find/sort. Use rangeformat for styling/validation. Use rangelink for hyperlinks and cell protection. Calculation mode and explicit recalculation are handled by calculationmode. BEST PRACTICE: Use 'get-values' to check existing data before overwriting. Use 'clear-contents' (not 'clear-all') to preserve cell formatting when clearing data. set-values preserves existing formatting; use set-number-format after if format change needed. DATA FORMAT: values and formulas are 2D JSON arrays representing rows and columns. Example: [[row1col1, row1col2], [row2col1, row2col2]] Single cell returns [[value]] (always 2D). REQUIRED PARAMETERS: - sheetName + rangeAddress for cell operations (e.g., sheetName='Sheet1', rangeAddress='A1:D10') - For named ranges, use sheetName='' (empty string) and rangeAddress='MyNamedRange' COPY OPERATIONS: Specify source and target sheet/range for copy operations. NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%')
+Core range operations: get/set values and formulas, copy ranges, clear content, and discover data regions
 
 **Actions:** `get-values`, `set-values`, `get-formulas`, `set-formulas`, `validate-formulas`, `clear-all`, `clear-contents`, `clear-formats`, `copy`, `copy-values`, `copy-formulas`, `get-number-formats`, `set-number-format`, `set-number-formats`, `get-used-range`, `get-current-region`, `get-info`
 
@@ -500,7 +500,7 @@ Core range operations: get/set values and formulas, copy ranges, clear content, 
 
 ### rangeedit
 
-Range editing operations: insert/delete cells, rows, and columns; find/replace text; sort data. Use range for values/formulas/copy/clear operations. INSERT/DELETE CELLS: Specify shift direction to control how surrounding cells move. - Insert: 'Down' or 'Right' - Delete: 'Up' or 'Left' INSERT/DELETE ROWS: Use row range like '5:10' to insert/delete rows 5-10. INSERT/DELETE COLUMNS: Use column range like 'B:D' to insert/delete columns B-D. FIND/REPLACE: Search within the specified range with optional case/cell matching. - Find returns up to 10 matching cell addresses with total count. - Replace modifies all matches by default. SORT: Specify sortColumns as array of {columnIndex: 1, ascending: true} objects. Column indices are 1-based relative to the range
+Range editing operations: insert/delete cells, rows, and columns; find/replace text; sort data
 
 **Actions:** `insert-cells`, `delete-cells`, `insert-rows`, `delete-rows`, `insert-columns`, `delete-columns`, `find`, `replace`, `sort`
 
@@ -522,7 +522,7 @@ Range editing operations: insert/delete cells, rows, and columns; find/replace t
 
 ### rangeformat
 
-Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions. Use range tool for values/formulas/copy/clear operations. set-style: Apply a named Excel style (Heading 1, Good, Bad, Neutral, Normal). Best for semantic status labels (Good/Bad/Neutral have fill colours and are theme-aware) and document hierarchy (Heading 1/2/3). NOTE: Heading styles do NOT apply a fill colour — use format-range when you need a coloured header row. format-range: Apply any combination of bold, fillColor, fontColor, alignment, borders. Required whenever you need a fill colour or custom branding. Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range. format-ranges: Apply one shared formatting payload to multiple ranges on the same worksheet. Prefer this over repeated format-range calls when the same styling applies to multiple non-contiguous targets. All target ranges are validated before formatting begins. If any target range is invalid, nothing is formatted. COLORS: Hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green) FONT: size in points (e.g., 12, 14, 16), alignment: 'left', 'center', 'right' / 'top', 'middle', 'bottom' DATA VALIDATION: Restrict cell input with validation rules: - Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom' - For list validation, formula1 is the list source (e.g., '=$A$1:$A$10' or '"Option1,Option2,Option3"') - Operators: 'between', 'notBetween', 'equal', 'notEqual', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual' MERGE: Combines cells into one. Only top-left cell value is preserved
+Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions
 
 **Actions:** `set-style`, `get-style`, `format-range`, `format-ranges`, `validate-range`, `get-validation`, `remove-validation`, `auto-fit-columns`, `auto-fit-rows`, `merge-cells`, `unmerge-cells`, `get-merge-info`, `set-column-width`, `set-row-height`
 
@@ -567,7 +567,7 @@ Range formatting operations: apply styles, set fonts/colors/borders, add data va
 
 ### rangelink
 
-Hyperlink, threaded comment, and cell protection operations for Excel ranges. Use range for values/formulas, rangeformat for styling. HYPERLINKS: - 'add-hyperlink': Add an external or internal workbook hyperlink - 'update-hyperlink': Update the target or display metadata of an existing hyperlink - 'remove-hyperlink': Remove hyperlink(s) from cells while keeping the cell content - 'list-hyperlinks': Get all hyperlinks on a worksheet - 'get-hyperlink': Get hyperlink details for a specific cell CELL PROTECTION: - 'set-cell-lock': Lock or unlock cells (only effective when sheet protection is enabled) - 'get-cell-lock': Check if cells are locked Note: Cell locking only takes effect when the worksheet is protected
+Hyperlink, threaded comment, and cell protection operations for Excel ranges
 
 **Actions:** `add-hyperlink`, `update-hyperlink`, `remove-hyperlink`, `list-hyperlinks`, `get-hyperlink`, `add-threaded-comment`, `list-threaded-comments`, `add-threaded-comment-reply`, `delete-threaded-comment`, `set-cell-lock`, `get-cell-lock`
 
@@ -587,7 +587,7 @@ Hyperlink, threaded comment, and cell protection operations for Excel ranges. Us
 
 ### screenshot
 
-Capture Excel worksheet content as images for visual verification. Photographs the live Excel window and crops to the requested range, so the image shows exactly what Excel displays: formatting, conditional formatting, charts, and all visual elements. Works on protected worksheets and never touches the workbook or the clipboard. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the worksheet's used cell range. For chart-only sheets or charts beyond used cells, use capture with an explicit range. REQUIREMENTS: Excel is briefly shown and brought to the front, so an interactive desktop session is required. Capture fails on a locked desktop or a disconnected Remote Desktop session. LARGE RANGES: Ranges wider or taller than the Excel window are zoomed to fit, then captured in several passes and stitched together. Very large ranges are truncated to their top-left portion, which is reported in the result message. RETURNS: Base64-encoded image data with dimensions metadata. For MCP: returned as native ImageContent (no file handling needed). For CLI: use --output <path> to save the image directly to a PNG/JPEG file instead of returning base64 inline. Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG). Use High only when fine detail inspection is needed
+Capture Excel worksheet content as images for visual verification
 
 **Actions:** `capture`, `capture-sheet`
 
@@ -662,7 +662,7 @@ Test file existence, validity, openability, and IRM/AIP read-only requirements
 
 ### sheet
 
-Worksheet lifecycle management: create, rename, copy, delete, move, list sheets. Use range for data operations. Use sheetstyle for tab colors and visibility. ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session - they open/close files automatically. POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after' (not both) to position the sheet relative to another. If neither specified, moves to end. NOTE: MCP tool is manually implemented in ExcelWorksheetTool.cs to properly handle mixed session requirements (copy-to-file and move-to-file are atomic and don't need sessions)
+Worksheet lifecycle management: create, rename, copy, delete, move, list sheets
 
 **Actions:** `list`, `create`, `rename`, `copy`, `delete`, `move`, `copy-to-file`, `move-to-file`
 
@@ -685,7 +685,7 @@ Worksheet lifecycle management: create, rename, copy, delete, move, list sheets.
 
 ### slicer
 
-Slicer visual filters for PivotTables and Excel Tables. PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer. NAMING: Auto-generate descriptive names like {FieldName}Slicer (e.g., RegionSlicer). SELECTION: selectedItems as list of strings. Empty list clears filter (shows all items). Set clearFirst=false to add to existing selection
+Slicer visual filters for PivotTables and Excel Tables
 
 **Actions:** `create-slicer`, `list-slicers`, `set-slicer-selection`, `delete-slicer`, `create-table-slicer`, `list-table-slicers`, `set-table-slicer-selection`, `delete-table-slicer`
 
@@ -705,7 +705,7 @@ Slicer visual filters for PivotTables and Excel Tables. PIVOTTABLE SLICERS: crea
 
 ### table
 
-Excel Tables (ListObjects) - lifecycle and data operations. Tables provide structured references, automatic formatting, and Data Model integration. BEST PRACTICE: Use 'list' to check existing tables before creating. Prefer 'append'/'resize'/'rename' over delete+recreate to preserve references. WARNING: Deleting tables used as PivotTable sources or in Data Model relationships will break those objects. DATA MODEL WORKFLOW: To analyze worksheet data with DAX/Power Pivot: 1. Create or identify an Excel Table on a worksheet 2. Use 'add-to-datamodel' to add the table to Power Pivot 3. Then use datamodel to create DAX measures on it DAX-BACKED TABLES: Create tables populated by DAX EVALUATE queries: - 'create-from-dax': Create a new table backed by a DAX query (e.g., SUMMARIZE, FILTER) - 'update-dax': Update the DAX query for an existing DAX-backed table - 'get-dax': Get the DAX query info for a table (check if it's DAX-backed) Related: tablecolumn (filter/sort/columns), datamodel (DAX measures, evaluate queries)
+Excel Tables (ListObjects) - lifecycle and data operations
 
 **Actions:** `list`, `create`, `rename`, `delete`, `read`, `resize`, `toggle-totals`, `set-column-total`, `append`, `get-data`, `set-style`, `add-to-data-model`, `create-from-dax`, `update-dax`, `get-dax`
 
@@ -732,7 +732,7 @@ Excel Tables (ListObjects) - lifecycle and data operations. Tables provide struc
 
 ### tablecolumn
 
-Table column, filtering, and sorting operations for Excel Tables (ListObjects). Use table for table-level lifecycle and data operations. FILTERING: - 'apply-filter': Simple criteria filter (e.g., ">100", "=Active", "<>Closed") - 'apply-filter-values': Filter by exact values (provide list of values to include) - 'clear-filters': Remove all active filters - 'get-filters': See current filter state SORTING: - 'sort': Single column sort (ascending/descending) - 'sort-multi': Multi-column sort (provide list of {columnName, ascending} objects) COLUMN MANAGEMENT: - 'add-column'/'remove-column'/'rename-column': Modify table structure NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', '0%', 'yyyy-mm-dd')
+Table column, filtering, and sorting operations for Excel Tables (ListObjects)
 
 **Actions:** `apply-filter`, `apply-filter-values`, `clear-filters`, `get-filters`, `add-column`, `remove-column`, `rename-column`, `get-structured-reference`, `sort`, `sort-multi`, `get-column-number-format`, `set-column-number-format`
 
@@ -754,7 +754,7 @@ Table column, filtering, and sorting operations for Excel Tables (ListObjects). 
 
 ### vba
 
-VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQUISITES: - Workbook must be macro-enabled (.xlsm) - VBA trust must be enabled manually in Excel for project access SCOPE: - List and view existing VBA components and their procedures - Import creates new standard modules from inline code or a file - Update/delete works on existing VBA components by name - Run executes a procedure by name RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub'). ExcelMcp does not configure VBA trust settings for you
+VBA module and procedure operations for macro-enabled workbooks (.xlsm)
 
 **Actions:** `list`, `view`, `import`, `update`, `run`, `delete`
 
@@ -771,7 +771,7 @@ VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQU
 
 ### window
 
-Control Excel window visibility, position, state, status bar, and worksheet-specific views. Use to show/hide Excel, bring it to front, reposition, maximize/minimize, freeze panes, split panes, set zoom, and control gridlines, headings, outline symbols, and formula display. Set status bar text to give users real-time feedback during operations. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel. Visibility changes are reflected in session metadata (session list shows updated state). WINDOW STATE values: 'normal', 'minimized', 'maximized'. ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'. STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default. WORKSHEET VIEW: View properties belong to a workbook window and apply to the named active worksheet. 'freeze-panes' uses row and column counts above/left of the pane boundary. 'set-split' creates movable panes and disables frozen panes. Zoom must be between 10 and 400 percent
+Control Excel window visibility, position, state, status bar, and worksheet-specific views
 
 **Actions:** `show`, `hide`, `bring-to-front`, `get-info`, `set-state`, `set-position`, `arrange`, `set-status-bar`, `clear-status-bar`, `get-view`, `freeze-panes`, `unfreeze-panes`, `set-split`, `set-zoom`, `set-display-options`
 
@@ -799,13 +799,17 @@ Control Excel window visibility, position, state, status bar, and worksheet-spec
 
 ### workbook
 
-Manage workbook metadata, document properties, Save As/copy operations, fixed-format exports, and external Excel links. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls. The active session follows the new workbook path. FIXED FORMAT: PDF or XPS with standard or minimum quality. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: discovers, updates, or permanently breaks Excel workbook links. Printing and print preview are intentionally excluded because default-printer output and modal preview are unsafe for unattended automation
+Manage workbook metadata, integrity validation, document properties, Save As/copy operations, fixed-format exports, and external Excel links
 
-**Actions:** `get-info`, `list-document-properties`, `get-document-property`, `set-document-property`, `delete-document-property`, `save-as`, `save-copy-as`, `export-fixed-format`, `list-external-links`, `update-external-link`, `break-external-link`, `set-protection`, `get-protection`, `set-view-options`, `get-view-options`
+**Actions:** `get-info`, `validate-integrity`, `list-document-properties`, `get-document-property`, `set-document-property`, `delete-document-property`, `save-as`, `save-copy-as`, `export-fixed-format`, `list-external-links`, `update-external-link`, `break-external-link`, `set-protection`, `get-protection`, `set-view-options`, `get-view-options`
 
 | Parameter | Description |
 |-----------|-------------|
 | `--session` | Session ID from 'session open' command |
+| `--checks` | Checks to run; omit for formulas, links, tables, and supplied control totals (valid for: validate-integrity) (JSON format) |
+| `--worksheet-names` | Optional worksheet names limiting formula and table checks (valid for: validate-integrity) (JSON format) |
+| `--control-totals` | Expected numeric cells with optional absolute tolerances (valid for: validate-integrity) (JSON format) |
+| `--max-findings` | Maximum finding details to return; counts still include omitted details. Range: 1-10000. (valid for: validate-integrity) |
 | `--include-built-in` | (valid for: list-document-properties) |
 | `--include-custom` | (valid for: list-document-properties) |
 | `--property-name` | Document property name (required for: get-document-property, set-document-property, delete-document-property) (valid for: get-document-property, set-document-property, delete-document-property) |
@@ -830,7 +834,7 @@ Manage workbook metadata, document properties, Save As/copy operations, fixed-fo
 
 ### worksheetstyle
 
-Worksheet styling, visibility, protection, grouping, and outline operations. Use sheet for lifecycle operations (create, rename, copy, delete, move). TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization. VISIBILITY LEVELS: - 'visible': Normal visible sheet - 'hidden': Hidden but accessible via Format > Sheet > Unhide - 'veryhidden': Only accessible via VBA (protection against casual unhiding) PROTECTION: Protect a worksheet to lock its contents and structure, or unprotect it. OUTLINES: Group or ungroup row/column ranges, configure summary positions, show a specific row/column outline level, inspect grouping state, or clear all groups
+Worksheet styling, visibility, protection, grouping, and outline operations
 
 **Actions:** `set-tab-color`, `get-tab-color`, `clear-tab-color`, `set-protection`, `get-protection`, `set-comment`, `get-comment`, `clear-comment`, `add-image`, `get-image-count`, `add-shape`, `get-shape-count`, `set-page-setup`, `get-page-setup`, `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide`, `group`, `ungroup`, `get-outline-info`, `set-outline-settings`, `show-outline-levels`, `clear-outline`
 
@@ -863,7 +867,7 @@ Worksheet styling, visibility, protection, grouping, and outline operations. Use
 
 ### xmlmap
 
-Manage workbook XML maps and exchange XML data without interactive dialogs. SECURITY: Schemas and XML data are parsed from supplied content with DTD processing disabled. XSD import/include/redefine dependencies and XML schema-location attributes are rejected to prevent implicit network or file access. IMPORT MODES: Provide mapName to import into existing mapped cells. Omit mapName and provide sheetName plus startCell to let Excel create a map and XML table at that destination
+Manage workbook XML maps and exchange XML data without interactive dialogs
 
 **Actions:** `list`, `add`, `map-range`, `import-xml`, `export-xml`, `delete`
 

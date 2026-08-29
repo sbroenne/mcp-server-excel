@@ -58,7 +58,7 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**31 specialized tools with 325 operations** for comprehensive Excel automation:
+**31 specialized tools with 326 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
@@ -69,7 +69,7 @@ pwsh -ExecutionPolicy Bypass -File `
 - **Charts** (33 ops) — Combo series, plotting, placement, formatting, labels, trendlines
 - **Ranges** (51 ops) — Values, formulas, hyperlinks, threaded comments, formatting, validation
 - **Worksheets** (33 ops) — Lifecycle, outlines, protection, notes, images, shapes, page setup
-- **Workbooks** (15 ops) — Metadata, properties, Save As/copy, PDF/XPS, external links
+- **Workbooks** (16 ops) — Integrity validation, metadata, properties, Save As/copy, PDF/XPS, external links
 
 ### Advanced Features
 

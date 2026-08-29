@@ -1679,7 +1679,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    internal static T? DeserializeList<T>(string? json) where T : class");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrWhiteSpace(json)) return null;");
-        sb.AppendLine("        return System.Text.Json.JsonSerializer.Deserialize<T>(json)");
+        sb.AppendLine("        return System.Text.Json.JsonSerializer.Deserialize<T>(json, DispatchJsonOptions)");
         sb.AppendLine("            ?? throw new System.Text.Json.JsonException($\"Failed to deserialize list from JSON: {json}\");");
         sb.AppendLine("    }");
         sb.AppendLine("}");

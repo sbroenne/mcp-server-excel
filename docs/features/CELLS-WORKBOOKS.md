@@ -155,9 +155,9 @@ Add, rename, move, and manage worksheets — including tab colors, visibility, p
 
 ---
 
-## 📘 Workbook (15 operations)
+## 📘 Workbook (16 operations)
 
-Manage workbook metadata, protection, document properties, file variants, exports, and external links.
+Manage workbook metadata, protection, integrity, document properties, file variants, exports, and external links.
 
 **Operations:**
 - **Set Protection:** Protect or unprotect the current workbook, optionally with a password
@@ -165,6 +165,7 @@ Manage workbook metadata, protection, document properties, file variants, export
 - **Set View Options:** Toggle workbook window gridlines and headings on or off
 - **Get View Options:** Read back workbook window gridlines and headings state
 - **Get Info:** Read workbook name, path, format, saved/read-only state, and protection metadata
+- **Validate Integrity:** Read formula errors and broken references, external-link status, table/header problems, likely calculated-column inconsistencies, and caller-supplied control totals without recalculating, refreshing, editing, or saving. Findings are grouped by severity and category and identify deterministic checks versus calculated-column heuristics.
 - **List/Get/Set/Delete Document Properties:** Manage built-in and custom workbook properties
 - **Save As:** Save as `.xlsx`, `.xlsm`, `.xlsb`, or `.xls` and move the active session to the new path
 - **Save Copy As:** Create a same-format copy without changing the active workbook
