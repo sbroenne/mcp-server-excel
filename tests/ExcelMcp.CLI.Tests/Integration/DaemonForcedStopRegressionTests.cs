@@ -493,17 +493,22 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task PreBuildCleanup_LostShutdownReply_AllowsGracefulDaemonExit()
+    public async Task PreBuildCleanup_LostShutdownReply_AllowsTrackedGenerationToExit()
     {
         var pipeName = $"excelmcp-lost-shutdown-reply-{Guid.NewGuid():N}";
-        using var daemon = StartShortLivedProcess(seconds: 5);
+        using var daemon = StartShortLivedProcess(seconds: 2);
+        using var excel = StartShortLivedProcess(seconds: 5);
 
         try
         {
-            DaemonProcessTracker.RegisterProcess(
+            var daemonIdentity = DaemonProcessTracker.RegisterProcess(
                 pipeName,
                 daemon.Id,
                 daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
+            DaemonProcessTracker.UpdateExcelProcesses(
+                pipeName,
+                daemonIdentity,
+                [excel.Id]);
 
             var cleanupResult =
                 await PreBuildProcessCleanup.CleanupWithGracefulShutdownAsync(
@@ -513,12 +518,15 @@ public sealed class DaemonForcedStopRegressionTests
 
             Assert.True(cleanupResult.Success);
             Assert.True(daemon.WaitForExit(5000));
+            Assert.True(excel.WaitForExit(5000));
             Assert.Equal(0, daemon.ExitCode);
+            Assert.Equal(0, excel.ExitCode);
             Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
         {
             StopIfRunning(daemon);
+            StopIfRunning(excel);
             DaemonProcessTracker.Clear(pipeName);
         }
     }
