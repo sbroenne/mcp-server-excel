@@ -49,35 +49,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-
-function Remove-StagingDirectory {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Path,
-
-        [int]$MaxAttempts = 10
-    )
-
-    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
-        try {
-            [System.IO.Directory]::Delete($Path, $true)
-            return
-        }
-        catch [System.UnauthorizedAccessException] {
-            $failure = $_
-        }
-        catch [System.IO.IOException] {
-            $failure = $_
-        }
-
-        if ($attempt -eq $MaxAttempts) {
-            throw $failure
-        }
-
-        # Executable scanners can briefly retain the verified server binary.
-        Start-Sleep -Milliseconds 500
-    }
-}
+. (Join-Path $PSScriptRoot "McpbPackaging.ps1")
 
 # Get script and project directories
 $McpbDir = $PSScriptRoot
@@ -228,7 +200,7 @@ Write-Host "   ✓ Created $McpbFileName" -ForegroundColor Green
 Copy-Item $ManifestDst (Join-Path $OutputDir "manifest.json") -Force
 
 # Clean up staging
-Remove-StagingDirectory -Path $StagingDir
+Remove-McpbStagingDirectory -Path $StagingDir
 
 # Show results
 $McpbSize = (Get-Item $McpbPath).Length / 1MB
