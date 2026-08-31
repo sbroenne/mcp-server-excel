@@ -456,9 +456,21 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         Assert.Equal("string", columns.GetProperty("type").GetString());
         Assert.Contains("get-values", columns.GetProperty("description").GetString(), StringComparison.Ordinal);
         Assert.Contains(
-            "zero-based rowOffset, positive rowLimit, and comma-separated absolute worksheet columns",
+            "sample-values returns bounded boundary rows with source coordinates",
             rangeTool.Description,
             StringComparison.Ordinal);
+
+        var firstRowCount = properties.GetProperty("first_row_count");
+        Assert.Equal("integer", firstRowCount.GetProperty("type").GetString());
+        Assert.Contains("sample-values", firstRowCount.GetProperty("description").GetString(), StringComparison.Ordinal);
+
+        var lastRowCount = properties.GetProperty("last_row_count");
+        Assert.Equal("integer", lastRowCount.GetProperty("type").GetString());
+        Assert.Contains("sample-values", lastRowCount.GetProperty("description").GetString(), StringComparison.Ordinal);
+
+        var maxErrors = properties.GetProperty("max_errors");
+        Assert.Equal("integer", maxErrors.GetProperty("type").GetString());
+        Assert.Contains("get-formula-errors", maxErrors.GetProperty("description").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]

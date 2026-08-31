@@ -11,6 +11,21 @@ range(action: 'get-values', sheet_name: 'Data', range_address: 'A1:Z100000',
 
 `row_offset` is zero-based relative to the source range. `columns` contains absolute worksheet column letters and preserves the requested order. Continue with `nextRowOffset` while `hasMoreRows` is true. The response also reports total source dimensions, returned dimensions, and whether rows or columns were omitted. Omit all three scope parameters to keep the existing full-range read.
 
+Use the typed large-range read actions when a values matrix is not needed:
+
+```text
+range(action: 'sample-values', sheet_name: 'Data', range_address: 'A1:Z100000',
+    first_row_count: 5, last_row_count: 5, columns: 'A,D,F')
+range(action: 'summarize-values', sheet_name: 'Data', range_address: 'A1:Z100000',
+    columns: 'D,F')
+range(action: 'get-formula-errors', sheet_name: 'Data', range_address: 'A1:Z100000',
+    max_errors: 100)
+```
+
+`sample-values` returns up to 100 leading and 100 trailing rows, removes overlap, includes absolute row coordinates, and rejects results over 1,000 cells. `summarize-values` returns per-column blank, number, text, logical, and error counts plus numeric sum, average, minimum, and maximum; dates are numeric serials, nonnumeric cells and errors are excluded from numeric statistics, and statistics are omitted when no numbers exist. Select at most 256 columns. Both actions require a single-area source.
+
+`get-formula-errors` uses Excel's formula-error selection and returns at most 1,000 sparse diagnostics with source areas ordered by their top-left cell and then by Excel cell order. Each diagnostic includes the cell address, formula, error code, message, and truncation metadata. Constant errors are excluded; multi-area and named ranges are supported. None of these actions returns a full values matrix.
+
 **IMPORTANT: Always use US format codes.** The server automatically translates to the user's locale.
 
 **Discoverability note:** number display formats live on `range`; visual styling and auto-fit live on `range_format`.

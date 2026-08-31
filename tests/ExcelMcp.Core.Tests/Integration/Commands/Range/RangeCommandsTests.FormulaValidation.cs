@@ -178,7 +178,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        // Current Excel versions report an unsupported function as #VALUE!.
+        // Current Excel versions report an unsupported function as #NAME?.
         _commands.SetFormulas(batch, sheetName, "A1", [
             ["=UNDEFINEDFUNCTION()"]
         ]);
@@ -192,8 +192,8 @@ public partial class RangeCommandsTests
 
         var error = result.CellErrors[0];
         Assert.Equal("A1", error.CellAddress);
-        Assert.Equal(-2146826259, error.ErrorCode);  // #VALUE! error code
-        Assert.Contains("argument", error.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(-2146826259, error.ErrorCode);
+        Assert.Contains("#NAME?", error.ErrorMessage, StringComparison.Ordinal);
         Assert.NotNull(error.Suggestion);
     }
 

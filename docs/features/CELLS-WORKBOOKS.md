@@ -30,7 +30,7 @@ Control when and how Excel recalculates formulas — useful for speeding up bulk
 
 ---
 
-## 📋 Ranges (51 operations)
+## 📋 Ranges (54 operations)
 
 Read and write cell values, formulas, and formatting across any range of cells.
 
@@ -38,6 +38,9 @@ Read and write cell values, formulas, and formatting across any range of cells.
 
 **Data Operations:**
 - **Get/Set Values:** Read or write cell values. Large reads can page rows with a zero-based offset and positive limit, select comma-separated absolute worksheet columns, and use returned totals plus `nextRowOffset`/`hasMoreRows` to continue without materializing the full source range.
+- **Sample Values:** Return bounded first/last row samples with source row coordinates and optional ordered columns.
+- **Summarize Values:** Return per-column type counts and numeric sum, average, minimum, and maximum without a values matrix.
+- **Get Formula Errors:** Return bounded sparse diagnostics only for formulas whose calculated result is an Excel error.
 - **Get/Set/Validate Formulas:** Read, write, or validate formula syntax across ranges
 - **Clear All/Contents/Formats:** Clear a range's contents, formats, or both
 - **Copy / Copy Values / Copy Formulas:** Copy a range, or just its values/formulas

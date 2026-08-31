@@ -66,7 +66,7 @@ public partial class RangeCommands
                             valueRow.Add(cellValue);
 
                             // ERROR CODE DETECTION: Map Excel error codes to human-readable messages
-                            if (cellValue is int errorCode && errorCode < 0)
+                            if (ExcelErrorMapper.TryGetErrorCode(cellValue, out int errorCode))
                             {
                                 int row = startRow + r - 1;
                                 int column = startColumn + c - 1;
@@ -75,10 +75,11 @@ public partial class RangeCommands
                                     CellAddress = $"{RangeHelpers.GetColumnLetter(column)}{row}",
                                     Row = row,
                                     Column = column,
+                                    Formula = formula.StartsWith('=') ? formula : null,
                                     CurrentValue = cellValue,
                                     ErrorCode = errorCode,
-                                    ErrorMessage = MapErrorCodeToMessage(errorCode),
-                                    Suggestion = MapErrorCodeToSuggestion(errorCode)
+                                    ErrorMessage = ExcelErrorMapper.GetMessage(errorCode),
+                                    Suggestion = ExcelErrorMapper.GetSuggestion(errorCode)
                                 });
                             }
                         }
@@ -100,17 +101,18 @@ public partial class RangeCommands
                     result.Values.Add([cellValue]);
 
                     // ERROR CODE DETECTION: Single cell error
-                    if (cellValue is int errorCode && errorCode < 0)
+                    if (ExcelErrorMapper.TryGetErrorCode(cellValue, out int errorCode))
                     {
                         result.CellErrors.Add(new RangeCellError
                         {
                             CellAddress = $"{RangeHelpers.GetColumnLetter(startColumn)}{startRow}",
                             Row = startRow,
                             Column = startColumn,
+                            Formula = formula.StartsWith('=') ? formula : null,
                             CurrentValue = cellValue,
                             ErrorCode = errorCode,
-                            ErrorMessage = MapErrorCodeToMessage(errorCode),
-                            Suggestion = MapErrorCodeToSuggestion(errorCode)
+                            ErrorMessage = ExcelErrorMapper.GetMessage(errorCode),
+                            Suggestion = ExcelErrorMapper.GetSuggestion(errorCode)
                         });
                     }
                 }
@@ -135,32 +137,6 @@ public partial class RangeCommands
     /// Internal (not private) so sibling feature areas (e.g. PythonInExcel) can reuse the same
     /// mapping table instead of duplicating it - see Bug Fix Pattern Search rule.
     /// </summary>
-    internal static string MapErrorCodeToMessage(int errorCode) =>
-        errorCode switch
-        {
-            -2146826288 => "#NULL! - Invalid intersection of ranges",
-            -2147483648 => "#DIV/0! - Division by zero",
-            -2146826259 => "#VALUE! - Wrong type of argument",
-            -2146826246 => "#REF! - Invalid cell reference",
-            -2146826252 => "#NUM! - Invalid numeric value",
-            -2142019887 => "#N/A - Value not available",
-            -2146826233 => "#PYTHON! - Python code raised an error (syntax or runtime exception)",
-            _ => $"#ERROR! - Unknown error code {errorCode}"
-        };
-
-    private static string MapErrorCodeToSuggestion(int errorCode) =>
-        errorCode switch
-        {
-            -2146826288 => "Check the intersection operator and referenced ranges.",
-            -2147483648 => "Ensure the formula does not divide by zero.",
-            -2146826259 => "Check function names and argument types.",
-            -2146826246 => "Check that referenced cells and ranges still exist.",
-            -2146826252 => "Check numeric inputs and supported value ranges.",
-            -2142019887 => "Check that the lookup value and source data are available.",
-            -2146826233 => "Check the Python formula syntax and runtime inputs.",
-            _ => "Check the formula syntax and referenced values."
-        };
-
     /// <inheritdoc />
     public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null)
     {
@@ -245,4 +221,3 @@ public partial class RangeCommands
         });
     }
 }
-

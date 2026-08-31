@@ -1155,6 +1155,12 @@ public class RangeCellError
     public int Column { get; set; }
 
     /// <summary>
+    /// Formula text that produced the error
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Formula { get; set; }
+
+    /// <summary>
     /// Current cell value displayed (often the error code like #NAME?)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

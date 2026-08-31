@@ -92,4 +92,96 @@ public sealed class RangeScopedReadToolTests : McpIntegrationTestBase
 
         Assert.Empty(leakedExcelProcessIds);
     }
+
+    [Fact]
+    public async Task ScopedAnalytics_ReturnTypedBoundedResultsThroughMcp()
+    {
+        var sessionId = await CreateWorkbookSessionAsync(
+            Path.Join(_tempDirectory, $"ScopedAnalytics_{Guid.NewGuid():N}.xlsx"));
+
+        var values = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "B2:C4",
+            ["values"] = new List<List<object?>>
+            {
+                new() { 1, 10 },
+                new() { 2, 20 },
+                new() { 3, 30 }
+            }
+        });
+        AssertSetupSuccess(values, "range.set-values");
+
+        var formulas = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-formulas",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "D2:D3",
+            ["formulas"] = new List<List<string>>
+            {
+                new() { "=1/0" },
+                new() { "=NA()" }
+            }
+        });
+        AssertSetupSuccess(formulas, "range.set-formulas");
+
+        var sample = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "sample-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "B2:C4",
+            ["first_row_count"] = 1,
+            ["last_row_count"] = 1,
+            ["columns"] = "C"
+        });
+        AssertSuccess(sample, "range.sample-values");
+        using (var document = JsonDocument.Parse(sample))
+        {
+            var root = document.RootElement;
+            Assert.Equal([0, 2], root.GetProperty("rows").EnumerateArray()
+                .Select(row => row.GetProperty("rowOffset").GetInt32()));
+            Assert.Equal("$C$4", root.GetProperty("rows")[1].GetProperty("rangeAddress").GetString());
+        }
+
+        var summary = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "summarize-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "B2:C4",
+            ["columns"] = "B"
+        });
+        AssertSuccess(summary, "range.summarize-values");
+        using (var document = JsonDocument.Parse(summary))
+        {
+            var column = document.RootElement.GetProperty("columns")[0];
+            Assert.Equal(3, column.GetProperty("numericCount").GetInt64());
+            Assert.Equal(6, column.GetProperty("sum").GetDouble());
+        }
+
+        var errors = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-formula-errors",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "B2:D4",
+            ["max_errors"] = 1
+        });
+        AssertSuccess(errors, "range.get-formula-errors");
+        using (var document = JsonDocument.Parse(errors))
+        {
+            var root = document.RootElement;
+            Assert.Equal(2, root.GetProperty("totalErrorCount").GetInt64());
+            Assert.Equal(1, root.GetProperty("returnedErrorCount").GetInt32());
+            Assert.True(root.GetProperty("isTruncated").GetBoolean());
+            Assert.Equal("D2", root.GetProperty("errors")[0].GetProperty("cellAddress").GetString());
+            Assert.False(root.TryGetProperty("values", out _));
+        }
+
+        await CloseSessionAsync(sessionId, save: false);
+    }
 }

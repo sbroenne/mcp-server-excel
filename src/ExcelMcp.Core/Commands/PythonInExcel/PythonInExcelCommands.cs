@@ -166,7 +166,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 const int RequiredNonBusyReads = 3;
 
                 // Well-known Excel error code for #PYTHON! (Python code raised an error), used only to
-                // look up the canonical human-readable message via MapErrorCodeToMessage. Detection of
+                // look up the canonical human-readable message via ExcelErrorMapper. Detection of
                 // "this is a Python error" is NOT done by matching this exact code (the actual negative
                 // int Value2 returns for a Python-side error/object has been observed to vary and is not
                 // a reliable discriminator on its own) - see the returnType-based classification below.
@@ -258,13 +258,28 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 {
                     // Standard Excel error codes are well-known/fixed and mean the *formula itself*
                     // failed to evaluate (e.g. bad range reference) - these are never Python results.
-                    bool isStandardExcelError = errorCode is -2146826288 or -2147483648 or -2146826259
-                        or -2146826246 or -2146826252 or -2142019887;
+                    bool isStandardExcelError = errorCode is
+                        -2146826288 or // #NULL!
+                        -2146826281 or -2147483648 or // #DIV/0!
+                        -2146826273 or // #VALUE!
+                        -2146826265 or // #REF!
+                        -2146826259 or // #NAME?
+                        -2146826252 or // #NUM!
+                        -2146826246 or -2142019887 or // #N/A
+                        -2146826245 or // #GETTING_DATA
+                        -2146826243 or // #SPILL!
+                        -2146826242 or // #CONNECT!
+                        -2146826241 or // #BLOCKED!
+                        -2146826240 or // #UNKNOWN!
+                        -2146826239 or // #FIELD!
+                        -2146826238 or // #CALC!
+                        -2146826237 or // #BUSY!
+                        -2146826236; // #DATA!
 
                     if (isStandardExcelError)
                     {
                         result.Success = false;
-                        result.ErrorMessage = RangeCommands.MapErrorCodeToMessage(errorCode);
+                        result.ErrorMessage = ExcelErrorMapper.GetMessage(errorCode);
                     }
                     else if (formulaReturnType == 1)
                     {
@@ -285,7 +300,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                         // this is the Python code itself raising an error (syntax or runtime exception).
                         result.Success = false;
                         result.IsPythonError = true;
-                        result.ErrorMessage = RangeCommands.MapErrorCodeToMessage(PythonErrorCode);
+                        result.ErrorMessage = ExcelErrorMapper.GetMessage(PythonErrorCode);
                     }
                 }
                 else

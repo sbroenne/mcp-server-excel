@@ -28,7 +28,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. SCOPED READS: get-values supports zero-based rowOffset, positive rowLimit, and comma-separated absolute worksheet columns such as A,D,F; scoped calls return paging metadata and read only requested cells. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. SCOPED READS: get-values pages rows and selects columns; sample-values returns bounded boundary rows with source coordinates; summarize-values returns type counts and numeric statistics; get-formula-errors returns bounded sparse diagnostics without a values matrix. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
@@ -53,6 +53,59 @@ public interface IRangeCommands
         int rowOffset = 0,
         int? rowLimit = null,
         string? columns = null);
+
+    /// <summary>
+    /// Returns a bounded sample of the first and last source rows in worksheet order.
+    /// Overlapping boundary rows are returned once. Each row includes its zero-based source offset,
+    /// absolute worksheet row number, address, and values.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet, or empty string for a named range</param>
+    /// <param name="rangeAddress">Cell range address or named range name</param>
+    /// <param name="firstRowCount">Number of rows to sample from the start, from 0 through 100</param>
+    /// <param name="lastRowCount">Number of rows to sample from the end, from 0 through 100</param>
+    /// <param name="columns">Optional comma-separated absolute worksheet columns in return order</param>
+    [ServiceAction("sample-values")]
+    RangeSampleResult SampleValues(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string rangeAddress,
+        int firstRowCount = 5,
+        int lastRowCount = 5,
+        string? columns = null);
+
+    /// <summary>
+    /// Returns per-column type counts and numeric statistics without returning cell values.
+    /// Blank means no constant or formula. Numeric statistics include Excel numbers and dates,
+    /// ignore blanks, text, logical values, and errors, and are null when no numeric cells exist.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet, or empty string for a named range</param>
+    /// <param name="rangeAddress">Cell range address or named range name</param>
+    /// <param name="columns">Optional comma-separated absolute worksheet columns in return order. At most 256 columns are summarized.</param>
+    [ServiceAction("summarize-values")]
+    RangeSummaryResult SummarizeValues(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string rangeAddress,
+        string? columns = null);
+
+    /// <summary>
+    /// Returns sparse diagnostics only for formula cells whose calculated result is an Excel error.
+    /// Constant error values are excluded. Source areas are ordered by their top-left cell, then each area
+    /// follows Excel cell order. Results are bounded by maxErrors.
+    /// Multi-area and named ranges are supported.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet, or empty string for a named range</param>
+    /// <param name="rangeAddress">Cell range address or named range name</param>
+    /// <param name="maxErrors">Maximum diagnostics to return, from 1 through 1000</param>
+    [ServiceAction("get-formula-errors")]
+    RangeFormulaErrorResult GetFormulaErrors(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string rangeAddress,
+        int maxErrors = 100);
 
     /// <summary>
     /// Sets values in a range from 2D array or file.
@@ -311,5 +364,3 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
-
-
