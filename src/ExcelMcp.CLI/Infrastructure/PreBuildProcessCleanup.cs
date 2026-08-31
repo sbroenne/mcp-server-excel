@@ -36,7 +36,7 @@ internal static class PreBuildProcessCleanup
         _ = await requestGracefulShutdownAsync(cancellationToken);
         // The daemon may begin saving before its reply reaches the cleanup client.
         // Always allow that tracked generation to exit before force cleanup.
-        _ = await WaitForTrackedDaemonExitAsync(
+        _ = await WaitForTrackedGenerationExitAsync(
             pipeName,
             snapshot,
             cancellationToken);
@@ -73,7 +73,7 @@ internal static class PreBuildProcessCleanup
         }
     }
 
-    private static async Task<bool> WaitForTrackedDaemonExitAsync(
+    private static async Task<bool> WaitForTrackedGenerationExitAsync(
         string pipeName,
         OwnedProcessCleanup.ProcessSnapshot snapshot,
         CancellationToken cancellationToken)
@@ -88,9 +88,25 @@ internal static class PreBuildProcessCleanup
         {
             cancellationToken.ThrowIfCancellationRequested();
             var current = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
-            if (current.TrackingStatus == DaemonProcessTracker.TrackingRecordStatus.Missing
-                || !current.DaemonMatched
-                || current.DaemonProcess != expectedDaemon)
+            if (current.TrackingStatus
+                is DaemonProcessTracker.TrackingRecordStatus.Invalid
+                or DaemonProcessTracker.TrackingRecordStatus.Unreadable)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+                continue;
+            }
+
+            var excelProcesses = snapshot.ExcelProcesses;
+            if (current.DaemonProcess == expectedDaemon)
+            {
+                excelProcesses = excelProcesses
+                    .Concat(current.ExcelProcesses)
+                    .Distinct()
+                    .ToList();
+            }
+
+            if (IsProcessExited(expectedDaemon)
+                && excelProcesses.All(IsProcessExited))
             {
                 return true;
             }
@@ -99,5 +115,17 @@ internal static class PreBuildProcessCleanup
         }
 
         return false;
+    }
+
+    private static bool IsProcessExited(
+        DaemonProcessTracker.ProcessIdentity identity)
+    {
+        if (!DaemonProcessTracker.TryOpenMatchingProcess(identity, out var process))
+        {
+            return false;
+        }
+
+        process?.Dispose();
+        return process == null;
     }
 }
