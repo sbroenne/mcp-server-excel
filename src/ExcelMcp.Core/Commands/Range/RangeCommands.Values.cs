@@ -120,6 +120,8 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
+                ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
+
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
@@ -179,6 +181,57 @@ public partial class RangeCommands
         });
     }
 
+    private static void ValidateMergedCellsForWrite(
+        Excel.Range range,
+        string requestedRangeAddress,
+        CancellationToken cancellationToken)
+    {
+        object? mergeCells = range.MergeCells;
+        bool? isMergedState = GetMergeCellsState(mergeCells);
+        if (isMergedState == false)
+        {
+            return;
+        }
+
+        if (isMergedState == true && Convert.ToInt64(range.CountLarge) == 1)
+        {
+            Excel.Range? mergeArea = null;
+            try
+            {
+                mergeArea = range.MergeArea;
+                if (range.Row == mergeArea.Row && range.Column == mergeArea.Column)
+                {
+                    return;
+                }
+
+                ThrowMergedCellWriteError(
+                    requestedRangeAddress,
+                    [mergeArea.Address[true, true]]);
+            }
+            finally
+            {
+                ComUtilities.Release(ref mergeArea);
+            }
+        }
+
+        var mergedRanges = CollectMergedRanges(range, cancellationToken);
+        if (mergedRanges.Count > 0)
+        {
+            ThrowMergedCellWriteError(requestedRangeAddress, mergedRanges);
+        }
+    }
+
+    private static void ThrowMergedCellWriteError(
+        string requestedRangeAddress,
+        List<string> mergedRanges)
+    {
+        string rangeLabel = mergedRanges.Count == 1 ? "Merged range" : "Merged ranges";
+        throw new InvalidOperationException(
+            $"Cannot write to range '{requestedRangeAddress}' because the write intersects merged cells. " +
+            $"{rangeLabel}: {string.Join(", ", mergedRanges)}. " +
+            "Write only to each merged range's top-left cell, or unmerge the affected range before writing.");
+    }
+
     /// <summary>
     /// Detects formulas in value array (strings starting with =)
     /// Returns true if any formulas detected, outputs formula array
@@ -229,6 +282,3 @@ public partial class RangeCommands
         }
     }
 }
-
-
-
