@@ -8,6 +8,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 internal static class RangeMergeDiscovery
 {
+    // Unmerged ranges bypass this scan; mixed ranges require one COM lookup per cell.
+    private const long MaxMergedRangeScanCells = 4_096;
+
     internal static bool? GetMergeCellsState(object? mergeCells)
     {
         if (mergeCells is null || mergeCells == DBNull.Value)
@@ -26,10 +29,22 @@ internal static class RangeMergeDiscovery
 
         try
         {
-            cells = range.Cells;
-            int cellCount = Convert.ToInt32(cells.Count);
+            long cellCount = Convert.ToInt64(range.CountLarge, CultureInfo.InvariantCulture);
+            if (cellCount > MaxMergedRangeScanCells)
+            {
+                string rangeAddress = Convert.ToString(range.Address, CultureInfo.InvariantCulture)
+                    ?? "(unknown range)";
+                throw new InvalidOperationException(
+                    $"Cannot inspect merged cells in range '{rangeAddress}' because it contains " +
+                    $"{cellCount.ToString("N0", CultureInfo.InvariantCulture)} cells, exceeding the safe scan limit " +
+                    $"of {MaxMergedRangeScanCells.ToString("N0", CultureInfo.InvariantCulture)} cells. " +
+                    "Use a smaller range for this operation, or unmerge the affected cells before retrying.");
+            }
 
-            for (int i = 1; i <= cellCount; i++)
+            cells = range.Cells;
+            int boundedCellCount = checked((int)cellCount);
+
+            for (int i = 1; i <= boundedCellCount; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 

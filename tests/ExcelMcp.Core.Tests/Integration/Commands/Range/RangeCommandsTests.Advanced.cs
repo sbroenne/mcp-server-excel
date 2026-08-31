@@ -306,8 +306,42 @@ public partial class RangeCommandsTests
         Assert.False(result.IsMerged);
         Assert.Empty(result.MergedRanges);
     }
-}
 
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_NormalMixedRange_ReturnsEveryMergedRange()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "B2:C2");
+        _commands.MergeCells(batch, sheetName, "F3:H3");
+
+        var result = _commands.GetMergeInfo(batch, sheetName, "A1:H4");
+
+        Assert.True(result.Success, $"GetMergeInfo failed: {result.ErrorMessage}");
+        Assert.True(result.IsMerged);
+        Assert.Equal(["$B$2:$C$2", "$F$3:$H$3"], result.MergedRanges);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_OversizedMixedRange_ThrowsActionableScanLimitError()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "B2:C2");
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _commands.GetMergeInfo(batch, sheetName, "A1:AO100"));
+
+        Assert.Contains("4,100", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scan limit", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("smaller range", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unmerge", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+}
 
 
 
