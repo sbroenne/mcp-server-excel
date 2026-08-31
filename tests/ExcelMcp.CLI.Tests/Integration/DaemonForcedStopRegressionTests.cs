@@ -317,6 +317,10 @@ public sealed class DaemonForcedStopRegressionTests
             cleanupScript,
             StringComparison.Ordinal);
         Assert.Contains(
+            @"src\ExcelMcp.CLI\Infrastructure\PreBuildProcessCleanup.cs",
+            cleanupScript,
+            StringComparison.Ordinal);
+        Assert.Contains(
             @"src\ExcelMcp.CLI\Program.cs",
             cleanupScript,
             StringComparison.Ordinal);
@@ -334,6 +338,10 @@ public sealed class DaemonForcedStopRegressionTests
             StringComparison.Ordinal);
         Assert.Contains(
             @"src\ExcelMcp.ComInterop\Session\OwnedProcessGuard.cs",
+            cleanupScript,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            @"src\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs",
             cleanupScript,
             StringComparison.Ordinal);
         Assert.Contains(
@@ -478,6 +486,45 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.True(cleanupResult.Success);
             Assert.True(daemon.WaitForExit(5000));
             Assert.True(excel.WaitForExit(5000));
+            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+        }
+        finally
+        {
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Fact]
+    public async Task PreBuildCleanup_LostShutdownReply_AllowsTrackedGenerationToExit()
+    {
+        var pipeName = $"excelmcp-lost-shutdown-reply-{Guid.NewGuid():N}";
+        using var daemon = StartShortLivedProcess(seconds: 2);
+        using var excel = StartShortLivedProcess(seconds: 5);
+
+        try
+        {
+            var daemonIdentity = DaemonProcessTracker.RegisterProcess(
+                pipeName,
+                daemon.Id,
+                daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
+            DaemonProcessTracker.UpdateExcelProcesses(
+                pipeName,
+                daemonIdentity,
+                [excel.Id]);
+
+            var cleanupResult =
+                await PreBuildProcessCleanup.CleanupWithGracefulShutdownAsync(
+                    pipeName,
+                    CancellationToken.None,
+                    _ => Task.FromResult(false));
+
+            Assert.True(cleanupResult.Success);
+            Assert.True(daemon.WaitForExit(5000));
+            Assert.True(excel.WaitForExit(5000));
+            Assert.Equal(0, daemon.ExitCode);
+            Assert.Equal(0, excel.ExitCode);
             Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
@@ -1269,12 +1316,12 @@ public sealed class DaemonForcedStopRegressionTests
         })!;
     }
 
-    private static Process StartShortLivedProcess()
+    private static Process StartShortLivedProcess(int seconds = 2)
     {
         return Process.Start(new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -Command \"Start-Sleep -Seconds 2\"",
+            Arguments = $"-NoProfile -Command \"Start-Sleep -Seconds {seconds}\"",
             UseShellExecute = false,
             CreateNoWindow = true
         })!;

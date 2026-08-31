@@ -1039,7 +1039,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     identity => OwnedProcessGuard.TryTerminate(
                         identity,
                         TimeSpan.FromSeconds(5),
-                        TimeSpan.FromSeconds(3),
+                        ProcessTerminationPolicy.ProcessExitTimeout,
                         out lingeringProcessTerminated));
 
                 if (lingeringProcessTerminated)
