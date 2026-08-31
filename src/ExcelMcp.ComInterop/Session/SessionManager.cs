@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -286,8 +287,11 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
     private readonly ConcurrentDictionary<string, string> _sessionFilePathReservations = new();
+    private readonly ConcurrentDictionary<string, byte> _rollbackSessions = new();
+    private readonly ConcurrentDictionary<string, byte> _savepointCreationSessions = new();
     private readonly object _filePathReservationLock = new();
     private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
+    private readonly WorkbookSavepointStore _savepointStore = new();
     private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
 
@@ -587,10 +591,18 @@ public sealed class SessionManager : IDisposable
 
         _activeOperationCounts.TryRemove(sessionId, out _);
         _closingSessions.TryRemove(sessionId, out _);
+        _rollbackSessions.TryRemove(sessionId, out _);
+        _savepointCreationSessions.TryRemove(sessionId, out _);
         _showExcelFlags.TryRemove(sessionId, out _);
         _sessionOrigins.TryRemove(sessionId, out _);
         _sessionCreatedAt.TryRemove(sessionId, out _);
         _teardownFailures.TryRemove(sessionId, out _);
+        if (!_savepointStore.ReleaseAll(sessionId))
+        {
+            _logger.LogWarning(
+                "Savepoint cleanup for session {SessionId} was incomplete and will be retried by stale-store cleanup.",
+                sessionId);
+        }
 
         if (removeSessionLock)
         {
@@ -656,6 +668,20 @@ public sealed class SessionManager : IDisposable
             if (_closingSessions.ContainsKey(sessionId))
             {
                 errorMessage = $"Session '{sessionId}' is closing";
+                error = SessionOperationError.Closing;
+                return false;
+            }
+
+            if (_rollbackSessions.ContainsKey(sessionId))
+            {
+                errorMessage = $"Session '{sessionId}' is rolling back to a savepoint";
+                error = SessionOperationError.Closing;
+                return false;
+            }
+
+            if (_savepointCreationSessions.ContainsKey(sessionId))
+            {
+                errorMessage = $"Session '{sessionId}' is creating a savepoint";
                 error = SessionOperationError.Closing;
                 return false;
             }
@@ -784,6 +810,24 @@ public sealed class SessionManager : IDisposable
 
         var activeOps = GetActiveOperationCount(sessionId);
         var isVisible = IsExcelVisible(sessionId);
+
+        if (_rollbackSessions.ContainsKey(sessionId))
+        {
+            return new CloseValidationResult(
+                true,
+                isVisible,
+                activeOps,
+                $"Cannot close session '{sessionId}' while a savepoint rollback is in progress.");
+        }
+
+        if (_savepointCreationSessions.ContainsKey(sessionId))
+        {
+            return new CloseValidationResult(
+                true,
+                isVisible,
+                activeOps,
+                $"Cannot close session '{sessionId}' while a savepoint is being created.");
+        }
 
         if (activeOps > 0)
         {
@@ -1031,6 +1075,769 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Gets the savepoint storage limits enforced by this session manager.
+    /// </summary>
+    public static WorkbookSavepointLimits SavepointLimits => WorkbookSavepointStore.Limits;
+
+    /// <summary>
+    /// Creates an immutable snapshot of the current unsaved workbook state.
+    /// </summary>
+    public WorkbookSavepointDescriptor CreateSavepoint(
+        string sessionId,
+        string name,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        WorkbookSavepointStore.ValidateName(name);
+
+        if (_savepointStore.Contains(sessionId, name))
+        {
+            throw new InvalidOperationException(
+                $"Savepoint '{name}' already exists for session '{sessionId}'.");
+        }
+
+        IExcelBatch batch;
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is quarantined after a failed close: " +
+                    teardownFailure.SourceException.Message);
+            }
+
+            if (_closingSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' is closing.");
+            }
+
+            if (!_activeSessions.TryGetValue(sessionId, out batch!))
+            {
+                throw new KeyNotFoundException($"Session '{sessionId}' not found.");
+            }
+
+            if (_rollbackSessions.ContainsKey(sessionId) ||
+                _savepointCreationSessions.ContainsKey(sessionId) ||
+                (_activeOperationCounts.TryGetValue(sessionId, out var activeOperations) &&
+                 activeOperations != 0))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is busy and cannot create a savepoint.");
+            }
+
+            if (batch.HasTimedOutOperation || !batch.IsExcelProcessAlive())
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is not usable and cannot create a savepoint.");
+            }
+
+            _savepointCreationSessions[sessionId] = 0;
+            _activeOperationCounts[sessionId] = 1;
+        }
+
+        string? snapshotPath = null;
+        var committed = false;
+        var reserved = false;
+        long snapshotEstimateBytes = 0;
+        try
+        {
+            var workbookPath = Path.GetFullPath(batch.WorkbookPath);
+            var extension = Path.GetExtension(workbookPath).ToLowerInvariant();
+            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+            {
+                throw new NotSupportedException(
+                    $"Savepoints support .xlsx, .xlsm, and .xls workbooks. '{extension}' cannot be reopened safely.");
+            }
+
+            snapshotEstimateBytes = new FileInfo(workbookPath).Length;
+            _savepointStore.Reserve(
+                sessionId,
+                name,
+                snapshotEstimateBytes);
+            reserved = true;
+            snapshotPath = _savepointStore.CreateSnapshotPath(sessionId, extension);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(timeout ?? batch.OperationTimeout);
+
+            try
+            {
+                batch.Execute((context, token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    ValidateSavepointState(context);
+                    context.Book.SaveCopyAs(snapshotPath);
+                }, timeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (
+                timeoutCts.IsCancellationRequested &&
+                !cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    $"Creating savepoint '{name}' timed out after {(timeout ?? batch.OperationTimeout).TotalSeconds:F0} seconds.");
+            }
+
+            var entry = _savepointStore.Commit(
+                sessionId,
+                name,
+                workbookPath,
+                snapshotPath);
+            reserved = false;
+            committed = true;
+            return entry.ToDescriptor();
+        }
+        finally
+        {
+            if (!committed && snapshotPath != null)
+            {
+                _savepointStore.DeleteTransient(snapshotPath, snapshotEstimateBytes);
+            }
+
+            if (reserved)
+            {
+                _savepointStore.CancelReservation(sessionId, name);
+            }
+
+            if (_activeSessions.ContainsKey(sessionId))
+            {
+                _activeOperationCounts.AddOrUpdate(sessionId, 0, static (_, _) => 0);
+            }
+            _savepointCreationSessions.TryRemove(sessionId, out _);
+        }
+    }
+
+    /// <summary>
+    /// Lists immutable savepoints owned by an active session.
+    /// </summary>
+    public IReadOnlyList<WorkbookSavepointDescriptor> GetSavepoints(string sessionId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            EnsureSessionAvailableForSavepointMetadata(sessionId);
+            return _savepointStore.List(sessionId)
+                .Select(entry => entry.ToDescriptor())
+                .ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Releases one savepoint. Missing names return false.
+    /// </summary>
+    public bool ReleaseSavepoint(string sessionId, string name)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        WorkbookSavepointStore.ValidateName(name);
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            EnsureSessionAvailableForSavepointMetadata(sessionId);
+            return _savepointStore.Release(sessionId, name);
+        }
+    }
+
+    /// <summary>
+    /// Releases every savepoint owned by an active session.
+    /// </summary>
+    public void ReleaseSavepoints(string sessionId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            EnsureSessionAvailableForSavepointMetadata(sessionId);
+            if (!_savepointStore.ReleaseAll(sessionId))
+            {
+                _logger.LogWarning(
+                    "Savepoint cleanup for session {SessionId} was incomplete and will be retried by stale-store cleanup.",
+                    sessionId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Restores a savepoint to the current workbook path and reopens the batch under
+    /// the same public session ID.
+    /// </summary>
+    public WorkbookSavepointRollback RollbackSavepoint(
+        string sessionId,
+        string name,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        WorkbookSavepointStore.ValidateName(name);
+
+        IExcelBatch batch;
+        string workbookPath;
+        TimeSpan operationTimeout;
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is quarantined after a failed close: " +
+                    teardownFailure.SourceException.Message);
+            }
+
+            if (_closingSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' is closing.");
+            }
+
+            if (!_activeSessions.TryGetValue(sessionId, out batch!))
+            {
+                throw new KeyNotFoundException($"Session '{sessionId}' not found.");
+            }
+
+            if (_activeOperationCounts.TryGetValue(sessionId, out var activeOperations) &&
+                activeOperations != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot roll back session '{sessionId}' while {activeOperations} operation(s) are active.");
+            }
+
+            if (_savepointCreationSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is creating a savepoint.");
+            }
+
+            if (batch.HasTimedOutOperation || !batch.IsExcelProcessAlive())
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is not usable and cannot roll back a savepoint.");
+            }
+
+            if (!_rollbackSessions.TryAdd(sessionId, 0))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is already rolling back to a savepoint.");
+            }
+
+            _activeOperationCounts[sessionId] = 1;
+            workbookPath = Path.GetFullPath(batch.WorkbookPath);
+            operationTimeout = timeout ?? batch.OperationTimeout;
+        }
+
+        string? recoveryPath = null;
+        var rollbackTimer = Stopwatch.StartNew();
+        var recoveryCopyStarted = false;
+        try
+        {
+            var savepoint = _savepointStore.GetRequired(sessionId, name);
+            if (!string.Equals(
+                    savepoint.WorkbookPath,
+                    workbookPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Savepoint '{name}' belongs to a different workbook path and cannot be rolled back.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            EnsureRollbackFreeSpace(workbookPath, savepoint.SizeBytes);
+
+            recoveryPath = _savepointStore.CreateTransientPath(
+                sessionId,
+                Path.GetExtension(workbookPath),
+                new FileInfo(workbookPath).Length);
+            using (var copyTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                copyTimeout.CancelAfter(operationTimeout);
+                try
+                {
+                    recoveryCopyStarted = true;
+                    batch.Execute((context, token) =>
+                    {
+                        token.ThrowIfCancellationRequested();
+                        ValidateSavepointState(context);
+                        context.Book.SaveCopyAs(recoveryPath);
+                    }, copyTimeout.Token);
+                }
+                catch (OperationCanceledException) when (
+                    copyTimeout.IsCancellationRequested &&
+                    !cancellationToken.IsCancellationRequested)
+                {
+                    throw new TimeoutException(
+                        $"Rollback to savepoint '{name}' timed out while creating the emergency recovery copy.");
+                }
+            }
+            _savepointStore.UpdateTransientSize(
+                recoveryPath,
+                new FileInfo(recoveryPath).Length);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var remainingTimeout = operationTimeout - rollbackTimer.Elapsed;
+            if (remainingTimeout <= TimeSpan.Zero)
+            {
+                throw new TimeoutException(
+                    $"Rollback to savepoint '{name}' timed out before workbook replacement started.");
+            }
+
+            if (batch is not IWorkbookSavepointBatch savepointBatch)
+            {
+                throw new InvalidOperationException(
+                    "The active Excel batch does not support workbook savepoint rollback.");
+            }
+
+            savepointBatch.RestoreWorkbookFromCopy(
+                savepoint.SnapshotPath,
+                recoveryPath,
+                remainingTimeout);
+
+            return new WorkbookSavepointRollback(
+                sessionId,
+                name,
+                workbookPath,
+                DateTime.UtcNow);
+        }
+        catch (WorkbookRestoreException restoreException)
+        {
+            if (restoreException.SessionRecovered)
+            {
+                throw new WorkbookSavepointRollbackException(
+                    $"Rollback to savepoint '{name}' failed, but the pre-rollback workbook state was recovered under session '{sessionId}'.",
+                    sessionRecovered: true,
+                    sessionClosed: false,
+                    recoveryFilePath: null,
+                    restoreException.RollbackException);
+            }
+
+            string? promotedRecoveryPath = null;
+            Exception? promotionFailure = null;
+            if (recoveryPath != null && File.Exists(recoveryPath))
+            {
+                try
+                {
+                    promotedRecoveryPath = _savepointStore.PromoteRecoveryFile(
+                        recoveryPath,
+                        workbookPath);
+                    recoveryPath = null;
+                }
+                catch (IOException ex)
+                {
+                    promotionFailure = ex;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    promotionFailure = ex;
+                }
+            }
+
+            if (promotedRecoveryPath == null &&
+                recoveryPath != null &&
+                File.Exists(recoveryPath))
+            {
+                try
+                {
+                    promotedRecoveryPath =
+                        _savepointStore.PreserveRecoveryFileInPlace(recoveryPath);
+                    recoveryPath = null;
+                }
+                catch (IOException ex)
+                {
+                    promotionFailure = CombineOptionalFailures(
+                        promotionFailure,
+                        ex);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    promotionFailure = CombineOptionalFailures(
+                        promotionFailure,
+                        ex);
+                }
+            }
+
+            Exception? closeFailure = null;
+            try
+            {
+                CloseSessionSync(sessionId, batch);
+            }
+            catch (InvalidOperationException ex)
+            {
+                closeFailure = ex;
+            }
+
+            throw new WorkbookSavepointRollbackException(
+                $"Rollback to savepoint '{name}' failed and session '{sessionId}' could not be recovered. " +
+                (closeFailure == null
+                    ? "The session was closed."
+                    : "The session is quarantined until its owned Excel process teardown can be confirmed."),
+                sessionRecovered: false,
+                sessionClosed: closeFailure == null,
+                recoveryFilePath: promotedRecoveryPath,
+                restoreException.RollbackException,
+                CombineRecoveryFailures(
+                    restoreException.RecoveryException!,
+                    promotionFailure,
+                    closeFailure));
+        }
+        catch (TimeoutException ex)
+        {
+            throw StabilizeInterruptedRollback(
+                    sessionId,
+                    name,
+                    batch,
+                    workbookPath,
+                    ref recoveryPath,
+                    ex);
+        }
+        catch (OperationCanceledException ex)
+        {
+            if (!recoveryCopyStarted)
+            {
+                throw;
+            }
+
+            throw StabilizeInterruptedRollback(
+                    sessionId,
+                    name,
+                    batch,
+                    workbookPath,
+                    ref recoveryPath,
+                    ex);
+        }
+        finally
+        {
+            if (recoveryPath != null)
+            {
+                _savepointStore.DeleteTransient(recoveryPath);
+            }
+
+            if (_activeSessions.ContainsKey(sessionId))
+            {
+                _activeOperationCounts.AddOrUpdate(sessionId, 0, static (_, _) => 0);
+            }
+            _rollbackSessions.TryRemove(sessionId, out _);
+        }
+    }
+
+    private WorkbookSavepointRollbackException StabilizeInterruptedRollback(
+        string sessionId,
+        string name,
+        IExcelBatch batch,
+        string workbookPath,
+        ref string? recoveryPath,
+        Exception interruption)
+    {
+        Exception? closeFailure = null;
+        try
+        {
+            batch.Dispose();
+        }
+        catch (InvalidOperationException ex)
+        {
+            closeFailure = new InvalidOperationException(
+                $"Failed to dispose interrupted rollback session '{sessionId}': {ex.Message}",
+                ex);
+            _teardownFailures[sessionId] = ExceptionDispatchInfo.Capture(closeFailure);
+        }
+
+        string? promotedRecoveryPath = null;
+        Exception? promotionFailure = null;
+        if (recoveryPath != null && File.Exists(recoveryPath))
+        {
+            try
+            {
+                promotedRecoveryPath = _savepointStore.PromoteRecoveryFile(
+                    recoveryPath,
+                    workbookPath);
+                recoveryPath = null;
+            }
+            catch (IOException ex)
+            {
+                promotionFailure = ex;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                promotionFailure = ex;
+            }
+
+            if (promotedRecoveryPath == null &&
+                recoveryPath != null &&
+                File.Exists(recoveryPath))
+            {
+                try
+                {
+                    promotedRecoveryPath =
+                        _savepointStore.PreserveRecoveryFileInPlace(recoveryPath);
+                    recoveryPath = null;
+                }
+                catch (IOException ex)
+                {
+                    promotionFailure = CombineOptionalFailures(
+                        promotionFailure,
+                        ex);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    promotionFailure = CombineOptionalFailures(
+                        promotionFailure,
+                        ex);
+                }
+            }
+        }
+
+        if (closeFailure == null)
+        {
+            var sessionLock = GetSessionLock(sessionId);
+            lock (sessionLock)
+            {
+                RemoveSessionTracking(sessionId, removeSessionLock: false);
+            }
+            _sessionLocks.TryRemove(sessionId, out _);
+        }
+
+        return new WorkbookSavepointRollbackException(
+            $"Rollback to savepoint '{name}' was interrupted. " +
+            (closeFailure == null
+                ? "The session was closed."
+                : "The session is quarantined until its owned Excel process teardown can be confirmed."),
+            sessionRecovered: false,
+            sessionClosed: closeFailure == null,
+            recoveryFilePath: promotedRecoveryPath,
+            rollbackException: interruption,
+            recoveryException: CombineOptionalFailures(
+                promotionFailure,
+                closeFailure));
+    }
+
+    private static Exception? CombineOptionalFailures(params Exception?[] failures)
+    {
+        var presentFailures = failures
+            .Where(failure => failure != null)
+            .Cast<Exception>()
+            .ToArray();
+        return presentFailures.Length switch
+        {
+            0 => null,
+            1 => presentFailures[0],
+            _ => new AggregateException(presentFailures)
+        };
+    }
+
+    private static Exception CombineRecoveryFailures(
+        Exception recoveryFailure,
+        Exception? promotionFailure,
+        Exception? closeFailure)
+    {
+        var failures = new List<Exception> { recoveryFailure };
+        if (promotionFailure != null)
+        {
+            failures.Add(promotionFailure);
+        }
+
+        if (closeFailure != null)
+        {
+            failures.Add(closeFailure);
+        }
+
+        return failures.Count == 1
+            ? recoveryFailure
+            : new AggregateException(failures);
+    }
+
+    private void EnsureSessionAvailableForSavepointMetadata(string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is quarantined after a failed close: " +
+                    teardownFailure.SourceException.Message);
+            }
+
+            if (_closingSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException($"Session '{sessionId}' is closing.");
+            }
+
+            if (_rollbackSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is rolling back to a savepoint.");
+            }
+
+            if (_savepointCreationSessions.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is creating a savepoint.");
+            }
+
+            if (!_activeSessions.TryGetValue(sessionId, out var batch) ||
+                !batch.IsExcelProcessAlive())
+            {
+                throw new KeyNotFoundException($"Session '{sessionId}' not found.");
+            }
+        }
+    }
+
+    private static void ValidateSavepointState(ExcelContext context)
+    {
+        if (context.Book.ReadOnly)
+        {
+            throw new InvalidOperationException(
+                "Savepoints are not supported for read-only or IRM/AIP-protected workbooks.");
+        }
+
+        if (context.App.CalculationState != Excel.XlCalculationState.xlDone)
+        {
+            throw new InvalidOperationException(
+                "Cannot create or roll back a savepoint while Excel calculation is in progress.");
+        }
+
+        Excel.Connections? connections = null;
+        try
+        {
+            connections = context.Book.Connections;
+            for (var index = 1; index <= connections.Count; index++)
+            {
+                Excel.WorkbookConnection? connection = null;
+                Excel.OLEDBConnection? oledb = null;
+                Excel.ODBCConnection? odbc = null;
+                try
+                {
+                    connection = connections.Item(index);
+                    if (connection.Type == Excel.XlConnectionType.xlConnectionTypeOLEDB)
+                    {
+                        oledb = connection.OLEDBConnection;
+                        if (oledb.Refreshing)
+                        {
+                            throw new InvalidOperationException(
+                                $"Cannot create or roll back a savepoint while connection '{connection.Name}' is refreshing.");
+                        }
+
+                        if (oledb.RefreshOnFileOpen)
+                        {
+                            throw new InvalidOperationException(
+                                $"Connection '{connection.Name}' refreshes when the workbook opens. " +
+                                "Disable refresh-on-open before using savepoints.");
+                        }
+                    }
+                    else if (connection.Type == Excel.XlConnectionType.xlConnectionTypeODBC)
+                    {
+                        odbc = connection.ODBCConnection;
+                        if (odbc.Refreshing)
+                        {
+                            throw new InvalidOperationException(
+                                $"Cannot create or roll back a savepoint while connection '{connection.Name}' is refreshing.");
+                        }
+
+                        if (odbc.RefreshOnFileOpen)
+                        {
+                            throw new InvalidOperationException(
+                                $"Connection '{connection.Name}' refreshes when the workbook opens. " +
+                                "Disable refresh-on-open before using savepoints.");
+                        }
+                    }
+                    else
+                    {
+                        throw new NotSupportedException(
+                            $"Connection '{connection.Name}' uses Excel connection type " +
+                            $"'{connection.Type}', whose refresh state cannot be verified safely. " +
+                            "Savepoints require all connections to expose deterministic refresh status.");
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbc);
+                    ComUtilities.Release(ref oledb);
+                    ComUtilities.Release(ref connection);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref connections);
+        }
+
+        ValidateQueryTableState(context.Book);
+    }
+
+    private static void ValidateQueryTableState(Excel.Workbook workbook)
+    {
+        Excel.Sheets? worksheets = null;
+        try
+        {
+            worksheets = workbook.Worksheets;
+            for (var sheetIndex = 1; sheetIndex <= worksheets.Count; sheetIndex++)
+            {
+                Excel.Worksheet? worksheet = null;
+                Excel.QueryTables? queryTables = null;
+                try
+                {
+                    worksheet = worksheets.Item[sheetIndex] as Excel.Worksheet;
+                    if (worksheet == null)
+                    {
+                        continue;
+                    }
+
+                    queryTables = worksheet.QueryTables;
+                    for (var queryIndex = 1; queryIndex <= queryTables.Count; queryIndex++)
+                    {
+                        Excel.QueryTable? queryTable = null;
+                        try
+                        {
+                            queryTable = queryTables.Item(queryIndex);
+                            if (queryTable.Refreshing)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Cannot create or roll back a savepoint while query table " +
+                                    $"'{queryTable.Name}' is refreshing.");
+                            }
+
+                            if (queryTable.RefreshOnFileOpen)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Query table '{queryTable.Name}' refreshes when the workbook opens. " +
+                                    "Disable refresh-on-open before using savepoints.");
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref queryTable);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref queryTables);
+                    ComUtilities.Release(ref worksheet);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref worksheets);
+        }
+    }
+
+    private static void EnsureRollbackFreeSpace(string workbookPath, long savepointSize)
+    {
+        var root = Path.GetPathRoot(workbookPath);
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            throw new InvalidOperationException("Workbook drive could not be determined.");
+        }
+
+        var existingSize = new FileInfo(workbookPath).Length;
+        const long safetyMargin = 64L * 1024L * 1024L;
+        var required = checked(existingSize + savepointSize + safetyMargin);
+        if (new DriveInfo(root).AvailableFreeSpace < required)
+        {
+            throw new IOException(
+                $"Rollback requires at least {required} bytes of free space on drive '{root}'.");
+        }
+    }
+
+    /// <summary>
     /// Atomically reserves a Save As target path for an active session.
     /// </summary>
     /// <param name="sessionId">Active session ID</param>
@@ -1197,6 +2004,8 @@ public sealed class SessionManager : IDisposable
                 // Best-effort cleanup — continue with remaining sessions
             }
         }
+
+        _savepointStore.Dispose();
     }
 }
 

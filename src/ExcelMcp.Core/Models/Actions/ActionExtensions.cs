@@ -13,6 +13,10 @@ public static class ActionExtensions
         FileAction.Close => "close",
         FileAction.Create => "create",
         FileAction.Test => "test",
+        FileAction.CreateSavepoint => "create-savepoint",
+        FileAction.RollbackSavepoint => "rollback-savepoint",
+        FileAction.ReleaseSavepoint => "release-savepoint",
+        FileAction.ListSavepoints => "list-savepoints",
         _ => throw new ArgumentException($"Unknown FileAction: {action}")
     };
 
@@ -54,4 +58,3 @@ public static class ActionExtensions
     // CalculationModeAction.ToActionString() is now generated in ServiceRegistry.Calculation.ToActionString()
 }
 #pragma warning restore CS1591
-

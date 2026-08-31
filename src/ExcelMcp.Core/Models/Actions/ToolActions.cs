@@ -25,7 +25,19 @@ public enum FileAction
     Create,
 
     [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
-    Test
+    Test,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("create-savepoint")]
+    CreateSavepoint,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("rollback-savepoint")]
+    RollbackSavepoint,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("release-savepoint")]
+    ReleaseSavepoint,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("list-savepoints")]
+    ListSavepoints
 }
 
 // NOTE: PowerQueryAction is now generated from IPowerQueryCommands interface
@@ -78,4 +90,3 @@ public enum FileAction
 // CalculationModeAction is now generated from ICalculationModeCommands interface
 // See Sbroenne.ExcelMcp.Generated.CalculationAction in ServiceRegistry.Calculation.g.cs
 #pragma warning restore CS1591
-

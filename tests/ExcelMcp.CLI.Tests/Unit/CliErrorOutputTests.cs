@@ -43,4 +43,40 @@ public sealed class CliErrorOutputTests
             "Open the workbook again",
             json.RootElement.GetProperty("errorMessage").GetString());
     }
+
+    [Fact]
+    public void WriteServiceErrorWithResult_PreservesRollbackRecoveryMetadata()
+    {
+        using var stdout = new StringWriter();
+        var originalOut = Console.Out;
+
+        try
+        {
+            Console.SetOut(stdout);
+            var exitCode = CliErrorOutput.WriteServiceErrorWithResult(new ServiceResponse
+            {
+                Success = false,
+                SessionId = "session-1",
+                ErrorCategory = "RollbackRecoveryFailed",
+                ErrorMessage = "Rollback failed and the session was closed.",
+                Result =
+                    """{"success":false,"sessionId":"session-1","sessionRecovered":false,"sessionClosed":true,"recoveryFilePath":"C:\\safe\\recovery.xlsx"}"""
+            });
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        using var json = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal(
+            "RollbackRecoveryFailed",
+            json.RootElement.GetProperty("errorCategory").GetString());
+        Assert.True(json.RootElement.GetProperty("sessionClosed").GetBoolean());
+        Assert.Equal(
+            @"C:\safe\recovery.xlsx",
+            json.RootElement.GetProperty("recoveryFilePath").GetString());
+    }
 }

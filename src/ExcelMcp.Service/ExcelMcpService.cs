@@ -20,6 +20,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 
@@ -390,7 +391,16 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
-        if (action is not ("create" or "open" or "close" or "list" or "test"))
+        if (action is not (
+                "create" or
+                "open" or
+                "close" or
+                "list" or
+                "test" or
+                "create-savepoint" or
+                "rollback-savepoint" or
+                "release-savepoint" or
+                "list-savepoints"))
         {
             return new ServiceResponse
             {
@@ -408,6 +418,10 @@ public sealed class ExcelMcpService : IDisposable
             "close" => HandleSessionClose(request),
             "list" => HandleSessionList(),
             "test" => HandleSessionTest(request),
+            "create-savepoint" => HandleSessionCreateSavepoint(request),
+            "rollback-savepoint" => HandleSessionRollbackSavepoint(request),
+            "release-savepoint" => HandleSessionReleaseSavepoint(request),
+            "list-savepoints" => HandleSessionListSavepoints(request),
             _ => throw new InvalidOperationException($"Unhandled session action: {action}")
         };
     }
@@ -424,6 +438,13 @@ public sealed class ExcelMcpService : IDisposable
                 StringComparer.Ordinal),
             "close" => new HashSet<string>(["save"], StringComparer.Ordinal),
             "test" => new HashSet<string>(["filePath"], StringComparer.Ordinal),
+            "create-savepoint" => new HashSet<string>(
+                ["name", "timeoutSeconds"],
+                StringComparer.Ordinal),
+            "rollback-savepoint" => new HashSet<string>(
+                ["name", "timeoutSeconds"],
+                StringComparer.Ordinal),
+            "release-savepoint" => new HashSet<string>(["name"], StringComparer.Ordinal),
             _ => []
         };
         var unknownParameters = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
@@ -615,6 +636,255 @@ public sealed class ExcelMcpService : IDisposable
         {
             return CreateErrorResponse(ex);
         }
+    }
+
+    private ServiceResponse HandleSessionCreateSavepoint(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return MissingSessionIdResponse();
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionSavepointArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.Name))
+        {
+            throw new ArgumentException("name is required.");
+        }
+
+        var timeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
+
+        try
+        {
+            var savepoint = _sessionManager.CreateSavepoint(
+                request.SessionId,
+                args.Name,
+                timeout);
+            var result = new WorkbookSavepointCreateResult
+            {
+                Success = true,
+                SessionId = request.SessionId,
+                FilePath = savepoint.WorkbookPath,
+                Savepoint = ToSavepointInfo(savepoint)
+            };
+            return SuccessResult(result);
+        }
+        catch (TimeoutException ex)
+        {
+            CleanupDeadSession(request.SessionId);
+            return CreateErrorResponse(ex);
+        }
+        catch (OperationCanceledException ex)
+        {
+            CleanupDeadSession(request.SessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Cancelled",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (Exception ex)
+        {
+            return CreateSavepointErrorResponse(ex);
+        }
+    }
+
+    private ServiceResponse HandleSessionRollbackSavepoint(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return MissingSessionIdResponse();
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionSavepointArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.Name))
+        {
+            throw new ArgumentException("name is required.");
+        }
+
+        var timeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
+
+        try
+        {
+            var rollback = _sessionManager.RollbackSavepoint(
+                request.SessionId,
+                args.Name,
+                timeout);
+            return SuccessResult(new WorkbookSavepointRollbackResult
+            {
+                Success = true,
+                SessionId = rollback.SessionId,
+                FilePath = rollback.WorkbookPath,
+                Name = rollback.Name,
+                RestoredAtUtc = rollback.RestoredAtUtc,
+                SavepointRetained = true,
+                SessionReopened = true
+            });
+        }
+        catch (WorkbookSavepointRollbackException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.SessionRecovered
+                    ? "RollbackFailed"
+                    : "RollbackRecoveryFailed",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name,
+                InnerError = ex.SessionRecovered
+                    ? "The requested snapshot could not be reopened; the pre-rollback workbook state was restored."
+                    : "Neither the requested snapshot nor the emergency current-state copy could be reopened.",
+                Result = JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    sessionId = request.SessionId,
+                    sessionRecovered = ex.SessionRecovered,
+                    sessionClosed = ex.SessionClosed,
+                    recoveryFilePath = ex.RecoveryFilePath
+                }, ServiceProtocol.JsonOptions)
+            };
+        }
+        catch (TimeoutException ex)
+        {
+            CleanupDeadSession(request.SessionId);
+            return CreateErrorResponse(ex);
+        }
+        catch (OperationCanceledException ex)
+        {
+            CleanupDeadSession(request.SessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Cancelled",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (Exception ex)
+        {
+            return CreateSavepointErrorResponse(ex);
+        }
+    }
+
+    private ServiceResponse HandleSessionReleaseSavepoint(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return MissingSessionIdResponse();
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionSavepointArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.Name))
+        {
+            throw new ArgumentException("name is required.");
+        }
+
+        try
+        {
+            var released = _sessionManager.ReleaseSavepoint(request.SessionId, args.Name);
+            return SuccessResult(new WorkbookSavepointReleaseResult
+            {
+                Success = true,
+                SessionId = request.SessionId,
+                Name = args.Name,
+                Released = released
+            });
+        }
+        catch (Exception ex)
+        {
+            return CreateSavepointErrorResponse(ex);
+        }
+    }
+
+    private ServiceResponse HandleSessionListSavepoints(ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return MissingSessionIdResponse();
+        }
+
+        try
+        {
+            var savepoints = _sessionManager.GetSavepoints(request.SessionId);
+            var limits = SessionManager.SavepointLimits;
+            return SuccessResult(new WorkbookSavepointListResult
+            {
+                Success = true,
+                SessionId = request.SessionId,
+                FilePath = _sessionManager.TryGetFilePath(request.SessionId, out var filePath)
+                    ? filePath
+                    : null,
+                Savepoints = savepoints.Select(ToSavepointInfo).ToList(),
+                Count = savepoints.Count,
+                TotalSizeBytes = savepoints.Sum(savepoint => savepoint.SizeBytes),
+                MaxSavepointsPerSession = limits.MaxSavepointsPerSession,
+                MaxBytesPerSession = limits.MaxBytesPerSession,
+                MaxBytesPerProcess = limits.MaxBytesPerProcess
+            });
+        }
+        catch (Exception ex)
+        {
+            return CreateSavepointErrorResponse(ex);
+        }
+    }
+
+    private static WorkbookSavepointInfo ToSavepointInfo(
+        WorkbookSavepointDescriptor savepoint) =>
+        new()
+        {
+            Name = savepoint.Name,
+            CreatedAtUtc = savepoint.CreatedAtUtc,
+            SizeBytes = savepoint.SizeBytes
+        };
+
+    private static ServiceResponse SuccessResult<T>(T result) =>
+        new()
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
+        };
+
+    private static ServiceResponse MissingSessionIdResponse() =>
+        new()
+        {
+            Success = false,
+            ErrorCategory = "InvalidInput",
+            ErrorMessage = "sessionId is required"
+        };
+
+    private static ServiceResponse CreateSavepointErrorResponse(Exception exception)
+    {
+        var response = CreateErrorResponse(exception);
+        var errorCategory = exception switch
+        {
+            WorkbookSavepointStorageLimitException => "StorageLimitExceeded",
+            KeyNotFoundException => "NotFound",
+            NotSupportedException => "Unsupported",
+            IOException => "FileIO",
+            InvalidOperationException => "Conflict",
+            _ => response.ErrorCategory
+        };
+        return new ServiceResponse
+        {
+            Success = false,
+            Command = response.Command,
+            SessionId = response.SessionId,
+            ErrorCategory = errorCategory,
+            ErrorMessage = response.ErrorMessage,
+            ExceptionType = response.ExceptionType,
+            HResult = response.HResult,
+            InnerError = response.InnerError,
+            Result = response.Result
+        };
     }
 
     private ServiceResponse HandleSessionList()
@@ -891,6 +1161,7 @@ public sealed class ExcelMcpService : IDisposable
                 if (result.Success && reservedPath != null)
                 {
                     _sessionManager.UpdateSessionFilePath(request.SessionId!, batch.WorkbookPath);
+                    _sessionManager.ReleaseSavepoints(request.SessionId!);
                 }
 
                 return result;
@@ -1252,3 +1523,8 @@ public sealed class SessionOpenArgs
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
 public sealed class SessionTestArgs { public string? FilePath { get; set; } }
+public sealed class SessionSavepointArgs
+{
+    public string? Name { get; set; }
+    public int? TimeoutSeconds { get; set; }
+}

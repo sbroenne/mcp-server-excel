@@ -472,7 +472,8 @@ if ($CheckNaming) {
                           "GetColumnNumberFormat", "SetColumnNumberFormat",
                           # Table slicer methods exposed via SlicerAction (cross-interface enum)
                           "CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
-        "FileAction" = @("Open", "Close", "List", "Create")  # Adapter-specific session actions
+        "FileAction" = @("Open", "Close", "List", "Create",
+                         "CreateSavepoint", "RollbackSavepoint", "ReleaseSavepoint", "ListSavepoints")  # Adapter-specific session actions
         "RangeAction" = @("SetNumberFormatCustom", "InsertCells", "DeleteCells", "InsertRows", "DeleteRows",
                           "InsertColumns", "DeleteColumns", "Find", "Replace", "Sort",
                           "AddHyperlink", "RemoveHyperlink", "ListHyperlinks", "GetHyperlink",

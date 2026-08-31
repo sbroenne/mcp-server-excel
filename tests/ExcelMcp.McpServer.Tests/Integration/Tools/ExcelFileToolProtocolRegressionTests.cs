@@ -91,6 +91,94 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         await Task.Delay(TimeSpan.FromSeconds(2));
     }
 
+    [Fact]
+    public async Task FileSavepoint_RollbackPreservesSessionAndRestoresUnsavedValue()
+    {
+        var workbookPath = Path.Join(_tempDir, $"Savepoint_{Guid.NewGuid():N}.xlsx");
+
+        var openResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["path"] = workbookPath
+        });
+        AssertSuccess(openResult, "Create savepoint workbook");
+        var sessionId = GetJsonProperty(openResult, "session_id")!;
+        TrackSession(sessionId);
+
+        await SetCellAsync(sessionId, "before");
+        var createResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "create-savepoint",
+            ["session_id"] = sessionId,
+            ["name"] = "before-change"
+        });
+        AssertSuccess(createResult, "Create savepoint");
+
+        await SetCellAsync(sessionId, "after");
+        var rollbackResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "rollback-savepoint",
+            ["session_id"] = sessionId,
+            ["name"] = "before-change"
+        });
+        AssertSuccess(rollbackResult, "Rollback savepoint");
+        using (var rollbackJson = JsonDocument.Parse(rollbackResult))
+        {
+            Assert.Equal(
+                sessionId,
+                rollbackJson.RootElement.GetProperty("session_id").GetString());
+            Assert.True(rollbackJson.RootElement.GetProperty("sessionReopened").GetBoolean());
+            Assert.True(rollbackJson.RootElement.GetProperty("savepointRetained").GetBoolean());
+        }
+
+        var valueResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(valueResult, "Read rolled-back value");
+        using var valueJson = JsonDocument.Parse(valueResult);
+        Assert.Equal(
+            "before",
+            valueJson.RootElement.GetProperty("values")[0][0].GetString());
+
+        var listBeforeSaveAs = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "list-savepoints",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(listBeforeSaveAs, "List savepoints before Save As");
+        using (var listJson = JsonDocument.Parse(listBeforeSaveAs))
+        {
+            Assert.Equal(1, listJson.RootElement.GetProperty("count").GetInt32());
+        }
+
+        var saveAsPath = Path.Join(_tempDir, $"SavepointMoved_{Guid.NewGuid():N}.xlsx");
+        var saveAsResult = await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "save-as",
+            ["session_id"] = sessionId,
+            ["target_path"] = saveAsPath,
+            ["format"] = "xlsx"
+        });
+        AssertSuccess(saveAsResult, "Save As after savepoint");
+
+        var listAfterSaveAs = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "list-savepoints",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(listAfterSaveAs, "List savepoints after Save As");
+        using (var listJson = JsonDocument.Parse(listAfterSaveAs))
+        {
+            Assert.Equal(0, listJson.RootElement.GetProperty("count").GetInt32());
+        }
+
+        await CloseSessionAsync(sessionId, save: false);
+    }
+
     [ConfiguredIrmFact]
     [Trait("RunType", "OnDemand")]
     public async Task FileOpen_RealIrmWorkbook_ReturnsWithinTimeoutBudget_WhenConfigured()
@@ -154,6 +242,19 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
             TrackSession(sessionId);
             await CloseSessionAsync(sessionId, save: false);
         }
+    }
+
+    private async Task SetCellAsync(string sessionId, string value)
+    {
+        var result = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<object?>> { new() { value } }
+        });
+        AssertSuccess(result, $"Set A1 to {value}");
     }
 
 }

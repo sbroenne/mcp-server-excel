@@ -42,6 +42,33 @@ public sealed class SessionLifecycleContractTests : IDisposable
     }
 
     [Fact]
+    public async Task FileHelp_AdvertisesCanonicalSavepointActions()
+    {
+        var result = await CliProcessHelper.RunAsync(["file", "--help"], timeoutMs: 10_000);
+        var output = result.Stdout + result.Stderr;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("create-savepoint", output, StringComparison.Ordinal);
+        Assert.Contains("rollback-savepoint", output, StringComparison.Ordinal);
+        Assert.Contains("release-savepoint", output, StringComparison.Ordinal);
+        Assert.Contains("list-savepoints", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task FileCreateSavepoint_MissingSessionIsRejected()
+    {
+        var result = await CliProcessHelper.RunAsync(
+            ["file", "create-savepoint", "--name", "before-change"],
+            timeoutMs: 10_000);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(
+            "Session ID is required",
+            result.Stdout + result.Stderr,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ServiceStatus_ResponsiveServiceWithoutDaemonMutex_ReportsRunning()
     {
         var (result, json) = await CliProcessHelper.RunJsonAsync(

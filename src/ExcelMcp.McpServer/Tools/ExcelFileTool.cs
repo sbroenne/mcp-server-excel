@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -22,9 +24,15 @@ public static partial class ExcelFileTool
     /// IMPORTANT: Before closing, check 'list' action - wait for canClose=true (no active operations).
     /// If show=true was used, confirm with user before closing visible Excel windows.
     ///
-    /// TIMEOUT: Open/create default to 120 seconds. Use timeout_seconds to customize
-    /// slow workbook startup or prompt-heavy files. Operations timing out trigger
-    /// aggressive cleanup and may leave Excel in inconsistent state.
+    /// SAVEPOINTS: create-savepoint captures the current unsaved serializable workbook
+    /// state. rollback-savepoint persistently restores that state to the same path while
+    /// preserving the public session ID. Save As releases all savepoints. External side
+    /// effects and volatile recalculation are not rolled back. Workbooks with active
+    /// refresh, refresh-on-open, or unverifiable connection refresh state are rejected.
+    ///
+    /// TIMEOUT: Open/create and savepoint create/rollback default to 120 seconds.
+    /// Use timeout_seconds to customize slow workbooks. Operations timing out trigger
+    /// aggressive cleanup.
     ///
     /// IRM/AIP FILES: Files protected with Azure Information Protection are detected automatically.
     /// They are opened as read-only with Excel forced visible for credential authentication.
@@ -37,7 +45,8 @@ public static partial class ExcelFileTool
     /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    /// <param name="timeout_seconds">Maximum time in seconds for opening/creating the session and for operations in this session. Default: 120. Range: 10-3600. Used for: open, create</param>
+    /// <param name="timeout_seconds">Maximum time in seconds. Default: 120. Range: 10-3600. Used for: open, create, create-savepoint, rollback-savepoint</param>
+    /// <param name="name">Savepoint name. Required for create-savepoint, rollback-savepoint, and release-savepoint.</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -48,6 +57,7 @@ public static partial class ExcelFileTool
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
         [DefaultValue(120)] int timeout_seconds,
+        [DefaultValue(null)] string? name = null,
         CancellationToken cancellationToken = default)
     {
         using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
@@ -80,6 +90,30 @@ public static partial class ExcelFileTool
                     FileAction.Close => CloseSessionAsync(session_id!, save),
                     FileAction.Create => CreateSessionAsync(path!, show, timeout),
                     FileAction.Test => TestFileAsync(path!),
+                    FileAction.CreateSavepoint => ExecuteSavepointAction(
+                        "create-savepoint",
+                        session_id,
+                        name,
+                        timeout_seconds,
+                        cancellationToken),
+                    FileAction.RollbackSavepoint => ExecuteSavepointAction(
+                        "rollback-savepoint",
+                        session_id,
+                        name,
+                        timeout_seconds,
+                        cancellationToken),
+                    FileAction.ReleaseSavepoint => ExecuteSavepointAction(
+                        "release-savepoint",
+                        session_id,
+                        name,
+                        timeoutSeconds: null,
+                        cancellationToken),
+                    FileAction.ListSavepoints => ExecuteSavepointAction(
+                        "list-savepoints",
+                        session_id,
+                        name: null,
+                        timeoutSeconds: null,
+                        cancellationToken),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -364,5 +398,88 @@ public static partial class ExcelFileTool
 
         return response.Result ?? throw new InvalidOperationException(
             "File test succeeded without returning validation metadata.");
+    }
+
+    private static string ExecuteSavepointAction(
+        string action,
+        string? sessionId,
+        string? name,
+        int? timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            throw new ArgumentException(
+                $"session_id is required for '{action}' action",
+                nameof(sessionId));
+        }
+
+        if (action is not "list-savepoints" && string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException(
+                $"name is required for '{action}' action",
+                nameof(name));
+        }
+
+        object? args = action switch
+        {
+            "create-savepoint" or "rollback-savepoint" => new
+            {
+                name,
+                timeoutSeconds
+            },
+            "release-savepoint" => new { name },
+            "list-savepoints" => null,
+            _ => throw new ArgumentException($"Unknown savepoint action: {action}", nameof(action))
+        };
+
+        var response = ServiceBridge.ServiceBridge.SendAsync(
+            $"session.{action}",
+            sessionId,
+            args,
+            timeoutSeconds,
+            cancellationToken).GetAwaiter().GetResult();
+
+        return TransformSavepointResponse(response, sessionId);
+    }
+
+    private static string TransformSavepointResponse(
+        ServiceResponse response,
+        string sessionId)
+    {
+        JsonObject result;
+        if (!string.IsNullOrWhiteSpace(response.Result))
+        {
+            result = JsonNode.Parse(response.Result) as JsonObject ?? new JsonObject();
+        }
+        else
+        {
+            result = new JsonObject
+            {
+                ["success"] = response.Success
+            };
+        }
+
+        if (result.Remove("sessionId", out var sessionIdNode))
+        {
+            result["session_id"] = sessionIdNode;
+        }
+        else
+        {
+            result["session_id"] = sessionId;
+        }
+
+        if (!response.Success)
+        {
+            result["success"] = false;
+            result["errorMessage"] = response.ErrorMessage ?? "Savepoint operation failed.";
+            result["errorCategory"] = response.ErrorCategory;
+            result["exceptionType"] = response.ExceptionType;
+            result["hresult"] = response.HResult;
+            result["innerError"] = response.InnerError;
+            result["isError"] = true;
+        }
+
+        return result.ToJsonString(ExcelToolsBase.JsonOptions);
     }
 }

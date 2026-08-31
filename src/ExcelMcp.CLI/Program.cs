@@ -110,6 +110,20 @@ internal sealed class Program
                     .WithDescription("Test file existence, validity, openability, and IRM/AIP read-only requirements.");
             });
 
+            config.AddBranch("file", branch =>
+            {
+                branch.SetDescription(
+                    "Session-owned workbook savepoints. Rollback restores the same path and keeps the session ID.");
+                branch.AddCommand<FileCreateSavepointCommand>("create-savepoint")
+                    .WithDescription("Capture the current unsaved serializable workbook state.");
+                branch.AddCommand<FileRollbackSavepointCommand>("rollback-savepoint")
+                    .WithDescription("Persistently restore a savepoint to the same workbook path.");
+                branch.AddCommand<FileReleaseSavepointCommand>("release-savepoint")
+                    .WithDescription("Delete one retained savepoint.");
+                branch.AddCommand<FileListSavepointsCommand>("list-savepoints")
+                    .WithDescription("List retained savepoints and storage usage for a session.");
+            });
+
             // Sheet commands
             // =============================================
             // All service commands are auto-generated from

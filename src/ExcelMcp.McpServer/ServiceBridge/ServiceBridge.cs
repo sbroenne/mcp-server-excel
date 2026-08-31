@@ -130,6 +130,17 @@ public static class ServiceBridge
                 return completedResponse;
             }
 
+            // A rollback may already have crossed its file-replacement commit point.
+            // Let the service finish rollback or emergency recovery instead of force-closing
+            // the session while it is stabilizing the workbook path.
+            if (string.Equals(
+                    command,
+                    "session.rollback-savepoint",
+                    StringComparison.Ordinal))
+            {
+                return await processTask.ConfigureAwait(false);
+            }
+
             CleanupCancelledRequest(service, sessionId);
 
             if (timeoutSeconds.HasValue && !cancellationToken.IsCancellationRequested)
@@ -286,6 +297,52 @@ public static class ServiceBridge
     {
         return await SendAsync("session.test", null, new { filePath = excelPath }, cancellationToken: cancellationToken);
     }
+
+    /// <summary>Creates a named workbook savepoint for a session.</summary>
+    public static Task<ServiceResponse> CreateSavepointAsync(
+        string sessionId,
+        string name,
+        int timeoutSeconds = 120,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(
+            "session.create-savepoint",
+            sessionId,
+            new { name, timeoutSeconds },
+            timeoutSeconds,
+            cancellationToken);
+
+    /// <summary>Restores a named workbook savepoint for a session.</summary>
+    public static Task<ServiceResponse> RollbackSavepointAsync(
+        string sessionId,
+        string name,
+        int timeoutSeconds = 120,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(
+            "session.rollback-savepoint",
+            sessionId,
+            new { name, timeoutSeconds },
+            timeoutSeconds,
+            cancellationToken);
+
+    /// <summary>Releases a named workbook savepoint for a session.</summary>
+    public static Task<ServiceResponse> ReleaseSavepointAsync(
+        string sessionId,
+        string name,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(
+            "session.release-savepoint",
+            sessionId,
+            new { name },
+            cancellationToken: cancellationToken);
+
+    /// <summary>Lists workbook savepoints owned by a session.</summary>
+    public static Task<ServiceResponse> ListSavepointsAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default) =>
+        SendAsync(
+            "session.list-savepoints",
+            sessionId,
+            cancellationToken: cancellationToken);
 
     /// <summary>
     /// Disposes the in-process ExcelMCP Service, auto-saving all sessions before shutdown.

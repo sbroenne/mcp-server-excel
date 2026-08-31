@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -34,6 +35,40 @@ internal static class CliErrorOutput
             null,
             null));
         return 1;
+    }
+
+    public static int WriteServiceErrorWithResult(ServiceResponse response)
+    {
+        if (string.IsNullOrWhiteSpace(response.Result))
+        {
+            return WriteServiceError(response);
+        }
+
+        try
+        {
+            var result = JsonNode.Parse(response.Result) as JsonObject;
+            if (result == null)
+            {
+                return WriteServiceError(response);
+            }
+
+            result["success"] = false;
+            result["error"] = response.ErrorMessage ?? "Unknown error.";
+            result["errorMessage"] = response.ErrorMessage ?? "Unknown error.";
+            result["errorCategory"] = response.ErrorCategory;
+            result["command"] = response.Command;
+            result["sessionId"] ??= response.SessionId;
+            result["isError"] = true;
+            result["exceptionType"] = response.ExceptionType;
+            result["hresult"] = response.HResult;
+            result["innerError"] = response.InnerError;
+            Console.WriteLine(result.ToJsonString(ServiceProtocol.JsonOptions));
+            return 1;
+        }
+        catch (JsonException)
+        {
+            return WriteServiceError(response);
+        }
     }
 
     public static int WriteDaemonError(

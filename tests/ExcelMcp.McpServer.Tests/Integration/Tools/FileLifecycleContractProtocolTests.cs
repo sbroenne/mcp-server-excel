@@ -34,8 +34,25 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             .Select(value => value.GetString()!)
             .ToArray();
 
-        Assert.Equal(["list", "open", "close", "create", "test"], actions);
+        Assert.Equal(
+            [
+                "list",
+                "open",
+                "close",
+                "create",
+                "test",
+                "create-savepoint",
+                "rollback-savepoint",
+                "release-savepoint",
+                "list-savepoints"
+            ],
+            actions);
         Assert.DoesNotContain("close-workbook", actions);
+
+        var properties = fileTool.JsonSchema.GetProperty("properties");
+        Assert.True(properties.TryGetProperty("name", out _));
+        Assert.True(properties.TryGetProperty("session_id", out _));
+        Assert.True(properties.TryGetProperty("timeout_seconds", out _));
     }
 
     [Fact]
@@ -51,6 +68,25 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
         var response = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
         Output.WriteLine(response);
         Assert.False(string.IsNullOrWhiteSpace(response));
+    }
+
+    [Fact]
+    public async Task FileCreateSavepoint_MissingNameReturnsStructuredError()
+    {
+        var result = await Client!.CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "create-savepoint",
+            ["session_id"] = "missing-session"
+        }, cancellationToken: TestCancellationToken);
+
+        var response = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        using var json = JsonDocument.Parse(response);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Contains(
+            "name is required",
+            json.RootElement.GetProperty("errorMessage").GetString(),
+            StringComparison.Ordinal);
     }
 
     [Fact]

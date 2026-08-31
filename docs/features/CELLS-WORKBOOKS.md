@@ -6,7 +6,7 @@ Read, write, calculate, and format cells while managing worksheets, workbooks, n
 
 ---
 
-## 📁 File Operations (5 operations)
+## 📁 File Operations (9 operations)
 
 Open, create, and close Excel workbooks. Every other tool works on a session opened here.
 
@@ -16,6 +16,19 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **Close:** Close session with optional save
 - **Create Empty:** Create new .xlsx or .xlsm workbook
 - **Test:** Report existence, extension validity, openability, and IRM/AIP requirements through `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
+- **Create Savepoint:** Capture the current unsaved serializable workbook state under a session-owned name.
+- **Rollback Savepoint:** Persistently restore a named savepoint to the same workbook path while preserving the session ID.
+- **Release Savepoint:** Delete one named savepoint.
+- **List Savepoints:** List names, creation times, sizes, and enforced storage limits.
+
+Savepoints are local workbook snapshots, not general transactions. They restore state
+stored inside the workbook but cannot undo database writes, network calls, exported
+files, printing, or side effects from VBA. Save As releases all savepoints for the
+session. Read-only/IRM workbooks, active calculation or refresh, refresh-on-open
+connections, and connection types whose refresh state cannot be verified are
+rejected. Retained snapshots are limited to 8 and 1 GiB per session, and 4 GiB per
+service process. Rollback also requires temporary space for an emergency current-state
+copy and a same-volume replacement copy.
 
 ---
 

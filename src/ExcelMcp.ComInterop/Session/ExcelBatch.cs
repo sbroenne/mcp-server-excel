@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IWorkbookSavepointBatch
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -61,6 +61,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
+    /// <summary>
+    /// Test-only seam invoked immediately before a workbook is reopened during rollback.
+    /// </summary>
+    internal static Action<string>? BeforeWorkbookRestoreOpenHook { get; set; }
+
     // COM state (STA thread only)
     private Excel.Application? _excel;
     private Excel.Workbook? _workbook; // Primary workbook
@@ -98,7 +103,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// <summary>
     /// Private constructor that handles both opening existing files and creating new ones.
     /// </summary>
-    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool show, bool createNewFile, bool isMacroEnabled, TimeSpan? operationTimeout = null)
+    private ExcelBatch(
+        string[] workbookPaths,
+        ILogger<ExcelBatch>? logger,
+        bool show,
+        bool createNewFile,
+        bool isMacroEnabled,
+        TimeSpan? operationTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -411,8 +422,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 // fields remain null and cleanup must fall back to the startup locals to avoid leaking
                 // a hidden Excel.exe process.
                 var cleanupExcel = _excel ?? startupExcel;
-                var cleanupWorkbook = _workbook ?? startupPrimaryWorkbook;
                 var cleanupWorkbooks = _workbooks ?? startupWorkbooks;
+                // After successful startup, a rollback can intentionally close and replace
+                // the primary workbook. Never fall back to the startup RCW in that state:
+                // it may already have been released during the replacement.
+                var cleanupWorkbook = _workbooks != null
+                    ? _workbook
+                    : startupPrimaryWorkbook;
 
                 // INSTRUMENTATION: Check if Excel process is alive BEFORE entering shutdown
                 if (_excelProcessId.HasValue)
@@ -862,6 +878,177 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 ct);
             return 0;
         }, cancellationToken);
+    }
+
+    public void RestoreWorkbookFromCopy(
+        string snapshotPath,
+        string recoveryPath,
+        TimeSpan timeout)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(snapshotPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(recoveryPath);
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(timeout),
+                "Rollback timeout must be greater than zero.");
+        }
+        var normalizedSnapshotPath = Path.GetFullPath(snapshotPath);
+        var normalizedRecoveryPath = Path.GetFullPath(recoveryPath);
+        if (!File.Exists(normalizedSnapshotPath))
+        {
+            throw new FileNotFoundException(
+                "Workbook savepoint snapshot was not found.",
+                normalizedSnapshotPath);
+        }
+
+        if (!File.Exists(normalizedRecoveryPath))
+        {
+            throw new FileNotFoundException(
+                "Workbook rollback recovery copy was not found.",
+                normalizedRecoveryPath);
+        }
+
+        using var timeoutCts = new CancellationTokenSource(timeout);
+        try
+        {
+            Execute((_, token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                if (_excel == null || _workbook == null || _workbooks == null)
+                {
+                    throw new InvalidOperationException("Workbook session is not initialized.");
+                }
+
+                var workbookPath = Path.GetFullPath(_workbookPath);
+                var commitStarted = false;
+                object? originalAutomationSecurity = null;
+                try
+                {
+                    // PIA gap: AutomationSecurity is typed with an Office.Core enum,
+                    // which this assembly intentionally does not reference. Use IDispatch
+                    // with integer value 3 to prevent auto-open macros during rollback.
+                    originalAutomationSecurity = ((dynamic)(object)_excel).AutomationSecurity;
+                    ((dynamic)(object)_excel).AutomationSecurity = 3;
+
+                    ClosePrimaryWorkbookForRestore(workbookPath);
+                    commitStarted = true;
+                    ReplaceWorkbookFile(normalizedSnapshotPath, workbookPath);
+                    OpenPrimaryWorkbookAfterRestore(workbookPath);
+                }
+                catch (Exception rollbackException) when (commitStarted)
+                {
+                    try
+                    {
+                        ReplaceWorkbookFile(normalizedRecoveryPath, workbookPath);
+                        OpenPrimaryWorkbookAfterRestore(workbookPath);
+                    }
+                    catch (Exception recoveryException)
+                    {
+                        throw new WorkbookRestoreException(
+                            sessionRecovered: false,
+                            rollbackException,
+                            recoveryException);
+                    }
+
+                    throw new WorkbookRestoreException(
+                        sessionRecovered: true,
+                        rollbackException);
+                }
+                finally
+                {
+                    if (originalAutomationSecurity != null && _excel != null)
+                    {
+                        try
+                        {
+                            ((dynamic)(object)_excel).AutomationSecurity =
+                                originalAutomationSecurity;
+                        }
+                        catch (COMException)
+                        {
+                        }
+                    }
+                }
+            }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Workbook rollback timed out after {timeout.TotalSeconds:F0} seconds.");
+        }
+    }
+
+    private void ClosePrimaryWorkbookForRestore(string workbookPath)
+    {
+        var workbook = _workbook
+            ?? throw new InvalidOperationException("Primary workbook is not initialized.");
+        workbook.Close(false);
+        _workbooks!.Remove(workbookPath);
+        _workbook = null;
+        _context = null;
+        ComUtilities.Release(ref workbook);
+    }
+
+    private void OpenPrimaryWorkbookAfterRestore(string workbookPath)
+    {
+        Excel.Workbooks? workbooks = null;
+        try
+        {
+            workbooks = _excel!.Workbooks;
+            BeforeWorkbookRestoreOpenHook?.Invoke(workbookPath);
+            var workbook = (Excel.Workbook)workbooks.Open(
+                workbookPath,
+                UpdateLinks: 0,
+                ReadOnly: false,
+                IgnoreReadOnlyRecommended: true,
+                Notify: false,
+                AddToMru: false);
+            _workbook = workbook;
+            _workbooks![workbookPath] = workbook;
+            _context = new ExcelContext(workbookPath, _excel, workbook);
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbooks);
+        }
+    }
+
+    private static void ReplaceWorkbookFile(string sourcePath, string workbookPath)
+    {
+        var directory = Path.GetDirectoryName(workbookPath)
+            ?? throw new InvalidOperationException("Workbook directory is unavailable.");
+        var extension = Path.GetExtension(workbookPath);
+        var stagingPath = Path.Combine(
+            directory,
+            $".excelmcp-savepoint-{Guid.NewGuid():N}{extension}");
+        var backupPath = Path.Combine(
+            directory,
+            $".excelmcp-savepoint-backup-{Guid.NewGuid():N}{extension}");
+
+        try
+        {
+            File.Copy(sourcePath, stagingPath);
+            if (File.Exists(workbookPath))
+            {
+                File.Replace(stagingPath, workbookPath, backupPath, ignoreMetadataErrors: true);
+            }
+            else
+            {
+                File.Move(stagingPath, workbookPath);
+            }
+        }
+        finally
+        {
+            if (File.Exists(stagingPath))
+            {
+                File.Delete(stagingPath);
+            }
+
+            if (File.Exists(backupPath))
+            {
+                File.Delete(backupPath);
+            }
+        }
     }
 
     public void Dispose()

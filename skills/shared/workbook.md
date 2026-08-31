@@ -1,6 +1,6 @@
 # Workbook Lifecycle
 
-Use the `workbook` tool or CLI command group for workbook-level metadata, file variants, publishing, and external links. Use `file` only for opening, creating, listing, and closing sessions.
+Use the `workbook` tool or CLI command group for workbook-level metadata, file variants, publishing, and external links. Use `file` for session lifecycle and session-owned savepoints.
 
 ## Metadata and document properties
 
@@ -18,6 +18,18 @@ Use the `workbook` tool or CLI command group for workbook-level metadata, file v
 - Output directories must already exist. Existing files require `overwrite=true`.
 
 Changing formats can remove unsupported workbook features. In particular, saving a macro-enabled workbook as `.xlsx` removes VBA content after Excel's format conversion.
+
+## Savepoints and rollback
+
+- `create-savepoint` captures the current unsaved serializable workbook state without changing the workbook path or saved flag.
+- `rollback-savepoint` persistently restores that snapshot to the same path while keeping the public session ID. The savepoint remains available until `release-savepoint`.
+- `list-savepoints` reports retained snapshot sizes and limits. Each session can retain 8 savepoints and 1 GiB; one service process can retain 4 GiB.
+- A successful `save-as` releases every savepoint for that session. Savepoints never move a session back to an earlier path.
+- Savepoints reject read-only/IRM workbooks, active calculation or refresh, refresh-on-open connections, and connection types whose refresh state ExcelMcp cannot verify safely.
+
+Savepoints cover workbook state that Excel serializes, including supported VBA, Power Query, Data Model, connection, table, chart, PivotTable, formula, and formatting state. They do not undo effects outside the workbook, such as database writes, exported files, network calls, printing, or VBA changes to other systems. Volatile formulas and external data can recalculate after rollback.
+
+The limits apply to retained savepoints. Rollback also needs temporary space for an emergency copy of the current workbook plus a same-volume replacement copy; ExcelMcp checks free space before closing the live workbook and removes those files after recovery stabilizes.
 
 ## External Excel links
 

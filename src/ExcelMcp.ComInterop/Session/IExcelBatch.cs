@@ -162,3 +162,11 @@ internal interface IExcelBatchTeardownState
 {
     bool TryConfirmOwnedProcessTeardown();
 }
+
+internal interface IWorkbookSavepointBatch
+{
+    void RestoreWorkbookFromCopy(
+        string snapshotPath,
+        string recoveryPath,
+        TimeSpan timeout);
+}
