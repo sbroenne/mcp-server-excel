@@ -182,11 +182,18 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);
         while (DateTime.UtcNow < deadline)
         {
-            var status = await GetServiceStatusAsync(cliPath, pipeName);
-            if (status.ExitCode == 0
-                && status.Stdout.Contains("\"running\":true", StringComparison.Ordinal))
+            try
             {
-                return;
+                var status = await GetServiceStatusAsync(cliPath, pipeName);
+                if (status.ExitCode == 0
+                    && status.Stdout.Contains("\"running\":true", StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+            catch (TimeoutException) when (DateTime.UtcNow < deadline)
+            {
+                // A bounded status probe can time out while the daemon is still starting.
             }
 
             await Task.Delay(250);
