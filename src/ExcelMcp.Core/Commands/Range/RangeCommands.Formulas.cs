@@ -111,7 +111,7 @@ public partial class RangeCommands
         });
     }
 
-    private static object? ConvertErrorForRead(
+    internal static object? ConvertErrorForRead(
         object? cellValue,
         string formula,
         int row,

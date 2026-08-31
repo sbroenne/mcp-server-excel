@@ -10,7 +10,7 @@ internal static class ExcelErrorMapper
 
     internal static bool TryGet(object? value, out int errorCode, out ExcelErrorInfo error)
     {
-        if (TryGetErrorCode(value, out int code) && TryGet(code, out error))
+        if (TryNormalizeErrorCode(value, out int code) && TryGet(code, out error))
         {
             errorCode = code;
             return true;
@@ -21,7 +21,7 @@ internal static class ExcelErrorMapper
         return false;
     }
 
-    internal static bool TryGetErrorCode(object? value, out int errorCode)
+    internal static bool TryNormalizeErrorCode(object? value, out int errorCode)
     {
         if (value is int code)
         {

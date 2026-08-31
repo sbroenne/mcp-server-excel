@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
@@ -62,9 +64,31 @@ public sealed class ExcelErrorMapperTests
 
     [Theory]
     [InlineData(-2146826265.5)]
+    [InlineData(-2147483649d)]
+    [InlineData(2147483648d)]
     [InlineData(double.PositiveInfinity)]
-    public void TryGetErrorCode_InvalidDouble_DoesNotConvert(double value)
+    public void TryNormalizeErrorCode_InvalidDouble_DoesNotConvert(double value)
     {
-        Assert.False(ExcelErrorMapper.TryGetErrorCode(value, out _));
+        Assert.False(ExcelErrorMapper.TryNormalizeErrorCode(value, out _));
+    }
+
+    [Fact]
+    public void RangeRead_DoubleComVariant_ReturnsCanonicalNameAndDiagnostics()
+    {
+        var cellErrors = new List<RangeCellError>();
+
+        object? value = RangeCommands.ConvertErrorForRead(
+            (double)-2146826265,
+            "=INDIRECT(\"A0\")",
+            row: 2,
+            column: 3,
+            cellErrors);
+
+        Assert.Equal("#REF!", value);
+        var error = Assert.Single(cellErrors);
+        Assert.Equal("C2", error.CellAddress);
+        Assert.Equal("#REF!", error.ErrorName);
+        Assert.Equal(-2146826265, error.ErrorCode);
+        Assert.Equal((double)-2146826265, error.CurrentValue);
     }
 }

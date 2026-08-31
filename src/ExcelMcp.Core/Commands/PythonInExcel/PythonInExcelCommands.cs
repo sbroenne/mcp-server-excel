@@ -252,7 +252,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     ? int.Parse(returnTypeMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)
                     : 0;
 
-                if (ExcelErrorMapper.TryGetErrorCode(value, out int errorCode) && errorCode < 0)
+                if (ExcelErrorMapper.TryNormalizeErrorCode(value, out int errorCode) && errorCode < 0)
                 {
                     PopulateErrorResult(result, errorCode, formulaReturnType, text);
                 }
@@ -328,7 +328,8 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
             || normalizedFormula.StartsWith("=_xlfn.PY(", StringComparison.OrdinalIgnoreCase);
 
         return isTopLevelPythonFormula
-            && ((value is int errorCode && errorCode == NameErrorCode)
+            && ((ExcelErrorMapper.TryNormalizeErrorCode(value, out int errorCode)
+                    && errorCode == NameErrorCode)
                 || string.Equals(displayedText, "#NAME?", StringComparison.Ordinal));
     }
 }
