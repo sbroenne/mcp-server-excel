@@ -46,4 +46,25 @@ public sealed class ExcelErrorMapperTests
         Assert.False(ExcelErrorMapper.TryGet(-1, out _));
         Assert.False(ExcelErrorMapper.IsExcelFormulaError(-1));
     }
+
+    [Fact]
+    public void TryGet_DoubleComVariant_ReturnsCanonicalMapping()
+    {
+        bool found = ExcelErrorMapper.TryGet(
+            (object)(double)-2146826265,
+            out int errorCode,
+            out var error);
+
+        Assert.True(found);
+        Assert.Equal(-2146826265, errorCode);
+        Assert.Equal("#REF!", error.Name);
+    }
+
+    [Theory]
+    [InlineData(-2146826265.5)]
+    [InlineData(double.PositiveInfinity)]
+    public void TryGetErrorCode_InvalidDouble_DoesNotConvert(double value)
+    {
+        Assert.False(ExcelErrorMapper.TryGetErrorCode(value, out _));
+    }
 }

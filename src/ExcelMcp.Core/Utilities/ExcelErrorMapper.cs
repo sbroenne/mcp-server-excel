@@ -10,7 +10,7 @@ internal static class ExcelErrorMapper
 
     internal static bool TryGet(object? value, out int errorCode, out ExcelErrorInfo error)
     {
-        if (value is int code && TryGet(code, out error))
+        if (TryGetErrorCode(value, out int code) && TryGet(code, out error))
         {
             errorCode = code;
             return true;
@@ -18,6 +18,27 @@ internal static class ExcelErrorMapper
 
         errorCode = default;
         error = default;
+        return false;
+    }
+
+    internal static bool TryGetErrorCode(object? value, out int errorCode)
+    {
+        if (value is int code)
+        {
+            errorCode = code;
+            return true;
+        }
+
+        if (value is double number
+            && number >= int.MinValue
+            && number <= int.MaxValue
+            && number == Math.Truncate(number))
+        {
+            errorCode = Convert.ToInt32(number);
+            return true;
+        }
+
+        errorCode = default;
         return false;
     }
 

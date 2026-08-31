@@ -252,7 +252,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     ? int.Parse(returnTypeMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)
                     : 0;
 
-                if (value is int errorCode && errorCode < 0)
+                if (ExcelErrorMapper.TryGetErrorCode(value, out int errorCode) && errorCode < 0)
                 {
                     PopulateErrorResult(result, errorCode, formulaReturnType, text);
                 }
