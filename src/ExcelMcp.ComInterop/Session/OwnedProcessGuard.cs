@@ -51,7 +51,7 @@ internal static class OwnedProcessGuard
         terminated = false;
         var probe = ProbeMatchingProcess(
             identity,
-            ProcessTerminate | ProcessQueryLimitedInformation | Synchronize,
+            ProcessQueryLimitedInformation | Synchronize,
             out var handle);
         if (probe == ProcessIdentityProbe.Indeterminate)
         {
@@ -70,31 +70,61 @@ internal static class OwnedProcessGuard
 
         using (handle)
         {
-            var initialWait = WaitForSingleObject(
-                handle,
-                ToWaitMilliseconds(waitBeforeTermination));
-            if (initialWait == WaitObject0)
-            {
-                return true;
-            }
-
-            if (initialWait != WaitTimeout)
-            {
-                return false;
-            }
-
-            if (!TerminateProcess(handle, 1)
-                && WaitForSingleObject(handle, 0) != WaitObject0)
-            {
-                return false;
-            }
-
-            terminated = true;
-            return WaitForSingleObject(
-                handle,
-                ToWaitMilliseconds(waitAfterTermination)) == WaitObject0;
+            var terminationRequested = false;
+            var result = ProcessTerminationPolicy.TryCompleteAsync(
+                    waitBeforeTermination,
+                    waitAfterTermination,
+                    (timeout, _) => Task.FromResult(
+                        ToWaitOutcome(WaitForSingleObject(
+                            handle,
+                            ToWaitMilliseconds(timeout)))),
+                    () => RequestTermination(identity),
+                    CancellationToken.None,
+                    value => terminationRequested = value)
+                .GetAwaiter()
+                .GetResult();
+            terminated = terminationRequested;
+            return result;
         }
     }
+
+    private static ProcessTerminationPolicy.ProcessTerminationOutcome RequestTermination(
+        ExcelProcessIdentity identity)
+    {
+        var probe = ProbeMatchingProcess(
+            identity,
+            ProcessTerminate | ProcessQueryLimitedInformation | Synchronize,
+            out var handle);
+        if (probe == ProcessIdentityProbe.ConfirmedExited)
+        {
+            return ProcessTerminationPolicy.ProcessTerminationOutcome.ConfirmedExited;
+        }
+
+        if (probe == ProcessIdentityProbe.Indeterminate || handle == null)
+        {
+            return ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable;
+        }
+
+        using (handle)
+        {
+            if (TerminateProcess(handle, 1))
+            {
+                return ProcessTerminationPolicy.ProcessTerminationOutcome.Requested;
+            }
+
+            return WaitForSingleObject(handle, 0) == WaitObject0
+                ? ProcessTerminationPolicy.ProcessTerminationOutcome.ConfirmedExited
+                : ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable;
+        }
+    }
+
+    private static ProcessTerminationPolicy.ProcessWaitOutcome ToWaitOutcome(uint waitResult) =>
+        waitResult switch
+        {
+            WaitObject0 => ProcessTerminationPolicy.ProcessWaitOutcome.Exited,
+            WaitTimeout => ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut,
+            _ => ProcessTerminationPolicy.ProcessWaitOutcome.Failed
+        };
 
     private static ProcessIdentityProbe ProbeMatchingProcess(
         ExcelProcessIdentity identity,

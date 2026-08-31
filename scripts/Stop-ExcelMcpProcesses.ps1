@@ -67,6 +67,7 @@ $safetyInputs = @(
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ExcelBatch.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ExcelProcessIdentity.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\OwnedProcessGuard.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\SessionManager.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.Service\ServiceSecurity.cs')
 )

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
@@ -10,7 +11,6 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 /// </summary>
 internal static class OwnedProcessCleanup
 {
-    private static readonly TimeSpan ProcessExitTimeout = TimeSpan.FromSeconds(10);
     private const uint ProcessTerminate = 0x0001;
     private const uint Synchronize = 0x00100000;
     private const uint ProcessQueryLimitedInformation = 0x1000;
@@ -212,59 +212,98 @@ internal static class OwnedProcessCleanup
         DaemonProcessTracker.ProcessIdentity identity,
         CancellationToken cancellationToken)
     {
-        if (!TryOpenMatchingProcessHandle(identity, out var processHandle))
+        var probe = ProbeMatchingProcessHandle(
+            identity,
+            ProcessQueryLimitedInformation | Synchronize,
+            out var processHandle);
+        if (probe == ProcessIdentityProbe.Indeterminate)
         {
             return false;
         }
 
-        if (processHandle == null)
+        if (probe == ProcessIdentityProbe.ConfirmedExited || processHandle == null)
         {
             return true;
         }
 
         using (processHandle)
         {
-            try
-            {
-                if (!TerminateProcess(processHandle, 1)
-                    && WaitForSingleObject(processHandle, 0) != WaitObject0)
-                {
-                    return false;
-                }
-
-                var deadline = DateTime.UtcNow + ProcessExitTimeout;
-                while (DateTime.UtcNow < deadline)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var waitResult = WaitForSingleObject(processHandle, 100);
-                    if (waitResult == WaitObject0)
-                    {
-                        return true;
-                    }
-
-                    if (waitResult != WaitTimeout)
-                    {
-                        return false;
-                    }
-
-                    await Task.Yield();
-                }
-
-                return false;
-            }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
+            return await ProcessTerminationPolicy.TryCompleteAsync(
+                TimeSpan.Zero,
+                ProcessTerminationPolicy.ProcessExitTimeout,
+                (timeout, token) => WaitForExitAsync(processHandle, timeout, token),
+                () => RequestTermination(identity),
+                cancellationToken,
+                _ => { });
         }
     }
 
-    private static bool TryOpenMatchingProcessHandle(
+    private static ProcessTerminationPolicy.ProcessTerminationOutcome RequestTermination(
+        DaemonProcessTracker.ProcessIdentity identity)
+    {
+        var probe = ProbeMatchingProcessHandle(
+            identity,
+            ProcessTerminate | ProcessQueryLimitedInformation | Synchronize,
+            out var processHandle);
+        if (probe == ProcessIdentityProbe.ConfirmedExited)
+        {
+            return ProcessTerminationPolicy.ProcessTerminationOutcome.ConfirmedExited;
+        }
+
+        if (probe == ProcessIdentityProbe.Indeterminate || processHandle == null)
+        {
+            return ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable;
+        }
+
+        using (processHandle)
+        {
+            if (TerminateProcess(processHandle, 1))
+            {
+                return ProcessTerminationPolicy.ProcessTerminationOutcome.Requested;
+            }
+
+            return WaitForSingleObject(processHandle, 0) == WaitObject0
+                ? ProcessTerminationPolicy.ProcessTerminationOutcome.ConfirmedExited
+                : ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable;
+        }
+    }
+
+    private static async Task<ProcessTerminationPolicy.ProcessWaitOutcome> WaitForExitAsync(
+        SafeProcessHandle processHandle,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var waitResult = WaitForSingleObject(
+                processHandle,
+                timeout <= TimeSpan.Zero ? 0u : 100u);
+            if (waitResult == WaitObject0)
+            {
+                return ProcessTerminationPolicy.ProcessWaitOutcome.Exited;
+            }
+
+            if (waitResult != WaitTimeout)
+            {
+                return ProcessTerminationPolicy.ProcessWaitOutcome.Failed;
+            }
+
+            await Task.Yield();
+        }
+        while (DateTime.UtcNow < deadline);
+
+        return ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut;
+    }
+
+    private static ProcessIdentityProbe ProbeMatchingProcessHandle(
         DaemonProcessTracker.ProcessIdentity identity,
+        uint desiredAccess,
         out SafeProcessHandle? processHandle)
     {
         processHandle = OpenProcess(
-            ProcessTerminate | Synchronize | ProcessQueryLimitedInformation,
+            desiredAccess,
             inheritHandle: false,
             identity.ProcessId);
         if (processHandle.IsInvalid)
@@ -272,7 +311,9 @@ internal static class OwnedProcessCleanup
             var error = Marshal.GetLastWin32Error();
             processHandle.Dispose();
             processHandle = null;
-            return error == ErrorInvalidParameter;
+            return error == ErrorInvalidParameter
+                ? ProcessIdentityProbe.ConfirmedExited
+                : ProcessIdentityProbe.Indeterminate;
         }
 
         if (!GetProcessTimes(
@@ -284,7 +325,7 @@ internal static class OwnedProcessCleanup
         {
             processHandle.Dispose();
             processHandle = null;
-            return false;
+            return ProcessIdentityProbe.Indeterminate;
         }
 
         if (creationTime != identity.StartedAtUtcFileTime
@@ -292,9 +333,17 @@ internal static class OwnedProcessCleanup
         {
             processHandle.Dispose();
             processHandle = null;
+            return ProcessIdentityProbe.ConfirmedExited;
         }
 
-        return true;
+        return ProcessIdentityProbe.Alive;
+    }
+
+    private enum ProcessIdentityProbe
+    {
+        Alive,
+        ConfirmedExited,
+        Indeterminate
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
