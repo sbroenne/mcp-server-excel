@@ -37,8 +37,8 @@ Read and write cell values, formulas, and formatting across any range of cells.
 **Formatting split:** use `range` for number display formats such as dates, currency, percentages, and text display. Use `range_format` for visual styling, validation, auto-fit, and size/layout changes.
 
 **Data Operations:**
-- **Get/Set Values:** Read or write cell values
-- **Get/Set/Validate Formulas:** Read, write, or validate formula syntax across ranges
+- **Get/Set Values:** Read or write cell values. Formula errors are returned as canonical names such as `#REF!`, with cell-level diagnostics preserving the formula and raw COM code.
+- **Get/Set/Validate Formulas:** Read, write, or validate formula syntax across ranges. Formula reads include the same canonical error names and cell-level diagnostics as value reads.
 - **Clear All/Contents/Formats:** Clear a range's contents, formats, or both
 - **Copy / Copy Values / Copy Formulas:** Copy a range, or just its values/formulas
 - **Insert/Delete Cells:** Shift cells to insert or remove space

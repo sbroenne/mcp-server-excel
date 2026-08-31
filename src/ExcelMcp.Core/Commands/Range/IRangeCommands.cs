@@ -34,7 +34,9 @@ public interface IRangeCommands
     // === VALUE OPERATIONS ===
 
     /// <summary>
-    /// Gets values from a range as 2D array.
+    /// Gets values from a range as a 2D array. Formula errors are returned as canonical Excel
+    /// names such as #REF! and are also listed in cellErrors with the affected cell, formula,
+    /// raw COM code, and suggested fix.
     /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]].
     /// Named ranges: Use empty sheetName and rangeAddress="NamedRange".
     /// </summary>
@@ -63,7 +65,10 @@ public interface IRangeCommands
     // === FORMULA OPERATIONS ===
 
     /// <summary>
-    /// Gets formulas from a range as 2D array (empty string if no formula).
+    /// Gets formulas from a range as a 2D array (empty string if no formula), together with
+    /// calculated values. Formula errors are returned as canonical Excel names such as #REF!
+    /// and are also listed in cellErrors with the affected cell, formula, raw COM code, and
+    /// suggested fix.
     /// Single cell "A1" returns [["=SUM(B:B)"]], range "A1:B2" returns [[f1,f2],[f3,f4]].
     /// </summary>
     /// <param name="batch">Excel batch session</param>

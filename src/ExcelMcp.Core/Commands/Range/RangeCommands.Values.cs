@@ -35,9 +35,12 @@ public partial class RangeCommands
 
                 // Get actual address from Excel
                 result.RangeAddress = range.Address;
-
                 // Get values as 2D array - handle single cell case
                 object valueOrArray = range.Value2;
+                object? formulaOrArray = null;
+                bool formulasRead = false;
+                int startRow = Convert.ToInt32(range.Row);
+                int startColumn = Convert.ToInt32(range.Column);
 
                 if (valueOrArray is object[,] values)
                 {
@@ -50,7 +53,30 @@ public partial class RangeCommands
                         var row = new List<object?>();
                         for (int c = 1; c <= result.ColumnCount; c++)
                         {
-                            row.Add(values[r, c]);
+                            object? cellValue = values[r, c];
+                            if (!ExcelErrorMapper.TryGet(cellValue, out int errorCode, out var error))
+                            {
+                                row.Add(cellValue);
+                                continue;
+                            }
+
+                            if (!formulasRead)
+                            {
+                                formulaOrArray = range.Formula2;
+                                formulasRead = true;
+                            }
+
+                            string formula = formulaOrArray is object[,] formulas
+                                ? GetReturnedFormula(formulas[r, c])
+                                : string.Empty;
+                            row.Add(ConvertMappedErrorForRead(
+                                cellValue,
+                                formula,
+                                startRow + r - 1,
+                                startColumn + c - 1,
+                                result.CellErrors,
+                                errorCode,
+                                error));
                         }
                         result.Values.Add(row);
                     }
@@ -60,7 +86,24 @@ public partial class RangeCommands
                     // Single cell - wrap value in 1x1 array
                     result.RowCount = 1;
                     result.ColumnCount = 1;
-                    result.Values.Add([valueOrArray]);
+                    if (ExcelErrorMapper.TryGet(valueOrArray, out int errorCode, out var error))
+                    {
+                        formulaOrArray = range.Formula2;
+                        result.Values.Add([
+                            ConvertMappedErrorForRead(
+                                valueOrArray,
+                                GetReturnedFormula(formulaOrArray),
+                                startRow,
+                                startColumn,
+                                result.CellErrors,
+                                errorCode,
+                                error)
+                        ]);
+                    }
+                    else
+                    {
+                        result.Values.Add([valueOrArray]);
+                    }
                 }
 
                 result.Success = true;
@@ -76,6 +119,12 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    private static string GetReturnedFormula(object? formula)
+    {
+        string text = formula?.ToString() ?? string.Empty;
+        return text.StartsWith('=') ? text : string.Empty;
     }
 
     /// <inheritdoc />
