@@ -12,7 +12,7 @@ To analyze worksheet data with DAX measures:
 **Action disambiguation**:
 
 - create: Create NEW table from a range (requires `sheet_name`, `table_name`, and `range_address`). Pass `table_style` here to style at creation time.
-- preflight: Check a proposed table without changing the workbook. It returns the effective range, typed findings, and `safeToCreate`. Merged cells plus blank or duplicate headers are blockers. Excluded contiguous columns and formulas that may be unsafe to sort are heuristic warnings.
+- preflight: Check a proposed table without changing the workbook. It returns the effective range, typed findings, and `safeToCreate`. Merged cells plus blank or duplicate headers are blockers. Excluded contiguous columns and formulas that may be unsafe to sort are heuristic warnings. For ranges over 100,000 cells, it returns a `FormulaScanSkipped` warning instead of allocating the full formula matrix.
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use `visible_only=true` for filtered data)
 - rename: Rename an existing table

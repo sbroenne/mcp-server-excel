@@ -341,7 +341,39 @@ public partial class RangeCommandsTests
         Assert.Contains("smaller range", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("unmerge", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
-}
 
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_OversizedSingleMergedArea_ReturnsAreaWithoutScanningEveryCell()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "A1:AO100");
+
+        var result = _commands.GetMergeInfo(batch, sheetName, "A1:AO100");
+
+        Assert.True(result.Success, $"GetMergeInfo failed: {result.ErrorMessage}");
+        Assert.True(result.IsMerged);
+        Assert.Equal(["$A$1:$AO$100"], result.MergedRanges);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_SeparateMergedAreasCoveringRange_ReturnsEveryArea()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "A1:B1");
+        _commands.MergeCells(batch, sheetName, "C1:D1");
+
+        var result = _commands.GetMergeInfo(batch, sheetName, "A1:D1");
+
+        Assert.True(result.Success, $"GetMergeInfo failed: {result.ErrorMessage}");
+        Assert.True(result.IsMerged);
+        Assert.Equal(["$A$1:$B$1", "$C$1:$D$1"], result.MergedRanges);
+    }
+}
 
 

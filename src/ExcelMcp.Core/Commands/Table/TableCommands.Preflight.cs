@@ -13,6 +13,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 public partial class TableCommands
 {
+    private const long MaxSortSensitiveFormulaScanCells = 100_000;
+
     private static readonly Regex A1ReferenceRegex = new(
         @"(?<![A-Z0-9_])(?<column>\$?[A-Z]{1,3})(?<row>\$?\d+)(?![A-Z0-9_])",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -125,7 +127,7 @@ public partial class TableCommands
         bool? isMerged = RangeMergeDiscovery.GetMergeCellsState(effectiveRange.MergeCells);
         List<string> mergedRanges = isMerged == false
             ? []
-            : RangeMergeDiscovery.CollectMergedRanges(effectiveRange, cancellationToken);
+            : RangeMergeDiscovery.CollectMergedRanges(effectiveRange, isMerged, cancellationToken);
         if (mergedRanges.Count > 0)
         {
             result.Findings.Add(new TablePreflightFinding
@@ -314,6 +316,22 @@ public partial class TableCommands
             int firstDataRowOffset = hasHeaders ? 1 : 0;
             if (rowCount <= firstDataRowOffset)
             {
+                return;
+            }
+
+            long cellCount = Convert.ToInt64(effectiveRange.CountLarge, CultureInfo.InvariantCulture);
+            if (cellCount > MaxSortSensitiveFormulaScanCells)
+            {
+                result.Findings.Add(new TablePreflightFinding
+                {
+                    Kind = TablePreflightFindingKind.FormulaScanSkipped,
+                    Severity = TablePreflightSeverity.Warning,
+                    IsHeuristic = true,
+                    Message = $"Formula sorting risk analysis was skipped because the proposed range contains " +
+                        $"{cellCount.ToString("N0", CultureInfo.InvariantCulture)} cells, exceeding the bounded scan limit " +
+                        $"of {MaxSortSensitiveFormulaScanCells.ToString("N0", CultureInfo.InvariantCulture)} cells.",
+                    Remediation = "Run preflight on a smaller range or review the table formulas manually before sorting."
+                });
                 return;
             }
 

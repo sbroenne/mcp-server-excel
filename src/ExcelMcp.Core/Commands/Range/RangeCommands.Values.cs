@@ -263,7 +263,10 @@ public partial class RangeCommands
             }
         }
 
-        var mergedRanges = RangeMergeDiscovery.CollectMergedRanges(range, cancellationToken);
+        var mergedRanges = RangeMergeDiscovery.CollectMergedRanges(
+            range,
+            isMergedState,
+            cancellationToken);
         if (mergedRanges.Count > 0)
         {
             ThrowMergedCellWriteError(requestedRangeAddress, mergedRanges);

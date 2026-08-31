@@ -34,6 +34,11 @@ public enum TablePreflightFindingKind
     SortSensitiveFormula,
 
     /// <summary>
+    /// Formula risk analysis was skipped because the proposed range exceeds the bounded scan size.
+    /// </summary>
+    FormulaScanSkipped,
+
+    /// <summary>
     /// The requested table name already exists.
     /// </summary>
     TableNameExists

@@ -21,8 +21,19 @@ internal static class RangeMergeDiscovery
         return Convert.ToBoolean(mergeCells, CultureInfo.InvariantCulture);
     }
 
-    internal static List<string> CollectMergedRanges(dynamic range, CancellationToken cancellationToken)
+    internal static List<string> CollectMergedRanges(
+        dynamic range,
+        bool? mergeCellsState,
+        CancellationToken cancellationToken)
     {
+        if (mergeCellsState == true)
+        {
+            if (TryGetSingleMergedArea(range, out string mergedAreaAddress))
+            {
+                return [mergedAreaAddress];
+            }
+        }
+
         dynamic? cells = null;
         var mergedRanges = new List<string>();
         var seenRanges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -80,5 +91,33 @@ internal static class RangeMergeDiscovery
         }
 
         return mergedRanges;
+    }
+
+    private static bool TryGetSingleMergedArea(dynamic range, out string mergedAreaAddress)
+    {
+        dynamic? cells = null;
+        dynamic? firstCell = null;
+        dynamic? mergeArea = null;
+        try
+        {
+            cells = range.Cells;
+            firstCell = cells.Item[1];
+            mergeArea = firstCell.MergeArea;
+
+            string rangeAddress = Convert.ToString(range.Address, CultureInfo.InvariantCulture)
+                ?? string.Empty;
+            string candidateAddress = Convert.ToString(mergeArea.Address, CultureInfo.InvariantCulture)
+                ?? string.Empty;
+            bool isSameArea = rangeAddress.Length > 0
+                && string.Equals(rangeAddress, candidateAddress, StringComparison.OrdinalIgnoreCase);
+            mergedAreaAddress = isSameArea ? candidateAddress : string.Empty;
+            return isSameArea;
+        }
+        finally
+        {
+            ComUtilities.Release(ref mergeArea);
+            ComUtilities.Release(ref firstCell);
+            ComUtilities.Release(ref cells);
+        }
     }
 }

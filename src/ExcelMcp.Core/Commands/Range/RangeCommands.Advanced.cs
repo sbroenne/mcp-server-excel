@@ -102,7 +102,7 @@ public partial class RangeCommands
                 bool? isMergedState = RangeMergeDiscovery.GetMergeCellsState(mergeCells);
                 IReadOnlyList<string> mergedRanges = isMergedState == false
                     ? []
-                    : RangeMergeDiscovery.CollectMergedRanges(range, ct);
+                    : RangeMergeDiscovery.CollectMergedRanges(range, isMergedState, ct);
 
                 return new RangeMergeInfoResult
                 {
@@ -199,5 +199,4 @@ public partial class RangeCommands
     }
 
 }
-
 

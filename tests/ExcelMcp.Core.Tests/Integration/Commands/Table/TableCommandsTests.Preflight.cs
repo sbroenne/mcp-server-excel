@@ -195,6 +195,32 @@ public partial class TableCommandsTests
         Assert.Equal(["$G$1"], formulaFinding.Addresses);
     }
 
+    [Fact]
+    public void Preflight_OversizedRange_ReturnsExplicitFormulaScanSkippedWarning()
+    {
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        var result = _tableCommands.Preflight(
+            batch,
+            "Sales",
+            "LargeTable",
+            "A1:CV1001",
+            hasHeaders: false);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(result.SafeToCreate);
+        var finding = Assert.Single(
+            result.Findings,
+            item => item.Kind == TablePreflightFindingKind.FormulaScanSkipped);
+        Assert.Equal(TablePreflightSeverity.Warning, finding.Severity);
+        Assert.True(finding.IsHeuristic);
+        Assert.Empty(finding.Addresses);
+        Assert.Contains("100,100", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("100,000", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("smaller range", finding.Remediation, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void SetValues(IExcelBatch batch, string address, List<List<object?>> values)
     {
         _rangeCommands.SetValues(batch, "Sales", address, values);
