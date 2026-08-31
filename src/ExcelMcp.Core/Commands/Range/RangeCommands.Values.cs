@@ -236,7 +236,7 @@ public partial class RangeCommands
         CancellationToken cancellationToken)
     {
         object? mergeCells = range.MergeCells;
-        bool? isMergedState = GetMergeCellsState(mergeCells);
+        bool? isMergedState = RangeMergeDiscovery.GetMergeCellsState(mergeCells);
         if (isMergedState == false)
         {
             return;
@@ -263,7 +263,10 @@ public partial class RangeCommands
             }
         }
 
-        var mergedRanges = CollectMergedRanges(range, cancellationToken);
+        var mergedRanges = RangeMergeDiscovery.CollectMergedRanges(
+            range,
+            isMergedState,
+            cancellationToken);
         if (mergedRanges.Count > 0)
         {
             ThrowMergedCellWriteError(requestedRangeAddress, mergedRanges);

@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**31 specialized tools with 325 operations for comprehensive Excel automation**
+**31 specialized tools with 326 operations for comprehensive Excel automation**
 
 Excel MCP Server automates the real Microsoft Excel application through four focused capability areas. Start with the category that matches your goal, or use the quick reference below.
 

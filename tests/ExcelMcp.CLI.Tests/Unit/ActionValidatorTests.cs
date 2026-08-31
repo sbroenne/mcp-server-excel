@@ -21,6 +21,7 @@ public sealed class ActionValidatorTests
         [typeof(RangeFormatAction), typeof(ServiceRegistry.RangeFormat)],
         [typeof(RangeLinkAction), typeof(ServiceRegistry.RangeLink)],
         [typeof(DrawingAction), typeof(ServiceRegistry.Drawing)],
+        [typeof(TableAction), typeof(ServiceRegistry.Table)],
         [typeof(WorkbookAction), typeof(ServiceRegistry.Workbook)]
     ];
 
@@ -97,6 +98,14 @@ public sealed class ActionValidatorTests
 
         Assert.Equal(expected, actual);
         Assert.Contains("read-connection", actual);
+    }
+
+    [Fact]
+    public void TableActions_IncludePreflight()
+    {
+        var actions = GetActualActions(typeof(ServiceRegistry.Table));
+
+        Assert.Contains("preflight", actions);
     }
 
     [Fact]

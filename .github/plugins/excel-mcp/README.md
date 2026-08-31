@@ -58,7 +58,7 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**31 specialized tools with 325 operations** for comprehensive Excel automation:
+**31 specialized tools with 326 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
