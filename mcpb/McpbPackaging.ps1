@@ -1,11 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 function Remove-McpbStagingDirectory {
     param(
         [Parameter(Mandatory)]
         [string]$Path,
 
-        [TimeSpan]$Timeout = [TimeSpan]::FromSeconds(30),
+        [TimeSpan]$Timeout = [TimeSpan]::FromMinutes(2),
 
         [TimeSpan]$RetryInterval = [TimeSpan]::FromMilliseconds(500),
 
@@ -36,6 +34,7 @@ function Remove-McpbStagingDirectory {
     while (Test-Path -LiteralPath $Path -PathType Container) {
         $attempts++
         try {
+            $lastFailure = $null
             & $RemoveDirectory $Path
         }
         catch [System.UnauthorizedAccessException] {
@@ -55,7 +54,8 @@ function Remove-McpbStagingDirectory {
             $timeoutMilliseconds = [Math]::Round($Timeout.TotalMilliseconds)
             $lastError = if ($lastFailure) { $lastFailure.Message } else { "the directory still exists" }
             throw [System.IO.IOException]::new(
-                "Failed to remove MCPB staging directory '$Path' after $attempts $attemptLabel within $timeoutMilliseconds ms. Last error: $lastError",
+                "Failed to remove MCPB staging directory '$Path' after $attempts $attemptLabel within $timeoutMilliseconds ms. " +
+                "The verified bundle was preserved, but stale staging remains. Last error: $lastError",
                 $lastFailure)
         }
 

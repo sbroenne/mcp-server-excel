@@ -198,6 +198,8 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
+                ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
+
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
@@ -260,5 +262,3 @@ public partial class RangeCommands
         });
     }
 }
-
-

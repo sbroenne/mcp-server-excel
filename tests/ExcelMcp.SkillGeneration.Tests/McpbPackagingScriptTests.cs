@@ -93,6 +93,7 @@ public sealed class McpbPackagingScriptTests
             Assert.Contains(sandbox, result.Stderr, StringComparison.Ordinal);
             Assert.Contains("after 1 attempt", result.Stderr, StringComparison.Ordinal);
             Assert.Contains("within 0 ms", result.Stderr, StringComparison.Ordinal);
+            Assert.Contains("stale staging remains", result.Stderr, StringComparison.Ordinal);
             Assert.Contains("locked by scanner", result.Stderr, StringComparison.Ordinal);
         }
         finally
@@ -135,7 +136,16 @@ public sealed class McpbPackagingScriptTests
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await process.WaitForExitAsync(timeout.Token);
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            throw;
+        }
 
         return new ScriptResult(process.ExitCode, await stdout, await stderr);
     }

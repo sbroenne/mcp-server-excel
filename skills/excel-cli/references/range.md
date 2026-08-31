@@ -28,6 +28,10 @@ range(action: 'set-number-format', range_address: 'C2:D4', format_code: '$#,##0.
 range_format(action: 'auto-fit-columns', range_address: 'A:D')
 ```
 
+## Writes to Merged Cells
+
+`set-values` and `set-formulas` reject writes that include merged cells unless the target is only the merged range's top-left cell. The error lists the affected merged ranges. Write to that top-left cell when changing one merged value, or unmerge the range before writing a larger grid.
+
 ## Quick Pattern: Repeated Section Headers
 
 Use `format-ranges` when the same header or section style repeats across disjoint ranges on one sheet:

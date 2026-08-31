@@ -341,6 +341,10 @@ public sealed class DaemonForcedStopRegressionTests
             cleanupScript,
             StringComparison.Ordinal);
         Assert.Contains(
+            @"src\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs",
+            cleanupScript,
+            StringComparison.Ordinal);
+        Assert.Contains(
             "-p:ExcelMcpCleanupRoot=$stagingRoot",
             cleanupScript,
             StringComparison.Ordinal);
