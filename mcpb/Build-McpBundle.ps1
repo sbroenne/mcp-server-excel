@@ -49,64 +49,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-
-function Remove-StagingDirectory {
-    param(
-        [Parameter(Mandatory)]
-        [string]$Path,
-
-        [TimeSpan]$Timeout = [TimeSpan]::FromMinutes(2),
-
-        [int]$InitialDelayMilliseconds = 250,
-
-        [scriptblock]$DeleteAction = {
-            param($targetPath)
-            [System.IO.Directory]::Delete($targetPath, $true)
-        },
-
-        [scriptblock]$DelayAction = {
-            param($milliseconds)
-            Start-Sleep -Milliseconds $milliseconds
-        },
-
-        [scriptblock]$UtcNowAction = {
-            [DateTime]::UtcNow
-        }
-    )
-
-    $deadline = (& $UtcNowAction).Add($Timeout)
-    $delayMilliseconds = [Math]::Max(1, $InitialDelayMilliseconds)
-    while ($true) {
-        try {
-            & $DeleteAction $Path
-            return
-        }
-        catch [System.UnauthorizedAccessException] {
-            $failure = $_
-        }
-        catch [System.IO.IOException] {
-            $failure = $_
-        }
-
-        $remaining = $deadline - (& $UtcNowAction)
-        if ($remaining -le [TimeSpan]::Zero) {
-            $message = "Could not remove MCPB staging directory '$Path' within $($Timeout.TotalSeconds) seconds. " +
-                "The verified bundle was preserved, but stale staging remains. Last error: $($failure.Exception.Message)"
-            throw [TimeoutException]::new($message, $failure.Exception)
-        }
-
-        # Executable scanners can retain the verified server binary after it exits.
-        $boundedDelay = [Math]::Min(
-            $delayMilliseconds,
-            [Math]::Max(1, [Math]::Ceiling($remaining.TotalMilliseconds)))
-        & $DelayAction $boundedDelay
-        $delayMilliseconds = [Math]::Min($delayMilliseconds * 2, 2000)
-    }
-}
-
-if ($MyInvocation.InvocationName -eq '.') {
-    return
-}
+. (Join-Path $PSScriptRoot "McpbPackaging.ps1")
 
 # Get script and project directories
 $McpbDir = $PSScriptRoot
@@ -257,7 +200,7 @@ Write-Host "   ✓ Created $McpbFileName" -ForegroundColor Green
 Copy-Item $ManifestDst (Join-Path $OutputDir "manifest.json") -Force
 
 # Clean up staging
-Remove-StagingDirectory -Path $StagingDir
+Remove-McpbStagingDirectory -Path $StagingDir
 
 # Show results
 $McpbSize = (Get-Item $McpbPath).Length / 1MB
