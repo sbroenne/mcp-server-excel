@@ -1039,7 +1039,15 @@ public class RangeValueResult : ResultBase
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
-    /// 2D array of cell values (row-major order)
+    /// Mapped Excel error values found in the range, including canonical names, cell
+    /// addresses, formulas, raw COM codes, and suggested fixes. This can include formula
+    /// errors and transient or service states such as #BUSY!, #CONNECT!, and #PYTHON!.
+    /// </summary>
+    public List<RangeCellError> CellErrors { get; set; } = [];
+
+    /// <summary>
+    /// 2D array of cell values (row-major order). Mapped Excel errors use canonical names
+    /// such as #REF!; their raw COM values are preserved in <see cref="CellErrors"/>.
     /// </summary>
     public List<List<object?>> Values { get; set; } = [];
 
@@ -1070,12 +1078,20 @@ public class RangeFormulaResult : ResultBase
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
+    /// Mapped Excel error values found in the range, including canonical names, cell
+    /// addresses, formulas, raw COM codes, and suggested fixes. This can include formula
+    /// errors and transient or service states such as #BUSY!, #CONNECT!, and #PYTHON!.
+    /// </summary>
+    public List<RangeCellError> CellErrors { get; set; } = [];
+
+    /// <summary>
     /// 2D array of cell formulas (row-major order, empty string if no formula)
     /// </summary>
     public List<List<string>> Formulas { get; set; } = [];
 
     /// <summary>
-    /// 2D array of cell values (calculated results)
+    /// 2D array of cell values (calculated results). Mapped Excel errors use canonical
+    /// names such as #REF!; their raw COM values are preserved in <see cref="CellErrors"/>.
     /// </summary>
     public List<List<object?>> Values { get; set; } = [];
 
@@ -1089,12 +1105,6 @@ public class RangeFormulaResult : ResultBase
     /// </summary>
     public int ColumnCount { get; set; }
 
-    /// <summary>
-    /// Cell-level errors (e.g., #NAME?, #REF?, etc.)
-    /// Maps cell address to error details
-    /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<RangeCellError>? CellErrors { get; set; }
 }
 
 /// <summary>
@@ -1108,6 +1118,17 @@ public class RangeCellError
     public string CellAddress { get; set; } = string.Empty;
 
     /// <summary>
+    /// Canonical Excel error name (e.g., "#REF!" or "#N/A")
+    /// </summary>
+    public string ErrorName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Full formula text returned by Excel, when the affected cell contains a formula
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Formula { get; set; }
+
+    /// <summary>
     /// Row number (1-based)
     /// </summary>
     public int Row { get; set; }
@@ -1118,7 +1139,7 @@ public class RangeCellError
     public int Column { get; set; }
 
     /// <summary>
-    /// Current cell value displayed (often the error code like #NAME?)
+    /// Raw cell value returned by Excel COM
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? CurrentValue { get; set; }
