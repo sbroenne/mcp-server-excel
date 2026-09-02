@@ -2,7 +2,7 @@
   "name": "excel-mcp",
   "displayName": "Excel MCP Server",
   "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "publisher": "sbroenne",
   "icon": "icon.png",
   "repository": {
