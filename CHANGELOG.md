@@ -11,6 +11,22 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.6] - 2026-09-02
+
+### Minor Changes
+
+- [#844](https://github.com/sbroenne/mcp-server-excel/pull/844) [`09694d8`](https://github.com/sbroenne/mcp-server-excel/commit/09694d8afe0ab5e141cd09944ea7433953e405b5) Thanks [@sbroenne](https://github.com/sbroenne)! - **Safer table creation** ([#838](https://github.com/sbroenne/mcp-server-excel/issues/838)): Preview merged cells, header problems, nearby excluded columns, formula sorting risks, and the effective table range before creating a table. Table creation now blocks deterministic problems while leaving uncertain warnings for review. Large-range merge discovery is bounded, and formula risk analysis reports when an oversized range was skipped.
+
+### Patch Changes
+
+- [#843](https://github.com/sbroenne/mcp-server-excel/pull/843) [`d2c9932`](https://github.com/sbroenne/mcp-server-excel/commit/d2c993248c4710992c81cc779f31dabff03d6786) Thanks [@sbroenne](https://github.com/sbroenne)! - **Range reads now explain formula errors.** `get-values` and `get-formulas` return canonical Excel names such as `#REF!` and `#N/A`, plus affected cells, formulas, raw error codes, and suggested fixes.
+
+- [#829](https://github.com/sbroenne/mcp-server-excel/pull/829) [`7bddb7d`](https://github.com/sbroenne/mcp-server-excel/commit/7bddb7d6b61f424f933bc260f5c41f5d88138d51) Thanks [@sbroenne](https://github.com/sbroenne)! - **Release changelogs now include the version being shipped.** VS Code and MCPB packages receive the newly generated changelog, and each release tag points to the metadata commit containing that release's entry instead of the previous version's changelog.
+
+- [#845](https://github.com/sbroenne/mcp-server-excel/pull/845) [`748a33b`](https://github.com/sbroenne/mcp-server-excel/commit/748a33b7c9e4bcd5262143b778e5934a2fee7490) Thanks [@sbroenne](https://github.com/sbroenne)! - **Stale-build cleanup now preserves unsaved CLI session changes when a shutdown reply is lost.** Session and pipe cleanup use one exact-process exit policy, giving an already-shutting-down daemon and its tracked Excel processes time to save and exit before bounded forced cleanup.
+
+- [#841](https://github.com/sbroenne/mcp-server-excel/pull/841) [`33a1a71`](https://github.com/sbroenne/mcp-server-excel/commit/33a1a71cdcf131d79fffb8c92a68a7413947f4fe) Thanks [@sbroenne](https://github.com/sbroenne)! - **Merged-cell writes now fail clearly instead of reporting false success** ([#831](https://github.com/sbroenne/mcp-server-excel/issues/831)). `set-values` and `set-formulas` identify affected merged ranges and explain whether to write to the top-left cell or unmerge the range.
+
 ## [2.0.5] - 2026-08-28
 
 ### Patch Changes
