@@ -22,6 +22,7 @@ public sealed class PluginBootstrapBuildTests
     private const string AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
     private const string AgentPluginMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
     private static readonly string RepoRoot = FindRepoRoot();
+    private static readonly string BuildAgentSkillsScript = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     private static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
 
@@ -65,6 +66,18 @@ public sealed class PluginBootstrapBuildTests
             content);
         Assert.Contains(@"skills-ref validate source\plugins\excel-mcp\skills\excel-mcp", content);
         Assert.Contains(@"skills-ref validate source\plugins\excel-cli\skills\excel-cli", content);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public void BuildAgentSkills_UsesPortableNewlinesForCliSyntaxNotice()
+    {
+        var script = File.ReadAllText(BuildAgentSkillsScript);
+
+        Assert.Contains("-replace \"`r`n?\", \"`n\"", script, StringComparison.Ordinal);
+        Assert.Contains("$cliSyntaxNotice`n`n$sourceContent", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("$cliSyntaxNotice`r`n", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -256,7 +269,9 @@ public sealed class PluginBootstrapBuildTests
                 Assert.True(File.Exists(builtSharedReference), $"Expected excel-cli plugin to package shared reference at {builtSharedReference}");
                 var builtContent = File.ReadAllText(builtSharedReference);
                 Assert.Contains("CLI syntax note", builtContent);
-                Assert.Contains(File.ReadAllText(sourceSharedReference), builtContent);
+                Assert.Contains(
+                    NormalizeLineEndings(File.ReadAllText(sourceSharedReference)),
+                    NormalizeLineEndings(builtContent));
 
                 var builtMcpReference = Path.Combine(
                     outputDir,
@@ -2184,6 +2199,11 @@ public sealed class PluginBootstrapBuildTests
         var sandbox = Path.Combine(RepoRoot, "scratch", "plugin-bootstrap-test", $"{name}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sandbox);
         return sandbox;
+    }
+
+    private static string NormalizeLineEndings(string value)
+    {
+        return value.Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static void DeleteDirectoryIfExists(string path)

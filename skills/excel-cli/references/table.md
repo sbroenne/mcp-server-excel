@@ -7,13 +7,14 @@
 Excel Tables on worksheets are NOT automatically in the Data Model (Power Pivot).
 To analyze worksheet data with DAX measures:
 
-1. Ensure data is formatted as an Excel Table (use create action if needed)
+1. Ensure data is formatted as an Excel Table (use preflight, then create if needed)
 2. Use `add-to-data-model` action to add the table to Power Pivot
 3. Then use `datamodel` to create DAX measures on it
 
 **Action disambiguation**:
 
 - create: Create NEW table from a range (requires `sheet_name`, `table_name`, and `range_address`). Pass `table_style` here to style at creation time.
+- preflight: Check a proposed table without changing the workbook. It returns the effective range, typed findings, and `safeToCreate`. Merged cells plus blank or duplicate headers are blockers. Excluded contiguous columns and formulas that may be unsafe to sort are heuristic warnings. For ranges over 100,000 cells, it returns a `FormulaScanSkipped` warning instead of allocating the full formula matrix.
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use `visible_only=true` for filtered data)
 - rename: Rename an existing table
@@ -85,6 +86,7 @@ Example DAX queries for create-from-dax:
 - Using datamodel to add tables (it only manages existing Data Model tables)
 - Confusing get-data (returns cell values) with read (returns metadata)
 - Forgetting `has_headers` when creating tables from headerless data
+- Skipping preflight when warnings about excluded columns or formula sorting need human review. Create always enforces deterministic blockers, but warnings do not block it.
 
 **Server-specific quirks**:
 
