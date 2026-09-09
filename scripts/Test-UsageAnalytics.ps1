@@ -5,6 +5,7 @@
 $ErrorActionPreference = "Stop"
 $updateScript = Join-Path $PSScriptRoot "Update-UsageAnalytics.ps1"
 $completeScript = Join-Path $PSScriptRoot "Complete-UsageAnalyticsReport.ps1"
+$interpretScript = Join-Path $PSScriptRoot "Invoke-UsageAnalyticsReport.ps1"
 $persistScript = Join-Path $PSScriptRoot "Persist-UsageAnalytics.ps1"
 $restoreScript = Join-Path $PSScriptRoot "Restore-UsageAnalytics.ps1"
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) "excelmcp-analytics-tests-$([Guid]::NewGuid().ToString('N'))"
@@ -257,6 +258,63 @@ Investigate the 12 background task problems before changing behavior.
     $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
     Assert-True ($report.interpretation -like "*What changed*") "Interpretation was not added."
     Assert-True ($report.interpretationModel -eq "GitHub Copilot CLI") "Model label is missing."
+    $testsRun++
+
+    $retryInterpretationPath = Join-Path $testRoot "retry-interpretation.md"
+    $retryReportPath = Join-Path $testRoot "retry-report.json"
+    $copilotRequests = [Collections.Generic.List[string]]::new()
+    $copilotInvoker = {
+        param([string[]]$Arguments)
+        $copilotRequests.Add(($Arguments -join " "))
+        $content = if ($copilotRequests.Count -eq 1) {
+            $interpretation + ("x" * 4000)
+        }
+        else {
+            $interpretation
+        }
+        [IO.File]::WriteAllText($retryInterpretationPath, $content, $utf8NoBom)
+        [pscustomobject]@{ ExitCode = 0; Output = @() }
+    }
+    & $interpretScript `
+        -AnalyticsPath $analyticsPath `
+        -InterpretationPath $retryInterpretationPath `
+        -OutputPath $retryReportPath `
+        -CopilotInvoker $copilotInvoker
+    $retryReport = Get-Content -LiteralPath $retryReportPath -Raw | ConvertFrom-Json
+    Assert-True ($copilotRequests.Count -eq 2) `
+        "An oversized interpretation was not regenerated exactly once."
+    Assert-True ($copilotRequests[0] -like "*between 100 and 3,500 characters*") `
+        "The initial prompt does not leave room below the validation limit."
+    Assert-True ($copilotRequests[1] -like "*failed validation*") `
+        "The retry prompt does not explain why another draft is required."
+    Assert-True ($retryReport.interpretation -eq $interpretation.Trim()) `
+        "The regenerated interpretation was not assembled into the report."
+    $testsRun++
+
+    $failedInterpretationPath = Join-Path $testRoot "failed-interpretation.md"
+    $failedReportPath = Join-Path $testRoot "failed-report.json"
+    $failedRequests = [Collections.Generic.List[string]]::new()
+    $invalidCopilotInvoker = {
+        param([string[]]$Arguments)
+        $failedRequests.Add(($Arguments -join " "))
+        [IO.File]::WriteAllText(
+            $failedInterpretationPath,
+            $interpretation + ("x" * 4000),
+            $utf8NoBom)
+        [pscustomobject]@{ ExitCode = 0; Output = @() }
+    }
+    Assert-Throws -ExpectedMessage "failed validation after 2 attempts" -Action {
+        & $interpretScript `
+            -AnalyticsPath $analyticsPath `
+            -InterpretationPath $failedInterpretationPath `
+            -OutputPath $failedReportPath `
+            -MaxAttempts 2 `
+            -CopilotInvoker $invalidCopilotInvoker
+    }
+    Assert-True ($failedRequests.Count -eq 2) `
+        "Invalid interpretation generation did not stop at the configured attempt limit."
+    Assert-True (-not (Test-Path -LiteralPath $failedReportPath)) `
+        "An invalid interpretation produced a report."
     $testsRun++
 
     $requests = [Collections.Generic.List[string]]::new()
