@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAtUtc": "2026-08-28T06:52:44Z",
+  "generatedAtUtc": "2026-09-09T00:27:14Z",
   "windows": {
     "reportingDays": 90,
     "comparisonDays": 14,
@@ -22,29 +22,19 @@
     ]
   },
   "summary": {
-    "users": 2916,
-    "toolInvocations": 837077,
-    "repeatUserRate": 60.34
+    "users": 2799,
+    "toolInvocations": 920072,
+    "repeatUserRate": 63.1
   },
   "comparison": {
-    "currentUsers": 1280,
-    "previousUsers": 1107,
-    "userChangePct": 15.63,
-    "currentInvocations": 282279,
-    "previousInvocations": 201195,
-    "invocationChangePct": 40.3
+    "currentUsers": 911,
+    "previousUsers": 1273,
+    "userChangePct": -28.44,
+    "currentInvocations": 181751,
+    "previousInvocations": 285084,
+    "invocationChangePct": -36.25
   },
   "weekly": [
-    {
-      "week": "2026-05-31",
-      "users": 383,
-      "actions": 34944
-    },
-    {
-      "week": "2026-06-07",
-      "users": 426,
-      "actions": 29716
-    },
     {
       "week": "2026-06-14",
       "users": 212,
@@ -94,33 +84,19 @@
       "week": "2026-08-16",
       "users": 830,
       "actions": 124514
+    },
+    {
+      "week": "2026-08-23",
+      "users": 818,
+      "actions": 129029
+    },
+    {
+      "week": "2026-08-30",
+      "users": 512,
+      "actions": 85833
     }
   ],
   "versionAdoption": [
-    {
-      "week": "2026-06-07",
-      "version": "Other",
-      "users": 372,
-      "sharePct": 87.94
-    },
-    {
-      "week": "2026-06-07",
-      "version": "1.8.70",
-      "users": 51,
-      "sharePct": 12.06
-    },
-    {
-      "week": "2026-06-14",
-      "version": "Other",
-      "users": 112,
-      "sharePct": 53.08
-    },
-    {
-      "week": "2026-06-14",
-      "version": "1.8.70",
-      "users": 99,
-      "sharePct": 46.92
-    },
     {
       "week": "2026-06-21",
       "version": "1.8.70",
@@ -280,8 +256,8 @@
     {
       "week": "2026-08-16",
       "version": "Other",
-      "users": 563,
-      "sharePct": 67.83
+      "users": 594,
+      "sharePct": 71.57
     },
     {
       "week": "2026-08-16",
@@ -303,12 +279,6 @@
     },
     {
       "week": "2026-08-16",
-      "version": "2.0.0",
-      "users": 31,
-      "sharePct": 3.73
-    },
-    {
-      "week": "2026-08-16",
       "version": "1.9.5",
       "users": 27,
       "sharePct": 3.25
@@ -316,504 +286,801 @@
     {
       "week": "2026-08-23",
       "version": "Other",
-      "users": 273,
-      "sharePct": 36.55
-    },
-    {
-      "week": "2026-08-23",
-      "version": "2.0.2",
-      "users": 113,
-      "sharePct": 15.13
-    },
-    {
-      "week": "2026-08-23",
-      "version": "2.0.1",
-      "users": 104,
-      "sharePct": 13.92
-    },
-    {
-      "week": "2026-08-23",
-      "version": "2.0.0",
-      "users": 95,
-      "sharePct": 12.72
+      "users": 652,
+      "sharePct": 76.71
     },
     {
       "week": "2026-08-23",
       "version": "1.10.3",
-      "users": 51,
-      "sharePct": 6.83
+      "users": 56,
+      "sharePct": 6.59
     },
     {
       "week": "2026-08-23",
       "version": "1.10.5",
-      "users": 44,
-      "sharePct": 5.89
+      "users": 49,
+      "sharePct": 5.76
+    },
+    {
+      "week": "2026-08-23",
+      "version": "2.0.5",
+      "users": 36,
+      "sharePct": 4.24
     },
     {
       "week": "2026-08-23",
       "version": "1.8.70",
-      "users": 29,
-      "sharePct": 3.88
+      "users": 30,
+      "sharePct": 3.53
     },
     {
       "week": "2026-08-23",
       "version": "1.9.5",
-      "users": 21,
-      "sharePct": 2.81
+      "users": 24,
+      "sharePct": 2.82
     },
     {
       "week": "2026-08-23",
-      "version": "2.0.3",
-      "users": 17,
-      "sharePct": 2.28
+      "version": "2.0.4",
+      "users": 3,
+      "sharePct": 0.35
+    },
+    {
+      "week": "2026-08-30",
+      "version": "Other",
+      "users": 332,
+      "sharePct": 37.81
+    },
+    {
+      "week": "2026-08-30",
+      "version": "2.0.5",
+      "users": 208,
+      "sharePct": 23.69
+    },
+    {
+      "week": "2026-08-30",
+      "version": "2.0.7",
+      "users": 190,
+      "sharePct": 21.64
+    },
+    {
+      "week": "2026-08-30",
+      "version": "1.10.3",
+      "users": 52,
+      "sharePct": 5.92
+    },
+    {
+      "week": "2026-08-30",
+      "version": "1.8.70",
+      "users": 37,
+      "sharePct": 4.21
+    },
+    {
+      "week": "2026-08-30",
+      "version": "1.10.5",
+      "users": 33,
+      "sharePct": 3.76
+    },
+    {
+      "week": "2026-08-30",
+      "version": "1.9.5",
+      "users": 24,
+      "sharePct": 2.73
+    },
+    {
+      "week": "2026-08-30",
+      "version": "2.0.4",
+      "users": 1,
+      "sharePct": 0.11
+    },
+    {
+      "week": "2026-08-30",
+      "version": "2.0.6",
+      "users": 1,
+      "sharePct": 0.11
+    },
+    {
+      "week": "2026-09-06",
+      "version": "2.0.7",
+      "users": 209,
+      "sharePct": 43.27
+    },
+    {
+      "week": "2026-09-06",
+      "version": "Other",
+      "users": 170,
+      "sharePct": 35.2
+    },
+    {
+      "week": "2026-09-06",
+      "version": "2.0.5",
+      "users": 38,
+      "sharePct": 7.87
+    },
+    {
+      "week": "2026-09-06",
+      "version": "1.10.5",
+      "users": 21,
+      "sharePct": 4.35
+    },
+    {
+      "week": "2026-09-06",
+      "version": "1.8.70",
+      "users": 19,
+      "sharePct": 3.93
+    },
+    {
+      "week": "2026-09-06",
+      "version": "1.10.3",
+      "users": 16,
+      "sharePct": 3.31
+    },
+    {
+      "week": "2026-09-06",
+      "version": "1.9.5",
+      "users": 10,
+      "sharePct": 2.07
     }
   ],
   "operations": [
     {
       "name": "range/get-values",
-      "invocations": 129152,
-      "users": 2208
-    },
-    {
-      "name": "range/set-values",
-      "invocations": 83557,
-      "users": 1854
-    },
-    {
-      "name": "range/set-formulas",
-      "invocations": 38898,
-      "users": 1044
-    },
-    {
-      "name": "range/get-used-range",
-      "invocations": 31744,
-      "users": 2027
-    },
-    {
-      "name": "range_format/format-range",
-      "invocations": 30445,
-      "users": 1149
-    },
-    {
-      "name": "range/get-formulas",
-      "invocations": 29171,
-      "users": 1092
-    },
-    {
-      "name": "file/list",
-      "invocations": 24079,
-      "users": 2111
-    },
-    {
-      "name": "worksheet/list",
-      "invocations": 23234,
+      "invocations": 154960,
       "users": 2392
     },
     {
-      "name": "screenshot/capture",
-      "invocations": 17421,
-      "users": 1093
+      "name": "range/set-values",
+      "invocations": 99166,
+      "users": 1987
     },
     {
-      "name": "range_format/set-column-width",
-      "invocations": 16896,
-      "users": 779
+      "name": "range/set-formulas",
+      "invocations": 46751,
+      "users": 1146
+    },
+    {
+      "name": "range/get-used-range",
+      "invocations": 36932,
+      "users": 2168
+    },
+    {
+      "name": "range_format/format-range",
+      "invocations": 34813,
+      "users": 1239
+    },
+    {
+      "name": "range/get-formulas",
+      "invocations": 34334,
+      "users": 1227
+    },
+    {
+      "name": "file/list",
+      "invocations": 31208,
+      "users": 2313
+    },
+    {
+      "name": "worksheet/list",
+      "invocations": 26181,
+      "users": 2575
     },
     {
       "name": "vba/run",
-      "invocations": 16180,
-      "users": 440
+      "invocations": 23030,
+      "users": 461
+    },
+    {
+      "name": "screenshot/capture",
+      "invocations": 21732,
+      "users": 1185
+    },
+    {
+      "name": "range_format/set-column-width",
+      "invocations": 20777,
+      "users": 892
     },
     {
       "name": "range_edit/find",
-      "invocations": 14925,
-      "users": 667
+      "invocations": 19406,
+      "users": 725
     },
     {
       "name": "range/set-number-format",
-      "invocations": 13723,
-      "users": 806
+      "invocations": 16401,
+      "users": 894
     },
     {
       "name": "calculation_mode/calculate",
-      "invocations": 12888,
-      "users": 963
-    },
-    {
-      "name": "calculation_mode/set-mode",
-      "invocations": 9527,
-      "users": 913
-    },
-    {
-      "name": "range_format/merge-cells",
-      "invocations": 9482,
-      "users": 472
-    },
-    {
-      "name": "worksheet/create",
-      "invocations": 9382,
-      "users": 1089
+      "invocations": 16274,
+      "users": 1084
     },
     {
       "name": "vba/update",
-      "invocations": 8678,
-      "users": 287
+      "invocations": 11741,
+      "users": 319
+    },
+    {
+      "name": "range_format/merge-cells",
+      "invocations": 11718,
+      "users": 522
+    },
+    {
+      "name": "calculation_mode/set-mode",
+      "invocations": 11062,
+      "users": 998
     },
     {
       "name": "range/clear-contents",
-      "invocations": 8292,
-      "users": 788
+      "invocations": 10826,
+      "users": 870
+    },
+    {
+      "name": "worksheet/create",
+      "invocations": 10500,
+      "users": 1190
     },
     {
       "name": "range_format/format-ranges",
-      "invocations": 7726,
-      "users": 618
+      "invocations": 9340,
+      "users": 703
     },
     {
       "name": "vba/view",
-      "invocations": 6768,
-      "users": 304
+      "invocations": 8770,
+      "users": 340
     },
     {
       "name": "vba/import",
-      "invocations": 6619,
-      "users": 555
+      "invocations": 8548,
+      "users": 591
     },
     {
       "name": "powerquery/evaluate",
-      "invocations": 6612,
-      "users": 283
+      "invocations": 8134,
+      "users": 319
     },
     {
       "name": "conditionalformat/add-rule",
-      "invocations": 5395,
-      "users": 381
+      "invocations": 6629,
+      "users": 415
     },
     {
       "name": "table/list",
-      "invocations": 5318,
-      "users": 717
+      "invocations": 6187,
+      "users": 814
     }
   ],
   "toolFamilies": [
     {
       "name": "range",
-      "invocations": 353717,
-      "users": 2585,
-      "sharePct": 45.99
+      "invocations": 423209,
+      "users": 2771,
+      "sharePct": 45.25
     },
     {
       "name": "range_format",
-      "invocations": 85944,
-      "users": 1411,
-      "sharePct": 11.17
+      "invocations": 102418,
+      "users": 1515,
+      "sharePct": 10.95
     },
     {
       "name": "vba",
-      "invocations": 45216,
-      "users": 780,
-      "sharePct": 5.88
+      "invocations": 60899,
+      "users": 826,
+      "sharePct": 6.51
     },
     {
       "name": "worksheet",
-      "invocations": 42938,
-      "users": 2475,
-      "sharePct": 5.58
-    },
-    {
-      "name": "powerquery",
-      "invocations": 33876,
-      "users": 450,
-      "sharePct": 4.4
+      "invocations": 49022,
+      "users": 2651,
+      "sharePct": 5.24
     },
     {
       "name": "file",
-      "invocations": 31528,
-      "users": 2395,
-      "sharePct": 4.1
+      "invocations": 40540,
+      "users": 2615,
+      "sharePct": 4.33
+    },
+    {
+      "name": "powerquery",
+      "invocations": 40226,
+      "users": 494,
+      "sharePct": 4.3
     },
     {
       "name": "range_edit",
-      "invocations": 24478,
-      "users": 914,
-      "sharePct": 3.18
+      "invocations": 29943,
+      "users": 1005,
+      "sharePct": 3.2
     },
     {
       "name": "calculation_mode",
-      "invocations": 23262,
-      "users": 1109,
-      "sharePct": 3.02
+      "invocations": 28517,
+      "users": 1225,
+      "sharePct": 3.05
     },
     {
       "name": "screenshot",
-      "invocations": 21782,
-      "users": 1313,
-      "sharePct": 2.83
+      "invocations": 26619,
+      "users": 1409,
+      "sharePct": 2.85
     },
     {
       "name": "table",
-      "invocations": 17216,
-      "users": 987,
-      "sharePct": 2.24
+      "invocations": 20061,
+      "users": 1113,
+      "sharePct": 2.14
     },
     {
       "name": "datamodel",
-      "invocations": 14288,
-      "users": 262,
-      "sharePct": 1.86
+      "invocations": 16187,
+      "users": 290,
+      "sharePct": 1.73
     },
     {
       "name": "pivottable_field",
-      "invocations": 9980,
-      "users": 290,
-      "sharePct": 1.3
+      "invocations": 11943,
+      "users": 337,
+      "sharePct": 1.28
     },
     {
       "name": "window",
-      "invocations": 7742,
-      "users": 728,
-      "sharePct": 1.01
+      "invocations": 9879,
+      "users": 847,
+      "sharePct": 1.06
     },
     {
       "name": "conditionalformat",
-      "invocations": 6715,
-      "users": 412,
-      "sharePct": 0.87
+      "invocations": 8506,
+      "users": 454,
+      "sharePct": 0.91
     },
     {
       "name": "chart_config",
-      "invocations": 6580,
-      "users": 319,
+      "invocations": 8299,
+      "users": 350,
+      "sharePct": 0.89
+    },
+    {
+      "name": "worksheet_style",
+      "invocations": 8069,
+      "users": 522,
+      "sharePct": 0.86
+    },
+    {
+      "name": "chart",
+      "invocations": 8014,
+      "users": 526,
       "sharePct": 0.86
     },
     {
       "name": "namedrange",
-      "invocations": 6444,
-      "users": 405,
-      "sharePct": 0.84
-    },
-    {
-      "name": "chart",
-      "invocations": 6250,
-      "users": 481,
-      "sharePct": 0.81
+      "invocations": 7966,
+      "users": 465,
+      "sharePct": 0.85
     },
     {
       "name": "pivottable",
-      "invocations": 6030,
-      "users": 396,
-      "sharePct": 0.78
-    },
-    {
-      "name": "worksheet_style",
-      "invocations": 5764,
-      "users": 434,
-      "sharePct": 0.75
+      "invocations": 7639,
+      "users": 457,
+      "sharePct": 0.82
     },
     {
       "name": "range_link",
-      "invocations": 3130,
-      "users": 151,
-      "sharePct": 0.41
+      "invocations": 3599,
+      "users": 172,
+      "sharePct": 0.38
     }
   ],
   "heroFeatures": [
     {
       "name": "tables-ranges",
-      "invocations": 507748,
-      "users": 2608,
-      "sharePct": 66.01
+      "invocations": 607747,
+      "users": 2790,
+      "sharePct": 64.98
     },
     {
       "name": "worksheets-connections",
-      "invocations": 91198,
-      "users": 2794,
-      "sharePct": 11.86
+      "invocations": 112952,
+      "users": 3000,
+      "sharePct": 12.08
     },
     {
       "name": "pivottables-charts",
-      "invocations": 60780,
-      "users": 1514,
-      "sharePct": 7.9
+      "invocations": 77179,
+      "users": 1638,
+      "sharePct": 8.25
     },
     {
       "name": "vba",
-      "invocations": 45216,
-      "users": 780,
-      "sharePct": 5.88
+      "invocations": 60899,
+      "users": 826,
+      "sharePct": 6.51
     },
     {
       "name": "power-query",
-      "invocations": 33876,
-      "users": 450,
-      "sharePct": 4.4
+      "invocations": 40226,
+      "users": 494,
+      "sharePct": 4.3
     },
     {
       "name": "power-pivot-dax",
-      "invocations": 14288,
-      "users": 262,
-      "sharePct": 1.86
+      "invocations": 16187,
+      "users": 290,
+      "sharePct": 1.73
     },
     {
       "name": "other",
-      "invocations": 8114,
-      "users": 348,
-      "sharePct": 1.05
+      "invocations": 9986,
+      "users": 390,
+      "sharePct": 1.07
     },
     {
       "name": "agent-mode",
-      "invocations": 7742,
-      "users": 728,
-      "sharePct": 1.01
+      "invocations": 9879,
+      "users": 847,
+      "sharePct": 1.06
     },
     {
       "name": "python-in-excel",
-      "invocations": 179,
-      "users": 44,
-      "sharePct": 0.02
+      "invocations": 259,
+      "users": 54,
+      "sharePct": 0.03
     }
   ],
-  "reliability": [],
-  "failureClasses": [],
-  "legacyReliability": [
+  "reliability": [
     {
       "name": "range/set-values",
-      "actions": 111,
-      "errors": 10,
-      "errorRate": 9.01,
-      "users": 8
+      "actions": 10295,
+      "expectedNegatives": 0,
+      "failures": 373,
+      "failureRate": 3.62,
+      "inputState": 257,
+      "externalDependency": 0,
+      "timeoutCancellation": 4,
+      "excelRuntime": 45,
+      "internalProductFault": 0,
+      "unclassified": 67,
+      "users": 286
+    },
+    {
+      "name": "vba/run",
+      "actions": 3067,
+      "expectedNegatives": 0,
+      "failures": 330,
+      "failureRate": 10.76,
+      "inputState": 19,
+      "externalDependency": 0,
+      "timeoutCancellation": 133,
+      "excelRuntime": 178,
+      "internalProductFault": 0,
+      "unclassified": 0,
+      "users": 45
     },
     {
       "name": "range/set-formulas",
-      "actions": 22,
-      "errors": 6,
-      "errorRate": 27.27,
-      "users": 5
-    },
-    {
-      "name": "datamodel/evaluate",
-      "actions": 50,
-      "errors": 6,
-      "errorRate": 12,
-      "users": 1
-    },
-    {
-      "name": "worksheet/list",
-      "actions": 38,
-      "errors": 5,
-      "errorRate": 13.16,
-      "users": 14
-    },
-    {
-      "name": "file/test",
-      "actions": 13,
-      "errors": 3,
-      "errorRate": 23.08,
-      "users": 3
+      "actions": 3993,
+      "expectedNegatives": 0,
+      "failures": 286,
+      "failureRate": 7.16,
+      "inputState": 63,
+      "externalDependency": 0,
+      "timeoutCancellation": 4,
+      "excelRuntime": 157,
+      "internalProductFault": 0,
+      "unclassified": 62,
+      "users": 157
     },
     {
       "name": "range/get-values",
-      "actions": 159,
-      "errors": 3,
-      "errorRate": 1.89,
-      "users": 12
-    },
-    {
-      "name": "vba/import",
-      "actions": 2,
-      "errors": 2,
-      "errorRate": 100,
-      "users": 1
+      "actions": 15871,
+      "expectedNegatives": 0,
+      "failures": 279,
+      "failureRate": 1.76,
+      "inputState": 181,
+      "externalDependency": 0,
+      "timeoutCancellation": 10,
+      "excelRuntime": 24,
+      "internalProductFault": 0,
+      "unclassified": 64,
+      "users": 403
     },
     {
       "name": "range/get-used-range",
-      "actions": 38,
-      "errors": 2,
-      "errorRate": 5.26,
-      "users": 9
+      "actions": 2959,
+      "expectedNegatives": 0,
+      "failures": 191,
+      "failureRate": 6.45,
+      "inputState": 139,
+      "externalDependency": 0,
+      "timeoutCancellation": 2,
+      "excelRuntime": 1,
+      "internalProductFault": 0,
+      "unclassified": 49,
+      "users": 350
     },
     {
-      "name": "workbook/save-copy-as",
-      "actions": 6,
-      "errors": 2,
-      "errorRate": 33.33,
-      "users": 2
-    },
-    {
-      "name": "pivottable/refresh",
-      "actions": 4,
-      "errors": 1,
-      "errorRate": 25,
-      "users": 2
-    },
-    {
-      "name": "range_edit/find",
-      "actions": 14,
-      "errors": 1,
-      "errorRate": 7.14,
-      "users": 2
-    },
-    {
-      "name": "datamodel/create-measure",
-      "actions": 33,
-      "errors": 1,
-      "errorRate": 3.03,
-      "users": 1
-    },
-    {
-      "name": "screenshot/capture-sheet",
-      "actions": 7,
-      "errors": 1,
-      "errorRate": 14.29,
-      "users": 5
-    },
-    {
-      "name": "range_edit/insert-rows",
-      "actions": 3,
-      "errors": 1,
-      "errorRate": 33.33,
-      "users": 2
+      "name": "worksheet/list",
+      "actions": 1994,
+      "expectedNegatives": 0,
+      "failures": 173,
+      "failureRate": 8.68,
+      "inputState": 159,
+      "externalDependency": 0,
+      "timeoutCancellation": 4,
+      "excelRuntime": 9,
+      "internalProductFault": 0,
+      "unclassified": 1,
+      "users": 438
     },
     {
       "name": "range_format/format-range",
-      "actions": 38,
-      "errors": 1,
-      "errorRate": 2.63,
-      "users": 6
+      "actions": 2822,
+      "expectedNegatives": 0,
+      "failures": 169,
+      "failureRate": 5.99,
+      "inputState": 160,
+      "externalDependency": 0,
+      "timeoutCancellation": 7,
+      "excelRuntime": 2,
+      "internalProductFault": 0,
+      "unclassified": 0,
+      "users": 160
     },
     {
-      "name": "pivottable_field/add-value-field",
-      "actions": 2,
-      "errors": 1,
-      "errorRate": 50,
-      "users": 1
+      "name": "datamodel/evaluate",
+      "actions": 578,
+      "expectedNegatives": 0,
+      "failures": 112,
+      "failureRate": 19.38,
+      "inputState": 5,
+      "externalDependency": 0,
+      "timeoutCancellation": 1,
+      "excelRuntime": 72,
+      "internalProductFault": 0,
+      "unclassified": 34,
+      "users": 37
     },
     {
-      "name": "file/create",
-      "actions": 8,
-      "errors": 1,
-      "errorRate": 12.5,
-      "users": 7
+      "name": "range_edit/find",
+      "actions": 1656,
+      "expectedNegatives": 0,
+      "failures": 106,
+      "failureRate": 6.4,
+      "inputState": 93,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 2,
+      "internalProductFault": 0,
+      "unclassified": 11,
+      "users": 101
+    },
+    {
+      "name": "powerquery/evaluate",
+      "actions": 656,
+      "expectedNegatives": 0,
+      "failures": 104,
+      "failureRate": 15.85,
+      "inputState": 13,
+      "externalDependency": 0,
+      "timeoutCancellation": 17,
+      "excelRuntime": 52,
+      "internalProductFault": 0,
+      "unclassified": 22,
+      "users": 50
     },
     {
       "name": "range/get-formulas",
-      "actions": 19,
-      "errors": 1,
-      "errorRate": 5.26,
-      "users": 8
-    }
-  ],
-  "legacyVersionReliability": [
+      "actions": 3343,
+      "expectedNegatives": 0,
+      "failures": 91,
+      "failureRate": 2.72,
+      "inputState": 11,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 48,
+      "internalProductFault": 0,
+      "unclassified": 32,
+      "users": 182
+    },
     {
-      "version": "2.0.3",
-      "actions": 1018,
-      "errors": 48,
-      "errorRate": 4.72,
-      "users": 17
+      "name": "vba/list",
+      "actions": 382,
+      "expectedNegatives": 0,
+      "failures": 68,
+      "failureRate": 17.8,
+      "inputState": 14,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 9,
+      "internalProductFault": 0,
+      "unclassified": 45,
+      "users": 76
+    },
+    {
+      "name": "file/create",
+      "actions": 536,
+      "expectedNegatives": 0,
+      "failures": 64,
+      "failureRate": 11.94,
+      "inputState": 30,
+      "externalDependency": 0,
+      "timeoutCancellation": 14,
+      "excelRuntime": 0,
+      "internalProductFault": 0,
+      "unclassified": 20,
+      "users": 171
+    },
+    {
+      "name": "vba/import",
+      "actions": 875,
+      "expectedNegatives": 0,
+      "failures": 62,
+      "failureRate": 7.09,
+      "inputState": 6,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 12,
+      "internalProductFault": 0,
+      "unclassified": 44,
+      "users": 59
+    },
+    {
+      "name": "range_format/set-column-width",
+      "actions": 1849,
+      "expectedNegatives": 0,
+      "failures": 53,
+      "failureRate": 2.87,
+      "inputState": 51,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 2,
+      "internalProductFault": 0,
+      "unclassified": 0,
+      "users": 117
+    },
+    {
+      "name": "pivottable_field/add-row-field",
+      "actions": 395,
+      "expectedNegatives": 0,
+      "failures": 52,
+      "failureRate": 13.16,
+      "inputState": 1,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 3,
+      "internalProductFault": 0,
+      "unclassified": 48,
+      "users": 48
+    },
+    {
+      "name": "chart/list",
+      "actions": 318,
+      "expectedNegatives": 0,
+      "failures": 52,
+      "failureRate": 16.35,
+      "inputState": 50,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 1,
+      "internalProductFault": 0,
+      "unclassified": 1,
+      "users": 47
+    },
+    {
+      "name": "range/clear-contents",
+      "actions": 1594,
+      "expectedNegatives": 0,
+      "failures": 43,
+      "failureRate": 2.7,
+      "inputState": 19,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 14,
+      "internalProductFault": 0,
+      "unclassified": 10,
+      "users": 113
+    },
+    {
+      "name": "worksheet/copy-to-file",
+      "actions": 119,
+      "expectedNegatives": 0,
+      "failures": 41,
+      "failureRate": 34.45,
+      "inputState": 0,
+      "externalDependency": 0,
+      "timeoutCancellation": 2,
+      "excelRuntime": 0,
+      "internalProductFault": 0,
+      "unclassified": 39,
+      "users": 13
+    },
+    {
+      "name": "vba/update",
+      "actions": 1360,
+      "expectedNegatives": 0,
+      "failures": 40,
+      "failureRate": 2.94,
+      "inputState": 22,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 5,
+      "internalProductFault": 0,
+      "unclassified": 13,
+      "users": 37
     }
   ],
-  "versionReliability": [],
+  "failureClasses": [
+    {
+      "name": "input-state",
+      "actions": 2009,
+      "users": 287
+    },
+    {
+      "name": "excel-runtime",
+      "actions": 978,
+      "users": 182
+    },
+    {
+      "name": "unclassified",
+      "actions": 886,
+      "users": 211
+    },
+    {
+      "name": "timeout-cancellation",
+      "actions": 284,
+      "users": 77
+    },
+    {
+      "name": "expected-negative",
+      "actions": 240,
+      "users": 108
+    }
+  ],
+  "versionReliability": [
+    {
+      "version": "2.0.5",
+      "actions": 47319,
+      "expectedNegatives": 86,
+      "failures": 2197,
+      "failureRate": 4.64,
+      "inputState": 1111,
+      "externalDependency": 0,
+      "timeoutCancellation": 166,
+      "excelRuntime": 541,
+      "internalProductFault": 0,
+      "unclassified": 379,
+      "users": 282
+    },
+    {
+      "version": "2.0.7",
+      "actions": 42114,
+      "expectedNegatives": 154,
+      "failures": 1960,
+      "failureRate": 4.65,
+      "inputState": 898,
+      "externalDependency": 0,
+      "timeoutCancellation": 118,
+      "excelRuntime": 437,
+      "internalProductFault": 0,
+      "unclassified": 507,
+      "users": 337
+    },
+    {
+      "version": "2.0.6",
+      "actions": 28,
+      "expectedNegatives": 0,
+      "failures": 0,
+      "failureRate": 0,
+      "inputState": 0,
+      "externalDependency": 0,
+      "timeoutCancellation": 0,
+      "excelRuntime": 0,
+      "internalProductFault": 0,
+      "unclassified": 0,
+      "users": 2
+    }
+  ],
   "exceptions": [],
-  "interpretation": "## What changed\n\nOver the last 90 days, 2,916 users asked Excel MCP to carry out 837,077 meaningful actions. 60.34 percent used it on at least two different days. This suggests that many people continue using the project after first trying it.\n\nGrowth remained strong in the latest 14 days. Users increased from 1,107 to 1,280, a rise of 15.63 percent. Actions increased from 201,195 to 282,279, a larger rise of 40.3 percent.\n\n## How well it worked\n\nCategorized reliability begins with release 2.0.5. Earlier releases did not record the safe outcome labels needed to separate expected results from product failures, so their rows are not reclassified. There is not yet enough categorized data to describe release reliability.\n\n## How people use it\n\nTables and ranges account for 66.01 percent of meaningful actions. Worksheets and connections add 11.86 percent, while PivotTables and charts add 7.9 percent. Practical spreadsheet work is clearly the center of how people use Excel MCP.\n\nUse also reaches specialist features. VBA macros account for 5.88 percent of actions, Power Query for 4.4 percent, and Power Pivot and DAX for 1.86 percent.\n\n## What we will improve\n\nWe will use the new categories to separate caller-correctable results, Excel or outside-service problems, and Excel MCP faults. Unknown failures will remain visible rather than being guessed. Excel performance work is deliberately deferred unless later evidence shows a problem owned by Excel MCP.",
+  "interpretation": "## What changed\n\nOver the last 90 days, 2,799 people used the add-in and carried out 920,072 actions in Excel. About 63.1 percent of these people came back more than once, which suggests the tool is becoming a regular habit for many users rather than something tried once and dropped.\n\nWeekly use grew from 212 people in mid-June to about 830 in mid-August, with actions peaking near 129,029 in one week. In the most recent full week, use fell to 512 people and 85,833 actions. The newest two-week period also shows fewer people (911) and fewer actions (181,751) than the two weeks before (1,273 people, 285,084 actions). This drop is worth watching, though the data alone cannot explain why it happened.\n\nPeople also kept moving to newer releases. Older versions faded out over the weeks while release 2.0.7 became most common in the latest week, at 209 people, suggesting users are generally willing to upgrade.\n\n## How well it worked\n\nReliable outcome tracking only exists for actions from release 2.0.5 onward, starting late August. Earlier releases are not included here because they lack outcome labels, so we cannot say how reliable they were.\n\nWithin the tracked period, 240 results were expected to come back empty or negative (such as a search finding nothing) and are not counted as failures. The true failures fall into known groups: 2,009 tied to the workbook or data being in an unexpected state, 978 tied to Excel itself, and 284 tied to timeouts or cancellations. No failures were linked to outside services or to faults in the product's own code during this period. Still, 886 failures could not be placed in any known group, so this \"unclassified\" total stays visible rather than hidden, and closing that gap deserves continued attention.\n\nThe two main tracked releases had similar failure rates: 4.64 percent for 2.0.5 and 4.65 percent for 2.0.7. This suggests reliability has stayed roughly steady across the two most recent releases, though only a couple of weeks of data exist so far.\n\n## How people use it\n\nPeople spend most of their time working with tables and cell ranges, which made up 64.98 percent of all actions and reached 2,790 people. Worksheets and connections came next at 12.08 percent, followed by pivot tables and charts at 8.25 percent.\n\nSome activity points to more advanced use. Running VBA macros reached only 461 people but produced 23,030 actions, meaning a small group used it heavily, suggesting power users automating repetitive work. Power Query use (8,134 actions among 319 people) and data-model or DAX-style work (16,187 actions among 290 people) show a similar pattern. A small number of people, 54 in total, tried running Python code inside Excel, suggesting early interest in a still-emerging feature. By contrast, everyday actions like reading cell values and listing worksheets were spread across thousands of people, suggesting most users stick to routine, lighter tasks while a smaller group goes further.\n\n## What we will improve\n\nBecause outcome tracking only began with release 2.0.5, we plan to keep collecting this data so future updates can compare reliability across more releases with confidence, rather than relying on just the most recent ones.\n\nWe also plan to keep working on reducing the 886 unclassified failures so more results fall into a known group. Finally, we will keep an eye on the recent dip in weekly users and actions to see whether it continues or reverses in the coming weeks.",
   "interpretationModel": "GitHub Copilot CLI"
 }
