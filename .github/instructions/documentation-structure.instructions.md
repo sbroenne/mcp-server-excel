@@ -18,6 +18,8 @@ excludeAgent: "code-review"
   `SITE_PAGE_MAP`, wrapper snippet, MkDocs nav, and deploy path filter to agree.
   Use local website links for published targets.
 
+Authoring procedures: `docs/CONTRIBUTING.md` and `gh-pages/README.md`.
+
 Website checks, from `gh-pages`:
 
 ```powershell

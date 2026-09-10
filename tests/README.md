@@ -188,6 +188,34 @@ Get-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Na
 
 ## Key Principles
 
+### Designing a regression test
+
+Reproduce the reported failure before changing the implementation. Cover
+meaningful boundary and error cases, plus both entry points when the contract
+crosses CLI and MCP. There is no fixed test quota.
+
+Assert resulting workbook state and relevant returned fields rather than only
+`Success`. For update/replace behavior, assert both that old content is absent
+and that new content is exact. Error assertions should distinguish the intended
+failure from other exceptions instead of accepting incompatible outcomes.
+
+Use a unique workbook with the established feature fixture. Combining
+`IClassFixture<T>` and a collection fixture on the same class can create competing
+Excel sessions. Follow neighboring trait conventions and the COM cleanup rules
+for any references acquired by the test itself.
+
+For in-memory changes, inspect the same batch without saving. For persistence,
+save and close, reopen in a new batch, then assert the state; do not open the
+same workbook in two live batches. Use `.xlsm` for VBA persistence.
+
+### Diagnosing a failing test
+
+Run the failure alone before broadening the run. Check workbook isolation,
+fixture selection, actual Excel state, cleanup, and whether the assertion needs
+a save/reopen cycle. Inspect fallback/retry paths when a primary-path fix is
+insufficient. Do not hide a deterministic failure with skip/xfail or loosen an
+assertion merely to make it pass.
+
 - ✅ **File Isolation** - Each test creates unique file (no sharing)
 - ✅ **Binary Assertions** - Pass OR fail, never "accept both"
 - ✅ **Verify Excel State** - Always verify actual Excel state after operations

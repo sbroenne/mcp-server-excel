@@ -19,3 +19,5 @@ excludeAgent: "code-review"
 - Descriptions add server-specific constraints and tool-selection hints, not
   types/enums already in the schema. No emojis in generated guidance/XML docs.
   Keep destructive/read-only metadata accurate.
+
+Manual routing example and explanation: `docs/DEVELOPMENT.md`.

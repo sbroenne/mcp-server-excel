@@ -17,3 +17,5 @@ excludeAgent: "code-review"
   fail rather than select a default.
 - Never return credentials or unsanitized connection strings, even if an
   existing code path does so.
+
+Examples and contributor conventions: `docs/CONTRIBUTING.md`.

@@ -7,6 +7,57 @@ the repo (root `README.md`, `FEATURES.md`, `docs/features/`, package READMEs,
 The canonical feature reference is organized into intent-based pages under `docs/features/`;
 `hooks.py` adapts those pages for the website without copying operation details.
 
+## Publishing canonical documentation
+
+Write operational content once in its repository source. Pages under
+`gh-pages/docs/` own presentation: metadata, navigation, images, and Material
+components. Preserve substantive examples and caveats at their canonical
+destination before shortening or moving a page.
+
+To add or move a published document:
+
+1. Update the canonical source and links pointing to it.
+2. Register it in the appropriate source map or `_write()` step in `hooks.py`.
+3. Add its repository path to `SITE_PAGE_MAP`, so repository-relative links
+   become local website links.
+4. Create a thin wrapper under `gh-pages/docs/` with metadata, one H1, and the
+   generated snippet.
+5. Update `nav` in `mkdocs.yml` and the deploy workflow's source path filters.
+6. Run the strict build and both checks described below.
+
+Example wrapper:
+
+```markdown
+---
+title: Page Title
+description: What this page helps the reader do.
+keywords: relevant, search terms
+---
+
+# Page Title
+
+--8<-- "_generated/page-name.md"
+```
+
+The hook writes snippets to gitignored `docs/_generated/`; do not edit those
+files. Use local site links for published documents and GitHub links for source
+code, issues, or documents without a site page.
+
+### Generated reader and agent outputs
+
+| Output | Source and purpose |
+|--------|--------------------|
+| `llms.txt` | Navigation-ordered page index and descriptions |
+| `llms-full.txt` | Full Markdown with snippet content resolved |
+| Page `index.md` mirrors | Markdown alternatives to rendered HTML |
+| `tools.json` | Tool/operation catalogue derived from canonical feature references |
+| FAQ structured data | Troubleshooting question blocks |
+
+These are generated, not separately maintained. `tools.json` generation checks
+feature operation totals against the headline count in `FEATURES.md`. The
+repository's `scripts/check-doc-counts.ps1` checks advertised counts against
+code-derived metadata; do not substitute manual file or folder counts.
+
 ## Theme overrides
 
 `overrides/` holds the templates that change MkDocs/Material output:

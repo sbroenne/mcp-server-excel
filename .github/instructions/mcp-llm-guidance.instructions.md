@@ -22,3 +22,5 @@ tool disambiguation, server-specific semantics, pitfalls, and recovery.
 No enum catalogs, generic Excel tutorials, duplicated CLI help, or emojis.
 Rebuild Release after source edits; run affected evaluations when discovery or
 workflow selection changes.
+
+Generation pipeline and authoring procedure: `skills/README.md`.

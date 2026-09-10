@@ -35,3 +35,5 @@ separately because they use desktop/clipboard resources.
 
 Do not call `batch.Save()` for in-memory assertions. When testing persistence,
 save/close and reopen in a new batch before asserting. Use `.xlsm` for VBA.
+
+Test design and failure investigation: `tests/README.md`.

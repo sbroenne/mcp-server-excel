@@ -293,6 +293,50 @@ When adding a new service category to Core:
 - ✅ Add non-COM tests for Excel-independent behavior
 
 
+## MCP tool implementation
+
+Most MCP tools come from the Core contract and source generator. Add manual
+routing only when a tool owns additional metadata or atomic operations that do
+not require a session. MCP calls the shared service in-process; it does not
+connect to the CLI daemon.
+
+For a manual tool, scope the SDK cancellation token, enter the shared execution
+boundary, and delegate to the generated route. For example, this helper lists
+worksheets through the existing Sheet route:
+
+```csharp
+public static string ListWorksheets(
+    string session_id,
+    CancellationToken cancellationToken = default)
+{
+    using var cancellationScope =
+        ExcelToolsBase.PushCancellationToken(cancellationToken);
+
+    return ExcelToolsBase.ExecuteToolAction(
+        "worksheet",
+        ServiceRegistry.Sheet.ToActionString(SheetAction.List),
+        () => ServiceRegistry.Sheet.RouteAction(
+            SheetAction.List,
+            session_id,
+            ExcelToolsBase.ForwardToServiceFunc));
+}
+```
+
+`ExecuteToolAction` supplies common telemetry and error handling. Use shared
+`JsonOptions` for additional payloads. Tool execution failures return structured
+JSON with `success: false` and `isError: true`; preserve Service categories,
+HRESULTs, inner context, and retry information. Invalid input or unknown actions
+may use the established argument/protocol exception path.
+
+Tool and parameter descriptions should explain server-specific behavior,
+constraints, and differences between overlapping tools. Types and enum values
+already appear in the schema. Keep destructive/read-only metadata accurate.
+All MCP stdio diagnostics, including bootstrap/startup output, go to stderr;
+stdout is reserved for JSON-RPC.
+
+For generated skill and prompt content, see
+[Maintaining skills and MCP prompts](../skills/README.md#maintaining-skills-and-mcp-prompts).
+
 ## 📋 **MCP Registry Manifest**
 
 `src/ExcelMcp.McpServer/.mcp/server.json` describes the published NuGet package
