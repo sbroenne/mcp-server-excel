@@ -137,31 +137,33 @@ tests/
 **During Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
-dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
-dotnet test --filter "Feature=DataModel&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=DataModel&RunType!=OnDemand"
 ```
 
-**Before Commit (Comprehensive):**
-```powershell
-# Full local validation - runs in 10-20 minutes (excludes VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-```
+**Before Commit:** Rerun the affected tests and applicable repository checks.
+Follow the [repository validation requirements](../.github/copilot-instructions.md#build-and-validation)
+for runtime E2E. Do not run the full Excel integration suite during iteration.
+Use a hard execution timeout for every Excel-dependent test run.
 
 **Session/Batch Code Changes (MANDATORY):**
 ```powershell
 # When modifying ExcelSession.cs or ExcelBatch.cs
-dotnet test --filter "RunType=OnDemand"
+dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 ```
 
 ### **Test Categories & Guidelines**
 
-**⚠️ No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
+Use real Excel integration tests for COM behavior and focused non-COM tests for
+pure parsing, mapping, serialization, and generation. The blanket unit-test ban
+in [ADR-001](ADR-001-NO-UNIT-TESTS.md) is superseded by the
+[current testing strategy](../.github/instructions/testing-strategy.instructions.md).
 
 **Integration Tests (`Category=Integration`)**
 - ✅ Test business logic with real Excel COM interaction
 - ✅ Medium speed (10-20 minutes for full suite)
 - ✅ Requires Excel installation
-- ✅ These ARE our unit tests (Excel COM cannot be mocked)
+- ✅ Mocks do not establish Excel COM behavior
 - ✅ Run specific features during development
 - ✅ Slow execution (3-10 minutes each)
 - ✅ Verifies actual Excel state changes
@@ -169,7 +171,8 @@ dotnet test --filter "RunType=OnDemand"
 
 ### **Adding New Tests**
 
-When creating tests, use real Excel and all required traits:
+When creating COM integration tests, use real Excel and all required traits.
+For pure logic, follow nearby non-COM tests and mark `RequiresExcel=false`.
 
 ```csharp
 // Integration test example
@@ -189,8 +192,8 @@ public class PowerQueryCommandsTests
 Before creating a PR, ensure:
 
 ```powershell
-# Required - Integration tests pass (excludes VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+# Example: select the project and feature affected by the change
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
 
 # Code builds without warnings
 dotnet build -c Release
@@ -217,9 +220,9 @@ worktrees cannot stop each other's daemon or Excel instances.
 
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
-- ✅ Test round-trip persistence (create → save → reload → verify)
+- ✅ Test round-trip persistence when saving is the behavior under test
 - ✅ Update documentation
-- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+- ✅ Add non-COM tests for Excel-independent behavior
 
 ## 🔧 **CLI Command Code Generation**
 
@@ -285,9 +288,9 @@ When adding a new service category to Core:
 
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
-- ✅ Test round-trip persistence (create → save → reload → verify)
+- ✅ Test round-trip persistence when saving is the behavior under test
 - ✅ Update documentation
-- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+- ✅ Add non-COM tests for Excel-independent behavior
 
 
 ## 📋 **MCP Registry Manifest**

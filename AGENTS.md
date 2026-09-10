@@ -10,4 +10,7 @@ Work requests are tracked in this repository's GitHub Issues. See `docs/agents/i
 
 ### Domain docs
 
-This repository uses a single project-wide context. See `docs/agents/domain.md`.
+Before exploring code, read `CONTEXT.md` and relevant decisions matching
+`docs/ADR-*.md`. Use the context glossary and the current decision status; if a
+proposal conflicts with an accepted decision, state the conflict rather than
+silently overriding it.
