@@ -1,6 +1,8 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
@@ -556,37 +558,35 @@ public partial class RangeCommandsTests
         Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    // === FORMULA2 REGRESSION TESTS (implicit intersection @ operator) ===
+    // === TABLE FORMULA COMPATIBILITY TESTS ===
 
     [Fact]
-    public void SetFormulas_InExcelTable_DoesNotInjectImplicitIntersectionOperator()
+    public void SetFormulas_InExcelTable_UsesSessionFormulaSemantics()
     {
         // Regression test: Range.Formula (legacy) injects @ implicit intersection operator
         // inside Excel Tables, causing #FIELD! errors with custom functions that return
         // entity cards. Range.Formula2 (modern) respects dynamic array semantics.
-        // See: https://github.com/sbroenne/mcp-server-excel/issues/XXX
 
         // Arrange - create a sheet with data and an Excel Table
-        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        using var batch = ExcelSession.BeginBatch(_fixture.CreateTestFile());
         var sheetName = _fixture.CreateTestSheet(batch);
+        bool supportsFormula2 = batch.Execute((ctx, ct) => ctx.Capabilities.SupportsFormula2);
 
         // Set up data first
-        _commands.SetValues(batch, sheetName, "A1:B4",
+        _commands.SetValues(batch, sheetName, "A1:C4",
         [
-            ["Name", "Value"],
-            ["Alpha", 10],
-            ["Beta", 20],
-            ["Gamma", 30]
+            ["Name", "Value", "Doubled"],
+            ["Alpha", 10, null],
+            ["Beta", 20, null],
+            ["Gamma", 30, null]
         ]);
 
         // Create an Excel Table over the data
         var tableCommands = new TableCommands();
-        var tableResult = tableCommands.Create(batch, sheetName, "Formula2TestTable", "A1:B4");
+        var tableResult = tableCommands.Create(batch, sheetName, "Formula2TestTable", "A1:C4");
         Assert.True(tableResult.Success);
 
         // Act - set formulas INSIDE the table (column C, within table range)
-        // First expand the data range to include column C
-        _commands.SetValues(batch, sheetName, "C1", [["Doubled"]]);
         var setResult = _commands.SetFormulas(batch, sheetName, "C2:C4",
         [
             ["=B2*2"],
@@ -597,20 +597,25 @@ public partial class RangeCommandsTests
         // Assert - formulas should be set successfully
         Assert.True(setResult.Success);
 
-        // Read back formulas and verify NO @ operator was injected
         var readResult = _commands.GetFormulas(batch, sheetName, "C2:C4");
         Assert.True(readResult.Success);
+        Assert.Equal(3, readResult.Formulas.Count);
+        var legacyFormulas = supportsFormula2 ? null : ReadLegacyTableFormulas(batch, sheetName, "C2:C4");
 
         for (int i = 0; i < readResult.Formulas.Count; i++)
         {
             var formula = readResult.Formulas[i][0];
             _output.WriteLine($"C{i + 2} formula: {formula}");
 
-            // CRITICAL: Formula must NOT start with =@ (implicit intersection)
-            Assert.DoesNotContain("@", formula);
-
-            // Verify it's the expected formula
-            Assert.StartsWith("=B", formula);
+            if (supportsFormula2)
+            {
+                Assert.DoesNotContain("@", formula);
+                Assert.Equal($"=B{i + 2}*2", formula);
+            }
+            else
+            {
+                Assert.Equal(legacyFormulas![i + 1, 1], formula);
+            }
         }
 
         // Verify calculated values are correct
@@ -620,14 +625,12 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
-    public void GetFormulas_InExcelTable_DoesNotReturnImplicitIntersectionOperator()
+    public void GetFormulas_InExcelTable_UsesSessionFormulaSemantics()
     {
-        // Regression test: Range.Formula (legacy) returns formulas with @ prefix
-        // inside Excel Tables. Range.Formula2 returns them without @.
-
         // Arrange - create a sheet with data, table, and formulas
-        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        using var batch = ExcelSession.BeginBatch(_fixture.CreateTestFile());
         var sheetName = _fixture.CreateTestSheet(batch);
+        bool supportsFormula2 = batch.Execute((ctx, ct) => ctx.Capabilities.SupportsFormula2);
 
         _commands.SetValues(batch, sheetName, "A1:C4",
         [
@@ -637,7 +640,7 @@ public partial class RangeCommandsTests
             [5, 6, null]
         ]);
 
-        // Set formulas BEFORE creating table (to ensure clean formulas without @)
+        // Set formulas before creating the table, using the session's selected API.
         _commands.SetFormulas(batch, sheetName, "C2:C4",
         [
             ["=A2+B2"],
@@ -653,16 +656,24 @@ public partial class RangeCommandsTests
         // Act - read formulas back from inside the table
         var readResult = _commands.GetFormulas(batch, sheetName, "C2:C4");
 
-        // Assert - formulas should NOT contain @ operator
         Assert.True(readResult.Success);
+        Assert.Equal(3, readResult.Formulas.Count);
+        var legacyFormulas = supportsFormula2 ? null : ReadLegacyTableFormulas(batch, sheetName, "C2:C4");
 
         for (int i = 0; i < readResult.Formulas.Count; i++)
         {
             var formula = readResult.Formulas[i][0];
             _output.WriteLine($"C{i + 2} formula: {formula}");
 
-            // CRITICAL: GetFormulas must NOT return formulas with @ prefix
-            Assert.DoesNotContain("@", formula);
+            if (supportsFormula2)
+            {
+                Assert.DoesNotContain("@", formula);
+                Assert.Equal($"=A{i + 2}+B{i + 2}", formula);
+            }
+            else
+            {
+                Assert.Equal(legacyFormulas![i + 1, 1], formula);
+            }
         }
 
         // Verify calculated values
@@ -670,8 +681,26 @@ public partial class RangeCommandsTests
         Assert.Equal(7.0, Convert.ToDouble(readResult.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(11.0, Convert.ToDouble(readResult.Values[2][0], System.Globalization.CultureInfo.InvariantCulture));
     }
-}
 
+    private static object[,] ReadLegacyTableFormulas(IExcelBatch batch, string sheetName, string address) =>
+        batch.Execute((ctx, ct) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                Assert.NotNull(sheet);
+                range = sheet.Range[address];
+                return Assert.IsType<object[,]>(range.Formula);
+            }
+            finally
+            {
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+}
 
 
 

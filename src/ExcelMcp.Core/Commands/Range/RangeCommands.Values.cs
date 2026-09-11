@@ -62,7 +62,7 @@ public partial class RangeCommands
 
                             if (!formulasRead)
                             {
-                                formulaOrArray = range.Formula2;
+                                formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
                                 formulasRead = true;
                             }
 
@@ -88,7 +88,7 @@ public partial class RangeCommands
                     result.ColumnCount = 1;
                     if (ExcelErrorMapper.TryGet(valueOrArray, out int errorCode, out var error))
                     {
-                        formulaOrArray = range.Formula2;
+                        formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
                         result.Values.Add([
                             ConvertMappedErrorForRead(
                                 valueOrArray,

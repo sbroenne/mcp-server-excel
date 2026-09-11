@@ -38,10 +38,8 @@ public partial class RangeCommands
                 int startRow = Convert.ToInt32(range.Row);
                 int startColumn = Convert.ToInt32(range.Column);
 
-                // Get formulas and values - handle single cell case
-                // Use Formula2 (modern) instead of Formula (legacy) to avoid implicit intersection (@)
-                // operator being injected in Excel Table cells. Formula2 respects dynamic array semantics.
-                object formulaOrArray = range.Formula2;
+                // Preserve dynamic arrays where supported; older Excel uses legacy semantics.
+                object formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -220,10 +218,16 @@ public partial class RangeCommands
                         }
                     }
 
-                    // Use Formula2 (modern) instead of Formula (legacy) to prevent Excel from
-                    // injecting the @ implicit intersection operator in table cells, which causes
-                    // #FIELD! errors with custom functions that return entity cards.
-                    range.Formula2 = arrayFormulas;
+                    // Select before writing: a write failure can mean invalid input or protection,
+                    // not missing API support, and must never trigger a legacy retry.
+                    if (ctx.Capabilities.SupportsFormula2)
+                    {
+                        ((Excel.Range)range).Formula2 = arrayFormulas;
+                    }
+                    else
+                    {
+                        ((Excel.Range)range).Formula = arrayFormulas;
+                    }
                 }
 
                 result.Success = true;
@@ -251,4 +255,7 @@ public partial class RangeCommands
             }
         });
     }
+
+    private static object ReadFormulas(ExcelContext context, Excel.Range range) =>
+        context.Capabilities.SupportsFormula2 ? range.Formula2 : range.Formula;
 }
