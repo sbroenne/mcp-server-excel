@@ -13,7 +13,7 @@ public static partial class ExcelFileTool
     /// <summary>
     /// File and session management for Excel automation.
     ///
-    /// WORKFLOW: open → use sessionId with other tools → close (save=true to persist changes).
+    /// WORKFLOW: open → pass the returned ID as session_id to other tools → close (save=true to persist changes).
     /// NEW FILES: Use 'create' action to create file AND start session in one call.
     ///
     /// SESSION REUSE: Call 'list' first to check for existing sessions.
@@ -183,7 +183,7 @@ public static partial class ExcelFileTool
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            throw new ArgumentException("sessionId is required for 'close' action", nameof(sessionId));
+            throw new ArgumentException(SessionIdentityFilter.ErrorMessage);
         }
 
         var response = ServiceBridge.ServiceBridge.SendAsync(

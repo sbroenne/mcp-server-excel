@@ -369,6 +369,48 @@ ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 
 ---
 
+### 5. Session ID Missing Through a Client Bridge
+
+MCP tool requests use **`session_id`**, not `sessionId`. Put it directly in the
+`arguments` object of `tools/call`, alongside `action`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "workbook",
+    "arguments": {
+      "action": "get-info",
+      "session_id": "<ID returned by this server>"
+    }
+  }
+}
+```
+
+`file open/create` returns `session_id`; entries in `file list` currently use
+`sessionId`. Copy the selected entry's value into the request's `session_id`
+field. Never guess an ID or pick another workbook just because only one is listed.
+The internal name `sessionId` in an older error is not evidence that MCP accepts
+that spelling.
+
+If direct local calls work but Cowork or a remote-devices bridge fails, compare
+the request received by the server with the request before the bridge. A client
+display saying the ID was supplied does not establish what reached the server.
+Check the key name, its location, and whether its value is a non-empty string.
+Missing-session diagnostics do not restore an argument dropped by a client.
+See [#850](https://github.com/sbroenne/mcp-server-excel/issues/850) and
+[#854](https://github.com/sbroenne/mcp-server-excel/issues/854).
+
+Use only a disposable workbook for diagnosis. Do not publish raw logs or real
+session IDs, workbook paths, cell contents, or credentials. Share a sanitized
+request shape with values replaced, the versions, and whether direct calls work.
+MCP and CLI sessions are separate: the CLI cannot close an MCP-owned session.
+Avoid opening more sessions while the bridge cannot forward follow-up calls.
+
+---
+
 ## Uninstallation
 
 ```powershell
