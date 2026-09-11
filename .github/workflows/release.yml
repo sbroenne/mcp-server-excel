@@ -127,7 +127,7 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
 
     - name: Install changesets CLI
-      run: npm ci --registry https://registry.npmjs.org/
+      run: npm ci
 
     - name: Compile changesets into CHANGELOG.md
       shell: pwsh
@@ -575,7 +575,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install changesets CLI
-        run: npm ci --registry https://registry.npmjs.org/
+        run: npm ci
 
       - name: Download Prepared Changelog
         uses: actions/download-artifact@v8

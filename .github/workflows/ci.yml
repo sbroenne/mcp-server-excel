@@ -82,6 +82,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Npm lockfile portability regression tests
+        timeout-minutes: 2
+        shell: pwsh
+        run: ./scripts/Test-NpmLockfiles.ps1
+
+      - name: Npm lockfile portability
+        timeout-minutes: 2
+        shell: pwsh
+        run: ./scripts/check-npm-lockfiles.ps1
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:

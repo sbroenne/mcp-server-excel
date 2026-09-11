@@ -21,6 +21,7 @@
     12. Agent skills packaging - validates the ZIP deliverable (skipped for docs/validation-only commits)
     13. Plugin README validation - ensures overlays are complete and not stub content
     14. Dynamic cast audit - ensures ((dynamic)) casts are documented
+    15. Npm lockfile portability - rejects fixed download URLs in staged lockfiles
 
     Ensures code quality and prevents regression.
 
@@ -35,7 +36,6 @@
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 $preCommitArtifactsDir = Join-Path $rootDir "artifacts\pre-commit"
-$nugetConfigPath = Join-Path $rootDir "NuGet.Config"
 $version = $null
 
 function Invoke-ValidationStep {
@@ -139,6 +139,14 @@ if ($currentBranch -eq "main") {
 
 Write-Host "Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
 Write-Host ""
+
+Invoke-ValidationStep `
+    -Heading "Checking staged npm lockfile portability..." `
+    -FailureSummary "Npm lockfiles contain fixed download URLs or could not be checked." `
+    -SuccessSummary "Staged npm lockfile portability check passed" `
+    -Action {
+        & (Join-Path $PSScriptRoot "check-npm-lockfiles.ps1") -Staged
+    }
 
 # Stop only processes owned by the selected CLI pipe before touching Release binaries.
 Write-Host "Stopping pipe-owned ExcelMCP processes..." -ForegroundColor Cyan
@@ -280,7 +288,7 @@ Invoke-ValidationStep `
     -Action {
         Push-Location $rootDir
         try {
-            dotnet build Sbroenne.ExcelMcp.sln --configuration Release --configfile $nugetConfigPath -p:NuGetAudit=false --verbosity minimal
+            dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal
         }
         finally {
             Pop-Location
