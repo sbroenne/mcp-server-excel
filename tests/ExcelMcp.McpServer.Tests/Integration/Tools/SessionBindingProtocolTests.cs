@@ -21,6 +21,7 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
     [InlineData("calculation_mode", "get-mode", true)]
     [InlineData("powerquery", "list", true)]
     [InlineData("file", "close", false)]
+    [InlineData("worksheet", "list", false)]
     public async Task SessionId_SchemaAndWireNameAgree(string toolName, string action, bool required)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
@@ -52,6 +53,12 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
     [InlineData("calculation_mode", "get-mode")]
     [InlineData("powerquery", "list")]
     [InlineData("file", "close")]
+    [InlineData("worksheet", "list")]
+    [InlineData("worksheet", "create")]
+    [InlineData("worksheet", "rename")]
+    [InlineData("worksheet", "delete")]
+    [InlineData("worksheet", "move")]
+    [InlineData("worksheet", "copy")]
     public async Task MissingSessionId_ReturnsActionablePublicParameterName(string toolName, string action)
     {
         var invalidArguments = new[]
@@ -127,6 +134,8 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
     [InlineData("workbook", "synthetic-unknown-action")]
     [InlineData("file", null)]
     [InlineData("file", "synthetic-unknown-action")]
+    [InlineData("worksheet", null)]
+    [InlineData("worksheet", "synthetic-unknown-action")]
     public async Task InvalidActionWithoutSessionId_PreservesSdkError(string toolName, string? action)
     {
         var arguments = action is null ? new Dictionary<string, object?>() : Arguments(action);
@@ -198,6 +207,89 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
                 cancellationToken: TestCancellationToken));
         Assert.Equal(McpErrorCode.InvalidParams, exception.ErrorCode);
         Assert.DoesNotContain("session_id", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("list")]
+    [InlineData("create")]
+    [InlineData("rename")]
+    [InlineData("delete")]
+    [InlineData("move")]
+    [InlineData("copy")]
+    public async Task WorksheetSessionActions_RejectInvalidIdentity(string action)
+    {
+        foreach (var valueJson in new[] { "42", "true", "{}", "[]", "null", "\"\"", "\"   \"" })
+        {
+            var arguments = Arguments(action);
+            arguments["session_id"] = JsonSerializer.Deserialize<JsonElement>(valueJson);
+            var response = await Client!.CallToolAsync("worksheet", arguments,
+                cancellationToken: TestCancellationToken);
+            Assert.True(response.IsError);
+            var text = Assert.Single(response.Content.OfType<TextContentBlock>()).Text;
+            using var document = ParseJsonResult(text, $"worksheet.{action}");
+            AssertFailureEnvelope(document.RootElement, $"worksheet.{action}",
+                nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
+            Assert.Contains("session_id", text, StringComparison.Ordinal);
+        }
+
+        var validArguments = Arguments(action);
+        validArguments["session_id"] = "synthetic-unknown-session";
+        if (action is "create" or "delete" or "move")
+        {
+            validArguments["sheet_name"] = "Sheet1";
+        }
+        if (action == "rename")
+        {
+            validArguments["old_name"] = "Sheet1";
+            validArguments["new_name"] = "Renamed";
+        }
+        if (action == "copy")
+        {
+            validArguments["source_name"] = "Sheet1";
+            validArguments["target_name"] = "Copied";
+        }
+        if (action == "move")
+        {
+            validArguments["before_sheet"] = "Sheet2";
+        }
+        var json = await CallToolAsync("worksheet", validArguments, TimeSpan.FromSeconds(30));
+        using var result = ParseJsonResult(json, $"worksheet.{action}");
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("not found", result.RootElement.GetProperty("errorMessage").GetString(),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ListTools_OptionalSessionIdentityIsLimitedToKnownConditionalTools()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var optional = tools.Where(tool =>
+            tool.JsonSchema.GetProperty("properties").TryGetProperty("session_id", out _) &&
+            (!tool.JsonSchema.TryGetProperty("required", out var required) ||
+             !required.EnumerateArray().Any(value => value.GetString() == "session_id")))
+            .Select(tool => tool.Name).Order().ToArray();
+        Assert.Equal(["file", "worksheet"], optional);
+    }
+
+    [Theory]
+    [InlineData("copy-to-file")]
+    [InlineData("move-to-file")]
+    public async Task WorksheetFileActions_PreserveOptionalIdentity(string action)
+    {
+        var json = await CallToolAsync("worksheet", Arguments(action), TimeSpan.FromSeconds(30));
+        using var document = ParseJsonResult(json, $"worksheet.{action}");
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        var error = document.RootElement.GetProperty("errorMessage").GetString();
+        Assert.Contains("sourceFile", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("session", error, StringComparison.OrdinalIgnoreCase);
+
+        var arguments = Arguments(action);
+        arguments["session_id"] = 42;
+        var response = await Client!.CallToolAsync("worksheet", arguments,
+            cancellationToken: TestCancellationToken);
+        Assert.True(response.IsError);
+        Assert.Equal("An error occurred invoking 'worksheet'.",
+            Assert.Single(response.Content.OfType<TextContentBlock>()).Text);
     }
 
     private static Dictionary<string, object?> Arguments(string action) => new()

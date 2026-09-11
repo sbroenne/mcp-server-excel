@@ -10,6 +10,20 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// </summary>
 internal static class SessionIdentityFilter
 {
+    private static readonly Dictionary<string, HashSet<string>> ConditionalSessionActions = new(StringComparer.Ordinal)
+    {
+        ["file"] = new(StringComparer.OrdinalIgnoreCase) { "close" },
+        ["worksheet"] = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ServiceRegistry.Sheet.ListAction,
+            ServiceRegistry.Sheet.CreateAction,
+            ServiceRegistry.Sheet.RenameAction,
+            ServiceRegistry.Sheet.DeleteAction,
+            ServiceRegistry.Sheet.MoveAction,
+            ServiceRegistry.Sheet.CopyAction
+        }
+    };
+
     internal const string ErrorMessage =
         "A non-empty string session_id is required in the tools/call arguments object. " +
         "Use the ID returned by file open/create or the matching entry from file list on this MCP server. " +
@@ -30,8 +44,8 @@ internal static class SessionIdentityFilter
                  sessionId.ValueKind != JsonValueKind.String ||
                  string.IsNullOrWhiteSpace(sessionId.GetString())))
             {
-                // Validate before string binding, including file.close where the
-                // tool-level schema makes identity optional for the other actions.
+                // Validate before string binding, including action-specific requirements
+                // hidden by an optional tool-level session_id.
                 var error = ExcelToolsBase.SerializeToolError(
                     "tools/call", null, new ArgumentException(ErrorMessage));
                 return ValueTask.FromResult(new CallToolResult
@@ -47,8 +61,8 @@ internal static class SessionIdentityFilter
     private static bool RequiresSessionIdentity(Tool tool, JsonElement action) =>
         (tool.InputSchema.TryGetProperty("required", out var required) &&
          required.EnumerateArray().Any(property => property.GetString() == "session_id")) ||
-        (tool.Name == "file" &&
-         string.Equals(action.GetString(), "close", StringComparison.OrdinalIgnoreCase));
+        (ConditionalSessionActions.TryGetValue(tool.Name, out var actions) &&
+         actions.Contains(action.GetString()!));
 
     private static bool IsDeclaredAction(JsonElement schema, JsonElement action)
     {
