@@ -59,6 +59,58 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 ## 📋 Development Guidelines
 
+### Portable npm lockfiles
+
+Every npm project with a tracked lockfile needs its own `.npmrc` containing:
+
+```ini
+omit-lockfile-registry-resolved=true
+```
+
+This applies to the repository root, `vscode-extension`, and
+`videos/excel-mcp-intro`, as well as any new nested npm project. npm does not
+inherit the root project's configuration in nested projects. Preserve any
+other existing project settings; do not change registry, proxy, credentials,
+or user/global npm configuration to clean up a lockfile.
+
+Run this command **inside each affected project**:
+
+```powershell
+npm install --package-lock-only --ignore-scripts
+```
+
+Use npm to regenerate lockfiles, not search-and-replace. For portability-only
+changes, keep dependency versions and integrity hashes unchanged; do not run
+`npm update` or `npm audit fix`. Downloads then use the developer's or CI
+environment's configured registry rather than a URL saved by another machine.
+Direct URL dependencies are not portable under this policy and must use
+registry versions or local dependencies instead.
+
+Run the focused checks from the repository root (no Excel required):
+
+```powershell
+pwsh -NoProfile -File scripts\Test-NpmLockfiles.ps1
+pwsh -NoProfile -File scripts\check-npm-lockfiles.ps1
+```
+
+The required CI Gate runs both checks with two-minute limits. The pre-commit
+hook checks the staged contents with `-Staged`. The guard discovers tracked
+`package-lock.json` and `npm-shrinkwrap.json` files at any depth, excludes
+`node_modules`, and reports offending filenames without exposing URLs or
+credentials. New lockfiles must be staged before the guard can discover them.
+
+### Respect local package sources
+
+npm installs and .NET restores use the package manager's normal configuration
+hierarchy. The repository does not clear NuGet package sources or force a
+registry/source/configuration file for restores. Keep local feeds, credentials,
+proxy settings, caches, and environment settings under the developer's or CI
+environment's control; do not overwrite them to work around a restore failure.
+Report an unavailable configured feed instead.
+
+NuGet publishing commands intentionally name the public publishing destination.
+That `dotnet nuget push --source` setting is not a restore-source override.
+
 ### Code Style
 
 - **C# version** follows `Directory.Build.props` and the SDK selected by `global.json`

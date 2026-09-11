@@ -90,9 +90,23 @@ public sealed class PreCommitScriptTests
         Assert.Contains("comparison-base=merge-parent", result.CombinedOutput, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PreCommit")]
+    public async Task NpmLockfileFailure_BlocksEvenDocumentationOnlyCommitsBeforeCleanup()
+    {
+        var result = await RunHookAsync("FEATURES.md", npmLockfileFailure: true);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("npm-staged=True", result.CombinedOutput, StringComparison.Ordinal);
+        Assert.Contains("Npm lockfiles contain fixed download URLs", result.CombinedOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stopping pipe-owned", result.CombinedOutput, StringComparison.Ordinal);
+    }
+
     private static async Task<ScriptResult> RunHookAsync(
         string paths, int failureExitCode = 23, bool merging = false,
-        string failureCommand = "publish", string failureProject = "CLI", bool createArtifacts = true)
+        string failureCommand = "publish", string failureProject = "CLI", bool createArtifacts = true,
+        bool npmLockfileFailure = false)
     {
         var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcpPreCommit-{Guid.NewGuid():N}");
         var scripts = Path.Combine(sandbox, "scripts");
@@ -113,6 +127,11 @@ public sealed class PreCommitScriptTests
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"), "$global:LASTEXITCODE = 0");
             }
+            await File.WriteAllTextAsync(Path.Combine(scripts, "check-npm-lockfiles.ps1"), $$"""
+                param([switch]$Staged)
+                Write-Output "npm-staged=$Staged"
+                $global:LASTEXITCODE = {{(npmLockfileFailure ? 1 : 0)}}
+                """);
 
             // Exercise the real hook in isolation: no builds, Excel processes, or real Git state.
             var harness = $$"""
@@ -134,6 +153,10 @@ public sealed class PreCommitScriptTests
                 }
                 function global:dotnet {
                     $global:LASTEXITCODE = 0
+                    if ($args[0] -eq 'build' -and
+                        ($args -contains '--configfile' -or $args -contains '--source')) {
+                        throw 'Build must preserve inherited package sources.'
+                    }
                     if ($args[0] -eq '{{failureCommand}}' -and $args[1] -like '*ExcelMcp.{{failureProject}}\*') {
                         Write-Output '{{failureCommand}}-root-cause'
                         Write-Error '{{failureCommand}}-stderr-cause' -ErrorAction Continue
