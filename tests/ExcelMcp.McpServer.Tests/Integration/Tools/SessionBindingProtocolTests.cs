@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using Xunit;
@@ -74,10 +75,7 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
             using var document = ParseJsonResult(text, toolName);
             AssertFailureEnvelope(document.RootElement, toolName,
                 nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
-            if (toolName != "file")
-            {
-                Assert.True(response.IsError);
-            }
+            Assert.True(response.IsError);
 
             Assert.Contains("session_id", text, StringComparison.Ordinal);
             Assert.Contains("arguments", text, StringComparison.Ordinal);
@@ -125,16 +123,18 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("synthetic-unknown-action")]
-    public async Task InvalidActionWithoutSessionId_PreservesSdkError(string? action)
+    [InlineData("workbook", null)]
+    [InlineData("workbook", "synthetic-unknown-action")]
+    [InlineData("file", null)]
+    [InlineData("file", "synthetic-unknown-action")]
+    public async Task InvalidActionWithoutSessionId_PreservesSdkError(string toolName, string? action)
     {
         var arguments = action is null ? new Dictionary<string, object?>() : Arguments(action);
-        var response = await Client!.CallToolAsync("workbook", arguments,
+        var response = await Client!.CallToolAsync(toolName, arguments,
             cancellationToken: TestCancellationToken);
         Assert.True(response.IsError);
         var text = Assert.Single(response.Content.OfType<TextContentBlock>()).Text;
-        Assert.Equal("An error occurred invoking 'workbook'.", text);
+        Assert.Equal($"An error occurred invoking '{toolName}'.", text);
     }
 
     [Theory]
@@ -152,6 +152,42 @@ public sealed class SessionBindingProtocolTests(ITestOutputHelper output)
         AssertFailureEnvelope(document.RootElement, "workbook.get-info",
             nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
         Assert.Contains("session_id", text, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("42")]
+    [InlineData("true")]
+    [InlineData("{\"private\":\"synthetic-private-value\"}")]
+    [InlineData("[\"synthetic-private-value\"]")]
+    public async Task FileClose_NonStringSessionId_ReturnsStructuredInputError(string valueJson)
+    {
+        var arguments = Arguments("close");
+        arguments["session_id"] = JsonSerializer.Deserialize<JsonElement>(valueJson);
+        var response = await Client!.CallToolAsync("file", arguments,
+            cancellationToken: TestCancellationToken);
+        Assert.True(response.IsError);
+        var text = Assert.Single(response.Content.OfType<TextContentBlock>()).Text;
+        using var document = ParseJsonResult(text, "file.close");
+        AssertFailureEnvelope(document.RootElement, "file.close",
+            nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
+        Assert.Contains("session_id", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("synthetic-private-value", text, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("open")]
+    [InlineData("create")]
+    [InlineData("list")]
+    [InlineData("test")]
+    public async Task FileOptionalIdentity_MalformedValuePreservesSdkError(string action)
+    {
+        var arguments = Arguments(action);
+        arguments["session_id"] = 42;
+        var response = await Client!.CallToolAsync("file", arguments,
+            cancellationToken: TestCancellationToken);
+        Assert.True(response.IsError);
+        Assert.Equal("An error occurred invoking 'file'.",
+            Assert.Single(response.Content.OfType<TextContentBlock>()).Text);
     }
 
     [Fact]

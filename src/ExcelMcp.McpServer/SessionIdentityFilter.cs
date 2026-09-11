@@ -22,17 +22,16 @@ internal static class SessionIdentityFilter
             cancellationToken.ThrowIfCancellationRequested();
 
             if (request.MatchedPrimitive is McpServerTool tool &&
-                tool.ProtocolTool.InputSchema.TryGetProperty("required", out var required) &&
-                required.EnumerateArray().Any(property => property.GetString() == "session_id") &&
                 request.Params?.Arguments is { } arguments &&
                 arguments.TryGetValue("action", out var action) &&
                 IsDeclaredAction(tool.ProtocolTool.InputSchema, action) &&
+                RequiresSessionIdentity(tool.ProtocolTool, action) &&
                 (!arguments.TryGetValue("session_id", out var sessionId) ||
                  sessionId.ValueKind != JsonValueKind.String ||
                  string.IsNullOrWhiteSpace(sessionId.GetString())))
             {
-                // Only schema-required session identity is checked here. Action-specific
-                // optional identity (file.close) stays with its existing handler.
+                // Validate before string binding, including file.close where the
+                // tool-level schema makes identity optional for the other actions.
                 var error = ExcelToolsBase.SerializeToolError(
                     "tools/call", null, new ArgumentException(ErrorMessage));
                 return ValueTask.FromResult(new CallToolResult
@@ -44,6 +43,12 @@ internal static class SessionIdentityFilter
 
             return next(request, cancellationToken);
         };
+
+    private static bool RequiresSessionIdentity(Tool tool, JsonElement action) =>
+        (tool.InputSchema.TryGetProperty("required", out var required) &&
+         required.EnumerateArray().Any(property => property.GetString() == "session_id")) ||
+        (tool.Name == "file" &&
+         string.Equals(action.GetString(), "close", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsDeclaredAction(JsonElement schema, JsonElement action)
     {
