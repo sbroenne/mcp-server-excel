@@ -41,15 +41,16 @@ log = logging.getLogger("mkdocs.hooks.generate")
 # fields in sync with the VideoObject JSON-LD in docs/index.md.
 VIDEO = {
     "page_url": "https://excelmcpserver.dev/",
-    "thumbnail": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
-    "title": "Introducing MCP Server for Excel - AI Coding for Excel",
+    "thumbnail": "https://i.ytimg.com/vi/6WcYtwhAw1I/maxresdefault.jpg",
+    "title": "Excel MCP Server: Real Excel Automation for AI Agents",
     "description": (
-        "See Excel MCP Server drive the real Microsoft Excel application from an "
-        "AI assistant - Power Query, DAX, VBA, PivotTables and more."
+        "Learn what Excel MCP Server is, when to use it, and how AI agents automate "
+        "Power Query, DAX, PivotTables, VBA, Python, and calculations through real "
+        "Microsoft Excel."
     ),
-    "player_loc": "https://www.youtube.com/embed/B6eIQ5BIbNc",
-    "duration": "62",
-    "publication_date": "2025-11-23T08:33:40-08:00",
+    "player_loc": "https://www.youtube.com/embed/6WcYtwhAw1I",
+    "duration": "121",
+    "publication_date": "2026-09-10T22:30:29-07:00",
 }
 
 # gh-pages/hooks.py -> gh-pages/ -> repo root

@@ -1,0 +1,7 @@
+Excel MCP: your workbook is more than cells.
+One synthetic sales workbook. Power Query preparation, Data Model and DAX,
+PivotTables and native charts, VBA workflows, Python in Excel, real calculation.
+Preserve workbook features. MCP and excelcli are equal entry points.
+Warm female English narration, no music, 90 seconds, white editorial canvas,
+Excel green accent, matching the supplied sister PowerPoint MCP visual style.
+No website scraping; provided reference and genuine Excel evidence only.

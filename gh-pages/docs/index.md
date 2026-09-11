@@ -30,22 +30,22 @@ hide:
     say *"Show me Excel while you work."*
 
 <div class="mcp-video" markdown>
-[![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg){ width="1280" height="720" }](https://youtu.be/B6eIQ5BIbNc)
+[![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/6WcYtwhAw1I/maxresdefault.jpg){ width="1280" height="720" }](https://youtu.be/6WcYtwhAw1I)
 
-▶️ [Watch the intro video (1 min)](https://youtu.be/B6eIQ5BIbNc)
+▶️ [Watch the intro video (2 min)](https://youtu.be/6WcYtwhAw1I)
 </div>
 
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "VideoObject",
-  "name": "Introducing MCP Server for Excel - AI Coding for Excel",
-  "description": "See Excel MCP Server drive the real Microsoft Excel application from an AI assistant - Power Query, DAX, VBA, PivotTables and more.",
-  "thumbnailUrl": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
-  "uploadDate": "2025-11-23T08:33:40-08:00",
-  "duration": "PT1M2S",
-  "contentUrl": "https://www.youtube.com/watch?v=B6eIQ5BIbNc",
-  "embedUrl": "https://www.youtube.com/embed/B6eIQ5BIbNc",
+  "name": "Excel MCP Server: Real Excel Automation for AI Agents",
+  "description": "Learn what Excel MCP Server is, when to use it, and how AI agents automate Power Query, DAX, PivotTables, VBA, Python, and calculations through real Microsoft Excel.",
+  "thumbnailUrl": "https://i.ytimg.com/vi/6WcYtwhAw1I/maxresdefault.jpg",
+  "uploadDate": "2026-09-10T22:30:29-07:00",
+  "duration": "PT2M1S",
+  "contentUrl": "https://www.youtube.com/watch?v=6WcYtwhAw1I",
+  "embedUrl": "https://www.youtube.com/embed/6WcYtwhAw1I",
   "publisher": {
     "@type": "Organization",
     "name": "Excel MCP Server",

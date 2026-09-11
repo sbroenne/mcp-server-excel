@@ -1,0 +1,11 @@
+{
+  "name": "excel-mcp-intro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.27 preview",
+    "check": "npx --yes hyperframes@0.8.27 check",
+    "render": "npx --yes hyperframes@0.8.27 render",
+    "publish": "npx --yes hyperframes@0.8.27 publish"
+  }
+}

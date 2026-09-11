@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1920,height=1080">
+<title>Excel MCP — Real Excel</title><script src="assets/vendor/gsap.min.js"></script><style>*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#fff}
+body{font-family:"Segoe UI",Arial,sans-serif;color:#101714}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#fff}
+.scene{position:absolute;inset:0;padding:72px 86px;background:#fff;visibility:hidden;transform-origin:center}
+.scene.dark{background:#14251c;color:#fff}
+.kicker{font:26px "Cascadia Mono",Consolas,monospace;letter-spacing:3px;text-transform:uppercase;color:#107c41;margin-bottom:35px}
+.kicker:before{content:"✱ ";font-size:30px}
+h1{font-size:158px;line-height:.99;letter-spacing:-7px;font-weight:400}
+h2{font-size:92px;line-height:1.08;letter-spacing:-3px;font-weight:400}
+em{font-style:normal;color:#107c41}
+.dark em{color:#86d3a5}
+.lead{font-size:38px;line-height:1.35;margin-top:32px;color:#3c5145}
+.hero-copy{position:absolute;left:86px;top:238px}
+.intro-definition{font-size:34px;line-height:1.4;margin-top:30px;color:#3c5145}
+.comparison-row{display:flex;gap:42px;margin-top:40px}
+.comparison-card{width:850px;padding:30px 34px;border:1px solid #bfcfc5}
+.comparison-card h3{font-size:37px;font-weight:500;margin-top:18px}
+.comparison-card p{font-size:31px;line-height:1.4;margin-top:13px;color:#3c5145}
+.comparison-card .secondary-heading{font-size:32px;margin-top:24px}
+.excel-engine{border-top:5px solid #107c41;background:#f4f9f6}
+.engine-features{display:flex;gap:22px;margin-top:32px;font:27px "Cascadia Mono",Consolas,monospace;color:#205236}
+.engine-features span{border-bottom:2px solid #107c41;padding-bottom:10px}
+.comparison-footer{font-size:30px;margin-top:30px;color:#3c5145;text-align:center}
+.fit-list{position:absolute;left:86px;top:436px;width:1030px}
+.fit-item{font-size:40px;padding:22px 0;border-bottom:1px solid #bfcfc5}
+.fit-alternative{position:absolute;left:1200px;top:300px;width:625px;padding:34px;border:1px solid #bfcfc5;background:#f4f9f6}
+.fit-alternative .mono{font-size:23px}
+.fit-alternative h3{font-size:51px;line-height:1.18;font-weight:400;margin-top:26px}
+.fit-alternative p{font-size:31px;line-height:1.4;margin-top:25px}
+.fit-requirement{position:absolute;left:86px;top:827px;font:28px "Cascadia Mono",Consolas,monospace;color:#205236}
+.hero-evidence{position:absolute;left:1030px;top:260px;width:780px;border:1px solid #d4ded8;background:#fff;box-shadow:0 12px 38px #1017140c}
+.hero-evidence img{width:100%;display:block}
+.proof-label{padding:17px 22px;background:#e6f2ea;color:#205236;font:23px "Cascadia Mono",Consolas,monospace}
+.foot-label{position:absolute;left:86px;bottom:154px;font:26px "Cascadia Mono",Consolas,monospace;color:#496251}
+.scene-number{position:absolute;right:86px;top:78px;font:24px "Cascadia Mono",Consolas,monospace;color:#4b6855}
+.dark .scene-number{color:#bdd1c4}
+.interface-row{display:flex;gap:42px;margin-top:44px}
+.interface{width:850px;padding:36px;border:1px solid #bfcfc5;border-top:5px solid #107c41}
+.mono{font:25px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
+.request{font-size:44px;line-height:1.35;margin:28px 0}
+.tag{display:inline-block;padding:10px 18px;border:1px solid #9cbda8;color:#205236;background:#eff7f2;font:25px "Cascadia Mono",Consolas,monospace}
+.workbook-chip{font:32px "Cascadia Mono",Consolas,monospace;text-align:center;margin-top:46px;color:#234f34}
+.workbook-chip span{padding:0 30px;color:#107c41}
+.split-copy{position:absolute;left:86px;top:190px;width:780px}
+.steps{margin-top:42px}
+.step{font:30px "Cascadia Mono",Consolas,monospace;margin:20px 0;color:#107c41}
+.step span{margin-left:22px;font:34px "Segoe UI",Arial,sans-serif;color:#234f34}
+.query-proof{position:absolute;left:922px;top:194px;width:905px;border:1px solid #c5d3ca}
+.query-proof img{display:block;width:100%}
+.query-code{position:absolute;left:924px;top:736px;width:900px}
+pre{font:32px/1.5 "Cascadia Mono",Consolas,monospace;white-space:pre-wrap}
+.query-code pre{font-size:26px;margin-top:15px;color:#234f34}
+.light{color:#fff}
+.dax-code{position:absolute;left:1000px;top:225px;width:824px;padding:34px;border:1px solid #557362}
+.dax-code .mono{color:#b5d0bf}
+.dax-code pre{font-size:37px;line-height:1.6;margin-top:24px;color:#b4ebca}
+.data-flow{display:flex;gap:30px;align-items:center;position:absolute;left:1000px;top:502px;font:29px "Cascadia Mono",Consolas,monospace}
+.data-flow span{border-bottom:2px solid #86d3a5;padding:14px 0}
+.data-flow b{color:#86d3a5;font-weight:400}
+.results{position:absolute;left:86px;right:86px;top:631px;display:flex;gap:50px}
+.stat{flex:1;border-top:1px solid #789585;padding-top:20px}
+.stat span{display:block;font-size:31px;color:#b5d0bf}
+.stat strong{font-size:110px;font-weight:400;letter-spacing:-3px}
+.chart-title{font-size:76px;letter-spacing:-2px}
+.report-proof{position:absolute;left:86px;top:280px;width:1300px;border:1px solid #c5d3ca}
+.report-proof img{display:block;width:100%}
+.report-callout{position:absolute;left:1480px;top:460px;width:350px}
+.report-callout strong{display:block;font-size:102px;font-weight:400;letter-spacing:-5px;color:#107c41}
+.report-callout span{display:block;font-size:35px;margin-top:12px}
+.vba-code{position:absolute;left:925px;top:232px;width:900px;padding:40px;background:#14251c;color:#fff}
+.vba-code .mono{color:#b5d0bf;font-size:25px}
+.vba-code pre{font-size:29px;margin-top:32px}
+.syntax{color:#86d3a5}
+.code-note{border-top:1px solid #547360;margin-top:40px;padding-top:22px;font-size:27px;color:#cde5d6}
+.python-proof{position:absolute;left:86px;top:490px;width:1380px;border:1px solid #bfcfc5}
+.python-proof img{display:block;width:100%}
+.python-note{position:absolute;left:1498px;top:520px;width:340px}
+.python-note .tag{font-size:22px}
+.python-note p{font-size:31px;line-height:1.4;margin-top:28px}
+.calc-formula{position:absolute;left:1030px;top:238px;width:795px;padding:34px;border:1px solid #aac2b3;background:#f4f9f6}
+.calc-formula pre{font-size:37px;margin-top:24px}
+.calc-result{position:absolute;left:86px;right:86px;top:510px;display:flex;align-items:center;justify-content:space-between}
+.calc-result span{display:block;font-size:31px;color:#3e5b49}
+.calc-result strong{font-size:153px;font-weight:400;letter-spacing:-6px}
+#after strong{color:#107c41}
+#calc-arrow{font-size:126px;font-weight:400;color:#107c41}
+.preserve{position:absolute;left:86px;right:86px;top:833px;border-top:1px solid #b3c7ba;padding-top:26px;font-size:33px}
+.preserve i{padding:0 35px;color:#107c41;font-style:normal}
+.closing{text-align:center;margin-top:95px;font-size:96px}
+.closing-interfaces{display:flex;justify-content:center;gap:46px;margin-top:60px}
+.closing-card{width:630px;padding:27px 42px;border:1px solid #abc5b6;border-top:5px solid #107c41;text-align:center}
+.closing-card strong{display:block;font-size:72px;font-weight:400;color:#107c41}
+.closing-card span{display:block;font-size:32px;margin-top:8px}
+.cta{text-align:center;margin-top:46px;font:33px "Cascadia Mono",Consolas,monospace;color:#107c41}
+.requirements{text-align:center;margin-top:22px;font-size:27px;color:#496251}
+.caption-overlay{position:absolute;inset:0;z-index:100;pointer-events:none}
+.caption{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);max-width:1550px;width:max-content;background:#101714f2;color:#fff;padding:14px 28px 17px;font:400 37px/1.25 "Segoe UI",Arial,sans-serif;text-align:center;border-radius:8px;visibility:hidden}
+#progress{position:absolute;bottom:0;left:0;width:1920px;height:6px;background:#107c41;transform-origin:left;z-index:110}
+</style></head>
+<body><main data-hf-id="hf-1lp9" id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="120">
+<section data-hf-id="hf-ux9z" id="s01" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-lf17" class="kicker">Introducing Excel MCP Server</div>
+ <div data-hf-id="hf-jloi" class="hero-copy"><h1 data-hf-id="hf-0efx" id="hero-title">Your AI.<br data-hf-id="hf-x5px"><em data-hf-id="hf-hdge">Real Excel.</em></h1><p data-hf-id="hf-mazi" class="lead reveal">Ask in plain English.</p><p data-hf-id="hf-bz7b" class="intro-definition reveal">Connect your AI assistant to<br data-hf-id="hf-rsrt">Microsoft Excel on your desktop.</p></div>
+ <div data-hf-id="hf-28cp" class="hero-evidence reveal"><div data-hf-id="hf-lcym" class="proof-label">Real Excel · synthetic sales data</div><img data-hf-id="hf-g6ok" src="assets/sales-data-detail.png" alt="Actual Excel sales table with twelve synthetic orders"></div>
+ <div data-hf-id="hf-0wi6" class="foot-label">Claude, Copilot, and other MCP-compatible assistants</div><div data-hf-id="hf-7sjq" class="scene-number">01 / 11</div></section>
+<section data-hf-id="hf-m9e4" id="s02" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-5j7t" class="kicker">Understand the difference</div>
+ <h2 data-hf-id="hf-lzy8">Same workbook format.<br data-hf-id="hf-szow"><em data-hf-id="hf-jcsf">Different engines.</em></h2>
+ <div data-hf-id="hf-ug2g" class="comparison-row">
+   <div data-hf-id="hf-n10p" class="comparison-card reveal"><div data-hf-id="hf-14vf" class="mono">File-based workflows</div><h3 data-hf-id="hf-8l6t">Anthropic's spreadsheet skill</h3><p data-hf-id="hf-y2la">openpyxl edits the file.<br data-hf-id="hf-sldv">LibreOffice calculates formulas.</p><h3 data-hf-id="hf-n8vq" class="secondary-heading">openpyxl-based MCP servers</h3><p data-hf-id="hf-l7ji">Read and write workbook files.</p></div>
+   <div data-hf-id="hf-dkmd" class="comparison-card excel-engine reveal"><div data-hf-id="hf-xwp3" class="mono">Excel MCP Server</div><h3 data-hf-id="hf-hfpo">The real Excel application</h3><p data-hf-id="hf-iibd">Excel opens, calculates,<br data-hf-id="hf-qluq">refreshes, and saves the workbook.</p><div data-hf-id="hf-xora" class="engine-features"><span data-hf-id="hf-jgfe">Power Query</span><span data-hf-id="hf-kjxi">DAX</span><span data-hf-id="hf-76ak">VBA</span></div></div>
+ </div><div data-hf-id="hf-fqsj" class="comparison-footer reveal">Not just a different interface. A different engine doing the work.</div><div data-hf-id="hf-vfgl" class="scene-number">02 / 11</div></section>
+<section data-hf-id="hf-n11x" id="s03" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-920p" class="kicker">Choose it for the work you actually do</div>
+ <h2 data-hf-id="hf-jzjr">Do you need<br data-hf-id="hf-q7jp"><em data-hf-id="hf-9cxt">real Excel?</em></h2>
+ <div data-hf-id="hf-77jy" class="fit-list"><div data-hf-id="hf-h7bv" class="fit-item">Refreshable business reports</div><div data-hf-id="hf-8zev" class="fit-item">Existing models, macros, and PivotTables</div><div data-hf-id="hf-z2t2" class="fit-item">Live results from Excel's own engine</div></div>
+ <div data-hf-id="hf-96lu" class="fit-alternative reveal"><div data-hf-id="hf-ll9o" class="mono">A file-based tool may be enough</div><h3 data-hf-id="hf-6u8h">Simple exports.<br data-hf-id="hf-regs">No desktop Excel.</h3><p data-hf-id="hf-arti">Choose a file-based workflow when you need portability, or just a new spreadsheet.</p></div>
+ <div data-hf-id="hf-wsyq" class="fit-requirement reveal">Excel MCP requires Windows + desktop Microsoft Excel.</div><div data-hf-id="hf-b2zc" class="scene-number">03 / 11</div></section>
+<section data-hf-id="hf-5srm" id="s04" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-nxxk" class="kicker">01 / Start with a question</div>
+ <h2 data-hf-id="hf-6t6z">One workbook.<br data-hf-id="hf-r05r"><em data-hf-id="hf-860v">Two ways to work.</em></h2>
+ <div data-hf-id="hf-yd6a" class="interface-row">
+   <div data-hf-id="hf-iwdo" class="interface reveal"><div data-hf-id="hf-hbjh" class="mono">MCP / your AI assistant</div><p data-hf-id="hf-y726" class="request">“Turn these sales orders<br data-hf-id="hf-p0mm">into a regional report.”</p><div data-hf-id="hf-a13b" class="tag">Conversational workflow</div></div>
+   <div data-hf-id="hf-txxg" class="interface reveal"><div data-hf-id="hf-0fky" class="mono">excelcli / your terminal</div><p data-hf-id="hf-s4zl" class="request">The same Excel operations.<br data-hf-id="hf-ombl">Scripted. Repeatable.</p><div data-hf-id="hf-ombn" class="tag">Command-line workflow</div></div>
+ </div><div data-hf-id="hf-hf0p" class="workbook-chip reveal">sales-workbook.xlsx <span data-hf-id="hf-p70p">→</span> real desktop Excel</div><div data-hf-id="hf-rw9j" class="scene-number">04 / 11</div></section>
+<section data-hf-id="hf-9qvn" id="s05" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-hnn9" class="kicker">02 / Power Query</div>
+ <div data-hf-id="hf-o716" class="split-copy"><h2 data-hf-id="hf-aco8">Refreshable.<br data-hf-id="hf-qsyj"><em data-hf-id="hf-bjwc">Not disposable.</em></h2><p data-hf-id="hf-888t" class="lead">From raw orders<br data-hf-id="hf-r79k">to analysis-ready data.</p>
+ <div data-hf-id="hf-70xd" class="steps"><div data-hf-id="hf-gh5h" class="step">1 <span data-hf-id="hf-ugf3">Read the source</span></div><div data-hf-id="hf-ho2k" class="step">2 <span data-hf-id="hf-alju">Set column types</span></div><div data-hf-id="hf-h9rj" class="step">3 <span data-hf-id="hf-pv58">Clean the regions</span></div></div></div>
+ <div data-hf-id="hf-3tt0" class="query-proof reveal"><div data-hf-id="hf-j9ux" class="proof-label">Actual Excel output / CleanSales</div><img data-hf-id="hf-lldi" src="assets/sales-query-detail.png" alt="Power Query output with typed sales data"></div>
+ <div data-hf-id="hf-m1wp" class="query-code reveal"><span data-hf-id="hf-lu8a" class="mono">M / excerpt from executed query</span><pre data-hf-id="hf-prhy">Table.TransformColumnTypes(Source,<br data-hf-id="hf-q0ch">  {{"Revenue", Currency.Type}})</pre></div><div data-hf-id="hf-ujvu" class="scene-number">05 / 11</div></section>
+<section data-hf-id="hf-h1wc" id="s06" class="scene dark" data-layout-allow-overflow=""><div data-hf-id="hf-j3ks" class="kicker light">03 / Data Model + DAX</div>
+ <h2 data-hf-id="hf-dv4a" class="light">One definition.<br data-hf-id="hf-qeni"><em data-hf-id="hf-calq">Every decision.</em></h2>
+ <div data-hf-id="hf-pcx2" class="dax-code reveal"><div data-hf-id="hf-u66m" class="mono">Persisted measure / CleanSales</div><pre data-hf-id="hf-j7c6">Total Revenue :=<br data-hf-id="hf-p7qf">  SUM(CleanSales[Revenue])</pre></div>
+ <div data-hf-id="hf-j1lg" class="data-flow reveal"><span data-hf-id="hf-dtor">Sales</span><b data-hf-id="hf-qmvp">→</b><span data-hf-id="hf-mvlq">CleanSales</span><b data-hf-id="hf-jeyx">→</b><span data-hf-id="hf-3ytc">Data Model</span></div>
+ <div data-hf-id="hf-4nii" class="results"><div data-hf-id="hf-xa0m" class="stat"><span data-hf-id="hf-yp28">North</span><strong data-hf-id="hf-wu25">$194k</strong></div><div data-hf-id="hf-tx7e" class="stat"><span data-hf-id="hf-w4d2">South</span><strong data-hf-id="hf-thjl">$165k</strong></div><div data-hf-id="hf-ubif" class="stat"><span data-hf-id="hf-tcgy">West</span><strong data-hf-id="hf-jc72">$225k</strong></div></div>
+ <div data-hf-id="hf-h2i1" class="foot-label light">Verified DAX query result · 12 synthetic orders</div><div data-hf-id="hf-iudl" class="scene-number">06 / 11</div></section>
+<section data-hf-id="hf-1unl" id="s07" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-f6nf" class="kicker">04 / PivotTables + charts</div>
+ <h2 data-hf-id="hf-niet" class="chart-title">See the story.<em data-hf-id="hf-o9nx"> Keep the objects.</em></h2>
+ <div data-hf-id="hf-pao2" class="report-proof reveal"><div data-hf-id="hf-uphm" class="proof-label">Actual Excel capture / native PivotTable + linked PivotChart</div><img data-hf-id="hf-kxya" src="assets/sales-report-detail.png" alt="Actual Excel sales report with native PivotTable and green PivotChart"></div>
+ <div data-hf-id="hf-qt1g" class="report-callout reveal"><strong data-hf-id="hf-7vc2">$225k</strong><span data-hf-id="hf-67dp">West leads revenue</span></div><div data-hf-id="hf-1wv0" class="scene-number">07 / 11</div></section>
+<section data-hf-id="hf-zjke" id="s08" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-lkq2" class="kicker">05 / VBA</div>
+ <div data-hf-id="hf-fc1q" class="split-copy"><h2 data-hf-id="hf-nvmt">Keep your<br data-hf-id="hf-pm1g"><em data-hf-id="hf-guzb">proven<br data-hf-id="hf-of4d">workflows.</em></h2><p data-hf-id="hf-9j4n" class="lead">Read, edit, and run VBA.<br data-hf-id="hf-otfe">Only run macros you trust.</p></div>
+ <div data-hf-id="hf-1bn4" class="vba-code reveal"><div data-hf-id="hf-g53x" class="mono">Illustrative VBA / not executed</div><pre data-hf-id="hf-ab2s"><span data-hf-id="hf-bozq" class="syntax">Sub</span> RefreshReport()<br data-hf-id="hf-tzer">  Worksheets("Report") _<br data-hf-id="hf-udps">    .PivotTables("SalesByRegion") _<br data-hf-id="hf-7f5s">    .RefreshTable<br data-hf-id="hf-70ur">  Application.Calculate<br data-hf-id="hf-2kkm"><span data-hf-id="hf-xfnz" class="syntax">End Sub</span></pre><div data-hf-id="hf-4g6m" class="code-note">Editing VBA projects needs manual trust access.</div></div><div data-hf-id="hf-skwb" class="scene-number">08 / 11</div></section>
+<section data-hf-id="hf-3hof" id="s09" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-oyuu" class="kicker">06 / Python in Excel</div>
+ <h2 data-hf-id="hf-mhqt">Analysis, right<br data-hf-id="hf-269l"><em data-hf-id="hf-x5bi">beside your data.</em></h2>
+ <div data-hf-id="hf-5goy" class="python-proof reveal"><div data-hf-id="hf-jlrf" class="proof-label">Genuine repository screenshot / existing product example</div><img data-hf-id="hf-lpwf" src="assets/excel-demo-python.png" alt="Real Excel formula bar showing Python reading a sales revenue column"></div>
+ <div data-hf-id="hf-sgby" class="python-note reveal"><span data-hf-id="hf-tdob" class="tag">Microsoft-hosted Python</span><p data-hf-id="hf-3rt7">Supported Microsoft 365.</p><p data-hf-id="hf-1gye">Python enabled.<br data-hf-id="hf-1ryk">Internet required.</p></div><div data-hf-id="hf-skce" class="scene-number">09 / 11</div></section>
+<section data-hf-id="hf-as8x" id="s10" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-q6x4" class="kicker">07 / Real calculation</div>
+ <h2 data-hf-id="hf-aeqs">Change an input.<br data-hf-id="hf-1dnj"><em data-hf-id="hf-gnuo">Excel does the math.</em></h2>
+ <div data-hf-id="hf-1ruh" class="calc-formula reveal"><span data-hf-id="hf-79cf" class="mono">Report!B3 / verified in Excel</span><pre data-hf-id="hf-pi81">=SUM(Sales[Revenue])</pre></div>
+ <div data-hf-id="hf-1fgj" class="calc-result"><div data-hf-id="hf-pvnk" id="before"><span data-hf-id="hf-3kjo">Original total</span><strong data-hf-id="hf-otjy">$584k</strong></div><b data-hf-id="hf-dj5p" id="calc-arrow">→</b><div data-hf-id="hf-ajmd" id="after"><span data-hf-id="hf-bvc7">After +$10k to one order</span><strong data-hf-id="hf-ng2x">$594k</strong></div></div>
+ <div data-hf-id="hf-8sko" class="preserve reveal">Formulas <i data-hf-id="hf-orwx">·</i> Queries <i data-hf-id="hf-vd8l">·</i> Charts <i data-hf-id="hf-wk5o">·</i> Workbook features</div><div data-hf-id="hf-ej9g" class="scene-number">10 / 11</div></section>
+<section data-hf-id="hf-a0l4" id="s11" class="scene" data-layout-allow-overflow=""><div data-hf-id="hf-3bhh" class="kicker">Choose your way in</div>
+ <h2 data-hf-id="hf-r7nd" class="closing">Two equal ways in.<br data-hf-id="hf-0zci"><em data-hf-id="hf-qkw0">One real Excel engine.</em></h2>
+ <div data-hf-id="hf-pb3q" class="closing-interfaces"><div data-hf-id="hf-23yr" class="closing-card reveal"><strong data-hf-id="hf-a4na">MCP</strong><span data-hf-id="hf-v9h8">Conversational assistants</span></div><div data-hf-id="hf-3fg3" class="closing-card reveal"><strong data-hf-id="hf-x15d">excelcli</strong><span data-hf-id="hf-7cmg">Can use fewer tokens for coding agents</span></div></div>
+ <div data-hf-id="hf-pv7a" class="cta reveal">excelmcpserver.dev</div>
+ <div data-hf-id="hf-ek0o" class="requirements">Windows + desktop Excel required</div><div data-hf-id="hf-umj5" class="scene-number">11 / 11</div></section>
+<div data-hf-id="hf-d1jd" class="caption-overlay"><div data-hf-id="hf-gogy" id="caption-introa" class="caption" data-layout-allow-caption-zone="">Excel MCP Server lets your AI assistant work in the real Excel desktop app.</div>
+<div data-hf-id="hf-iifj" id="caption-introb" class="caption" data-layout-allow-caption-zone="">Ask in plain English. Excel does the work.</div>
+<div data-hf-id="hf-9hhb" id="caption-comparea" class="caption" data-layout-allow-caption-zone="">File-based tools are useful for creating and editing spreadsheets without Excel.</div>
+<div data-hf-id="hf-9lke" id="caption-compareb" class="caption" data-layout-allow-caption-zone="">Anthropic's spreadsheet skill uses openpyxl, with LibreOffice for calculation.</div>
+<div data-hf-id="hf-af7e" id="caption-comparec" class="caption" data-layout-allow-caption-zone="">Excel MCP uses Microsoft's Excel engine instead, including the features built into the app.</div>
+<div data-hf-id="hf-5vsw" id="caption-fita" class="caption" data-layout-allow-caption-zone="">Use it for refreshable reports, complex existing workbooks, and live Excel results.</div>
+<div data-hf-id="hf-eg90" id="caption-fitb" class="caption" data-layout-allow-caption-zone="">For simple exports, or work without Windows and Excel, file-based tools may be the better fit.</div>
+<div data-hf-id="hf-ffxw" id="caption-02a" class="caption" data-layout-allow-caption-zone="">Start with one sales workbook.</div>
+<div data-hf-id="hf-dju1" id="caption-02b" class="caption" data-layout-allow-caption-zone="">Ask your assistant to turn raw orders into a report.</div>
+<div data-hf-id="hf-2iz8" id="caption-02c" class="caption" data-layout-allow-caption-zone="">Or drive the same workflow with excelcli.</div>
+<div data-hf-id="hf-n1wk" id="caption-03a" class="caption" data-layout-allow-caption-zone="">Power Query turns preparation into a repeatable process.</div>
+<div data-hf-id="hf-zijf" id="caption-03b" class="caption" data-layout-allow-caption-zone="">Clean the source, shape your sales data, and refresh the query inside Excel.</div>
+<div data-hf-id="hf-9dff" id="caption-03c" class="caption" data-layout-allow-caption-zone="">Not a static export.</div>
+<div data-hf-id="hf-8b1u" id="caption-04a" class="caption" data-layout-allow-caption-zone="">Bring those tables into the Data Model.</div>
+<div data-hf-id="hf-kr3a" id="caption-04b" class="caption" data-layout-allow-caption-zone="">Define revenue once with DAX, then reuse that business logic across your analysis.</div>
+<div data-hf-id="hf-dnk2" id="caption-04c" class="caption" data-layout-allow-caption-zone="">The model stays in your workbook.</div>
+<div data-hf-id="hf-ve6l" id="caption-05a" class="caption" data-layout-allow-caption-zone="">Build a PivotTable to compare regions.</div>
+<div data-hf-id="hf-51ua" id="caption-05b" class="caption" data-layout-allow-caption-zone="">Add a chart, and the story becomes clear.</div>
+<div data-hf-id="hf-htuk" id="caption-05c" class="caption" data-layout-allow-caption-zone="">These are native Excel objects, ready for the next question.</div>
+<div data-hf-id="hf-kc3i" id="caption-06a" class="caption" data-layout-allow-caption-zone="">Already have a trusted workflow?</div>
+<div data-hf-id="hf-w066" id="caption-06b" class="caption" data-layout-allow-caption-zone="">Work with VBA modules and macros.</div>
+<div data-hf-id="hf-yprx" id="caption-06c" class="caption" data-layout-allow-caption-zone="">Run only trusted macros. They have your user permissions.</div>
+<div data-hf-id="hf-wex5" id="caption-07a" class="caption" data-layout-allow-caption-zone="">Go further with Python in Excel.</div>
+<div data-hf-id="hf-pn32" id="caption-07b" class="caption" data-layout-allow-caption-zone="">Write analysis beside your data.</div>
+<div data-hf-id="hf-nm8n" id="caption-07c" class="caption" data-layout-allow-caption-zone="">Python runs in Microsoft's cloud, with a supported subscription and internet access.</div>
+<div data-hf-id="hf-wxzn" id="caption-08a" class="caption" data-layout-allow-caption-zone="">Change an input. Excel calculates the result.</div>
+<div data-hf-id="hf-vz9v" id="caption-08b" class="caption" data-layout-allow-caption-zone="">Keep the formulas, queries, charts, and workbook features that make the file valuable.</div>
+<div data-hf-id="hf-98cd" id="caption-09a" class="caption" data-layout-allow-caption-zone="">For coding agents, excelcli can use fewer tokens.</div>
+<div data-hf-id="hf-uxuk" id="caption-09b" class="caption" data-layout-allow-caption-zone="">Two equal ways in. One real Excel engine.</div></div>
+<div data-hf-id="hf-sj55" id="progress" data-layout-ignore=""></div>
+<audio data-hf-id="hf-fq0m" id="voice-introa" class="clip" src="assets/voice/introa.wav" data-start="0.354" data-duration="5.952" data-track-index="10"></audio>
+<audio data-hf-id="hf-h39c" id="voice-introb" class="clip" src="assets/voice/introb.wav" data-start="6.406" data-duration="2.517" data-track-index="10"></audio>
+<audio data-hf-id="hf-uhcy" id="voice-comparea" class="clip" src="assets/voice/comparea.wav" data-start="9.657" data-duration="4.992" data-track-index="10"></audio>
+<audio data-hf-id="hf-e7ob" id="voice-compareb" class="clip" src="assets/voice/compareb.wav" data-start="14.749" data-duration="5.589" data-track-index="10"></audio>
+<audio data-hf-id="hf-vqwb" id="voice-comparec" class="clip" src="assets/voice/comparec.wav" data-start="20.438" data-duration="6.805" data-track-index="10"></audio>
+<audio data-hf-id="hf-5jpb" id="voice-fita" class="clip" src="assets/voice/fita.wav" data-start="27.782" data-duration="5.355" data-track-index="10"></audio>
+<audio data-hf-id="hf-ozaf" id="voice-fitb" class="clip" src="assets/voice/fitb.wav" data-start="33.237" data-duration="5.803" data-track-index="10"></audio>
+<audio data-hf-id="hf-m1ko" id="voice-02a" class="clip" src="assets/voice/02a.wav" data-start="39.719" data-duration="1.728" data-track-index="10"></audio>
+<audio data-hf-id="hf-y1cn" id="voice-02b" class="clip" src="assets/voice/02b.wav" data-start="41.547" data-duration="3.008" data-track-index="10"></audio>
+<audio data-hf-id="hf-9ynl" id="voice-02c" class="clip" src="assets/voice/02c.wav" data-start="44.655" data-duration="2.987" data-track-index="10"></audio>
+<audio data-hf-id="hf-rs5n" id="voice-03a" class="clip" src="assets/voice/03a.wav" data-start="48.836" data-duration="3.691" data-track-index="10"></audio>
+<audio data-hf-id="hf-9pf7" id="voice-03b" class="clip" src="assets/voice/03b.wav" data-start="52.627" data-duration="4.523" data-track-index="10"></audio>
+<audio data-hf-id="hf-qv03" id="voice-03c" class="clip" src="assets/voice/03c.wav" data-start="57.250" data-duration="1.387" data-track-index="10"></audio>
+<audio data-hf-id="hf-ir7b" id="voice-04a" class="clip" src="assets/voice/04a.wav" data-start="60.877" data-duration="2.219" data-track-index="10"></audio>
+<audio data-hf-id="hf-swop" id="voice-04b" class="clip" src="assets/voice/04b.wav" data-start="63.196" data-duration="5.653" data-track-index="10"></audio>
+<audio data-hf-id="hf-091n" id="voice-04c" class="clip" src="assets/voice/04c.wav" data-start="68.949" data-duration="1.621" data-track-index="10"></audio>
+<audio data-hf-id="hf-3ipj" id="voice-05a" class="clip" src="assets/voice/05a.wav" data-start="73.387" data-duration="2.24" data-track-index="10"></audio>
+<audio data-hf-id="hf-f03c" id="voice-05b" class="clip" src="assets/voice/05b.wav" data-start="75.727" data-duration="2.283" data-track-index="10"></audio>
+<audio data-hf-id="hf-gykg" id="voice-05c" class="clip" src="assets/voice/05c.wav" data-start="78.110" data-duration="3.627" data-track-index="10"></audio>
+<audio data-hf-id="hf-om4i" id="voice-06a" class="clip" src="assets/voice/06a.wav" data-start="84.555" data-duration="1.728" data-track-index="10"></audio>
+<audio data-hf-id="hf-i9y5" id="voice-06b" class="clip" src="assets/voice/06b.wav" data-start="86.383" data-duration="2.176" data-track-index="10"></audio>
+<audio data-hf-id="hf-u4we" id="voice-06c" class="clip" src="assets/voice/06c.wav" data-start="88.659" data-duration="3.435" data-track-index="10"></audio>
+<audio data-hf-id="hf-ctvd" id="voice-07a" class="clip" src="assets/voice/07a.wav" data-start="93.416" data-duration="1.792" data-track-index="10"></audio>
+<audio data-hf-id="hf-hh6b" id="voice-07b" class="clip" src="assets/voice/07b.wav" data-start="95.308" data-duration="1.792" data-track-index="10"></audio>
+<audio data-hf-id="hf-ixsl" id="voice-07c" class="clip" src="assets/voice/07c.wav" data-start="97.200" data-duration="5.12" data-track-index="10"></audio>
+<audio data-hf-id="hf-qc81" id="voice-08a" class="clip" src="assets/voice/08a.wav" data-start="103.439" data-duration="2.88" data-track-index="10"></audio>
+<audio data-hf-id="hf-nxiy" id="voice-08b" class="clip" src="assets/voice/08b.wav" data-start="106.419" data-duration="4.864" data-track-index="10"></audio>
+<audio data-hf-id="hf-u1ww" id="voice-09a" class="clip" src="assets/voice/09a.wav" data-start="112.440" data-duration="3.776" data-track-index="10"></audio>
+<audio data-hf-id="hf-uh45" id="voice-09b" class="clip" src="assets/voice/09b.wav" data-start="116.316" data-duration="2.965" data-track-index="10"></audio>
+</main><script>
+window.__timelines=window.__timelines||{};
+const tl=gsap.timeline({paused:true});
+window.__timelines["main"]=tl;
+tl.fromTo("#progress",{scaleX:0},{scaleX:1,duration:120,ease:"none"},0);
+const sceneData=[{"id":"01","start":0},{"id":"02","start":9.5},{"id":"03","start":27.5},{"id":"04","start":39.5},{"id":"05","start":48},{"id":"06","start":60},{"id":"07","start":72},{"id":"08","start":84},{"id":"09","start":93},{"id":"10","start":103},{"id":"11","start":112}];
+sceneData.forEach(({id,start})=>{
+  tl.fromTo("#s"+id+" .reveal",{autoAlpha:0,x:36},{autoAlpha:1,x:0,duration:.7,stagger:.14,ease:"power3.out"},start+.4);
+});
+tl.fromTo("#hero-title",{autoAlpha:0,y:40},{autoAlpha:1,y:0,duration:.8,ease:"power3.out"},.1);
+tl.fromTo(".fit-item",{autoAlpha:0,x:35},{autoAlpha:1,x:0,duration:.55,stagger:1.5,ease:"power3.out"},28.5);
+tl.fromTo(".step",{autoAlpha:0,x:35},{autoAlpha:1,x:0,duration:.55,stagger:1.8,ease:"power3.out"},49.5);
+tl.fromTo(".stat",{autoAlpha:0,y:35},{autoAlpha:1,y:0,duration:.65,stagger:.55,ease:"power3.out"},65.4);
+tl.fromTo("#before",{autoAlpha:0},{autoAlpha:1,duration:.35},104);
+tl.fromTo("#calc-arrow",{autoAlpha:0,x:20},{autoAlpha:1,x:0,duration:.35},105.2);
+tl.fromTo("#after",{autoAlpha:0,x:40},{autoAlpha:1,x:0,duration:.7,ease:"power3.out"},105.7);
+tl.set("#caption-introa",{autoAlpha:1},0.354);tl.set("#caption-introa",{autoAlpha:0},6.306);
+tl.set("#caption-introb",{autoAlpha:1},6.406);tl.set("#caption-introb",{autoAlpha:0},8.923);
+tl.set("#caption-comparea",{autoAlpha:1},9.657);tl.set("#caption-comparea",{autoAlpha:0},14.649);
+tl.set("#caption-compareb",{autoAlpha:1},14.749);tl.set("#caption-compareb",{autoAlpha:0},20.338);
+tl.set("#caption-comparec",{autoAlpha:1},20.438);tl.set("#caption-comparec",{autoAlpha:0},27.243);
+tl.set("#caption-fita",{autoAlpha:1},27.782);tl.set("#caption-fita",{autoAlpha:0},33.137);
+tl.set("#caption-fitb",{autoAlpha:1},33.237);tl.set("#caption-fitb",{autoAlpha:0},39.04);
+tl.set("#caption-02a",{autoAlpha:1},39.719);tl.set("#caption-02a",{autoAlpha:0},41.447);
+tl.set("#caption-02b",{autoAlpha:1},41.547);tl.set("#caption-02b",{autoAlpha:0},44.555);
+tl.set("#caption-02c",{autoAlpha:1},44.655);tl.set("#caption-02c",{autoAlpha:0},47.642);
+tl.set("#caption-03a",{autoAlpha:1},48.836);tl.set("#caption-03a",{autoAlpha:0},52.527);
+tl.set("#caption-03b",{autoAlpha:1},52.627);tl.set("#caption-03b",{autoAlpha:0},57.15);
+tl.set("#caption-03c",{autoAlpha:1},57.25);tl.set("#caption-03c",{autoAlpha:0},58.637);
+tl.set("#caption-04a",{autoAlpha:1},60.877);tl.set("#caption-04a",{autoAlpha:0},63.096);
+tl.set("#caption-04b",{autoAlpha:1},63.196);tl.set("#caption-04b",{autoAlpha:0},68.849);
+tl.set("#caption-04c",{autoAlpha:1},68.949);tl.set("#caption-04c",{autoAlpha:0},70.57);
+tl.set("#caption-05a",{autoAlpha:1},73.387);tl.set("#caption-05a",{autoAlpha:0},75.627);
+tl.set("#caption-05b",{autoAlpha:1},75.727);tl.set("#caption-05b",{autoAlpha:0},78.01);
+tl.set("#caption-05c",{autoAlpha:1},78.11);tl.set("#caption-05c",{autoAlpha:0},81.737);
+tl.set("#caption-06a",{autoAlpha:1},84.555);tl.set("#caption-06a",{autoAlpha:0},86.283);
+tl.set("#caption-06b",{autoAlpha:1},86.383);tl.set("#caption-06b",{autoAlpha:0},88.559);
+tl.set("#caption-06c",{autoAlpha:1},88.659);tl.set("#caption-06c",{autoAlpha:0},92.094);
+tl.set("#caption-07a",{autoAlpha:1},93.416);tl.set("#caption-07a",{autoAlpha:0},95.208);
+tl.set("#caption-07b",{autoAlpha:1},95.308);tl.set("#caption-07b",{autoAlpha:0},97.1);
+tl.set("#caption-07c",{autoAlpha:1},97.2);tl.set("#caption-07c",{autoAlpha:0},102.32);
+tl.set("#caption-08a",{autoAlpha:1},103.439);tl.set("#caption-08a",{autoAlpha:0},106.319);
+tl.set("#caption-08b",{autoAlpha:1},106.419);tl.set("#caption-08b",{autoAlpha:0},111.283);
+tl.set("#caption-09a",{autoAlpha:1},112.44);tl.set("#caption-09a",{autoAlpha:0},116.216);
+tl.set("#caption-09b",{autoAlpha:1},116.316);tl.set("#caption-09b",{autoAlpha:0},119.281);
+      // <seams:auto> — generated by seam-stamp.mjs from ledger.json; do not hand-edit.
+      // Regenerate: node <motion-doctrine>/scripts/seam-stamp.mjs --ledger ledger.json --write index.html
+      gsap.set("#s01", { autoAlpha: 1, xPercent: 0, yPercent: 0, scale: 1, filter: "blur(0px)", transformOrigin: "50% 50%" });
+      gsap.set(["#s03","#s04","#s06","#s08","#s09","#s10"], { autoAlpha: 0, xPercent: 0, yPercent: 0, scale: 1, filter: "blur(0px)", transformOrigin: "50% 50%" });
+      gsap.set("#s02", { autoAlpha: 0, scale: 0.78, filter: "blur(18px)", xPercent: 0, yPercent: 0, transformOrigin: "50% 50%" });
+      gsap.set("#s05", { autoAlpha: 0, scale: 0.78, filter: "blur(18px)", xPercent: 0, yPercent: 0, transformOrigin: "50% 50%" });
+      gsap.set("#s07", { autoAlpha: 0, scale: 0.78, filter: "blur(18px)", xPercent: 0, yPercent: 0, transformOrigin: "50% 50%" });
+      gsap.set("#s11", { autoAlpha: 0, scale: 0.78, filter: "blur(18px)", xPercent: 0, yPercent: 0, transformOrigin: "50% 50%" });
+      
+      // SEAM — 1-to-2 : zoom-through (cut @9.5)
+      tl.to("#s01", { scale: 1.18, filter: "blur(18px)", duration: 0.55, ease: "power3.in" }, 8.95);
+      tl.to("#s01", { autoAlpha: 0, duration: 0.55, ease: "none" }, 8.95);
+      tl.set("#s01", { autoAlpha: 0 }, 9.5);
+      tl.fromTo("#s02", { autoAlpha: 0.15, scale: 0.78, filter: "blur(18px)" }, { autoAlpha: 1, scale: 1.0, filter: "blur(0px)", duration: 0.8, ease: "expo.out", immediateRender: false }, 9.5);
+      
+      // SEAM — 2-to-3 : cut-the-curve LEFT (cut @27.5)
+      tl.to("#s02", { xPercent: -12, autoAlpha: 0, duration: 0.55, ease: "power3.in" }, 26.95);
+      tl.set("#s02", { autoAlpha: 0 }, 27.5);
+      tl.fromTo("#s03", { xPercent: 12, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.8, ease: "power4.out", immediateRender: false }, 27.5);
+      
+      // SEAM — 3-to-4 : cut-the-curve LEFT (cut @39.5)
+      tl.to("#s03", { xPercent: -12, autoAlpha: 0, duration: 0.55, ease: "power3.in" }, 38.95);
+      tl.set("#s03", { autoAlpha: 0 }, 39.5);
+      tl.fromTo("#s04", { xPercent: 12, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.8, ease: "power4.out", immediateRender: false }, 39.5);
+      
+      // SEAM — 4-to-5 : zoom-through (cut @48)
+      tl.to("#s04", { scale: 1.18, filter: "blur(18px)", duration: 0.55, ease: "power3.in" }, 47.45);
+      tl.to("#s04", { autoAlpha: 0, duration: 0.55, ease: "none" }, 47.45);
+      tl.set("#s04", { autoAlpha: 0 }, 48);
+      tl.fromTo("#s05", { autoAlpha: 0.15, scale: 0.78, filter: "blur(18px)" }, { autoAlpha: 1, scale: 1.0, filter: "blur(0px)", duration: 0.8, ease: "expo.out", immediateRender: false }, 48);
+      
+      // SEAM — 5-to-6 : cut-the-curve LEFT (cut @60)
+      tl.to("#s05", { xPercent: -12, autoAlpha: 0, duration: 0.55, ease: "power3.in" }, 59.45);
+      tl.set("#s05", { autoAlpha: 0 }, 60);
+      tl.fromTo("#s06", { xPercent: 12, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.8, ease: "power4.out", immediateRender: false }, 60);
+      
+      // SEAM — 6-to-7 : zoom-through (cut @72)
+      tl.to("#s06", { scale: 1.18, filter: "blur(18px)", duration: 0.55, ease: "power3.in" }, 71.45);
+      tl.to("#s06", { autoAlpha: 0, duration: 0.55, ease: "none" }, 71.45);
+      tl.set("#s06", { autoAlpha: 0 }, 72);
+      tl.fromTo("#s07", { autoAlpha: 0.15, scale: 0.78, filter: "blur(18px)" }, { autoAlpha: 1, scale: 1.0, filter: "blur(0px)", duration: 0.8, ease: "expo.out", immediateRender: false }, 72);
+      
+      // SEAM — 7-to-8 : cut-the-curve LEFT (cut @84)
+      tl.to("#s07", { xPercent: -12, autoAlpha: 0, duration: 0.55, ease: "power3.in" }, 83.45);
+      tl.set("#s07", { autoAlpha: 0 }, 84);
+      tl.fromTo("#s08", { xPercent: 12, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.8, ease: "power4.out", immediateRender: false }, 84);
+      
+      // SEAM — 8-to-9 : cut-the-curve LEFT (cut @93)
+      tl.to("#s08", { xPercent: -12, autoAlpha: 0, duration: 0.55, ease: "power3.in" }, 92.45);
+      tl.set("#s08", { autoAlpha: 0 }, 93);
+      tl.fromTo("#s09", { xPercent: 12, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.8, ease: "power4.out", immediateRender: false }, 93);
+      
+      // SEAM — 9-to-10 : cut-the-curve LEFT (cut @103)
+      tl.to("#s09", { xPercent: -12, autoAlpha: 0, duration: 0.55, ease: "power3.in" }, 102.45);
+      tl.set("#s09", { autoAlpha: 0 }, 103);
+      tl.fromTo("#s10", { xPercent: 12, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.8, ease: "power4.out", immediateRender: false }, 103);
+      
+      // SEAM — 10-to-11 : zoom-through (cut @112)
+      tl.to("#s10", { scale: 1.18, filter: "blur(18px)", duration: 0.55, ease: "power3.in" }, 111.45);
+      tl.to("#s10", { autoAlpha: 0, duration: 0.55, ease: "none" }, 111.45);
+      tl.set("#s10", { autoAlpha: 0 }, 112);
+      tl.fromTo("#s11", { autoAlpha: 0.15, scale: 0.78, filter: "blur(18px)" }, { autoAlpha: 1, scale: 1.0, filter: "blur(0px)", duration: 0.8, ease: "expo.out", immediateRender: false }, 112);
+      
+      // </seams:auto>
+</script></body></html>
