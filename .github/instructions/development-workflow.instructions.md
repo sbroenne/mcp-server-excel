@@ -1,137 +1,20 @@
 ---
-applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json"
+applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json,Directory.Build.*,scripts/**/*.ps1"
 excludeAgent: "code-review"
 ---
 
-# Development Workflow
+# Build and release constraints
 
-> **Required process for all contributions**
+- Keep workflow SDK setup compatible with `global.json`. Preserve analyzer and
+  warning-as-error settings in `Directory.Build.props` and `.editorconfig`.
+- `ci.yml` has Excel-free runtime and documentation gates. Local pre-commit
+  selects checks by changed paths; preserve runtime/non-runtime and merge-parent
+  handling so imported changes do not trigger unrelated Excel E2E.
+- Local CLI builds invoke `scripts\Stop-ExcelMcpProcesses.ps1`. Preserve its
+  pipe-scoped process ownership; builds in one worktree must not stop another's
+  Excel sessions.
+- `release.yml` owns versions and changelog generation. Do not dispatch it as a
+  test. Authorized merges use squash.
 
-## Branch Protection
-
-**⛔ NEVER commit directly to `main`**
-
-Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, no force pushes
-
-**Merge Strategy: Squash Merge**
-
-All PRs are merged using **squash merge** (single commit to `main`). This keeps git history clean and makes it easy to revert changes if needed. When you merge a PR:
-- GitHub automatically squashes all commits from your branch into one commit
-- Commit message is auto-populated from PR title/description — verify it's accurate before confirming merge
-- Your feature branch can be safely deleted after merge
-
-## Development Process
-
-1. **Create feature branch**: `git checkout -b feature/name`
-2. **Standards**: Zero warnings, targeted tests pass, docs updated, security rules followed
-3. **PR Checklist**: Build passes, applicable tests pass, docs updated, patterns followed, changeset added when user-visible
-4. **Check PR review comments**: After creating PR, retrieve automated review feedback and fix all verified issues
-5. **Versions**: Automated via release workflow - don't update manually
-
-## PR Review Comment Workflow
-
-**After creating a PR, ALWAYS check for automated review comments:**
-
-```powershell
-# Retrieve inline code review comments using GitHub CLI
-# ⚠️ IMPORTANT: for this public repo, gh CLI must be authenticated as a PERSONAL GitHub account.
-# Enterprise Managed User (EMU) accounts cannot access public repos via gh CLI.
-# Verify with: gh auth status
-# If needed, select the personal account's token (Copilot CLI exposes it as an env var):
-#   $env:GH_TOKEN = $env:COPILOT_GH_ACCOUNT_github_2E_com_sbroenne   # then verify: gh api user --jq '.login'
-# (Admin ops — rulesets, disabling workflows, deleting runs — require this personal token, not the EMU account.)
-gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
-
-```
-
-**Common automated reviewers:**
-- **Copilot** (code quality, performance, style)
-- **github-advanced-security** (security scanning, code analysis)
-
-**Common issues to fix:**
-- Improper `/// <inheritdoc/>` on constructors/test methods that don't override
-- `.AsSpan().ToString()` inefficiency - use `[..n]` range operator instead
-- Nullable type access without null checks
-- `foreach` → `.Select()` for functional style
-- Nested if statements that can be combined
-- Generic catch clauses - use specific exceptions or add justification
-- Path.Combine security warnings - suppress with justification for test code
-
-**Fix all automated review comments before requesting human review.**
-
-## Test Execution
-
-**See testing-strategy.instructions.md for complete test commands.**
-
-Quick reference:
-- Development: `Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust`
-- Session/batch changes: run `RunType=OnDemand` in `ExcelMcp.ComInterop.Tests`
-- Core OnDemand tests are environment-specific diagnostics and stay outside required CI
-- VBA tests: `(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand`
-
-## CI/CD Workflows
-
-**Automated on Pull Requests:**
-- `ci.yml` (**CI Gate**) - Release build + Excel-free audit gates + Excel-free CLI/MCP build smoke (always runs on PRs to `main`, so it can be a required check). GitHub-hosted runners have no Excel, so Excel-dependent gates stay local-only in the pre-commit hook.
-- `codeql.yml` - Security analysis
-- `dependency-review.yml` - Dependency security scanning
-
-**Excel-Dependent Local Verification:**
-- GitHub-hosted runners do not have Excel, and the repository has no self-hosted Excel runner.
-- Before merge, run the relevant Excel integration tests locally with an explicit timeout when changes affect the Core, CLI, or MCP runtime path.
-- Run `& .\scripts\Test-E2E.ps1` only for those runtime-impacting changes. This includes changes under `src/ExcelMcp.ComInterop`, `src/ExcelMcp.Core`, `src/ExcelMcp.Service`, `src/ExcelMcp.CLI`, `src/ExcelMcp.McpServer`, and source generators that feed CLI or MCP.
-- Plugin/build/publish, marketplace, skill, documentation, and test-only changes do not require Excel E2E unless the same commit also changes one of those runtime paths.
-- For merge commits, pre-commit evaluates the staged result relative to the incoming merge parent so already-validated changes imported from `main` do not trigger unrelated Excel E2E.
-- Record the result and check the E2E attestation in the pull request template only when Excel E2E is applicable and finishes without failures or unresolved issues.
-
-## Workflow Config Updates
-
-**⚠️ Update ALL workflows when changing:**
-- .NET SDK version (`global.json` + all workflows)
-- Assembly/package names (`.csproj` + workflow references)
-- Runtime requirements (target framework + release notes)
-- Project structure (path filters + build commands)
-
-## Quality Enforcement
-
-**Build Settings:** `TreatWarningsAsErrors=true`, analyzers enabled
-
-**Security Rules (Errors):** CA2100 (SQL injection), CA3003 (file path injection), CA3006 (process injection), CA5389 (archive traversal), CA5390 (hardcoded encryption), CA5394 (insecure randomness)
-
-## Release Process (Maintainers)
-
-**Release:** Use `workflow_dispatch` on the release workflow with version bump (major/minor/patch) or custom version. Releases ALL components with same version:
-- MCP Server → NuGet + ZIP
-- CLI → NuGet + ZIP
-- VS Code Extension → Marketplace + VSIX
-- MCPB → Claude Desktop bundle
-
-**Before Releasing:**
-1. Nothing manual — changesets accumulate in `.changeset/` from individual PRs; the release workflow compiles them into `CHANGELOG.md` automatically
-2. Go to Actions → Release All Components → Run workflow
-3. Select version bump type (patch/minor/major) or enter a custom version
-
-Workflow calculates version → builds all components → creates git tag → GitHub release with all artifacts
-
-**Quick release from terminal:**
-```powershell
-gh workflow run release.yml -f version_bump=patch   # or minor/major
-```
-
-## GitHub Issue Comment Protocol
-
-**ALWAYS verify @mention usernames before posting comments on issues or PRs.**
-
-1. Read the issue/PR to confirm the actual author's GitHub handle
-2. Use the correct handle in @mentions — never guess from display names
-3. Wrong @mentions are embarrassing and may notify the wrong person
-4. When posting on multiple issues in sequence, re-verify each author (they differ!)
-
-## Key Principles
-
-1. Feature branches mandatory
-2. Tests required
-3. CI/CD must pass
-4. Documentation updated
-5. Version management automated
-6. Security enforced
+Procedures: `docs/RELEASE-STRATEGY.md`, `vscode-extension/DEVELOPMENT.md`, and
+`.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates`.

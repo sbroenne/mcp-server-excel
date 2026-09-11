@@ -1,39 +1,45 @@
 # ExcelMcp Tests
 
-> **⚠️ No Traditional Unit Tests**: ExcelMcp has no unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See [`docs/ADR-001-NO-UNIT-TESTS.md`](../docs/ADR-001-NO-UNIT-TESTS.md) for full architectural rationale.
+Excel-dependent behavior uses real Excel integration tests. Parsing, mapping,
+serialization, and generation can use focused tests without Excel. The former
+blanket ban on unit tests is [superseded](../docs/ADR-001-NO-UNIT-TESTS.md).
 
 ## Quick Start
 
 ```powershell
-# Development (fast feedback - excludes VBA tests)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+# One Core feature
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
 
-# Pre-commit (comprehensive - excludes VBA tests)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+# Excel-independent parsing
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~ServiceRegistryJsonParsingTests"
 
-# Session/batch changes (MANDATORY when modifying session/batch code)
-dotnet test --filter "RunType=OnDemand"
+# Session/batch changes: narrow by test name when appropriate
+dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 
-# VBA tests (manual only - requires VBA trust enabled)
-dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+# VBA behavior (requires VBA trust enabled)
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
+
+Set a hard execution timeout for every Excel-dependent run. Run only the
+relevant project and filter, not the full integration suite during iteration.
 
 ## Documentation
 
 **For complete testing guidance, see:**
 
 - **[Testing Strategy](../.github/instructions/testing-strategy.instructions.md)** - Quick reference, templates, common mistakes
-- **[Critical Rules](../.github/instructions/critical-rules.instructions.md)** - Mandatory development rules (Rule 14: SaveAsync)
+- **[Repository Rules](../.github/copilot-instructions.md)** - Build, E2E, and contribution requirements
 
 ## Test Architecture
 
 ```
 tests/
-├── ExcelMcp.Core.Tests/           # Core business logic (Integration)
+├── ExcelMcp.Core.Tests/           # Excel behavior and pure parsing tests
 ├── ExcelMcp.Diagnostics.Tests/    # Excel COM behavior research (OnDemand, Manual)
 ├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
 ├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
-└── ExcelMcp.ComInterop.Tests/     # COM utilities (OnDemand)
+├── ExcelMcp.ComInterop.Tests/     # COM utilities and session infrastructure
+└── ExcelMcp.SkillGeneration.Tests/ # Generated skill and plugin checks
 
 llm-tests/                          # LLM tool behavior validation (Manual)
 ```
@@ -42,6 +48,7 @@ llm-tests/                          # LLM tool behavior validation (Manual)
 
 | Category | Speed | Requirements | Run By Default |
 |----------|-------|--------------|----------------|
+| **Unit** | Fast | No Excel for pure logic | Select the relevant tests |
 | **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
 | **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
 | **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
@@ -90,9 +97,9 @@ dotnet test --filter "Feature=Connections&RunType!=OnDemand"
 
 | Scenario | Command |
 |----------|---------|
-| **Daily development** | `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"` |
-| **Before commit** | `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"` |
-| **Modified session/batch code** | `dotnet test --filter "RunType=OnDemand"` (see [Rule 3](../.github/instructions/critical-rules.instructions.md#rule-3-session-cleanup-tests)) |
+| **Daily development** | Run the smallest project and feature/name filter covering the change. |
+| **Before commit** | Rerun affected tests and applicable checks; follow the [runtime E2E requirements](../.github/copilot-instructions.md#build-and-validation). |
+| **Modified session/batch code** | Run relevant OnDemand tests in `ExcelMcp.ComInterop.Tests`; see [Testing Strategy](../.github/instructions/testing-strategy.instructions.md#commands). |
 | **VBA development** | `dotnet test --filter "(Feature=VBA\|Feature=VBATrust)&RunType!=OnDemand"` |
 | **LLM behavior validation** | See [LLM Tests](#llm-tests) section below |
 
@@ -181,10 +188,38 @@ Get-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Na
 
 ## Key Principles
 
+### Designing a regression test
+
+Reproduce the reported failure before changing the implementation. Cover
+meaningful boundary and error cases, plus both entry points when the contract
+crosses CLI and MCP. There is no fixed test quota.
+
+Assert resulting workbook state and relevant returned fields rather than only
+`Success`. For update/replace behavior, assert both that old content is absent
+and that new content is exact. Error assertions should distinguish the intended
+failure from other exceptions instead of accepting incompatible outcomes.
+
+Use a unique workbook with the established feature fixture. Combining
+`IClassFixture<T>` and a collection fixture on the same class can create competing
+Excel sessions. Follow neighboring trait conventions and the COM cleanup rules
+for any references acquired by the test itself.
+
+For in-memory changes, inspect the same batch without saving. For persistence,
+save and close, reopen in a new batch, then assert the state; do not open the
+same workbook in two live batches. Use `.xlsm` for VBA persistence.
+
+### Diagnosing a failing test
+
+Run the failure alone before broadening the run. Check workbook isolation,
+fixture selection, actual Excel state, cleanup, and whether the assertion needs
+a save/reopen cycle. Inspect fallback/retry paths when a primary-path fix is
+insufficient. Do not hide a deterministic failure with skip/xfail or loosen an
+assertion merely to make it pass.
+
 - ✅ **File Isolation** - Each test creates unique file (no sharing)
 - ✅ **Binary Assertions** - Pass OR fail, never "accept both"
 - ✅ **Verify Excel State** - Always verify actual Excel state after operations
-- ❌ **No SaveAsync** - Unless testing persistence (see [Rule 14](../.github/instructions/critical-rules.instructions.md#rule-14-no-saveasync-unless-testing-persistence))
+- **Explicit persistence** - Call `batch.Save()` only when testing save/close/reopen behavior (see [Testing Strategy](../.github/instructions/testing-strategy.instructions.md#save-and-round-trip-behavior)).
 
 ## Getting Help
 
