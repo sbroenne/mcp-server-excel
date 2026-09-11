@@ -1,0 +1,195 @@
+{
+  "fps": 30,
+  "seams": [
+    {
+      "id": "1-to-2",
+      "cut": 9.5,
+      "technique": "zoom-through",
+      "exit": {
+        "selector": "#s01",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s02",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "2-to-3",
+      "cut": 27.5,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#s02",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s03",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "3-to-4",
+      "cut": 39.5,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#s03",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s04",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "4-to-5",
+      "cut": 48,
+      "technique": "zoom-through",
+      "exit": {
+        "selector": "#s04",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s05",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "5-to-6",
+      "cut": 60,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#s05",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s06",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "6-to-7",
+      "cut": 72,
+      "technique": "zoom-through",
+      "exit": {
+        "selector": "#s06",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s07",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "7-to-8",
+      "cut": 84,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#s07",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s08",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "8-to-9",
+      "cut": 93,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#s08",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s09",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "9-to-10",
+      "cut": 103,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#s09",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s10",
+        "axis": "x",
+        "dir": -1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    },
+    {
+      "id": "10-to-11",
+      "cut": 112,
+      "technique": "zoom-through",
+      "exit": {
+        "selector": "#s10",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.55
+      },
+      "entry": {
+        "selector": "#s11",
+        "axis": "z",
+        "dir": 1,
+        "dur": 0.8,
+        "travel": 12
+      },
+      "blur": 18
+    }
+  ]
+}

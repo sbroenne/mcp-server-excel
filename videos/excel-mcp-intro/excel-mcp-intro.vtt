@@ -1,0 +1,117 @@
+WEBVTT
+
+1
+00:00:00.354 --> 00:00:06.306
+Excel MCP Server lets your AI assistant work in the real Excel desktop app.
+
+2
+00:00:06.406 --> 00:00:08.923
+Ask in plain English. Excel does the work.
+
+3
+00:00:09.657 --> 00:00:14.649
+File-based tools are useful for creating and editing spreadsheets without Excel.
+
+4
+00:00:14.749 --> 00:00:20.338
+Anthropic's spreadsheet skill uses openpyxl, with LibreOffice for calculation.
+
+5
+00:00:20.438 --> 00:00:27.243
+Excel MCP uses Microsoft's Excel engine instead, including the features built into the app.
+
+6
+00:00:27.782 --> 00:00:33.137
+Use it for refreshable reports, complex existing workbooks, and live Excel results.
+
+7
+00:00:33.237 --> 00:00:39.040
+For simple exports, or work without Windows and Excel, file-based tools may be the better fit.
+
+8
+00:00:39.719 --> 00:00:41.447
+Start with one sales workbook.
+
+9
+00:00:41.547 --> 00:00:44.555
+Ask your assistant to turn raw orders into a report.
+
+10
+00:00:44.655 --> 00:00:47.642
+Or drive the same workflow with excelcli.
+
+11
+00:00:48.836 --> 00:00:52.527
+Power Query turns preparation into a repeatable process.
+
+12
+00:00:52.627 --> 00:00:57.150
+Clean the source, shape your sales data, and refresh the query inside Excel.
+
+13
+00:00:57.250 --> 00:00:58.637
+Not a static export.
+
+14
+00:01:00.877 --> 00:01:03.096
+Bring those tables into the Data Model.
+
+15
+00:01:03.196 --> 00:01:08.849
+Define revenue once with DAX, then reuse that business logic across your analysis.
+
+16
+00:01:08.949 --> 00:01:10.570
+The model stays in your workbook.
+
+17
+00:01:13.387 --> 00:01:15.627
+Build a PivotTable to compare regions.
+
+18
+00:01:15.727 --> 00:01:18.010
+Add a chart, and the story becomes clear.
+
+19
+00:01:18.110 --> 00:01:21.737
+These are native Excel objects, ready for the next question.
+
+20
+00:01:24.555 --> 00:01:26.283
+Already have a trusted workflow?
+
+21
+00:01:26.383 --> 00:01:28.559
+Work with VBA modules and macros.
+
+22
+00:01:28.659 --> 00:01:32.094
+Run only trusted macros. They have your user permissions.
+
+23
+00:01:33.416 --> 00:01:35.208
+Go further with Python in Excel.
+
+24
+00:01:35.308 --> 00:01:37.100
+Write analysis beside your data.
+
+25
+00:01:37.200 --> 00:01:42.320
+Python runs in Microsoft's cloud, with a supported subscription and internet access.
+
+26
+00:01:43.439 --> 00:01:46.319
+Change an input. Excel calculates the result.
+
+27
+00:01:46.419 --> 00:01:51.283
+Keep the formulas, queries, charts, and workbook features that make the file valuable.
+
+28
+00:01:52.440 --> 00:01:56.216
+For coding agents, excelcli can use fewer tokens.
+
+29
+00:01:56.316 --> 00:01:59.281
+Two equal ways in. One real Excel engine.

@@ -1,0 +1,176 @@
+[
+  {
+    "id": "introa",
+    "text": "Excel MCP Server lets your AI assistant work in the real Excel desktop app.",
+    "start": 0.354,
+    "end": 6.306
+  },
+  {
+    "id": "introb",
+    "text": "Ask in plain English. Excel does the work.",
+    "start": 6.406,
+    "end": 8.923
+  },
+  {
+    "id": "comparea",
+    "text": "File-based tools are useful for creating and editing spreadsheets without Excel.",
+    "start": 9.657,
+    "end": 14.649
+  },
+  {
+    "id": "compareb",
+    "text": "Anthropic's spreadsheet skill uses openpyxl, with LibreOffice for calculation.",
+    "start": 14.749,
+    "end": 20.338
+  },
+  {
+    "id": "comparec",
+    "text": "Excel MCP uses Microsoft's Excel engine instead, including the features built into the app.",
+    "start": 20.438,
+    "end": 27.243
+  },
+  {
+    "id": "fita",
+    "text": "Use it for refreshable reports, complex existing workbooks, and live Excel results.",
+    "start": 27.782,
+    "end": 33.137
+  },
+  {
+    "id": "fitb",
+    "text": "For simple exports, or work without Windows and Excel, file-based tools may be the better fit.",
+    "start": 33.237,
+    "end": 39.04
+  },
+  {
+    "id": "02a",
+    "text": "Start with one sales workbook.",
+    "start": 39.719,
+    "end": 41.447
+  },
+  {
+    "id": "02b",
+    "text": "Ask your assistant to turn raw orders into a report.",
+    "start": 41.547,
+    "end": 44.555
+  },
+  {
+    "id": "02c",
+    "text": "Or drive the same workflow with excelcli.",
+    "start": 44.655,
+    "end": 47.642
+  },
+  {
+    "id": "03a",
+    "text": "Power Query turns preparation into a repeatable process.",
+    "start": 48.836,
+    "end": 52.527
+  },
+  {
+    "id": "03b",
+    "text": "Clean the source, shape your sales data, and refresh the query inside Excel.",
+    "start": 52.627,
+    "end": 57.15
+  },
+  {
+    "id": "03c",
+    "text": "Not a static export.",
+    "start": 57.25,
+    "end": 58.637
+  },
+  {
+    "id": "04a",
+    "text": "Bring those tables into the Data Model.",
+    "start": 60.877,
+    "end": 63.096
+  },
+  {
+    "id": "04b",
+    "text": "Define revenue once with DAX, then reuse that business logic across your analysis.",
+    "start": 63.196,
+    "end": 68.849
+  },
+  {
+    "id": "04c",
+    "text": "The model stays in your workbook.",
+    "start": 68.949,
+    "end": 70.57
+  },
+  {
+    "id": "05a",
+    "text": "Build a PivotTable to compare regions.",
+    "start": 73.387,
+    "end": 75.627
+  },
+  {
+    "id": "05b",
+    "text": "Add a chart, and the story becomes clear.",
+    "start": 75.727,
+    "end": 78.01
+  },
+  {
+    "id": "05c",
+    "text": "These are native Excel objects, ready for the next question.",
+    "start": 78.11,
+    "end": 81.737
+  },
+  {
+    "id": "06a",
+    "text": "Already have a trusted workflow?",
+    "start": 84.555,
+    "end": 86.283
+  },
+  {
+    "id": "06b",
+    "text": "Work with VBA modules and macros.",
+    "start": 86.383,
+    "end": 88.559
+  },
+  {
+    "id": "06c",
+    "text": "Run only trusted macros. They have your user permissions.",
+    "start": 88.659,
+    "end": 92.094
+  },
+  {
+    "id": "07a",
+    "text": "Go further with Python in Excel.",
+    "start": 93.416,
+    "end": 95.208
+  },
+  {
+    "id": "07b",
+    "text": "Write analysis beside your data.",
+    "start": 95.308,
+    "end": 97.1
+  },
+  {
+    "id": "07c",
+    "text": "Python runs in Microsoft's cloud, with a supported subscription and internet access.",
+    "start": 97.2,
+    "end": 102.32
+  },
+  {
+    "id": "08a",
+    "text": "Change an input. Excel calculates the result.",
+    "start": 103.439,
+    "end": 106.319
+  },
+  {
+    "id": "08b",
+    "text": "Keep the formulas, queries, charts, and workbook features that make the file valuable.",
+    "start": 106.419,
+    "end": 111.283
+  },
+  {
+    "id": "09a",
+    "text": "For coding agents, excelcli can use fewer tokens.",
+    "start": 112.44,
+    "end": 116.216
+  },
+  {
+    "id": "09b",
+    "text": "Two equal ways in. One real Excel engine.",
+    "start": 116.316,
+    "end": 119.281
+  }
+]
