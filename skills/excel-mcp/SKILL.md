@@ -103,10 +103,15 @@ Always convert tabular data to Excel Tables:
 ### Rule 5: Session Lifecycle
 
 ```
-1. file(action: 'open', path: '...')  → sessionId
-2. All operations use `session_id`
-3. file(action: 'close', save: true)  → saves and closes
+1. file(action: 'open', path: '...')  → capture response.session_id as sessionId
+2. workbook(action: 'get-info', session_id: sessionId)
+3. file(action: 'close', session_id: sessionId, save: true)  → saves and closes
 ```
+
+Pass that same value as `session_id` on every session-based follow-up call.
+`sessionId` above is a local variable, not an MCP argument name. When reusing a
+session from `file(list)`, copy the matching entry's `sessionId` value into
+`session_id`. Never guess or substitute a session.
 
 **Unclosed sessions leave Excel processes running, locking files.**
 

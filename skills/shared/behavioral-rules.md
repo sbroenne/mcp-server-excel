@@ -178,13 +178,28 @@ when access or information protection is uncertain. The shared result reports
 IRM/AIP files report `canOpen:false` until the required interactive Excel
 authentication occurs; open them with a visible session.
 
-Always close sessions when done:
+Always close sessions when done. MCP example:
 
 ```
-1. file(action: 'open', path: '...')  → sessionId
-2. All operations use `session_id`
-3. file(action: 'close', session_id: '...', save: true)  → saves and closes
+1. file(action: 'open', path: '...')  → capture response.session_id as sessionId
+2. workbook(action: 'get-info', session_id: sessionId)
+3. file(action: 'close', session_id: sessionId, save: true)  → saves and closes
 ```
+
+Pass that same value as `session_id` on every session-based MCP follow-up.
+`sessionId` above is a local variable, not an MCP argument name. For `file(list)`,
+copy the matching entry's `sessionId` value into `session_id`; never guess a session.
+
+CLI commands instead return `sessionId` and accept `--session`:
+
+```powershell
+$session = excelcli -q session open C:\path\file.xlsx | ConvertFrom-Json
+$sessionId = $session.sessionId
+excelcli -q workbook get-info --session $sessionId
+excelcli -q session close --session $sessionId --save
+```
+
+CLI and MCP sessions are separate; IDs cannot be transferred between them.
 
 **Why**: Unclosed sessions leave Excel processes running, consuming memory and locking files.
 
