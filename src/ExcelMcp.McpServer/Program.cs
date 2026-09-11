@@ -179,9 +179,9 @@ public class Program
                     CRITICAL: File must be CLOSED in Excel desktop app (COM requires exclusive access).
 
                     SESSION LIFECYCLE:
-                    1. file(action:'open') → returns sessionId
-                    2. Use sessionId with ALL subsequent tools
-                    3. file(action:'close', save:true/false) → ONLY when completely done
+                    1. file(action:'open') returns session_id
+                    2. Pass that ID as session_id in the arguments of ALL subsequent tool calls
+                    3. file(action:'close', session_id:the ID, save:true/false) ONLY when completely done
 
                     CALCULATION MODE (Performance Optimization):
                     - Use calculation_mode for bulk write operations (10+ cells with values or formulas).
@@ -223,6 +223,7 @@ public class Program
                     """;
             })
             .WithGeminiCompatibleToolsFromAssembly()
+            .WithRequestFilters(filters => filters.AddCallToolFilter(SessionIdentityFilter.Wrap))
             .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
 
         if (testInputPipe != null && testOutputPipe != null)
