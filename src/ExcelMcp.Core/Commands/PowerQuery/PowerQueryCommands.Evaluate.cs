@@ -87,6 +87,10 @@ public partial class PowerQueryCommands
                 {
                     queryTable.Refresh(false); // false = synchronous
                 }
+                catch (COMException ex) when (TryWrapPowerQueryException(ex, out var queryError))
+                {
+                    throw queryError!;
+                }
                 finally
                 {
                     OleMessageFilter.ClearPendingCancellationToken();
