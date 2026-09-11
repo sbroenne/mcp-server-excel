@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -9,6 +10,68 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 public partial class RangeCommandsTests
 {
+    [Fact]
+    [Trait("Layer", "Core")]
+    public void FormulaCompatibility_TableArrayArgument_UsesSessionSemanticsAndLegacyControl()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.CreateTestFile());
+        var sheetName = _fixture.CreateTestSheet(batch);
+        bool supportsFormula2 = batch.Execute((ctx, ct) => ctx.Capabilities.SupportsFormula2);
+        const string formula = "=SUM(SQRT($A$2:$A$3))";
+        _commands.SetValues(batch, sheetName, "A1:C3",
+        [
+            ["Input", "Session", "Legacy control"],
+            [4, null, null],
+            [9, null, null]
+        ]);
+        Assert.True(new TableCommands().Create(batch, sheetName, "ArrayArgumentTable", "A1:C3").Success);
+        Assert.True(_commands.SetFormulas(batch, sheetName, "B2:B3", [[formula], [formula]]).Success);
+
+        // Exercise the actual legacy API on the installed Excel, not an old-Excel simulation.
+        batch.Execute((ctx, ct) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                Assert.NotNull(sheet);
+                range = sheet.Range["C2:C3"];
+                range.Formula = formula;
+            }
+            finally
+            {
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var legacyValues = _commands.GetValues(batch, sheetName, "C2:C3");
+        Assert.Equal(2.0, Convert.ToDouble(legacyValues.Values[0][0], CultureInfo.InvariantCulture));
+        Assert.Equal(3.0, Convert.ToDouble(legacyValues.Values[1][0], CultureInfo.InvariantCulture));
+        var result = _commands.GetFormulas(batch, sheetName, "B2:B3");
+        Assert.Equal(2, result.Formulas.Count);
+        Assert.Empty(result.CellErrors);
+        if (supportsFormula2)
+        {
+            Assert.All(result.Formulas, row =>
+            {
+                Assert.DoesNotContain("@", row[0]);
+                Assert.Equal(formula, row[0]);
+            });
+            Assert.All(result.Values, row => Assert.Equal(5.0, Convert.ToDouble(row[0], CultureInfo.InvariantCulture)));
+        }
+        else
+        {
+            var legacyFormulas = ReadLegacyTableFormulas(batch, sheetName, "C2:C3");
+            for (int row = 0; row < 2; row++)
+            {
+                Assert.Equal(legacyFormulas[row + 1, 1], result.Formulas[row][0]);
+                Assert.Equal(legacyValues.Values[row][0], result.Values[row][0]);
+            }
+        }
+    }
+
     [Fact]
     [Trait("Layer", "Core")]
     public void FormulaCompatibility_LegacySafeFormulas_RoundTripAndEnrichErrors()
