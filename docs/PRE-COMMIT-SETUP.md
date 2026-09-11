@@ -19,6 +19,22 @@ This repository includes automated pre-commit checks to prevent code quality iss
 13. **Agent Skills Deliverables** - Builds the skills ZIP locally
 14. **Dynamic Cast Documentation** - Ensures `((dynamic))` casts carry a justification comment
 
+### Which changes trigger expensive checks
+
+The hook selects checks from staged paths. During a merge, it compares against
+the incoming parent so already-validated imported changes do not trigger
+unrelated Excel tests.
+
+| Changes | Release build and count checks | Excel E2E | Release packaging |
+|---|---|---|---|
+| Documentation and website content, including website build scripts | No | No | No |
+| Tests, `scripts/check-doc-counts.ps1`, or `.github/workflows/ci.yml` only | Yes | No | No |
+| Runtime code in Core, COM, Service, CLI, MCP, or source generators | Yes | Yes | Yes |
+| Other build or release inputs | Yes | Only when the runtime/E2E path filter matches | Yes |
+
+Mixed commits use the stricter applicable checks. Unrecognized paths still
+require packaging. The exact path rules live in `scripts/pre-commit.ps1`.
+
 ## Setup Instructions
 
 ### Option 1: Git Bash (Recommended for cross-platform)
@@ -89,15 +105,15 @@ pwsh -ExecutionPolicy Bypass -File "scripts/pre-commit.ps1"
 
 See `.github/instructions/coverage-prevention-strategy.instructions.md` for details.
 
-## Bypass Pre-Commit Checks (Emergency Only)
+### Packaging failure
 
-If you absolutely must commit without passing the checks (NOT recommended):
+The hook stops at the failed packaging command and prints its exit code and
+captured output. It also preserves earlier output if a later file operation
+throws. Diagnose the first reported build or packaging error rather than
+treating a missing executable as the root cause.
 
-```powershell
-git commit --no-verify -m "Emergency commit message"
-```
-
-**⚠️ Warning:** This should only be used in emergencies. Coverage gaps and COM leaks must be fixed before merging to main.
+Do not bypass the hook. If the environment prevents a check from completing,
+stop and report the specific blocker before changing the environment or checks.
 
 ## Testing the Hook
 
@@ -112,6 +128,13 @@ bash .git/hooks/pre-commit
 ```
 
 Release deliverable validation writes scratch outputs under `artifacts\pre-commit\` so the hook can verify the same artifact shapes the release workflow publishes without touching release tags or publication steps.
+
+The hook's path selection and error reporting have isolated tests that do not
+build release packages or start Excel:
+
+```powershell
+dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PreCommit" --blame-hang-timeout 60s
+```
 
 ## Troubleshooting
 
@@ -136,15 +159,15 @@ The Excel-free subset of these checks runs in CI/CD (GitHub-hosted runners have 
 - `ci.yml` (**CI Gate**) runs a Release build, then the Excel-free audits
   (`check-com-leaks.ps1`, `audit-core-coverage.ps1`, `check-mcp-core-implementations.ps1`,
   `check-success-flag.ps1`, `check-doc-counts.ps1`, `check-dynamic-casts.ps1`, `check-plugin-readmes.ps1`)
-  plus Excel-free CLI/MCP build smoke on every PR to `main`
+  plus the hook regression tests on every PR to `main`
 - Excel-dependent gates (CLI/MCP runtime smoke, integration tests) run **local-only** via the pre-commit hook
 
 **Pipeline enforcement ensures:**
 - Pre-commit hook provides **instant local feedback**
-- CI/CD provides **safety net** if hook bypassed with `--no-verify`
+- CI/CD provides a **safety net** when the local hook is not installed
 - **Double protection** against coverage regression
 
- The hook now validates every locally buildable release artifact before commit publication:
+ When shipping inputs change, the hook validates every locally buildable release artifact before commit publication:
  - CLI NuGet package + standalone ZIP
  - MCP Server NuGet package + standalone ZIP
  - VS Code VSIX

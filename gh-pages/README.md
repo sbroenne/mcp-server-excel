@@ -7,6 +7,12 @@ the repo (root `README.md`, `FEATURES.md`, `docs/features/`, package READMEs,
 The canonical feature reference is organized into intent-based pages under `docs/features/`;
 `hooks.py` adapts those pages for the website without copying operation details.
 
+The feature overview is authored only in root `FEATURES.md`. Its website
+wrapper, `docs/features.md`, keeps the page metadata, title, and illustration,
+then includes `_generated/features.md`. Edit the root file to change categories,
+tool-selection guidance, task links, or headline counts. The site audit rejects
+duplicate overview prose in the wrapper and checks the published Markdown copy.
+
 ## Publishing canonical documentation
 
 Write operational content once in its repository source. Pages under
@@ -39,7 +45,8 @@ keywords: relevant, search terms
 --8<-- "_generated/page-name.md"
 ```
 
-The hook writes snippets to gitignored `docs/_generated/`; do not edit those
+The hook writes snippets to gitignored `_generated/`, outside `docs/` to avoid
+preview rebuild loops; do not edit those
 files. Use local site links for published documents and GitHub links for source
 code, issues, or documents without a site page.
 
