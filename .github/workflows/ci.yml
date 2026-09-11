@@ -97,6 +97,9 @@ jobs:
       - name: Build (Release)
         run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore -p:NuGetAudit=false
 
+      - name: Pre-commit hook regression tests
+        run: dotnet test tests/ExcelMcp.SkillGeneration.Tests/ExcelMcp.SkillGeneration.Tests.csproj --configuration Release --no-build --no-restore --filter "Feature=PreCommit" --blame-hang-timeout 60s
+
       # --- Excel-free correctness gates (ported from scripts/pre-commit.ps1) ---
 
       - name: COM object leak check

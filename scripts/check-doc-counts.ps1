@@ -195,12 +195,13 @@ $checks = @(
     @{ File = "mcpb\manifest.json";                     Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.CLI\ExcelMcp.CLI.csproj";   Pattern = '(?<o>\d+) operations across' }
     @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
-    @{ File = "gh-pages\docs\features.md";              Pattern = '(?<t>\d+) specialized tools and (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
     @{ File = "skills\excel-mcp\SKILL.md";              Pattern = 'Provides (?<o>\d+) Excel operations' }
 )
 
+# The website feature overview includes FEATURES.md; audit_site.py enforces
+# that wrapper contract instead of requiring a second handwritten headline.
 foreach ($check in $checks) {
     $path = Join-Path $rootDir $check.File
     if (-not (Test-Path $path)) {

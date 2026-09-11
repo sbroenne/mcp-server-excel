@@ -14,11 +14,11 @@
     5b. Documentation count validation - ensures all docs report the code-derived tool/operation counts (skipped for docs-only commits)
     6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
     7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
-    8. CLI release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs-only commits)
-    9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs-only commits)
-    10. VS Code extension packaging - validates the VSIX release packaging path (skipped for docs-only commits)
-    11. MCPB bundle packaging - validates the Claude Desktop bundle artifact (skipped for docs-only commits)
-    12. Agent skills packaging - validates the ZIP deliverable (skipped for docs-only commits)
+    8. CLI release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
+    9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
+    10. VS Code extension packaging - validates the VSIX release packaging path (skipped for docs/validation-only commits)
+    11. MCPB bundle packaging - validates the Claude Desktop bundle artifact (skipped for docs/validation-only commits)
+    12. Agent skills packaging - validates the ZIP deliverable (skipped for docs/validation-only commits)
     13. Plugin README validation - ensures overlays are complete and not stub content
     14. Dynamic cast audit - ensures ((dynamic)) casts are documented
 
@@ -49,16 +49,18 @@ function Invoke-ValidationStep {
     Write-Host ""
     Write-Host $Heading -ForegroundColor Cyan
 
+    # Keep output as it arrives: assignment from a pipeline is lost if it throws.
+    $output = [System.Collections.Generic.List[object]]::new()
     try {
-        $output = & $Action 2>&1 | Out-String
+        & $Action 2>&1 | ForEach-Object { $output.Add($_) }
         $exitCode = $LASTEXITCODE
 
         if ($exitCode -ne 0) {
             Write-Host ""
             Write-Host $FailureSummary -ForegroundColor Red
-            if (-not [string]::IsNullOrWhiteSpace($output)) {
+            if ($output.Count -gt 0) {
                 Write-Host ""
-                Write-Host $output -ForegroundColor Gray
+                Write-Host ($output | Out-String) -ForegroundColor Gray
             }
             exit 1
         }
@@ -68,6 +70,9 @@ function Invoke-ValidationStep {
     catch {
         Write-Host ""
         Write-Host "$FailureSummary $($_.Exception.Message)" -ForegroundColor Red
+        if ($output.Count -gt 0) {
+            Write-Host ($output | Out-String) -ForegroundColor Gray
+        }
         exit 1
     }
 }
@@ -98,6 +103,12 @@ $validationBase = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else {
 $stagedFiles = git diff --cached --name-only $validationBase 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0
+
+# Validation changes still build and check counts, but do not change release artifacts.
+# Unrecognized paths continue to require packaging.
+$validationOnlyPattern = '(^tests/)|(^scripts/check-doc-counts\.ps1$)|(^\.github/workflows/ci\.yml$)'
+$packagingChangedFiles = $codeChangedFiles | Where-Object { $_ -notmatch $validationOnlyPattern }
+$requiresReleasePackaging = @($packagingChangedFiles).Count -gt 0
 
 # Excel-dependent E2E validates the runtime path only. Include the COM and service
 # layers plus source generators because their changes flow into Core, CLI, or MCP.
@@ -258,10 +269,8 @@ Invoke-ValidationStep `
 # - Build-time generator errors if interfaces are malformed
 # - CLI workflow smoke test below (end-to-end validation)
 
-# Everything from the Release build through the packaging gates exercises compiled
-# binaries and release artifacts. For a docs-only commit (including gh-pages website
-# changes) there is no compiled surface to validate, so skip the whole block and keep
-# the commit fast. The cheap source-level guards above and below still run every time.
+# Validation-only changes need a build and count checks, but not release packaging.
+# Pure documentation changes keep the existing fast path.
 if ($hasCodeChanges) {
 
 Invoke-ValidationStep `
@@ -333,6 +342,14 @@ if ($requiresExcelE2E) {
     Write-Host "Skipping Excel-dependent E2E tests (no staged changes affect Core, CLI, or MCP runtime paths)" -ForegroundColor Yellow
 }
 
+}
+else {
+    Write-Host ""
+    Write-Host "Skipping Release build and smoke tests (docs-only commit - no compiled surface changed)" -ForegroundColor Yellow
+}
+
+if ($requiresReleasePackaging) {
+
 Invoke-ValidationStep `
     -Heading "Building CLI release deliverables..." `
     -FailureSummary "CLI release deliverable validation failed!" `
@@ -352,7 +369,13 @@ Invoke-ValidationStep `
         Push-Location $rootDir
         try {
             dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --no-restore --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false
+            if ($LASTEXITCODE -ne 0) {
+                throw "dotnet pack (CLI) failed with exit code $LASTEXITCODE."
+            }
             dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir
+            if ($LASTEXITCODE -ne 0) {
+                throw "dotnet publish (CLI) failed with exit code $LASTEXITCODE."
+            }
 
             Copy-Item (Join-Path $cliPublishDir "excelcli.exe") $cliReleaseDir
             Copy-Item "README.md" $cliReleaseDir
@@ -396,7 +419,13 @@ Invoke-ValidationStep `
         Push-Location $rootDir
         try {
             dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --no-restore --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false
+            if ($LASTEXITCODE -ne 0) {
+                throw "dotnet pack (MCP Server) failed with exit code $LASTEXITCODE."
+            }
             dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir
+            if ($LASTEXITCODE -ne 0) {
+                throw "dotnet publish (MCP Server) failed with exit code $LASTEXITCODE."
+            }
 
             $publishedExe = Join-Path $mcpPublishDir "Sbroenne.ExcelMcp.McpServer.exe"
             $renamedExe = Join-Path $mcpPublishDir "mcp-excel.exe"
@@ -467,6 +496,9 @@ Invoke-ValidationStep `
         Push-Location $mcpbDir
         try {
             .\Build-McpBundle.ps1 -Version $version -OutputDir $mcpbOutputRelative
+            if ($LASTEXITCODE -ne 0) {
+                throw "Build-McpBundle.ps1 failed with exit code $LASTEXITCODE."
+            }
 
             if (-not (Get-ChildItem $mcpbOutputDir -Filter "*.mcpb" -ErrorAction Stop)) {
                 throw "MCPB artifact was not created."
@@ -488,6 +520,9 @@ Invoke-ValidationStep `
         Push-Location $rootDir
         try {
             .\scripts\Build-AgentSkills.ps1 -OutputDir "artifacts/pre-commit/skills" -Version $version
+            if ($LASTEXITCODE -ne 0) {
+                throw "Build-AgentSkills.ps1 failed with exit code $LASTEXITCODE."
+            }
 
             if (-not (Get-ChildItem $skillsOutputDir -Filter "excel-skills-v*.zip" -ErrorAction Stop)) {
                 throw "Agent skills ZIP artifact was not created."
@@ -501,7 +536,7 @@ Invoke-ValidationStep `
 }
 else {
     Write-Host ""
-    Write-Host "Skipping Release build, smoke tests and all release packaging gates (docs-only commit - no compiled surface changed)" -ForegroundColor Yellow
+    Write-Host "Skipping release packaging gates (docs/validation-only commit - no shipped artifacts changed)" -ForegroundColor Yellow
 }
 
 Write-Host ""

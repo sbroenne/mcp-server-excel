@@ -1267,6 +1267,12 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         _render_usage_analytics(),
     )
 
+    _write(
+        "features.md",
+        "FEATURES.md",
+        _strip_header(_read("FEATURES.md"), end_on_blank=True),
+    )
+
     # Canonical feature references -> focused website pages. The wrappers add
     # presentation and SEO metadata but never duplicate operation details.
     for output_name, source_rel in FEATURE_SOURCES.items():
