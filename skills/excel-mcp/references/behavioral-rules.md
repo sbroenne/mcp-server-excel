@@ -352,6 +352,14 @@ retrying. For `SessionNotFound`, reopen the workbook once and continue with the
 new session ID. A timeout, cancellation, or dead Excel process can invalidate
 and close the session; reopen it instead of retrying against the old session.
 
+`Prerequisite` means required workbook data or a feature is missing, such as
+tables in the Data Model. `DependencyUnavailable` means an external component
+is missing, such as the MSOLAP provider. `Permissions` can indicate blocked VBA
+project access; do not change security settings automatically. Running an
+existing macro does not itself require VBA project access. Unknown Excel
+errors remain unknown: do not assume a generic COM failure is a bad query or
+a trust problem.
+
 ### Retry with Corrections
 
 If an operation fails:

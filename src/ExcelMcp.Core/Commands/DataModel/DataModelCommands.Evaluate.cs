@@ -44,7 +44,8 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
+                    throw new OperationFailureException(
+                        OperationFailureCategory.Prerequisite, DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -81,7 +82,14 @@ public partial class DataModelCommands
                 {
                     // REGDB_E_CLASSNOTREG (0x80040154) = "Class not registered"
                     // This occurs when the specific MSOLAP provider in the ADO connection is not registered.
-                    throw new InvalidOperationException(DataModelErrorMessages.MsolapClassNotRegistered(adoDiagnostics), ex);
+                    throw new OperationFailureException(
+                        OperationFailureCategory.DependencyUnavailable,
+                        DataModelErrorMessages.MsolapClassNotRegistered(adoDiagnostics), ex);
+                }
+                catch (COMException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"DAX evaluation failed: {ex.Message}", ex);
                 }
 
                 // Get field (column) information
@@ -200,5 +208,3 @@ public partial class DataModelCommands
         };
     }
 }
-
-

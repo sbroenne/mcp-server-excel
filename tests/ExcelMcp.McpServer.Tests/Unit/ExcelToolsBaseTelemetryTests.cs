@@ -13,6 +13,45 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Feature", "Telemetry")]
 public sealed class ExcelToolsBaseTelemetryTests
 {
+    [Theory]
+    [InlineData("wrapped-com", "ComInterop", "ExcelRuntime")]
+    [InlineData("json", "InvalidInput", "InputState")]
+    [InlineData("query", "Syntax", "InputState")]
+    [InlineData("prerequisite", "Prerequisite", "InputState")]
+    [InlineData("dependency", "DependencyUnavailable", "ExternalDependency")]
+    [InlineData("permissions", "Permissions", "ExternalDependency")]
+    public void ExecuteToolAction_KnownException_PreservesCategory(
+        string scenario, string category, string failureClass)
+    {
+#pragma warning disable CA2201 // Synthetic exceptions exercise serialization, not COM behavior.
+        Exception error = scenario switch
+        {
+            "wrapped-com" => new InvalidOperationException("Operation context",
+                new System.Reflection.TargetInvocationException(
+                    new System.Runtime.InteropServices.COMException("Excel failure", unchecked((int)0x800A03EC)))),
+            "json" => new JsonException("Invalid arguments"),
+            "prerequisite" => new OperationFailureException(OperationFailureCategory.Prerequisite, "Missing model"),
+            "dependency" => new OperationFailureException(OperationFailureCategory.DependencyUnavailable, "Missing provider"),
+            "permissions" => new OperationFailureException(OperationFailureCategory.Permissions, "Access blocked"),
+            _ => new Sbroenne.ExcelMcp.Core.Commands.PowerQueryCommandException(
+                "Invalid query", "Syntax", new InvalidOperationException("Query details"))
+        };
+#pragma warning restore CA2201
+        ToolInvocationResult? invocation = null;
+        var response = ExcelToolsBase.ExecuteToolAction("powerquery", "evaluate", null,
+            () => throw error, (_, _, _, result) => invocation = result);
+
+        using var document = JsonDocument.Parse(response);
+        Assert.Equal(category, document.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Contains(error.Message, document.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Equal(new ToolInvocationResult(ToolInvocationOutcome.Failed,
+            Enum.Parse<ToolFailureClass>(failureClass)), invocation);
+        if (scenario == "wrapped-com")
+        {
+            Assert.Equal("0x800A03EC", document.RootElement.GetProperty("hresult").GetString());
+        }
+    }
+
     [Fact]
     public void ExecuteToolAction_SuccessResponse_TracksSucceeded()
     {
@@ -61,6 +100,8 @@ public sealed class ExcelToolsBaseTelemetryTests
     [InlineData("Timeout", "TimeoutCancellation")]
     [InlineData("ComInterop", "ExcelRuntime")]
     [InlineData("ServiceStartup", "InternalProductFault")]
+    [InlineData("Prerequisite", "InputState")]
+    [InlineData("DependencyUnavailable", "ExternalDependency")]
     [InlineData("FutureCategory", "Unclassified")]
     public void ExecuteToolAction_StructuredFailure_UsesAllowlistedClass(
         string errorCategory,
@@ -185,12 +226,16 @@ public sealed class ExcelToolsBaseTelemetryTests
         Assert.Equal("expected-negative", eventTelemetry.Properties["Outcome"]);
     }
 
-    [Fact]
-    public void CreateToolInvocationTelemetry_FailureEmitsOnlyAllowlistedClassification()
+    [Theory]
+    [InlineData("Unclassified", "unclassified")]
+    [InlineData("InputState", "input-state")]
+    [InlineData("ExternalDependency", "external-dependency")]
+    public void CreateToolInvocationTelemetry_FailureEmitsOnlyAllowlistedClassification(
+        string failureClass, string label)
     {
         var result = new ToolInvocationResult(
             ToolInvocationOutcome.Failed,
-            ToolFailureClass.Unclassified);
+            Enum.Parse<ToolFailureClass>(failureClass));
 
         var (eventTelemetry, requestTelemetry) =
             ExcelMcpTelemetry.CreateToolInvocationTelemetry(
@@ -202,9 +247,9 @@ public sealed class ExcelToolsBaseTelemetryTests
         Assert.False(requestTelemetry.Success);
         Assert.Equal("500", requestTelemetry.ResponseCode);
         Assert.Equal("failed", requestTelemetry.Properties["Outcome"]);
-        Assert.Equal("unclassified", requestTelemetry.Properties["FailureClass"]);
+        Assert.Equal(label, requestTelemetry.Properties["FailureClass"]);
         Assert.Equal("failed", eventTelemetry.Properties["Outcome"]);
-        Assert.Equal("unclassified", eventTelemetry.Properties["FailureClass"]);
+        Assert.Equal(label, eventTelemetry.Properties["FailureClass"]);
 
         var serializedProperties = string.Join(
             "\n",

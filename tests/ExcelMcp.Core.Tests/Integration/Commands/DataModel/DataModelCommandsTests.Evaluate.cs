@@ -117,7 +117,7 @@ public class DataModelCommandsTests_Evaluate
     {
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
         var result = _dataModelCommands.Evaluate(batch,
-            "EVALUATE ROW(\"TotalSales\", SUM('SalesTable'[Amount]))");
+            "EVALUATE ROW(\"Probe\", 42)");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Rows);
@@ -125,6 +125,9 @@ public class DataModelCommandsTests_Evaluate
 
         // Should have one column with the computed value
         Assert.Equal(1, result.ColumnCount);
+        Assert.Equal("[Probe]", Assert.Single(result.Columns));
+        Assert.Equal(42m, Convert.ToDecimal(Assert.Single(Assert.Single(result.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
     }
 
     #endregion
@@ -144,7 +147,11 @@ public class DataModelCommandsTests_Evaluate
         var ex = Assert.ThrowsAny<Exception>(() =>
             _dataModelCommands.Evaluate(batch, "EVALUATE INVALID_FUNCTION()"));
 
-        Assert.NotNull(ex);
+        Assert.Equal("ComInterop", Sbroenne.ExcelMcp.Core.Utilities.OperationFailureClassifier.Classify(ex));
+        Assert.Contains("DAX evaluation failed", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("INVALID_FUNCTION", ex.Message, StringComparison.Ordinal);
+        var cause = Assert.IsType<System.Runtime.InteropServices.COMException>(ex.InnerException);
+        Assert.Contains(cause.Message, ex.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -254,7 +261,4 @@ public class DataModelCommandsTests_Evaluate
 
     #endregion
 }
-
-
-
 

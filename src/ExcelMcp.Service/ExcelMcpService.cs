@@ -1154,16 +1154,9 @@ public sealed class ExcelMcpService : IDisposable
     private static ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
     {
         var exceptionType = ex.GetType().Name;
-        string? hresult = ex is COMException comEx ? $"0x{comEx.HResult:X8}" : null;
+        string? hresult = OperationFailureClassifier.GetComHResult(ex);
         string? innerError = null;
-        var errorCategory = ex switch
-        {
-            PowerQueryCommandException pqEx => pqEx.ErrorCategory,
-            TimeoutException => "Timeout",
-            ArgumentException or JsonException => "InvalidInput",
-            COMException => "ComInterop",
-            _ => null
-        };
+        var errorCategory = OperationFailureClassifier.Classify(ex);
 
         if (ex.InnerException != null)
         {
