@@ -228,6 +228,24 @@ public class SkillMdQualityTests
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
+    public void BehavioralRules_CheckedInReferencesMatchSharedSource()
+    {
+        const string cliSyntaxNotice =
+            "> **CLI syntax note:** This shared domain guide may use MCP-style `tool(action: ...)` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live `--help`; notably, MCP `file` open/close maps to CLI `session` open/close, and MCP `worksheet` maps to CLI `sheet`.";
+        var shared = NormalizeLineEndings(File.ReadAllText(
+            Path.Combine(SkillsFolder, "shared", "behavioral-rules.md")));
+        var mcp = NormalizeLineEndings(File.ReadAllText(
+            Path.Combine(SkillsFolder, "excel-mcp", "references", "behavioral-rules.md")));
+        var cli = NormalizeLineEndings(File.ReadAllText(
+            Path.Combine(SkillsFolder, "excel-cli", "references", "behavioral-rules.md")));
+
+        Assert.Equal(shared, mcp);
+        Assert.Equal($"{cliSyntaxNotice}\n\n{shared}", cli);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
     public void McpSkill_DoesNotDuplicateCalculationModeWorkflow()
     {
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
@@ -384,4 +402,8 @@ public class SkillMdQualityTests
             Assert.Fail(message);
         }
     }
+
+    private static string NormalizeLineEndings(string content) =>
+        content.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n');
 }

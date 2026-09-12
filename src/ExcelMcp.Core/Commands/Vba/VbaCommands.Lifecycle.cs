@@ -27,7 +27,7 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            throw new InvalidOperationException(VbaTrustErrorMessage);
+            throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -98,7 +98,7 @@ public partial class VbaCommands
             catch (COMException comEx) when (IsVbaTrustError(comEx))
             {
                 // Trust was disabled during operation
-                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+                throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, comEx);
             }
             catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
             {
@@ -122,7 +122,7 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            throw new InvalidOperationException(validationError);
+            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
         }
 
         if (string.IsNullOrWhiteSpace(moduleName))
@@ -133,7 +133,7 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            throw new InvalidOperationException(VbaTrustErrorMessage);
+            throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -200,7 +200,7 @@ public partial class VbaCommands
 
                 if (!found)
                 {
-                    throw new InvalidOperationException($"Module '{moduleName}' not found in workbook");
+                    throw new OperationFailureException(OperationFailureCategory.NotFound, $"Module '{moduleName}' not found in workbook");
                 }
 
                 result.Success = true;
@@ -208,7 +208,7 @@ public partial class VbaCommands
             }
             catch (COMException comEx) when (IsVbaTrustError(comEx))
             {
-                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+                throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, comEx);
             }
             catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
             {
@@ -232,13 +232,13 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            throw new InvalidOperationException(validationError);
+            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            throw new InvalidOperationException(VbaTrustErrorMessage);
+            throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -263,7 +263,7 @@ public partial class VbaCommands
                         component = vbComponents.Item(i);
                         if (component.Name == moduleName)
                         {
-                            throw new InvalidOperationException($"Module '{moduleName}' already exists. Use script-update to modify it.");
+                            throw new OperationFailureException(OperationFailureCategory.Conflict, $"Module '{moduleName}' already exists. Use script-update to modify it.");
                         }
                     }
                     finally
@@ -283,7 +283,7 @@ public partial class VbaCommands
             }
             catch (COMException comEx) when (IsVbaTrustError(comEx))
             {
-                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+                throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, comEx);
             }
             catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
             {
@@ -307,13 +307,13 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            throw new InvalidOperationException(validationError);
+            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            throw new InvalidOperationException(VbaTrustErrorMessage);
+            throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -353,7 +353,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    throw new InvalidOperationException($"Module '{moduleName}' not found. Use script-import to create it.");
+                    throw new OperationFailureException(OperationFailureCategory.NotFound, $"Module '{moduleName}' not found. Use script-import to create it.");
                 }
 
                 codeModule = targetComponent.CodeModule;
@@ -370,7 +370,7 @@ public partial class VbaCommands
             }
             catch (COMException comEx) when (IsVbaTrustError(comEx))
             {
-                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+                throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, comEx);
             }
             catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
             {
@@ -388,6 +388,5 @@ public partial class VbaCommands
         });
     }
 }
-
 
 

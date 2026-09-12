@@ -18,6 +18,19 @@ If you are looking for percentage, currency, date, or text display formatting, u
 If you are looking for auto-fit, width, height, borders, fill, or font styling, use `range_format`.
 If you need the same styling on multiple non-contiguous ranges, use `format-ranges` instead of repeating `format-range`.
 
+## Formula Compatibility
+
+Both CLI and MCP check `Range.Formula2` support with a read-only probe once per
+session. Supported Excel keeps modern dynamic-array behavior. Older Excel uses
+`Range.Formula` for formula reads and writes, including formulas passed through
+`set-values` and formula details in `get-values` errors.
+
+The legacy path uses implicit intersection: a formula that refers to several
+cells may resolve to one value rather than spill, including inside tables.
+It does not add newer functions or dynamic arrays to Excel 2016/2019. Use
+formulas supported by the installed Excel version. Invalid formulas and
+protected-cell write errors still fail; they do not trigger a legacy retry.
+
 ## Formula Errors in Range Reads
 
 `get-values` and `get-formulas` return formula errors in their `values` arrays as

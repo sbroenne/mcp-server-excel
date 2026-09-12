@@ -627,7 +627,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             _workbooks[normalizedPath] = workbook;
             _workbookPath = normalizedPath;
             _allWorkbookPaths[0] = normalizedPath;
-            _context = new ExcelContext(normalizedPath, _excel, _workbook);
+            _context = new ExcelContext(normalizedPath, _excel, _workbook, _context!.Capabilities);
         });
     }
 

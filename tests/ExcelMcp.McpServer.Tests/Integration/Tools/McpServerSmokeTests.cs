@@ -155,7 +155,8 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            // Compatibility path for client bridges that rewrite the canonical session_id key.
+            ["sessionId"] = sessionId
         });
         AssertSuccess(listSheetsResult, "List worksheets");
 
