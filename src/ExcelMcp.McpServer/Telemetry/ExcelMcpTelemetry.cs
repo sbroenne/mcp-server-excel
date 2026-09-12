@@ -190,6 +190,39 @@ public static class ExcelMcpTelemetry
         return (eventTelemetry, request);
     }
 
+    internal static void TrackSessionIdAliasObserved(string toolName, string action)
+    {
+        if (_telemetryClient == null) return;
+
+        TryTrackSessionIdAliasObserved(_telemetryClient.TrackEvent, toolName, action);
+    }
+
+    internal static void TryTrackSessionIdAliasObserved(
+        Action<EventTelemetry> trackEvent,
+        string toolName,
+        string action)
+    {
+        try
+        {
+            trackEvent(CreateSessionIdAliasTelemetry(toolName, action));
+        }
+        catch (Exception)
+        {
+            // Compatibility telemetry must never affect tool execution.
+        }
+    }
+
+    internal static EventTelemetry CreateSessionIdAliasTelemetry(string toolName, string action)
+    {
+        var telemetry = new EventTelemetry("SessionIdCompatibilityAliasObserved");
+        telemetry.Properties["Tool"] = toolName;
+        telemetry.Properties["Action"] = action;
+        telemetry.Properties["Alias"] = "sessionId";
+        telemetry.Properties["AppVersion"] = GetVersion();
+        ApplyContext(telemetry);
+        return telemetry;
+    }
+
     private static string GetOutcomeValue(ToolInvocationOutcome outcome) =>
         outcome switch
         {
