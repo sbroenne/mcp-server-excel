@@ -438,6 +438,9 @@ The Application Insights connection string is **embedded at build time** via MSB
   failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
+- **Session alias compatibility**: A fixed event when a declared session-bound
+  action uses the top-level `sessionId` fallback, labeled only by tool, action,
+  alias name, and application version
 
 ### **What is NOT Tracked**
 
@@ -445,6 +448,7 @@ The Application Insights connection string is **embedded at build time** via MSB
 - User identity, machine name, or IP address
 - Excel data, formulas, or cell values
 - Connection strings, credentials, or passwords
+- Workbook session ID values or raw MCP arguments
 
 ### **Sensitive Data Protection**
 

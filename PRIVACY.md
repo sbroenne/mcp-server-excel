@@ -26,6 +26,9 @@ data that a tool returns to your chosen AI assistant.
 - **Session information** - A random session ID generated each time the server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
+- **Session alias compatibility** - Whether a session-bound MCP request used the
+  fixed `sessionId` compatibility alias, labeled only by tool, declared action,
+  alias name, and application version
 - **Unhandled exceptions** - Error type, approved source, and project-owned failure site only
   (never exception messages or stack traces)
 
@@ -40,6 +43,8 @@ data that a tool returns to your chosen AI assistant.
 - ❌ **User accounts** - No registration or sign-in required
 - ❌ **Error details** - Error messages, response content, exception names, and
   stack traces are not included in invocation outcome telemetry
+- ❌ **Session IDs or tool arguments** - Compatibility telemetry never includes
+  the session ID value, workbook path, request arguments, or user content
 
 ### Purpose of Telemetry
 
