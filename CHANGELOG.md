@@ -11,6 +11,20 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.8] - 2026-09-12
+
+### Patch Changes
+
+- [#872](https://github.com/sbroenne/mcp-server-excel/pull/872) [`9c4f400`](https://github.com/sbroenne/mcp-server-excel/commit/9c4f400028de8b0596326aecb09372e9a573710b) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP session-bound tools now defensively accept a top-level `sessionId` from client bridges that rewrite the canonical `session_id` argument. The published schema still uses `session_id`, and conflicting or malformed identity values return a privacy-safe input error.
+
+- [#868](https://github.com/sbroenne/mcp-server-excel/pull/868) [`b7f23af`](https://github.com/sbroenne/mcp-server-excel/commit/b7f23af1d083b3da1e5094f95cc9d0e0b1a41b6b) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP calls missing a required session ID now explain where to supply `session_id` instead of returning a generic tool error. File close and session-based worksheet errors use the same public parameter name, including when the supplied ID is not a string. This improves diagnosis but does not repair client bridges that drop arguments.
+
+- [#870](https://github.com/sbroenne/mcp-server-excel/pull/870) [`160edf1`](https://github.com/sbroenne/mcp-server-excel/commit/160edf1bbbaf3cd34dad348fe9263487c79bce31) Thanks [@sbroenne](https://github.com/sbroenne)! - CLI and MCP now preserve categories for wrapped Excel errors and known VBA and Data Model prerequisites without guessing the cause of unknown failures. Empty macro procedure names are rejected before execution, and Power Query evaluation retains the existing query error categories after cleaning up its temporary objects.
+
+  DAX execution errors now identify the failing operation while preserving the underlying Excel error, including when Excel returns only an error code.
+
+- [#869](https://github.com/sbroenne/mcp-server-excel/pull/869) [`4f46abb`](https://github.com/sbroenne/mcp-server-excel/commit/4f46abb46883f10fe1b496c6ff21c89890159928) Thanks [@sbroenne](https://github.com/sbroenne)! - **Older Excel formula compatibility** ([#750](https://github.com/sbroenne/mcp-server-excel/issues/750)): Formula reads and writes now use the legacy API when Excel does not support modern formulas, in both CLI and MCP. Modern Excel keeps dynamic arrays; older Excel retains its single-value implicit-intersection behavior. Invalid formulas and protected-cell errors are not retried.
+
 ## [2.0.6] - 2026-09-02
 
 ### Minor Changes
