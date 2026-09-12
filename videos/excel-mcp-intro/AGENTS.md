@@ -57,6 +57,24 @@ npx hyperframes docs <topic> # reference docs in terminal
 >
 > **Future upgrade policy.** When quality improvements are available upstream, review them with `npx hyperframes@latest upgrade --project . --check`, validate the rendered output, and then commit the version bump and any required render-profile updates together.
 
+## YouTube publication checklist
+
+A successful local render does not update YouTube. YouTube cannot replace the
+file behind an existing video ID; upload the production MP4 as a new video.
+
+1. Verify the actual output file's dimensions and encoding settings, not just
+   the render command. Upload `renders/excel-mcp-intro-4k.mp4`, never the draft.
+2. Preserve the approved title and description. Confirm upload completion,
+   YouTube checks, and 4K processing. Obtain approval before publishing.
+3. Verify the new public watch page and its 2160p playback option. Record the
+   new video ID and YouTube publication timestamp; do not infer publication
+   from a local file, an old public video, or a clean Git working tree.
+4. Update `README.md`, `gh-pages/docs/index.md`, `gh-pages/overrides/main.html`,
+   and `gh-pages/hooks.py` together, including thumbnails and publication dates.
+5. Run the website checks in `gh-pages/README.md`, merge through a PR, and
+   verify the deployed homepage and sitemap use the new ID. Leave previous
+   videos unchanged unless the user explicitly asks otherwise.
+
 ## Documentation
 
 **For quick reference**, use the local CLI docs command (no network required):

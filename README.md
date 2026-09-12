@@ -15,7 +15,7 @@
 [**Installation**](https://excelmcpserver.dev/installation/) ·
 [**Features**](https://excelmcpserver.dev/features/) ·
 [**Troubleshooting**](https://excelmcpserver.dev/troubleshooting/) ·
-[**2-minute demo**](https://youtu.be/6WcYtwhAw1I)
+[**2-minute demo**](https://youtu.be/wbw3-hPcE2o)
 
 **Automate real Microsoft Excel with AI.** Excel MCP Server lets GitHub Copilot,
 Claude, ChatGPT, and other agents control Excel through natural-language
