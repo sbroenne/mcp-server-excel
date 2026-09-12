@@ -52,6 +52,10 @@ npx hyperframes docs <topic> # reference docs in terminal
 > alive through review, and stop it explicitly with `preview --stop` afterward.
 
 > **Pinned CLI version.** These scripts pin an exact `hyperframes@X.Y.Z` so this project re-renders identically over time. Weeks later that pin lags fixes shipped since. To move up: `npx hyperframes@latest upgrade --project . --check` (shows the delta), then `npx hyperframes@latest upgrade --project .` to rewrite the pins. Always unpinned — the pinned script re-runs the old version against itself.
+>
+> **Quality baseline.** Production renders must be explicit about quality settings instead of relying on the renderer default. Use `npm run render` for the default high-quality 4K production output (`--quality=high --crf=18 --resolution=landscape-4k`), and `npm run render:draft` only for quick previews. Before any final render, run the project check, confirm the quality/profile flags on the command line, and record the HyperFrames version in the project metadata or commit notes so the output is reproducible.
+>
+> **Future upgrade policy.** When quality improvements are available upstream, review them with `npx hyperframes@latest upgrade --project . --check`, validate the rendered output, and then commit the version bump and any required render-profile updates together.
 
 ## Documentation
 
