@@ -191,6 +191,9 @@ Always close sessions when done. MCP example:
 Pass that same value as `session_id` on every session-based MCP follow-up.
 `sessionId` above is a local variable, not an MCP argument name. For `file(list)`,
 copy the matching entry's `sessionId` value into `session_id`; never guess a session.
+The MCP server has a defensive bridge-compatibility fallback for a top-level
+`sessionId`, but agents must continue to send the canonical `session_id`.
+Compatibility use is recorded with a privacy-safe warning and telemetry signal.
 
 CLI commands instead return `sessionId` and accept `--session`:
 

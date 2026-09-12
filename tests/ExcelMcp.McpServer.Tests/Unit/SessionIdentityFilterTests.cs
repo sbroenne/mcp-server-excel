@@ -55,14 +55,21 @@ public sealed class SessionIdentityFilterTests
         Assert.Equal("workbook", telemetry.Properties["Tool"]);
         Assert.Equal("get-info", telemetry.Properties["Action"]);
         Assert.Equal("sessionId", telemetry.Properties["Alias"]);
-        Assert.Equal(3, telemetry.Properties.Count);
-        Assert.False(string.IsNullOrWhiteSpace(telemetry.Context.Component.Version));
+        Assert.False(string.IsNullOrWhiteSpace(telemetry.Properties["AppVersion"]));
+        Assert.Equal(4, telemetry.Properties.Count);
+        Assert.Equal(ExcelMcpTelemetry.UserId, telemetry.Context.User.Id);
+        Assert.Equal(ExcelMcpTelemetry.SessionId, telemetry.Context.Session.Id);
+        Assert.Equal("ExcelMcp.McpServer", telemetry.Context.Cloud.RoleName);
+        Assert.Equal($"instance-{ExcelMcpTelemetry.UserId[..8]}", telemetry.Context.Cloud.RoleInstance);
+        Assert.Equal(telemetry.Properties["AppVersion"], telemetry.Context.Component.Version);
 
         var serialized = string.Join(
             "\n",
             telemetry.Properties.Select(property => $"{property.Key}={property.Value}"));
         Assert.DoesNotContain("synthetic-private-value", serialized, StringComparison.Ordinal);
         Assert.DoesNotContain("session_id", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("Arguments", telemetry.Properties.Keys);
+        Assert.DoesNotContain("WorkbookPath", telemetry.Properties.Keys);
     }
 
     [Fact]

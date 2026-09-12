@@ -218,6 +218,7 @@ public static class ExcelMcpTelemetry
         telemetry.Properties["Tool"] = toolName;
         telemetry.Properties["Action"] = action;
         telemetry.Properties["Alias"] = "sessionId";
+        telemetry.Properties["AppVersion"] = GetVersion();
         ApplyContext(telemetry);
         return telemetry;
     }

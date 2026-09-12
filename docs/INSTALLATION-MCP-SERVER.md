@@ -400,9 +400,13 @@ strings; otherwise the request returns `InvalidInput`. A malformed canonical
 `session_id` is never replaced by the alias.
 
 Each compatibility-alias request writes one warning to stderr and records one
-anonymous telemetry event with only the tool, declared action, alias label, and
-server version. It never records the session ID, workbook path, arguments, or
-user content. Stdout remains reserved for JSON-RPC.
+anonymous telemetry event. Its custom properties contain only the tool, declared
+action, fixed alias label, and server version. The standard telemetry context
+also contains the already-disclosed anonymous machine/user ID and random MCP
+server process telemetry session ID. That process telemetry ID is not the Excel
+workbook `session_id`/`sessionId`; the event never records the workbook session
+ID value, workbook path, arguments, or user content. Stdout remains reserved for
+JSON-RPC.
 
 If direct local calls work but Cowork or a remote-devices bridge fails, compare
 the request received by the server with the request before the bridge. A client
