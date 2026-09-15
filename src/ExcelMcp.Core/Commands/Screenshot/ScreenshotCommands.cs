@@ -55,7 +55,7 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>
-    /// Captures the entire used area of a worksheet as an image.
+    /// Captures the entire used area of a worksheet and its embedded charts as an image.
     /// If UsedRange exceeds 500 rows or 50 columns, it is capped to keep the capture legible
     /// on sheets with formatting extending far beyond the data.
     /// </summary>
@@ -75,25 +75,37 @@ public class ScreenshotCommands : IScreenshotCommands
                 usedRange = sheet.UsedRange;
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
 
-                int rows = Convert.ToInt32(usedRange.Rows.Count);
-                int cols = Convert.ToInt32(usedRange.Columns.Count);
+                captureRange = GetCaptureRangeIncludingCharts(sheet, usedRange);
+
+                int rows = Convert.ToInt32(captureRange.Rows.Count);
+                int cols = Convert.ToInt32(captureRange.Columns.Count);
 
                 const int maxRows = 500;
                 const int maxCols = 50;
 
                 if (rows > maxRows || cols > maxCols)
                 {
-                    int startRow = Convert.ToInt32(usedRange.Row);
-                    int startCol = Convert.ToInt32(usedRange.Column);
+                    int startRow = Convert.ToInt32(captureRange.Row);
+                    int startCol = Convert.ToInt32(captureRange.Column);
                     int endRow = startRow + Math.Min(rows, maxRows) - 1;
                     int endCol = startCol + Math.Min(cols, maxCols) - 1;
-                    captureRange = sheet.Range[sheet.Cells[startRow, startCol], sheet.Cells[endRow, endCol]];
+                    dynamic? cappedRange = null;
+                    try
+                    {
+                        cappedRange = GetRange(sheet, startRow, startCol, endRow, endCol);
+                        ComUtilities.Release(ref captureRange);
+                        captureRange = cappedRange;
+                        cappedRange = null;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cappedRange);
+                    }
                 }
 
-                dynamic rangeToCapture = captureRange ?? usedRange;
-                string actualRange = rangeToCapture.Address?.ToString() ?? "A1";
+                string actualRange = captureRange.Address?.ToString() ?? "A1";
 
-                return ExportRangeAsImage(ctx.App, sheet, rangeToCapture, actualSheet, actualRange, quality);
+                return ExportRangeAsImage(ctx.App, sheet, captureRange, actualSheet, actualRange, quality);
             }
             finally
             {
@@ -102,6 +114,83 @@ public class ScreenshotCommands : IScreenshotCommands
                 ComUtilities.Release(ref sheet);
             }
         });
+    }
+
+    /// <summary>
+    /// Gets the smallest cell range containing the used cells and all embedded chart shapes.
+    /// Chart objects do not expand Excel's UsedRange, but their anchor cells describe the area that
+    /// must be visible for a window screenshot to include them.
+    /// </summary>
+    private static dynamic GetCaptureRangeIncludingCharts(dynamic sheet, dynamic usedRange)
+    {
+        int firstRow = Convert.ToInt32(usedRange.Row);
+        int firstColumn = Convert.ToInt32(usedRange.Column);
+        int lastRow = firstRow + Convert.ToInt32(usedRange.Rows.Count) - 1;
+        int lastColumn = firstColumn + Convert.ToInt32(usedRange.Columns.Count) - 1;
+
+        dynamic? shapes = null;
+        dynamic? shape = null;
+        dynamic? topLeftCell = null;
+        dynamic? bottomRightCell = null;
+        try
+        {
+            shapes = sheet.Shapes;
+            int shapeCount = Convert.ToInt32(shapes.Count);
+
+            for (int index = 1; index <= shapeCount; index++)
+            {
+                try
+                {
+                    shape = shapes.Item(index);
+
+                    // msoChart
+                    if (Convert.ToInt32(shape.Type) != 3)
+                    {
+                        continue;
+                    }
+
+                    topLeftCell = shape.TopLeftCell;
+                    bottomRightCell = shape.BottomRightCell;
+
+                    firstRow = Math.Min(firstRow, Convert.ToInt32(topLeftCell.Row));
+                    firstColumn = Math.Min(firstColumn, Convert.ToInt32(topLeftCell.Column));
+                    lastRow = Math.Max(lastRow, Convert.ToInt32(bottomRightCell.Row));
+                    lastColumn = Math.Max(lastColumn, Convert.ToInt32(bottomRightCell.Column));
+                }
+                finally
+                {
+                    ComUtilities.Release(ref bottomRightCell);
+                    ComUtilities.Release(ref topLeftCell);
+                    ComUtilities.Release(ref shape);
+                }
+            }
+
+            return GetRange(sheet, firstRow, firstColumn, lastRow, lastColumn);
+        }
+        finally
+        {
+            ComUtilities.Release(ref shapes);
+        }
+    }
+
+    /// <summary>Gets a worksheet range by its inclusive cell boundaries.</summary>
+    private static dynamic GetRange(dynamic sheet, int firstRow, int firstColumn, int lastRow, int lastColumn)
+    {
+        dynamic? topLeft = null;
+        dynamic? bottomRight = null;
+
+        try
+        {
+            topLeft = sheet.Cells[firstRow, firstColumn];
+            bottomRight = sheet.Cells[lastRow, lastColumn];
+
+            return sheet.Range[topLeft, bottomRight];
+        }
+        finally
+        {
+            ComUtilities.Release(ref bottomRight);
+            ComUtilities.Release(ref topLeft);
+        }
     }
 
     /// <summary>

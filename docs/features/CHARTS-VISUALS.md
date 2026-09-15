@@ -117,7 +117,7 @@ Capture ranges or worksheets as images by photographing the live Excel window.
 
 **Operations:**
 - **Capture Range:** Capture a specific range as an image
-- **Capture Sheet:** Capture the entire used area of a worksheet as an image — captures formatting, charts, and conditional formatting exactly as Excel displays them. Works on protected sheets and leaves the workbook and clipboard untouched, but requires an interactive desktop session. MCP returns the image directly as `ImageContent`; CLI returns JSON with base64-encoded image data.
+- **Capture Sheet:** Capture the entire used area of a worksheet and its embedded charts as an image — captures formatting, charts, and conditional formatting exactly as Excel displays them. Works on protected sheets and leaves the workbook and clipboard untouched, but requires an interactive desktop session. MCP returns the image directly as `ImageContent`; CLI returns JSON with base64-encoded image data.
 
 ---
 

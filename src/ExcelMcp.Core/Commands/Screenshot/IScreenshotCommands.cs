@@ -53,7 +53,7 @@ public class ScreenshotResult : OperationResult
 ///
 /// ACTIONS:
 /// - capture: Capture a specific range as an image
-/// - capture-sheet: Capture the worksheet's used cell range. For chart-only sheets or charts beyond used cells, use capture with an explicit range.
+/// - capture-sheet: Capture the worksheet's used cell range and embedded charts.
 ///
 /// REQUIREMENTS: Excel is briefly shown and brought to the front, so an interactive desktop session
 /// is required. Capture fails on a locked desktop or a disconnected Remote Desktop session.

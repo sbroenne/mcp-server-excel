@@ -92,6 +92,23 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
     }
 
     [Fact]
+    public void CaptureSheet_EmbeddedChart_ExpandsCaptureBeyondUsedCells()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = PrepareSheet(batch, addChart: true);
+
+        var result = _screenshotCommands.CaptureSheet(
+            batch,
+            sheetName,
+            ScreenshotQuality.High);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.NotEqual("$A$1:$B$5", result.RangeAddress);
+        Assert.True(result.Width >= 500, $"Expected chart-inclusive capture width but got {result.Width}px.");
+        Assert.True(result.Height >= 300, $"Expected chart-inclusive capture height but got {result.Height}px.");
+    }
+
+    [Fact]
     public void CaptureSheet_NamedSheet_ReturnsValidPng()
     {
         var batch = _fixture.BatchToken;
