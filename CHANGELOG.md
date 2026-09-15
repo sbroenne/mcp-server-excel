@@ -340,7 +340,7 @@ Entries are short and end-user-facing. Format follows [Keep a Changelog](https:/
 
 - [#740](https://github.com/sbroenne/mcp-server-excel/pull/740) [`59ebf29`](https://github.com/sbroenne/mcp-server-excel/commit/59ebf29b15d61a0c6bbce714c50338b4db4c82b3) Thanks [@sbroenne](https://github.com/sbroenne)! - **Fix `conditionalformat add` throwing on `borderStyle`/`borderColor`** (#737). Writing border formatting on a conditional-format rule threw `COMException: Unable to set the LineStyle property of the Border class`. Root cause: `FormatCondition.Borders` is a 4-item collection indexed 1-4 (left/top/bottom/right), unlike `Range.Borders` which uses the `xlEdgeLeft`/`Top`/`Bottom`/`Right` constants (7-10) — writing (and reading) via those out-of-range indices silently returned an unbound placeholder that threw on write and reported blank values on read. Both the write path (`add`) and the read path (`list-rules`/`list-worksheet-rules`) now use the correct 1-4 indices, so border style and color round-trip correctly.
 
-- [`352b1da`](https://github.com/sbroenne/mcp-server-excel/commit/352b1da895b84c66d9565e013576ab198ffd50ea) Thanks [@github-actions[bot]](https://github.com/github-actions%5Bbot%5D)! - **Release automation: reliably commit the changelog back to `main`.** The post-release step now pushes the compiled `CHANGELOG.md` update directly to `main` using an admin `RELEASE_PAT`, instead of opening a `chore/changelog-vX` PR. On this user-owned repo the GitHub Actions bot can't be a branch-protection bypass actor, so that PR could never satisfy the required status checks and piled up open — leaving several releases with a stale/missing CHANGELOG on `main`. The direct push (as a ruleset bypass actor) removes the stuck-PR failure mode entirely.
+- [`352b1da`](https://github.com/sbroenne/mcp-server-excel/commit/352b1da895b84c66d9565e013576ab198ffd50ea) Thanks [@github-actions](https://github.com/apps/github-actions)! - **Release automation: reliably commit the changelog back to `main`.** The post-release step now pushes the compiled `CHANGELOG.md` update directly to `main` using an admin `RELEASE_PAT`, instead of opening a `chore/changelog-vX` PR. On this user-owned repo the GitHub Actions bot can't be a branch-protection bypass actor, so that PR could never satisfy the required status checks and piled up open — leaving several releases with a stale/missing CHANGELOG on `main`. The direct push (as a ruleset bypass actor) removes the stuck-PR failure mode entirely.
 
 ## [1.10.0] - 2026-07-23
 
@@ -902,7 +902,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 
 ### Added
 
-- **LLM Integration Testing** (#341): Real AI agent testing using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)
+- **LLM Integration Testing** (#341): Real AI agent testing using `pytest-aitest`
 
 ### Changed
 

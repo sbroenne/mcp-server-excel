@@ -28,7 +28,7 @@ Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drive
 
 1. **VS Code Extension** - [One-click install](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for GitHub Copilot
 2. **Standalone exe** - Works with Claude Desktop, Cursor, Cline, Windsurf, and other MCP clients
-3. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
+3. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sbroenne/mcp-server-excel) as `io.github.sbroenne/mcp-server-excel`
 
 **Manual Installation (All MCP Clients):**
 

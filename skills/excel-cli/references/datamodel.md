@@ -12,7 +12,7 @@ You CANNOT create DAX measures on tables that aren't in the Data Model.
 **The `evaluate` and `execute-dmv` actions require Microsoft Analysis Services OLE DB Provider (MSOLAP).**
 
 If you see "Class not registered" (0x80040154) error, install one of:
-1. **Power BI Desktop** (recommended - includes MSOLAP): https://powerbi.microsoft.com/desktop
+1. **Power BI Desktop** (recommended - includes MSOLAP): https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop
 2. **Microsoft OLE DB Driver for Analysis Services**: https://learn.microsoft.com/analysis-services/client-libraries
 3. **SQL Server Analysis Services client tools**
 

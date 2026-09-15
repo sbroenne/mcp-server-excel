@@ -85,7 +85,7 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 See [RELEASE-STRATEGY.md](RELEASE-STRATEGY.md) for the full release process.
 
 After release, verify publication:
-- **MCP Registry**: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel
+- **MCP Registry**: https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sbroenne/mcp-server-excel
 - **GitHub Release**: https://github.com/sbroenne/mcp-server-excel/releases
 
 ## Troubleshooting

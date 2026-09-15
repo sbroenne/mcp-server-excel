@@ -12,7 +12,7 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
-  - Easiest: Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (includes MSOLAP)
+  - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
 
 ---
