@@ -180,6 +180,20 @@ public partial class ScreenshotCommandsTests
     }
 
     [Fact]
+    public void CaptureSheet_EmbeddedChart_ExpandsCaptureBeyondUsedCells()
+    {
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
+        PopulateTestData(batch, addChart: true);
+
+        var result = _commands.CaptureSheet(batch, quality: ScreenshotQuality.High);
+
+        Assert.True(result.Success, $"CaptureSheet failed: {result.ErrorMessage}");
+        Assert.True(result.Width >= 500, $"Expected chart-inclusive capture width but got {result.Width}px.");
+        Assert.True(result.Height >= 300, $"Expected chart-inclusive capture height but got {result.Height}px.");
+    }
+
+    [Fact]
     public void CaptureSheet_NamedSheet_ReturnsValidPng()
     {
         // Arrange
