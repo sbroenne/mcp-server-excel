@@ -349,7 +349,7 @@ Great feature requests include:
 - [Excel VBA Object Model Reference](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
 - [Power Query M Language Reference](https://docs.microsoft.com/en-us/powerquery-m/)
 - [Spectre.Console Documentation](https://spectreconsole.net/)
-- [.NET COM Interop Guide](https://docs.microsoft.com/en-us/dotnet/framework/interop/interoperating-with-unmanaged-code)
+- [.NET COM Interop Guide](https://learn.microsoft.com/en-us/dotnet/framework/interop/)
 
 ## 📦 For Maintainers
 
