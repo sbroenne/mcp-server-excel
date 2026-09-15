@@ -4,6 +4,28 @@ name: "ExcelMcp CodeQL Configuration"
 queries:
   - uses: security-extended
 
+# Preserve the C# exemptions for previously noisy intentional patterns.
+# Query filters select query metadata, not source locations: these IDs are
+# excluded across C#. A nested "paths" key would not scope them to source files.
+# The cs/ IDs do not suppress JavaScript/TypeScript, Python, or Actions queries.
+query-filters:
+  # MCP/CLI error boundaries and COM cleanup intentionally catch all exceptions.
+  - exclude:
+      id: cs/catch-of-all-exceptions
+  # Late-bound Excel COM calls intentionally use dynamic dispatch.
+  - exclude:
+      id: cs/invalid-dynamic-call
+  # Explicit collection is part of the existing COM resource cleanup.
+  - exclude:
+      id: cs/call-to-gc
+  # Preserve the exemptions introduced for compiler-generated regex code.
+  - exclude:
+      id: cs/useless-cast-to-self
+  - exclude:
+      id: cs/useless-assignment-to-local
+  - exclude:
+      id: cs/complex-block
+
 # Do not restrict this shared configuration to src/: it also scans the extension,
 # Python tooling, and Actions workflows. C# manual builds determine extracted files,
 # including generated code; paths/paths-ignore do not filter that build.

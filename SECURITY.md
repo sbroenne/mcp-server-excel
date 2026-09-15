@@ -79,7 +79,20 @@ The [CodeQL workflow](https://github.com/sbroenne/mcp-server-excel/blob/main/.gi
 - Actions are pinned to full commit SHAs and kept current by the existing GitHub Actions Dependabot updates. Only analysis jobs receive `security-events: write`; checkout does not persist credentials. Contributor code runs under `pull_request`, never `pull_request_target`.
 - Results upload directly to GitHub code scanning, without a second downloadable SARIF artifact. Review findings in the repository's Security tab.
 
-The shared configuration intentionally has no blanket test/generated-code exclusions or query suppressions. C# manual-build coverage is determined by the build, not `paths`/`paths-ignore`. Dismiss confirmed false positives individually with a rationale rather than disabling an entire security query.
+The shared configuration preserves six C# query exemptions established to control false-positive noise:
+
+| Exempt query | Reason |
+| --- | --- |
+| `cs/catch-of-all-exceptions` | Intentional MCP/CLI error boundaries and COM cleanup |
+| `cs/invalid-dynamic-call` | Late-bound Excel COM calls |
+| `cs/call-to-gc` | Existing COM resource cleanup |
+| `cs/useless-cast-to-self` | Previously noisy compiler-generated regex code |
+| `cs/useless-assignment-to-local` | Previously noisy compiler-generated regex code |
+| `cs/complex-block` | Previously noisy compiler-generated regex code |
+
+These are query-wide C# exemptions, not file-scoped suppressions: CodeQL query filters select query metadata, and a nested `paths` key does not restrict an exemption to source locations. They do not suppress queries for other languages. Keep these exemptions unless a review of actual findings justifies changing them; a successful analysis run alone does not establish that false positives are resolved.
+
+C# manual-build coverage is determined by the build, not `paths`/`paths-ignore`. The solution still includes tests and generated code in extraction; the old path exclusions did not exclude them from a manual C# build. Keeping that coverage allows other security queries to inspect generated entry points. For additional false positives, prefer individual dismissals with a rationale over broader query exclusions.
 
 ### Required repository settings (administrator checklist)
 
