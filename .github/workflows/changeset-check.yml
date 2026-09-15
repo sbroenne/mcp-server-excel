@@ -20,11 +20,17 @@ permissions:
   contents: read
   pull-requests: read
 
+# Unrelated labels must neither cancel real validation nor replace its required
+# check with a skipped/successful result. Give those runs their own group/name.
+concurrency:
+  group: changeset-${{ github.event.pull_request.number }}-${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name != 'skip-changelog' && github.run_id || 'validation' }}
+  cancel-in-progress: true
+
 jobs:
   changeset-check:
-    name: Verify changeset present
+    name: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && github.event.label.name != 'skip-changelog' && 'Unrelated label (ignored)' || 'Verify changeset present' }}
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') && ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || github.event.label.name == 'skip-changelog') }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7

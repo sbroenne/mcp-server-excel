@@ -7,7 +7,6 @@ on:
     paths:
       - '.github/workflows/usage-analytics.yml'
       - 'scripts/*UsageAnalytics*.ps1'
-      - 'gh-pages/**'
       - '.github/usage-analytics.json'
   workflow_dispatch:
     inputs:

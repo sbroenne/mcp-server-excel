@@ -36,6 +36,10 @@ permissions:
   security-events: write
   actions: read
 
+concurrency:
+  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analyze:
     name: Analyze Code with CodeQL

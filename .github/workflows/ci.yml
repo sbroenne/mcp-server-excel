@@ -1,8 +1,8 @@
 # CI Gate — the authoritative status checks for pull requests.
 #
-# Both jobs ALWAYS run on every PR to `main` (no path filters), so they can be
-# safely marked as required status checks without the "required check never
-# runs on path-filtered PRs" deadlock.
+# Both required jobs ALWAYS report on every PR to `main` (no workflow path
+# filters). Expensive steps run only for relevant inputs; selection failures
+# fail both checks rather than silently passing.
 #
 # `Docs Site` builds and audits the MkDocs website. `CI Gate` ports the
 # Excel-free pre-commit gates (scripts/pre-commit.ps1) into CI so
@@ -19,6 +19,7 @@ on:
   pull_request:
     branches: [ main ]
   push:
+    # Retain post-merge/direct-push .NET validation; Pages owns docs deployment.
     branches: [ main ]
   workflow_dispatch:
 
@@ -30,19 +31,93 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The documentation site is the primary distribution channel for this project
-  # (README.md is a landing page that links to excelmcpserver.dev), but until
-  # this job existed nothing validated it before merge: the Pages workflow only
-  # builds on push to `main`, and scripts/pre-commit.ps1 classifies `docs/`,
-  # `gh-pages/` and `*.md` as a docs-only fast path that skips almost every
-  # gate. A broken --strict build or audit regression therefore surfaced only
-  # after merge, on the deploy run. Runs unfiltered like the CI Gate job below
-  # so it can safely be a required check.
-  docs:
-    name: Docs Site
+  changes:
+    name: Select CI checks
     runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.select.outputs.build }}
+      docs: ${{ steps.select.outputs.docs }}
     steps:
       - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Select checks from changed inputs
+        id: select
+        shell: python
+        run: |
+          import fnmatch
+          import json
+          import os
+          import subprocess
+
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as stream:
+              event = json.load(stream)
+          event_name = os.environ["GITHUB_EVENT_NAME"]
+          build = docs = True
+          if event_name != "workflow_dispatch":
+              if event_name == "pull_request":
+                  pr = event["pull_request"]
+                  comparison = f'{pr["base"]["sha"]}...{pr["head"]["sha"]}'
+              else:
+                  comparison = f'{event["before"]}..{event["after"]}'
+              diff = subprocess.run(
+                  ["git", "diff", "--no-renames", "--name-only", "-z", comparison, "--"],
+                  capture_output=True, check=False,
+              )
+              # Missing history (including a newly created branch) runs everything.
+              # --no-renames includes both paths of a move, including deleted inputs.
+              if diff.returncode == 0:
+                  files = diff.stdout.decode("utf-8").rstrip("\0").split("\0")
+                  build_inputs = [
+                      "src/*", "tests/*", "skills/*", "scripts/*",
+                      "vscode-extension/*", "mcpb/*", ".github/plugins/*",
+                      "*.csproj", "*.sln", "*.slnx", "*.props", "*.targets",
+                      "global.json", "*[Nn]u[Gg]et.[Cc]onfig", ".config/*",
+                      ".editorconfig", "package.json", "package-lock.json",
+                      ".github/workflows/ci.yml",
+                      # These docs are read by check-doc-counts.ps1, which needs
+                      # freshly generated Release metadata even on a docs-only PR.
+                      "README.md", "FEATURES.md", "docs/features/*",
+                      "gh-pages/docs/index.md",
+                  ]
+                  docs_inputs = [
+                      "gh-pages/*", "docs/*", "skills/*", "README.md",
+                      "FEATURES.md", "CHANGELOG.md", "PRIVACY.md", "SECURITY.md",
+                      "src/ExcelMcp.McpServer/README.md", "src/ExcelMcp.CLI/README.md",
+                      ".github/workflows/ci.yml", ".github/workflows/deploy-gh-pages.yml",
+                      ".github/star-history.csv", ".github/usage-analytics.json",
+                      "scripts/*StarHistory.ps1", "scripts/*UsageAnalytics*.ps1",
+                  ]
+                  build = any(fnmatch.fnmatchcase(path, pattern)
+                              for path in files for pattern in build_inputs)
+                  docs = any(fnmatch.fnmatchcase(path, pattern)
+                             for path in files for pattern in docs_inputs)
+              else:
+                  print("::warning::Could not determine changed inputs; selecting all checks.")
+          # Pages builds and audits main independently before publishing.
+          docs = docs and event_name != "push"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"build={str(build).lower()}\ndocs={str(docs).lower()}\n")
+          print(f"Selected checks: .NET={build}, docs={docs}")
+
+  docs:
+    name: Docs Site
+    needs: changes
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify check selection
+        env:
+          SELECTION_RESULT: ${{ needs.changes.result }}
+          DOCS_SELECTED: ${{ needs.changes.outputs.docs }}
+        run: |
+          test "$SELECTION_RESULT" = success
+          echo "Documentation build selected: $DOCS_SELECTED"
+
+      - name: Checkout
+        if: ${{ needs.changes.outputs.docs == 'true' }}
         uses: actions/checkout@v7
         with:
           # hooks.py derives each sitemap <lastmod> from `git log`, so the full
@@ -51,6 +126,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Python
+        if: ${{ needs.changes.outputs.docs == 'true' }}
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
@@ -58,13 +134,16 @@ jobs:
           cache-dependency-path: gh-pages/requirements.txt
 
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.docs == 'true' }}
         run: pip install -r gh-pages/requirements.txt
 
       - name: Build with MkDocs
+        if: ${{ needs.changes.outputs.docs == 'true' }}
         working-directory: gh-pages
         run: mkdocs build --strict --clean
 
       - name: Audit built site
+        if: ${{ needs.changes.outputs.docs == 'true' }}
         working-directory: gh-pages
         run: python audit_site.py
 
@@ -72,32 +151,49 @@ jobs:
       # from the canonical sources hooks.py mirrors, which would publish a
       # silently stale site until the nightly cron caught up.
       - name: Verify deploy path filter covers every mirrored source
+        if: ${{ needs.changes.outputs.docs == 'true' }}
         working-directory: gh-pages
         run: python check_deploy_paths.py
 
   ci-gate:
     name: CI Gate
-    runs-on: windows-latest
+    needs: changes
+    if: ${{ always() }}
+    runs-on: ${{ needs.changes.outputs.build == 'true' && 'windows-latest' || 'ubuntu-latest' }}
     steps:
+      - name: Verify check selection
+        shell: pwsh
+        env:
+          SELECTION_RESULT: ${{ needs.changes.result }}
+          BUILD_SELECTED: ${{ needs.changes.outputs.build }}
+        run: |
+          if ($env:SELECTION_RESULT -ne 'success') { throw "CI check selection failed." }
+          Write-Host ".NET build selected: $env:BUILD_SELECTED"
+
       - name: Checkout
+        if: ${{ needs.changes.outputs.build == 'true' }}
         uses: actions/checkout@v7
 
       - name: Npm lockfile portability regression tests
+        if: ${{ needs.changes.outputs.build == 'true' }}
         timeout-minutes: 2
         shell: pwsh
         run: ./scripts/Test-NpmLockfiles.ps1
 
       - name: Npm lockfile portability
+        if: ${{ needs.changes.outputs.build == 'true' }}
         timeout-minutes: 2
         shell: pwsh
         run: ./scripts/check-npm-lockfiles.ps1
 
       - name: Setup .NET
+        if: ${{ needs.changes.outputs.build == 'true' }}
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       - name: Restore
+        if: ${{ needs.changes.outputs.build == 'true' }}
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
       # Release build validates compilation and runs the source generators, so
@@ -105,56 +201,66 @@ jobs:
       # pre-commit Release build gate (NuGetAudit disabled here — the Dependency
       # Review workflow owns vulnerability scanning).
       - name: Build (Release)
+        if: ${{ needs.changes.outputs.build == 'true' }}
         run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore -p:NuGetAudit=false
 
       - name: Pre-commit hook regression tests
+        if: ${{ needs.changes.outputs.build == 'true' }}
         run: dotnet test tests/ExcelMcp.SkillGeneration.Tests/ExcelMcp.SkillGeneration.Tests.csproj --configuration Release --no-build --no-restore --filter "Feature=PreCommit" --blame-hang-timeout 60s
 
       # --- Excel-free correctness gates (ported from scripts/pre-commit.ps1) ---
 
       - name: COM object leak check
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/check-com-leaks.ps1
           if ($LASTEXITCODE -ne 0) { throw "COM object leaks detected. All dynamic COM objects must be released in finally blocks." }
 
       - name: Core coverage + naming audit
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/audit-core-coverage.ps1 -CheckNaming -FailOnGaps
           if ($LASTEXITCODE -ne 0) { throw "Coverage or naming gaps detected. Every Core method must be exposed via the MCP Server with a matching name." }
 
       - name: MCP actions have Core implementations
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/check-mcp-core-implementations.ps1
           if ($LASTEXITCODE -ne 0) { throw "MCP enum actions without a matching Core Command implementation were found." }
 
       - name: Success flag check
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/check-success-flag.ps1
           if ($LASTEXITCODE -ne 0) { throw "Success flag violations detected (Success=true with an ErrorMessage set)." }
 
       - name: Shared bootstrap template drift check
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/Build-BootstrapScripts.ps1 -Check
           if ($LASTEXITCODE -ne 0) { throw "Bootstrap drift detected. Regenerate the canonical download.ps1 template output before committing." }
 
       - name: Documentation tool/operation counts
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/check-doc-counts.ps1 -SkipBuild
           if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
 
       - name: Dynamic cast audit (documented ((dynamic)) casts)
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/check-dynamic-casts.ps1
           if ($LASTEXITCODE -ne 0) { throw "Undocumented ((dynamic)) casts detected. Each cast needs a justification comment." }
 
       - name: Plugin README check
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           & scripts/check-plugin-readmes.ps1
@@ -164,6 +270,7 @@ jobs:
       #     Build MCP Server workflows) ---
 
       - name: Verify CLI build + help (no Excel required)
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           $exe = "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
@@ -173,6 +280,7 @@ jobs:
           Write-Host "excelcli --help OK"
 
       - name: Verify MCP Server build
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           $exe = "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe"
@@ -183,6 +291,7 @@ jobs:
           Write-Host "MCP Server build OK"
 
       - name: Integration tests note
+        if: ${{ needs.changes.outputs.build == 'true' }}
         shell: pwsh
         run: |
           Write-Host "Full Excel integration tests, the CLI workflow smoke test, and the MCP smoke test all require Microsoft Excel."
@@ -190,7 +299,7 @@ jobs:
           Write-Host "Run '& .\scripts\Test-E2E.ps1' locally and attest the result in the pull request testing checklist."
 
       - name: Upload CLI build artifacts
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        if: ${{ needs.changes.outputs.build == 'true' && (github.event_name == 'pull_request' || github.event_name == 'push') }}
         uses: actions/upload-artifact@v7
         with:
           name: ExcelMcp-CLI-${{ github.sha }}
@@ -198,7 +307,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload MCP Server build artifacts
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        if: ${{ needs.changes.outputs.build == 'true' && (github.event_name == 'pull_request' || github.event_name == 'push') }}
         uses: actions/upload-artifact@v7
         with:
           name: ExcelMcp-MCP-Server-${{ github.sha }}
