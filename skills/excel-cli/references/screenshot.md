@@ -26,9 +26,9 @@ This rule applies even if:
 | Action | Purpose | Parameters |
 |--------|---------|------------|
 | `capture` | Capture a specific range | `range_address` (default: A1:Z30), `sheet_name`, `quality` |
-| `capture-sheet` | Capture the worksheet's used cell range | `sheet_name`, `quality` |
+| `capture-sheet` | Capture the worksheet's used cell range and embedded charts | `sheet_name`, `quality` |
 
-`capture-sheet` is cell-driven: it captures Excel's used range. On a chart-only worksheet, or when a chart extends beyond the used cells, use `capture` with an explicit range that covers the chart (for example, `A1:M25`).
+`capture-sheet` includes the used cell range and embedded charts. Use `capture` with an explicit range when you need precise framing (for example, `A1:M25`).
 
 ## How Capture Works
 
@@ -77,7 +77,7 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 2. **Capture relevant area**: Use `capture` with a specific range rather than `capture-sheet` when you only need part of the worksheet
 3. **Use after multi-step operations**: Screenshots are most valuable after a sequence of formatting, layout, or chart operations
 4. **MCP returns image directly**: The image is returned as native ImageContent — no file handling needed
-5. **Chart-only sheets need an explicit range**: `capture-sheet` uses the used cell range and may omit charts when no cells are used
+5. **Use precise framing when needed**: `capture` accepts an explicit range for a focused chart or worksheet area
 6. **CLI with `--output`**: Use `excelcli screenshot capture --sheet <name> --range A1:M25 --output screenshot.png` to save the image directly
 7. **Apply formatting once**: Apply each formatting operation (bold, fill color, number format) to a given range only once. Do not reapply unless a subsequent step explicitly changes or clears it — redundant calls waste turns and cost.
 
