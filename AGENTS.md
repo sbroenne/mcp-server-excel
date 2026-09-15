@@ -8,6 +8,10 @@ Follow `.github/copilot-instructions.md` and the path-specific files under `.git
 
 Work requests are tracked in this repository's GitHub Issues. See `docs/agents/issue-tracker.md`.
 
+### Release notes
+
+Add and commit a patch changeset for every user-visible behavior change.
+
 ### Domain docs
 
 Before exploring code, read `CONTEXT.md` and relevant decisions matching
