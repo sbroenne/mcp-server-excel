@@ -56,8 +56,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
     /// <summary>
     /// Captures the entire used area of a worksheet and its embedded charts as an image.
-    /// If UsedRange exceeds 500 rows or 50 columns, it is capped to keep the capture legible
-    /// on sheets with formatting extending far beyond the data.
+    /// Large sheets are tiled and may be truncated by the capture tile limit, which is reported in
+    /// the result message.
     /// </summary>
     public ScreenshotResult CaptureSheet(IExcelBatch batch, string? sheetName = null, ScreenshotQuality quality = ScreenshotQuality.Medium)
     {
@@ -76,32 +76,6 @@ public class ScreenshotCommands : IScreenshotCommands
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
 
                 captureRange = GetCaptureRangeIncludingCharts(sheet, usedRange);
-
-                int rows = Convert.ToInt32(captureRange.Rows.Count);
-                int cols = Convert.ToInt32(captureRange.Columns.Count);
-
-                const int maxRows = 500;
-                const int maxCols = 50;
-
-                if (rows > maxRows || cols > maxCols)
-                {
-                    int startRow = Convert.ToInt32(captureRange.Row);
-                    int startCol = Convert.ToInt32(captureRange.Column);
-                    int endRow = startRow + Math.Min(rows, maxRows) - 1;
-                    int endCol = startCol + Math.Min(cols, maxCols) - 1;
-                    dynamic? cappedRange = null;
-                    try
-                    {
-                        cappedRange = GetRange(sheet, startRow, startCol, endRow, endCol);
-                        ComUtilities.Release(ref captureRange);
-                        captureRange = cappedRange;
-                        cappedRange = null;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref cappedRange);
-                    }
-                }
 
                 string actualRange = captureRange.Address?.ToString() ?? "A1";
 
@@ -123,17 +97,22 @@ public class ScreenshotCommands : IScreenshotCommands
     /// </summary>
     private static dynamic GetCaptureRangeIncludingCharts(dynamic sheet, dynamic usedRange)
     {
-        int firstRow = Convert.ToInt32(usedRange.Row);
-        int firstColumn = Convert.ToInt32(usedRange.Column);
-        int lastRow = firstRow + Convert.ToInt32(usedRange.Rows.Count) - 1;
-        int lastColumn = firstColumn + Convert.ToInt32(usedRange.Columns.Count) - 1;
-
+        dynamic? usedRows = null;
+        dynamic? usedColumns = null;
         dynamic? shapes = null;
         dynamic? shape = null;
         dynamic? topLeftCell = null;
         dynamic? bottomRightCell = null;
+
         try
         {
+            int firstRow = Convert.ToInt32(usedRange.Row);
+            int firstColumn = Convert.ToInt32(usedRange.Column);
+            usedRows = usedRange.Rows;
+            usedColumns = usedRange.Columns;
+            int lastRow = firstRow + Convert.ToInt32(usedRows.Count) - 1;
+            int lastColumn = firstColumn + Convert.ToInt32(usedColumns.Count) - 1;
+
             shapes = sheet.Shapes;
             int shapeCount = Convert.ToInt32(shapes.Count);
 
@@ -170,6 +149,8 @@ public class ScreenshotCommands : IScreenshotCommands
         finally
         {
             ComUtilities.Release(ref shapes);
+            ComUtilities.Release(ref usedColumns);
+            ComUtilities.Release(ref usedRows);
         }
     }
 

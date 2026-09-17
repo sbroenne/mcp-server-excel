@@ -1,3 +1,4 @@
+using System.Drawing;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
@@ -92,10 +93,11 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
     }
 
     [Fact]
-    public void CaptureSheet_EmbeddedChart_ExpandsCaptureBeyondUsedCells()
+    public void CaptureSheet_EmbeddedChartBeyondUsedCells_IncludesChartPixels()
     {
         var batch = _fixture.BatchToken;
         var sheetName = PrepareSheet(batch, addChart: true);
+        MoveAndMarkChart(sheetName);
 
         var result = _screenshotCommands.CaptureSheet(
             batch,
@@ -103,9 +105,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
             ScreenshotQuality.High);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.NotEqual("$A$1:$B$5", result.RangeAddress);
-        Assert.True(result.Width >= 500, $"Expected chart-inclusive capture width but got {result.Width}px.");
-        Assert.True(result.Height >= 300, $"Expected chart-inclusive capture height but got {result.Height}px.");
+        AssertImageContainsChartMarker(result.ImageBase64);
     }
 
     [Fact]
@@ -222,6 +222,67 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         }
 
         return sheetName;
+    }
+
+    private void MoveAndMarkChart(string sheetName) =>
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? chartObjects = null;
+            dynamic? chartObject = null;
+            dynamic? chart = null;
+            dynamic? chartArea = null;
+            dynamic? chartInterior = null;
+            dynamic? targetCell = null;
+
+            try
+            {
+                sheet = ctx.Book.Worksheets[sheetName];
+                chartObjects = sheet.ChartObjects();
+                chartObject = chartObjects.Item(1);
+                targetCell = sheet.Range["BA1"];
+                chartObject.Left = targetCell.Left;
+                chartObject.Top = targetCell.Top;
+                chart = chartObject.Chart;
+                chartArea = chart.ChartArea;
+                chartInterior = chartArea.Interior;
+                chartInterior.Color = ColorTranslator.ToOle(Color.Magenta);
+            }
+            finally
+            {
+                ComUtilities.Release(ref targetCell);
+                ComUtilities.Release(ref chartInterior);
+                ComUtilities.Release(ref chartArea);
+                ComUtilities.Release(ref chart);
+                ComUtilities.Release(ref chartObject);
+                ComUtilities.Release(ref chartObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+    private static void AssertImageContainsChartMarker(string? base64)
+    {
+        Assert.NotNull(base64);
+        using var stream = new MemoryStream(Convert.FromBase64String(base64));
+        using var bitmap = new Bitmap(stream);
+
+        int markerPixels = 0;
+        int stepX = Math.Max(1, bitmap.Width / 200);
+        int stepY = Math.Max(1, bitmap.Height / 200);
+
+        for (int y = 0; y < bitmap.Height; y += stepY)
+        {
+            for (int x = 0; x < bitmap.Width; x += stepX)
+            {
+                Color pixel = bitmap.GetPixel(x, y);
+                if (pixel.R > 220 && pixel.G < 80 && pixel.B > 220)
+                {
+                    markerPixels++;
+                }
+            }
+        }
+
+        Assert.True(markerPixels > 0, "Expected screenshot to contain the chart's magenta marker.");
     }
 
     private void Activate(string sheetName) =>
