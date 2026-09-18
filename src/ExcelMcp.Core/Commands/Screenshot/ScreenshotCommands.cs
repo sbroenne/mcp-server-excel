@@ -75,7 +75,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 usedRange = sheet.UsedRange;
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
 
-                captureRange = GetCaptureRangeIncludingCharts(sheet, usedRange);
+                captureRange = GetCaptureRangeIncludingCharts(sheet, usedRange, ct);
 
                 string actualRange = captureRange.Address?.ToString() ?? "A1";
 
@@ -95,7 +95,7 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Chart objects do not expand Excel's UsedRange, but their anchor cells describe the area that
     /// must be visible for a window screenshot to include them.
     /// </summary>
-    private static dynamic GetCaptureRangeIncludingCharts(dynamic sheet, dynamic usedRange)
+    private static dynamic GetCaptureRangeIncludingCharts(dynamic sheet, dynamic usedRange, CancellationToken ct)
     {
         dynamic? usedRows = null;
         dynamic? usedColumns = null;
@@ -118,6 +118,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
             for (int index = 1; index <= shapeCount; index++)
             {
+                ct.ThrowIfCancellationRequested();
+
                 try
                 {
                     shape = shapes.Item(index);
