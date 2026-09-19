@@ -33,8 +33,9 @@ public partial class PowerQueryCommandsTests
         var loadConfig = _powerQueryCommands.GetLoadConfig(batch, "a");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
 
-        var exception = Assert.Throws<InvalidOperationException>(
+        var exception = Assert.Throws<OperationFailureException>(
             () => _powerQueryCommands.Refresh(batch, "a", TimeSpan.FromSeconds(30)));
+        Assert.Equal(OperationFailureCategory.Prerequisite, exception.ErrorCategory);
         Assert.Contains("Could not find connection or table for query 'a'", exception.Message);
 
         AssertWorksheetLoadPreserved(batch, "AA");

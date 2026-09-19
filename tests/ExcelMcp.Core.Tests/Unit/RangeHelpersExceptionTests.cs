@@ -1,5 +1,7 @@
 using System.Dynamic;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
@@ -23,6 +25,24 @@ public class RangeHelpersExceptionTests
                 out _));
 
         Assert.Same(expected, actual);
+    }
+
+    [Fact]
+    public void ResolveRange_WhenNamedRangeDoesNotExist_ThrowsCategorizedNotFound()
+    {
+#pragma warning disable CA2201 // Synthetic COM exception exercises pure classification behavior.
+        var comError = new COMException("Unknown name", unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+
+        var actual = Assert.Throws<OperationFailureException>(() =>
+            RangeHelpers.ResolveRange(
+                new ThrowingWorkbook(comError),
+                string.Empty,
+                "MissingRange",
+                out _));
+
+        Assert.Equal(OperationFailureCategory.NotFound, actual.ErrorCategory);
+        Assert.Same(comError, actual.InnerException);
     }
 
     private sealed class ThrowingWorkbook(Exception exception) : DynamicObject

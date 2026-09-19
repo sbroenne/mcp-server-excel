@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
@@ -10,6 +11,29 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 public partial class RangeCommandsTests
 {
     // === VALUE OPERATIONS TESTS ===
+
+    [Fact]
+    public void GetValues_MissingSheet_ThrowsCategorizedNotFound()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+
+        var exception = Assert.Throws<OperationFailureException>(
+            () => _commands.GetValues(batch, "MissingSheet", "A1"));
+
+        Assert.Equal(OperationFailureCategory.NotFound, exception.ErrorCategory);
+    }
+
+    [Fact]
+    public void GetValues_InvalidAddress_ThrowsCategorizedInvalidInput()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var exception = Assert.Throws<OperationFailureException>(
+            () => _commands.GetValues(batch, sheetName, "Not an address"));
+
+        Assert.Equal(OperationFailureCategory.InvalidInput, exception.ErrorCategory);
+    }
 
     [Fact]
     public void GetValues_SingleCell_Returns1x1Array()
@@ -357,4 +381,3 @@ public partial class RangeCommandsTests
     }
 
 }
-

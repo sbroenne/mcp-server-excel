@@ -50,7 +50,9 @@ public partial class PowerQueryCommands
                     query = PowerQuery.PowerQueryHelpers.FindQueryByExactName(ctx.Book, queryName);
                     if (query == null)
                     {
-                        throw new InvalidOperationException($"Query '{queryName}' not found.");
+                        throw new OperationFailureException(
+                            OperationFailureCategory.NotFound,
+                            $"Query '{queryName}' not found.");
                     }
 
                     queryFormula = query.Formula?.ToString();
@@ -71,7 +73,9 @@ public partial class PowerQueryCommands
 
                     if (!refreshed)
                     {
-                        throw new InvalidOperationException($"Could not find connection or table for query '{queryName}'.");
+                        throw new OperationFailureException(
+                            OperationFailureCategory.Prerequisite,
+                            $"Could not find connection or table for query '{queryName}'.");
                     }
 
                     result.HasErrors = false;
