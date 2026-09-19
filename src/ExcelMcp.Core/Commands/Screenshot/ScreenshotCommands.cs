@@ -159,13 +159,15 @@ public class ScreenshotCommands : IScreenshotCommands
     /// <summary>Gets a worksheet range by its inclusive cell boundaries.</summary>
     private static dynamic GetRange(dynamic sheet, int firstRow, int firstColumn, int lastRow, int lastColumn)
     {
+        dynamic? cells = null;
         dynamic? topLeft = null;
         dynamic? bottomRight = null;
 
         try
         {
-            topLeft = sheet.Cells[firstRow, firstColumn];
-            bottomRight = sheet.Cells[lastRow, lastColumn];
+            cells = sheet.Cells;
+            topLeft = cells[firstRow, firstColumn];
+            bottomRight = cells[lastRow, lastColumn];
 
             return sheet.Range[topLeft, bottomRight];
         }
@@ -173,6 +175,7 @@ public class ScreenshotCommands : IScreenshotCommands
         {
             ComUtilities.Release(ref bottomRight);
             ComUtilities.Release(ref topLeft);
+            ComUtilities.Release(ref cells);
         }
     }
 
