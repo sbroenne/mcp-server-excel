@@ -19,7 +19,7 @@ public static class ExcelScreenshotTool
     /// (formatting, charts, conditional formatting). Works on protected sheets and leaves the
     /// workbook and clipboard untouched, but requires an interactive desktop session.
     /// capture: specific range (requires rangeAddress).
-    /// capture-sheet: entire used area of worksheet.
+    /// capture-sheet: used cell area of worksheet plus embedded charts.
     /// Returns the image directly as MCP ImageContent.
     /// Use after operations to visually verify results.
     /// quality: Medium (default, JPEG 75% scale, ~4-8x smaller), High (PNG full scale), Low (JPEG 50% scale).
@@ -32,7 +32,7 @@ public static class ExcelScreenshotTool
         "(formatting, charts, conditional formatting). Works on protected sheets and leaves the " +
         "workbook and clipboard untouched, but requires an interactive desktop session. " +
         "capture: specific range (requires rangeAddress). " +
-        "capture-sheet: entire used area of worksheet. " +
+        "capture-sheet: used cell area of worksheet plus embedded charts. " +
         "Returns the image directly as MCP ImageContent. " +
         "Use after operations to visually verify results. " +
         "quality: Medium (default, JPEG 75% scale, ~4-8x smaller than High), High (PNG full scale), Low (JPEG 50% scale).")]
