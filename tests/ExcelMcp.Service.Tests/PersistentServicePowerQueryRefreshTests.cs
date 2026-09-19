@@ -145,7 +145,7 @@ public sealed partial class PersistentServicePowerQueryRefreshTests(
     }
 
     [Fact]
-    public void Refresh_ConnectionOnlyQuery_ThrowsBecauseNoRefreshMechanism()
+    public async Task Refresh_ConnectionOnlyQuery_ReturnsCategorizedPrerequisite()
     {
         var queryName = UniqueName("ConnectionOnly");
         _queries.Create(
@@ -155,15 +155,15 @@ public sealed partial class PersistentServicePowerQueryRefreshTests(
             PowerQueryLoadMode.ConnectionOnly);
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            _queries.Refresh(
-                _fixture.BatchToken,
-                queryName,
-                TimeSpan.FromMinutes(1)));
+        var response = await _fixture.SendForFailureAsync(
+            "powerquery.refresh",
+            new { queryName, timeout = TimeSpan.FromMinutes(1) });
 
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal("Prerequisite", response.ErrorCategory);
         Assert.Contains(
             "Could not find connection or table",
-            exception.Message,
+            response.ErrorMessage,
             StringComparison.OrdinalIgnoreCase);
     }
 

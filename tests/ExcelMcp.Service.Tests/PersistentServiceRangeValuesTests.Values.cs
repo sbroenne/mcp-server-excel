@@ -10,6 +10,30 @@ public sealed partial class PersistentServiceRangeValuesTests
     // === VALUE OPERATIONS TESTS ===
 
     [Fact]
+    public async Task GetValues_MissingSheet_ReturnsCategorizedNotFound()
+    {
+        var response = await _fixture.SendForFailureAsync(
+            "range.get-values",
+            new { sheetName = "MissingSheet", rangeAddress = "A1" });
+
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal("NotFound", response.ErrorCategory);
+    }
+
+    [Fact]
+    public async Task GetValues_InvalidAddress_ReturnsCategorizedInvalidInput()
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+
+        var response = await _fixture.SendForFailureAsync(
+            "range.get-values",
+            new { sheetName, rangeAddress = "Not an address" });
+
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+    }
+
+    [Fact]
     public void GetValues_SingleCell_Returns1x1Array()
     {
         // Arrange - use shared file, create unique sheet for this test

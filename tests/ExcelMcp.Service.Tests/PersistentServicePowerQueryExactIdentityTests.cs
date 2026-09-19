@@ -32,7 +32,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
         fixture.CreateCommands<IDataModelCommands>();
 
     [Fact]
-    public void ExactIdentity_ReadAndRefreshPaths_DoNotTreatAAAsA()
+    public async Task ExactIdentity_ReadAndRefreshPaths_DoNotTreatAAAsA()
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
 
@@ -46,12 +46,14 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
         var loadConfig = _queries.GetLoadConfig(_fixture.BatchToken, "a");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => _queries.Refresh(
-                _fixture.BatchToken,
-                "a",
-                TimeSpan.FromSeconds(30)));
-        Assert.Contains("Could not find connection or table for query 'a'", exception.Message);
+        var response = await _fixture.SendForFailureAsync(
+            "powerquery.refresh",
+            new { queryName = "a", timeout = TimeSpan.FromSeconds(30) });
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal("Prerequisite", response.ErrorCategory);
+        Assert.Contains(
+            "Could not find connection or table for query 'a'",
+            response.ErrorMessage);
 
         AssertWorksheetLoadPreserved("AA");
     }

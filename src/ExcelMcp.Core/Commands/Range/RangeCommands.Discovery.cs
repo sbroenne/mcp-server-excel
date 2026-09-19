@@ -34,7 +34,9 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                    throw new OperationFailureException(
+                        OperationFailureCategory.NotFound,
+                        $"Sheet '{sheetName}' not found.");
                 }
 
                 range = sheet.UsedRange;

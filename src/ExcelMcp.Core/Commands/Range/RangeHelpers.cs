@@ -14,7 +14,7 @@ public static class RangeHelpers
     /// <summary>
     /// Resolves a range address to a Range COM object.
     /// Supports both regular ranges (Sheet1!A1:D10) and named ranges.
-    /// Returns null if resolution fails.
+    /// Throws a categorized failure when the sheet, named range, or address cannot be resolved.
     /// </summary>
     public static dynamic? ResolveRange(dynamic book, string sheetName, string rangeAddress, out string? specificError)
     {
@@ -29,10 +29,13 @@ public static class RangeHelpers
                 dynamic name = names.Item(rangeAddress);
                 return name.RefersToRange;
             }
-            catch (System.Runtime.InteropServices.COMException)
+            catch (System.Runtime.InteropServices.COMException ex)
             {
                 specificError = $"Named range '{rangeAddress}' not found.";
-                return null;
+                throw new OperationFailureException(
+                    OperationFailureCategory.NotFound,
+                    specificError,
+                    ex);
             }
         }
 
@@ -45,7 +48,9 @@ public static class RangeHelpers
             if (sheet == null)
             {
                 specificError = $"Sheet '{sheetName}' not found.";
-                return null;
+                throw new OperationFailureException(
+                    OperationFailureCategory.NotFound,
+                    specificError);
             }
 
             // Sheet exists, now try to get the range
@@ -58,7 +63,10 @@ public static class RangeHelpers
                 specificError = $"Sheet '{sheetName}' exists, but range '{rangeAddress}' is invalid. " +
                                $"Error: {ex.Message}. " +
                                $"Verify the range address format (e.g., 'A1:E10', 'A1', 'A:A').";
-                return null;
+                throw new OperationFailureException(
+                    OperationFailureCategory.InvalidInput,
+                    specificError,
+                    ex);
             }
         }
         finally
@@ -241,4 +249,3 @@ public partial class RangeCommands
         });
     }
 }
-

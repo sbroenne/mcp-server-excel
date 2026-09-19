@@ -39,7 +39,8 @@ public sealed class RangeMergedCellWriteRegressionTests(
                 SessionId = sessionId,
                 ErrorMessage =
                     "Cannot write to merged range $A$1:$B$1 outside its top-left cell; unmerge first.",
-                ExceptionType = nameof(InvalidOperationException)
+                ExceptionType = "OperationFailureException",
+                ErrorCategory = "Conflict"
             },
             "range.set-values",
             """{"sheetName":"Sheet1","rangeAddress":"B1","values":[["Updated"]]}""");
@@ -60,8 +61,9 @@ public sealed class RangeMergedCellWriteRegressionTests(
         var root = result.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal(
-            nameof(InvalidOperationException),
+            "OperationFailureException",
             root.GetProperty("exceptionType").GetString());
+        Assert.Equal("Conflict", root.GetProperty("errorCategory").GetString());
         var error = root.GetProperty("errorMessage").GetString();
         Assert.Contains("$A$1:$B$1", error, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("top-left", error, StringComparison.OrdinalIgnoreCase);
