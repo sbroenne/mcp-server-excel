@@ -55,7 +55,7 @@ public sealed class PluginBootstrapBuildTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
-    public void ExcelMcpPluginLaunchers_TagPluginLaunchSource()
+    public void ExcelMcpDistributions_TagTheirLaunchSources()
     {
         var wrapperPath = Path.Combine(
             RepoRoot,
@@ -71,7 +71,11 @@ public sealed class PluginBootstrapBuildTests
             File.ReadAllText(wrapperPath),
             StringComparison.Ordinal);
         Assert.Contains(
-            "EXCELMCP_LAUNCH_SOURCE: 'plugin'",
+            "-p:ExcelMcpLaunchSource=vscode-extension",
+            File.ReadAllText(Path.Combine(RepoRoot, "vscode-extension", "package.json")),
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "EXCELMCP_LAUNCH_SOURCE",
             File.ReadAllText(extensionPath),
             StringComparison.Ordinal);
     }

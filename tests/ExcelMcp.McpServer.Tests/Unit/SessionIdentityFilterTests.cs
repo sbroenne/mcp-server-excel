@@ -58,7 +58,8 @@ public sealed class SessionIdentityFilterTests
         Assert.False(string.IsNullOrWhiteSpace(telemetry.Properties["AppVersion"]));
         Assert.Equal(
             ExcelMcpTelemetry.ResolveLaunchSource(
-                Environment.GetEnvironmentVariable("EXCELMCP_LAUNCH_SOURCE")),
+                Environment.GetEnvironmentVariable("EXCELMCP_LAUNCH_SOURCE"),
+                "standalone"),
             telemetry.Properties["LaunchSource"]);
         Assert.Equal(5, telemetry.Properties.Count);
         Assert.Equal(ExcelMcpTelemetry.UserId, telemetry.Context.User.Id);

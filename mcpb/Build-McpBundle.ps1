@@ -101,6 +101,7 @@ $PublishArgs = @(
     "-p:PublishReadyToRun=false"
     "-p:NuGetAudit=false"
     "-p:Version=$Version"
+    "-p:ExcelMcpLaunchSource=mcpb"
     "-o", $StagingDir
     "--verbosity", "quiet"
 )

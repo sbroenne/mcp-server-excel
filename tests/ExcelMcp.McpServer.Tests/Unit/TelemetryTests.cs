@@ -70,14 +70,19 @@ public class TelemetryTests
     }
 
     [Theory]
-    [InlineData(null, "standalone")]
-    [InlineData("", "standalone")]
-    [InlineData("mcpb", "mcpb")]
-    [InlineData("plugin", "plugin")]
-    [InlineData("unexpected-value", "standalone")]
-    public void ResolveLaunchSource_ReturnsOnlyKnownValues(string? configuredValue, string expected)
+    [InlineData(null, "standalone", "standalone")]
+    [InlineData("", "mcpb", "mcpb")]
+    [InlineData("plugin", "standalone", "plugin")]
+    [InlineData(null, "vscode-extension", "vscode-extension")]
+    [InlineData("unexpected-value", "mcpb", "standalone")]
+    public void ResolveLaunchSource_ReturnsOnlyKnownValues(
+        string? environmentValue,
+        string buildValue,
+        string expected)
     {
-        Assert.Equal(expected, ExcelMcpTelemetry.ResolveLaunchSource(configuredValue));
+        Assert.Equal(
+            expected,
+            ExcelMcpTelemetry.ResolveLaunchSource(environmentValue, buildValue));
     }
 
     [Fact]
@@ -91,7 +96,8 @@ public class TelemetryTests
                 new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null));
 
         var expected = ExcelMcpTelemetry.ResolveLaunchSource(
-            Environment.GetEnvironmentVariable("EXCELMCP_LAUNCH_SOURCE"));
+            Environment.GetEnvironmentVariable("EXCELMCP_LAUNCH_SOURCE"),
+            "standalone");
         Assert.Equal(expected, eventTelemetry.Properties["LaunchSource"]);
         Assert.Equal(expected, requestTelemetry.Properties["LaunchSource"]);
     }

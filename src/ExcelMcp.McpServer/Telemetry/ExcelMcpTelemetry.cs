@@ -47,7 +47,8 @@ public static class ExcelMcpTelemetry
     /// Privacy-safe distribution channel used to start this MCP server process.
     /// </summary>
     public static readonly string LaunchSource = ResolveLaunchSource(
-        Environment.GetEnvironmentVariable(LaunchSourceEnvironmentVariable));
+        Environment.GetEnvironmentVariable(LaunchSourceEnvironmentVariable),
+        TelemetryConfig.LaunchSource);
 
     /// <summary>
     /// Application Insights TelemetryClient for sending Custom Events.
@@ -391,8 +392,12 @@ public static class ExcelMcpTelemetry
             ?? "1.0.0";
     }
 
-    internal static string ResolveLaunchSource(string? configuredValue)
+    internal static string ResolveLaunchSource(string? environmentValue, string buildValue)
     {
+        var configuredValue = string.IsNullOrWhiteSpace(environmentValue)
+            ? buildValue
+            : environmentValue;
+
         if (string.Equals(configuredValue, "mcpb", StringComparison.OrdinalIgnoreCase))
         {
             return "mcpb";
@@ -401,6 +406,11 @@ public static class ExcelMcpTelemetry
         if (string.Equals(configuredValue, "plugin", StringComparison.OrdinalIgnoreCase))
         {
             return "plugin";
+        }
+
+        if (string.Equals(configuredValue, "vscode-extension", StringComparison.OrdinalIgnoreCase))
+        {
+            return "vscode-extension";
         }
 
         return "standalone";

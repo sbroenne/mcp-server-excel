@@ -49,6 +49,7 @@
     <!-- Application Insights Connection String - embedded at build time from environment variable -->
     <!-- CI/CD sets APPINSIGHTS_CONNECTION_STRING before build; local dev builds get empty string (telemetry disabled) -->
     <AppInsightsConnectionString Condition="'$(AppInsightsConnectionString)' == ''">$(APPINSIGHTS_CONNECTION_STRING)</AppInsightsConnectionString>
+    <ExcelMcpLaunchSource Condition="'$(ExcelMcpLaunchSource)' == ''">standalone</ExcelMcpLaunchSource>
   </PropertyGroup>
 
   <!-- Workaround: .NET SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true,
@@ -238,6 +239,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry%3B
 internal static class TelemetryConfig
 {
     public const string ConnectionString = "$(AppInsightsConnectionString)"%3B
+    public const string LaunchSource = "$(ExcelMcpLaunchSource)"%3B
 }
 </TelemetryConfigContent>
     </PropertyGroup>

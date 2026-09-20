@@ -41,9 +41,7 @@
     "mcp_config": {
       "command": "${__dirname}/server/excel-mcp-server",
       "args": [],
-      "env": {
-        "EXCELMCP_LAUNCH_SOURCE": "mcpb"
-      }
+      "env": {}
     }
   },
   "tools_generated": true,

@@ -27,7 +27,7 @@ data that a tool returns to your chosen AI assistant.
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
 - **Launch source** - Whether the MCP Server was started from a standalone
-  executable, an MCPB bundle, or a plugin
+  executable, an MCPB bundle, a plugin, or the VS Code extension
 - **Session alias compatibility** - Whether a session-bound MCP request used the
   fixed `sessionId` compatibility alias. Its custom properties contain only the
   tool, declared action, alias name, and application version. Like other MCP
