@@ -165,6 +165,33 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public void TrackCliInvocation_PreservesFailedServiceResponseCategory()
+    {
+        string? trackedCategory = null;
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["session", "open"],
+            () =>
+            {
+                _ = CliTelemetry.TrackCommandAsync(
+                    new ServiceRequest { Command = "session.open" },
+                    () => Task.FromResult(new ServiceResponse { Success = false, ErrorCategory = "InvalidInput" }),
+                    (_, _, _, errorCategory) => trackedCategory = errorCategory).GetAwaiter().GetResult();
+                return 1;
+            },
+            (_, _, _, errorCategory) => trackedCategory = errorCategory);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal("InvalidInput", trackedCategory);
+        var (eventTelemetry, _) = CliTelemetry.CreateCommandInvocationTelemetry(
+            "session.open",
+            25,
+            succeeded: false,
+            errorCategory: trackedCategory);
+        Assert.Equal("input-state", eventTelemetry.Properties["FailureClass"]);
+    }
+
+    [Fact]
     public void TrackCliInvocation_PreservesPerItemBatchTelemetry()
     {
         var trackedInvocations = new List<(string Command, bool Succeeded)>();
