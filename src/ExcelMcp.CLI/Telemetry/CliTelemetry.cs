@@ -28,7 +28,7 @@ internal static class CliTelemetry
     };
 
     private static readonly string[] HelpFlags = ["--help", "-h"];
-    private static readonly AsyncLocal<bool?> TrackRequestTelemetry = new();
+    private static readonly AsyncLocal<InvocationTelemetryState?> CurrentInvocationTelemetry = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
     private static readonly string UserId = GenerateAnonymousUserId();
     private static TelemetryClient? _telemetryClient;
@@ -84,8 +84,13 @@ internal static class CliTelemetry
         finally
         {
             stopwatch.Stop();
-            if (TrackRequestTelemetry.Value is not false)
+            var invocationTelemetry = CurrentInvocationTelemetry.Value;
+            if (invocationTelemetry?.TrackRequests is not false)
             {
+                if (invocationTelemetry != null)
+                {
+                    invocationTelemetry.RequestTracked = true;
+                }
                 trackInvocation(
                     request.Command,
                     stopwatch.ElapsedMilliseconds,
@@ -114,8 +119,9 @@ internal static class CliTelemetry
         }
 
         var isBatch = IsBatchCommand(args);
-        var previousTrackRequestTelemetry = TrackRequestTelemetry.Value;
-        TrackRequestTelemetry.Value = isBatch;
+        var previousInvocationTelemetry = CurrentInvocationTelemetry.Value;
+        var invocationTelemetry = new InvocationTelemetryState(isBatch);
+        CurrentInvocationTelemetry.Value = invocationTelemetry;
         var stopwatch = Stopwatch.StartNew();
         var exitCode = 1;
         string? failureCategory = null;
@@ -132,8 +138,8 @@ internal static class CliTelemetry
         finally
         {
             stopwatch.Stop();
-            TrackRequestTelemetry.Value = previousTrackRequestTelemetry;
-            if (!isBatch)
+            CurrentInvocationTelemetry.Value = previousInvocationTelemetry;
+            if (!isBatch || !invocationTelemetry.RequestTracked)
             {
                 trackInvocation(
                     ResolveCliCommand(args),
@@ -342,5 +348,12 @@ internal static class CliTelemetry
         {
             return Guid.NewGuid().ToString("N")[..16];
         }
+    }
+
+    private sealed class InvocationTelemetryState(bool trackRequests)
+    {
+        public bool TrackRequests { get; } = trackRequests;
+
+        public bool RequestTracked { get; set; }
     }
 }
