@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
@@ -13,6 +14,22 @@ public sealed class McpbPackagingScriptTests
         RepoRoot,
         "mcpb",
         "McpbPackaging.ps1");
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "McpbPackaging")]
+    public void Manifest_TagsMcpbLaunchSource()
+    {
+        var manifestPath = Path.Combine(RepoRoot, "mcpb", "manifest.json");
+        using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+
+        var environment = manifest.RootElement
+            .GetProperty("server")
+            .GetProperty("mcp_config")
+            .GetProperty("env");
+
+        Assert.Equal("mcpb", environment.GetProperty("EXCELMCP_LAUNCH_SOURCE").GetString());
+    }
 
     [Fact]
     [Trait("Category", "Integration")]

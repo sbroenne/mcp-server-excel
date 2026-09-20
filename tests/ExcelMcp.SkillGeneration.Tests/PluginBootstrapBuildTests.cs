@@ -54,6 +54,30 @@ public sealed class PluginBootstrapBuildTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    [Trait("Feature", "PluginBootstrap")]
+    public void ExcelMcpPluginLaunchers_TagPluginLaunchSource()
+    {
+        var wrapperPath = Path.Combine(
+            RepoRoot,
+            ".github",
+            "plugins",
+            "excel-mcp",
+            "bin",
+            "start-mcp.ps1");
+        var extensionPath = Path.Combine(RepoRoot, "vscode-extension", "src", "extension.ts");
+
+        Assert.Contains(
+            "$env:EXCELMCP_LAUNCH_SOURCE = \"plugin\"",
+            File.ReadAllText(wrapperPath),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "EXCELMCP_LAUNCH_SOURCE: 'plugin'",
+            File.ReadAllText(extensionPath),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     [Trait("Feature", "AgentPluginSpec")]
     public void PublishWorkflow_ValidatesBothSkillsWithPinnedOfficialSkillsRef()
     {

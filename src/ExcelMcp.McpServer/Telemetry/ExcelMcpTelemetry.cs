@@ -26,6 +26,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 /// </summary>
 public static class ExcelMcpTelemetry
 {
+    private const string LaunchSourceEnvironmentVariable = "EXCELMCP_LAUNCH_SOURCE";
     private const string RedactedExceptionMessage = "[REDACTED]";
     private const int MaxExceptionDepth = 16;
 
@@ -41,6 +42,12 @@ public static class ExcelMcpTelemetry
     /// without collecting personally identifiable information.
     /// </summary>
     public static readonly string UserId = GenerateAnonymousUserId();
+
+    /// <summary>
+    /// Privacy-safe distribution channel used to start this MCP server process.
+    /// </summary>
+    public static readonly string LaunchSource = ResolveLaunchSource(
+        Environment.GetEnvironmentVariable(LaunchSourceEnvironmentVariable));
 
     /// <summary>
     /// Application Insights TelemetryClient for sending Custom Events.
@@ -384,6 +391,21 @@ public static class ExcelMcpTelemetry
             ?? "1.0.0";
     }
 
+    internal static string ResolveLaunchSource(string? configuredValue)
+    {
+        if (string.Equals(configuredValue, "mcpb", StringComparison.OrdinalIgnoreCase))
+        {
+            return "mcpb";
+        }
+
+        if (string.Equals(configuredValue, "plugin", StringComparison.OrdinalIgnoreCase))
+        {
+            return "plugin";
+        }
+
+        return "standalone";
+    }
+
     /// <summary>
     /// Generates a stable anonymous user ID based on machine identity.
     /// Uses a hash of machine name and user profile path to create a consistent
@@ -410,6 +432,11 @@ public static class ExcelMcpTelemetry
 
     private static void ApplyContext(ITelemetry telemetry)
     {
+        if (telemetry is ISupportProperties propertyTelemetry)
+        {
+            propertyTelemetry.Properties["LaunchSource"] = LaunchSource;
+        }
+
         telemetry.Context.User.Id ??= UserId;
         telemetry.Context.Session.Id ??= SessionId;
         telemetry.Context.Cloud.RoleName ??= "ExcelMcp.McpServer";

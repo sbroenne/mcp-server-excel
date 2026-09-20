@@ -69,6 +69,33 @@ public class TelemetryTests
         }
     }
 
+    [Theory]
+    [InlineData(null, "standalone")]
+    [InlineData("", "standalone")]
+    [InlineData("mcpb", "mcpb")]
+    [InlineData("plugin", "plugin")]
+    [InlineData("unexpected-value", "standalone")]
+    public void ResolveLaunchSource_ReturnsOnlyKnownValues(string? configuredValue, string expected)
+    {
+        Assert.Equal(expected, ExcelMcpTelemetry.ResolveLaunchSource(configuredValue));
+    }
+
+    [Fact]
+    public void ToolInvocationTelemetry_IncludesLaunchSource()
+    {
+        var (eventTelemetry, requestTelemetry) =
+            ExcelMcpTelemetry.CreateToolInvocationTelemetry(
+                "range",
+                "get-values",
+                12,
+                new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null));
+
+        var expected = ExcelMcpTelemetry.ResolveLaunchSource(
+            Environment.GetEnvironmentVariable("EXCELMCP_LAUNCH_SOURCE"));
+        Assert.Equal(expected, eventTelemetry.Properties["LaunchSource"]);
+        Assert.Equal(expected, requestTelemetry.Properties["LaunchSource"]);
+    }
+
     [Fact]
     public void TrackUnhandledException_SendsOnlySanitizedClassification()
     {

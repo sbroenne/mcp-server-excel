@@ -14,5 +14,6 @@ if ([string]::IsNullOrWhiteSpace($binaryPath) -or -not (Test-Path $binaryPath)) 
     throw "excel-mcp bootstrap did not resolve a usable mcp-excel.exe runtime."
 }
 
+$env:EXCELMCP_LAUNCH_SOURCE = "plugin"
 & $binaryPath @PassthroughArgs
 exit $LASTEXITCODE

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** August 28, 2026
+**Last Updated:** September 20, 2026
 
 ## Overview
 
@@ -26,6 +26,8 @@ data that a tool returns to your chosen AI assistant.
 - **Session information** - A random session ID generated each time the server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
+- **Launch source** - Whether the MCP Server was started from a standalone
+  executable, an MCPB bundle, or a plugin
 - **Session alias compatibility** - Whether a session-bound MCP request used the
   fixed `sessionId` compatibility alias. Its custom properties contain only the
   tool, declared action, alias name, and application version. Like other MCP

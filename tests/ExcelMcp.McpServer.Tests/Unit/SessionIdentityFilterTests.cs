@@ -56,7 +56,11 @@ public sealed class SessionIdentityFilterTests
         Assert.Equal("get-info", telemetry.Properties["Action"]);
         Assert.Equal("sessionId", telemetry.Properties["Alias"]);
         Assert.False(string.IsNullOrWhiteSpace(telemetry.Properties["AppVersion"]));
-        Assert.Equal(4, telemetry.Properties.Count);
+        Assert.Equal(
+            ExcelMcpTelemetry.ResolveLaunchSource(
+                Environment.GetEnvironmentVariable("EXCELMCP_LAUNCH_SOURCE")),
+            telemetry.Properties["LaunchSource"]);
+        Assert.Equal(5, telemetry.Properties.Count);
         Assert.Equal(ExcelMcpTelemetry.UserId, telemetry.Context.User.Id);
         Assert.Equal(ExcelMcpTelemetry.SessionId, telemetry.Context.Session.Id);
         Assert.Equal("ExcelMcp.McpServer", telemetry.Context.Cloud.RoleName);

@@ -31,7 +31,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						mcpServerPath,
 						[],
 						{
-							// Optional environment variables can be added here if needed
+							EXCELMCP_LAUNCH_SOURCE: 'plugin'
 						}
 					)
 				];
