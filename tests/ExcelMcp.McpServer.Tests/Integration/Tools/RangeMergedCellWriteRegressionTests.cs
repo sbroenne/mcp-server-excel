@@ -66,8 +66,8 @@ public sealed class RangeMergedCellWriteRegressionTests : McpIntegrationTestBase
         AssertFailureEnvelope(
             failedWrite.RootElement,
             "range.set-values merged non-anchor",
-            "OperationFailureException");
-        Assert.Equal("Conflict", failedWrite.RootElement.GetProperty("errorCategory").GetString());
+            "OperationFailureException",
+            expectedErrorCategory: "Conflict");
 
         string? errorMessage = failedWrite.RootElement.GetProperty("errorMessage").GetString();
         Assert.Contains("$A$1:$B$1", errorMessage, StringComparison.OrdinalIgnoreCase);
