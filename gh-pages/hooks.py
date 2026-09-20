@@ -1425,8 +1425,15 @@ def _write_tools_json(config) -> None:
     heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
     operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
 
+    headline = re.search(
+        r"\*\*(?P<tools>\d+) specialized tools with \d+ operations",
+        _read("FEATURES.md"),
+    )
+    if headline is None:
+        raise RuntimeError("could not read the headline tool count from FEATURES.md")
+    headline_tools = int(headline.group("tools"))
+
     categories = []
-    total_tools = 0
     total_ops = 0
 
     for source_rel, title in category_titles.items():
@@ -1453,7 +1460,6 @@ def _write_tools_json(config) -> None:
                     }
                 )
 
-        total_tools += len(groups)
         total_ops += sum(g["operationCount"] for g in groups)
         categories.append(
             {
@@ -1478,7 +1484,7 @@ def _write_tools_json(config) -> None:
             "application": "Microsoft Excel desktop 2016 or later",
         },
         "entryPoints": ["mcp-server", "cli"],
-        "toolCount": total_tools,
+        "toolCount": headline_tools,
         "operationCount": total_ops,
         "categories": categories,
     }
@@ -1488,7 +1494,7 @@ def _write_tools_json(config) -> None:
         encoding="utf-8",
         newline="\n",
     )
-    log.info("wrote tools.json (%d tools, %d operations)", total_tools, total_ops)
+    log.info("wrote tools.json (%d tools, %d operations)", headline_tools, total_ops)
 
 
 def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature

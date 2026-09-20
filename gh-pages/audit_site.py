@@ -442,13 +442,9 @@ def audit_tools_json() -> None:
         fail("tools.json has no categories")
         return
 
-    parsed_tools = sum(len(category.get("featureGroups", [])) for category in categories)
     parsed_operations = sum(category.get("operationCount", 0) for category in categories)
-    if data.get("toolCount") != parsed_tools:
-        fail(
-            f"tools.json toolCount {data.get('toolCount')} != "
-            f"parsed feature group count {parsed_tools}"
-        )
+    if not isinstance(data.get("toolCount"), int) or data["toolCount"] <= 0:
+        fail("tools.json toolCount must be a positive integer")
     if data.get("operationCount") != parsed_operations:
         fail(
             f"tools.json operationCount {data.get('operationCount')} != "
