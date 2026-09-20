@@ -85,6 +85,12 @@ internal static class CliTelemetry
         {
             stopwatch.Stop();
             var invocationTelemetry = CurrentInvocationTelemetry.Value;
+            var trackedFailureCategory = response?.ErrorCategory ?? failureCategory;
+            if (invocationTelemetry != null && response?.Success == false)
+            {
+                invocationTelemetry.FailureCategory ??= trackedFailureCategory;
+            }
+
             if (invocationTelemetry?.TrackRequests is not false)
             {
                 if (invocationTelemetry != null)
@@ -95,7 +101,7 @@ internal static class CliTelemetry
                     request.Command,
                     stopwatch.ElapsedMilliseconds,
                     response?.Success == true,
-                    response?.ErrorCategory ?? failureCategory);
+                    trackedFailureCategory);
             }
         }
     }
@@ -145,7 +151,7 @@ internal static class CliTelemetry
                     ResolveCliCommand(args),
                     stopwatch.ElapsedMilliseconds,
                     exitCode == 0,
-                    failureCategory);
+                    failureCategory ?? invocationTelemetry.FailureCategory);
             }
         }
     }
@@ -355,5 +361,7 @@ internal static class CliTelemetry
         public bool TrackRequests { get; } = trackRequests;
 
         public bool RequestTracked { get; set; }
+
+        public string? FailureCategory { get; set; }
     }
 }
