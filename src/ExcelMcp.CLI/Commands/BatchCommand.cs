@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
@@ -131,7 +132,9 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             ServiceResponse response;
             try
             {
-                response = await client.SendAsync(request, cancellationToken);
+                response = await CliTelemetry.TrackCommandAsync(
+                    request,
+                    () => client.SendAsync(request, cancellationToken));
             }
             catch (Exception ex)
             {
