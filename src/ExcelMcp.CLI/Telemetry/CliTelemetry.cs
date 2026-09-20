@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.ApplicationInsights;
@@ -29,7 +28,7 @@ internal static class CliTelemetry
     };
 
     private static readonly string[] HelpFlags = ["--help", "-h"];
-    private static readonly AsyncLocal<StrongBox<int>?> TrackedRequests = new();
+    private static readonly AsyncLocal<bool?> TrackRequestTelemetry = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
     private static readonly string UserId = GenerateAnonymousUserId();
     private static TelemetryClient? _telemetryClient;
@@ -85,19 +84,21 @@ internal static class CliTelemetry
         finally
         {
             stopwatch.Stop();
-            MarkRequestTracked();
-            trackInvocation(
-                request.Command,
-                stopwatch.ElapsedMilliseconds,
-                response?.Success == true,
-                response?.ErrorCategory ?? failureCategory);
+            if (TrackRequestTelemetry.Value is not false)
+            {
+                trackInvocation(
+                    request.Command,
+                    stopwatch.ElapsedMilliseconds,
+                    response?.Success == true,
+                    response?.ErrorCategory ?? failureCategory);
+            }
         }
     }
 
     /// <summary>
     /// Tracks the whole CLI invocation so commands that never issue a service
     /// request, and failures raised before one is sent, are still measured.
-    /// Emits nothing when the invocation already reported request telemetry.
+    /// Regular commands emit their final outcome; batches retain per-item telemetry.
     /// </summary>
     internal static int TrackCliInvocation(string[] args, Func<int> operation) =>
         TrackCliInvocation(args, operation, TrackCommandInvocation);
@@ -112,9 +113,9 @@ internal static class CliTelemetry
             return operation();
         }
 
-        var trackedRequests = new StrongBox<int>(0);
-        var previousTrackedRequests = TrackedRequests.Value;
-        TrackedRequests.Value = trackedRequests;
+        var isBatch = IsBatchCommand(args);
+        var previousTrackRequestTelemetry = TrackRequestTelemetry.Value;
+        TrackRequestTelemetry.Value = isBatch;
         var stopwatch = Stopwatch.StartNew();
         var exitCode = 1;
         string? failureCategory = null;
@@ -131,8 +132,8 @@ internal static class CliTelemetry
         finally
         {
             stopwatch.Stop();
-            TrackedRequests.Value = previousTrackedRequests;
-            if (Volatile.Read(ref trackedRequests.Value) == 0)
+            TrackRequestTelemetry.Value = previousTrackRequestTelemetry;
+            if (!isBatch)
             {
                 trackInvocation(
                     ResolveCliCommand(args),
@@ -143,14 +144,8 @@ internal static class CliTelemetry
         }
     }
 
-    private static void MarkRequestTracked()
-    {
-        var trackedRequests = TrackedRequests.Value;
-        if (trackedRequests != null)
-        {
-            Interlocked.Increment(ref trackedRequests.Value);
-        }
-    }
+    private static bool IsBatchCommand(string[] args) =>
+        args.Length > 0 && string.Equals(args[0], "batch", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Maps parsed CLI arguments to a canonical service command. Arguments that

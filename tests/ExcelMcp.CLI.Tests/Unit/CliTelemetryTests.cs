@@ -144,24 +144,66 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
-    public void TrackCliInvocation_DoesNotDuplicateRequestTelemetry()
+    public void TrackCliInvocation_UsesFinalCommandOutcomeInsteadOfRequestOutcome()
     {
-        var trackedCommands = new List<string>();
+        var trackedInvocations = new List<(string Command, bool Succeeded)>();
 
         var exitCode = CliTelemetry.TrackCliInvocation(
-            ["session", "list"],
+            ["session", "test"],
+            () =>
+            {
+                _ = CliTelemetry.TrackCommandAsync(
+                    new ServiceRequest { Command = "session.test" },
+                    () => Task.FromResult(new ServiceResponse { Success = true }),
+                    (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
+                return 1;
+            },
+            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal([("session.test", false)], trackedInvocations);
+    }
+
+    [Fact]
+    public void TrackCliInvocation_PreservesPerItemBatchTelemetry()
+    {
+        var trackedInvocations = new List<(string Command, bool Succeeded)>();
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["batch", "--input", "commands.json"],
             () =>
             {
                 _ = CliTelemetry.TrackCommandAsync(
                     new ServiceRequest { Command = "session.list" },
                     () => Task.FromResult(new ServiceResponse { Success = true }),
-                    (command, _, _, _) => trackedCommands.Add(command)).GetAwaiter().GetResult();
+                    (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
                 return 0;
             },
-            (command, _, _, _) => trackedCommands.Add(command));
+            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(["session.list"], trackedCommands);
+        Assert.Equal([("session.list", true)], trackedInvocations);
+    }
+
+    [Fact]
+    public void TrackCliInvocation_UsesSuccessfulFinalOutcomeAfterExpectedRequestFailure()
+    {
+        var trackedInvocations = new List<(string Command, bool Succeeded)>();
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["service", "status"],
+            () =>
+            {
+                _ = CliTelemetry.TrackCommandAsync(
+                    new ServiceRequest { Command = "service.ping" },
+                    () => Task.FromResult(new ServiceResponse { Success = false, ErrorCategory = "ServiceUnavailable" }),
+                    (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
+                return 0;
+            },
+            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal([("service.status", true)], trackedInvocations);
     }
 
     [Fact]
