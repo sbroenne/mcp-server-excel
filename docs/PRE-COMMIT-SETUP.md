@@ -158,7 +158,8 @@ chmod +x .git/hooks/pre-commit
 The Excel-free subset of these checks runs in CI/CD (GitHub-hosted runners have no Excel):
 - `ci.yml` (**CI Gate**) runs a Release build, then the Excel-free audits
   (`check-com-leaks.ps1`, `audit-core-coverage.ps1`, `check-mcp-core-implementations.ps1`,
-  `check-success-flag.ps1`, `check-doc-counts.ps1`, `check-dynamic-casts.ps1`, `check-plugin-readmes.ps1`)
+  `check-success-flag.ps1`, `check-doc-counts.ps1 -AllowStaleAdvertisedCounts`,
+  `check-dynamic-casts.ps1`, `check-plugin-readmes.ps1`)
   plus the hook regression tests on every PR to `main`
 - Excel-dependent gates (CLI/MCP runtime smoke, integration tests) run **local-only** via the pre-commit hook
 

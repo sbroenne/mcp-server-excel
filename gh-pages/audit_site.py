@@ -437,26 +437,23 @@ def audit_tools_json() -> None:
         fail(f"tools.json is not valid JSON: {exc}")
         return
 
-    features = (SITE_DIR.parent.parent / "FEATURES.md").read_text(encoding="utf-8")
-    headline = re.search(
-        r"\*\*(?P<tools>\d+) specialized tools with (?P<ops>\d+) operations", features
-    )
-    if headline is None:
-        fail("could not read headline counts from FEATURES.md")
+    categories = data.get("categories")
+    if not categories:
+        fail("tools.json has no categories")
         return
 
-    if data.get("toolCount") != int(headline.group("tools")):
+    parsed_tools = sum(len(category.get("featureGroups", [])) for category in categories)
+    parsed_operations = sum(category.get("operationCount", 0) for category in categories)
+    if data.get("toolCount") != parsed_tools:
         fail(
             f"tools.json toolCount {data.get('toolCount')} != "
-            f"FEATURES.md headline {headline.group('tools')}"
+            f"parsed feature group count {parsed_tools}"
         )
-    if data.get("operationCount") != int(headline.group("ops")):
+    if data.get("operationCount") != parsed_operations:
         fail(
             f"tools.json operationCount {data.get('operationCount')} != "
-            f"FEATURES.md headline {headline.group('ops')}"
+            f"parsed category operation count {parsed_operations}"
         )
-    if not data.get("categories"):
-        fail("tools.json has no categories")
 
 
 def audit_robots() -> None:

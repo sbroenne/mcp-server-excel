@@ -39,7 +39,7 @@ Run applicable existing checks, not replacement audits:
 & .\scripts\audit-core-coverage.ps1 -CheckNaming -FailOnGaps
 & .\scripts\check-mcp-core-implementations.ps1
 & .\scripts\check-success-flag.ps1
-& .\scripts\check-doc-counts.ps1 -SkipBuild
+& .\scripts\check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts
 & .\scripts\check-dynamic-casts.ps1
 ```
 

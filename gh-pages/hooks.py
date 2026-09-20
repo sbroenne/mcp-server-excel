@@ -1407,8 +1407,7 @@ def _write_tools_json(config) -> None:
     """Emit /tools.json: every tool and operation as structured JSON.
 
     Derived from the canonical ``docs/features/*.md`` references, so the machine
-    -readable catalogue is generated from the same source as the human pages and
-    cannot drift. Totals are asserted against the documented headline counts.
+    -readable catalogue and its totals come from the same source as the human pages.
     """
     category_titles = {
         "docs/features/DATA-ANALYTICS.md": "Data & Analytics",
@@ -1426,18 +1425,8 @@ def _write_tools_json(config) -> None:
     heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
     operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
 
-    # Headline counts live in FEATURES.md and are enforced against code by
-    # scripts/check-doc-counts.ps1, so read them rather than restating them.
-    headline = re.search(
-        r"\*\*(?P<tools>\d+) specialized tools with (?P<ops>\d+) operations",
-        _read("FEATURES.md"),
-    )
-    if headline is None:
-        raise RuntimeError("could not read the headline tool/operation counts from FEATURES.md")
-    headline_tools = int(headline.group("tools"))
-    headline_ops = int(headline.group("ops"))
-
     categories = []
+    total_tools = 0
     total_ops = 0
 
     for source_rel, title in category_titles.items():
@@ -1464,6 +1453,7 @@ def _write_tools_json(config) -> None:
                     }
                 )
 
+        total_tools += len(groups)
         total_ops += sum(g["operationCount"] for g in groups)
         categories.append(
             {
@@ -1472,13 +1462,6 @@ def _write_tools_json(config) -> None:
                 "operationCount": sum(g["operationCount"] for g in groups),
                 "featureGroups": groups,
             }
-        )
-
-    if total_ops != headline_ops:
-        raise RuntimeError(
-            "tools.json operation total does not match the FEATURES.md headline: "
-            f"parsed {total_ops}, expected {headline_ops}. "
-            "Fix the feature reference headings or the headline."
         )
 
     payload = {
@@ -1495,7 +1478,7 @@ def _write_tools_json(config) -> None:
             "application": "Microsoft Excel desktop 2016 or later",
         },
         "entryPoints": ["mcp-server", "cli"],
-        "toolCount": headline_tools,
+        "toolCount": total_tools,
         "operationCount": total_ops,
         "categories": categories,
     }
@@ -1505,7 +1488,7 @@ def _write_tools_json(config) -> None:
         encoding="utf-8",
         newline="\n",
     )
-    log.info("wrote tools.json (%d tools, %d operations)", headline_tools, total_ops)
+    log.info("wrote tools.json (%d tools, %d operations)", total_tools, total_ops)
 
 
 def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature

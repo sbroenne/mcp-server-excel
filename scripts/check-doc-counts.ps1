@@ -1,18 +1,20 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Validates that the tool/operation counts advertised in user-facing docs match
-    the authoritative counts derived from the code (generated skill manifest + FileAction enum).
+    Updates or validates tool/operation counts from the authoritative code-derived counts.
 
 .DESCRIPTION
-    This guard exists to make the "count discrepancy" class of bug impossible to reintroduce.
+    Release automation uses -Update to refresh every managed headline. Development
+    and CI use -AllowStaleAdvertisedCounts so feature-section totals and the count
+    derivation remain guarded without requiring release-owned headlines to be
+    updated manually on feature branches.
 
     THE PROBLEM IT PREVENTS
     -----------------------
     The MCP server and the CLI expose DIFFERENT internal surfaces, and several docs used to
     hard-code counts from memory. That drifted (docs said 232, the generated SKILL.md said 229,
     the canonical feature references summed to 231). This script computes the ONE canonical answer
-    from code on every commit and fails if any doc disagrees.
+    from code. Release automation writes that answer into every managed claim.
 
     HOW THE CANONICAL NUMBERS ARE DERIVED
     -------------------------------------
@@ -46,17 +48,30 @@
     Skip the Release solution build. Intended for CI and pre-commit callers that build the
     solution immediately before invoking this script.
 
+.PARAMETER Update
+    Replace managed advertised totals with the canonical code-derived values.
+
+.PARAMETER AllowStaleAdvertisedCounts
+    Do not fail when managed advertised totals differ from the canonical values.
+    Structural checks, count derivation, and per-feature section totals still fail.
+
 .NOTES
     Exit code 0 = all counts consistent. Exit code 1 = a mismatch was found.
 #>
 
 [CmdletBinding()]
 param(
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$Update,
+    [switch]$AllowStaleAdvertisedCounts
 )
 
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
+
+if ($Update -and $AllowStaleAdvertisedCounts) {
+    throw "-Update and -AllowStaleAdvertisedCounts cannot be used together."
+}
 
 if (-not $SkipBuild) {
     Write-Host "Refreshing generated Release count metadata..." -ForegroundColor Cyan
@@ -177,7 +192,7 @@ Write-Host "Canonical (from code): $canonicalTools tools, $canonicalOps operatio
 Write-Host "  manifest: $manifestTools tools / $manifestOps ops; - diag($diagOps) + file($fileOps); MCP tool surface: $($mcpToolNames.Count) tools" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------------------
-# 5. Validate headline claims across user-facing docs
+# 5. Update or validate headline claims across user-facing docs
 # ---------------------------------------------------------------------------
 # Each check: file + regex. Capture group 't' (optional) must equal canonicalTools,
 # capture group 'o' (optional) must equal canonicalOps. A check that matches nothing fails
@@ -188,39 +203,84 @@ $checks = @(
     @{ File = "FEATURES.md";                            Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = 'all (?<o>\d+) operations' }
-    @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = 'with (?<o>\d+) operations matching' }
+    @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = 'provides (?<t>\d+) feature command categories with (?<o>\d+) operations matching' }
+    @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = 'without loading (?<t>\d+) tool schemas' }
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = '\*\*(?<o>\d+) operations\*\* across' }
     @{ File = "vscode-extension\README.md";             Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
+    @{ File = "vscode-extension\README.md";             Pattern = 'all (?<t>\d+) tools and (?<o>\d+) operations' }
     @{ File = "mcpb\README.md";                         Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
     @{ File = "mcpb\manifest.json";                     Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
+    @{ File = "mcpb\BUILD.md";                           Pattern = 'generates its (?<t>\d+) tool schemas' }
     @{ File = "src\ExcelMcp.CLI\ExcelMcp.CLI.csproj";   Pattern = '(?<o>\d+) operations across' }
     @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
+    @{ File = ".github\plugins\excel-cli\README.md";    Pattern = '\| (?<t>\d+) tool schemas loaded into context \|' }
     @{ File = "skills\excel-mcp\SKILL.md";              Pattern = 'Provides (?<o>\d+) Excel operations' }
+    @{ File = "gh-pages\docs\faq.md";                   Pattern = 'same (?<o>\d+) operations' }
+    @{ File = "docs\INSTALLATION-CLI.md";               Pattern = 'all (?<t>\d+) feature command categories' }
+    @{ File = "docs\guides\EXCEL-COM-VS-FILE-PARSERS.md"; Pattern = '(?<o>\d+)\s+operations across (?<t>\d+) tools' }
+    @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<t>\d+) tools \((?<o>\d+) operations\)' }
 )
 
 # The website feature overview includes FEATURES.md; audit_site.py enforces
 # that wrapper contract instead of requiring a second handwritten headline.
+$documentContent = @{}
+$updatedFiles = [System.Collections.Generic.HashSet[string]]::new()
 foreach ($check in $checks) {
     $path = Join-Path $rootDir $check.File
     if (-not (Test-Path $path)) {
         Add-Failure "Expected doc not found: $($check.File)"
         continue
     }
-    $content = Get-Content $path -Raw
+    $content = if ($documentContent.ContainsKey($check.File)) {
+        $documentContent[$check.File]
+    } else {
+        Get-Content $path -Raw
+    }
     $matches = [regex]::Matches($content, $check.Pattern)
     if ($matches.Count -eq 0) {
         Add-Failure "$($check.File): expected headline pattern not found (was it reworded or removed?): /$($check.Pattern)/"
         continue
     }
-    foreach ($m in $matches) {
+
+    foreach ($m in @($matches) | Sort-Object Index -Descending) {
+        $replacements = [System.Collections.Generic.List[object]]::new()
         if ($m.Groups['t'].Success -and [int]$m.Groups['t'].Value -ne $canonicalTools) {
-            Add-Failure ("$($check.File): tool count is {0} but should be {1} -> `"{2}`"" -f $m.Groups['t'].Value, $canonicalTools, $m.Value.Trim())
+            $replacements.Add([pscustomobject]@{
+                Index = $m.Groups['t'].Index
+                Length = $m.Groups['t'].Length
+                Value = [string]$canonicalTools
+                Kind = "tool"
+                Previous = $m.Groups['t'].Value
+            })
         }
         if ($m.Groups['o'].Success -and [int]$m.Groups['o'].Value -ne $canonicalOps) {
-            Add-Failure ("$($check.File): operation count is {0} but should be {1} -> `"{2}`"" -f $m.Groups['o'].Value, $canonicalOps, $m.Value.Trim())
+            $replacements.Add([pscustomobject]@{
+                Index = $m.Groups['o'].Index
+                Length = $m.Groups['o'].Length
+                Value = [string]$canonicalOps
+                Kind = "operation"
+                Previous = $m.Groups['o'].Value
+            })
         }
+
+        foreach ($replacement in $replacements | Sort-Object Index -Descending) {
+            if ($Update) {
+                $content = $content.Remove($replacement.Index, $replacement.Length).Insert($replacement.Index, $replacement.Value)
+                [void]$updatedFiles.Add($check.File)
+            } elseif (-not $AllowStaleAdvertisedCounts) {
+                Add-Failure ("$($check.File): {0} count is {1} but should be {2} -> `"{3}`"" -f $replacement.Kind, $replacement.Previous, $replacement.Value, $m.Value.Trim())
+            }
+        }
+    }
+    $documentContent[$check.File] = $content
+}
+
+if ($Update) {
+    foreach ($file in $updatedFiles) {
+        Set-Content -LiteralPath (Join-Path $rootDir $file) -Value $documentContent[$file] -NoNewline -Encoding utf8
+        Write-Host "Updated $file" -ForegroundColor Green
     }
 }
 
@@ -297,9 +357,15 @@ if ($errors.Count -gt 0) {
     foreach ($e in $errors) { Write-Host "  - $e" -ForegroundColor Red }
     Write-Host ""
     Write-Host "Canonical counts are derived from code: $canonicalTools tools / $canonicalOps operations." -ForegroundColor Yellow
-    Write-Host "Update the docs above to match, or if the surface genuinely changed, update the counts everywhere." -ForegroundColor Yellow
+    Write-Host "Fix the structural mismatch above before release-time count generation can proceed." -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "Documentation count validation passed - all docs report $canonicalTools tools / $canonicalOps operations" -ForegroundColor Green
+if ($Update) {
+    Write-Host "Documentation counts generated - $canonicalTools tools / $canonicalOps operations ($($updatedFiles.Count) file(s) changed)" -ForegroundColor Green
+} elseif ($AllowStaleAdvertisedCounts) {
+    Write-Host "Documentation count structure passed - release-owned advertised totals may remain unchanged" -ForegroundColor Green
+} else {
+    Write-Host "Documentation count validation passed - all docs report $canonicalTools tools / $canonicalOps operations" -ForegroundColor Green
+}
 exit 0

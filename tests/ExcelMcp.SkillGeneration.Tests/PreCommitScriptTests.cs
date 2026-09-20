@@ -23,7 +23,7 @@ public sealed class PreCommitScriptTests
         Assert.True(result.ExitCode == 0, result.CombinedOutput);
         Assert.DoesNotContain("Building CLI release deliverables", result.CombinedOutput, StringComparison.Ordinal);
         Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Building Release solution", StringComparison.Ordinal));
-        Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Validating documentation tool/operation counts", StringComparison.Ordinal));
+        Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Validating documentation count structure", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -101,6 +101,19 @@ public sealed class PreCommitScriptTests
         Assert.Contains("npm-staged=True", result.CombinedOutput, StringComparison.Ordinal);
         Assert.Contains("Npm lockfiles contain fixed download URLs", result.CombinedOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("Stopping pipe-owned", result.CombinedOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PreCommit")]
+    public void AdvertisedCounts_AreDeferredToReleaseAutomation()
+    {
+        var hook = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+
+        Assert.Contains("& $docCountScript -SkipBuild -AllowStaleAdvertisedCounts", hook, StringComparison.Ordinal);
+        Assert.Contains("check-doc-counts.ps1 -Update -SkipBuild", workflow, StringComparison.Ordinal);
+        Assert.Contains("release-doc-counts.patch", workflow, StringComparison.Ordinal);
     }
 
     private static async Task<ScriptResult> RunHookAsync(
