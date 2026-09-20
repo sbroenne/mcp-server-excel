@@ -420,7 +420,10 @@ dotnet build -c Release
 
 ## 📊 **Application Insights / Telemetry Setup**
 
-ExcelMcp uses Azure Application Insights (Classic SDK with WorkerService integration) for anonymous usage telemetry and crash reporting. Telemetry is **opt-out** (enabled by default in release builds).
+ExcelMcp uses Azure Application Insights for anonymous usage telemetry. The MCP
+Server uses WorkerService integration and also reports sanitized crashes; the CLI
+uses the base SDK for command telemetry. Telemetry is **opt-out** (enabled by
+default in release builds).
 
 ### **How It Works**
 
@@ -435,7 +438,7 @@ The Application Insights connection string is **embedded at build time** via MSB
 
 - **Tool invocations**: Tool name, action, CLI or MCP Server entry point,
   duration (ms), success/failure
-- **Unhandled exceptions**: Exception type, approved source, and project-owned
+- **Unhandled exceptions (MCP Server only)**: Exception type, approved source, and project-owned
   failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
@@ -481,8 +484,9 @@ Copy-Item "Directory.Build.props.user.template" "Directory.Build.props.user"
 # 3. Build - connection string is embedded into both entry points at compile time
 dotnet build Sbroenne.ExcelMcp.sln
 
-# 4. Run - telemetry is automatically sent to Azure
+# 4. Run either entry point - telemetry is automatically sent to Azure
 dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+dotnet run --project src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -- session list --quiet
 ```
 
 **Note:** `Directory.Build.props.user` is gitignored - your connection string won't be committed.
