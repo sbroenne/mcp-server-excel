@@ -23,14 +23,20 @@ public partial class RangeCommandsTests
         Assert.Equal(OperationFailureCategory.NotFound, exception.ErrorCategory);
     }
 
-    [Fact]
-    public void GetValues_InvalidAddress_ThrowsCategorizedInvalidInput()
+    [Theory]
+    [InlineData("Not an address")]
+    [InlineData("#")]
+    [InlineData("A1##")]
+    [InlineData("[]")]
+    [InlineData("ReferenceTable[]")]
+    [InlineData("ReferenceTable[Name]suffix")]
+    public void GetValues_InvalidAddress_ThrowsCategorizedInvalidInput(string rangeAddress)
     {
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var sheetName = _fixture.CreateTestSheet(batch);
 
         var exception = Assert.Throws<OperationFailureException>(
-            () => _commands.GetValues(batch, sheetName, "Not an address"));
+            () => _commands.GetValues(batch, sheetName, rangeAddress));
 
         Assert.Equal(OperationFailureCategory.InvalidInput, exception.ErrorCategory);
     }

@@ -189,26 +189,56 @@ public static class RangeHelpers
             return false;
         }
 
-        foreach (var area in rangeAddress.Split(','))
+        int areaStart = 0;
+        int bracketDepth = 0;
+        for (int index = 0; index < rangeAddress.Length; index++)
         {
-            string trimmedArea = area.Trim();
-            if (!IsSupportedRangeArea(trimmedArea)
-                && !IsExtendedRangeReference(trimmedArea))
+            char character = rangeAddress[index];
+            if (character == '\'' && bracketDepth > 0 && index + 1 < rangeAddress.Length)
             {
-                return false;
+                index++;
+                continue;
+            }
+
+            if (character == '[')
+            {
+                bracketDepth++;
+            }
+            else if (character == ']')
+            {
+                if (--bracketDepth < 0)
+                {
+                    return false;
+                }
+            }
+            else if (character == ',' && bracketDepth == 0)
+            {
+                if (!IsSupportedRangeArea(rangeAddress[areaStart..index].Trim()))
+                {
+                    return false;
+                }
+
+                areaStart = index + 1;
             }
         }
 
-        return true;
+        return bracketDepth == 0
+            && IsSupportedRangeArea(rangeAddress[areaStart..].Trim());
     }
-
-    private static bool IsExtendedRangeReference(string area) =>
-        area.EndsWith('#')
-        || (area.Contains('[') && area.Contains(']'));
 
     private static bool IsSupportedRangeArea(string area)
     {
         if (TryParseCellReference(area, out _, out _))
+        {
+            return true;
+        }
+
+        if (area.EndsWith('#'))
+        {
+            return TryParseCellReference(area[..^1], out _, out _);
+        }
+
+        if (IsStructuredReference(area))
         {
             return true;
         }
@@ -222,6 +252,62 @@ public static class RangeHelpers
         return AreSupportedCellBounds(parts[0], parts[1])
             || AreSupportedColumnBounds(parts[0], parts[1])
             || AreSupportedRowBounds(parts[0], parts[1]);
+    }
+
+    private static bool IsStructuredReference(string area)
+    {
+        int firstBracket = area.IndexOf('[');
+        if (firstBracket <= 0
+            || area[^1] != ']'
+            || area[..firstBracket].Any(character =>
+                char.IsWhiteSpace(character) || character is '[' or ']' or '#'))
+        {
+            return false;
+        }
+
+        var hasContent = new List<bool>();
+        for (int index = firstBracket; index < area.Length; index++)
+        {
+            char character = area[index];
+            if (character == '[')
+            {
+                hasContent.Add(false);
+            }
+            else if (character == ']')
+            {
+                if (hasContent.Count == 0 || !hasContent[^1])
+                {
+                    return false;
+                }
+
+                hasContent.RemoveAt(hasContent.Count - 1);
+                if (hasContent.Count == 0)
+                {
+                    return index == area.Length - 1;
+                }
+
+                hasContent[^1] = true;
+            }
+            else
+            {
+                if (hasContent.Count == 0)
+                {
+                    return false;
+                }
+
+                if (character == '\'' && index + 1 < area.Length)
+                {
+                    index++;
+                    hasContent[^1] = true;
+                }
+                else if (!char.IsWhiteSpace(character) && character != ',')
+                {
+                    hasContent[^1] = true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool AreSupportedCellBounds(string start, string end) =>
