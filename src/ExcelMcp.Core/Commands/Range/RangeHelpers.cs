@@ -125,8 +125,13 @@ public static class RangeHelpers
             name = null;
             return result;
         }
-        catch (COMException ex) when (!WorkbookContainsName(names, rangeAddress, ex))
+        catch (COMException ex)
         {
+            if (WorkbookContainsName(names, rangeAddress))
+            {
+                ExceptionDispatchInfo.Capture(ex).Throw();
+            }
+
             throw new OperationFailureException(
                 OperationFailureCategory.NotFound,
                 $"Named range '{rangeAddress}' not found.",
@@ -138,40 +143,28 @@ public static class RangeHelpers
         }
     }
 
-    private static bool WorkbookContainsName(dynamic names, string rangeAddress, COMException lookupException)
+    private static bool WorkbookContainsName(dynamic names, string rangeAddress)
     {
-        try
+        int count = Convert.ToInt32(names.Count);
+        for (int index = 1; index <= count; index++)
         {
-            int count = Convert.ToInt32(names.Count);
-            for (int index = 1; index <= count; index++)
+            dynamic? currentName = null;
+            try
             {
-                dynamic? currentName = null;
-                try
+                currentName = names.Item(index);
+                string currentNameText = currentName.Name?.ToString() ?? string.Empty;
+                if (NameMatches(currentNameText, rangeAddress))
                 {
-                    currentName = names.Item(index);
-                    string currentNameText = currentName.Name?.ToString() ?? string.Empty;
-                    if (NameMatches(currentNameText, rangeAddress))
-                    {
-                        return true;
-                    }
-                }
-                catch (COMException)
-                {
-                    continue;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref currentName);
+                    return true;
                 }
             }
+            finally
+            {
+                ComUtilities.Release(ref currentName);
+            }
+        }
 
-            return false;
-        }
-        catch (Exception)
-        {
-            ExceptionDispatchInfo.Capture(lookupException).Throw();
-            throw;
-        }
+        return false;
     }
 
     private static bool NameMatches(string workbookName, string requestedName)
@@ -198,7 +191,9 @@ public static class RangeHelpers
 
         foreach (var area in rangeAddress.Split(','))
         {
-            if (!IsSupportedRangeArea(area.Trim()))
+            string trimmedArea = area.Trim();
+            if (!IsSupportedRangeArea(trimmedArea)
+                && !IsExtendedRangeReference(trimmedArea))
             {
                 return false;
             }
@@ -206,6 +201,10 @@ public static class RangeHelpers
 
         return true;
     }
+
+    private static bool IsExtendedRangeReference(string area) =>
+        area.EndsWith('#')
+        || (area.Contains('[') && area.Contains(']'));
 
     private static bool IsSupportedRangeArea(string area)
     {

@@ -76,6 +76,40 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     }
 
     [Fact]
+    public void GetValues_StructuredAndSpillReferences_ReturnValues()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var tableName = $"ReferenceTable_{Guid.NewGuid():N}"[..31];
+        var tableCommands = _fixture.CreateCommands<ITableCommands>();
+
+        _commands.SetValues(batch, sheetName, "A1:B2",
+        [
+            ["Name", "Amount"],
+            ["North", 1]
+        ]);
+        Assert.True(
+            tableCommands.Create(batch, sheetName, tableName, "A1:B2").Success);
+
+        var structured = _commands.GetValues(batch, sheetName, $"{tableName}[Name]");
+        Assert.Equal("North", structured.Values[0][0]);
+
+        var supportsFormula2 = _fixture.ExecuteRawVerification(
+            (ctx, ct) => ctx.Capabilities.SupportsFormula2);
+        if (!supportsFormula2)
+        {
+            return;
+        }
+
+        Assert.True(_commands.SetFormulas(batch, sheetName, "D1", [["=SEQUENCE(2)"]]).Success);
+        var spilled = _commands.GetValues(batch, sheetName, "D1#");
+
+        Assert.Equal(2, spilled.RowCount);
+        Assert.Equal(1.0, Convert.ToDouble(spilled.Values[0][0], CultureInfo.InvariantCulture));
+        Assert.Equal(2.0, Convert.ToDouble(spilled.Values[1][0], CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public async Task FormulaCompatibility_LegacySafeFormulas_RoundTripAndEnrichErrors()
     {
         var batch = _fixture.BatchToken;
