@@ -1,12 +1,15 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
+using Sbroenne.ExcelMcp.Core.Utilities;
+using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.CLI.Telemetry;
@@ -14,6 +17,19 @@ namespace Sbroenne.ExcelMcp.CLI.Telemetry;
 internal static class CliTelemetry
 {
     private const string EntryPoint = "cli";
+    internal const string UnknownOperationPart = "other";
+    private const string UnknownCommand = $"{UnknownOperationPart}.{UnknownOperationPart}";
+
+    /// <summary>Commands handled by the service host instead of a generated category.</summary>
+    private static readonly Dictionary<string, string[]> BuiltInActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["service"] = ["start", "stop", "status", "shutdown", "ping"],
+        ["session"] = ["create", "open", "close", "list", "test"],
+        ["batch"] = ["run"]
+    };
+
+    private static readonly string[] HelpFlags = ["--help", "-h"];
+    private static readonly AsyncLocal<StrongBox<int>?> TrackedRequests = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
     private static readonly string UserId = GenerateAnonymousUserId();
     private static TelemetryClient? _telemetryClient;
@@ -53,20 +69,106 @@ internal static class CliTelemetry
     {
         var stopwatch = Stopwatch.StartNew();
         ServiceResponse? response = null;
+        string? failureCategory = null;
         try
         {
             response = await operation();
             return response;
         }
+        catch (Exception ex)
+        {
+            // Transport failures never reach a response, so classify the thrown
+            // exception with the shared classifier instead of losing the reason.
+            failureCategory = OperationFailureClassifier.Classify(ex);
+            throw;
+        }
         finally
         {
             stopwatch.Stop();
+            MarkRequestTracked();
             trackInvocation(
                 request.Command,
                 stopwatch.ElapsedMilliseconds,
                 response?.Success == true,
-                response?.ErrorCategory);
+                response?.ErrorCategory ?? failureCategory);
         }
+    }
+
+    /// <summary>
+    /// Tracks the whole CLI invocation so commands that never issue a service
+    /// request, and failures raised before one is sent, are still measured.
+    /// Emits nothing when the invocation already reported request telemetry.
+    /// </summary>
+    internal static int TrackCliInvocation(string[] args, Func<int> operation) =>
+        TrackCliInvocation(args, operation, TrackCommandInvocation);
+
+    internal static int TrackCliInvocation(
+        string[] args,
+        Func<int> operation,
+        Action<string, long, bool, string?> trackInvocation)
+    {
+        if (args.Any(arg => HelpFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
+        {
+            return operation();
+        }
+
+        var trackedRequests = new StrongBox<int>(0);
+        var previousTrackedRequests = TrackedRequests.Value;
+        TrackedRequests.Value = trackedRequests;
+        var stopwatch = Stopwatch.StartNew();
+        var exitCode = 1;
+        string? failureCategory = null;
+        try
+        {
+            exitCode = operation();
+            return exitCode;
+        }
+        catch (Exception ex)
+        {
+            failureCategory = OperationFailureClassifier.Classify(ex);
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            TrackedRequests.Value = previousTrackedRequests;
+            if (Volatile.Read(ref trackedRequests.Value) == 0)
+            {
+                trackInvocation(
+                    ResolveCliCommand(args),
+                    stopwatch.ElapsedMilliseconds,
+                    exitCode == 0,
+                    failureCategory);
+            }
+        }
+    }
+
+    private static void MarkRequestTracked()
+    {
+        var trackedRequests = TrackedRequests.Value;
+        if (trackedRequests != null)
+        {
+            Interlocked.Increment(ref trackedRequests.Value);
+        }
+    }
+
+    /// <summary>
+    /// Maps parsed CLI arguments to a canonical service command. Arguments that
+    /// are not an allowlisted command never leave the machine.
+    /// </summary>
+    internal static string ResolveCliCommand(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            return UnknownCommand;
+        }
+
+        var category = ServiceRegistry.CategoryByCliCommand.TryGetValue(args[0], out var mapped)
+            ? mapped
+            : args[0];
+        // Commands without a subcommand (for example "batch") use the "run" action.
+        var action = args.Length > 1 && !args[1].StartsWith('-') ? args[1] : "run";
+        return $"{category}.{action}";
     }
 
     internal static void Flush()
@@ -127,16 +229,7 @@ internal static class CliTelemetry
             bool succeeded,
             string? errorCategory)
     {
-        var parts = command.Split('.', 2);
-        if (parts.Length != 2
-            || string.IsNullOrWhiteSpace(parts[0])
-            || string.IsNullOrWhiteSpace(parts[1]))
-        {
-            throw new ArgumentException("Telemetry command must use category.action format.", nameof(command));
-        }
-
-        var tool = parts[0];
-        var action = parts[1];
+        var (tool, action) = ResolveOperation(command);
         var operationName = $"{tool}/{action}";
         var duration = TimeSpan.FromMilliseconds(durationMs);
         var properties = new Dictionary<string, string>
@@ -177,6 +270,37 @@ internal static class CliTelemetry
         ApplyContext(requestTelemetry);
 
         return (eventTelemetry, requestTelemetry);
+    }
+
+    /// <summary>
+    /// Maps a service command to allowlisted telemetry parts. Commands outside
+    /// the generated and built-in command sets report fixed labels so
+    /// user-supplied text is never sent.
+    /// </summary>
+    internal static (string Tool, string Action) ResolveOperation(string? command)
+    {
+        var parts = command?.Split('.', 2) ?? [];
+        if (parts.Length != 2)
+        {
+            return (UnknownOperationPart, UnknownOperationPart);
+        }
+
+        var category = parts[0];
+        var action = parts[1];
+        IReadOnlyList<string>? validActions =
+            BuiltInActions.TryGetValue(category, out var builtIn) ? builtIn
+            : ServiceRegistry.ValidActionsByCategory.TryGetValue(category, out var generated) ? generated
+            : null;
+        if (validActions == null)
+        {
+            return (UnknownOperationPart, UnknownOperationPart);
+        }
+
+        var canonicalAction = validActions
+            .FirstOrDefault(valid => string.Equals(valid, action, StringComparison.OrdinalIgnoreCase));
+        return canonicalAction == null
+            ? (UnknownOperationPart, UnknownOperationPart)
+            : (category.ToLowerInvariant(), canonicalAction);
     }
 
     private static string ClassifyFailure(string? errorCategory) =>
