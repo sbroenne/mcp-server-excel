@@ -130,6 +130,12 @@ public class ScreenshotCommands : IScreenshotCommands
                         continue;
                     }
 
+                    // msoFalse: hidden charts are not rendered, so they must not expand the capture area
+                    if (Convert.ToInt32(shape.Visible) == 0)
+                    {
+                        continue;
+                    }
+
                     topLeftCell = shape.TopLeftCell;
                     bottomRightCell = shape.BottomRightCell;
 
