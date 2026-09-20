@@ -152,6 +152,7 @@ public static class ExcelMcpTelemetry
         {
             ["Tool"] = toolName,
             ["Action"] = action,
+            ["EntryPoint"] = "mcp-server",
             ["Success"] = requestSucceeded.ToString(),
             ["Outcome"] = GetOutcomeValue(result.Outcome)
         };

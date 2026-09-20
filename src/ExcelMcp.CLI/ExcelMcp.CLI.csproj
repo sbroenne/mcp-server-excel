@@ -72,12 +72,35 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
+    <PackageReference Include="Microsoft.ApplicationInsights" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+
+  <Target Name="GenerateTelemetryConfig" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <TelemetryConfigFile>$(IntermediateOutputPath)TelemetryConfig.g.cs</TelemetryConfigFile>
+      <TelemetryConfigContent>// Auto-generated at build time - do not edit
+namespace Sbroenne.ExcelMcp.CLI.Telemetry%3B
+
+internal static class TelemetryConfig
+{
+    public const string ConnectionString = "$(AppInsightsConnectionString)"%3B
+}
+</TelemetryConfigContent>
+    </PropertyGroup>
+    <WriteLinesToFile
+      File="$(TelemetryConfigFile)"
+      Lines="$(TelemetryConfigContent)"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(TelemetryConfigFile)" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <None Include="..\..\LICENSE" Pack="true" PackagePath="" />

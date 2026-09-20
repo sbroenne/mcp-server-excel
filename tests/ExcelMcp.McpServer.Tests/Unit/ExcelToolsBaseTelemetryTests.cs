@@ -221,8 +221,10 @@ public sealed class ExcelToolsBaseTelemetryTests
 
         Assert.True(requestTelemetry.Success);
         Assert.Equal("200", requestTelemetry.ResponseCode);
+        Assert.Equal("mcp-server", requestTelemetry.Properties["EntryPoint"]);
         Assert.Equal("expected-negative", requestTelemetry.Properties["Outcome"]);
         Assert.False(requestTelemetry.Properties.ContainsKey("FailureClass"));
+        Assert.Equal("mcp-server", eventTelemetry.Properties["EntryPoint"]);
         Assert.Equal("expected-negative", eventTelemetry.Properties["Outcome"]);
     }
 
