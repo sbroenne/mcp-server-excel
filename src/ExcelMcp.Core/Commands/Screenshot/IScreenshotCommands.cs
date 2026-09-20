@@ -84,7 +84,7 @@ public interface IScreenshotCommands
     ScreenshotResult CaptureRange(IExcelBatch batch, string? sheetName = null, string rangeAddress = "A1:Z30", ScreenshotQuality quality = ScreenshotQuality.Medium);
 
     /// <summary>
-    /// Captures the entire used area of a worksheet as an image.
+    /// Captures the used cell area of a worksheet plus its embedded charts as an image.
     /// For CLI: use --output &lt;path&gt; to save the image directly to a PNG/JPEG file.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
