@@ -1328,6 +1328,36 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         }
         sb.AppendLine("        }");
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Valid actions of every generated service command category.</summary>");
+        sb.AppendLine("    public static readonly System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IReadOnlyList<string>> ValidActionsByCategory =");
+        sb.AppendLine("        new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyList<string>>(System.StringComparer.OrdinalIgnoreCase)");
+        sb.AppendLine("        {");
+        foreach (var categoryGroup in categories
+                     .GroupBy(category => category.Category, StringComparer.Ordinal)
+                     .OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            var actionSource = string.Join(
+                ", ",
+                categoryGroup.Select(category => $"{category.CategoryPascal}.ValidActions"));
+            var actions = categoryGroup.Count() == 1
+                ? actionSource
+                : $"System.Linq.Enumerable.ToArray(System.Linq.Enumerable.SelectMany(new System.Collections.Generic.IReadOnlyList<string>[] {{ {actionSource} }}, actions => actions))";
+            sb.AppendLine($"            [\"{categoryGroup.Key}\"] = {actions},");
+        }
+        sb.AppendLine("        };");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Maps CLI command names to their service command category.</summary>");
+        sb.AppendLine("    public static readonly System.Collections.Generic.IReadOnlyDictionary<string, string> CategoryByCliCommand =");
+        sb.AppendLine("        new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)");
+        sb.AppendLine("        {");
+        foreach (var cliCommandGroup in categories
+                     .GroupBy(category => category.McpToolName.Replace("_", ""), StringComparer.Ordinal)
+                     .OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"            [\"{cliCommandGroup.Key}\"] = \"{cliCommandGroup.First().Category}\",");
+        }
+        sb.AppendLine("        };");
         sb.AppendLine("}");
         return sb.ToString();
     }

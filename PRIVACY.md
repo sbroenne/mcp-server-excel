@@ -16,7 +16,8 @@ that a tool returns to your chosen AI assistant.
 
 ### What We DO Collect (Anonymous Telemetry)
 
-- **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values")
+- **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values").
+  Only known ExcelMcp commands are reported; anything else is reported as "other/other"
 - **Entry point** - Whether the operation was requested through the CLI or MCP Server
 - **Performance metrics** - How long operations take (duration in milliseconds)
 - **Invocation outcome** - Whether an operation succeeded, returned an expected

@@ -134,7 +134,7 @@ internal sealed class Program
 
         try
         {
-            return app.Run(filteredArgs);
+            return CliTelemetry.TrackCliInvocation(filteredArgs, () => app.Run(filteredArgs));
         }
         catch (CommandRuntimeException ex)
         {
