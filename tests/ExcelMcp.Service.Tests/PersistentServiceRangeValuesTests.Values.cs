@@ -20,14 +20,21 @@ public sealed partial class PersistentServiceRangeValuesTests
         Assert.Equal("NotFound", response.ErrorCategory);
     }
 
-    [Fact]
-    public async Task GetValues_InvalidAddress_ReturnsCategorizedInvalidInput()
+    [Theory]
+    [InlineData("Not an address")]
+    [InlineData("#")]
+    [InlineData("A1##")]
+    [InlineData("[]")]
+    [InlineData("ReferenceTable[]")]
+    [InlineData("ReferenceTable[Name]suffix")]
+    public async Task GetValues_InvalidAddress_ReturnsCategorizedInvalidInput(
+        string rangeAddress)
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
 
         var response = await _fixture.SendForFailureAsync(
             "range.get-values",
-            new { sheetName, rangeAddress = "Not an address" });
+            new { sheetName, rangeAddress });
 
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("InvalidInput", response.ErrorCategory);
