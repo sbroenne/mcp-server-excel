@@ -74,6 +74,37 @@ public partial class RangeCommandsTests
 
     [Fact]
     [Trait("Layer", "Core")]
+    public void GetValues_StructuredAndSpillReferences_ReturnValues()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.CreateTestFile());
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "A1:B2",
+        [
+            ["Name", "Amount"],
+            ["North", 1]
+        ]);
+        Assert.True(new TableCommands().Create(batch, sheetName, "ReferenceTable", "A1:B2").Success);
+
+        var structured = _commands.GetValues(batch, sheetName, "ReferenceTable[Name]");
+        Assert.Equal("North", structured.Values[0][0]);
+
+        bool supportsFormula2 = batch.Execute((ctx, ct) => ctx.Capabilities.SupportsFormula2);
+        if (!supportsFormula2)
+        {
+            return;
+        }
+
+        Assert.True(_commands.SetFormulas(batch, sheetName, "D1", [["=SEQUENCE(2)"]]).Success);
+        var spilled = _commands.GetValues(batch, sheetName, "D1#");
+
+        Assert.Equal(2, spilled.RowCount);
+        Assert.Equal(1.0, Convert.ToDouble(spilled.Values[0][0], CultureInfo.InvariantCulture));
+        Assert.Equal(2.0, Convert.ToDouble(spilled.Values[1][0], CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    [Trait("Layer", "Core")]
     public void FormulaCompatibility_LegacySafeFormulas_RoundTripAndEnrichErrors()
     {
         string path = _fixture.CreateTestFile();

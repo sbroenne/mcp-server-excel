@@ -62,6 +62,24 @@ public class RangeHelpersExceptionTests
         Assert.Same(expected, actual);
     }
 
+    [Fact]
+    public void ResolveRange_WhenNameEnumerationFails_PropagatesError()
+    {
+#pragma warning disable CA2201 // Synthetic COM exception exercises pure classification behavior.
+        var lookupException = new COMException("Unknown name", unchecked((int)0x800A03EC));
+        var expected = new COMException("Name enumeration failed.", unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+
+        var actual = Assert.Throws<COMException>(() =>
+            RangeHelpers.ResolveRange(
+                new Workbook(new NamesWithFailingEnumeration(lookupException, expected)),
+                string.Empty,
+                "MissingRange",
+                out _));
+
+        Assert.Same(expected, actual);
+    }
+
     private sealed class ThrowingWorkbook(Exception exception) : DynamicObject
     {
         public override bool TryGetMember(GetMemberBinder binder, out object? result)
@@ -121,6 +139,31 @@ public class RangeHelpersExceptionTests
             {
                 result = _name;
                 return true;
+            }
+
+            result = null;
+            return false;
+        }
+    }
+
+    private sealed class NamesWithFailingEnumeration(COMException lookupException, COMException enumerationException) : DynamicObject
+    {
+        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        {
+            result = binder.Name == "Count" ? 1 : null;
+            return binder.Name == "Count";
+        }
+
+        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
+        {
+            if (binder.Name == "Item" && args is [string])
+            {
+                throw lookupException;
+            }
+
+            if (binder.Name == "Item" && args is [int])
+            {
+                throw enumerationException;
             }
 
             result = null;
