@@ -44,6 +44,7 @@ public class ExcelBatchTests : IAsyncLifetime
             ? Path.GetFullPath(irmTestFile)
             : null;
     }
+
     public ExcelBatchTests(ITestOutputHelper output)
     {
         _output = output;
@@ -202,17 +203,12 @@ public class ExcelBatchTests : IAsyncLifetime
         _output.WriteLine($"✓ Value persisted correctly: {testValue}");
     }
 
-    [Fact]
+    [JapaneseLocaleFact]
     [Trait("RunType", "OnDemand")]
     [Trait("RequiresExcel", "true")]
     [Trait("Locale", "ja-JP")]
     public void OpenAndSave_JapaneseTableDateFormat_PreservesTableColumnDxf()
     {
-        if (!CultureInfo.CurrentCulture.Name.Equals("ja-JP", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
         string workbookPath = Path.Join(Path.GetTempPath(), $"table-dxf-{Guid.NewGuid():N}.xlsx");
         try
         {
@@ -673,11 +669,10 @@ public class ExcelBatchTests : IAsyncLifetime
             dataBodyRangeDispatch.NumberFormatLocal = "yyyy/m/d";
 
             workbookDispatch.SaveAs(workbookPath, 51);
-            workbookDispatch.Close(false);
-            excelDispatch.Quit();
         }
         finally
         {
+            CloseWorkbookAndQuitExcel(workbook, excel);
             ReleaseComObjects(dataBodyRange, dateColumn, listColumns, table, listObjects, sourceRange,
                 worksheet, worksheets, workbook, workbooks, excel);
         }
@@ -703,6 +698,33 @@ public class ExcelBatchTests : IAsyncLifetime
             .Element(spreadsheetNamespace + "numFmt")!
             .Attribute("formatCode")!
             .Value;
+    }
+
+    private static void CloseWorkbookAndQuitExcel(object? workbook, object? excel)
+    {
+        if (workbook != null)
+        {
+            try
+            {
+                ((dynamic)workbook).Close(false);
+            }
+            catch (Exception)
+            {
+                // Best-effort cleanup - the workbook may already be closed.
+            }
+        }
+
+        if (excel != null)
+        {
+            try
+            {
+                ((dynamic)excel).Quit();
+            }
+            catch (Exception)
+            {
+                // Best-effort cleanup - Excel may already have exited.
+            }
+        }
     }
 
     private static void ReleaseComObjects(params object?[] comObjects)
