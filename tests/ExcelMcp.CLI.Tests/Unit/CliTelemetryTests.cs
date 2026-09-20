@@ -186,6 +186,20 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public void TrackCliInvocation_TracksBatchWhenNoItemsAreTracked()
+    {
+        var trackedInvocations = new List<(string Command, bool Succeeded)>();
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["batch", "--input", "empty.json"],
+            () => 1,
+            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal([("batch.run", false)], trackedInvocations);
+    }
+
+    [Fact]
     public void TrackCliInvocation_UsesSuccessfulFinalOutcomeAfterExpectedRequestFailure()
     {
         var trackedInvocations = new List<(string Command, bool Succeeded)>();
