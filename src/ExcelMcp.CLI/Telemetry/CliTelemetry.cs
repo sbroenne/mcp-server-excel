@@ -43,7 +43,13 @@ internal static class CliTelemetry
 
     internal static async Task<ServiceResponse> TrackCommandAsync(
         ServiceRequest request,
-        Func<Task<ServiceResponse>> operation)
+        Func<Task<ServiceResponse>> operation) =>
+        await TrackCommandAsync(request, operation, TrackCommandInvocation);
+
+    internal static async Task<ServiceResponse> TrackCommandAsync(
+        ServiceRequest request,
+        Func<Task<ServiceResponse>> operation,
+        Action<string, long, bool, string?> trackInvocation)
     {
         var stopwatch = Stopwatch.StartNew();
         ServiceResponse? response = null;
@@ -55,7 +61,7 @@ internal static class CliTelemetry
         finally
         {
             stopwatch.Stop();
-            TrackCommandInvocation(
+            trackInvocation(
                 request.Command,
                 stopwatch.ElapsedMilliseconds,
                 response?.Success == true,
@@ -109,7 +115,7 @@ internal static class CliTelemetry
             _telemetryClient.TrackEvent(eventTelemetry);
             _telemetryClient.TrackRequest(requestTelemetry);
         }
-        catch (ArgumentException)
+        catch (Exception)
         {
         }
     }

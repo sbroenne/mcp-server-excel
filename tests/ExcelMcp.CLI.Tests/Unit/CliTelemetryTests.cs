@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
@@ -9,6 +10,27 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class CliTelemetryTests
 {
+    [Fact]
+    public async Task TrackCommandAsync_TracksTheExecutedCliCommand()
+    {
+        var request = new ServiceRequest { Command = "range.get-values" };
+        string? trackedCommand = null;
+        bool? trackedSuccess = null;
+
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => Task.FromResult(new ServiceResponse { Success = true }),
+            (command, _, succeeded, _) =>
+            {
+                trackedCommand = command;
+                trackedSuccess = succeeded;
+            });
+
+        Assert.True(response.Success);
+        Assert.Equal("range.get-values", trackedCommand);
+        Assert.True(trackedSuccess);
+    }
+
     [Fact]
     public void CreateCommandInvocationTelemetry_IdentifiesCliEntryPoint()
     {
