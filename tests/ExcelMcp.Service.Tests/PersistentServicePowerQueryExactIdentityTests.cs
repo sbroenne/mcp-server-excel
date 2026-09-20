@@ -32,6 +32,18 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
         fixture.CreateCommands<IDataModelCommands>();
 
     [Fact]
+    public async Task Refresh_MissingQuery_ReturnsCategorizedNotFound()
+    {
+        var response = await _fixture.SendForFailureAsync(
+            "powerquery.refresh",
+            new { queryName = "MissingQuery", timeout = TimeSpan.FromSeconds(30) });
+
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal("NotFound", response.ErrorCategory);
+        Assert.Contains("Query 'MissingQuery' not found.", response.ErrorMessage);
+    }
+
+    [Fact]
     public async Task ExactIdentity_ReadAndRefreshPaths_DoNotTreatAAAsA()
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
