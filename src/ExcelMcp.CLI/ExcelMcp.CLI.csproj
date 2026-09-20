@@ -42,6 +42,9 @@
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
+
+    <!-- Application Insights Connection String - embedded at build time from environment variable -->
+    <AppInsightsConnectionString Condition="'$(AppInsightsConnectionString)' == ''">$(APPINSIGHTS_CONNECTION_STRING)</AppInsightsConnectionString>
   </PropertyGroup>
 
   <!-- Release Build Optimizations -->
@@ -80,6 +83,19 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- Inline task: Write text to file (semicolons safe, unlike WriteLinesToFile) -->
+  <UsingTask TaskName="WriteCliTelemetryConfig" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <FilePath ParameterType="System.String" Required="true" />
+      <Content ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        System.IO.File.WriteAllText(FilePath, Content);
+      </Code>
+    </Task>
+  </UsingTask>
+
   <Target Name="GenerateTelemetryConfig" BeforeTargets="BeforeCompile;CoreCompile">
     <PropertyGroup>
       <TelemetryConfigFile>$(IntermediateOutputPath)TelemetryConfig.g.cs</TelemetryConfigFile>
@@ -92,11 +108,7 @@ internal static class TelemetryConfig
 }
 </TelemetryConfigContent>
     </PropertyGroup>
-    <WriteLinesToFile
-      File="$(TelemetryConfigFile)"
-      Lines="$(TelemetryConfigContent)"
-      Overwrite="true"
-      WriteOnlyWhenDifferent="true" />
+    <WriteCliTelemetryConfig FilePath="$(TelemetryConfigFile)" Content="$(TelemetryConfigContent)" />
     <ItemGroup>
       <Compile Include="$(TelemetryConfigFile)" />
     </ItemGroup>
