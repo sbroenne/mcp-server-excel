@@ -156,16 +156,22 @@ public class RegularChartStrategy : IChartStrategy
         }
 
         // Get title
+        dynamic? chartTitle = null;
         try
         {
             if (chart.HasTitle)
             {
-                info.Title = chart.ChartTitle.Text?.ToString() ?? string.Empty;
+                chartTitle = chart.ChartTitle;
+                info.Title = chartTitle.Text?.ToString() ?? string.Empty;
             }
         }
         catch (COMException)
         {
             // No title - optional COM property, safe to ignore
+        }
+        finally
+        {
+            ComUtilities.Release(ref chartTitle);
         }
 
         // Get legend
@@ -179,14 +185,20 @@ public class RegularChartStrategy : IChartStrategy
         }
 
         // Get source range
+        dynamic? firstSeries = null;
         try
         {
-            dynamic sourceData = chart.ChartArea.Parent.SeriesCollection(1).Formula;
+            firstSeries = chart.SeriesCollection(1);
+            object? sourceData = firstSeries.Formula;
             info.SourceRange = sourceData?.ToString() ?? string.Empty;
         }
         catch (COMException)
         {
             // No source range or no series - optional COM property, safe to ignore
+        }
+        finally
+        {
+            ComUtilities.Release(ref firstSeries);
         }
 
         // Get series
@@ -231,13 +243,12 @@ public class RegularChartStrategy : IChartStrategy
     public void SetSourceRange(dynamic chart, string sourceRange)
     {
         dynamic? sourceRangeObj = null;
+        dynamic? application = null;
         try
         {
-            // Get workbook from chart
-            dynamic workbook = chart.Parent.Parent.Parent;
-
             // Get the range object from the address string
-            sourceRangeObj = workbook.Application.Range(sourceRange);
+            application = chart.Application;
+            sourceRangeObj = application.Range(sourceRange);
             chart.SetSourceData(sourceRangeObj);
         }
         finally
@@ -246,6 +257,7 @@ public class RegularChartStrategy : IChartStrategy
             {
                 ComUtilities.Release(ref sourceRangeObj!);
             }
+            ComUtilities.Release(ref application);
         }
     }
 
@@ -312,5 +324,4 @@ public class RegularChartStrategy : IChartStrategy
         }
     }
 }
-
 

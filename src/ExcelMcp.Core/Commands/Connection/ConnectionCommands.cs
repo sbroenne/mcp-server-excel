@@ -988,7 +988,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 OleMessageFilter.SetPendingCancellationToken(cancellationToken);
                 try
                 {
-                    queryTable.Refresh(false);
+                    ConnectionRefreshHelpers.EnsureQueryTableRefreshSucceeded(queryTable.Refresh(false));
                 }
                 finally
                 {
@@ -1023,4 +1023,3 @@ internal sealed class ConnectionDefinition
     public bool? SavePassword { get; set; }
     public int? RefreshPeriod { get; set; }
 }
-

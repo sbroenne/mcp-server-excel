@@ -432,10 +432,9 @@ public partial class SheetCommands
             {
                 ComUtilities.Release(ref targetPositionSheet);
                 ComUtilities.Release(ref targetSheets);
-                // Note: sourceSheetObj has been moved, don't release it
+                ComUtilities.Release(ref sourceSheetObj);
             }
         });
     }
 }
-
 

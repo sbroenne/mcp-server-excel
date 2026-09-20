@@ -427,6 +427,87 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Sheet 'Processing' not found.")]
+    [InlineData("Sheet 'no longer running' not found.")]
+    [InlineData("Sheet 'disconnected' not found.")]
+    [InlineData("Sheet 'RPC server is unavailable' not found.")]
+    public async Task ProcessAsync_OrdinaryErrorText_DoesNotDiscardHealthySession(string message)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch { ExecuteException = new InvalidOperationException(message) };
+        const string sessionId = "healthy-session";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        Assert.NotEqual("ExcelProcessDied", response.ErrorCategory);
+        Assert.Contains(message, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(0, batch.DisposeCalls);
+        Assert.Equal(0, batch.SaveCalls);
+        Assert.Same(batch, GetPrivateField<SessionManager>(service, "_sessionManager").GetSession(sessionId));
+    }
+
+    [Theory]
+    [InlineData(unchecked((int)0x80010108))]
+    [InlineData(unchecked((int)0x800706BA))]
+    [InlineData(unchecked((int)0x800706BE))]
+    public async Task ProcessAsync_WrappedFatalComError_StillCleansSession(int hresult)
+    {
+        using var service = new ExcelMcpService();
+#pragma warning disable CA2201 // Synthetic COM exception exercises service error classification only.
+        var batch = new FakeBatch
+        {
+            ExecuteException = new InvalidOperationException(
+                "Operation failed", new COMException("Localized error", hresult))
+        };
+#pragma warning restore CA2201
+        const string sessionId = "fatal-com-session";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("ExcelProcessDied", response.ErrorCategory);
+        Assert.Equal($"0x{hresult:X8}", response.HResult);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Null(GetPrivateField<SessionManager>(service, "_sessionManager").GetSession(sessionId));
+    }
+
+    [Fact]
+    public async Task ProcessAsync_ProcessDiesDuringOrdinaryError_CleansSession()
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            ExecuteException = new InvalidOperationException("Operation failed"),
+            IsAliveAfterExecute = false
+        };
+        const string sessionId = "dead-process-session";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("ExcelProcessDied", response.ErrorCategory);
+        Assert.Null(response.HResult);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Null(GetPrivateField<SessionManager>(service, "_sessionManager").GetSession(sessionId));
+    }
+
     private static void RegisterSession(ExcelMcpService service, string sessionId, FakeBatch batch)
     {
         var sessionManager = GetPrivateField<SessionManager>(service, "_sessionManager");
@@ -462,8 +543,10 @@ public sealed class ExcelMcpServiceErrorTests
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
         public bool HasTimedOutOperation { get; init; }
         public bool IsAlive { get; private set; } = true;
+        public bool IsAliveAfterExecute { get; init; } = true;
         public bool IsAliveAfterSaveException { get; init; } = true;
         public Exception? SaveException { get; init; }
+        public Exception? ExecuteException { get; init; }
         public int ExecuteCalls { get; private set; }
         public int SaveCalls { get; private set; }
         public int DisposeCalls { get; private set; }
@@ -478,13 +561,15 @@ public sealed class ExcelMcpServiceErrorTests
         public void Execute(Action<ExcelContext, CancellationToken> operation, CancellationToken cancellationToken = default)
         {
             ExecuteCalls++;
-            throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            IsAlive = IsAliveAfterExecute;
+            throw ExecuteException ?? new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
         }
 
         public T Execute<T>(Func<ExcelContext, CancellationToken, T> operation, CancellationToken cancellationToken = default)
         {
             ExecuteCalls++;
-            throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            IsAlive = IsAliveAfterExecute;
+            throw ExecuteException ?? new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
         }
 
         public void Save(CancellationToken cancellationToken = default)

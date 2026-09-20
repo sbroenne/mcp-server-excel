@@ -1,4 +1,7 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -86,6 +89,49 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.Equal(connectionName, result.ConnectionName);
         Assert.NotNull(result.ConnectionString);
         Assert.NotNull(result.Type);
+    }
+
+    [Fact]
+    public void View_Credentials_RedactsBothOutputsWithoutChangingConnection()
+    {
+        var connectionName = UniqueConnectionName("CredentialRedaction");
+        var connectionString = "ODBC;DSN=UnconfiguredTestSource;UID=synthetic-user;" +
+            string.Join("=", "PWD", "synthetic-password") + ";";
+        CreateTrackedConnection(connectionName, connectionString);
+
+        var result = _connections.View(_fixture.BatchToken, connectionName);
+
+        Assert.True(result.Success);
+        Assert.DoesNotContain("synthetic-user", result.ConnectionString);
+        Assert.DoesNotContain("synthetic-password", result.ConnectionString);
+        Assert.Contains("(redacted)", result.ConnectionString);
+        Assert.DoesNotContain("synthetic-user", result.DefinitionJson);
+        Assert.DoesNotContain("synthetic-password", result.DefinitionJson);
+        using var definition = JsonDocument.Parse(result.DefinitionJson);
+        Assert.Equal(
+            result.ConnectionString,
+            definition.RootElement.GetProperty("ConnectionString").GetString());
+
+        _fixture.BatchToken.Execute((ctx, ct) =>
+        {
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
+            Excel.ODBCConnection? odbc = null;
+            try
+            {
+                connections = ctx.Book.Connections;
+                connection = connections.Item(connectionName);
+                odbc = connection.ODBCConnection;
+                Assert.Contains("synthetic-password", Convert.ToString(odbc.Connection));
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref odbc);
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref connections);
+            }
+        });
     }
 
     [Fact]

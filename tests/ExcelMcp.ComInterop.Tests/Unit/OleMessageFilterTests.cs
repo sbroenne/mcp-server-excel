@@ -15,6 +15,25 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public class OleMessageFilterTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void RetryRejectedCall_CancelledOperation_DoesNotRetry(int rejectType)
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        OleMessageFilter.SetPendingCancellationToken(cancellation.Token);
+        try
+        {
+            IOleMessageFilter filter = new OleMessageFilter();
+            Assert.Equal(-1, filter.RetryRejectedCall(0, 0, rejectType));
+        }
+        finally
+        {
+            OleMessageFilter.ClearPendingCancellationToken();
+        }
+    }
+
     [Fact]
     public void Register_OnStaThread_DoesNotThrow()
     {

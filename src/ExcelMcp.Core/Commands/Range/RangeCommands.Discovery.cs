@@ -43,8 +43,8 @@ public partial class RangeCommands
                 result.RangeAddress = range.Address;
 
                 // Get values as 2D array
-                object[,]? values = range.Value2;
-                if (values != null)
+                object? rawValues = range.Value2;
+                if (rawValues is object[,] values)
                 {
                     result.RowCount = values.GetLength(0);
                     result.ColumnCount = values.GetLength(1);
@@ -58,6 +58,12 @@ public partial class RangeCommands
                         }
                         result.Values.Add(row);
                     }
+                }
+                else if (rawValues != null)
+                {
+                    result.RowCount = 1;
+                    result.ColumnCount = 1;
+                    result.Values.Add([rawValues]);
                 }
 
                 result.Success = true;
@@ -97,8 +103,8 @@ public partial class RangeCommands
                 result.RangeAddress = region.Address;
 
                 // Get values as 2D array
-                object[,]? values = region.Value2;
-                if (values != null)
+                object? rawValues = region.Value2;
+                if (rawValues is object[,] values)
                 {
                     result.RowCount = values.GetLength(0);
                     result.ColumnCount = values.GetLength(1);
@@ -112,6 +118,12 @@ public partial class RangeCommands
                         }
                         result.Values.Add(row);
                     }
+                }
+                else if (rawValues != null)
+                {
+                    result.RowCount = 1;
+                    result.ColumnCount = 1;
+                    result.Values.Add([rawValues]);
                 }
 
                 result.Success = true;
@@ -137,6 +149,8 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            dynamic? rows = null;
+            dynamic? columns = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -146,9 +160,11 @@ public partial class RangeCommands
                 }
 
                 result.Address = range.Address;
-                result.RowCount = range.Rows.Count;
-                result.ColumnCount = range.Columns.Count;
-                result.NumberFormat = ((Excel.Range)range).NumberFormat?.ToString();
+                rows = range.Rows;
+                columns = range.Columns;
+                result.RowCount = rows.Count;
+                result.ColumnCount = columns.Count;
+                result.NumberFormat = range.NumberFormat?.ToString();
 
                 // Cell geometry properties (position and dimensions in points)
                 result.Left = Convert.ToDouble(range.Left);
@@ -161,10 +177,10 @@ public partial class RangeCommands
             }
             finally
             {
+                ComUtilities.Release(ref columns);
+                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref range);
             }
         });
     }
 }
-
-

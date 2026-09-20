@@ -159,6 +159,7 @@ public partial class RangeCommands
         {
             dynamic? range = null;
             int originalCalculation = -1;
+            dynamic? columns = null;
             bool calculationChanged = false;
 
             try
@@ -184,7 +185,8 @@ public partial class RangeCommands
                 int rows = resolvedValues.Count;
                 int cols = resolvedValues.Count > 0 ? resolvedValues[0].Count : 0;
 
-                ValidateRectangularRowWidths(resolvedValues, Convert.ToInt32(range.Columns.Count), nameof(values), "Value");
+                columns = range.Columns;
+                ValidateRectangularRowWidths(resolvedValues, Convert.ToInt32(columns.Count), nameof(values), "Value");
 
                 if (rows > 0 && cols > 0)
                 {
@@ -225,6 +227,7 @@ public partial class RangeCommands
                         // Ignore errors restoring calculation mode
                     }
                 }
+                ComUtilities.Release(ref columns);
                 ComUtilities.Release(ref range);
             }
         });

@@ -39,6 +39,11 @@ public partial class PivotTableCommands
                             ct.ThrowIfCancellationRequested();
                             dynamic? pivot = null;
                             dynamic? pivotCache = null;
+                            dynamic? tableRange = null;
+                            dynamic? rowFields = null;
+                            dynamic? columnFields = null;
+                            dynamic? dataFields = null;
+                            dynamic? pageFields = null;
                             try
                             {
                                 pivot = pivotTablesCol.Item(j);
@@ -57,7 +62,8 @@ public partial class PivotTableCommands
 
                                 try
                                 {
-                                    range = pivot.TableRange2.Address;
+                                    tableRange = pivot.TableRange2;
+                                    range = tableRange.Address;
                                 }
                                 catch (System.Runtime.InteropServices.COMException)
                                 {
@@ -92,7 +98,8 @@ public partial class PivotTableCommands
 
                                 try
                                 {
-                                    rowFieldCount = pivot.RowFields.Count;
+                                    rowFields = pivot.RowFields;
+                                    rowFieldCount = rowFields.Count;
                                 }
                                 catch (COMException)
                                 {
@@ -101,7 +108,8 @@ public partial class PivotTableCommands
 
                                 try
                                 {
-                                    columnFieldCount = pivot.ColumnFields.Count;
+                                    columnFields = pivot.ColumnFields;
+                                    columnFieldCount = columnFields.Count;
                                 }
                                 catch (COMException)
                                 {
@@ -110,7 +118,8 @@ public partial class PivotTableCommands
 
                                 try
                                 {
-                                    valueFieldCount = pivot.DataFields.Count;
+                                    dataFields = pivot.DataFields;
+                                    valueFieldCount = dataFields.Count;
                                 }
                                 catch (COMException)
                                 {
@@ -119,7 +128,8 @@ public partial class PivotTableCommands
 
                                 try
                                 {
-                                    filterFieldCount = pivot.PageFields.Count;
+                                    pageFields = pivot.PageFields;
+                                    filterFieldCount = pageFields.Count;
                                 }
                                 catch (COMException)
                                 {
@@ -149,7 +159,12 @@ public partial class PivotTableCommands
                             }
                             finally
                             {
+                                ComUtilities.Release(ref pageFields);
+                                ComUtilities.Release(ref dataFields);
+                                ComUtilities.Release(ref columnFields);
+                                ComUtilities.Release(ref rowFields);
                                 ComUtilities.Release(ref pivotCache);
+                                ComUtilities.Release(ref tableRange);
                                 ComUtilities.Release(ref pivot);
                             }
                         }
@@ -186,66 +201,78 @@ public partial class PivotTableCommands
             dynamic? pivotCache = null;
             dynamic? cubeFields = null;
             dynamic? pivotFields = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-            pivotCache = pivot.PivotCache;
-
-            // Get basic info with defensive error handling (properties can throw on Data Model sources)
-            var info = new PivotTableInfo
-            {
-                Name = pivot.Name,
-                SheetName = pivot.Parent.Name
-            };
-
-            // TableRange2 - can throw on Data Model sources
-            try
-            {
-                info.Range = pivot.TableRange2.Address;
-            }
-            catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
-            {
-                info.Range = "[Data Model - Range not available]";
-            }
-
-            // SourceData - can throw on Data Model sources
-            try
-            {
-                info.SourceData = pivotCache.SourceData?.ToString() ?? string.Empty;
-            }
-            catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
-            {
-                info.SourceData = "[Data Model Source]";
-            }
-
-            // Field counts - usually safe but wrap defensively
-            try
-            {
-                info.RowFieldCount = pivot.RowFields.Count;
-                info.ColumnFieldCount = pivot.ColumnFields.Count;
-                info.ValueFieldCount = pivot.DataFields.Count;
-                info.FilterFieldCount = pivot.PageFields.Count;
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                // Field counts default to 0 if unavailable
-            }
-
-            // RefreshDate
-            try
-            {
-                info.LastRefresh = GetRefreshDateSafe(pivotCache.RefreshDate);
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                info.LastRefresh = null;
-            }
-
-            // Get field details - use OLAP detection
-            List<PivotFieldInfo> fields;
-            bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
+            dynamic? sheet = null;
+            dynamic? tableRange = null;
+            dynamic? rowFields = null;
+            dynamic? columnFields = null;
+            dynamic? dataFields = null;
+            dynamic? pageFields = null;
 
             try
             {
+                pivot = FindPivotTable(ctx.Book, pivotTableName);
+                pivotCache = pivot.PivotCache;
+                sheet = pivot.Parent;
+
+                // Get basic info with defensive error handling (properties can throw on Data Model sources)
+                var info = new PivotTableInfo
+                {
+                    Name = pivot.Name,
+                    SheetName = sheet.Name
+                };
+
+                // TableRange2 - can throw on Data Model sources
+                try
+                {
+                    tableRange = pivot.TableRange2;
+                    info.Range = tableRange.Address;
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                {
+                    info.Range = "[Data Model - Range not available]";
+                }
+
+                // SourceData - can throw on Data Model sources
+                try
+                {
+                    info.SourceData = pivotCache.SourceData?.ToString() ?? string.Empty;
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                {
+                    info.SourceData = "[Data Model Source]";
+                }
+
+                // Field counts - usually safe but wrap defensively
+                try
+                {
+                    rowFields = pivot.RowFields;
+                    info.RowFieldCount = rowFields.Count;
+                    columnFields = pivot.ColumnFields;
+                    info.ColumnFieldCount = columnFields.Count;
+                    dataFields = pivot.DataFields;
+                    info.ValueFieldCount = dataFields.Count;
+                    pageFields = pivot.PageFields;
+                    info.FilterFieldCount = pageFields.Count;
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    // Field counts default to 0 if unavailable
+                }
+
+                // RefreshDate
+                try
+                {
+                    info.LastRefresh = GetRefreshDateSafe(pivotCache.RefreshDate);
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    info.LastRefresh = null;
+                }
+
+                // Get field details - use OLAP detection
+                List<PivotFieldInfo> fields;
+                bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
+
                 if (isOlap)
                 {
                     // OLAP/Data Model PivotTable - use CubeFields
@@ -268,8 +295,14 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref cubeFields);
                 ComUtilities.Release(ref pivotFields);
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pageFields);
+                ComUtilities.Release(ref dataFields);
+                ComUtilities.Release(ref columnFields);
+                ComUtilities.Release(ref rowFields);
+                ComUtilities.Release(ref tableRange);
+                ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivot);
             }
@@ -307,19 +340,26 @@ public partial class PivotTableCommands
 
                     // Get orientation from PivotField if it exists
                     int orientation = XlPivotFieldOrientation.xlHidden;
+                    dynamic? fieldCollection = null;
+                    dynamic? pivotField = null;
                     try
                     {
-                        dynamic? pivotField = cubeField.PivotFields?.Item(1);
+                        fieldCollection = cubeField.PivotFields;
+                        pivotField = fieldCollection?.Item(1);
                         if (pivotField != null)
                         {
                             orientation = Convert.ToInt32(pivotField.Orientation);
-                            ComUtilities.Release(ref pivotField);
                         }
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
                         // PivotField access failed - field may not be placed, use Hidden
                         orientation = XlPivotFieldOrientation.xlHidden;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref pivotField);
+                        ComUtilities.Release(ref fieldCollection);
                     }
 
                     var fieldInfo = new PivotFieldInfo
@@ -513,7 +553,6 @@ public partial class PivotTableCommands
         return null;
     }
 }
-
 
 
 
