@@ -62,7 +62,7 @@ public partial class PowerQueryCommands
                     bool refreshed;
                     try
                     {
-                        refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
+                        refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, ct);
                     }
                     catch (Exception ex) when (TryWrapPowerQueryException(ex, out var pqEx))
                     {
@@ -144,7 +144,7 @@ public partial class PowerQueryCommands
                         bool refreshed;
                         try
                         {
-                            refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
+                            refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, ct);
                         }
                         catch (Exception ex) when (TryWrapPowerQueryException(ex, out var pqEx))
                         {

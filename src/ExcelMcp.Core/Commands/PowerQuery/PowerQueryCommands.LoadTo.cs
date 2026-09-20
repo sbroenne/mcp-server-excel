@@ -170,6 +170,8 @@ public partial class PowerQueryCommands
         dynamic? listObjects = null;
         dynamic? listObject = null;
         dynamic? queryTable = null;
+        dynamic? listObjectRange = null;
+        dynamic? listObjectRows = null;
 
         try
         {
@@ -235,15 +237,19 @@ public partial class PowerQueryCommands
                         {
                             dynamic? table = null;
                             dynamic? tableRange = null;
+                            dynamic? tableRows = null;
+                            dynamic? tableColumns = null;
                             try
                             {
                                 table = existingTables.Item(i);
                                 tableRange = table.Range;
+                                tableRows = tableRange.Rows;
+                                tableColumns = tableRange.Columns;
 
                                 int tableStartRow = Convert.ToInt32(tableRange.Row);
                                 int tableStartCol = Convert.ToInt32(tableRange.Column);
-                                int tableEndRow = tableStartRow + Convert.ToInt32(tableRange.Rows.Count) - 1;
-                                int tableEndCol = tableStartCol + Convert.ToInt32(tableRange.Columns.Count) - 1;
+                                int tableEndRow = tableStartRow + Convert.ToInt32(tableRows.Count) - 1;
+                                int tableEndCol = tableStartCol + Convert.ToInt32(tableColumns.Count) - 1;
 
                                 // Check if destination cell would overlap with existing table
                                 if (destRow >= tableStartRow && destRow <= tableEndRow &&
@@ -254,6 +260,8 @@ public partial class PowerQueryCommands
                             }
                             finally
                             {
+                                ComUtilities.Release(ref tableColumns);
+                                ComUtilities.Release(ref tableRows);
                                 ComUtilities.Release(ref tableRange);
                                 ComUtilities.Release(ref table);
                             }
@@ -321,7 +329,7 @@ public partial class PowerQueryCommands
             OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
-                queryTable.Refresh(false); // Synchronous refresh
+                ConnectionRefreshHelpers.EnsureQueryTableRefreshSucceeded(queryTable.Refresh(false));
             }
             finally
             {
@@ -335,17 +343,19 @@ public partial class PowerQueryCommands
             catch { /* Non-critical — if rename fails (e.g. name conflict), load still succeeded. */ }
 
             // Capture results - use ListObject Range for total rows, subtract header
-            dynamic? listObjectRange = listObject.Range;
-            int totalRows = listObjectRange != null ? Convert.ToInt32(listObjectRange.Rows.Count) : 0;
+            listObjectRange = listObject.Range;
+            listObjectRows = listObjectRange?.Rows;
+            int totalRows = listObjectRows != null ? Convert.ToInt32(listObjectRows.Count) : 0;
             result.TargetCellAddress = targetCellAddress;
             result.RowsLoaded = totalRows > 0 ? totalRows - 1 : 0; // Subtract header row
             result.Success = true;
 
-            ComUtilities.Release(ref listObjectRange!);
             return true;
         }
         finally
         {
+            ComUtilities.Release(ref listObjectRows);
+            ComUtilities.Release(ref listObjectRange);
             ComUtilities.Release(ref queryTable);
             ComUtilities.Release(ref listObject);
             ComUtilities.Release(ref listObjects);
@@ -397,20 +407,7 @@ public partial class PowerQueryCommands
                 ImportRelationships: false
             );
 
-            // Refresh the connection to actually load data into the Data Model.
-            // Without this call, the connection is registered but no data is materialized —
-            // the table never appears in the Data Model even though success is returned.
-            // Do NOT use EnterLongOperation here: synchronous connection.Refresh() can require
-            // inbound callbacks from Excel/MashupHost to complete.
-            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
-            try
-            {
-                connection.Refresh();
-            }
-            finally
-            {
-                OleMessageFilter.ClearPendingCancellationToken();
-            }
+            RefreshWorkbookConnection(connection, cancellationToken);
 
             result.RowsLoaded = -1; // Data Model doesn't expose row count
             result.TargetCellAddress = null;

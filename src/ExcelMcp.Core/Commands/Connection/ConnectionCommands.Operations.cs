@@ -121,32 +121,38 @@ public partial class ConnectionCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
-            }
+                if (conn == null)
+                {
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                }
 
-            // Get connection type
-            int connType = (int)conn.Type;
+                // Get connection type
+                int connType = (int)conn.Type;
 
-            // For Text (4) and Web (5) connections, connection string might not be accessible
-            // until a QueryTable is created. Just verify the connection object exists.
-            if (connType is 4 or 5)
-            {
+                // For Text (4) and Web (5) connections, connection string might not be accessible
+                // until a QueryTable is created. Just verify the connection object exists.
+                if (connType is 4 or 5)
+                {
+                    return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                }
+
+                // For other connection types (OLEDB, ODBC), validate connection string
+                string? connectionString = GetConnectionString(conn);
+
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    throw new InvalidOperationException("Connection has no connection string configured");
+                }
+
+                // Connection exists and is accessible
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-
-            // For other connection types (OLEDB, ODBC), validate connection string
-            string? connectionString = GetConnectionString(conn);
-
-            if (string.IsNullOrWhiteSpace(connectionString))
+            finally
             {
-                throw new InvalidOperationException("Connection has no connection string configured");
+                ComUtilities.Release(ref conn);
             }
-
-            // Connection exists and is accessible
-            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 }

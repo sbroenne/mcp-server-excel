@@ -245,7 +245,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     string fullRangeAddress = sourceRangeAddress.Contains('!')
                         ? sourceRangeAddress
                         : $"'{sheetName}'!{sourceRangeAddress}";
-                    sourceRangeObj = ctx.Book.Application.Range[fullRangeAddress];
+                    sourceRangeObj = ctx.App.Range[fullRangeAddress];
                     try
                     {
                         chart.SetSourceData(sourceRangeObj);

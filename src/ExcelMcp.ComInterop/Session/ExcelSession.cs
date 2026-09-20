@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -97,7 +96,7 @@ public static class ExcelSession
 
     /// <summary>
     /// Creates a new Excel workbook at the specified path with a synchronous COM operation.
-    /// Creates a minimal workbook then allows executing an operation before saving.
+    /// Saves a minimal workbook, then executes an operation. Callback changes require an explicit save.
     /// </summary>
     /// <typeparam name="T">Return type of the operation</typeparam>
     /// <param name="filePath">Path where to save the new Excel file</param>
@@ -136,16 +135,22 @@ public static class ExcelSession
                     $"File path exceeds Excel's maximum length (~218 characters): {fullPath.Length} characters");
             }
 
+            string extension = Path.GetExtension(fullPath).ToLowerInvariant();
+            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+            {
+                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+            }
+
             string? directory = Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
 
-            CreateWorkbookOnStaThread(fullPath, isMacroEnabled, cancellationToken);
-
-            // Now use batch API to execute the operation
-            using var batch = BeginBatch(fullPath);
+            using var batch = ExcelBatch.CreateNewWorkbook(
+                fullPath, isMacroEnabled,
+                startupTimeout: TimeSpan.FromSeconds(30),
+                cancellationToken: cancellationToken);
             var result = batch.Execute(operation, cancellationToken);
             // Note: Caller is responsible for saving if needed
 
@@ -158,92 +163,5 @@ public static class ExcelSession
         }
     }
 
-    private static void CreateWorkbookOnStaThread(string fullPath, bool isMacroEnabled, CancellationToken cancellationToken)
-    {
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        var thread = new Thread(() =>
-        {
-            Excel.Application? excel = null;
-            Excel.Workbook? workbook = null;
-
-            try
-            {
-                OleMessageFilter.Register();
-
-                var excelType = Type.GetTypeFromProgID("Excel.Application");
-                if (excelType == null)
-                {
-                    throw new InvalidOperationException("Excel is not installed or not properly registered.");
-                }
-
-#pragma warning disable IL2072
-                excel = (Excel.Application)Activator.CreateInstance(excelType)!;
-#pragma warning restore IL2072
-
-                excel.Visible = false;
-                excel.DisplayAlerts = false;
-
-                workbook = (Excel.Workbook)excel.Workbooks.Add();
-
-                // SaveAs directly on STA thread
-                if (isMacroEnabled)
-                {
-                    workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
-                }
-                else
-                {
-                    workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbook);
-                }
-
-                completion.SetResult();
-            }
-            catch (Exception ex)
-            {
-                completion.TrySetException(ex);
-            }
-            finally
-            {
-                // Simple cleanup - no fancy retry logic needed for a new empty file
-                try
-                {
-                    workbook?.Close(false);  // Don't save again
-                }
-                catch { }
-
-                ComUtilities.TryQuitExcel(excel);
-
-                ComUtilities.Release(ref workbook);
-                ComUtilities.Release(ref excel);
-
-                try
-                {
-                    OleMessageFilter.Revoke();
-                }
-                catch (Exception)
-                {
-                    // Guard: P/Invoke failure in finally must not suppress original exception
-                }
-            }
-        })
-        {
-            IsBackground = true,
-            Name = $"ExcelCreate-{Path.GetFileName(fullPath)}"
-        };
-
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-
-        // Wait for file creation (with reasonable timeout)
-        if (!completion.Task.Wait(TimeSpan.FromSeconds(30), cancellationToken))
-        {
-            throw new TimeoutException($"File creation timed out for '{Path.GetFileName(fullPath)}'. Excel may be unresponsive.");
-        }
-
-        // Wait for cleanup to release the file
-        thread.Join(TimeSpan.FromSeconds(10));
-    }
 }
-
-
 

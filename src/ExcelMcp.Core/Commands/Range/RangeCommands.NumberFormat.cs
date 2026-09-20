@@ -25,6 +25,8 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            dynamic? rows = null;
+            dynamic? columns = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -43,8 +45,10 @@ public partial class RangeCommands
                 object numberFormats = range.NumberFormat;
 
                 // Get dimensions
-                int rowCount = Convert.ToInt32(range.Rows.Count);
-                int columnCount = Convert.ToInt32(range.Columns.Count);
+                rows = range.Rows;
+                columns = range.Columns;
+                int rowCount = Convert.ToInt32(rows.Count);
+                int columnCount = Convert.ToInt32(columns.Count);
 
                 result.RowCount = rowCount;
                 result.ColumnCount = columnCount;
@@ -116,6 +120,8 @@ public partial class RangeCommands
             }
             finally
             {
+                ComUtilities.Release(ref columns);
+                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref range);
             }
         });
@@ -170,6 +176,9 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            dynamic? rows = null;
+            dynamic? columns = null;
+            dynamic? cells = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -178,8 +187,10 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                int rowCount = Convert.ToInt32(range.Rows.Count);
-                int columnCount = Convert.ToInt32(range.Columns.Count);
+                rows = range.Rows;
+                columns = range.Columns;
+                int rowCount = Convert.ToInt32(rows.Count);
+                int columnCount = Convert.ToInt32(columns.Count);
 
                 // Validate dimensions match
                 if (resolvedFormats.Count != rowCount)
@@ -201,6 +212,7 @@ public partial class RangeCommands
                 // If single row or column, can't use 2D array - must set cell by cell
                 if (rowCount == 1 || columnCount == 1)
                 {
+                    cells = range.Cells;
                     for (int row = 1; row <= rowCount; row++)
                     {
                         for (int col = 1; col <= columnCount; col++)
@@ -208,7 +220,7 @@ public partial class RangeCommands
                             dynamic? cell = null;
                             try
                             {
-                                cell = range.Cells[row, col];
+                                cell = cells[row, col];
                                 cell.NumberFormat = translator.TranslateToLocale(resolvedFormats[row - 1][col - 1]);
                             }
                             finally
@@ -239,11 +251,13 @@ public partial class RangeCommands
             }
             finally
             {
+                ComUtilities.Release(ref cells);
+                ComUtilities.Release(ref columns);
+                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref range);
             }
         });
     }
 }
-
 
 

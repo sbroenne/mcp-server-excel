@@ -53,15 +53,21 @@ public partial class TableCommands
 
                 // Get region range
                 dynamic? regionRange = null;
+                dynamic? rows = null;
+                dynamic? columns = null;
                 try
                 {
                     regionRange = GetRegionRange(table, region, columnName);
                     result.RangeAddress = regionRange.Address;
-                    result.RowCount = regionRange.Rows.Count;
-                    result.ColumnCount = regionRange.Columns.Count;
+                    rows = regionRange.Rows;
+                    columns = regionRange.Columns;
+                    result.RowCount = rows.Count;
+                    result.ColumnCount = columns.Count;
                 }
                 finally
                 {
+                    ComUtilities.Release(ref columns);
+                    ComUtilities.Release(ref rows);
                     ComUtilities.Release(ref regionRange);
                 }
 
@@ -114,7 +120,7 @@ public partial class TableCommands
     /// </summary>
     private static dynamic GetRegionRange(dynamic table, TableRegion region, string? columnName)
     {
-        dynamic regionRange = region switch
+        dynamic? regionRange = region switch
         {
             TableRegion.All => table.Range,
             TableRegion.Data => table.DataBodyRange,
@@ -129,11 +135,12 @@ public partial class TableCommands
         {
             dynamic? columns = null;
             dynamic? column = null;
+            dynamic? columnRange = null;
             try
             {
                 columns = table.ListColumns;
                 column = columns.Item(columnName);
-                dynamic columnRange = column.Range;
+                columnRange = column.Range;
 
                 // Intersect with region range
                 dynamic? app = null;
@@ -147,7 +154,9 @@ public partial class TableCommands
                 catch (System.Runtime.InteropServices.COMException)
                 {
                     // If intersection fails, return column range
-                    return columnRange;
+                    dynamic result = columnRange;
+                    columnRange = null; // Transfer this acquisition to the caller.
+                    return result;
                 }
                 finally
                 {
@@ -157,14 +166,14 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref columnRange);
                 ComUtilities.Release(ref column);
                 ComUtilities.Release(ref columns);
+                ComUtilities.Release(ref regionRange);
             }
         }
 
-        return regionRange; // Return region range directly
+        return regionRange!; // Return region range directly
     }
 }
-
-
 

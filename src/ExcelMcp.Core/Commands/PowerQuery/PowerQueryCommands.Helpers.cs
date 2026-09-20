@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -219,7 +218,7 @@ public partial class PowerQueryCommands
                                 OleMessageFilter.SetPendingCancellationToken(cancellationToken);
                                 try
                                 {
-                                    queryTable.Refresh(false);
+                                    ConnectionRefreshHelpers.EnsureQueryTableRefreshSucceeded(queryTable.Refresh(false));
                                     SessionDiagnostics.WriteStdErr($"[DIAG-PQ-QT-REFRESH-EXIT-SUCCESS] Query='{queryName}'");
                                 }
                                 catch (Exception ex)
@@ -256,152 +255,9 @@ public partial class PowerQueryCommands
         return false;
     }
 
-    private static void RefreshWorkbookConnection(dynamic connection, CancellationToken cancellationToken)
+    private static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
-        dynamic? oleDbConnection = null;
-        bool originalBackgroundQuery = false;
-        bool canRestoreBackgroundQuery = false;
-        bool supportsRefreshing = false;
-
-        try
-        {
-            try
-            {
-                oleDbConnection = connection.OLEDBConnection;
-                if (oleDbConnection != null)
-                {
-                    originalBackgroundQuery = oleDbConnection.BackgroundQuery;
-                    canRestoreBackgroundQuery = true;
-
-                    // CRITICAL: Force BackgroundQuery = false to ensure synchronous refresh.
-                    //
-                    // With BackgroundQuery = true (async), connection.Refresh() returns immediately
-                    // while Excel processes the query in a background thread. We then poll
-                    // connection.Refreshing with Thread.Sleep(200). On STA threads with the
-                    // OleMessageFilter registered, COM events from Excel during background refresh
-                    // (SheetChange, Calculate, Data Model callbacks) cause Thread.Sleep to return
-                    // via MsgWaitForMultipleObjectsEx — turning the polling loop into a 100% CPU
-                    // spin lasting the full duration of the refresh (seconds to minutes).
-                    //
-                    // With BackgroundQuery = false (synchronous), connection.Refresh() blocks the
-                    // STA thread until the refresh completes. When it returns, connection.Refreshing
-                    // is already false, so WaitForRefreshCompletion exits in 0 iterations. Zero spin.
-                    oleDbConnection.BackgroundQuery = false;
-                }
-            }
-            catch (COMException)
-            {
-                // Not an OLEDB connection or provider doesn't support BackgroundQuery.
-            }
-            catch (RuntimeBinderException)
-            {
-                // Sub-connection doesn't expose BackgroundQuery via dynamic binding.
-            }
-
-            // IMPORTANT: Do NOT use EnterLongOperation() here.
-            //
-            // connection.Refresh() with BackgroundQuery=false is a synchronous COM call that
-            // requires Excel to callback into our STA apartment to complete the data load.
-            // EnterLongOperation() sets _isInLongOperation=true, which causes HandleInComingCall
-            // to return SERVERCALL_RETRYLATER for ALL inbound COM calls — including the essential
-            // callbacks Excel needs to complete connection.Refresh(). This creates a mutual
-            // deadlock: Excel waits for our callbacks to be accepted; our STA thread waits for
-            // Excel to respond. The thread hangs indefinitely (observed: 30-minute hang).
-            //
-            // Instead, register the CancellationToken with the message filter so MessagePending
-            // returns PENDINGMSG_CANCELCALL (0) when cancelled, causing connection.Refresh() to
-            // return RPC_E_CALL_CANCELLED and unblocking the STA thread cleanly.
-            //
-            // Trade-off: without EnterLongOperation, inbound EnsureScanDefinedEvents callbacks
-            // are not throttled, which may cause elevated CPU during refresh (~88% peak).
-            // This is preferable to a permanent hang.
-
-            // INSTRUMENTATION: Trace Connection refresh entry and exit
-            string connName = "";
-            try { connName = connection.Name?.ToString() ?? "(unknown)"; } catch { }
-            SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-ENTER] Connection='{connName}'");
-            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
-            try
-            {
-                connection.Refresh();
-                SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-EXIT-SUCCESS] Connection='{connName}'");
-            }
-            catch (Exception ex)
-            {
-                SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-EXIT-EXCEPTION] Connection='{connName}' ExceptionType={ex.GetType().Name} Message={ex.Message}");
-                throw;
-            }
-            finally
-            {
-                OleMessageFilter.ClearPendingCancellationToken();
-            }
-
-            try
-            {
-                _ = connection.Refreshing;
-                supportsRefreshing = true;
-            }
-            catch (RuntimeBinderException)
-            {
-                supportsRefreshing = false;
-            }
-            catch (COMException)
-            {
-                supportsRefreshing = false;
-            }
-
-            if (supportsRefreshing)
-            {
-                WaitForRefreshCompletion(
-                    () =>
-                    {
-                        try
-                        {
-                            return connection.Refreshing;
-                        }
-                        catch (RuntimeBinderException)
-                        {
-                            return false;
-                        }
-                        catch (COMException)
-                        {
-                            return false;
-                        }
-                    },
-                    () =>
-                    {
-                        try
-                        {
-                            connection.CancelRefresh();
-                        }
-                        catch (RuntimeBinderException)
-                        {
-                            // Ignore inability to cancel for unsupported providers.
-                        }
-                        catch (COMException)
-                        {
-                            // Ignore inability to cancel for unsupported providers.
-                        }
-                    },
-                    cancellationToken);
-            }
-        }
-        finally
-        {
-            if (canRestoreBackgroundQuery && oleDbConnection != null)
-            {
-                try
-                {
-                    oleDbConnection.BackgroundQuery = originalBackgroundQuery;
-                }
-                catch (COMException)
-                {
-                    // Ignore inability to restore provider-specific setting.
-                }
-            }
-
-            ComUtilities.Release(ref oleDbConnection);
-        }
+        ConnectionRefreshHelpers.RefreshWorkbookConnection(connection, cancellationToken, WaitForRefreshCompletion);
     }
 
     private static void WaitForRefreshCompletion(
@@ -424,12 +280,13 @@ public partial class PowerQueryCommands
         // even with the Stopwatch guard. Win32 Sleep() is a bare NtDelayExecution call with no
         // COM pumping — the thread genuinely sleeps the full 200ms per interval.
         // Safety: refresh completion is driven by Excel's own internals (MashupHost → Excel STA).
-        // connection.Refreshing flips to false in Excel's process without requiring our STA to
+        // The typed sub-connection's Refreshing flips to false without requiring our STA to
         // service any callbacks. The Stopwatch guard is kept as defensive belt-and-suspenders.
         const int CheckIntervalMs = 200;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // Initial check: if already done, skip the wait entirely.
             if (!isRefreshing())
                 return;
@@ -447,6 +304,7 @@ public partial class PowerQueryCommands
                 if (!isRefreshing())
                     break;
             }
+            cancellationToken.ThrowIfCancellationRequested();
         }
         catch (OperationCanceledException)
         {

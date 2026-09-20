@@ -1021,21 +1021,6 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = $"0x{ex.HResult:X8}"
             });
         }
-        catch (InvalidOperationException ex) when (
-            ex.Message.Contains("no longer running", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("process", StringComparison.OrdinalIgnoreCase))
-        {
-            // Excel process detected as dead before COM call (ExcelBatch pre-check)
-            CleanupDeadSession(sessionId);
-            return Task.FromResult(new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = "ExcelProcessDied",
-                ErrorMessage = $"Excel process for session '{sessionId}' is no longer running. " +
-                               "Session has been cleaned up. Please reopen the file with a new session.",
-                ExceptionType = ex.GetType().Name
-            });
-        }
         catch (Exception ex)
         {
             if (IsFatalExcelDisconnect(ex))
@@ -1049,6 +1034,8 @@ public sealed class ExcelMcpService : IDisposable
             if (batch != null && !batch.IsExcelProcessAlive())
             {
                 CleanupDeadSession(sessionId);
+                return Task.FromResult(CreateExcelDisconnectedResponse(sessionId, ex,
+                    $"Excel process for session '{sessionId}' is no longer running. Session has been cleaned up. Please reopen the file with a new session."));
             }
 
             return Task.FromResult(CreateErrorResponse(ex));
@@ -1095,16 +1082,6 @@ public sealed class ExcelMcpService : IDisposable
                 (IsFatalComHResult(comEx.HResult) || IsFatalComHResult(comEx.ErrorCode)))
             {
                 return IsFatalComHResult(comEx.HResult) ? comEx.HResult : comEx.ErrorCode;
-            }
-
-            if (current.Message.Contains("disconnected", StringComparison.OrdinalIgnoreCase))
-            {
-                return ResiliencePipelines.RPC_E_DISCONNECTED;
-            }
-
-            if (current.Message.Contains("RPC server is unavailable", StringComparison.OrdinalIgnoreCase))
-            {
-                return ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE;
             }
         }
 

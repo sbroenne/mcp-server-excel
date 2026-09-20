@@ -176,6 +176,7 @@ public partial class RangeCommands
         {
             dynamic? range = null;
             int originalCalculation = -1;
+            dynamic? columns = null;
             bool calculationChanged = false;
 
             try
@@ -201,7 +202,8 @@ public partial class RangeCommands
                 int rows = resolvedFormulas.Count;
                 int cols = resolvedFormulas.Count > 0 ? resolvedFormulas[0].Count : 0;
 
-                ValidateRectangularRowWidths(resolvedFormulas, Convert.ToInt32(range.Columns.Count), nameof(formulas), "Formula");
+                columns = range.Columns;
+                ValidateRectangularRowWidths(resolvedFormulas, Convert.ToInt32(columns.Count), nameof(formulas), "Formula");
 
                 if (rows > 0 && cols > 0)
                 {
@@ -251,6 +253,7 @@ public partial class RangeCommands
                         // Ignore errors restoring calculation mode
                     }
                 }
+                ComUtilities.Release(ref columns);
                 ComUtilities.Release(ref range);
             }
         });

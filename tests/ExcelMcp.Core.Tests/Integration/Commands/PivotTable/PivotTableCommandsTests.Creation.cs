@@ -10,6 +10,29 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// </summary>
 public partial class PivotTableCommandsTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_SingleColumnSource_ReturnsHeaderAndCreatedPivot(bool useTable)
+    {
+        var testFile = CreateTestFileWithData(nameof(Create_SingleColumnSource_ReturnsHeaderAndCreatedPivot));
+        using var batch = ExcelSession.BeginBatch(testFile);
+        if (useTable)
+        {
+            new TableCommands().Create(batch, "SalesData", "SingleColumnTable", "A1:A6", true, TableStylePresets.Medium2);
+        }
+
+        var result = useTable
+            ? _pivotCommands.CreateFromTable(batch, "SingleColumnTable", "SalesData", "F1", "SingleColumnPivot")
+            : _pivotCommands.CreateFromRange(batch, "SalesData", "A1:A6", "SalesData", "F1", "SingleColumnPivot");
+
+        Assert.True(result.Success);
+        Assert.Equal("Region", Assert.Single(result.AvailableFields));
+        Assert.Equal(5, result.SourceRowCount);
+        Assert.Equal("SingleColumnPivot", result.PivotTableName);
+        Assert.True(_pivotCommands.ListFields(batch, "SingleColumnPivot").Success);
+    }
+
     /// <inheritdoc/>
     [Fact]
     public void CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure()
@@ -125,7 +148,6 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Fields.Count >= 4); // Region, Product, Sales, Date
     }
 }
-
 
 
 

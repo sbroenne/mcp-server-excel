@@ -189,8 +189,22 @@ internal static class CapturePlanner
     {
         double usableWidth = usable.Width;
         double usableHeight = usable.Height;
-        int rowCount = Convert.ToInt32(range.Rows.Count);
-        int columnCount = Convert.ToInt32(range.Columns.Count);
+        int rowCount;
+        int columnCount;
+        dynamic? rows = null;
+        dynamic? columns = null;
+        try
+        {
+            rows = range.Rows;
+            columns = range.Columns;
+            rowCount = Convert.ToInt32(rows.Count);
+            columnCount = Convert.ToInt32(columns.Count);
+        }
+        finally
+        {
+            ComUtilities.Release(ref columns);
+            ComUtilities.Release(ref rows);
+        }
 
         List<Segment> rowSegments;
         List<Segment> columnSegments;
@@ -306,14 +320,17 @@ internal static class CapturePlanner
     private static double GetOffset(dynamic range, bool rows, int index)
     {
         dynamic? item = null;
+        dynamic? items = null;
         try
         {
-            item = rows ? range.Rows[index] : range.Columns[index];
+            items = rows ? range.Rows : range.Columns;
+            item = items[index];
             return rows ? Convert.ToDouble(item.Top) : Convert.ToDouble(item.Left);
         }
         finally
         {
             ComUtilities.Release(ref item);
+            ComUtilities.Release(ref items);
         }
     }
 
@@ -321,14 +338,17 @@ internal static class CapturePlanner
     private static double GetExtent(dynamic range, bool rows, int index)
     {
         dynamic? item = null;
+        dynamic? items = null;
         try
         {
-            item = rows ? range.Rows[index] : range.Columns[index];
+            items = rows ? range.Rows : range.Columns;
+            item = items[index];
             return rows ? Convert.ToDouble(item.Height) : Convert.ToDouble(item.Width);
         }
         finally
         {
             ComUtilities.Release(ref item);
+            ComUtilities.Release(ref items);
         }
     }
 }
