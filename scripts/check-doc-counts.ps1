@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Release automation uses -Update to refresh every managed headline. Development
-    and CI use -AllowStaleAdvertisedCounts so feature-section totals and the count
+    CI uses -AllowStaleAdvertisedCounts so feature-section totals and the count
     derivation remain guarded without requiring release-owned headlines to be
     updated manually on feature branches.
 
@@ -45,8 +45,8 @@
     has already completed a Release solution build in the current working tree.
 
 .PARAMETER SkipBuild
-    Skip the Release solution build. Intended for CI and pre-commit callers that build the
-    solution immediately before invoking this script.
+    Skip the Release solution build. Intended for callers that build the solution
+    immediately before invoking this script.
 
 .PARAMETER Update
     Replace managed advertised totals with the canonical code-derived values.
@@ -221,6 +221,7 @@ $checks = @(
     @{ File = "docs\INSTALLATION-CLI.md";               Pattern = 'all (?<t>\d+) feature command categories' }
     @{ File = "docs\guides\EXCEL-COM-VS-FILE-PARSERS.md"; Pattern = '(?<o>\d+)\s+operations across (?<t>\d+) tools' }
     @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<t>\d+) tools \((?<o>\d+) operations\)' }
+    @{ File = "gh-pages\hooks.py";                      Pattern = 'exposing (?<t>\d+) tools and (?<o>\d+) operations to AI assistants' }
 )
 
 # The website feature overview includes FEATURES.md; audit_site.py enforces

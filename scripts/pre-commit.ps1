@@ -96,16 +96,16 @@ function Stop-DotNetBuildServers {
 # changes, including edits to the gh-pages documentation website and its star-history
 # generation workflow. These files do not affect the shipped Excel binaries. Cheap
 # source-level guards still run for every commit.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|check-doc-counts|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
 $mergeHead = git rev-parse --verify --quiet MERGE_HEAD 2>$null
 $validationBase = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { "HEAD" }
 $stagedFiles = git diff --cached --name-only $validationBase 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0
 
-# Validation changes still build and check counts, but do not change release artifacts.
+# Validation changes still build, but do not change release artifacts.
 # Unrecognized paths continue to require packaging.
-$validationOnlyPattern = '(^tests/)|(^scripts/check-doc-counts\.ps1$)|(^\.github/workflows/ci\.yml$)'
+$validationOnlyPattern = '(^tests/)|(^\.github/workflows/ci\.yml$)'
 $packagingChangedFiles = $codeChangedFiles | Where-Object { $_ -notmatch $validationOnlyPattern }
 $requiresReleasePackaging = @($packagingChangedFiles).Count -gt 0
 

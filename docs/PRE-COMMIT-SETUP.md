@@ -25,10 +25,11 @@ The hook selects checks from staged paths. During a merge, it compares against
 the incoming parent so already-validated imported changes do not trigger
 unrelated Excel tests.
 
-| Changes | Release build and count checks | Excel E2E | Release packaging |
+| Changes | Release build | Excel E2E | Release packaging |
 |---|---|---|---|
 | Documentation and website content, including website build scripts | No | No | No |
-| Tests, `scripts/check-doc-counts.ps1`, or `.github/workflows/ci.yml` only | Yes | No | No |
+| `scripts/check-doc-counts.ps1` only | No | No | No |
+| Tests or `.github/workflows/ci.yml` only | Yes | No | No |
 | Runtime code in Core, COM, Service, CLI, MCP, or source generators | Yes | Yes | Yes |
 | Other build or release inputs | Yes | Only when the runtime/E2E path filter matches | Yes |
 

@@ -11,7 +11,7 @@ public sealed class PreCommitScriptTests
     [InlineData("FEATURES.md", false)]
     [InlineData("gh-pages/hooks.py", false)]
     [InlineData("scripts/pre-commit.ps1", false)]
-    [InlineData("scripts/check-doc-counts.ps1", true)]
+    [InlineData("scripts/check-doc-counts.ps1", false)]
     [InlineData("tests/ExcelMcp.SkillGeneration.Tests/PreCommitScriptTests.cs", true)]
     [InlineData(".github/workflows/ci.yml", true)]
     [Trait("Category", "Integration")]

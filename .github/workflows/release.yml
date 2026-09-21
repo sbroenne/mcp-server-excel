@@ -715,6 +715,7 @@ jobs:
         id: release_commit
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
@@ -723,6 +724,12 @@ jobs:
 
           if [ -z "${GH_TOKEN:-}" ]; then
             echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so release metadata can be committed back to main."
+            exit 1
+          fi
+
+          BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
+          if [ "$BASE_SHA" != "$SOURCE_SHA" ]; then
+            echo "::error::main advanced from release source $SOURCE_SHA to $BASE_SHA. Start a new release so metadata and artifacts are generated from the current tip."
             exit 1
           fi
 
@@ -735,15 +742,14 @@ jobs:
             [ -z "$path" ] || git add -- "$path"
           done < prepared-release/release-doc-count-files.txt
 
-          BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
           if git diff --cached --quiet; then
             echo "No release metadata changes to commit; tagging main@$BASE_SHA."
             echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Base the metadata commit on the current main tip so the update is a
-          # fast-forward even when main advanced while release artifacts built.
+          # The main-tip check above guarantees that generated metadata and built
+          # artifacts all came from this exact source tree.
           BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
           echo "Basing release metadata commit on main@$BASE_SHA"
 
@@ -775,7 +781,7 @@ jobs:
             | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
 
           new_commit=$(jq -n \
-            --arg msg "chore: update release metadata for v${VERSION} [skip ci]" \
+            --arg msg "chore: update release metadata for v${VERSION}" \
             --arg tree "$new_tree" --arg parent "$BASE_SHA" \
             '{message:$msg, tree:$tree, parents:[$parent]}' \
             | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
