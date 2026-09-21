@@ -13,6 +13,10 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Core `[ServiceCategory]` interfaces drive generated Service, CLI, and MCP
   routing. Change contracts/generators, not emitted code. Follow a changed
   contract through both entry points, tests, and shared guidance.
+- Backwards compatibility is not required. Update callers, tests, and
+  documentation together rather than preserving obsolete aliases or branches
+  solely for compatibility. Keep aliases or adapters only when they serve a
+  current purpose; evaluate client-specific support separately.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - `Success == true` requires an empty or null `ErrorMessage`.

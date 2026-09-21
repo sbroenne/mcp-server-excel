@@ -119,7 +119,14 @@ Use [`add-mcp`](https://github.com/neondatabase/add-mcp) to configure all detect
 npx add-mcp "mcp-excel" --name excel-mcp
 ```
 
-This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more. Use flags to customize:
+This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more.
+
+ExcelMcp uses standard MCP SDK JSON Schemas, including nullable types and
+mixed-type cell arrays. Client auto-configuration does not guarantee support for
+these schemas: Gemini-specific schema workarounds are not provided. Clients that
+accept only a restricted schema subset may reject tools.
+
+Use flags to customize:
 
 ```powershell
 # Configure specific agents only

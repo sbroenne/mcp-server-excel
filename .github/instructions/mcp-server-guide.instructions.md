@@ -19,5 +19,8 @@ excludeAgent: "code-review"
 - Descriptions add server-specific constraints and tool-selection hints, not
   types/enums already in the schema. No emojis in generated guidance/XML docs.
   Keep destructive/read-only metadata accurate.
+- Use standard MCP SDK tool registration and JSON Schema generation. Preserve
+  parameter types and nullability; do not rewrite all clients' schemas to
+  accommodate one client's restricted schema subset.
 
 Manual routing example and explanation: `docs/DEVELOPMENT.md`.
