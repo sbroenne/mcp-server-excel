@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
@@ -9,6 +10,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 public partial class RangeCommandsTests
 {
     // === NATIVE EXCEL COM OPERATIONS TESTS ===
+
+    [Fact]
+    public void GetUsedRange_MissingSheet_ThrowsCategorizedNotFound()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+
+        var exception = Assert.Throws<OperationFailureException>(
+            () => _commands.GetUsedRange(batch, "MissingSheet"));
+
+        Assert.Equal(OperationFailureCategory.NotFound, exception.ErrorCategory);
+    }
 
     [Fact]
     public void GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells()
@@ -148,7 +160,6 @@ public partial class RangeCommandsTests
     }
 
 }
-
 
 
 

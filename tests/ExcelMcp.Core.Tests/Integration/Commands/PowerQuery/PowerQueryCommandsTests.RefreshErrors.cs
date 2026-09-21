@@ -354,10 +354,11 @@ in
 
         // Act & Assert - Connection-only queries cannot be refreshed because there's
         // no QueryTable (worksheet) or InModel=true connection (Data Model) to refresh
-        var exception = Assert.ThrowsAny<Exception>(() =>
+        var exception = Assert.Throws<OperationFailureException>(() =>
             _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(1)));
 
         // Should indicate no refresh mechanism found
+        Assert.Equal(OperationFailureCategory.Prerequisite, exception.ErrorCategory);
         Assert.Contains("Could not find connection or table", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -521,7 +522,6 @@ in
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
     }
 }
-
 
 
 

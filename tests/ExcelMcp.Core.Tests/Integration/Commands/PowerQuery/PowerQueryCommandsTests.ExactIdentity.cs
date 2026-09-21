@@ -16,6 +16,20 @@ public partial class PowerQueryCommandsTests
     private const string PrefixQueryMCode = "let Source = #table({\"Value\"}, {{1}}) in Source";
 
     [Fact]
+    public void Refresh_MissingQuery_ThrowsCategorizedNotFound()
+    {
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        var exception = Assert.Throws<OperationFailureException>(
+            () => _powerQueryCommands.Refresh(batch, "MissingQuery", TimeSpan.FromSeconds(30)));
+
+        Assert.Equal(OperationFailureCategory.NotFound, exception.ErrorCategory);
+        Assert.Contains("Query 'MissingQuery' not found.", exception.Message);
+    }
+
+    [Fact]
     public void ExactIdentity_ReadAndRefreshPaths_DoNotTreatAAAsA()
     {
         var testFile = _fixture.CreateTestFile();
@@ -33,8 +47,9 @@ public partial class PowerQueryCommandsTests
         var loadConfig = _powerQueryCommands.GetLoadConfig(batch, "a");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
 
-        var exception = Assert.Throws<InvalidOperationException>(
+        var exception = Assert.Throws<OperationFailureException>(
             () => _powerQueryCommands.Refresh(batch, "a", TimeSpan.FromSeconds(30)));
+        Assert.Equal(OperationFailureCategory.Prerequisite, exception.ErrorCategory);
         Assert.Contains("Could not find connection or table for query 'a'", exception.Message);
 
         AssertWorksheetLoadPreserved(batch, "AA");
