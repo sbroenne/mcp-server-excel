@@ -19,7 +19,8 @@ public static class ExcelScreenshotTool
     /// (formatting, charts, conditional formatting). Works on protected sheets and leaves the
     /// workbook and clipboard untouched, but requires an interactive desktop session.
     /// capture: specific range (requires rangeAddress).
-    /// capture-sheet: entire used area of worksheet.
+    /// capture-sheet: used cell area of worksheet plus embedded charts.
+    /// Very large areas are truncated to the top-left portion, which the returned text reports.
     /// Returns the image directly as MCP ImageContent.
     /// Use after operations to visually verify results.
     /// quality: Medium (default, JPEG 75% scale, ~4-8x smaller), High (PNG full scale), Low (JPEG 50% scale).
@@ -32,7 +33,8 @@ public static class ExcelScreenshotTool
         "(formatting, charts, conditional formatting). Works on protected sheets and leaves the " +
         "workbook and clipboard untouched, but requires an interactive desktop session. " +
         "capture: specific range (requires rangeAddress). " +
-        "capture-sheet: entire used area of worksheet. " +
+        "capture-sheet: used cell area of worksheet plus embedded charts. " +
+        "Very large areas are truncated to the top-left portion, which the returned text reports. " +
         "Returns the image directly as MCP ImageContent. " +
         "Use after operations to visually verify results. " +
         "quality: Medium (default, JPEG 75% scale, ~4-8x smaller than High), High (PNG full scale), Low (JPEG 50% scale).")]
@@ -76,6 +78,13 @@ public static class ExcelScreenshotTool
 
             // Return image as ImageContentBlock + metadata as TextContentBlock
             var metadata = $"Screenshot: {result.RangeAddress} on '{result.SheetName}' ({result.Width}x{result.Height}px)";
+
+            // Core reports capture details such as truncation in the message - callers must see it,
+            // otherwise a truncated image silently omits content like a distant chart.
+            if (!string.IsNullOrWhiteSpace(result.Message))
+            {
+                metadata += $". {result.Message}";
+            }
 
             return new CallToolResult
             {

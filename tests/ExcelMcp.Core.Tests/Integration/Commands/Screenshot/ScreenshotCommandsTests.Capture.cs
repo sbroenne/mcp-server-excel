@@ -102,6 +102,30 @@ public partial class ScreenshotCommandsTests
         Assert.Fail("Expected screenshot to contain non-white pixels.");
     }
 
+    private static void AssertImageContainsChartMarker(string base64)
+    {
+        using var stream = new MemoryStream(Convert.FromBase64String(base64));
+        using var bitmap = new Bitmap(stream);
+
+        int markerPixels = 0;
+        int stepX = Math.Max(1, bitmap.Width / 200);
+        int stepY = Math.Max(1, bitmap.Height / 200);
+
+        for (int y = 0; y < bitmap.Height; y += stepY)
+        {
+            for (int x = 0; x < bitmap.Width; x += stepX)
+            {
+                Color pixel = bitmap.GetPixel(x, y);
+                if (pixel.R > 220 && pixel.G < 80 && pixel.B > 220)
+                {
+                    markerPixels++;
+                }
+            }
+        }
+
+        Assert.True(markerPixels > 0, "Expected screenshot to contain the chart's magenta marker.");
+    }
+
     [Fact]
     public void CaptureRange_SmallRange_ReturnsValidPng()
     {
@@ -177,6 +201,58 @@ public partial class ScreenshotCommandsTests
 
         byte[] imageBytes = Convert.FromBase64String(result.ImageBase64);
         Assert.True(imageBytes.Length > 500, "Image with chart area should be larger");
+    }
+
+    [Fact]
+    public void CaptureSheet_EmbeddedChartBeyondUsedCells_IncludesChartPixels()
+    {
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
+        PopulateTestData(batch, addChart: true);
+        MoveAndMarkChart(batch);
+
+        var result = _commands.CaptureSheet(batch, quality: ScreenshotQuality.High);
+
+        Assert.True(result.Success, $"CaptureSheet failed: {result.ErrorMessage}");
+        AssertImageContainsChartMarker(result.ImageBase64);
+    }
+
+    private static void MoveAndMarkChart(IExcelBatch batch)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? chartObjects = null;
+            dynamic? chartObject = null;
+            dynamic? chart = null;
+            dynamic? chartArea = null;
+            dynamic? chartInterior = null;
+            dynamic? targetCell = null;
+
+            try
+            {
+                sheet = ctx.Book.Worksheets[1];
+                chartObjects = sheet.ChartObjects();
+                chartObject = chartObjects.Item(1);
+                targetCell = sheet.Range["BA1"];
+                chartObject.Left = targetCell.Left;
+                chartObject.Top = targetCell.Top;
+                chart = chartObject.Chart;
+                chartArea = chart.ChartArea;
+                chartInterior = chartArea.Interior;
+                chartInterior.Color = ColorTranslator.ToOle(Color.Magenta);
+            }
+            finally
+            {
+                ComUtilities.Release(ref targetCell);
+                ComUtilities.Release(ref chartInterior);
+                ComUtilities.Release(ref chartArea);
+                ComUtilities.Release(ref chart);
+                ComUtilities.Release(ref chartObject);
+                ComUtilities.Release(ref chartObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 
     [Fact]
