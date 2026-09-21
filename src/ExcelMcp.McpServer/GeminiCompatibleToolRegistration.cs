@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
@@ -10,15 +11,16 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// Registers MCP tools with a schema generator configured for Google Gemini compatibility.
 ///
 /// The MCP SDK's default schema generator (Microsoft.Extensions.AI <c>JsonSchemaExporter</c>)
-/// expresses nullable .NET types using the JSON Schema 2020-12 union form
-/// <c>"type": ["array","null"]</c>. Google's Gemini function-calling API only accepts a
-/// subset of the OpenAPI 3.0.3 Schema object, which requires a SINGLE scalar <c>type</c> and
-/// expresses nullability with a separate <c>nullable: true</c> field. Gemini rejects union
-/// <c>type</c> arrays inside <c>items</c> with HTTP 400 (see issue #672).
+/// expresses nullable .NET types using union types such as <c>"type": ["array","null"]</c>.
+/// Some Gemini client adapters (including @ai-sdk/google 3.0.73) translate these into
+/// <c>anyOf</c> while leaving <c>items</c> outside the array branch, causing issue #672.
 ///
 /// <see cref="AIJsonSchemaTransformOptions.UseNullableKeyword"/> converts the union form into
-/// the OpenAPI-3.0 form (<c>type:"array"</c> + <c>nullable:true</c>) that Gemini accepts, while
-/// remaining valid for clients that speak full JSON Schema 2020-12.
+/// the OpenAPI-style form (<c>type:"array"</c> + <c>nullable:true</c>), keeping arrays and
+/// their items together. Nullable arrays are supported by Google's schema model; the
+/// annotation is not a JSON Schema null alternative and may be ignored by adapters.
+/// Untyped collection elements use explicit scalar alternatives, including a null type
+/// for JSON Schema clients and adapters that translate it to OpenAPI nullability.
 ///
 /// The SDK's <c>WithToolsFromAssembly</c>/<c>WithTools</c> overloads do not expose a hook to set
 /// <see cref="McpServerToolCreateOptions.SchemaCreateOptions"/>, so this method mirrors the SDK's
@@ -30,29 +32,24 @@ internal static class GeminiCompatibleToolRegistration
     {
         TransformOptions = new AIJsonSchemaTransformOptions
         {
-            // Emit OpenAPI-3.0-style nullability (type:"array" + nullable:true) instead of
-            // JSON-Schema-2020-12 union types (type:["array","null"]) that Gemini rejects.
+            // Avoid type arrays that some client adapters translate with misplaced items.
             UseNullableKeyword = true,
             TransformSchemaNode = (context, node) =>
             {
-                if (node is System.Text.Json.Nodes.JsonObject obj)
+                if (node is JsonObject obj)
                 {
-                    // Fix 1: Gemini function calling API rejects `nullable: true` on arrays if the
-                    // client translator converts it into an `anyOf` but leaves `items` alongside it.
-                    // This causes a protobuf validation error: "field predicate failed: == Type.ARRAY"
-                    // because `items` is only allowed when `type` is EXACTLY `Type.ARRAY`.
-                    if (obj.TryGetPropertyValue("type", out var typeNode) && typeNode?.GetValue<string>() == "array")
-                    {
-                        obj.Remove("nullable");
-                    }
-
-                    // Fix 2: C# `object` generates an empty `{}` schema. Gemini strictly requires a `type`.
-                    // When an array contains objects/scalars without a type, Gemini validation fails.
-                    // We default empty item schemas to type "string" to satisfy the validator.
+                    // object cells generate {}, but typed alternatives describe the scalar values
+                    // accepted at runtime without claiming that numbers and booleans become strings.
                     if (obj.Count == 0 && context.IsCollectionElementSchema)
                     {
-                        obj["type"] = "string";
-                        obj["description"] = "Any valid scalar (string/number/boolean) converted to string";
+                        obj["anyOf"] = new JsonArray(
+                            new JsonObject { ["type"] = "string", ["nullable"] = true },
+                            new JsonObject { ["type"] = "number" },
+                            new JsonObject { ["type"] = "boolean" },
+                            // nullable alone does not accept null in standard JSON Schema.
+                            // A typed null branch is recognized by legacy Gemini adapters,
+                            // unlike an untyped { enum: [null] } or { nullable: true } branch.
+                            new JsonObject { ["type"] = "null" });
                     }
                 }
                 return node;
