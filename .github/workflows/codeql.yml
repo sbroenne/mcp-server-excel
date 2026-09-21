@@ -6,98 +6,77 @@ name: "CodeQL Advanced Security"
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '**.csproj'
-      - '**.sln'
-      - 'Directory.Build.props'
-      - 'Directory.Packages.props'
-      - '.github/workflows/codeql.yml'
-      - '.github/codeql/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '**.csproj'
-      - '**.sln'
-      - 'Directory.Build.props'
-      - 'Directory.Packages.props'
-      - '.github/workflows/codeql.yml'
-      - '.github/codeql/**'
+  merge_group:
   schedule:
-    # Run CodeQL analysis every Monday at 10:00 AM UTC
-    - cron: '0 10 * * 1'
+    # Avoid the busy start of the hour.
+    - cron: '23 10 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
-    name: Analyze Code with CodeQL
-    runs-on: windows-latest
-    timeout-minutes: 360
+    name: Analyze Code with CodeQL (${{ matrix.language }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'csharp' ]
-        # CodeQL supports: 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
-        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
+        include:
+          # Trace the build so source-generated CLI, MCP, and Service code is scanned.
+          - language: csharp
+            os: windows-latest
+            build-mode: manual
+          - language: javascript-typescript
+            os: ubuntu-latest
+            build-mode: none
+          - language: python
+            os: ubuntu-latest
+            build-mode: none
+          - language: actions
+            os: ubuntu-latest
+            build-mode: none
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
+      if: matrix.language == 'csharp'
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
-        dotnet-version: 10.0.x
+        global-json-file: global.json
 
-    # Initializes the CodeQL tools for scanning
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
+      uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
       with:
         languages: ${{ matrix.language }}
-        # Use custom configuration file
+        build-mode: ${{ matrix.build-mode }}
         config-file: ./.github/codeql/codeql-config.yml
-        # Additional query packs (security-focused only)
-        queries: +security-extended
 
-    # Restore dependencies before build
     - name: Restore dependencies
-      run: dotnet restore
+      if: matrix.build-mode == 'manual'
+      run: dotnet restore Sbroenne.ExcelMcp.sln
 
-    # Build the solution for CodeQL analysis
     - name: Build solution
-      run: dotnet build --no-restore --configuration Release
+      if: matrix.build-mode == 'manual'
+      run: dotnet build Sbroenne.ExcelMcp.sln --no-restore --configuration Release --no-incremental -p:UseSharedCompilation=false
 
-    # Perform CodeQL Analysis
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
+      uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
       with:
         category: "/language:${{matrix.language}}"
-        # Upload results even if there are errors
-        upload: true
-        # Output SARIF results
-        output: sarif-results
-
-    # Upload SARIF results as artifact for review
-    - name: Upload CodeQL Results
-      if: always()
-      uses: actions/upload-artifact@v7
-      with:
-        name: codeql-sarif-results-${{ matrix.language }}
-        path: sarif-results
-        retention-days: 30
-
-    # Create issue if critical vulnerabilities found
-    - name: Check for Critical Issues
-      if: failure()
-      run: |
-        Write-Output "⚠️ CodeQL found security issues. Review the Security tab."
-      shell: pwsh
+        wait-for-processing: true
