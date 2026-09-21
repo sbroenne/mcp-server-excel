@@ -959,11 +959,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}ServiceRegistry.ValidateEnumValue<{enumType}>({valueExpression}, \"{parameterName}\");");
     }
 
-    private static string EscapeStringLiteral(string value)
-    {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-    }
-
     private static void GenerateRequiredParameterValidation(
         StringBuilder sb,
         MethodInfo method,

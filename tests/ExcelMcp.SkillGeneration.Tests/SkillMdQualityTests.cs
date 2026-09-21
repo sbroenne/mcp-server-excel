@@ -176,8 +176,8 @@ public class SkillMdQualityTests
         Assert.Contains("excelcli --quiet <command> <action>", content);
         Assert.DoesNotContain("### calculationmode", content);
         Assert.DoesNotContain("| Parameter | Description |", content);
-        Assert.DoesNotContain("--sheet-name", content);
-        Assert.DoesNotContain("--range-address", content);
+        Assert.DoesNotMatch(@"--sheet(?![\w-])", content);
+        Assert.DoesNotMatch(@"--range(?![\w-])", content);
     }
 
     [Fact]
@@ -276,6 +276,7 @@ public class SkillMdQualityTests
             // MCP and CLI response properties.
             "canOpen",
             "chartName",
+            "errorCategory",
             "errorMessage",
             "formulaPreview",
             "groupedFieldName",
@@ -286,6 +287,7 @@ public class SkillMdQualityTests
             "newName",
             "oldName",
             "requiresVisibleSession",
+            "safeToCreate",
             "sessionId",
             "suggestedNextActions",
             "willOpenReadOnly",

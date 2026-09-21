@@ -25,7 +25,8 @@ public sealed class CanonicalParameterOptionTests
         var exception = Assert.Throws<CommandParseException>(() =>
             app.Run(["get-values", sheetOption, sheetName, rangeOption, rangeAddress]));
 
-        Assert.Contains("Unknown option", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var removedOption = sheetOption == "--sheet" ? sheetOption : rangeOption;
+        Assert.Contains($"'{removedOption.TrimStart('-')}'", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public sealed class CanonicalParameterOptionTests
         var exception = Assert.Throws<CommandParseException>(() =>
             app.Run(["get-values", "--sheet-name", "Sheet1", "--range-address", "A1", option, "value"]));
 
-        Assert.Contains("Unknown option", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"'{option.TrimStart('-')}'", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -63,7 +64,7 @@ public sealed class CanonicalParameterOptionTests
 
         var exception = Assert.Throws<CommandParseException>(() => app.Run([command, option, "value"]));
 
-        Assert.Contains("Unknown option", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"'{option.TrimStart('-')}'", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -75,21 +76,26 @@ public sealed class CanonicalParameterOptionTests
         Assert.Equal(0, CreateHandwrittenApp().Run([command, option, "value"]));
     }
 
-    [Theory]
-    [InlineData("-q")]
-    [InlineData("-v")]
-    public async Task GlobalOptions_ShortFlags_AreRejected(string option)
+    [Fact]
+    public async Task GlobalOptions_RemovedQuietShortFlag_IsRejected()
     {
-        var result = await CliProcessHelper.RunAsync($"{option} actions");
+        var result = await CliProcessHelper.RunAsync("-q service status");
 
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("Unknown option", result.Stdout + result.Stderr, StringComparison.OrdinalIgnoreCase);
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.Equal("CommandParseException", output.RootElement.GetProperty("exceptionType").GetString());
+        Assert.Contains("'q'", output.RootElement.GetProperty("error").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task GlobalOptions_CanonicalQuiet_IsAccepted()
     {
-        var result = await CliProcessHelper.RunAsync("--quiet actions");
+        var result = await CliProcessHelper.RunAsync(
+            "--quiet service status",
+            environmentVariables: new Dictionary<string, string>
+            {
+                ["EXCELMCP_CLI_PIPE"] = $"excelmcp-quiet-option-{Guid.NewGuid():N}"
+            });
 
         Assert.Equal(0, result.ExitCode);
         using var output = JsonDocument.Parse(result.Stdout);
@@ -105,12 +111,22 @@ public sealed class CanonicalParameterOptionTests
         Assert.False(string.IsNullOrWhiteSpace(result.Stdout));
     }
 
+    [Fact]
+    public async Task GlobalOptions_FrameworkVersionShortFlag_IsAccepted()
+    {
+        var result = await CliProcessHelper.RunAsync("-v");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.False(string.IsNullOrWhiteSpace(result.Stdout));
+    }
+
     private static CommandApp CreateHandwrittenApp()
     {
         var app = new CommandApp();
         app.Configure(config =>
         {
             config.PropagateExceptions();
+            config.Settings.StrictParsing = true;
             config.AddCommand<ParseBatchCommand>("batch");
             config.AddCommand<ParseCloseCommand>("close");
         });
@@ -120,7 +136,11 @@ public sealed class CanonicalParameterOptionTests
     private static CommandApp<ParseRangeCommand> CreateApp()
     {
         var app = new CommandApp<ParseRangeCommand>();
-        app.Configure(config => config.PropagateExceptions());
+        app.Configure(config =>
+        {
+            config.PropagateExceptions();
+            config.Settings.StrictParsing = true;
+        });
         return app;
     }
 
