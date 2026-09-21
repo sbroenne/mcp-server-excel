@@ -23,7 +23,6 @@ public sealed class PreCommitScriptTests
         Assert.True(result.ExitCode == 0, result.CombinedOutput);
         Assert.DoesNotContain("Building CLI release deliverables", result.CombinedOutput, StringComparison.Ordinal);
         Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Building Release solution", StringComparison.Ordinal));
-        Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Validating documentation count structure", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -106,12 +105,12 @@ public sealed class PreCommitScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PreCommit")]
-    public void AdvertisedCounts_AreDeferredToReleaseAutomation()
+    public void AdvertisedCounts_AreGeneratedOnlyByReleaseAutomation()
     {
         var hook = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
 
-        Assert.Contains("& $docCountScript -SkipBuild -AllowStaleAdvertisedCounts", hook, StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", hook, StringComparison.Ordinal);
         Assert.Contains("check-doc-counts.ps1 -Update -SkipBuild", workflow, StringComparison.Ordinal);
         Assert.Contains("release-doc-counts.patch", workflow, StringComparison.Ordinal);
     }
@@ -135,7 +134,7 @@ public sealed class PreCommitScriptTests
             {
                 "Stop-ExcelMcpProcesses", "check-com-leaks", "audit-core-coverage",
                 "check-mcp-core-implementations", "check-success-flag", "Build-BootstrapScripts",
-                "check-doc-counts", "Test-E2E", "check-plugin-readmes", "check-dynamic-casts"
+                "Test-E2E", "check-plugin-readmes", "check-dynamic-casts"
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"), "$global:LASTEXITCODE = 0");

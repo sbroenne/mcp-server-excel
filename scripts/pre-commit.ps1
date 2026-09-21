@@ -11,7 +11,6 @@
     3. MCP-Core implementation audit - ensures every MCP action still has a Core implementation
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
     5. Release solution build - generates Release binaries and skill outputs used by downstream packaging (skipped for docs-only commits)
-    5b. Documentation count structure - validates code-derived totals and managed release-time count locations (skipped for docs-only commits)
     6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
     7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
     8. CLI release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
@@ -326,15 +325,6 @@ catch {
     Write-Host "Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
 }
-
-Invoke-ValidationStep `
-    -Heading "Validating documentation count structure..." `
-    -FailureSummary "Documentation count structure validation failed!" `
-    -SuccessSummary "Documentation count structure passed - advertised totals are generated at release time" `
-    -Action {
-        $docCountScript = Join-Path $rootDir "scripts\check-doc-counts.ps1"
-        & $docCountScript -SkipBuild -AllowStaleAdvertisedCounts
-    }
 
 if ($requiresExcelE2E) {
     Invoke-ValidationStep `
