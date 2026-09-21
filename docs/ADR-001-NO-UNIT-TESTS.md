@@ -1,17 +1,7 @@
 # ADR-001: Testing Excel behavior with real Excel
 
-**Status:** Superseded by the current [testing strategy](../.github/instructions/testing-strategy.instructions.md)
-
-**Original decision date:** 2025-11-02
-
-## Original decision
-
-The original decision required real Excel integration tests instead of mocked
-COM tests. It also stated that the repository had no independently testable
-logic and therefore should have no unit tests.
-
-The real-Excel requirement remains valid for COM behavior. The blanket ban on
-unit tests no longer describes the project and must not guide new work.
+The [testing strategy](../.github/instructions/testing-strategy.instructions.md)
+defines the current test requirements.
 
 ## Current policy
 
@@ -41,5 +31,4 @@ The [repository instructions](../.github/copilot-instructions.md#build-and-valid
 define build, local Excel E2E, and CI requirements. GitHub-hosted runners do not
 have Excel; Excel-free checks are not a substitute for local COM coverage.
 
-This file retains the historical decision's location so existing links resolve.
 Use the current testing strategy for commands and detailed test design rules.

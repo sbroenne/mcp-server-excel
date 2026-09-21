@@ -8,6 +8,8 @@ excludeAgent: "code-review"
 - `FEATURES.md` is navigation; operation references live in `docs/features/`.
   Permanent guides belong in `docs/`, decisions in `docs/ADR-*.md`, requirements
   in `specs/`. Agent guidance sources follow `mcp-llm-guidance.instructions.md`.
+- Keep guidance focused on current contracts and procedures. Remove superseded
+  instructions and implementation history; retain actionable safety requirements.
 - Advertised counts come from `scripts\check-doc-counts.ps1`, not counts of tool
   files or CLI folders. Internal CLI diagnostics are excluded from the shared
   advertised surface.

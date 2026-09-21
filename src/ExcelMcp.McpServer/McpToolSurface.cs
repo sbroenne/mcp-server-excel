@@ -8,15 +8,6 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// Derives the server's advertised tool and operation counts from the ACTUAL MCP tool
 /// registration instead of hard-coded literals.
 ///
-/// WHY THIS EXISTS
-/// ---------------
-/// The <c>--help</c> banner used to hard-code "Provides 22 tools with 195+ operations". The real
-/// surface grew to 31 tools / 326 operations without anyone updating that string, so the binary
-/// contradicted its own READMEs, SKILL.md files and its live <c>tools/list</c> response.
-/// Reflecting over the registration makes that class of drift structurally impossible.
-///
-/// HOW THE NUMBERS ARE DERIVED
-/// ---------------------------
 /// Every MCP tool in this server is a single <c>[McpServerTool]</c> method on an
 /// <c>[McpServerToolType]</c> class (hand-written or emitted by <c>McpToolGenerator</c>), and every
 /// one of them dispatches on a required <c>action</c> parameter whose type is an action enum.

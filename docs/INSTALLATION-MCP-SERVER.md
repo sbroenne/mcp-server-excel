@@ -122,9 +122,8 @@ npx add-mcp "mcp-excel" --name excel-mcp
 This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more.
 
 ExcelMcp uses standard MCP SDK JSON Schemas, including nullable types and
-mixed-type cell arrays. Client auto-configuration does not guarantee support for
-these schemas: Gemini-specific schema workarounds are not provided. Clients that
-accept only a restricted schema subset may reject tools.
+mixed-type cell arrays. Clients must support these schemas; auto-configuration
+alone does not guarantee compatibility.
 
 Use flags to customize:
 
@@ -409,8 +408,6 @@ the request received by the server with the request before the bridge. A client
 display saying the ID was supplied does not establish what reached the server.
 Check the key name, its location, and whether its value is a non-empty string.
 Missing-session diagnostics cannot restore an argument dropped by a client.
-See [#850](https://github.com/sbroenne/mcp-server-excel/issues/850) and
-[#854](https://github.com/sbroenne/mcp-server-excel/issues/854).
 
 Use only a disposable workbook for diagnosis. Do not publish raw logs or real
 session IDs, workbook paths, cell contents, or credentials. Share a sanitized

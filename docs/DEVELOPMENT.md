@@ -159,9 +159,9 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --f
 ### **Test Categories & Guidelines**
 
 Use real Excel integration tests for COM behavior and focused non-COM tests for
-pure parsing, mapping, serialization, and generation. The blanket unit-test ban
-in [ADR-001](ADR-001-NO-UNIT-TESTS.md) is superseded by the
-[current testing strategy](../.github/instructions/testing-strategy.instructions.md).
+pure parsing, mapping, serialization, and generation. Follow the
+[testing strategy](../.github/instructions/testing-strategy.instructions.md)
+for test selection and required checks.
 
 **Integration Tests (`Category=Integration`)**
 - ✅ Test business logic with real Excel COM interaction
