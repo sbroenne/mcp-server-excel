@@ -222,7 +222,7 @@ public class Program
                     - Check visibility with window(action:'get-info') if unsure
                     """;
             })
-            .WithGeminiCompatibleToolsFromAssembly()
+            .WithToolsFromAssembly()
             .WithRequestFilters(filters => filters.AddCallToolFilter(SessionIdentityFilter.Wrap))
             .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
 

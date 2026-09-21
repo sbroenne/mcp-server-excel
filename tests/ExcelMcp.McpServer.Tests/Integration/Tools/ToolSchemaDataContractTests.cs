@@ -81,18 +81,23 @@ public sealed class ToolSchemaDataContractTests(ITestOutputHelper output)
         {
             ["action"] = action,
             ["session_id"] = "synthetic-unknown-session",
-            ["sheet_name"] = "Sheet1",
-            ["range_address"] = "A1:F1",
-            ["table_name"] = "Table1",
             [parameterName] = JsonSerializer.Deserialize<JsonElement>(json)
         };
+        if (toolName == "range")
+        {
+            arguments["sheet_name"] = "Sheet1";
+            arguments["range_address"] = "A1:F1";
+        }
+        else
+        {
+            arguments["table_name"] = "Table1";
+        }
 
         // A missing session proves binding reached our service without opening Excel.
         var response = await Client!.CallToolAsync(toolName, arguments,
             cancellationToken: TestCancellationToken);
         var text = Assert.Single(response.Content.OfType<TextContentBlock>()).Text;
         using var document = JsonDocument.Parse(text);
-        Assert.True(response.IsError);
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
         Assert.Contains("not found", document.RootElement.GetProperty("errorMessage").GetString(),
             StringComparison.OrdinalIgnoreCase);

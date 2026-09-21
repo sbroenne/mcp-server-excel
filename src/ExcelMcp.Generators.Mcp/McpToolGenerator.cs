@@ -384,8 +384,8 @@ public class McpToolGenerator : IIncrementalGenerator
                 {
                     // IMPORTANT: keep optional [FromString] enums as strings in MCP.
                     // The MCP SDK emits a nullable sentinel in enum schemas for nullable enum parameters,
-                    // which strict clients (for example Gemini) reject. ServiceRegistry already parses the
-                    // raw string into the enum, so this preserves behavior and CLI/MCP parity.
+                    // which is not a valid action-specific enum value. ServiceRegistry already parses
+                    // the raw string into the enum, so this preserves behavior and CLI/MCP parity.
                     result.Add(new McpParameter(
                         name: snakeName,
                         mcpTypeName: "string?",

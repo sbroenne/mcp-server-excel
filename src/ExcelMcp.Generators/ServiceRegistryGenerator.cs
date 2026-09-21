@@ -710,10 +710,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Returns a short alias for backward compatibility with pre-generator CLI parameter names.
-    /// Before code generation, CLI used short names like --sheet and --range.
-    /// Now generator creates kebab-case from Core camelCase (e.g., sheetName -> --sheet-name).
-    /// This method provides short aliases to maintain backward compatibility.
+    /// Returns a current CLI convenience alias such as --sheet or --range alongside the
+    /// kebab-case option generated from the Core parameter (e.g., sheetName -> --sheet-name).
     /// </summary>
     private static string? GetShortAlias(string parameterName)
     {
@@ -778,7 +776,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 escapedDescription += $" Whole seconds only; range {minimumSeconds}-2147483.";
             }
 
-            // Add short aliases for backward compatibility with pre-generator CLI parameter names
+            // Include current convenience aliases alongside the full parameter names.
             var shortAlias = GetShortAlias(p.Name);
             var optionSpec = shortAlias != null
                 ? $"--{shortAlias}|--{optionName} <{valuePlaceholder}>"
