@@ -184,6 +184,51 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseFlow_EveryConsumerAppliesGeneratedCounts()
+    {
+        var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
+        var jobs = ExtractWorkflowJobs(releaseWorkflow);
+
+        var expectedConsumers = new[]
+        {
+            "build-cli",
+            "build-mcp-server",
+            "build-vscode",
+            "build-mcpb",
+            "build-agent-skills",
+            "publish-mcp-registry",
+            "create-tag"
+        };
+
+        Assert.Contains("release-doc-counts.patch", jobs["prepare-release"], StringComparison.Ordinal);
+
+        var actualConsumers = jobs
+            .Where(job => job.Key != "prepare-release"
+                && job.Value.Contains("release-doc-counts.patch", StringComparison.Ordinal))
+            .Select(job => job.Key)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            expectedConsumers.OrderBy(name => name, StringComparer.Ordinal).ToArray(),
+            actualConsumers);
+
+        foreach (var consumer in expectedConsumers)
+        {
+            var job = jobs[consumer];
+            Assert.Contains("prepare-release", job, StringComparison.Ordinal);
+            Assert.Contains("name: release-metadata", job, StringComparison.Ordinal);
+            Assert.Contains("path: prepared-release", job, StringComparison.Ordinal);
+            Assert.Contains(
+                "git apply --whitespace=nowarn $patch.FullName",
+                job,
+                StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
     public async Task DocumentationCounts_UpdatePersistValidateAndRejectIncompatibleModes()
     {
         var sandbox = CreateSandbox();
@@ -515,6 +560,26 @@ public sealed class ReleaseMetadataScriptTests
         }
 
         return element.GetString()!;
+    }
+
+    private static Dictionary<string, string> ExtractWorkflowJobs(string workflow)
+    {
+        var normalized = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var jobsMarker = "\njobs:\n";
+        var jobsStart = normalized.IndexOf(jobsMarker, StringComparison.Ordinal);
+        Assert.True(jobsStart >= 0, "The workflow does not declare any jobs.");
+
+        var jobNames = System.Text.RegularExpressions.Regex
+            .Matches(normalized[jobsStart..], @"(?m)^  (?<name>[A-Za-z0-9_-]+):$")
+            .Select(match => match.Groups["name"].Value)
+            .ToArray();
+
+        Assert.NotEmpty(jobNames);
+
+        return jobNames.ToDictionary(
+            name => name,
+            name => ExtractWorkflowJob(normalized, name),
+            StringComparer.Ordinal);
     }
 
     private static string ExtractWorkflowJob(string workflow, string jobName)
