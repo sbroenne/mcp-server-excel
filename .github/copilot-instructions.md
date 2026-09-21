@@ -14,9 +14,10 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
   routing. Change contracts/generators, not emitted code. Follow a changed
   contract through both entry points, tests, and shared guidance.
 - Backwards compatibility is not required. Update callers, tests, and
-  documentation together rather than preserving obsolete aliases or branches
-  solely for compatibility. Keep aliases or adapters only when they serve a
-  current purpose; evaluate client-specific support separately.
+  documentation together; remove obsolete aliases, wrappers, and branches
+  rather than retaining them for existing callers. Use canonical CLI option
+  names, not repository-defined convenience aliases. Evaluate client-specific
+  support separately from backwards compatibility.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - `Success == true` requires an empty or null `ErrorMessage`.

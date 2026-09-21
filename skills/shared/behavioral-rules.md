@@ -172,7 +172,7 @@ After completing operations, report:
 
 ### Session Lifecycle
 
-Use `file(action: 'test')` or `excelcli -q session test <path>` before opening
+Use `file(action: 'test')` or `excelcli --quiet session test <path>` before opening
 when access or information protection is uncertain. The shared result reports
 `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
 IRM/AIP files report `canOpen:false` until the required interactive Excel
@@ -189,17 +189,16 @@ Always close sessions when done. MCP example:
 Pass that same value as `session_id` on every session-based MCP follow-up.
 `sessionId` above is a local variable, not an MCP argument name. For `file(list)`,
 copy the matching entry's `sessionId` value into `session_id`; never guess a session.
-The MCP server has a defensive bridge-compatibility fallback for a top-level
-`sessionId`, but agents must continue to send the canonical `session_id`.
-Compatibility use is recorded with a privacy-safe warning and telemetry signal.
+The MCP input name is `session_id`; a top-level `sessionId` is not a fallback.
+Bridges must forward the canonical name unchanged.
 
 CLI commands instead return `sessionId` and accept `--session`:
 
 ```powershell
-$session = excelcli -q session open C:\path\file.xlsx | ConvertFrom-Json
+$session = excelcli --quiet session open C:\path\file.xlsx | ConvertFrom-Json
 $sessionId = $session.sessionId
-excelcli -q workbook get-info --session $sessionId
-excelcli -q session close --session $sessionId --save
+excelcli --quiet workbook get-info --session $sessionId
+excelcli --quiet session close --session $sessionId --save
 ```
 
 CLI and MCP sessions are separate; IDs cannot be transferred between them.

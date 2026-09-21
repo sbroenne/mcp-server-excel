@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 

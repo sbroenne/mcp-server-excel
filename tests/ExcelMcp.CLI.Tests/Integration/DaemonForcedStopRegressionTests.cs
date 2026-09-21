@@ -142,7 +142,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact(Timeout = 60000)]
-    public async Task LegacyDaemonMutex_PreventsNewDaemonFromStarting()
+    public async Task LegacyDaemonMutex_DoesNotPreventCanonicalDaemonFromStarting()
     {
         var cliPath = CliProcessHelper.GetExePath();
         var pipeName = $"excelmcp-legacy-mutex-{Guid.NewGuid():N}";
@@ -155,18 +155,12 @@ public sealed class DaemonForcedStopRegressionTests
 
         try
         {
-            Assert.True(
-                daemon.WaitForExit(5000),
-                "A daemon must exit when a legacy daemon already owns the pipe lifetime mutex.");
-            Assert.Equal(0, daemon.ExitCode);
+            await WaitForDaemonReadyAsync(cliPath, pipeName);
+            Assert.False(daemon.HasExited);
         }
         finally
         {
-            if (!daemon.HasExited)
-            {
-                daemon.Kill(entireProcessTree: true);
-                await daemon.WaitForExitAsync();
-            }
+            await StopDaemonBestEffortAsync(cliPath, pipeName, daemon);
             DaemonProcessTracker.Clear(pipeName);
         }
     }
@@ -472,8 +466,8 @@ public sealed class DaemonForcedStopRegressionTests
                 daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
             var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
 
-            DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, [excel.Id]);
-            DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, []);
+            DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity, [GetIdentity(excel)]);
+            DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity, []);
             var trackedExcel = Assert.Single(
                 DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
             Assert.Equal(excel.Id, trackedExcel.ProcessId);
@@ -509,10 +503,10 @@ public sealed class DaemonForcedStopRegressionTests
                 pipeName,
                 daemon.Id,
                 daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
-            DaemonProcessTracker.UpdateExcelProcesses(
+            DaemonProcessTracker.RecordExcelProcesses(
                 pipeName,
                 daemonIdentity,
-                [excel.Id]);
+                [GetIdentity(excel)]);
 
             var cleanupResult =
                 await PreBuildProcessCleanup.CleanupWithGracefulShutdownAsync(
@@ -622,7 +616,7 @@ public sealed class DaemonForcedStopRegressionTests
             var daemonIdentity = RegisterTrackedProcesses(pipeName, daemon, excel);
             var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
 
-            DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, []);
+            DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity, []);
             var trackedExcel = Assert.Single(
                 DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
             Assert.Equal(excel.Id, trackedExcel.ProcessId);
@@ -687,7 +681,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public void UpdateExcelProcesses_DelayedOldGenerationDoesNotOverwriteReplacement()
+    public void TryRecordExcelProcesses_DelayedOldGenerationDoesNotOverwriteReplacement()
     {
         var pipeName = $"excelmcp-delayed-tracking-{Guid.NewGuid():N}";
         using var oldDaemon = StartSleepingProcess();
@@ -705,10 +699,10 @@ public sealed class DaemonForcedStopRegressionTests
                 replacementDaemon.Id,
                 replacementDaemon.StartTime.ToUniversalTime().ToFileTimeUtc());
 
-            DaemonProcessTracker.UpdateExcelProcesses(
+            Assert.False(DaemonProcessTracker.TryRecordExcelProcesses(
                 pipeName,
                 oldDaemonIdentity,
-                [oldExcel.Id]);
+                [GetIdentity(oldExcel)]));
 
             Assert.True(DaemonProcessTracker.TryGetProcessSnapshot(pipeName, out var snapshot));
             Assert.Equal(replacementDaemon.Id, snapshot.DaemonProcess.ProcessId);
@@ -858,7 +852,7 @@ public sealed class DaemonForcedStopRegressionTests
                 pipeName,
                 daemon.Id,
                 daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
-            DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, [excel.Id]);
+            DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity, [GetIdentity(excel)]);
             var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
 
             var method = typeof(ServiceStopCommand).GetMethod(
@@ -921,7 +915,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public void UpdateExcelProcesses_TransientInvalidRecord_DoesNotBreakLifecycle()
+    public void TryRecordExcelProcesses_TransientInvalidRecord_DoesNotBreakLifecycle()
     {
         var pipeName = $"excelmcp-tracker-update-test-{Guid.NewGuid():N}";
         var trackingFile = DaemonProcessTracker.GetTrackingFilePath(pipeName);
@@ -935,13 +929,10 @@ public sealed class DaemonForcedStopRegressionTests
                 currentProcess.Id,
                 currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
 
-            var exception = Record.Exception(() =>
-                DaemonProcessTracker.UpdateExcelProcesses(
+            Assert.False(DaemonProcessTracker.TryRecordExcelProcesses(
                     pipeName,
                     daemonIdentity,
-                    [Environment.ProcessId]));
-
-            Assert.Null(exception);
+                    [GetIdentity(currentProcess)]));
             Assert.True(File.Exists(trackingFile));
         }
         finally
@@ -1183,32 +1174,28 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task Cleanup_LegacyCaseSensitiveRecordUsesCaseInsensitivePipeIdentity()
+    public void ReadProcessSnapshot_LegacyCaseSensitiveRecordIsIgnored()
     {
         var legacyPipeName = $"excelmcp-legacy-tracker-{Guid.NewGuid():N}".ToLowerInvariant();
         var callerPipeName = legacyPipeName.ToUpperInvariant();
         var legacyTrackingFile = GetLegacyTrackingFilePath(legacyPipeName);
-        using var daemon = StartSleepingProcess();
-        using var excel = StartSleepingProcess();
+        using var process = Process.GetCurrentProcess();
 
         try
         {
-            WriteTrackingRecord(legacyTrackingFile, daemon, excel);
+            WriteTrackingRecord(legacyTrackingFile, process, process);
 
-            var result = await OwnedProcessCleanup.CleanupAsync(
-                callerPipeName,
-                CancellationToken.None);
+            var result = DaemonProcessTracker.ReadProcessSnapshot(callerPipeName);
 
-            Assert.True(result.Success);
-            Assert.True(result.DaemonMatched);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.True(excel.WaitForExit(5000));
-            Assert.False(File.Exists(legacyTrackingFile));
+            Assert.Equal(DaemonProcessTracker.TrackingRecordStatus.Missing, result.Status);
+            Assert.Null(result.Snapshot);
+            Assert.True(File.Exists(legacyTrackingFile));
+            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(callerPipeName)));
+            DaemonProcessTracker.Clear(callerPipeName);
+            Assert.True(File.Exists(legacyTrackingFile));
         }
         finally
         {
-            StopIfRunning(daemon);
-            StopIfRunning(excel);
             DaemonProcessTracker.Clear(legacyPipeName);
             DaemonProcessTracker.Clear(callerPipeName);
             File.Delete(legacyTrackingFile);
@@ -1216,12 +1203,12 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task Cleanup_LegacyCaseSensitiveRecordKeepsUnrelatedPipeIsolated()
+    public async Task Cleanup_CanonicalRecordKeepsUnrelatedPipeIsolated()
     {
         var selectedPipe = $"excelmcp-legacy-selected-{Guid.NewGuid():N}".ToLowerInvariant();
         var unrelatedPipe = $"excelmcp-legacy-unrelated-{Guid.NewGuid():N}".ToLowerInvariant();
-        var selectedTrackingFile = GetLegacyTrackingFilePath(selectedPipe);
-        var unrelatedTrackingFile = GetLegacyTrackingFilePath(unrelatedPipe);
+        var selectedTrackingFile = DaemonProcessTracker.GetTrackingFilePath(selectedPipe);
+        var unrelatedTrackingFile = DaemonProcessTracker.GetTrackingFilePath(unrelatedPipe);
         using var selectedDaemon = StartSleepingProcess();
         using var selectedExcel = StartSleepingProcess();
         using var unrelatedDaemon = StartSleepingProcess();
@@ -1257,13 +1244,16 @@ public sealed class DaemonForcedStopRegressionTests
         }
     }
 
-    [Fact]
-    public async Task TrackingMutex_LegacyCaseVariantSerializesCanonicalCaller()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TrackingMutex_OnlyCanonicalIdentitySerializesCaller(bool useLegacyMutex)
     {
         var legacyPipeName = $"excelmcp-legacy-lock-{Guid.NewGuid():N}".ToLowerInvariant();
         var callerPipeName = legacyPipeName.ToUpperInvariant();
-        var legacyMutexName =
-            $"ExcelMcpCliTracker_{DaemonPipeIdentity.GetCaseSensitiveHash(legacyPipeName)}";
+        var legacyMutexName = useLegacyMutex
+            ? $"ExcelMcpCliTracker_{GetCaseSensitiveHash(legacyPipeName)}"
+            : DaemonProcessTracker.GetTrackingMutexName(legacyPipeName);
         using var acquired = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         var holder = Task.Run(() =>
@@ -1293,8 +1283,15 @@ public sealed class DaemonForcedStopRegressionTests
                 Process.GetCurrentProcess().StartTime.ToUniversalTime().ToFileTimeUtc()));
         try
         {
-            await Task.Delay(250);
-            Assert.False(registration.IsCompleted);
+            if (useLegacyMutex)
+            {
+                await registration.WaitAsync(TimeSpan.FromSeconds(2));
+            }
+            else
+            {
+                await Task.Delay(250);
+                Assert.False(registration.IsCompleted);
+            }
         }
         finally
         {
@@ -1371,9 +1368,12 @@ public sealed class DaemonForcedStopRegressionTests
             pipeName,
             daemon.Id,
             daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
-        DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, [excel.Id]);
+        DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity, [GetIdentity(excel)]);
         return daemonIdentity;
     }
+
+    private static DaemonProcessTracker.ProcessIdentity GetIdentity(Process process) =>
+        new(process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc());
 
     private static async Task<CliResult> RunServiceStopAsync(string pipeName)
     {
@@ -1409,7 +1409,11 @@ public sealed class DaemonForcedStopRegressionTests
     private static string GetLegacyTrackingFilePath(string pipeName) =>
         Path.Combine(
             Path.GetDirectoryName(DaemonProcessTracker.GetTrackingFilePath(pipeName))!,
-            $"{DaemonPipeIdentity.GetCaseSensitiveHash(pipeName)}.json");
+            $"{GetCaseSensitiveHash(pipeName)}.json");
+
+    private static string GetCaseSensitiveHash(string pipeName) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(pipeName)));
 
     private static void WriteTrackingRecord(
         string trackingFile,

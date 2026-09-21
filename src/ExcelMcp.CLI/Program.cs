@@ -10,23 +10,20 @@ namespace Sbroenne.ExcelMcp.CLI;
 
 internal sealed class Program
 {
-    private static readonly string[] VersionFlags = ["--version", "-v"];
-    private static readonly string[] QuietFlags = ["--quiet", "-q"];
-
     private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         // Determine if we should show the banner:
-        // - Not when --quiet/-q flag is passed
+        // - Not when --quiet is passed
         // - Not when output is redirected (piped to another process or file)
-        var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
+        var isQuiet = args.Any(arg => string.Equals(arg, "--quiet", StringComparison.OrdinalIgnoreCase));
         var isPiped = Console.IsOutputRedirected;
         var showBanner = !isQuiet && !isPiped;
         var jsonOutputMode = isQuiet || isPiped;
 
-        // Remove --quiet/-q from args before passing to Spectre.Console.Cli
-        var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
+        // Remove --quiet from args before passing to Spectre.Console.Cli
+        var filteredArgs = args.Where(arg => !string.Equals(arg, "--quiet", StringComparison.OrdinalIgnoreCase)).ToArray();
 
         if (filteredArgs.Length == 0)
         {
@@ -35,7 +32,7 @@ internal sealed class Program
             return 0;
         }
 
-        if (filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
+        if (filteredArgs.Any(arg => string.Equals(arg, "--version", StringComparison.OrdinalIgnoreCase)))
         {
             return await HandleVersionAsync();
         }
@@ -252,49 +249,6 @@ internal sealed class Program
                 return 0;
             }
         }
-        Mutex? legacyDaemonMutex = null;
-        var ownsLegacyDaemonMutex = false;
-        try
-        {
-            legacyDaemonMutex = new Mutex(
-                initiallyOwned: true,
-                DaemonStartupLock.GetLegacyDaemonMutexName(pipeName),
-                out var legacyCreatedNew);
-            ownsLegacyDaemonMutex = legacyCreatedNew;
-            if (!legacyCreatedNew)
-            {
-                try
-                {
-                    ownsLegacyDaemonMutex = legacyDaemonMutex.WaitOne(TimeSpan.Zero);
-                }
-                catch (AbandonedMutexException)
-                {
-                    ownsLegacyDaemonMutex = true;
-                }
-            }
-
-            if (!ownsLegacyDaemonMutex)
-            {
-                legacyDaemonMutex.Dispose();
-                if (ownsDaemonMutex)
-                {
-                    daemonMutex.ReleaseMutex();
-                }
-                daemonMutex.Dispose();
-                return 0;
-            }
-        }
-        catch (IOException)
-        {
-            legacyDaemonMutex?.Dispose();
-            legacyDaemonMutex = null;
-        }
-        catch (ArgumentException)
-        {
-            legacyDaemonMutex?.Dispose();
-            legacyDaemonMutex = null;
-        }
-
         var daemonIdentity = DaemonProcessTracker.RegisterCurrentProcess(pipeName);
         Action<ExcelProcessIdentity> excelProcessTracker =
             process => DaemonProcessTracker.RecordExcelProcesses(
@@ -376,9 +330,6 @@ internal sealed class Program
             SessionManager.ExcelProcessIdentityTracked -= excelProcessTracker;
 
             // Release the daemon mutex so a new daemon can start if needed.
-            if (ownsLegacyDaemonMutex)
-                legacyDaemonMutex!.ReleaseMutex();
-            legacyDaemonMutex?.Dispose();
             if (ownsDaemonMutex)
                 daemonMutex.ReleaseMutex();
             daemonMutex.Dispose();

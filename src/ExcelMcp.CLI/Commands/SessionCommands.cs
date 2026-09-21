@@ -2,9 +2,9 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
-using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -165,7 +165,7 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
 
     internal sealed class Settings : CommandSettings
     {
-        [CommandOption("-s|--session <SESSION>")]
+        [CommandOption("--session <SESSION>")]
         [Description("Session ID to close")]
         public string SessionId { get; init; } = string.Empty;
 

@@ -2,8 +2,8 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Generated;
-using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -20,11 +20,11 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 {
     internal sealed class Settings : CommandSettings
     {
-        [CommandOption("-i|--input <FILE>")]
+        [CommandOption("--input <FILE>")]
         [Description("JSON file with command array. Use '-' for stdin (NDJSON, one command per line). If omitted, reads from stdin.")]
         public string? InputFile { get; init; }
 
-        [CommandOption("-s|--session <SESSION>")]
+        [CommandOption("--session <SESSION>")]
         [Description("Default session ID for all commands. Overridden by per-command sessionId. Auto-captured from session.open/create if not set.")]
         public string? SessionId { get; init; }
 

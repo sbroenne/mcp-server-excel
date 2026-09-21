@@ -37,7 +37,7 @@ def cli_daemon() -> Generator[subprocess.Popen, None, None]:
     for i in range(20):
         try:
             result = subprocess.run(
-                [str(exe), "-q", "service", "status"],
+                [str(exe), "--quiet", "service", "status"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -57,7 +57,7 @@ def cli_daemon() -> Generator[subprocess.Popen, None, None]:
     # Stop daemon gracefully
     try:
         subprocess.run(
-            [str(exe), "-q", "service", "stop"],
+            [str(exe), "--quiet", "service", "stop"],
             capture_output=True,
             timeout=5,
             creationflags=subprocess.CREATE_NO_WINDOW,

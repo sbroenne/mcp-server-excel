@@ -135,15 +135,15 @@ public class SkillMdQualityTests
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_UsesLiveCliOptionAliases()
+    public void CliCommandReference_UsesCanonicalCliOptionNames()
     {
         var referencePath = Path.Combine(SkillsFolder, "excel-cli", "references", "cli-commands.md");
         var content = File.ReadAllText(referencePath);
 
-        Assert.Contains("`--sheet`", content);
-        Assert.Contains("`--range`", content);
-        Assert.DoesNotContain("`--sheet-name`", content);
-        Assert.DoesNotContain("`--range-address`", content);
+        Assert.Contains("`--sheet-name`", content);
+        Assert.Contains("`--range-address`", content);
+        Assert.DoesNotContain("`--sheet`", content);
+        Assert.DoesNotContain("`--range`", content);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class SkillMdQualityTests
         var content = File.ReadAllText(skillPath);
 
         Assert.Contains("./references/cli-commands.md", content);
-        Assert.Contains("excelcli -q <command> <action>", content);
+        Assert.Contains("excelcli --quiet <command> <action>", content);
         Assert.DoesNotContain("### calculationmode", content);
         Assert.DoesNotContain("| Parameter | Description |", content);
         Assert.DoesNotContain("--sheet-name", content);

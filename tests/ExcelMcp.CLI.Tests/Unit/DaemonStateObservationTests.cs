@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 public sealed class DaemonStateObservationTests
 {
     [Fact]
-    public async Task IsDaemonMutexHeld_LegacyDaemonMutexIsHeld_ReturnsTrue()
+    public async Task IsDaemonMutexHeld_LegacyDaemonMutexIsHeld_ReturnsFalse()
     {
         var pipeName = $"legacy-daemon-{Guid.NewGuid():N}";
         using var acquired = new ManualResetEventSlim();
@@ -38,7 +38,7 @@ public sealed class DaemonStateObservationTests
         Assert.True(acquired.Wait(TimeSpan.FromSeconds(5)));
         try
         {
-            Assert.True(DaemonAutoStart.IsDaemonMutexHeld(pipeName));
+            Assert.False(DaemonAutoStart.IsDaemonMutexHeld(pipeName));
         }
         finally
         {
@@ -48,7 +48,7 @@ public sealed class DaemonStateObservationTests
     }
 
     [Fact]
-    public async Task IsDaemonMutexHeld_LegacyDaemonMutexUsesCaseInsensitivePipeIdentity()
+    public async Task IsDaemonMutexHeld_CanonicalDaemonMutexUsesCaseInsensitivePipeIdentity()
     {
         var legacyPipeName = $"legacy-daemon-case-{Guid.NewGuid():N}".ToLowerInvariant();
         var callerPipeName = legacyPipeName.ToUpperInvariant();
@@ -58,7 +58,7 @@ public sealed class DaemonStateObservationTests
         {
             using var legacyMutex = new Mutex(
                 initiallyOwned: false,
-                $"ExcelMcpCli_{legacyPipeName}",
+                DaemonStartupLock.GetDaemonMutexName(legacyPipeName),
                 out var createdNew);
             Assert.True(createdNew);
             legacyMutex.WaitOne();

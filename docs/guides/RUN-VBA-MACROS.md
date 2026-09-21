@@ -36,10 +36,10 @@ per-Office-install setting, so remote and CI machines need it too.
 ## Inspect before you run
 
 ```powershell
-$session = (excelcli -q session open C:\books\report.xlsm | ConvertFrom-Json).sessionId
+$session = (excelcli --quiet session open C:\books\report.xlsm | ConvertFrom-Json).sessionId
 
-excelcli -q vba list --session $session
-excelcli -q vba view --session $session --module-name Module1
+excelcli --quiet vba list --session $session
+excelcli --quiet vba view --session $session --module-name Module1
 ```
 
 `list` returns every module, class module, form, and document module. `view`
@@ -48,7 +48,7 @@ returns the full source of one module.
 ## Run a macro
 
 ```powershell
-excelcli -q vba run --session $session --procedure-name "Module1.GenerateReport" --timeout 120
+excelcli --quiet vba run --session $session --procedure-name "Module1.GenerateReport" --timeout 120
 ```
 
 The procedure name uses `Module.Procedure` form. Pass arguments with
@@ -60,8 +60,8 @@ hold the session until the default limit expires.
 ## Add or update code
 
 ```powershell
-excelcli -q vba update --session $session --module-name Module1 --vba-code $code
-excelcli -q vba import --session $session --module-name Helpers --vba-code-file .\Helpers.bas
+excelcli --quiet vba update --session $session --module-name Module1 --vba-code $code
+excelcli --quiet vba import --session $session --module-name Helpers --vba-code-file .\Helpers.bas
 ```
 
 `update` replaces the whole module body. `import` adds a module from a `.bas`
@@ -77,8 +77,8 @@ silently discards it. If you are adding VBA to an `.xlsx`, save-as `.xlsm` first
 After running a macro, check the effect rather than trusting a success flag:
 
 ```powershell
-excelcli -q range get-values --session $session --sheet Summary --range A1:D20
-excelcli -q screenshot capture-sheet --session $session --sheet Summary
+excelcli --quiet range get-values --session $session --sheet-name Summary --range-address A1:D20
+excelcli --quiet screenshot capture-sheet --session $session --sheet-name Summary
 ```
 
 ## Known gotchas

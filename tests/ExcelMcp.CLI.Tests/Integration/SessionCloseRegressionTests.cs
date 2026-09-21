@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Sbroenne.ExcelMcp.Service;

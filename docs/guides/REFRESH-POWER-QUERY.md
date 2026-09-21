@@ -36,9 +36,9 @@ know the operation names — but they are useful when scripting.
 === "CLI"
 
     ```powershell
-    $session = (excelcli -q session open C:\reports\Q3-report.xlsx | ConvertFrom-Json).sessionId
-    excelcli -q powerquery refresh --session $session --query-name SalesData --timeout 300
-    excelcli -q session close --session $session --save
+    $session = (excelcli --quiet session open C:\reports\Q3-report.xlsx | ConvertFrom-Json).sessionId
+    excelcli --quiet powerquery refresh --session $session --query-name SalesData --timeout 300
+    excelcli --quiet session close --session $session --save
     ```
 
 Public timeout values are always integer seconds. `refresh` defaults to a
@@ -63,7 +63,7 @@ passing `timeout` is rejected as action-inapplicable rather than ignored.
 Use the `refresh-all` action to refresh every query in the workbook:
 
 ```powershell
-excelcli -q powerquery refresh-all --session $session
+excelcli --quiet powerquery refresh-all --session $session
 ```
 
 ## Test M code before you save it
@@ -96,9 +96,9 @@ fails with "Query 'X' already exists", and `update` fails with "not found". Run
 Always confirm rather than assuming:
 
 ```powershell
-excelcli -q powerquery list --session $session          # load state per query
-excelcli -q powerquery get-load-config --session $session --query-name SalesData
-excelcli -q datamodel list-tables --session $session    # if loading to the Data Model
+excelcli --quiet powerquery list --session $session          # load state per query
+excelcli --quiet powerquery get-load-config --session $session --query-name SalesData
+excelcli --quiet datamodel list-tables --session $session    # if loading to the Data Model
 ```
 
 In `list` output, `IsConnectionOnly = true` means the query has **no** data

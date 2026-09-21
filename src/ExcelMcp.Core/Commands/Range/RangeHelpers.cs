@@ -68,16 +68,6 @@ public static class RangeHelpers
     }
 
     /// <summary>
-    /// Resolves a range address to a Range COM object (backward compatibility).
-    /// Supports both regular ranges (Sheet1!A1:D10) and named ranges.
-    /// </summary>
-    public static dynamic? ResolveRange(dynamic book, string sheetName, string rangeAddress)
-    {
-        string? ignoredError;
-        return ResolveRange(book, sheetName, rangeAddress, out ignoredError);
-    }
-
-    /// <summary>
     /// Gets appropriate error message for range resolution failure
     /// </summary>
     public static string GetResolveError(string sheetName, string rangeAddress)
@@ -142,10 +132,10 @@ public partial class RangeCommands
             dynamic? range = null;
             try
             {
-                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress);
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    throw new InvalidOperationException(RangeHelpers.GetResolveError(sheetName, rangeAddress));
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 clearAction(range);
@@ -241,4 +231,3 @@ public partial class RangeCommands
         });
     }
 }
-

@@ -60,7 +60,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "loadDestination",
         "work-sheet")]
     [InlineData(
-        "powerquery load-to --session missing-session --query-name Probe --load-destination worksheet --timeout 30",
+        "powerquery load-to --session missing-session --query-name Probe --load-destination load-to-table --timeout 30",
         "timeout",
         "load-to")]
     [InlineData(
@@ -72,15 +72,15 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "timeout",
         "2147483")]
     [InlineData(
-        "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2 --chart-type 999",
+        "chart create-from-range --session missing-session --sheet-name Model --source-range-address A1:B2 --chart-type 999",
         "chartType",
         "999")]
     [InlineData(
-        "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2 --chart-type 51",
+        "chart create-from-range --session missing-session --sheet-name Model --source-range-address A1:B2 --chart-type 51",
         "chartType",
         "51")]
     [InlineData(
-        "chart create-from-range --session missing-session --sheet Model --source-range-address A1:B2",
+        "chart create-from-range --session missing-session --sheet-name Model --source-range-address A1:B2",
         "chartType",
         "required")]
     public async Task DirectCommand_RejectsInvalidGeneratedContractBeforeDaemonDispatch(
@@ -239,10 +239,10 @@ public sealed class GeneratedActionContractCliTests : IDisposable
 
     [Theory]
     [InlineData(
-        "powerquery load-to --session missing-session --query-name Probe --load-destination worksheet")]
+        "powerquery load-to --session missing-session --query-name Probe --load-destination load-to-table")]
     [InlineData(
-        "powerquery load-to --session missing-session --query-name Probe --load-destination WORKSHEET")]
-    public async Task DirectCommand_AcceptsExactAliasIgnoringCase(string arguments)
+        "powerquery load-to --session missing-session --query-name Probe --load-destination LOAD-TO-TABLE")]
+    public async Task DirectCommand_AcceptsCanonicalLoadDestinationIgnoringCase(string arguments)
     {
         var result = await CliProcessHelper.RunAsync(arguments);
 
@@ -253,9 +253,9 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     }
 
     [Theory]
-    [InlineData("worksheet")]
-    [InlineData("WORKSHEET")]
-    public async Task RawBatch_AcceptsExactAliasIgnoringCase(string loadDestination)
+    [InlineData("load-to-table")]
+    [InlineData("LOAD-TO-TABLE")]
+    public async Task RawBatch_AcceptsCanonicalLoadDestinationIgnoringCase(string loadDestination)
     {
         var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(inputPath, JsonSerializer.Serialize(new[]
@@ -275,6 +275,42 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         var error = output.RootElement.GetProperty("error").GetString();
         Assert.Contains("session", error, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Invalid value", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("worksheet")]
+    [InlineData("WORKSHEET")]
+    [InlineData("table")]
+    [InlineData("data-model")]
+    [InlineData("datamodel")]
+    [InlineData("both")]
+    public async Task DirectAndBatch_RejectRemovedLoadDestinationAliases(string loadDestination)
+    {
+        var direct = await CliProcessHelper.RunAsync(
+            $"powerquery load-to --session missing-session --query-name Probe --load-destination {loadDestination}");
+
+        Assert.Equal(1, direct.ExitCode);
+        Assert.Contains("Invalid value", direct.Stdout + direct.Stderr, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("loadDestination", direct.Stdout + direct.Stderr, StringComparison.OrdinalIgnoreCase);
+
+        var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(inputPath, JsonSerializer.Serialize(new[]
+        {
+            new
+            {
+                command = "powerquery.load-to",
+                sessionId = "missing-session",
+                args = new { queryName = "Probe", loadDestination }
+            }
+        }));
+
+        var batch = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+
+        Assert.Equal(1, batch.ExitCode);
+        using var output = JsonDocument.Parse(batch.Stdout.Trim());
+        var error = output.RootElement.GetProperty("error").GetString();
+        Assert.Contains("Invalid value", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("loadDestination", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

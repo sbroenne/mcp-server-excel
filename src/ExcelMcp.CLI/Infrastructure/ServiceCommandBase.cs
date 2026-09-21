@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;

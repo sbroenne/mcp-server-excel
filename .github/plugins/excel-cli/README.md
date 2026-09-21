@@ -112,24 +112,24 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ```powershell
 # Create new workbook
-excelcli -q session create C:\Reports\Sales.xlsx
+excelcli --quiet session create C:\Reports\Sales.xlsx
 
 # Write headers
-excelcli -q range set-values --session <id> --sheet Sheet1 `
-  --range A1:C1 `
+excelcli --quiet range set-values --session <id> --sheet-name Sheet1 `
+  --range-address A1:C1 `
   --values '[["Date","Product","Revenue"]]'
 
 # Write data rows
-excelcli -q range set-values --session <id> --sheet Sheet1 `
-  --range A2:C3 `
+excelcli --quiet range set-values --session <id> --sheet-name Sheet1 `
+  --range-address A2:C3 `
   --values '[["2024-01-15","Widget",1500],["2024-01-16","Gadget",2300]]'
 
 # Create Excel Table
-excelcli -q table create --session <id> --sheet Sheet1 `
-  --table-name SalesData --range A1:C3
+excelcli --quiet table create --session <id> --sheet-name Sheet1 `
+  --table-name SalesData --range-address A1:C3
 
 # Save and close
-excelcli -q session close --session <id> --save
+excelcli --quiet session close --session <id> --save
 ```
 
 ---
@@ -138,7 +138,7 @@ excelcli -q session close --session <id> --save
 
 - **Real Excel Engine** — Drives the actual Excel application via COM, so live operations run for real and existing workbooks stay intact
 - **Session Management** — Open once, run many operations, close cleanly
-- **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
+- **Quiet Mode** (`--quiet`) — JSON output only, perfect for scripting
 - **Built-in Help** — `excelcli --help` and `excelcli <command> --help`
 - **Runtime Bootstrap** — Uses the persistent plugin cache and resolves release freshness once per Copilot chat session
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for sign-in

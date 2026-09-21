@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
+
 namespace Sbroenne.ExcelMcp.Service.Rpc;
 
 /// <summary>

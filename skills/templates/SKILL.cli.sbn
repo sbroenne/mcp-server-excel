@@ -38,11 +38,11 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 | 3. Write data | See below | If writing values |
 | 4. Save & close | `session close --save` | Always last |
 
-> **10+ commands?** Use `excelcli -q batch --input commands.json` — sends all commands in one process with automatic session management. See Rule 8.
+> **10+ commands?** Use `excelcli --quiet batch --input commands.json` — sends all commands in one process with automatic session management. See Rule 8.
 
 **Writing Data (Step 3):**
 - `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
-- Write **one row at a time** for reliability: `--range A1:B1 --values '[["Name","Age"]]'`
+- Write **one row at a time** for reliability: `--range-address A1:B1 --values '[["Name","Age"]]'`
 - Strings MUST be double-quoted in JSON: `"text"`. Numbers are bare: `42`
 - Always wrap the entire JSON value in single quotes to protect special characters
 
@@ -56,9 +56,9 @@ Execute commands to discover the answer instead:
 
 | DON'T ASK | DO THIS INSTEAD |
 |-----------|-----------------|
-| "Which file should I use?" | `excelcli -q session list` |
-| "What table should I use?" | `excelcli -q table list --session <id>` |
-| "Which sheet has the data?" | `excelcli -q sheet list --session <id>` |
+| "Which file should I use?" | `excelcli --quiet session list` |
+| "What table should I use?" | `excelcli --quiet table list --session <id>` |
+| "Which sheet has the data?" | `excelcli --quiet sheet list --session <id>` |
 
 **You have commands to answer your own questions. USE THEM.**
 
@@ -71,10 +71,10 @@ Execute commands to discover the answer instead:
 **Creating vs Opening Files:**
 ```powershell
 # NEW file - use session create
-excelcli -q session create C:\path\newfile.xlsx  # Creates file + returns session ID
+excelcli --quiet session create C:\path\newfile.xlsx  # Creates file + returns session ID
 
 # EXISTING file - use session open
-excelcli -q session open C:\path\existing.xlsx   # Opens file + returns session ID
+excelcli --quiet session open C:\path\existing.xlsx   # Opens file + returns session ID
 ```
 
 **CRITICAL: Use `session create` for new files. `session open` on non-existent files will fail!**
@@ -83,9 +83,9 @@ excelcli -q session open C:\path\existing.xlsx   # Opens file + returns session 
 
 ```powershell
 # Example: capture session ID from output, then use it
-excelcli -q session create C:\path\file.xlsx     # Returns JSON with sessionId
-excelcli -q range set-values --session <returned-session-id> ...
-excelcli -q session close --session <returned-session-id> --save
+excelcli --quiet session create C:\path\file.xlsx     # Returns JSON with sessionId
+excelcli --quiet range set-values --session <returned-session-id> ...
+excelcli --quiet session close --session <returned-session-id> --save
 ```
 
 **Unclosed sessions leave Excel processes running, locking files.**
@@ -95,8 +95,8 @@ excelcli -q session close --session <returned-session-id> --save
 DAX operations require tables in the Data Model:
 
 ```powershell
-excelcli -q table add-to-data-model --session <id> --table-name Sales  # Step 1
-excelcli -q datamodel create-measure --session <id> ...               # Step 2 - NOW works
+excelcli --quiet table add-to-data-model --session <id> --table-name Sales  # Step 1
+excelcli --quiet datamodel create-measure --session <id> ...               # Step 2 - NOW works
 ```
 
 ### Rule 5: Power Query Development Lifecycle
@@ -105,20 +105,20 @@ excelcli -q datamodel create-measure --session <id> ...               # Step 2 -
 
 ```powershell
 # Step 1: Create/open a session and capture the session ID
-$session = excelcli -q session create C:\path\file.xlsx | ConvertFrom-Json
+$session = excelcli --quiet session create C:\path\file.xlsx | ConvertFrom-Json
 $sessionId = $session.sessionId
 
 # Step 2: Test M code without persisting (catches errors early)
-excelcli -q powerquery evaluate --session $sessionId --m-code-file query.m
+excelcli --quiet powerquery evaluate --session $sessionId --m-code-file query.m
 
 # Step 3: Create permanent query with validated code
-excelcli -q powerquery create --session $sessionId --query-name Q1 --m-code-file query.m
+excelcli --quiet powerquery create --session $sessionId --query-name Q1 --m-code-file query.m
 
 # Step 4: Load data to destination
-excelcli -q powerquery refresh --session $sessionId --query-name Q1
+excelcli --quiet powerquery refresh --session $sessionId --query-name Q1
 
 # Step 5: Close session
-excelcli -q session close --session $sessionId --save
+excelcli --quiet session close --session $sessionId --save
 ```
 
 ### Rule 6: Report File Errors Immediately
@@ -131,24 +131,24 @@ When writing many values/formulas (10+ cells), disable auto-recalc for performan
 
 ```powershell
 # 1. Create/open a session and capture the session ID
-$session = excelcli -q session create C:\path\file.xlsx | ConvertFrom-Json
+$session = excelcli --quiet session create C:\path\file.xlsx | ConvertFrom-Json
 $sessionId = $session.sessionId
 
 # 2. Set manual mode
-excelcli -q calculationmode set-mode --session $sessionId --mode manual
+excelcli --quiet calculationmode set-mode --session $sessionId --mode manual
 
 # 3. Write data row by row for reliability
-excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A1:B1 --values '[["Name","Amount"]]'
-excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A2:B2 --values '[["Salary",5000]]'
+excelcli --quiet range set-values --session $sessionId --sheet-name Sheet1 --range-address A1:B1 --values '[["Name","Amount"]]'
+excelcli --quiet range set-values --session $sessionId --sheet-name Sheet1 --range-address A2:B2 --values '[["Salary",5000]]'
 
 # 4. Recalculate once at end
-excelcli -q calculationmode calculate --session $sessionId --scope workbook
+excelcli --quiet calculationmode calculate --session $sessionId --scope workbook
 
 # 5. Restore automatic mode
-excelcli -q calculationmode set-mode --session $sessionId --mode automatic
+excelcli --quiet calculationmode set-mode --session $sessionId --mode automatic
 
 # 6. Close session
-excelcli -q session close --session $sessionId --save
+excelcli --quiet session close --session $sessionId --save
 ```
 
 ### Rule 8: Use Batch Mode for Bulk Operations (10+ commands)
@@ -167,7 +167,7 @@ When executing 10+ commands on the same file, use `excelcli batch` to send all c
 '@ | Set-Content commands.json
 
 # Execute all commands at once
-excelcli -q batch --input commands.json
+excelcli --quiet batch --input commands.json
 ```
 
 **Key features:**
@@ -177,14 +177,14 @@ excelcli -q batch --input commands.json
 - **`--session <id>`**: Pre-set session ID for all commands (skip session.open)
 
 **Input formats:**
-- JSON array from file: `excelcli -q batch --input commands.json`
-- NDJSON from stdin: `Get-Content commands.ndjson | excelcli -q batch`
+- JSON array from file: `excelcli --quiet batch --input commands.json`
+- NDJSON from stdin: `Get-Content commands.ndjson | excelcli --quiet batch`
 
 ## CLI Command Reference
 
 **Full reference:** See [CLI command reference and common pitfalls](./references/cli-commands.md), or run `excelcli <command> --help` for live help from the installed runtime.
 
-**Syntax rule:** CLI commands use `excelcli -q <command> <action> --session <id> --kebab-case-flags ...`. Do not use MCP call syntax such as `range(action: ...)`, snake_case parameters, or underscore tool names. The CLI command names remove MCP underscores: `calculation_mode` becomes `calculationmode`, `range_format` becomes `rangeformat`, `chart_config` becomes `chartconfig`, and `data_model` becomes `datamodel`.
+**Syntax rule:** CLI commands use `excelcli --quiet <command> <action> --session <id> --kebab-case-flags ...`. Do not use MCP call syntax such as `range(action: ...)`, snake_case parameters, or underscore tool names. The CLI command names remove MCP underscores: `calculation_mode` becomes `calculationmode`, `range_format` becomes `rangeformat`, `chart_config` becomes `chartconfig`, and `data_model` becomes `datamodel`.
 
 Available command groups:
 

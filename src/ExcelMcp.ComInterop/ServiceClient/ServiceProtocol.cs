@@ -4,9 +4,7 @@ using System.Text.Json.Serialization;
 namespace Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 
 /// <summary>
-/// Protocol messages for CLI/MCP-to-service communication over named pipes.
-/// Pattern: Client sends JSON request → Service executes → Returns JSON response.
-/// All messages are newline-delimited JSON.
+/// Shared serialization for CLI daemon and in-process MCP service contracts.
 /// </summary>
 public static class ServiceProtocol
 {
@@ -84,4 +82,19 @@ public sealed class ServiceResponse
     public string? Result { get; init; }
 }
 
-
+/// <summary>
+/// Service status information.
+/// </summary>
+public sealed class ServiceStatus
+{
+    /// <summary>Whether the service is running.</summary>
+    public bool Running { get; init; }
+    /// <summary>Process ID of the service.</summary>
+    public int ProcessId { get; init; }
+    /// <summary>Number of active sessions.</summary>
+    public int SessionCount { get; init; }
+    /// <summary>UTC time when the service started.</summary>
+    public DateTime StartTime { get; init; }
+    /// <summary>Elapsed time since startup, or zero when stopped.</summary>
+    public TimeSpan Uptime => Running ? DateTime.UtcNow - StartTime : TimeSpan.Zero;
+}

@@ -10,6 +10,30 @@ public partial class RangeCommandsTests
 {
     // === CLEAR OPERATIONS TESTS ===
 
+    [Theory]
+    [InlineData("all")]
+    [InlineData("contents")]
+    [InlineData("formats")]
+    public void Clear_InvalidRange_PreservesSpecificResolutionError(string clearAction)
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+        {
+            _ = clearAction switch
+            {
+                "all" => _commands.ClearAll(batch, sheetName, "NotARange"),
+                "contents" => _commands.ClearContents(batch, sheetName, "NotARange"),
+                "formats" => _commands.ClearFormats(batch, sheetName, "NotARange"),
+                _ => throw new ArgumentOutOfRangeException(nameof(clearAction))
+            };
+        });
+
+        Assert.Contains($"Sheet '{sheetName}' exists, but range 'NotARange' is invalid.", exception.Message);
+        Assert.Contains("Verify the range address format", exception.Message);
+    }
+
     [Fact]
     public void ClearAll_FormattedRange_RemovesEverything()
     {
@@ -100,7 +124,6 @@ public partial class RangeCommandsTests
 
     // === INSERT/DELETE OPERATIONS TESTS ===
 }
-
 
 
 

@@ -8,7 +8,7 @@ Agent Skill for AI coding assistants using the Excel CLI tool (`excelcli`).
 - Token-efficient workflows (no large tool schemas)
 - Discoverable via `excelcli --help`
 - Scriptable in PowerShell pipelines, CI/CD, batch processing
-- Quiet mode (`-q`) outputs clean JSON only
+- Quiet mode (`--quiet`) outputs clean JSON only
 
 ## Why CLI Over MCP?
 
@@ -16,9 +16,9 @@ Modern coding agents increasingly favor CLI-based workflows:
 
 ```powershell
 # Token-efficient: No schema overhead
-excelcli -q session open C:\Data\Report.xlsx
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello"]]'
-excelcli -q session close --session 1 --save
+excelcli --quiet session open C:\Data\Report.xlsx
+excelcli --quiet range set-values --session 1 --sheet-name Sheet1 --range-address A1 --values '[["Hello"]]'
+excelcli --quiet session close --session 1 --save
 ```
 
 ## Installation

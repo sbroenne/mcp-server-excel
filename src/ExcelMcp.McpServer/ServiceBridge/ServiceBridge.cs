@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 
 namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 

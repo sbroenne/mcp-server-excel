@@ -115,7 +115,7 @@ public sealed class CliSettings : Spectre.Console.Cli.CommandSettings
     [CommandArgument(0, "<ACTION>")]
     public string Action { get; init; } = string.Empty;
 
-    [CommandOption("-s|--session <SESSION>")]
+    [CommandOption("--session <SESSION>")]
     public string SessionId { get; init; } = string.Empty;
 
     [CommandOption("--query-name <QUERYNAME>")]
@@ -306,4 +306,3 @@ private Task<ServiceResponse> DispatchSimpleAsync<TAction>(
 **Testing strategy**: Pre-commit scripts verify coverage:
 - All enum actions have Core method implementations (`check-mcp-core-implementations.ps1`)
 - All CLI actions have handlers (`check-cli-action-coverage.ps1`)
-

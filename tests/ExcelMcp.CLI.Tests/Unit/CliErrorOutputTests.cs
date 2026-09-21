@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;

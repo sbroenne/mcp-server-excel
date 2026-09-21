@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;

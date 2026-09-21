@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Core.Utilities;
-using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 

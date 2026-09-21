@@ -454,23 +454,18 @@ public enum PowerQueryLoadMode
     /// <summary>
     /// Load to table in worksheet
     /// </summary>
-    [Attributes.EnumAlias("worksheet")]
-    [Attributes.EnumAlias("table")]
     [JsonStringEnumMemberName("load-to-table")]
     LoadToTable,
 
     /// <summary>
     /// Load to Data Model (PowerPivot)
     /// </summary>
-    [Attributes.EnumAlias("data-model")]
-    [Attributes.EnumAlias("datamodel")]
     [JsonStringEnumMemberName("load-to-data-model")]
     LoadToDataModel,
 
     /// <summary>
     /// Load to both table and data model
     /// </summary>
-    [Attributes.EnumAlias("both")]
     [JsonStringEnumMemberName("load-to-both")]
     LoadToBoth
 }

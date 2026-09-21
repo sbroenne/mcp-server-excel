@@ -399,28 +399,16 @@ in the `arguments` object of `tools/call`, alongside `action`:
 `file open/create` returns `session_id`; entries in `file list` currently use
 `sessionId`. Copy the selected entry's value into the request's `session_id`
 field. Never guess an ID or pick another workbook just because only one is listed.
-For compatibility with bridges reported in #850 and #854, the server defensively
-accepts a top-level non-empty string `sessionId` only for actions that require a
-session. This fallback is not part of the preferred schema and should not be
-emitted by clients. If both names are present, they must be identical non-empty
-strings; otherwise the request returns `InvalidInput`. A malformed canonical
-`session_id` is never replaced by the alias.
-
-Each compatibility-alias request writes one warning to stderr and records one
-anonymous telemetry event. Its custom properties contain only the tool, declared
-action, fixed alias label, and server version. The standard telemetry context
-also contains the already-disclosed anonymous machine/user ID and random MCP
-server process telemetry session ID. That process telemetry ID is not the Excel
-workbook `session_id`/`sessionId`; the event never records the workbook session
-ID value, workbook path, arguments, or user content. Stdout remains reserved for
-JSON-RPC.
+Only `session_id` is accepted as the MCP input name. A top-level `sessionId`
+does not supply session identity; update bridges and clients to forward the
+canonical name. Actions that require a session reject a missing, blank, or
+non-string `session_id`.
 
 If direct local calls work but Cowork or a remote-devices bridge fails, compare
 the request received by the server with the request before the bridge. A client
 display saying the ID was supplied does not establish what reached the server.
 Check the key name, its location, and whether its value is a non-empty string.
-Missing-session diagnostics and the compatibility fallback cannot restore an
-argument dropped completely by a client.
+Missing-session diagnostics cannot restore an argument dropped by a client.
 See [#850](https://github.com/sbroenne/mcp-server-excel/issues/850) and
 [#854](https://github.com/sbroenne/mcp-server-excel/issues/854).
 

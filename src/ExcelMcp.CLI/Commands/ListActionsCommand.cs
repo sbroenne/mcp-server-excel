@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console.Cli;
 
@@ -53,7 +53,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         {
             success = true,
             workflow = "REQUIRED: 1) session open/create <file> → get sessionId, 2) all commands need --session <id>, 3) session close --save to persist",
-            example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range A1 --values 'Hello' → session close --save --session abc",
+            example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --sheet-name Sheet1 --range-address A1 --values '[[\"Hello\"]]' → session close --save --session abc",
             commands = all
         };
         Console.WriteLine(JsonSerializer.Serialize(payload, ServiceProtocol.JsonOptions));
@@ -67,5 +67,3 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         public string? CommandName { get; init; }
     }
 }
-
-

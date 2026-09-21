@@ -220,7 +220,6 @@ public static class ServiceInfoExtractor
 
         // Detect if this is an enum type (including Nullable<Enum>)
         bool isEnum = param.Type.TypeKind == TypeKind.Enum;
-        INamedTypeSymbol? enumTypeSymbol = isEnum ? param.Type as INamedTypeSymbol : null;
         string? enumTypeName = null;
         if (isEnum)
         {
@@ -233,25 +232,7 @@ public static class ServiceInfoExtractor
             isEnum = nullableType.TypeArguments[0].TypeKind == TypeKind.Enum;
             if (isEnum)
             {
-                enumTypeSymbol = nullableType.TypeArguments[0] as INamedTypeSymbol;
                 enumTypeName = TypeNameHelper.GetTypeName(nullableType.TypeArguments[0]);
-            }
-        }
-
-        var enumAliases = new List<EnumAliasInfo>();
-        if (enumTypeSymbol != null)
-        {
-            foreach (var field in enumTypeSymbol.GetMembers().OfType<IFieldSymbol>().Where(f => f.HasConstantValue))
-            {
-                foreach (var attribute in field.GetAttributes().Where(a => a.AttributeClass?.Name == "EnumAliasAttribute"))
-                {
-                    if (attribute.ConstructorArguments.Length > 0 &&
-                        attribute.ConstructorArguments[0].Value is string alias &&
-                        !string.IsNullOrWhiteSpace(alias))
-                    {
-                        enumAliases.Add(new EnumAliasInfo(alias, field.Name));
-                    }
-                }
             }
         }
 
@@ -275,7 +256,6 @@ public static class ServiceInfoExtractor
             isEnum,
             paramDescription,
             enumTypeName,
-            enumAliases,
             param.IsParams,
             allowsEmptyString);
     }

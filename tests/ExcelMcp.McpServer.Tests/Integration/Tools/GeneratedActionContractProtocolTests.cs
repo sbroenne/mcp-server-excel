@@ -161,6 +161,11 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
 
     [Theory]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "not-a-destination")]
+    [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "worksheet")]
+    [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "TABLE")]
+    [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "data-model")]
+    [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "datamodel")]
+    [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "both")]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "work_sheet")]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "work-sheet")]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "0")]
@@ -202,9 +207,12 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Theory]
-    [InlineData("worksheet")]
-    [InlineData("WORKSHEET")]
-    public async Task ToolCall_AcceptsExactAliasIgnoringCase(string loadDestination)
+    [InlineData("load-to-table")]
+    [InlineData("LOAD-TO-TABLE")]
+    [InlineData("load-to-data-model")]
+    [InlineData("load-to-both")]
+    [InlineData("connection-only")]
+    public async Task ToolCall_AcceptsCanonicalEnumIgnoringCase(string loadDestination)
     {
         var result = await CallToolAsync(
             "powerquery",
@@ -238,7 +246,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
                 ["action"] = "load-to",
                 ["session_id"] = "missing-session",
                 ["query_name"] = "Probe",
-                ["load_destination"] = "worksheet",
+                ["load_destination"] = "load-to-table",
                 ["timeout_seconds"] = 60
             });
 
@@ -405,7 +413,8 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         {
             var tool = Assert.Single(tools, candidate => candidate.Name == toolName);
             var timeout = tool.JsonSchema.GetProperty("properties").GetProperty("timeout_seconds");
-            Assert.Equal("integer", timeout.GetProperty("type").GetString());
+            Assert.Equal(["integer", "null"],
+                timeout.GetProperty("type").EnumerateArray().Select(type => type.GetString()));
             Assert.Contains("seconds", timeout.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
         }
 
@@ -423,7 +432,8 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             foreach (var alias in aliases)
             {
                 var property = properties.GetProperty(alias);
-                Assert.Equal("string", property.GetProperty("type").GetString());
+                Assert.Equal(["string", "null"],
+                    property.GetProperty("type").EnumerateArray().Select(type => type.GetString()));
                 Assert.Contains("readable", property.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
             }
         }

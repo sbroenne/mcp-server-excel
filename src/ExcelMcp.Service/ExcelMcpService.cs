@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Analysis;

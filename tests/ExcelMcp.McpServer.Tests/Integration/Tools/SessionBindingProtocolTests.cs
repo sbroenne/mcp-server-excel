@@ -1,7 +1,5 @@
 using System.IO.Pipelines;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -170,7 +168,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
     [InlineData("worksheet", "delete")]
     [InlineData("worksheet", "move")]
     [InlineData("worksheet", "copy")]
-    public async Task CamelCaseSessionIdAlias_ReachesSessionLookup(string toolName, string action)
+    public async Task CamelCaseSessionIdAlias_ReturnsMissingCanonicalInputError(string toolName, string action)
     {
         var arguments = SessionArguments(toolName, action);
         arguments["sessionId"] = "synthetic-unknown-session";
@@ -179,8 +177,9 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         using var document = ParseJsonResult(json, $"{toolName}.{action}");
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
         var error = document.RootElement.GetProperty("errorMessage").GetString();
-        Assert.Contains("not found", error, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("required", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("session_id", error, StringComparison.Ordinal);
+        Assert.Contains("required", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("not found", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -204,7 +203,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
     [InlineData("workbook", "get-info")]
     [InlineData("file", "close")]
     [InlineData("worksheet", "list")]
-    public async Task ConflictingCanonicalAndAliasSessionIds_ReturnStructuredInputError(
+    public async Task CanonicalSessionId_IgnoresUnrecognizedCamelCaseInput(
         string toolName,
         string action)
     {
@@ -216,11 +215,9 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
             cancellationToken: TestCancellationToken);
         var text = Assert.Single(response.Content.OfType<TextContentBlock>()).Text;
         using var document = ParseJsonResult(text, $"{toolName}.{action}");
-        AssertFailureEnvelope(document.RootElement, $"{toolName}.{action}",
-            nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
-        Assert.True(response.IsError);
-        Assert.Contains("session_id", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("synthetic-canonical-private-value", text, StringComparison.Ordinal);
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("not found", document.RootElement.GetProperty("errorMessage").GetString(),
+            StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("synthetic-alias-private-value", text, StringComparison.Ordinal);
     }
 
@@ -229,11 +226,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
     [InlineData("\"\"", "\"synthetic-alias-private-value\"")]
     [InlineData("\"   \"", "\"synthetic-alias-private-value\"")]
     [InlineData("42", "\"synthetic-alias-private-value\"")]
-    [InlineData("\"synthetic-canonical-private-value\"", "null")]
-    [InlineData("\"synthetic-canonical-private-value\"", "\"\"")]
-    [InlineData("\"synthetic-canonical-private-value\"", "\"   \"")]
-    [InlineData("\"synthetic-canonical-private-value\"", "42")]
-    public async Task MalformedCanonicalOrAliasWhenBothPresent_ReturnsStructuredInputError(
+    public async Task MalformedCanonicalWithAlias_ReturnsStructuredInputError(
         string canonicalJson,
         string aliasJson)
     {
@@ -274,41 +267,6 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
             nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
         Assert.True(response.IsError);
         Assert.Contains("session_id", text, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AliasObservation_WritesPrivacySafeWarningOnlyToStandardError()
-    {
-        using var stdout = new StringWriter();
-        using var stderr = new StringWriter();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
-
-            var services = new ServiceCollection();
-            services.AddLogging(Program.ConfigureStdioLogging);
-            using var provider = services.BuildServiceProvider();
-            var logger = provider
-                .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("SessionIdentityFilterTest");
-
-            SessionIdentityFilter.WriteAliasWarning(logger, "workbook", "get-info");
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
-
-        Assert.Empty(stdout.ToString());
-        Assert.Contains("Compatibility sessionId alias observed", stderr.ToString(),
-            StringComparison.Ordinal);
-        Assert.Contains("workbook/get-info", stderr.ToString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("synthetic-private-value", stderr.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]

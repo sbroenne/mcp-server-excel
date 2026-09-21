@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Pipes;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;

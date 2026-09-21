@@ -41,15 +41,12 @@ internal static class DaemonProcessTracker
         public long StartedAtUtcFileTime { get; set; }
     }
 
-    private sealed class TrackingMutexLease(IReadOnlyList<Mutex> mutexes) : IDisposable
+    private sealed class TrackingMutexLease(Mutex mutex) : IDisposable
     {
         public void Dispose()
         {
-            for (var index = mutexes.Count - 1; index >= 0; index--)
-            {
-                mutexes[index].ReleaseMutex();
-                mutexes[index].Dispose();
-            }
+            mutex.ReleaseMutex();
+            mutex.Dispose();
         }
     }
 
@@ -89,22 +86,6 @@ internal static class DaemonProcessTracker
     /// Identities remain recorded until generation cleanup so a failed shutdown
     /// cannot lose a process that was untracked before it actually exited.
     /// </summary>
-    public static void UpdateExcelProcesses(
-        string pipeName,
-        ProcessIdentity daemonIdentity,
-        IReadOnlyCollection<int> processIds)
-    {
-        var observedProcesses = processIds
-            .Distinct()
-            .Select(TryCreateProcessRecord)
-            .Where(process => process != null)
-            .Select(process => new ProcessIdentity(
-                process!.ProcessId,
-                process.StartedAtUtcFileTime))
-            .ToList();
-        _ = TryRecordExcelProcesses(pipeName, daemonIdentity, observedProcesses);
-    }
-
     internal static void RecordExcelProcesses(
         string pipeName,
         ProcessIdentity daemonIdentity,
@@ -186,12 +167,10 @@ internal static class DaemonProcessTracker
             lock (TrackingFileLock)
             {
                 using var trackingMutex = AcquireTrackingMutex(pipeName);
-                foreach (var trackingFile in GetTrackingFilePaths(pipeName))
+                var trackingFile = GetTrackingFilePath(pipeName);
+                if (File.Exists(trackingFile))
                 {
-                    if (File.Exists(trackingFile))
-                    {
-                        File.Delete(trackingFile);
-                    }
+                    File.Delete(trackingFile);
                 }
             }
         }
@@ -325,10 +304,10 @@ internal static class DaemonProcessTracker
                     return true;
                 }
 
-                foreach (var trackingFile in GetTrackingFilePaths(pipeName))
+                var trackingFile = GetTrackingFilePath(pipeName);
+                if (File.Exists(trackingFile))
                 {
-                    if (File.Exists(trackingFile))
-                        File.Delete(trackingFile);
+                    File.Delete(trackingFile);
                 }
 
                 return true;
@@ -375,80 +354,37 @@ internal static class DaemonProcessTracker
 
     private static RecordReadResult ReadRecordCore(string pipeName)
     {
-        DaemonProcessRecord? selected = null;
-        var requiresMigration = false;
-        var canonicalPath = GetTrackingFilePath(pipeName);
-        foreach (var trackingFile in GetTrackingFilePaths(pipeName))
-        {
-            if (!File.Exists(trackingFile))
-            {
-                continue;
-            }
-
-            DaemonProcessRecord? parsed;
-            try
-            {
-                var json = File.ReadAllText(trackingFile);
-                parsed = JsonSerializer.Deserialize<DaemonProcessRecord>(
-                    json,
-                    DaemonTrackingJson.Options);
-            }
-            catch (JsonException ex)
-            {
-                return new RecordReadResult(
-                    TrackingRecordStatus.Invalid,
-                    null,
-                    $"The daemon tracking record '{trackingFile}' is malformed: {ex.Message}");
-            }
-
-            if (!IsValidRecord(parsed))
-            {
-                return new RecordReadResult(
-                    TrackingRecordStatus.Invalid,
-                    null,
-                    $"The daemon tracking record '{trackingFile}' contains invalid process ownership data.");
-            }
-
-            if (selected == null)
-            {
-                selected = parsed;
-                requiresMigration = !string.Equals(
-                    trackingFile,
-                    canonicalPath,
-                    StringComparison.Ordinal);
-                continue;
-            }
-
-            if (selected.ProcessId != parsed!.ProcessId
-                || selected.StartedAtUtcFileTime != parsed.StartedAtUtcFileTime)
-            {
-                return new RecordReadResult(
-                    TrackingRecordStatus.Invalid,
-                    null,
-                    $"Conflicting daemon tracking records exist for pipe '{pipeName}'.");
-            }
-
-            selected.ExcelProcesses = selected.ExcelProcesses
-                .Concat(parsed.ExcelProcesses)
-                .DistinctBy(process => (process.ProcessId, process.StartedAtUtcFileTime))
-                .ToList();
-            requiresMigration |= !string.Equals(
-                trackingFile,
-                canonicalPath,
-                StringComparison.Ordinal);
-        }
-
-        if (selected == null)
+        var trackingFile = GetTrackingFilePath(pipeName);
+        if (!File.Exists(trackingFile))
         {
             return new RecordReadResult(TrackingRecordStatus.Missing, null, null);
         }
 
-        if (requiresMigration)
+        DaemonProcessRecord? parsed;
+        try
         {
-            WriteRecord(pipeName, selected);
+            var json = File.ReadAllText(trackingFile);
+            parsed = JsonSerializer.Deserialize<DaemonProcessRecord>(
+                json,
+                DaemonTrackingJson.Options);
+        }
+        catch (JsonException ex)
+        {
+            return new RecordReadResult(
+                TrackingRecordStatus.Invalid,
+                null,
+                $"The daemon tracking record '{trackingFile}' is malformed: {ex.Message}");
         }
 
-        return new RecordReadResult(TrackingRecordStatus.Available, selected, null);
+        if (!IsValidRecord(parsed))
+        {
+            return new RecordReadResult(
+                TrackingRecordStatus.Invalid,
+                null,
+                $"The daemon tracking record '{trackingFile}' contains invalid process ownership data.");
+        }
+
+        return new RecordReadResult(TrackingRecordStatus.Available, parsed, null);
     }
 
     private static bool IsValidRecord(DaemonProcessRecord? record) =>
@@ -475,32 +411,6 @@ internal static class DaemonProcessTracker
         TrackingRecordStatus Status,
         DaemonProcessRecord? Record,
         string? ErrorMessage);
-
-    private static TrackedProcessRecord? TryCreateProcessRecord(int processId)
-    {
-        try
-        {
-            using var process = Process.GetProcessById(processId);
-            if (process.HasExited)
-            {
-                return null;
-            }
-
-            return new TrackedProcessRecord
-            {
-                ProcessId = processId,
-                StartedAtUtcFileTime = process.StartTime.ToUniversalTime().ToFileTimeUtc()
-            };
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
 
     internal static bool TryOpenMatchingProcess(ProcessIdentity tracked, out Process? process)
     {
@@ -546,17 +456,6 @@ internal static class DaemonProcessTracker
                 temporaryFile,
                 JsonSerializer.Serialize(record, DaemonTrackingJson.Options));
             File.Move(temporaryFile, trackingFile, overwrite: true);
-            foreach (var legacyTrackingFile in GetTrackingFilePaths(pipeName)
-                         .Where(path => !string.Equals(
-                             path,
-                             trackingFile,
-                             StringComparison.Ordinal)))
-            {
-                if (File.Exists(legacyTrackingFile))
-                {
-                    File.Delete(legacyTrackingFile);
-                }
-            }
         }
         finally
         {
@@ -572,46 +471,27 @@ internal static class DaemonProcessTracker
 
     private static TrackingMutexLease AcquireTrackingMutex(string pipeName)
     {
-        var mutexes = GetTrackingMutexNames(pipeName)
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .Select(name => new Mutex(initiallyOwned: false, name))
-            .ToList();
-        var acquiredCount = 0;
+        var mutex = new Mutex(initiallyOwned: false, GetTrackingMutexName(pipeName));
         try
         {
-            foreach (var mutex in mutexes)
+            try
             {
-                try
+                if (!mutex.WaitOne(TimeSpan.FromSeconds(5)))
                 {
-                    if (!mutex.WaitOne(TimeSpan.FromSeconds(5)))
-                    {
-                        throw new IOException(
-                            $"Timed out waiting for the process tracker lock for pipe '{pipeName}'.");
-                    }
+                    throw new IOException(
+                        $"Timed out waiting for the process tracker lock for pipe '{pipeName}'.");
                 }
-                catch (AbandonedMutexException)
-                {
-                    // The abandoned mutex is acquired by the current thread.
-                }
-
-                acquiredCount++;
+            }
+            catch (AbandonedMutexException)
+            {
+                // The abandoned mutex is acquired by the current thread.
             }
 
-            return new TrackingMutexLease(mutexes);
+            return new TrackingMutexLease(mutex);
         }
         catch
         {
-            for (var index = acquiredCount - 1; index >= 0; index--)
-            {
-                mutexes[index].ReleaseMutex();
-            }
-
-            foreach (var mutex in mutexes)
-            {
-                mutex.Dispose();
-            }
-
+            mutex.Dispose();
             throw;
         }
     }
@@ -626,36 +506,4 @@ internal static class DaemonProcessTracker
     internal static string GetTrackingMutexName(string pipeName) =>
         $"ExcelMcpCli_Tracker_{DaemonPipeIdentity.GetHash(pipeName)}";
 
-    private static IReadOnlyList<string> GetTrackingFilePaths(string pipeName)
-    {
-        var canonicalPath = GetTrackingFilePath(pipeName);
-        return
-        [
-            canonicalPath,
-            .. DaemonPipeIdentity.GetLegacyCaseVariants(pipeName)
-                .Select(variant => Path.Combine(
-                    GetTrackingDirectory(),
-                    $"{DaemonPipeIdentity.GetCaseSensitiveHash(variant)}.json"))
-                .Where(path => !string.Equals(
-                    path,
-                    canonicalPath,
-                    StringComparison.Ordinal))
-                .Distinct(StringComparer.Ordinal)
-        ];
-    }
-
-    private static IReadOnlyList<string> GetTrackingMutexNames(string pipeName)
-    {
-        return
-        [
-            GetTrackingMutexName(pipeName),
-            .. DaemonPipeIdentity.GetLegacyCaseVariants(pipeName)
-                .Select(DaemonPipeIdentity.GetCaseSensitiveHash)
-                .SelectMany(hash => new[]
-                {
-                    $"ExcelMcpCli_Tracker_{hash}",
-                    $"ExcelMcpCliTracker_{hash}"
-                })
-        ];
-    }
 }

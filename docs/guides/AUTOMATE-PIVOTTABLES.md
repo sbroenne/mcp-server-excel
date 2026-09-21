@@ -28,18 +28,18 @@ discovering later that DAX measures are missing means rebuilding.
 ## Build one from a worksheet table
 
 ```powershell
-$session = (excelcli -q session open C:\data\sales.xlsx | ConvertFrom-Json).sessionId
+$session = (excelcli --quiet session open C:\data\sales.xlsx | ConvertFrom-Json).sessionId
 
-excelcli -q pivottable create-from-table --session $session `
+excelcli --quiet pivottable create-from-table --session $session `
   --table-name SalesTable --pivot-table-name SalesPivot `
   --destination-sheet Analysis --destination-cell A3
 
-excelcli -q pivottablefield add-row-field    --session $session --pivot-table-name SalesPivot --field-name Region
-excelcli -q pivottablefield add-column-field --session $session --pivot-table-name SalesPivot --field-name Quarter
-excelcli -q pivottablefield add-value-field  --session $session --pivot-table-name SalesPivot --field-name Amount --aggregation-function Sum
+excelcli --quiet pivottablefield add-row-field    --session $session --pivot-table-name SalesPivot --field-name Region
+excelcli --quiet pivottablefield add-column-field --session $session --pivot-table-name SalesPivot --field-name Quarter
+excelcli --quiet pivottablefield add-value-field  --session $session --pivot-table-name SalesPivot --field-name Amount --aggregation-function Sum
 
-excelcli -q pivottable refresh --session $session --pivot-table-name SalesPivot
-excelcli -q session close --session $session --save
+excelcli --quiet pivottable refresh --session $session --pivot-table-name SalesPivot
+excelcli --quiet session close --session $session --save
 ```
 
 Configure fields in that order — rows, columns, values, then filters — and
@@ -55,13 +55,13 @@ exception is `list`.
 This is the path that supports DAX, multiple tables, and reusable measures:
 
 ```powershell
-excelcli -q table add-to-data-model --session $session --table-name SalesTable
+excelcli --quiet table add-to-data-model --session $session --table-name SalesTable
 
-excelcli -q datamodel create-measure --session $session `
+excelcli --quiet datamodel create-measure --session $session `
   --table-name SalesTable --measure-name Revenue `
   --dax-formula "SUMX(SalesTable, SalesTable[Quantity]*SalesTable[UnitPrice])"
 
-excelcli -q pivottable create-from-datamodel --session $session `
+excelcli --quiet pivottable create-from-datamodel --session $session `
   --pivot-table-name RevenuePivot --table-name SalesTable `
   --destination-sheet Analysis --destination-cell A3
 ```
@@ -86,15 +86,15 @@ Do **not** create a PivotTable and then a separate chart from its cells. Create 
 PivotChart directly — it is one object bound to the same cache:
 
 ```powershell
-excelcli -q chart create-from-pivottable --session $session --sheet Analysis `
+excelcli --quiet chart create-from-pivottable --session $session --sheet-name Analysis `
   --pivot-table-name SalesPivot --chart-type ColumnClustered
 ```
 
 ## Verify
 
 ```powershell
-excelcli -q pivottable list --session $session
-excelcli -q screenshot capture-sheet --session $session --sheet Analysis
+excelcli --quiet pivottable list --session $session
+excelcli --quiet screenshot capture-sheet --session $session --sheet-name Analysis
 ```
 
 A screenshot is the fastest way for an assistant to confirm a layout actually looks

@@ -27,6 +27,11 @@ The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically 
 
 ### Standalone Executable (Primary)
 
+Before replacing an older CLI installation, save and close its workbook sessions,
+then run `excelcli service stop` with that installation. Older daemon mutex and
+process-tracking formats are not migrated; do not leave the old service running
+when switching versions.
+
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Download **`ExcelMcp-CLI-{version}-windows.zip`**
 3. Extract to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
@@ -55,9 +60,9 @@ excelcli --version
 excelcli --help
 
 # Test with an existing workbook
-excelcli -q session open "C:\Data\Test.xlsx"
-excelcli -q session list
-excelcli -q session close --session <id>
+excelcli --quiet session open "C:\Data\Test.xlsx"
+excelcli --quiet session list
+excelcli --quiet session close --session <id>
 ```
 
 ---

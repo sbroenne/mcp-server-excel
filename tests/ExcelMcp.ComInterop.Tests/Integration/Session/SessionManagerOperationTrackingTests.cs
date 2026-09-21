@@ -274,29 +274,39 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
-    public void LegacyProcessTrackingMembers_RemainUsable()
+    public async Task TrackExcelProcessIdentity_NotifiesExactIdentityDespiteFailingSubscriber()
     {
-        using var notificationReceived = new ManualResetEventSlim();
-        void LegacySubscriber(IReadOnlyCollection<int> processIds)
+        using var process = Process.GetCurrentProcess();
+        var expectedIdentity = new ExcelProcessIdentity(
+            process.Id,
+            process.StartTime.ToUniversalTime().ToFileTimeUtc());
+        var notificationReceived = new TaskCompletionSource<ExcelProcessIdentity>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        void FailingSubscriber(IReadOnlyCollection<ExcelProcessIdentity> _) =>
+            throw new InvalidOperationException("synthetic notification failure");
+        void IdentitySubscriber(IReadOnlyCollection<ExcelProcessIdentity> identities)
         {
-            if (processIds.Contains(Environment.ProcessId))
+            if (identities.Contains(expectedIdentity))
             {
-                notificationReceived.Set();
+                notificationReceived.TrySetResult(expectedIdentity);
             }
         }
 
-        SessionManager.TrackedExcelProcessesChanged += LegacySubscriber;
+        SessionManager.TrackedExcelProcessIdentitiesChanged += FailingSubscriber;
+        SessionManager.TrackedExcelProcessIdentitiesChanged += IdentitySubscriber;
         try
         {
-            SessionManager.TrackExcelProcess(Environment.ProcessId);
+            var identity = SessionManager.TrackExcelProcessIdentity(process.Id);
 
-            Assert.True(notificationReceived.Wait(TimeSpan.FromSeconds(5)));
-            Assert.Contains(Environment.ProcessId, SessionManager.GetTrackedExcelProcessIds());
+            Assert.Equal(expectedIdentity, identity);
+            Assert.Equal(expectedIdentity, await notificationReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Contains(expectedIdentity, SessionManager.GetTrackedExcelProcesses());
         }
         finally
         {
-            SessionManager.TrackedExcelProcessesChanged -= LegacySubscriber;
-            SessionManager.UntrackExcelProcess(Environment.ProcessId);
+            SessionManager.TrackedExcelProcessIdentitiesChanged -= FailingSubscriber;
+            SessionManager.TrackedExcelProcessIdentitiesChanged -= IdentitySubscriber;
+            SessionManager.UntrackExcelProcess(expectedIdentity);
         }
     }
 

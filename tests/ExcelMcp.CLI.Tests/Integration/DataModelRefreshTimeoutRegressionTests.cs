@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
-using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using StreamJsonRpc;
 using Xunit;
 
@@ -129,7 +129,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
 
             while (!_shutdown.IsCancellationRequested)
             {
-                using var server = ServiceSecurity.CreateSecureServer(_pipeName);
+                using var server = Service.ServiceSecurity.CreateSecureServer(_pipeName);
                 await server.WaitForConnectionAsync(_shutdown.Token);
 
                 var target = new EchoRpcTarget();

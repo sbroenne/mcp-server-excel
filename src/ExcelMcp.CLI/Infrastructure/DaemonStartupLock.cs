@@ -10,14 +10,6 @@ internal static class DaemonStartupLock
     internal static string GetDaemonMutexName(string pipeName) =>
         $"ExcelMcpCli_Daemon_{DaemonPipeIdentity.GetHash(pipeName)}";
 
-    internal static string GetLegacyDaemonMutexName(string pipeName) =>
-        $"ExcelMcpCli_{pipeName}";
-
-    internal static IReadOnlyList<string> GetLegacyDaemonMutexNames(string pipeName) =>
-        DaemonPipeIdentity.GetLegacyCaseVariants(pipeName)
-            .Select(GetLegacyDaemonMutexName)
-            .ToList();
-
     internal static string GetStartupMutexName(string pipeName) =>
         $"ExcelMcpCli_Startup_{DaemonPipeIdentity.GetHash(pipeName)}";
 

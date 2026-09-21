@@ -1,4 +1,5 @@
 using PolyType;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using StreamJsonRpc;
 
 namespace Sbroenne.ExcelMcp.Service.Rpc;

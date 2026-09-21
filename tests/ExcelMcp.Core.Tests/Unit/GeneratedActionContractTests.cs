@@ -22,13 +22,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class GeneratedActionContractTests
 {
     [Theory]
-    [InlineData("worksheet", PowerQueryLoadMode.LoadToTable)]
-    [InlineData("TABLE", PowerQueryLoadMode.LoadToTable)]
-    [InlineData("data-model", PowerQueryLoadMode.LoadToDataModel)]
-    [InlineData("both", PowerQueryLoadMode.LoadToBoth)]
+    [InlineData("LOAD-TO-TABLE", PowerQueryLoadMode.LoadToTable)]
+    [InlineData("load-to-data-model", PowerQueryLoadMode.LoadToDataModel)]
+    [InlineData("load-to-both", PowerQueryLoadMode.LoadToBoth)]
     [InlineData("connection-only", PowerQueryLoadMode.ConnectionOnly)]
     [InlineData("load-to-table", PowerQueryLoadMode.LoadToTable)]
-    public void PowerQueryDispatch_ParsesDocumentedLoadDestinationAliases(
+    public void PowerQueryDispatch_ParsesCanonicalLoadDestinations(
         string suppliedValue,
         PowerQueryLoadMode expected)
     {
@@ -50,6 +49,11 @@ public sealed class GeneratedActionContractTests
 
     [Theory]
     [InlineData("not-a-destination")]
+    [InlineData("worksheet")]
+    [InlineData("TABLE")]
+    [InlineData("data-model")]
+    [InlineData("datamodel")]
+    [InlineData("both")]
     [InlineData("work_sheet")]
     [InlineData("work-sheet")]
     [InlineData("0")]
@@ -68,13 +72,6 @@ public sealed class GeneratedActionContractTests
 
         Assert.Contains("loadDestination", exception.Message, StringComparison.Ordinal);
         Assert.Equal(0, proxy.CallCount);
-    }
-
-    [Fact]
-    public void LegacyPowerQueryLoadModeParser_RejectsUnknownValue()
-    {
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, ParameterTransforms.ParseLoadMode("worksheet"));
-        Assert.Throws<ArgumentException>(() => ParameterTransforms.ParseLoadMode("not-a-destination"));
     }
 
     [Theory]
@@ -168,7 +165,7 @@ public sealed class GeneratedActionContractTests
             ServiceRegistry.PowerQuery.RouteCliArgs(
                 "load-to",
                 queryName: "Probe",
-                loadDestination: "worksheet",
+                loadDestination: "load-to-table",
                 timeout: 30));
         Assert.Contains("timeout", loadToException.Message, StringComparison.Ordinal);
     }
@@ -182,11 +179,11 @@ public sealed class GeneratedActionContractTests
     }
 
     [Theory]
-    [InlineData("worksheet")]
-    [InlineData("WORKSHEET")]
-    [InlineData("data-model")]
-    [InlineData("DATA-MODEL")]
-    public void PowerQueryCliRoute_AcceptsExactAliasesIgnoringCase(string suppliedValue)
+    [InlineData("load-to-table")]
+    [InlineData("LOAD-TO-TABLE")]
+    [InlineData("load-to-data-model")]
+    [InlineData("LOAD-TO-DATA-MODEL")]
+    public void PowerQueryCliRoute_AcceptsCanonicalNamesIgnoringCase(string suppliedValue)
     {
         var route = ServiceRegistry.PowerQuery.RouteCliArgs(
             "load-to",
@@ -194,6 +191,23 @@ public sealed class GeneratedActionContractTests
             loadDestination: suppliedValue);
 
         Assert.Equal("powerquery.load-to", route.Command);
+    }
+
+    [Theory]
+    [InlineData("worksheet")]
+    [InlineData("TABLE")]
+    [InlineData("data-model")]
+    [InlineData("datamodel")]
+    [InlineData("both")]
+    public void PowerQueryCliRoute_RejectsConvenienceLoadDestinationAliases(string suppliedValue)
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.PowerQuery.RouteCliArgs(
+                "load-to",
+                queryName: "Probe",
+                loadDestination: suppliedValue));
+
+        Assert.Contains("loadDestination", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

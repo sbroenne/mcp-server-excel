@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;

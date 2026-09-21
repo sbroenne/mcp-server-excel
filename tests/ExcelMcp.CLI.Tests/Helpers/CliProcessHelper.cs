@@ -32,7 +32,7 @@ internal static class CliProcessHelper
 
     /// <summary>
     /// Runs an excelcli command and captures the result.
-    /// Always uses -q (quiet) mode for clean JSON output.
+    /// Always uses --quiet mode for clean JSON output.
     /// </summary>
     public static async Task<CliResult> RunAsync(
         string args,
@@ -45,7 +45,7 @@ internal static class CliProcessHelper
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
-            Arguments = $"-q {args}",
+            Arguments = $"--quiet {args}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -86,7 +86,7 @@ internal static class CliProcessHelper
             WorkingDirectory = Path.GetDirectoryName(exePath)!
         };
 
-        startInfo.ArgumentList.Add("-q");
+        startInfo.ArgumentList.Add("--quiet");
         foreach (var arg in args)
         {
             startInfo.ArgumentList.Add(arg);

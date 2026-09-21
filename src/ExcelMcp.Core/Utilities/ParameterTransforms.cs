@@ -332,30 +332,6 @@ public static class ParameterTransforms
     }
 
     /// <summary>
-    /// Parses a string load destination to the PowerQueryLoadMode enum.
-    /// </summary>
-    /// <param name="loadDestination">String value: "worksheet", "data-model", "both", "connection-only"</param>
-    /// <returns>The corresponding PowerQueryLoadMode enum value</returns>
-    public static Models.PowerQueryLoadMode ParseLoadMode(string? loadDestination)
-    {
-        if (string.IsNullOrWhiteSpace(loadDestination))
-        {
-            return Models.PowerQueryLoadMode.LoadToTable;
-        }
-
-        return loadDestination.ToLowerInvariant() switch
-        {
-            "worksheet" or "table" or "load-to-table" or "loadtotable" => Models.PowerQueryLoadMode.LoadToTable,
-            "data-model" or "datamodel" or "load-to-data-model" or "loadtodatamodel" => Models.PowerQueryLoadMode.LoadToDataModel,
-            "both" or "load-to-both" or "loadtoboth" => Models.PowerQueryLoadMode.LoadToBoth,
-            "connection-only" or "connectiononly" => Models.PowerQueryLoadMode.ConnectionOnly,
-            _ => throw new ArgumentException(
-                $"Invalid load destination '{loadDestination}'. Valid values: worksheet, data-model, both, connection-only.",
-                nameof(loadDestination))
-        };
-    }
-
-    /// <summary>
     /// Validates that a required parameter is not null, empty, or whitespace.
     /// </summary>
     /// <param name="value">The parameter value to validate</param>

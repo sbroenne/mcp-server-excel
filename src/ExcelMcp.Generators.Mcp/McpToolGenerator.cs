@@ -398,9 +398,8 @@ public class McpToolGenerator : IIncrementalGenerator
                 else
                 {
                     var localVarName = $"_{ep.Name}Parsed";
-                    var aliasArguments = BuildEnumAliasArguments(pInfo);
                     var preProcessingCode =
-                        $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? ({pInfo.EnumTypeName}?)ServiceRegistry.ParseEnumValue<{pInfo.EnumTypeName}>({snakeName}, default, \"{ep.Name}\"{aliasArguments}) : null;";
+                        $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? ({pInfo.EnumTypeName}?)ServiceRegistry.ParseEnumValue<{pInfo.EnumTypeName}>({snakeName}, default, \"{ep.Name}\") : null;";
 
                     result.Add(new McpParameter(
                         name: snakeName,
@@ -468,17 +467,6 @@ public class McpToolGenerator : IIncrementalGenerator
         }
 
         return result;
-    }
-
-    private static string BuildEnumAliasArguments(ParameterInfo parameter)
-    {
-        if (parameter.EnumAliases.Count == 0 || parameter.EnumTypeName == null)
-            return string.Empty;
-
-        return ", " + string.Join(
-            ", ",
-            parameter.EnumAliases.Select(alias =>
-                $"(\"{EscapeStringLiteral(alias.Alias)}\", {parameter.EnumTypeName}.{alias.MemberName})"));
     }
 
     private static string GetClassName(ServiceInfo info)

@@ -122,7 +122,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 :workflow do {
 # 1. Create session (auto-starts daemon, creates file)
 $session = Test-Step "Create session (create file)" {
-    & $cli -q session create $testFile | ConvertFrom-Json
+    & $cli --quiet session create $testFile | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.sessionId -and $r.success -ne $false
@@ -139,7 +139,7 @@ Write-Host "  Session ID: $sessionId" -ForegroundColor Gray
 
 # 2. Create worksheet (simpler than set-values with JSON)
 Test-Step "Create worksheet 'Data'" {
-    & $cli -q sheet create --session $sessionId --sheet-name Data | ConvertFrom-Json
+    & $cli --quiet sheet create --session $sessionId --sheet-name Data | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
@@ -147,7 +147,7 @@ Test-Step "Create worksheet 'Data'" {
 
 # 3. List worksheets
 $sheets = Test-Step "List worksheets" {
-    & $cli -q sheet list --session $sessionId | ConvertFrom-Json
+    & $cli --quiet sheet list --session $sessionId | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true -or $r.worksheets -ne $null
@@ -157,7 +157,7 @@ Write-Host "  Sheets: $(($sheets.worksheets | Measure-Object).Count)" -Foregroun
 
 # 4. Format ranges (multi-value --range-addresses exercises string[] CLI option)
 Test-Step "Format ranges on 'Data' (multi-value addresses)" {
-    & $cli -q rangeformat format-ranges --session $sessionId --sheet-name Data --range-addresses "A1:A2" --range-addresses "C1:C2" --bold true --fill-color "#FFFF00" | ConvertFrom-Json
+    & $cli --quiet rangeformat format-ranges --session $sessionId --sheet-name Data --range-addresses "A1:A2" --range-addresses "C1:C2" --bold true --fill-color "#FFFF00" | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
@@ -165,14 +165,14 @@ Test-Step "Format ranges on 'Data' (multi-value addresses)" {
 
 # 5. Add a conditional-format rule with typed integer/boolean arguments
 Test-Step "Add typed conditional-format rule" {
-    & $cli -q conditionalformat add-rule --session $sessionId --sheet-name Data --range-address "B1:B10" --rule-type top10 --rank 7 --top10-percent true --font-bold true --font-italic false | ConvertFrom-Json
+    & $cli --quiet conditionalformat add-rule --session $sessionId --sheet-name Data --range-address "B1:B10" --rule-type top10 --rank 7 --top10-percent true --font-bold true --font-italic false | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
 }
 
 $conditionalFormatRules = Test-Step "Inspect typed conditional-format rule" {
-    & $cli -q conditionalformat list-rules --session $sessionId --sheet-name Data --range-address "B1:B10" | ConvertFrom-Json
+    & $cli --quiet conditionalformat list-rules --session $sessionId --sheet-name Data --range-address "B1:B10" | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true -and
@@ -183,7 +183,7 @@ $conditionalFormatRules = Test-Step "Inspect typed conditional-format rule" {
 
 # 6. Delete worksheet
 Test-Step "Delete worksheet 'Data'" {
-    & $cli -q sheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
+    & $cli --quiet sheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
@@ -191,7 +191,7 @@ Test-Step "Delete worksheet 'Data'" {
 
 # 7. Close session (with save)
 Test-Step "Close session (with save)" {
-    & $cli -q session close --session $sessionId --save | ConvertFrom-Json
+    & $cli --quiet session close --session $sessionId --save | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
@@ -201,7 +201,7 @@ Test-Step "Close session (with save)" {
 #    This step would catch deployment issues like missing office.dll (issue #487) because
 #    ExcelBatch.ctor runs AutomationSecurity setup before opening any workbook.
 $reopenSession = Test-Step "Reopen saved file (session open)" {
-    & $cli -q session open $testFile | ConvertFrom-Json
+    & $cli --quiet session open $testFile | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.sessionId -and $r.success -ne $false
@@ -211,7 +211,7 @@ $reopenSession = Test-Step "Reopen saved file (session open)" {
 if ($reopenSession -and $reopenSession.sessionId) {
     $reopenSessionId = $reopenSession.sessionId
     Test-Step "List worksheets in reopened session" {
-        & $cli -q sheet list --session $reopenSessionId | ConvertFrom-Json
+        & $cli --quiet sheet list --session $reopenSessionId | ConvertFrom-Json
     } -Verify {
         param($r)
         $r.success -eq $true -or $r.worksheets -ne $null
@@ -219,7 +219,7 @@ if ($reopenSession -and $reopenSession.sessionId) {
 
     # 10. Close reopened session
     Test-Step "Close reopened session" {
-        & $cli -q session close --session $reopenSessionId | ConvertFrom-Json
+        & $cli --quiet session close --session $reopenSessionId | ConvertFrom-Json
     } -Verify {
         param($r)
         $r.success -eq $true

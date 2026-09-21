@@ -649,7 +649,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             {
                 var enumType = parameterInfo.EnumTypeName ?? parameterInfo.TypeName.TrimEnd('?');
                 sb.AppendLine(
-                    $"                {p.Name}: !string.IsNullOrEmpty(settings.{StringHelper.ToPascalCase(p.Name)}) ? ({enumType}?)ServiceRegistry.ParseEnumValue<{enumType}>(settings.{StringHelper.ToPascalCase(p.Name)}, default, \"{p.Name}\"{BuildEnumAliasArguments(parameterInfo)}) : null{comma}");
+                    $"                {p.Name}: !string.IsNullOrEmpty(settings.{StringHelper.ToPascalCase(p.Name)}) ? ({enumType}?)ServiceRegistry.ParseEnumValue<{enumType}>(settings.{StringHelper.ToPascalCase(p.Name)}, default, \"{p.Name}\") : null{comma}");
             }
             else if (IsNestedCollectionType(p.TypeName))
             {
@@ -709,20 +709,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         return typeName.IndexOf("TimeSpan", StringComparison.Ordinal) >= 0;
     }
 
-    /// <summary>
-    /// Returns a current CLI convenience alias such as --sheet or --range alongside the
-    /// kebab-case option generated from the Core parameter (e.g., sheetName -> --sheet-name).
-    /// </summary>
-    private static string? GetShortAlias(string parameterName)
-    {
-        return parameterName switch
-        {
-            "sheetName" => "sheet",
-            "rangeAddress" => "range",
-            _ => null
-        };
-    }
-
     private static void GenerateCliSettings(StringBuilder sb, ServiceInfo info, List<ExposedParameter> allParams)
     {
         // Note: These types require Spectre.Console reference in consuming project
@@ -742,7 +728,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         // Session ID (always required for session-based tools)
         if (!info.NoSession)
         {
-            sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-s|--session <SESSION>\")]");
+            sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"--session <SESSION>\")]");
             sb.AppendLine("            [System.ComponentModel.Description(\"Session ID from 'session open' command\")]");
             sb.AppendLine("            public string SessionId { get; init; } = string.Empty;");
             sb.AppendLine();
@@ -776,11 +762,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 escapedDescription += $" Whole seconds only; range {minimumSeconds}-2147483.";
             }
 
-            // Include current convenience aliases alongside the full parameter names.
-            var shortAlias = GetShortAlias(p.Name);
-            var optionSpec = shortAlias != null
-                ? $"--{shortAlias}|--{optionName} <{valuePlaceholder}>"
-                : $"--{optionName} <{valuePlaceholder}>";
+            var optionSpec = $"--{optionName} <{valuePlaceholder}>";
 
             sb.AppendLine($"            [Spectre.Console.Cli.CommandOption(\"{optionSpec}\")]");
             sb.AppendLine($"            [System.ComponentModel.Description(\"{escapedDescription}\")]");
@@ -789,7 +771,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         }
 
         // Output path option (available on all commands)
-        sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-o|--output <PATH>\")]");
+        sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"--output <PATH>\")]");
         sb.AppendLine("            [System.ComponentModel.Description(\"Write output to file instead of stdout. For image results, decodes and saves as binary file.\")]");
         sb.AppendLine("            public string? OutputPath { get; init; }");
         sb.AppendLine();
@@ -953,7 +935,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             ? parameter.DefaultValue
             : $"default({enumType})";
         var parseCall =
-            $"ServiceRegistry.ParseEnumValue<{enumType}>({valueExpression}, {defaultExpression}, \"{exposedName}\"{BuildEnumAliasArguments(parameter)})";
+            $"ServiceRegistry.ParseEnumValue<{enumType}>({valueExpression}, {defaultExpression}, \"{exposedName}\")";
 
         if (parameter.TypeName.EndsWith("?"))
         {
@@ -964,17 +946,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}_ = {parseCall};");
         }
-    }
-
-    private static string BuildEnumAliasArguments(ParameterInfo parameter)
-    {
-        if (parameter.EnumAliases.Count == 0 || parameter.EnumTypeName == null)
-            return string.Empty;
-
-        return ", " + string.Join(
-            ", ",
-            parameter.EnumAliases.Select(alias =>
-                $"(\"{EscapeStringLiteral(alias.Alias)}\", {parameter.EnumTypeName}.{alias.MemberName})"));
     }
 
     private static void GenerateTypedEnumValidationStatement(
@@ -1571,14 +1542,13 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// Parses an enum value from a string with kebab-case, snake_case, and explicit alias support.");
+        sb.AppendLine("    /// Parses an enum value from a string with kebab-case and snake_case support.");
         sb.AppendLine("    /// Returns defaultValue only when the value is omitted; unknown supplied values are rejected.");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public static T ParseEnumValue<T>(");
         sb.AppendLine("        string? value,");
         sb.AppendLine("        T defaultValue,");
-        sb.AppendLine("        string parameterName,");
-        sb.AppendLine("        params (string Alias, T Value)[] aliases) where T : struct, System.Enum");
+        sb.AppendLine("        string parameterName) where T : struct, System.Enum");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrEmpty(value)) return defaultValue;");
         sb.AppendLine("        var cleaned = value.Replace(\"-\", \"\").Replace(\"_\", \"\");");
@@ -1588,12 +1558,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("            if (string.Equals(cleaned, cleanedName, System.StringComparison.OrdinalIgnoreCase))");
         sb.AppendLine("                return System.Enum.Parse<T>(enumName);");
         sb.AppendLine("        }");
-        sb.AppendLine("        foreach (var alias in aliases)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            if (string.Equals(value, alias.Alias, System.StringComparison.OrdinalIgnoreCase))");
-        sb.AppendLine("                return alias.Value;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        var validValues = System.Enum.GetNames<T>().Concat(aliases.Select(alias => alias.Alias));");
+        sb.AppendLine("        var validValues = System.Enum.GetNames<T>();");
         sb.AppendLine("        throw new System.ArgumentException(");
         sb.AppendLine("            $\"Invalid value '{value}' for parameter '{parameterName}'. Valid values: {string.Join(\", \", validValues)}.\",");
         sb.AppendLine("            parameterName);");
@@ -1790,12 +1755,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
             if (isNullableEnum)
             {
-                sb.AppendLine($"                    var {p.Name} = !string.IsNullOrEmpty(args.{pascalProp}) ? ({enumType}?)ParseEnumValue<{enumType}>(args.{pascalProp}, default, \"{propName}\"{BuildEnumAliasArguments(p)}) : null;");
+                sb.AppendLine($"                    var {p.Name} = !string.IsNullOrEmpty(args.{pascalProp}) ? ({enumType}?)ParseEnumValue<{enumType}>(args.{pascalProp}, default, \"{propName}\") : null;");
             }
             else
             {
                 var defaultExpr = (p.HasDefault && p.DefaultValue != null) ? p.DefaultValue : $"default({enumType})";
-                sb.AppendLine($"                    var {p.Name} = ParseEnumValue<{enumType}>(args.{pascalProp}, {defaultExpr}, \"{propName}\"{BuildEnumAliasArguments(p)});");
+                sb.AppendLine($"                    var {p.Name} = ParseEnumValue<{enumType}>(args.{pascalProp}, {defaultExpr}, \"{propName}\");");
             }
         }
 

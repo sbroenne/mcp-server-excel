@@ -32,14 +32,9 @@ public sealed class SessionManager : IDisposable
     private static int _processExitRegistered;
 
     /// <summary>
-    /// Raised whenever the set of Excel processes owned by this process changes.
-    /// </summary>
-    /// <remarks>Subscribers are notified asynchronously and cannot interrupt session lifecycle operations.</remarks>
-    public static event Action<IReadOnlyCollection<int>>? TrackedExcelProcessesChanged;
-
-    /// <summary>
     /// Raised with PID/start-time identities whenever owned Excel processes change.
     /// </summary>
+    /// <remarks>Subscribers are notified asynchronously and cannot interrupt session lifecycle operations.</remarks>
     public static event Action<IReadOnlyCollection<ExcelProcessIdentity>>? TrackedExcelProcessIdentitiesChanged;
 
     /// <summary>
@@ -47,13 +42,6 @@ public sealed class SessionManager : IDisposable
     /// owners can durably persist it before session startup continues.
     /// </summary>
     internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityTracked;
-
-    /// <summary>
-    /// Registers an Excel process ID for cleanup on unexpected process exit.
-    /// Called from ExcelBatch when a PID is captured.
-    /// </summary>
-    public static void TrackExcelProcess(int processId) =>
-        _ = TrackExcelProcessIdentity(processId);
 
     /// <summary>
     /// Registers an Excel process and returns its captured PID/start-time identity.
@@ -84,20 +72,6 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
-    /// Marks an Excel process as no longer needing cleanup.
-    /// </summary>
-    public static void UntrackExcelProcess(int processId)
-    {
-        foreach (var identity in _trackedExcelProcesses.Keys
-                     .Where(process => process.ProcessId == processId))
-        {
-            _trackedExcelProcesses.TryRemove(identity, out _);
-        }
-
-        NotifyTrackedExcelProcessesChanged();
-    }
-
-    /// <summary>
     /// Marks one exact PID/start-time identity as no longer needing cleanup.
     /// </summary>
     public static void UntrackExcelProcess(ExcelProcessIdentity identity)
@@ -112,46 +86,18 @@ public sealed class SessionManager : IDisposable
     public static IReadOnlyCollection<ExcelProcessIdentity> GetTrackedExcelProcesses() =>
         _trackedExcelProcesses.Keys.ToArray();
 
-    /// <summary>
-    /// Returns the PIDs currently tracked for backward compatibility.
-    /// </summary>
-    public static IReadOnlyCollection<int> GetTrackedExcelProcessIds() =>
-        _trackedExcelProcesses.Keys
-            .Select(process => process.ProcessId)
-            .Distinct()
-            .ToArray();
-
     private static void NotifyTrackedExcelProcessesChanged()
     {
-        var legacySubscribers = TrackedExcelProcessesChanged;
         var identitySubscribers = TrackedExcelProcessIdentitiesChanged;
-        if (legacySubscribers is null && identitySubscribers is null)
+        if (identitySubscribers is null)
         {
             return;
         }
 
         var processes = GetTrackedExcelProcesses();
-        var processIds = processes
-            .Select(process => process.ProcessId)
-            .Distinct()
-            .ToArray();
         _ = Task.Run(() =>
         {
-            foreach (var subscriber in legacySubscribers?.GetInvocationList() ?? [])
-            {
-                try
-                {
-                    ((Action<IReadOnlyCollection<int>>)subscriber)(processIds);
-                }
-                catch (Exception ex)
-                {
-                    Trace.TraceWarning(
-                        "Tracked Excel process notification failed: {0}",
-                        ex.Message);
-                }
-            }
-
-            foreach (var subscriber in identitySubscribers?.GetInvocationList() ?? [])
+            foreach (var subscriber in identitySubscribers.GetInvocationList())
             {
                 try
                 {
@@ -989,7 +935,7 @@ public sealed class SessionManager : IDisposable
             {
                 if (batch.IsExcelProcessAlive())
                 {
-                    // Get origin and createdAt metadata (defaults for legacy sessions)
+                    // Missing metadata is reported as Unknown origin and null creation time.
                     _sessionOrigins.TryGetValue(sessionId, out var origin);
                     _sessionCreatedAt.TryGetValue(sessionId, out var createdAt);
 
@@ -1218,7 +1164,7 @@ public sealed record SessionDescriptor(
 /// </summary>
 public enum SessionOrigin
 {
-    /// <summary>Session origin is unknown (legacy sessions).</summary>
+    /// <summary>The creating client did not specify a session origin.</summary>
     Unknown = 0,
 
     /// <summary>Session was created via the CLI.</summary>

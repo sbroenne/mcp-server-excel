@@ -45,6 +45,4 @@ public class CliParameter
     /// <summary>Description from help text</summary>
     public string Description { get; set; } = "";
 
-    /// <summary>Whether parameter has short form (e.g., -s for --session)</summary>
-    public string? ShortForm { get; set; }
 }

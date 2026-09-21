@@ -193,6 +193,10 @@ All packages follow **Semantic Versioning (SemVer)**:
 - **MINOR** (x.1.x): New features, backward compatible
 - **PATCH** (x.x.1): Bug fixes, backward compatible
 
+Version labels do not require preserving obsolete APIs or CLI aliases. Follow the
+[repository compatibility policy](../.github/copilot-instructions.md#implementation)
+and migrate callers, tests, and documentation together for breaking changes.
+
 ### Version Alignment Strategy
 
 **MCP Server and CLI always share the same version number** — they are released together from the unified `release.yml` workflow and both are stamped with the tag's version (e.g. `v1.2.0`). Core and ComInterop are internal library dependencies built from the same commit; they are not independently versioned or published, so there is no cross-package version drift to manage.

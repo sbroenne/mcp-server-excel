@@ -112,7 +112,7 @@ where.exe excelcli
 
 ```powershell
 # Inspect deterministic open and protection requirements without launching Excel
-excelcli -q session test "D:\Docs\Protected.xlsx"
+excelcli --quiet session test "D:\Docs\Protected.xlsx"
 
 # Keep Excel visible so authentication or policy prompts can surface
 excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
@@ -126,12 +126,12 @@ information-protection prompt.
 
 ### Daemon Status and Session Discovery
 
-`excelcli -q service status` reports `daemonState` as `stopped`, `starting`,
+`excelcli --quiet service status` reports `daemonState` as `stopped`, `starting`,
 `running`, or `unresponsive`. A stopped daemon is a successful status result with
 `running:false`; a transport timeout is an error with `running:true` and
 `daemonState:"unresponsive"`.
 
-`excelcli -q session list` returns an empty `sessions` array only when the daemon
+`excelcli --quiet session list` returns an empty `sessions` array only when the daemon
 is confirmed stopped or a responsive daemon confirms it has no sessions.
 Transport failures exit nonzero without a `sessions` property. Status and list
 allow up to 10 seconds for daemon transport readiness, while daemon startup
@@ -147,10 +147,10 @@ allows up to 30 seconds.
 # PowerShell script example
 $files = Get-ChildItem *.xlsx
 foreach ($file in $files) {
-    $sessionId = (excelcli -q session open $file.FullName | ConvertFrom-Json).sessionId
-    excelcli -q powerquery refresh --session $sessionId --query-name "Sales Data"
-    excelcli -q datamodel refresh --session $sessionId
-    excelcli -q session close --session $sessionId --save
+    $sessionId = (excelcli --quiet session open $file.FullName | ConvertFrom-Json).sessionId
+    excelcli --quiet powerquery refresh --session $sessionId --query-name "Sales Data"
+    excelcli --quiet datamodel refresh --session $sessionId
+    excelcli --quiet session close --session $sessionId --save
 }
 ```
 
@@ -175,10 +175,10 @@ jobs:
       - name: Process Excel Files
         shell: pwsh
         run: |
-          $sessionId = (excelcli -q session open data.xlsx | ConvertFrom-Json).sessionId
-          excelcli -q powerquery create --session $sessionId --query-name "Query1" --m-code-file queries\query1.pq
-          excelcli -q powerquery refresh --session $sessionId --query-name "Query1"
-          excelcli -q session close --session $sessionId --save
+          $sessionId = (excelcli --quiet session open data.xlsx | ConvertFrom-Json).sessionId
+          excelcli --quiet powerquery create --session $sessionId --query-name "Query1" --m-code-file queries\query1.pq
+          excelcli --quiet powerquery refresh --session $sessionId --query-name "Query1"
+          excelcli --quiet session close --session $sessionId --save
 ```
 
 

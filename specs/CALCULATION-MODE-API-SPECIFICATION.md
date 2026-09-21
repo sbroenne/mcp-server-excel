@@ -292,8 +292,8 @@ excelcli calculation set-mode --session 1 --mode semi-automatic
 
 # Trigger calculation
 excelcli calculation calculate --session 1
-excelcli calculation calculate --session 1 --scope sheet --sheet "Calculations"
-excelcli calculation calculate --session 1 --scope range --sheet "Data" --range "E2:E100"
+excelcli calculation calculate --session 1 --scope sheet --sheet-name "Calculations"
+excelcli calculation calculate --session 1 --scope range --sheet-name "Data" --range-address "E2:E100"
 ```
 
 ---
@@ -319,8 +319,8 @@ excelcli range set-values A2 ...    # Toggle → Write → Toggle → Recalc
 excelcli calculation set-mode --session 1 --mode manual
 
 # Step 2: Batch operations (NO recalculations, internal toggle skipped)
-excelcli range set-values --session 1 --sheet Data --range A1 --values '[["Value1"]]'
-excelcli range set-values --session 1 --sheet Data --range A2 --values '[["Value2"]]'
+excelcli range set-values --session 1 --sheet-name Data --range-address A1 --values '[["Value1"]]'
+excelcli range set-values --session 1 --sheet-name Data --range-address A2 --values '[["Value2"]]'
 ... × 500
 
 # Step 3: Single recalculation at the end
@@ -342,25 +342,25 @@ excelcli calculation set-mode --session 1 --mode automatic
 excelcli calculation set-mode --session 1 --mode manual
 
 # Step 2: Check current formula
-excelcli range get-formulas --session 1 --sheet Lookup --range E5
+excelcli range get-formulas --session 1 --sheet-name Lookup --range-address E5
 # Returns: =INDEX(Products!B:B,MATCH(D5,Products!A:A,0))
 
 # Step 3: Check lookup value
-excelcli range get-values --session 1 --sheet Lookup --range D5
+excelcli range get-values --session 1 --sheet-name Lookup --range-address D5
 # Returns: "Widget-A"
 
 # Step 4: Check if lookup value exists in source
-excelcli range get-values --session 1 --sheet Products --range A1:A100
+excelcli range get-values --session 1 --sheet-name Products --range-address A1:A100
 # LLM scans: "Widget-A" is at row 15
 
 # Step 5: Manually set D5 to a known good value
-excelcli range set-values --session 1 --sheet Lookup --range D5 --values '[["Widget-B"]]'
+excelcli range set-values --session 1 --sheet-name Lookup --range-address D5 --values '[["Widget-B"]]'
 
 # Step 6: Recalculate JUST that cell
-excelcli calculation calculate --session 1 --scope range --sheet Lookup --range E5
+excelcli calculation calculate --session 1 --scope range --sheet-name Lookup --range-address E5
 
 # Step 7: Check result
-excelcli range get-values --session 1 --sheet Lookup --range E5
+excelcli range get-values --session 1 --sheet-name Lookup --range-address E5
 # LLM: "Now it returns the correct value. The issue was the original D5 had trailing whitespace."
 
 # Step 8: Restore automatic mode
@@ -375,15 +375,15 @@ excelcli calculation set-mode --session 1 --mode automatic
 
 ```powershell
 # Problem: Without manual mode, this times out
-excelcli range set-values --session 1 --sheet Input --range A2 --values '[[1000000]]'
+excelcli range set-values --session 1 --sheet-name Input --range-address A2 --values '[[1000000]]'
 # COM timeout: DAX measures recalculating across 5M rows
 
 # Solution: Batch inputs, then recalc
 excelcli calculation set-mode --session 1 --mode manual
 
-excelcli range set-values --session 1 --sheet Input --range A2 --values '[[1000000]]'
-excelcli range set-values --session 1 --sheet Input --range B2 --values '[["East"]]'
-excelcli range set-values --session 1 --sheet Input --range C2 --values '[["2025-Q1"]]'
+excelcli range set-values --session 1 --sheet-name Input --range-address A2 --values '[[1000000]]'
+excelcli range set-values --session 1 --sheet-name Input --range-address B2 --values '[["East"]]'
+excelcli range set-values --session 1 --sheet-name Input --range-address C2 --values '[["2025-Q1"]]'
 
 # Now recalculate (user expects this to take time)
 excelcli calculation calculate --session 1
@@ -402,19 +402,19 @@ excelcli calculation set-mode --session 1 --mode automatic
 excelcli calculation set-mode --session 1 --mode manual
 
 # Write formula (no immediate recalc)
-excelcli range set-formulas --session 1 --sheet Analysis --range F2 \
+excelcli range set-formulas --session 1 --sheet-name Analysis --range-address F2 \
   --formulas '[["=SUMPRODUCT((Region=\"East\")*(Year=2025)*Sales)"]]'
 
 # Read it back to verify
-excelcli range get-formulas --session 1 --sheet Analysis --range F2
+excelcli range get-formulas --session 1 --sheet-name Analysis --range-address F2
 # Returns: "=SUMPRODUCT((Region=\"East\")*(Year=2025)*Sales)"
 # LLM: "Formula syntax looks correct."
 
 # Now calculate
-excelcli calculation calculate --session 1 --scope range --sheet Analysis --range F2
+excelcli calculation calculate --session 1 --scope range --sheet-name Analysis --range-address F2
 
 # Check result
-excelcli range get-values --session 1 --sheet Analysis --range F2
+excelcli range get-values --session 1 --sheet-name Analysis --range-address F2
 # Returns: 1250000
 
 excelcli calculation set-mode --session 1 --mode automatic
@@ -711,7 +711,7 @@ excelcli calculation set-mode --session 1 --mode automatic
 excelcli calculation set-mode --session 1 --mode manual
 excelcli datamodel add-measure --session 1 --table Sales --name "Total Revenue" --formula "SUM(Sales[Amount])"
 excelcli datamodel add-measure --session 1 --table Sales --name "YoY Growth" --formula "..."
-excelcli range set-values --session 1 --sheet Input --range A2 --values '[[1000000]]'  # Feeds DAX
+excelcli range set-values --session 1 --sheet-name Input --range-address A2 --values '[[1000000]]'  # Feeds DAX
 excelcli calculation calculate --session 1
 excelcli calculation set-mode --session 1 --mode automatic
 ```

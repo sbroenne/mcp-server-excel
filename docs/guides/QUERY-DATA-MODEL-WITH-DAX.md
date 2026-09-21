@@ -33,10 +33,10 @@ Two routes:
 
 ```powershell
 # From a worksheet Excel Table
-excelcli -q table add-to-data-model --session $session --table-name SalesTable
+excelcli --quiet table add-to-data-model --session $session --table-name SalesTable
 
 # Or from Power Query - the preferred route for external data
-excelcli -q powerquery create --session $session --query-name Sales `
+excelcli --quiet powerquery create --session $session --query-name Sales `
   --m-code-file .\sales.m --load-destination data-model
 ```
 
@@ -46,7 +46,7 @@ refreshing the query auto-syncs the model.
 ## Create measures
 
 ```powershell
-excelcli -q datamodel create-measure --session $session `
+excelcli --quiet datamodel create-measure --session $session `
   --table-name SalesTable --measure-name "Total Revenue" `
   --dax-formula "SUMX(SalesTable, SalesTable[Quantity] * SalesTable[UnitPrice])"
 ```
@@ -58,7 +58,7 @@ can do.
 ## Run DAX queries
 
 ```powershell
-excelcli -q datamodel evaluate --session $session `
+excelcli --quiet datamodel evaluate --session $session `
   --dax-query "EVALUATE SUMMARIZECOLUMNS(SalesTable[Region], \"Revenue\", [Total Revenue])"
 ```
 
@@ -70,9 +70,9 @@ PivotTable.
 Dynamic Management Views expose the model's own metadata:
 
 ```powershell
-excelcli -q datamodel execute-dmv --session $session --dmv-query "SELECT * FROM `$SYSTEM.TMSCHEMA_MEASURES"
-excelcli -q datamodel execute-dmv --session $session --dmv-query "SELECT * FROM `$SYSTEM.TMSCHEMA_RELATIONSHIPS"
-excelcli -q datamodel execute-dmv --session $session --dmv-query "SELECT * FROM `$SYSTEM.TMSCHEMA_COLUMNS"
+excelcli --quiet datamodel execute-dmv --session $session --dmv-query "SELECT * FROM `$SYSTEM.TMSCHEMA_MEASURES"
+excelcli --quiet datamodel execute-dmv --session $session --dmv-query "SELECT * FROM `$SYSTEM.TMSCHEMA_RELATIONSHIPS"
+excelcli --quiet datamodel execute-dmv --session $session --dmv-query "SELECT * FROM `$SYSTEM.TMSCHEMA_COLUMNS"
 ```
 
 DMVs are the reliable way to discover what is actually in the model, including
@@ -81,7 +81,7 @@ objects the COM object model does not expose.
 ## Relationships
 
 ```powershell
-excelcli -q datamodel create-relationship --session $session `
+excelcli --quiet datamodel create-relationship --session $session `
   --from-table Sales --from-column ProductId `
   --to-table Products --to-column Id
 ```

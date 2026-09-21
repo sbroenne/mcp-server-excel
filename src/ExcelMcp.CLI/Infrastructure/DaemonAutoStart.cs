@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -23,7 +24,7 @@ internal static class DaemonAutoStart
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
     /// </summary>
     public static string GetPipeName() =>
-        Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
+        Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? Service.ServiceSecurity.GetCliPipeName();
 
     /// <summary>
     /// Ensures the CLI daemon is running and returns a connected ServiceClient.
@@ -221,9 +222,7 @@ internal static class DaemonAutoStart
     /// </summary>
     internal static bool IsDaemonMutexHeld(string pipeName)
     {
-        return IsMutexHeld(GetDaemonMutexName(pipeName))
-            || DaemonStartupLock.GetLegacyDaemonMutexNames(pipeName)
-                .Any(IsMutexHeld);
+        return IsMutexHeld(GetDaemonMutexName(pipeName));
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using Nerdbank.Streams;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;

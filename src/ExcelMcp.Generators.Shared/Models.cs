@@ -101,14 +101,13 @@ public sealed class ParameterInfo
     /// Used by MCP generator to emit typed enum parameters instead of strings.
     /// </summary>
     public string? EnumTypeName { get; }
-    public IReadOnlyList<EnumAliasInfo> EnumAliases { get; }
 
     public ParameterInfo(string name, string typeName, bool hasDefault, string? defaultValue,
         bool isFileOrValue = false, string? fileSuffix = null,
         bool isFromString = false, string? exposedName = null,
         bool isRequired = false, bool isEnum = false,
         string? xmlDocDescription = null, string? enumTypeName = null,
-        IReadOnlyList<EnumAliasInfo>? enumAliases = null, bool isParams = false,
+        bool isParams = false,
         bool allowsEmptyString = false)
     {
         Name = name;
@@ -125,20 +124,7 @@ public sealed class ParameterInfo
         IsEnum = isEnum;
         XmlDocDescription = xmlDocDescription;
         EnumTypeName = enumTypeName;
-        EnumAliases = enumAliases ?? [];
     }
-}
-
-public sealed class EnumAliasInfo
-{
-    public EnumAliasInfo(string alias, string memberName)
-    {
-        Alias = alias;
-        MemberName = memberName;
-    }
-
-    public string Alias { get; }
-    public string MemberName { get; }
 }
 
 /// <summary>

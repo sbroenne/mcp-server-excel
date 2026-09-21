@@ -50,7 +50,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
             StartInfo = new ProcessStartInfo
             {
                 FileName = CliProcessHelper.GetExePath(),
-                Arguments = "-q service start",
+                Arguments = "--quiet service start",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WorkingDirectory = Path.GetDirectoryName(CliProcessHelper.GetExePath())!

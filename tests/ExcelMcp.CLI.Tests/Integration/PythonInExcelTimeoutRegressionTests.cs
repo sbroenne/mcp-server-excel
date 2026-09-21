@@ -36,8 +36,8 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
             var (getResult, getJsonDocument) = await CliProcessHelper.RunJsonAsync(
                 [
                     "pythoninexcel", "get-result",
-                    "--sheet", "Sheet1",
-                    "--range", "A1",
+                    "--sheet-name", "Sheet1",
+                    "--range-address", "A1",
                     "--max-wait-seconds", "60",
                     "--session", sessionId!
                 ],
