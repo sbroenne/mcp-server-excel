@@ -43,7 +43,7 @@ public partial class TableCommands
                                 string rangeAddress = table.Range.Address;
                                 bool showHeaders = table.ShowHeaders;
                                 bool showTotals = table.ShowTotals;
-                                string tableStyleName = table.TableStyle?.Name ?? "";
+                                string tableStyleName = GetTableStyleName(table);
 
                                 // Get column count and names
                                 int columnCount = table.ListColumns.Count;
@@ -290,7 +290,7 @@ public partial class TableCommands
                 string rangeAddress = table.Range.Address;
                 bool showHeaders = table.ShowHeaders;
                 bool showTotals = table.ShowTotals;
-                string tableStyleName = table.TableStyle?.Name ?? "";
+                string tableStyleName = GetTableStyleName(table);
 
                 // Get column count and names
                 int columnCount = table.ListColumns.Count;
@@ -363,5 +363,24 @@ public partial class TableCommands
             }
         });
     }
-}
 
+    private static string GetTableStyleName(dynamic table)
+    {
+        object? tableStyle = null;
+        try
+        {
+            tableStyle = table.TableStyle;
+            return tableStyle switch
+            {
+                null => "",
+                string styleName => styleName,
+                // Reason: Excel returns a COM TableStyle object or a string when no style is applied.
+                _ => ((dynamic)tableStyle).Name?.ToString() ?? ""
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref tableStyle);
+        }
+    }
+}
