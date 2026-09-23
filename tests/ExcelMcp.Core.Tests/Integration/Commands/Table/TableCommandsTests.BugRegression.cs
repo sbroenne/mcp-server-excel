@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -80,5 +81,101 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
         var info = _tableCommands.Read(batch, "DataTable");
         Assert.True(info.Success, $"Read after append failed: {info.ErrorMessage}");
         Assert.Equal(3, info.Table!.RowCount); // 1 original + 2 appended
+    }
+
+    /// <summary>
+    /// Regression test for issue #894:
+    /// Excel accepts localized non-ASCII table names such as 表1, so create must not
+    /// reject them before Excel can create the table.
+    /// </summary>
+    [Fact]
+    public void Create_WithNonAsciiTableName_CreatesReadableTable()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(Create_WithNonAsciiTableName_CreatesReadableTable),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Name = "Data";
+            sheet.Range["A1"].Value2 = "Name";
+            sheet.Range["B1"].Value2 = "Value";
+            sheet.Range["A2"].Value2 = "North";
+            sheet.Range["B2"].Value2 = 100;
+            return 0;
+        });
+
+        _tableCommands.Create(batch, "Data", "表1", "A1:B2", true, "TableStyleLight1");
+
+        var info = _tableCommands.Read(batch, "表1");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.NotNull(info.Table);
+        Assert.Equal("表1", info.Table.Name);
+        Assert.Equal("Data", info.Table.SheetName);
+    }
+
+    /// <summary>
+    /// Regression test for issue #894:
+    /// Existing Excel-created localized table names must be readable and renamable
+    /// through the shared table commands.
+    /// </summary>
+    [Fact]
+    public void ReadAndRename_WithExistingNonAsciiTableName_Succeeds()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(ReadAndRename_WithExistingNonAsciiTableName_Succeeds),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Name = "Data";
+            sheet.Range["A1"].Value2 = "Name";
+            sheet.Range["B1"].Value2 = "Value";
+            sheet.Range["A2"].Value2 = "North";
+            sheet.Range["B2"].Value2 = 100;
+            return 0;
+        });
+        _tableCommands.Create(batch, "Data", "PlainTable", "A1:B2", true, "TableStyleLight1");
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? listObjects = null;
+            dynamic? table = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets[1];
+                listObjects = sheet.ListObjects;
+                table = listObjects.Item("PlainTable");
+                table.Name = "表1";
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var info = _tableCommands.Read(batch, "表1");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.Equal("表1", info.Table!.Name);
+
+        _tableCommands.Rename(batch, "表1", "テーブル1");
+
+        var renamedInfo = _tableCommands.Read(batch, "テーブル1");
+        Assert.True(renamedInfo.Success, renamedInfo.ErrorMessage);
+        Assert.Equal("テーブル1", renamedInfo.Table!.Name);
     }
 }
