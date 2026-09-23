@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -80,5 +81,52 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
         var info = _tableCommands.Read(batch, "DataTable");
         Assert.True(info.Success, $"Read after append failed: {info.ErrorMessage}");
         Assert.Equal(3, info.Table!.RowCount); // 1 original + 2 appended
+    }
+
+    /// <summary>
+    /// Regression test for issue #893: table list and read support tables without a style.
+    /// </summary>
+    [Fact]
+    public void ListAndRead_WithUnstyledTable_ReturnsEmptyTableStyle()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(ListAndRead_WithUnstyledTable_ReturnsEmptyTableStyle),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Range["A1"].Value2 = "Name";
+            sheet.Range["B1"].Value2 = "Value";
+            sheet.Range["A2"].Value2 = "Example";
+            sheet.Range["B2"].Value2 = 1;
+            return 0;
+        });
+        _tableCommands.Create(batch, "Sheet1", "PlainTable", "A1:B2");
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? table = null;
+            try
+            {
+                table = ctx.Book.Worksheets[1].ListObjects["PlainTable"];
+                table.TableStyle = "";
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+            }
+        });
+
+        var list = _tableCommands.List(batch);
+        var read = _tableCommands.Read(batch, "PlainTable");
+
+        Assert.True(list.Success, $"List failed: {list.ErrorMessage}");
+        Assert.Equal("", Assert.Single(list.Tables).TableStyle);
+        Assert.True(read.Success, $"Read failed: {read.ErrorMessage}");
+        Assert.Equal("", read.Table!.TableStyle);
     }
 }
