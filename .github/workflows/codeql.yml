@@ -22,8 +22,60 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Determines which language areas changed so pull_request runs only analyze
+  # the relevant CodeQL languages (e.g. a C#-only PR should not also pay for
+  # the javascript-typescript/python/actions matrix legs). Push to main,
+  # merge_group, schedule, and workflow_dispatch always analyze every language
+  # for full security coverage regardless of these filters.
+  changes:
+    name: Detect changed languages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    outputs:
+      csharp: ${{ steps.filter.outputs.csharp }}
+      javascript-typescript: ${{ steps.filter.outputs['javascript-typescript'] }}
+      python: ${{ steps.filter.outputs.python }}
+      actions: ${{ steps.filter.outputs.actions }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          filters: |
+            csharp:
+              - 'src/**'
+              - 'tests/**'
+              - '**/*.csproj'
+              - '**/*.sln'
+              - 'global.json'
+              - 'Directory.Build.*'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+            javascript-typescript:
+              - 'vscode-extension/**'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+            python:
+              - 'llm-tests/**'
+              - 'gh-pages/**/*.py'
+              - 'videos/**/*.py'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+            actions:
+              - '.github/workflows/**'
+              - '.github/codeql/**'
+
   analyze:
     name: Analyze Code with CodeQL (${{ matrix.language }})
+    needs: [ changes ]
+    if: ${{ !cancelled() && !failure() && (github.event_name != 'pull_request' || needs.changes.outputs[matrix.language] == 'true') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     permissions:
