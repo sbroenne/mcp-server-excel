@@ -35,9 +35,12 @@ public partial class RangeCommands
 
                 // Get actual address from Excel
                 result.RangeAddress = range.Address;
-
                 // Get values as 2D array - handle single cell case
                 object valueOrArray = range.Value2;
+                object? formulaOrArray = null;
+                bool formulasRead = false;
+                int startRow = Convert.ToInt32(range.Row);
+                int startColumn = Convert.ToInt32(range.Column);
 
                 if (valueOrArray is object[,] values)
                 {
@@ -50,7 +53,30 @@ public partial class RangeCommands
                         var row = new List<object?>();
                         for (int c = 1; c <= result.ColumnCount; c++)
                         {
-                            row.Add(values[r, c]);
+                            object? cellValue = values[r, c];
+                            if (!ExcelErrorMapper.TryGet(cellValue, out int errorCode, out var error))
+                            {
+                                row.Add(cellValue);
+                                continue;
+                            }
+
+                            if (!formulasRead)
+                            {
+                                formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
+                                formulasRead = true;
+                            }
+
+                            string formula = formulaOrArray is object[,] formulas
+                                ? GetReturnedFormula(formulas[r, c])
+                                : string.Empty;
+                            row.Add(ConvertMappedErrorForRead(
+                                cellValue,
+                                formula,
+                                startRow + r - 1,
+                                startColumn + c - 1,
+                                result.CellErrors,
+                                errorCode,
+                                error));
                         }
                         result.Values.Add(row);
                     }
@@ -60,7 +86,24 @@ public partial class RangeCommands
                     // Single cell - wrap value in 1x1 array
                     result.RowCount = 1;
                     result.ColumnCount = 1;
-                    result.Values.Add([valueOrArray]);
+                    if (ExcelErrorMapper.TryGet(valueOrArray, out int errorCode, out var error))
+                    {
+                        formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
+                        result.Values.Add([
+                            ConvertMappedErrorForRead(
+                                valueOrArray,
+                                GetReturnedFormula(formulaOrArray),
+                                startRow,
+                                startColumn,
+                                result.CellErrors,
+                                errorCode,
+                                error)
+                        ]);
+                    }
+                    else
+                    {
+                        result.Values.Add([valueOrArray]);
+                    }
                 }
 
                 result.Success = true;
@@ -76,6 +119,12 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    private static string GetReturnedFormula(object? formula)
+    {
+        string text = formula?.ToString() ?? string.Empty;
+        return text.StartsWith('=') ? text : string.Empty;
     }
 
     /// <inheritdoc />
@@ -119,6 +168,8 @@ public partial class RangeCommands
                 {
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
+
+                ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
@@ -179,6 +230,60 @@ public partial class RangeCommands
         });
     }
 
+    private static void ValidateMergedCellsForWrite(
+        Excel.Range range,
+        string requestedRangeAddress,
+        CancellationToken cancellationToken)
+    {
+        object? mergeCells = range.MergeCells;
+        bool? isMergedState = RangeMergeDiscovery.GetMergeCellsState(mergeCells);
+        if (isMergedState == false)
+        {
+            return;
+        }
+
+        if (isMergedState == true && Convert.ToInt64(range.CountLarge) == 1)
+        {
+            Excel.Range? mergeArea = null;
+            try
+            {
+                mergeArea = range.MergeArea;
+                if (range.Row == mergeArea.Row && range.Column == mergeArea.Column)
+                {
+                    return;
+                }
+
+                ThrowMergedCellWriteError(
+                    requestedRangeAddress,
+                    [mergeArea.Address[true, true]]);
+            }
+            finally
+            {
+                ComUtilities.Release(ref mergeArea);
+            }
+        }
+
+        var mergedRanges = RangeMergeDiscovery.CollectMergedRanges(
+            range,
+            isMergedState,
+            cancellationToken);
+        if (mergedRanges.Count > 0)
+        {
+            ThrowMergedCellWriteError(requestedRangeAddress, mergedRanges);
+        }
+    }
+
+    private static void ThrowMergedCellWriteError(
+        string requestedRangeAddress,
+        List<string> mergedRanges)
+    {
+        string rangeLabel = mergedRanges.Count == 1 ? "Merged range" : "Merged ranges";
+        throw new InvalidOperationException(
+            $"Cannot write to range '{requestedRangeAddress}' because the write intersects merged cells. " +
+            $"{rangeLabel}: {string.Join(", ", mergedRanges)}. " +
+            "Write only to each merged range's top-left cell, or unmerge the affected range before writing.");
+    }
+
     /// <summary>
     /// Detects formulas in value array (strings starting with =)
     /// Returns true if any formulas detected, outputs formula array
@@ -229,6 +334,3 @@ public partial class RangeCommands
         }
     }
 }
-
-
-

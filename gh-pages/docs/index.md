@@ -30,22 +30,22 @@ hide:
     say *"Show me Excel while you work."*
 
 <div class="mcp-video" markdown>
-[![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg){ width="1280" height="720" }](https://youtu.be/B6eIQ5BIbNc)
+[![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/wbw3-hPcE2o/maxresdefault.jpg){ width="1280" height="720" }](https://youtu.be/wbw3-hPcE2o)
 
-▶️ [Watch the intro video (1 min)](https://youtu.be/B6eIQ5BIbNc)
+▶️ [Watch the intro video (2 min)](https://youtu.be/wbw3-hPcE2o)
 </div>
 
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "VideoObject",
-  "name": "Introducing MCP Server for Excel - AI Coding for Excel",
-  "description": "See Excel MCP Server drive the real Microsoft Excel application from an AI assistant - Power Query, DAX, VBA, PivotTables and more.",
-  "thumbnailUrl": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
-  "uploadDate": "2025-11-23T08:33:40-08:00",
-  "duration": "PT1M2S",
-  "contentUrl": "https://www.youtube.com/watch?v=B6eIQ5BIbNc",
-  "embedUrl": "https://www.youtube.com/embed/B6eIQ5BIbNc",
+  "name": "Excel MCP Server: Real Excel Automation for AI Agents",
+  "description": "Learn what Excel MCP Server is, when to use it, and how AI agents automate Power Query, DAX, PivotTables, VBA, Python, and calculations through real Microsoft Excel.",
+  "thumbnailUrl": "https://i.ytimg.com/vi/wbw3-hPcE2o/maxresdefault.jpg",
+  "uploadDate": "2026-09-12T07:07:06-07:00",
+  "duration": "PT2M1S",
+  "contentUrl": "https://www.youtube.com/watch?v=wbw3-hPcE2o",
+  "embedUrl": "https://www.youtube.com/embed/wbw3-hPcE2o",
   "publisher": {
     "@type": "Organization",
     "name": "Excel MCP Server",
@@ -57,6 +57,10 @@ hide:
 !!! tip "Also building PowerPoint decks?"
     Check out [PowerPoint MCP Server](https://powerpointmcpserver.dev/) — the
     sister project, built the same way.
+
+!!! tip "Also automating Windows apps and browsers?"
+    Check out [Windows MCP Server](https://windowsmcpserver.dev/) — automate
+    Windows apps and browsers from your AI assistant.
 
 ## Key features
 
@@ -128,7 +132,7 @@ hide:
 
 </div>
 
-[See all 31 tools and 325 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[See all 31 tools and 326 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## Popular guides
 

@@ -1,335 +1,187 @@
-# VS Code Extension Development Notes
+# VS Code Extension Development
 
-## Project Structure
+The Excel MCP Server extension bundles the Windows x64 MCP executable and one
+Agent Skill. Users do not need a separate .NET runtime or CLI installation.
 
-```
+## Project structure
+
+```text
 vscode-extension/
-├── src/
-│   └── extension.ts          # Extension entry point
-├── out/                       # Compiled JavaScript
-│   ├── extension.js
-│   └── extension.js.map
-├── package.json               # Extension manifest
-├── tsconfig.json             # TypeScript config
-├── eslint.config.mjs         # Linting rules
-├── README.md                 # Extension documentation
-├── CHANGELOG.md              # Version history
-├── INSTALL.md                # Installation guide
-├── LICENSE                   # MIT License
-├── icon.png                  # 128x128 extension icon
-├── icon.svg                  # SVG source
-├── skills/                   # Agent skills (copied during build)
-│   ├── excel-mcp/            # MCP server skill
-│   │   └── SKILL.md
-│   ├── excel-cli/            # CLI skill
-│   │   └── SKILL.md
-│   └── shared/               # Shared reference docs
-│       └── *.md
-└── excelmcp-1.0.0.vsix      # Packaged extension
+├── src/extension.ts          # Extension activation and MCP registration
+├── out/                      # Compiled JavaScript
+├── bin/                      # Self-contained MCP Server built for packaging
+├── skills/excel-mcp/         # Build copy of the canonical Agent Skill
+├── scripts/                  # Build-time manifest validation
+├── package.json              # Extension manifest and npm scripts
+├── package-lock.json         # Locked development dependencies
+├── tsconfig.json             # TypeScript compiler settings
+├── .vscodeignore             # Files excluded from the VSIX
+├── README.md                 # Marketplace details page
+├── CHANGELOG.md              # Build copy of the repository changelog
+├── LICENSE                   # Packaged MIT license
+└── icon.png                  # Marketplace icon
 ```
 
-## Key Implementation Details
+Do not edit files under `vscode-extension/skills/excel-mcp/` directly. The
+`copy:skills` script replaces that directory from the canonical
+`skills/excel-mcp/` source and stamps `VERSION` from `package.json`.
 
-### MCP Server Registration
+Do not edit `vscode-extension/CHANGELOG.md` directly. The build copies the
+generated root `CHANGELOG.md` into the extension package.
 
-The extension uses VS Code's `mcpServerDefinitionProvider` contribution point:
+## Contributions
+
+### MCP Server
+
+The manifest declares the provider ID and the extension registers that exact
+ID through VS Code's API:
 
 ```typescript
-vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
-  provideMcpServerDefinitions: async () => {
-    const serverPath = path.join(context.extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
-    return [
-      new vscode.McpStdioServerDefinition(
-        'Excel MCP Server',
-        serverPath,
-        [],
-        {} // Optional environment variables
-      )
-    ];
-  }
-})
+vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
+  provideMcpServerDefinitions: async () => [
+    new vscode.McpStdioServerDefinition(
+      'excel-mcp',
+      path.join(context.extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe'),
+      [],
+      {}
+    )
+  ]
+});
 ```
 
-### Agent Skills Registration
+### Agent Skill
 
-The extension uses VS Code's `chatSkills` contribution point in `package.json` to declaratively register agent skills:
+The `chatSkills` contribution registers the packaged skill:
 
 ```json
 "chatSkills": [
-  { "name": "excel-mcp", "path": "./skills/excel-mcp/SKILL.md" },
-  { "name": "excel-cli", "path": "./skills/excel-cli/SKILL.md" }
+  {
+    "name": "excel-mcp",
+    "description": "Excel MCP Server skill for Windows workbook automation.",
+    "path": "./skills/excel-mcp/SKILL.md"
+  }
 ]
 ```
 
-Skills are automatically available to GitHub Copilot when the extension is active — no file-copying needed.
+VS Code's Extension Features table reads `name` and `description` from the
+manifest. Runtime skill discovery reads the matching frontmatter from
+`SKILL.md`; the build validates that the names agree.
 
-### Activation
+## Prerequisites
 
-- **Activation Event**: `onStartupFinished` - Extension loads when VS Code starts
-- **Welcome Message**: Shows once on first activation
-- **State Management**: Uses `context.globalState` to track welcome message
+- Windows
+- The .NET SDK pinned by the repository `global.json`
+- Node.js and npm
+- Microsoft Excel for end-to-end MCP testing
 
-### Dependencies
-
-- **Runtime**: None - Extension bundles self-contained executables (MCP Server + CLI)
-- **Dev Dependencies**:
-  - `@types/vscode@^1.106.0` - VS Code API types
-  - `@types/node@^22.0.0` - Node.js types
-  - `typescript@^5.9.0` - TypeScript compiler
-  - `@vscode/vsce@^3.0.0` - Extension packaging tool
-  - `eslint` + `typescript-eslint` - Code quality
-
-## Building
+Install locked dependencies:
 
 ```powershell
-npm install          # Install dependencies
-npm run compile      # Compile TypeScript
-npm run watch        # Watch mode for development
-npm run lint         # Run ESLint
-npm run package      # Create VSIX package
+Set-Location vscode-extension
+npm ci
 ```
 
-## Building Bundled Executables
+## Build and validation
 
-The extension includes self-contained MCP server and CLI executables. To update them:
+Run the fast checks while editing:
 
 ```powershell
-# Build MCP server as self-contained single-file exe
-cd d:\source\mcp-server-excel
-dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin
-
-# Build CLI as self-contained single-file exe
-dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin
-
-# Or use the npm script which builds both
-npm run build:all
-
-# Verify the executables work
-vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe --version
-vscode-extension/bin/excelcli.exe --version
+npm run compile
+npm run lint
 ```
 
-This creates self-contained executables with the .NET runtime and all dependencies included. No .NET SDK or runtime installation needed on end-user machines.
+`compile` first validates Marketplace assets and feature contribution metadata,
+then compiles TypeScript.
 
-## Testing
-
-### Prerequisites for Testing
-
-The extension uses bundled self-contained executables. For development testing:
+Build the complete release-shaped VSIX:
 
 ```powershell
-# Build both executables (matches production)
-npm run build:all
-
-# Verify bundled executables work
-vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe --version
-vscode-extension/bin/excelcli.exe --version
-```
-
-**Why this approach**: The extension bundles self-contained MCP server and CLI executables. No .NET runtime or SDK needed on the target machine.
-
-### Manual Testing
-
-1. **Build the extension**:
-   ```powershell
-   npm run compile
-   ```
-
-2. **Press F5 in VS Code** (opens Extension Development Host)
-
-3. **Check the Debug Console** for activation logs:
-   - ✅ `ExcelMcp extension is now active`
-   - ❌ NO errors about "Cannot read properties of undefined"
-
-4. **In the Extension Development Host**:
-   - Check if extension is loaded: Extensions panel
-   - Check if MCP server is registered: Settings → MCP
-   - Ask GitHub Copilot to list Excel tools
-
-5. **Check Developer Tools Console** (Ctrl+Shift+I):
-   - Go to Console tab
-   - Look for "ExcelMcp:" messages
-   - Verify no errors
-
-### Package Testing
-
-1. **Package the extension**:
-   ```powershell
-   npm run package
-   ```
-
-2. **Install from VSIX**:
-   - `Ctrl+Shift+P` → "Install from VSIX"
-   - Select `excelmcp-1.0.0.vsix`
-
-3. **Verify**:
-   - Extension appears in Extensions panel
-   - Welcome message shows on first activation
-   - GitHub Copilot can access Excel tools
-
-## Publishing
-
-### Automated Publishing (Recommended)
-
-The extension is published with every unified repository release:
-
-```powershell
-# Release all components with the same calculated version
-gh workflow run release.yml -f version_bump=patch
-```
-
-The GitHub Actions workflow will automatically:
-- ✅ **Calculate version** from the latest tag and dispatch input
-- ✅ **Update package.json version** using `npm version` (no manual editing needed)
-- ✅ **Compile changesets** into `CHANGELOG.md` and release notes
-- ✅ **Build and package the extension**
-- ✅ **Publish to VS Code Marketplace** (if `VSCE_TOKEN` secret is configured)
-- ✅ **Build all other components** (MCP Server, CLI, MCPB)
-- ✅ **Create unified GitHub release** with all artifacts
-
-**Important**: The workflow manages version numbers. Do not manually update
-`package.json` before release.
-
-See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instructions.
-
-## Changelog Maintenance
-
-Never edit the root `CHANGELOG.md` manually. Add a changeset with
-`npx changeset` for every user-visible change. The unified release workflow
-consumes pending fragments, generates the changelog entry, and copies the
-generated changelog into the extension package.
-
-### Manual Publishing
-
-#### VS Code Marketplace
-
-1. **Create publisher account**: https://marketplace.visualstudio.com/manage
-2. **Generate PAT**: https://dev.azure.com (Marketplace Manage scope)
-3. **Login**: `npx @vscode/vsce login <publisher>`
-4. **Publish**: `npx @vscode/vsce publish`
-
-#### GitHub Releases Only
-
-To create a GitHub release without marketplace publishing:
-
-```powershell
-cd vscode-extension
 npm run package
-# Upload the .vsix file manually to GitHub releases
 ```
 
-## Versioning
+Packaging performs these steps automatically:
 
-**Automatic Version Management** (Recommended):
-The unified release workflow automatically calculates version numbers from the latest git tag:
+1. Publishes the MCP Server as a self-contained Windows x64 executable.
+2. Copies and stamps the canonical Agent Skill.
+3. Copies the generated root changelog.
+4. Validates feature and Marketplace metadata.
+5. Compiles TypeScript and runs `vsce package`.
 
-1. Go to **Actions** → **Release All Components** → **Run workflow**
-2. Select version bump type (patch/minor/major) or enter a custom version
-
-The workflow will:
-- Calculate the next version from the latest git tag
-- Update `package.json` version for VS Code extension
-- Update all component versions (MCP Server, CLI, MCPB manifest)
-- Create git tag and unified GitHub release with all artifacts
-
-**Local Version Testing**:
-If packaging needs a temporary local version:
+To build only the bundled executable:
 
 ```powershell
-npm version patch   # Bumps 1.0.0 → 1.0.1
-npm version minor   # Bumps 1.0.0 → 1.1.0
-npm version major   # Bumps 1.0.0 → 2.0.0
+npm run build:mcp-server
+.\bin\Sbroenne.ExcelMcp.McpServer.exe --version
 ```
 
-Follow Semantic Versioning (SemVer):
-- **Major**: Breaking changes
-- **Minor**: New features
-- **Patch**: Bug fixes
+## Local testing
 
-**Important**: Don't commit local version changes. Releases use workflow inputs.
+### Extension Development Host
 
-## Maintenance
+1. Open the `vscode-extension` folder in VS Code.
+2. Run `npm run compile`.
+3. Press `F5` to open an Extension Development Host.
+4. Confirm the MCP server appears in VS Code's MCP management UI.
+5. Open the extension's Features tab and verify:
+   - MCP Servers shows `excel-mcp` and `Excel MCP Server`.
+   - Chat Skills shows the skill name, description, and path.
 
-### Updating Dependencies
+### Packaged VSIX
 
-```powershell
-npm outdated                    # Check for updates
-npm update                      # Update minor/patch
-npm install @types/vscode@latest --save-dev  # Update major
-```
+1. Run `npm run package`.
+2. Use **Extensions: Install from VSIX...** in VS Code.
+3. Select the generated `excel-mcp-<version>.vsix`.
+4. Reload VS Code and verify the MCP server and Agent Skill.
 
-### VS Code API Updates
+The VSIX is approximately 65 MB. Most of its size is the compressed,
+self-contained MCP Server; the unpacked executable is approximately 150 MB.
 
-When VS Code releases new API features:
-1. Update `engines.vscode` in package.json
-2. Update `@types/vscode` to matching version
-3. Test extension compatibility
-4. Update CHANGELOG
+## Release workflow
+
+For every user-visible extension change:
+
+1. Add a patch changeset from the repository root with `npx changeset`.
+2. Do not manually edit package versions or either changelog copy.
+3. Open a pull request and let CI validate the package.
+4. Use the unified **Release All Components** workflow after merge.
+
+The release workflow calculates one version for all deliverables, compiles the
+changesets into the root changelog, packages the extension, publishes it to the
+VS Code Marketplace, publishes the .NET packages, and creates the GitHub
+release.
 
 ## Troubleshooting
 
-### Build Issues
+### Missing Node modules
 
-**Error: "Cannot find module 'vscode'"**
-- Run `npm install`
+Run `npm ci` from `vscode-extension`.
 
-**Error: "TypeScript compile errors"**
-- Check `tsconfig.json` settings
-- Verify VS Code types version matches engines.vscode
+### MCP Server is missing
 
-### Packaging Issues
+Run `npm run build:mcp-server`, then verify that
+`bin/Sbroenne.ExcelMcp.McpServer.exe --version` succeeds. The manifest provider
+ID and the ID passed to `registerMcpServerDefinitionProvider` must both be
+`excel-mcp`.
 
-**Error: "LICENSE not found"**
-- Ensure LICENSE file exists in extension root
+### Feature metadata validation fails
 
-**Error: "engines.vscode mismatch"**
-- Update package.json `engines.vscode` to match `@types/vscode` version
+Keep the provider ID and label populated. Keep every Chat Skill's manifest
+name synchronized with the `name` field in its `SKILL.md` frontmatter, and
+provide a manifest description for VS Code's Features table.
 
-### Runtime Issues
+### Package contents are wrong
 
-**Extension not activating**
-- Check `activationEvents` in package.json
-- Verify extension ID matches registration
+Review `.vscodeignore`, then run:
 
-**MCP server not found**
-- Ensure bundled executable exists in `bin/Sbroenne.ExcelMcp.McpServer.exe`
-- Run `npm run build:all` to build both MCP server and CLI executables
-- Verify bundled executable runs: `bin/Sbroenne.ExcelMcp.McpServer.exe --version`
+```powershell
+npx vsce ls --tree
+```
 
-**CLI not found**
-- Ensure `bin/excelcli.exe` exists
-- Run `npm run build:all` to build both executables
-
-## Extension Size 
-
-Current size: **~68-70 MB** (includes bundled self-contained MCP server and CLI executables)
-
-The extension includes:
-- Main extension code (~10 KB)
-- Bundled self-contained MCP server (~118 MB uncompressed, ~34 MB compressed)
-- Bundled self-contained CLI (~115 MB uncompressed, ~34 MB compressed)
-- Agent Skills (~130 KB for both excel-mcp and excel-cli)
-
-Benefits of self-contained bundled approach:
-- ✅ Zero-setup installation (no .NET runtime or SDK required)
-- ✅ Version compatibility guaranteed (extension includes matching MCP server + CLI)
-- ✅ Works offline after installation
-- ✅ No dependency on dotnet tool installations
-- ✅ CLI available directly for terminal-based automation
-
-## Future Enhancements
-
-Potential improvements:
-- [ ] Add configuration options for MCP server
-- [ ] Status bar item showing server status
-- [ ] Commands to restart/reload MCP server
-- [ ] Settings for custom tool arguments
-- [ ] Telemetry for usage insights
-- [ ] Automatic update notifications
+Development sources, local VSIX files, dependencies, and build-only scripts
+must not ship in the package.
 
 ## References
 
 - [VS Code Extension API](https://code.visualstudio.com/api)
-- [MCP Documentation](https://modelcontextprotocol.io/)
-- [VS Code Extension Samples](https://github.com/microsoft/vscode-extension-samples)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Publishing Extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)

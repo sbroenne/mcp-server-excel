@@ -171,15 +171,19 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static readonly string[] ValidActions = [{actionList}];");
         sb.AppendLine();
 
-        // Generate Description constant for CLI help
-        var escapedDescription = (info.XmlDocSummary ?? $"{info.CategoryPascal} operations")
+        // Top-level CLI help is a command index. Keep the detailed interface
+        // guidance in action/option help instead of repeating it for every command.
+        var fullDescription = info.XmlDocSummary ?? $"{info.CategoryPascal} operations";
+        var sentenceEnd = fullDescription.IndexOf(". ", StringComparison.Ordinal);
+        var shortDescription = sentenceEnd >= 0
+            ? fullDescription.Substring(0, sentenceEnd + 1)
+            : fullDescription;
+        var escapedDescription = shortDescription
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")
-            .Replace("\r", "")
-            .Replace("\n", " ")
             .Trim();
         sb.AppendLine("        /// <summary>");
-        sb.AppendLine("        /// Human-readable description from interface XML documentation.");
+        sb.AppendLine("        /// Concise description from the first sentence of interface XML documentation.");
         sb.AppendLine("        /// </summary>");
         sb.AppendLine($"        public const string Description = \"{escapedDescription}\";");
         sb.AppendLine();

@@ -100,4 +100,24 @@ public sealed class ProgramLoggingTests
         Assert.DoesNotContain("telemetry configured", stderr.ToString(), StringComparison.Ordinal);
         Assert.Contains("telemetry warning", stderr.ToString(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ConfigureStdioLogging_RemovesApplicationInsightsLoggerProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddApplicationInsightsTelemetryWorkerService(new ApplicationInsightsServiceOptions
+        {
+            ConnectionString = "InstrumentationKey=00000000-0000-0000-0000-000000000000"
+        });
+        services.AddLogging(Program.ConfigureStdioLogging);
+
+        using var provider = services.BuildServiceProvider();
+        var loggerProviders = provider.GetServices<ILoggerProvider>();
+
+        Assert.DoesNotContain(
+            loggerProviders,
+            item => item.GetType().FullName?.Contains(
+                "ApplicationInsights",
+                StringComparison.Ordinal) == true);
+    }
 }

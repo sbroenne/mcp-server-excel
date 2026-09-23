@@ -137,31 +137,33 @@ tests/
 **During Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
-dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
-dotnet test --filter "Feature=DataModel&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=DataModel&RunType!=OnDemand"
 ```
 
-**Before Commit (Comprehensive):**
-```powershell
-# Full local validation - runs in 10-20 minutes (excludes VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-```
+**Before Commit:** Rerun the affected tests and applicable repository checks.
+Follow the [repository validation requirements](../.github/copilot-instructions.md#build-and-validation)
+for runtime E2E. Do not run the full Excel integration suite during iteration.
+Use a hard execution timeout for every Excel-dependent test run.
 
 **Session/Batch Code Changes (MANDATORY):**
 ```powershell
 # When modifying ExcelSession.cs or ExcelBatch.cs
-dotnet test --filter "RunType=OnDemand"
+dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 ```
 
 ### **Test Categories & Guidelines**
 
-**⚠️ No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
+Use real Excel integration tests for COM behavior and focused non-COM tests for
+pure parsing, mapping, serialization, and generation. The blanket unit-test ban
+in [ADR-001](ADR-001-NO-UNIT-TESTS.md) is superseded by the
+[current testing strategy](../.github/instructions/testing-strategy.instructions.md).
 
 **Integration Tests (`Category=Integration`)**
 - ✅ Test business logic with real Excel COM interaction
 - ✅ Medium speed (10-20 minutes for full suite)
 - ✅ Requires Excel installation
-- ✅ These ARE our unit tests (Excel COM cannot be mocked)
+- ✅ Mocks do not establish Excel COM behavior
 - ✅ Run specific features during development
 - ✅ Slow execution (3-10 minutes each)
 - ✅ Verifies actual Excel state changes
@@ -169,7 +171,8 @@ dotnet test --filter "RunType=OnDemand"
 
 ### **Adding New Tests**
 
-When creating tests, use real Excel and all required traits:
+When creating COM integration tests, use real Excel and all required traits.
+For pure logic, follow nearby non-COM tests and mark `RequiresExcel=false`.
 
 ```csharp
 // Integration test example
@@ -189,8 +192,8 @@ public class PowerQueryCommandsTests
 Before creating a PR, ensure:
 
 ```powershell
-# Required - Integration tests pass (excludes VBA)
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+# Example: select the project and feature affected by the change
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
 
 # Code builds without warnings
 dotnet build -c Release
@@ -217,9 +220,9 @@ worktrees cannot stop each other's daemon or Excel instances.
 
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
-- ✅ Test round-trip persistence (create → save → reload → verify)
+- ✅ Test round-trip persistence when saving is the behavior under test
 - ✅ Update documentation
-- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+- ✅ Add non-COM tests for Excel-independent behavior
 
 ## 🔧 **CLI Command Code Generation**
 
@@ -285,10 +288,54 @@ When adding a new service category to Core:
 
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
-- ✅ Test round-trip persistence (create → save → reload → verify)
+- ✅ Test round-trip persistence when saving is the behavior under test
 - ✅ Update documentation
-- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+- ✅ Add non-COM tests for Excel-independent behavior
 
+
+## MCP tool implementation
+
+Most MCP tools come from the Core contract and source generator. Add manual
+routing only when a tool owns additional metadata or atomic operations that do
+not require a session. MCP calls the shared service in-process; it does not
+connect to the CLI daemon.
+
+For a manual tool, scope the SDK cancellation token, enter the shared execution
+boundary, and delegate to the generated route. For example, this helper lists
+worksheets through the existing Sheet route:
+
+```csharp
+public static string ListWorksheets(
+    string session_id,
+    CancellationToken cancellationToken = default)
+{
+    using var cancellationScope =
+        ExcelToolsBase.PushCancellationToken(cancellationToken);
+
+    return ExcelToolsBase.ExecuteToolAction(
+        "worksheet",
+        ServiceRegistry.Sheet.ToActionString(SheetAction.List),
+        () => ServiceRegistry.Sheet.RouteAction(
+            SheetAction.List,
+            session_id,
+            ExcelToolsBase.ForwardToServiceFunc));
+}
+```
+
+`ExecuteToolAction` supplies common telemetry and error handling. Use shared
+`JsonOptions` for additional payloads. Tool execution failures return structured
+JSON with `success: false` and `isError: true`; preserve Service categories,
+HRESULTs, inner context, and retry information. Invalid input or unknown actions
+may use the established argument/protocol exception path.
+
+Tool and parameter descriptions should explain server-specific behavior,
+constraints, and differences between overlapping tools. Types and enum values
+already appear in the schema. Keep destructive/read-only metadata accurate.
+All MCP stdio diagnostics, including bootstrap/startup output, go to stderr;
+stdout is reserved for JSON-RPC.
+
+For generated skill and prompt content, see
+[Maintaining skills and MCP prompts](../skills/README.md#maintaining-skills-and-mcp-prompts).
 
 ## 📋 **MCP Registry Manifest**
 
@@ -387,9 +434,15 @@ The Application Insights connection string is **embedded at build time** via MSB
 ### **What is Tracked**
 
 - **Tool invocations**: Tool name, action, duration (ms), success/failure
-- **Unhandled exceptions**: Exception type and redacted stack trace
+- **Unhandled exceptions**: Exception type, approved source, and project-owned
+  failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
+- **Session alias compatibility**: A fixed event when a declared session-bound
+  action uses the top-level `sessionId` fallback. Its custom properties contain
+  only tool, declared action, alias name, and application version. Standard
+  telemetry context also carries the anonymous user ID, random MCP server
+  process telemetry session ID, role, role instance, and component version.
 
 ### **What is NOT Tracked**
 
@@ -397,10 +450,17 @@ The Application Insights connection string is **embedded at build time** via MSB
 - User identity, machine name, or IP address
 - Excel data, formulas, or cell values
 - Connection strings, credentials, or passwords
+- Excel workbook `session_id`/`sessionId` values or raw MCP arguments. The
+  standard random MCP server process telemetry session ID is separate from
+  workbook identity.
 
-### **Sensitive Data Redaction**
+### **Sensitive Data Protection**
 
-All telemetry passes through `SensitiveDataRedactingProcessor` which removes:
+Tool telemetry contains only allowlisted operation metadata. Explicit exception
+telemetry is rebuilt from safe classifications and never contains the original
+message or stack. An ingestion-time workspace transform rejects exception rows
+without ExcelMcp's sanitization marker. `SensitiveDataRedactor` is retained for
+local diagnostic text and recognizes:
 - Windows file paths (`C:\Users\...` → `[REDACTED_PATH]`)
 - UNC paths (`\\server\share\...` → `[REDACTED_PATH]`)
 - Connection string secrets (`Password=...` → `[REDACTED_CREDENTIAL]`)
@@ -455,6 +515,30 @@ After deploying Azure resources:
 
 The release workflow sets this as an environment variable, and MSBuild embeds it at build time.
 
+### **Public Usage Analytics Automation**
+
+The weekly `usage-analytics.yml` workflow queries aggregate telemetry through a
+read-only Azure workload identity, gives GitHub Copilot only the sanitized JSON,
+validates every generated numeric claim, and persists the report to the
+`analytics-data` branch. The Pages build restores that report read-only.
+
+One-time maintainer setup:
+
+```powershell
+.\infrastructure\azure\configure-analytics-oidc.ps1
+
+# Fine-grained personal token with Account permission: Copilot Requests (read)
+gh secret set COPILOT_GITHUB_TOKEN
+```
+
+Use a manual dry run before enabling publication:
+
+```powershell
+gh workflow run usage-analytics.yml -f publish=false
+```
+
+After inspecting the artifact, publish a validated run with `publish=true`.
+
 ### **Telemetry Architecture**
 
 ```text
@@ -468,10 +552,10 @@ Runtime:
   ExcelMcpTelemetry.TrackToolInvocation()
       │ (tracks: tool, action, duration, success)
       ▼
-  SensitiveDataRedactingProcessor
-      │ (removes: paths, credentials, emails)
+  Allowlisted telemetry construction
+      │ (exception messages and stacks are omitted)
       ▼
-  TelemetryClient → Application Insights
+  TelemetryClient → ingestion privacy transform → Application Insights
 ```
 
 ### **Files Overview**
@@ -479,12 +563,11 @@ Runtime:
 | File | Purpose |
 |------|---------|
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
-| `Telemetry/ExcelMcpTelemetryInitializer.cs` | Sets User.Id and Session.Id on telemetry |
-| `Telemetry/SensitiveDataRedactingProcessor.cs` | Redacts PII before transmission |
+| `Telemetry/SensitiveDataRedactor.cs` | Redacts sensitive local diagnostic text |
 | `Program.cs` | Application Insights WorkerService configuration |
 | `ExcelMcp.McpServer.csproj` | MSBuild target that generates TelemetryConfig.g.cs |
 | `Directory.Build.props.user.template` | Template for local dev connection string |
-| `infrastructure/azure/appinsights.bicep` | Azure resource definitions |
+| `infrastructure/azure/appinsights-resources.bicep` | Azure resources and ingestion privacy transforms |
 | `infrastructure/azure/deploy-appinsights.ps1` | Deployment script |
 
 ## ✂️ **Trimming and Native AOT Compatibility**

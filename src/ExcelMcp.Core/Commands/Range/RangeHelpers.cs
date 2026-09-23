@@ -53,7 +53,7 @@ public static class RangeHelpers
             {
                 return sheet.Range[rangeAddress];
             }
-            catch (Exception ex)
+            catch (System.Runtime.InteropServices.COMException ex)
             {
                 specificError = $"Sheet '{sheetName}' exists, but range '{rangeAddress}' is invalid. " +
                                $"Error: {ex.Message}. " +
@@ -241,5 +241,4 @@ public partial class RangeCommands
         });
     }
 }
-
 

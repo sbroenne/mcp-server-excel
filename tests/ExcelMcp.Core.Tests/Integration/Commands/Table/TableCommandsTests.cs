@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
 {
     private readonly TableCommands _tableCommands;
-    private readonly IRangeCommands _rangeCommands;
+    private readonly RangeCommands _rangeCommands;
     private readonly TableTestsFixture _fixture;
     private readonly string _tableFile;
     private readonly TableCreationResult _creationResult;
@@ -466,7 +466,6 @@ public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
 
     #endregion
 }
-
 
 
 

@@ -15,6 +15,7 @@ fast.
 from __future__ import annotations
 
 import gzip
+import html as html_lib
 import json
 import re
 import sys
@@ -166,6 +167,19 @@ def audit_html(path: Path) -> None:
     for img in re.findall(r"<img\b[^>]*>", html):
         src_match = re.search(r'src=["\']?([^"\'\s>]+)', img)
         src = src_match.group(1) if src_match else ""
+        alt_match = re.search(
+            r'\balt=(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))',
+            img,
+        )
+        alt = ""
+        if alt_match:
+            alt = next(
+                (value for value in alt_match.groups() if value is not None),
+                "",
+            )
+        if not html_lib.unescape(alt).strip():
+            fail(f"{name}: <img> without meaningful alt text: {src or img[:60]}")
+
         parts = urlsplit(src)
         exempt = (
             parts.netloc in BADGE_HOSTS
@@ -388,6 +402,30 @@ def audit_llms(html_files: list[Path]) -> None:
             fail(f"{page_name(mirror)}: mirror is empty")
 
 
+def audit_feature_overview() -> None:
+    """The feature overview has one content source; its wrapper adds presentation."""
+    wrapper = SITE_DIR.parent / "docs" / "features.md"
+    content = wrapper.read_text(encoding="utf-8")
+    snippet = '--8<-- "_generated/features.md"'
+    if content.count(snippet) != 1:
+        fail("features.md must include the generated FEATURES.md overview exactly once")
+
+    body = re.sub(r"\A---\r?\n.*?\r?\n---\r?\n", "", content, flags=re.DOTALL)
+    body = re.sub(r"<figure\b[^>]*>.*?</figure>", "", body, flags=re.DOTALL)
+    body = re.sub(r"^# [^\n]+$", "", body, flags=re.MULTILINE)
+    if body.replace(snippet, "").strip():
+        fail("features.md duplicates overview content; keep it in FEATURES.md")
+
+    generated = SITE_DIR.parent / "_generated" / "features.md"
+    mirror = SITE_DIR / "features" / "index.md"
+    if not generated.is_file() or not mirror.is_file():
+        fail("FEATURES.md generated overview or published Markdown mirror is missing")
+        return
+    overview = generated.read_text(encoding="utf-8").strip()
+    if not overview or mirror.read_text(encoding="utf-8").count(overview) != 1:
+        fail("features/index.md must contain the complete generated overview exactly once")
+
+
 def audit_tools_json() -> None:
     path = SITE_DIR / "tools.json"
     if not path.is_file():
@@ -484,6 +522,70 @@ def audit_jsonld(html_files: list[Path]) -> None:
                 fail(f"{page_name(path)}: invalid JSON-LD: {exc}")
 
 
+def audit_breadcrumbs(html_files: list[Path]) -> None:
+    """Nested documentation pages must expose their section in breadcrumbs."""
+    sections = {
+        "features": ("Features", f"{SITE_URL}features/"),
+        "guides": ("Guides", f"{SITE_URL}guides/"),
+        "reference": ("Reference", f"{SITE_URL}reference/"),
+    }
+    flat_sections = {
+        "installation-cli/index.html": ("Installation", f"{SITE_URL}installation/"),
+        "installation-mcp-server/index.html": (
+            "Installation",
+            f"{SITE_URL}installation/",
+        ),
+    }
+
+    for path in html_files:
+        name = page_name(path)
+        parent = flat_sections.get(name)
+        if parent is None:
+            parts = name.split("/")
+            if len(parts) >= 3 and parts[0] in sections:
+                parent = sections[parts[0]]
+        if parent is None:
+            continue
+
+        html_text = path.read_text(encoding="utf-8", errors="replace")
+        breadcrumb = None
+        for block in re.findall(
+            r'<script type=["\']?application/ld\+json["\']?>(.*?)</script>',
+            html_text,
+            re.DOTALL,
+        ):
+            try:
+                data = json.loads(block)
+            except json.JSONDecodeError:
+                continue
+            if data.get("@type") == "BreadcrumbList":
+                breadcrumb = data
+                break
+
+        if breadcrumb is None:
+            fail(f"{name}: no BreadcrumbList structured data")
+            continue
+
+        items = breadcrumb.get("itemListElement", [])
+        expected_name, expected_url = parent
+        if len(items) < 3:
+            fail(
+                f"{name}: breadcrumb omits parent section {expected_name} "
+                f"(found {len(items)} items, want at least 3)"
+            )
+            continue
+
+        section_item = items[-2]
+        if (
+            section_item.get("name") != expected_name
+            or section_item.get("item") != expected_url
+        ):
+            fail(
+                f"{name}: breadcrumb parent is not "
+                f"{expected_name} ({expected_url})"
+            )
+
+
 def main() -> int:
     if not SITE_DIR.is_dir():
         print(f"ERROR: {SITE_DIR} not found - run 'mkdocs build' first", file=sys.stderr)
@@ -506,8 +608,10 @@ def main() -> int:
     audit_offsite_links(html_files)
     audit_accessibility(html_files)
     audit_jsonld(html_files)
+    audit_breadcrumbs(html_files)
     audit_sitemap()
     audit_llms(html_files)
+    audit_feature_overview()
     audit_tools_json()
     audit_robots()
     audit_faq()

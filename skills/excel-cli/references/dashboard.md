@@ -20,8 +20,8 @@ Every report or dashboard should follow this sequence:
 **Always use Excel Tables for tabular data:**
 
 ```
-range(set-values, rangeAddress='A1', values=[[headers + data]])
-table(create, tableName='SalesData', rangeAddress='A1:D20')
+range(set-values, range_address='A1', values=[[headers + data]])
+table(create, table_name='SalesData', range_address='A1:D20')
 ```
 
 **Why Tables matter:**
@@ -56,46 +56,46 @@ behaviour, not a formatting bug. Never promise a literal rendering when reportin
 **Number formats make cells WIDER, so auto-fit immediately after formatting:**
 
 ```
-range_format(action: 'auto-fit-columns', sheetName: 'Sales', rangeAddress: 'A:F')
+range_format(action: 'auto-fit-columns', sheet_name: 'Sales', range_address: 'A:F')
 ```
 
 A date formatted as `yyyy-mm-dd` or a currency value formatted as `$#,##0.00` does not fit the
 default column width, so Excel renders the cell as `#####`. A screenshot taken before auto-fit will
 show those columns as unreadable hash marks. Auto-fit before Step 5, not after.
 
-Use `range_format auto-fit-rows` as well when any cell has `wrapText` enabled.
+Use `range_format auto-fit-rows` as well when any cell has `wrap_text` enabled.
 
 ## Step 4: Position Charts with No Overlaps
 
 **Charts have automatic collision detection and three positioning modes:**
 
-### Single Chart (Auto-Position or targetRange)
+### Single Chart (Auto-Position or `target_range`)
 ```
-# Option A: targetRange (explicit cell placement)
-chart(create-from-range, sourceRange='A1:D20', targetRange='F2:K15')
+# Option A: target_range (explicit cell placement)
+chart(create-from-range, source_range='A1:D20', target_range='F2:K15')
 
 # Option B: Omit position — auto-places below content
-chart(create-from-range, sourceRange='A1:D20', chartType='Line')
+chart(create-from-range, source_range='A1:D20', chart_type='Line')
 # → Automatically positioned below the used range
 ```
 
-### Multiple Charts (Dashboard) — Always Use targetRange
+### Multiple Charts (Dashboard) — Always Use `target_range`
 ```
 Place in a grid pattern below data:
 
-Chart 1: targetRange='A22:F35'    (top-left)
-Chart 2: targetRange='G22:L35'    (top-right)
-Chart 3: targetRange='A37:F50'    (bottom-left)
-Chart 4: targetRange='G37:L50'    (bottom-right)
+Chart 1: target_range='A22:F35'    (top-left)
+Chart 2: target_range='G22:L35'    (top-right)
+Chart 3: target_range='A37:F50'    (bottom-left)
+Chart 4: target_range='G37:L50'    (bottom-right)
 ```
 
 ### Collision Detection
 All chart operations automatically warn about overlaps. If a result includes an `OVERLAP WARNING` message:
 1. Use `chart(fit-to-range)` to reposition
-2. Take `screenshot(capture, rangeAddress='A1:M50')` to verify
+2. Take `screenshot(capture, range_address='A1:M50')` to verify
 
 **Rules:**
-- **Use targetRange for multi-chart layouts** — auto-positioning stacks vertically
+- **Use `target_range` for multi-chart layouts** — auto-positioning stacks vertically
 - Leave 1-2 rows/columns gap between charts
 - Place charts BELOW the data area, not beside it (more room)
 - Keep chart sizes consistent (same row/column span)
@@ -106,7 +106,7 @@ All chart operations automatically warn about overlaps. If a result includes an 
 **Always take a screenshot after creating charts or complex layouts:**
 
 ```
-screenshot(capture, rangeAddress='A1:M50')
+screenshot(capture, range_address='A1:M50')
 → Confirm: no overlaps, professional spacing, readable labels
 → Confirm: no column renders as ##### (if it does, go back to Step 3 and auto-fit)
 → If issues found: chart(fit-to-range) to reposition, then screenshot again

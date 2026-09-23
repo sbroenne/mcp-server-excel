@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 
@@ -156,7 +157,6 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 // previously but hung indefinitely in the non-visible automation context.
 
                 // #BUSY! - the cloud Python call is still in flight (not a real error).
-                const int BusyErrorCode = -2146826237;
                 // XlCalculationState.xlDone (calculation complete).
                 const int XlDone = 0;
                 const int PollIntervalMs = 500;
@@ -166,12 +166,10 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 const int RequiredNonBusyReads = 3;
 
                 // Well-known Excel error code for #PYTHON! (Python code raised an error), used only to
-                // look up the canonical human-readable message via MapErrorCodeToMessage. Detection of
+                // look up the canonical human-readable message via ExcelErrorMapper. Detection of
                 // "this is a Python error" is NOT done by matching this exact code (the actual negative
                 // int Value2 returns for a Python-side error/object has been observed to vary and is not
                 // a reliable discriminator on its own) - see the returnType-based classification below.
-                const int PythonErrorCode = -2146826233;
-
                 // Nudge calculation once so a manual-calc workbook actually dispatches the async PY call.
                 // Harmless if calculation is automatic or already running.
                 try
@@ -208,9 +206,9 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     }
 
                     int markerIndex = Array.IndexOf(TransientMarkers, text);
-                    bool cellBusy = (value is int busyCode && busyCode == BusyErrorCode)
+                    bool cellBusy = (value is int busyCode && busyCode == ExcelErrorMapper.BusyErrorCode)
                         || markerIndex >= 0;
-                    lastMarker = value is int c && c == BusyErrorCode ? "#BUSY!"
+                    lastMarker = value is int c && c == ExcelErrorMapper.BusyErrorCode ? "#BUSY!"
                         : markerIndex >= 0 ? TransientMarkers[markerIndex]
                         : string.Empty;
 
@@ -254,39 +252,9 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     ? int.Parse(returnTypeMatch.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)
                     : 0;
 
-                if (value is int errorCode && errorCode < 0)
+                if (ExcelErrorMapper.TryNormalizeErrorCode(value, out int errorCode) && errorCode < 0)
                 {
-                    // Standard Excel error codes are well-known/fixed and mean the *formula itself*
-                    // failed to evaluate (e.g. bad range reference) - these are never Python results.
-                    bool isStandardExcelError = errorCode is -2146826288 or -2147483648 or -2146826259
-                        or -2146826246 or -2146826252 or -2142019887;
-
-                    if (isStandardExcelError)
-                    {
-                        result.Success = false;
-                        result.ErrorMessage = RangeCommands.MapErrorCodeToMessage(errorCode);
-                    }
-                    else if (formulaReturnType == 1)
-                    {
-                        // Python Object mode: Value2 is always an error-shaped placeholder for rich
-                        // data types (e.g. a DataFrame) since COM cannot represent them. Text would
-                        // normally carry a type-name label (e.g. "DataFrame") but is not reliable
-                        // enough here to depend on - report the object without assuming its type.
-                        result.Success = true;
-                        result.IsPythonObject = true;
-                        result.TypeName = !string.IsNullOrEmpty(text) && text.Any(char.IsLetter) ? text : null;
-                        result.Message = "Cell holds a Python Object (rich data type such as a DataFrame). "
-                            + "Value2 cannot expose rich Python object data via COM automation - set returnType=0 "
-                            + "(Excel Value) instead if you need to read the underlying data.";
-                    }
-                    else
-                    {
-                        // Excel Value mode (returnType=0) with a non-standard negative error code -
-                        // this is the Python code itself raising an error (syntax or runtime exception).
-                        result.Success = false;
-                        result.IsPythonError = true;
-                        result.ErrorMessage = RangeCommands.MapErrorCodeToMessage(PythonErrorCode);
-                    }
+                    PopulateErrorResult(result, errorCode, formulaReturnType, text);
                 }
                 else
                 {
@@ -308,6 +276,46 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
         });
     }
 
+    internal static void PopulateErrorResult(
+        PythonInExcelResult result,
+        int errorCode,
+        int formulaReturnType,
+        string displayedText)
+    {
+        bool isExcelFormulaError = ExcelErrorMapper.TryGet(errorCode, out var error)
+            && error.IsExcelFormulaError;
+        bool displaysExcelFormulaError = isExcelFormulaError
+            && string.Equals(displayedText.Trim(), error.Name, StringComparison.OrdinalIgnoreCase);
+
+        if (formulaReturnType == 1 && !displaysExcelFormulaError)
+        {
+            // Python Object mode uses error-shaped COM values for rich data types and can reuse a
+            // standard formula-error code such as #VALUE!. Only treat the code as a formula error
+            // when Excel also displays that canonical error name; otherwise preserve the object.
+            result.Success = true;
+            result.IsPythonObject = true;
+            result.TypeName = !string.IsNullOrEmpty(displayedText) && displayedText.Any(char.IsLetter)
+                ? displayedText
+                : null;
+            result.Message = "Cell holds a Python Object (rich data type such as a DataFrame). "
+                + "Value2 cannot expose rich Python object data via COM automation - set returnType=0 "
+                + "(Excel Value) instead if you need to read the underlying data.";
+        }
+        else if (isExcelFormulaError)
+        {
+            result.Success = false;
+            result.ErrorMessage = ExcelErrorMapper.GetMessage(errorCode);
+        }
+        else
+        {
+            // Excel Value mode (returnType=0) with a non-standard negative error code -
+            // this is the Python code itself raising an error (syntax or runtime exception).
+            result.Success = false;
+            result.IsPythonError = true;
+            result.ErrorMessage = ExcelErrorMapper.GetMessage(ExcelErrorMapper.PythonErrorCode);
+        }
+    }
+
     /// <summary>
     /// Identifies Excel's unavailable-function response without confusing unrelated #NAME? errors
     /// or transient Python cloud markers with a missing Python in Excel capability.
@@ -320,7 +328,8 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
             || normalizedFormula.StartsWith("=_xlfn.PY(", StringComparison.OrdinalIgnoreCase);
 
         return isTopLevelPythonFormula
-            && ((value is int errorCode && errorCode == NameErrorCode)
+            && ((ExcelErrorMapper.TryNormalizeErrorCode(value, out int errorCode)
+                    && errorCode == NameErrorCode)
                 || string.Equals(displayedText, "#NAME?", StringComparison.Ordinal));
     }
 }

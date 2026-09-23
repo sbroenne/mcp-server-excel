@@ -28,6 +28,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # hooks.py derives sitemap dates from git history. A shallow checkout
+          # makes the strict MkDocs build fail before the link check can run.
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -47,10 +51,11 @@ jobs:
         id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
-          # --base lets root-relative hrefs resolve against the built output, so
-          # internal and external links are both covered.
+          # --root-dir lets root-relative hrefs resolve against the built
+          # output, so internal and external links are both covered. It must be
+          # an absolute path - lychee rejects relative values.
           args: >-
-            --base gh-pages/_site
+            --root-dir ${{ github.workspace }}/gh-pages/_site
             --no-progress
             --max-concurrency 4
             --accept 200,206,429

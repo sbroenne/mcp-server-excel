@@ -5,66 +5,35 @@ excludeAgent: "code-review"
 
 # Testing strategy
 
-Use the narrowest existing project and filter that cover the change. Set an
-explicit timeout in the terminal/tool invocation for every Excel-dependent run.
-
 ## Commands
 
+Select one project and feature/name filter, not the full Excel suite. Set a hard
+execution timeout; returning control while a test keeps running is not a timeout.
+
 ```powershell
-# One Core feature
 dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
-
-# One MCP tool
-dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj --filter "FullyQualifiedName~PowerQuery"
-
-# One CLI command group
-dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "FullyQualifiedName~PowerQuery"
-
-# Session and batch infrastructure
 dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
-
-# One named test while debugging
-dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName=Namespace.Class.Method"
 ```
 
-VBA tests require Excel Trust Center access. Screenshot tests run separately
-because they use desktop/clipboard resources.
+The second command is required for session/batch infrastructure changes; narrow
+by test name where appropriate. Core OnDemand tests are optional diagnostics,
+not mandatory CI gates. VBA needs Trust Center access; run screenshots
+separately because they use desktop/clipboard resources.
 
-## Test design
+## Fixtures and assertions
 
-- COM-dependent behavior uses real Excel integration tests. Do not mock
-  `IExcelBatch` or Excel COM to claim interop coverage.
-- Pure parser, mapper, generator, and serialization behavior may use fast
-  non-COM tests when no Excel behavior is involved.
-- A regression test must fail for the missing behavior before the implementation
-  changes and pass afterward.
-- Verify the resulting workbook state and all relevant result fields, not only
-  `Success`.
-- Test errors with precise assertions; do not accept multiple incompatible
-  outcomes.
-
-## Isolation and fixtures
-
-- Create a unique workbook per test with the established fixture/helper.
-- Do not share mutable workbooks between tests.
-- Do not combine `IClassFixture<T>` with a collection fixture on the same class;
-  that can create competing Excel sessions.
-- Use `.xlsm` for VBA scenarios.
-- Include the repository's required traits (`Category`, `Feature`, `Layer`,
-  `RequiresExcel`, `Speed`, and `RunType` where applicable) by following nearby
-  tests in the same feature.
+- COM behavior requires real Excel, not mocked `IExcelBatch`. Pure parsing,
+  mapping, serialization, and generator tests need no Excel.
+- Use a unique workbook per test. Do not combine `IClassFixture<T>` with a
+  collection fixture on the same class: it can create competing Excel sessions.
+- Follow nearby trait conventions: `Category`, `Feature`, `Layer`,
+  `RequiresExcel`, `Speed`, and `RunType` where applicable.
+- Assert workbook state and relevant returned fields, not only `Success`.
+  Fixture COM access follows `excel-com-interop.instructions.md`.
 
 ## Save and round-trip behavior
 
-- Do not call `batch.Save()` for in-memory assertions.
-- Save only when persistence is the behavior under test.
-- For persistence, save/close, reopen in a new batch, and assert the state again.
-- For update/replace operations, assert old content is absent and new content is
-  exact; a successful operation result does not prove replacement semantics.
+Do not call `batch.Save()` for in-memory assertions. When testing persistence,
+save/close and reopen in a new batch before asserting. Use `.xlsm` for VBA.
 
-## Debugging failures
-
-Run the failing test alone first. Check workbook isolation, fixture choice,
-actual Excel state, COM cleanup, and persistence assumptions before broadening
-the run. Do not hide a failure with skip/xfail or weaken a deterministic
-assertion.
+Test design and failure investigation: `tests/README.md`.

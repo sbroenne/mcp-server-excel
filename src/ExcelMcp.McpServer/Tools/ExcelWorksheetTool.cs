@@ -122,6 +122,7 @@ public static partial class ExcelWorksheetTool
                     {
                         success = false,
                         errorMessage = "session_id is required for this action. Use file 'open' action to start a session.",
+                        errorCategory = "InvalidInput",
                         isError = true
                     }, ExcelToolsBase.JsonOptions);
                 }

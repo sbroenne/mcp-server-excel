@@ -16,6 +16,11 @@ public sealed class ExcelContext
     /// <param name="excel">Excel.Application COM object</param>
     /// <param name="workbook">Excel.Workbook COM object</param>
     public ExcelContext(string workbookPath, Excel.Application excel, Excel.Workbook workbook)
+        : this(workbookPath, excel, workbook, null)
+    {
+    }
+
+    internal ExcelContext(string workbookPath, Excel.Application excel, Excel.Workbook workbook, ExcelCapabilities? capabilities)
     {
         WorkbookPath = workbookPath ?? throw new ArgumentNullException(nameof(workbookPath));
         App = excel ?? throw new ArgumentNullException(nameof(excel));
@@ -23,6 +28,7 @@ public sealed class ExcelContext
 
         // Initialize number format translator with locale-specific codes from Excel
         FormatTranslator = new NumberFormatTranslator(excel);
+        Capabilities = capabilities ?? new ExcelCapabilities(ProbeFormula2Support);
     }
 
     /// <summary>
@@ -41,6 +47,31 @@ public sealed class ExcelContext
     public Excel.Workbook Book { get; }
 
     /// <summary>
+    /// Gets the session's cached Excel capabilities. Access on the session's STA thread.
+    /// </summary>
+    public ExcelCapabilities Capabilities { get; }
+
+    private bool ProbeFormula2Support()
+    {
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? cell = null;
+        try
+        {
+            sheets = Book.Worksheets;
+            sheet = (Excel.Worksheet)sheets[1];
+            cell = sheet.Range["A1"];
+            return ExcelCapabilities.ProbeFormula2(() => cell.Formula, () => cell.Formula2);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref sheets);
+        }
+    }
+
+    /// <summary>
     /// Gets the number format translator for converting US format codes to locale-specific codes.
     /// </summary>
     /// <remarks>
@@ -57,5 +88,4 @@ public sealed class ExcelContext
     /// </remarks>
     public NumberFormatTranslator FormatTranslator { get; }
 }
-
 

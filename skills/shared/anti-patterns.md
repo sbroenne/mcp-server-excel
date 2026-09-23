@@ -11,9 +11,9 @@ Applying the same formatting to the same range more than once in a workflow:
 ```
 WRONG: Applying bold repeatedly
 
-range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true)
+range_format(action: 'format-range', range_address: 'A1:D1', bold: true)
 // ... other operations ...
-range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
+range_format(action: 'format-range', range_address: 'A1:D1', bold: true, fill_color: '#4472C4')
 // Bold was already applied - the second call re-applies it unnecessarily
 ```
 
@@ -22,10 +22,10 @@ Also wrong: calling `format-range` separately for each property instead of combi
 ```
 WRONG: Separate calls for each property
 
-range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true)
-range_format(action: 'format-range', rangeAddress: 'A1:D1', fillColor: '#4472C4')
-range_format(action: 'format-range', rangeAddress: 'A1:D1', fontColor: '#FFFFFF')
-range_format(action: 'format-range', rangeAddress: 'A1:D1', horizontalAlignment: 'center')
+range_format(action: 'format-range', range_address: 'A1:D1', bold: true)
+range_format(action: 'format-range', range_address: 'A1:D1', fill_color: '#4472C4')
+range_format(action: 'format-range', range_address: 'A1:D1', font_color: '#FFFFFF')
+range_format(action: 'format-range', range_address: 'A1:D1', horizontal_alignment: 'center')
 ```
 
 ### The Solution
@@ -35,8 +35,8 @@ Apply all formatting properties for a range in **one** `format-range` call:
 ```
 CORRECT: One call per range
 
-range_format(action: 'format-range', rangeAddress: 'A1:D1',
-    bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF', horizontalAlignment: 'center')
+range_format(action: 'format-range', range_address: 'A1:D1',
+    bold: true, fill_color: '#4472C4', font_color: '#FFFFFF', horizontal_alignment: 'center')
 ```
 
 Apply each formatting operation **once**. If a subsequent step explicitly changes a property (e.g., "now make the title red"), apply it again — otherwise don't.
@@ -46,17 +46,17 @@ If the same formatting applies to multiple disjoint ranges, do not repeat `forma
 ```
 WRONG: Repeating the same shared formatting payload
 
-range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
-range_format(action: 'format-range', rangeAddress: 'A12:D12', bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
-range_format(action: 'format-range', rangeAddress: 'A24:D24', bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
+range_format(action: 'format-range', range_address: 'A1:D1', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
+range_format(action: 'format-range', range_address: 'A12:D12', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
+range_format(action: 'format-range', range_address: 'A24:D24', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
 ```
 
 ```
 CORRECT: One shared multi-range formatting call
 
 range_format(action: 'format-ranges',
-    rangeAddresses: ['A1:D1', 'A12:D12', 'A24:D24'],
-    bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
+    range_addresses: ['A1:D1', 'A12:D12', 'A24:D24'],
+    bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
 ```
 
 ### When Multiple Calls ARE Appropriate
@@ -74,8 +74,8 @@ Applying `range_format` to cells that belong to an object with its own style sys
 ```
 WRONG: Formatting a table header row with range_format
 
-table(action: 'create', tableName: 'Sales', rangeAddress: 'A1:D10')
-range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
+table(action: 'create', table_name: 'Sales', range_address: 'A1:D10')
+range_format(action: 'format-range', range_address: 'A1:D1', bold: true, fill_color: '#4472C4')
 // The table style already controls header appearance — this creates an inconsistent override
 ```
 
@@ -83,7 +83,7 @@ range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColo
 WRONG: Formatting PivotTable cells
 
 pivottable(action: 'create-from-table', ...)
-range_format(action: 'format-range', rangeAddress: 'B3:B20', fillColor: '#E2EFDA')
+range_format(action: 'format-range', range_address: 'B3:B20', fill_color: '#E2EFDA')
 // Formatting is wiped on the next pivottable(refresh)
 ```
 
@@ -94,15 +94,15 @@ Use the style system that belongs to each object type:
 ```
 CORRECT: Table visual styling — one call at creation or via set-style
 
-table(action: 'create', tableName: 'Sales', rangeAddress: 'A1:D10',
-    tableStyle: 'TableStyleMedium2')
+table(action: 'create', table_name: 'Sales', range_address: 'A1:D10',
+    table_style: 'TableStyleMedium2')
 ```
 
 | Object | Correct style approach | Do NOT use |
 |--------|----------------------|------------|
-| Excel Tables | `table(action:'set-style')` or `tableStyle` on create | `range_format` on header/data rows |
+| Excel Tables | `table(action:'set-style')` or `table_style` on create | `range_format` on header/data rows |
 | PivotTables | Not supported — leave default | `range_format` (wiped on refresh) |
-| Charts | `chart_config(action:'set-style', styleNumber: 1-48)` | `range_format` |
+| Charts | `chart_config(action:'set-style', style_id: 1-48)` | `range_format` |
 | Plain cells/ranges | `range_format` | — |
 
 ## Delete-and-Rebuild Anti-Pattern
@@ -114,9 +114,9 @@ Deleting entire structures to make small changes:
 ```
 WRONG: User wants to update cell B5
 
-table(action: 'delete', tableName: 'SalesData')
+table(action: 'delete', table_name: 'SalesData')
 range(action: 'set-values', values: [[entire dataset with B5 fixed]])
-table(action: 'create', tableName: 'SalesData', ...)
+table(action: 'create', table_name: 'SalesData', ...)
 ```
 
 This destroys:
@@ -134,7 +134,7 @@ Use targeted modifications:
 ```
 CORRECT: Update only the changed cell
 
-range(action: 'set-values', rangeAddress: 'B5', values: [[newValue]])
+range(action: 'set-values', range_address: 'B5', values: [[new_value]])
 ```
 
 ### When Rebuild IS Appropriate
@@ -229,9 +229,9 @@ Reading entire range, modifying in memory, writing entire range back:
 ```
 WRONG: Update one cell by rewriting thousands
 
-data = range(action: 'get-values', rangeAddress: 'A1:Z1000')
+data = range(action: 'get-values', range_address: 'A1:Z1000')
 data[4][1] = "new value"  // Modify row 5, column B
-range(action: 'set-values', rangeAddress: 'A1', values: data)
+range(action: 'set-values', range_address: 'A1', values: data)
 ```
 
 This:
@@ -247,7 +247,7 @@ Write only the changed cells:
 ```
 CORRECT: Direct cell update
 
-range(action: 'set-values', rangeAddress: 'B5', values: [["new value"]])
+range(action: 'set-values', range_address: 'B5', values: [["new value"]])
 ```
 
 ## Session Leak Anti-Pattern
@@ -259,9 +259,9 @@ Opening files without closing them:
 ```
 WRONG: Session accumulation
 
-file(action: 'open', filePath: 'file1.xlsx')  // Session 1
-file(action: 'open', filePath: 'file2.xlsx')  // Session 2
-file(action: 'open', filePath: 'file3.xlsx')  // Session 3
+file(action: 'open', path: 'file1.xlsx')  // Session 1
+file(action: 'open', path: 'file2.xlsx')  // Session 2
+file(action: 'open', path: 'file3.xlsx')  // Session 3
 // ... never closed
 ```
 
@@ -280,11 +280,11 @@ CORRECT: Proper lifecycle
 
 session1 = file(action: 'open', path: 'file1.xlsx')
 // ... work with file1 ...
-file(action: 'close', sessionId: session1, save: true)
+file(action: 'close', session_id: session1, save: true)
 
 session2 = file(action: 'open', path: 'file2.xlsx')
 // ... work with file2 ...
-file(action: 'close', sessionId: session2, save: true)
+file(action: 'close', session_id: session2, save: true)
 ```
 
 ## Ignoring Error Context Anti-Pattern
@@ -310,9 +310,9 @@ CORRECT: Error-driven correction
 
 datamodel(action: 'create-measure', ...) 
 → Error: Table 'Sales' not in Data Model
-→ Suggested: table(action: 'add-to-data-model', tableName: 'Sales')
+→ Suggested: table(action: 'add-to-data-model', table_name: 'Sales')
 
-table(action: 'add-to-data-model', tableName: 'Sales')  // Fix prerequisite
+table(action: 'add-to-data-model', table_name: 'Sales')  // Fix prerequisite
 datamodel(action: 'create-measure', ...)  // Now succeeds
 ```
 
@@ -325,8 +325,8 @@ Using locale-specific format codes:
 ```
 WRONG: German/European format
 
-range(action: 'set-number-format', formatCode: '#.##0,00')  // German
-range(action: 'set-number-format', formatCode: '# ##0,00')  // French
+range(action: 'set-number-format', format_code: '#.##0,00')  // German
+range(action: 'set-number-format', format_code: '# ##0,00')  // French
 ```
 
 ### The Solution
@@ -336,7 +336,7 @@ Always use US format codes (Excel translates automatically):
 ```
 CORRECT: US format codes (universal)
 
-range(action: 'set-number-format', formatCode: '#,##0.00')
+range(action: 'set-number-format', format_code: '#,##0.00')
 ```
 
 Excel displays the result in the user's locale setting, but the API requires US format input.
@@ -350,7 +350,7 @@ Wrong load destination for the workflow:
 ```
 WRONG: Loading to worksheet when DAX is needed
 
-powerquery(action: 'create', loadDestination: 'worksheet', ...)
+powerquery(action: 'create', load_destination: 'worksheet', ...)
 datamodel(action: 'create-measure', ...)  // FAILS: table not in Data Model
 ```
 
@@ -361,7 +361,7 @@ Match load destination to workflow:
 ```
 CORRECT: Load to Data Model for DAX workflows
 
-powerquery(action: 'create', loadDestination: 'data-model', ...)
+powerquery(action: 'create', load_destination: 'data-model', ...)
 powerquery(action: 'refresh', ...)
 datamodel(action: 'create-measure', ...)  // Works
 ```
@@ -382,7 +382,7 @@ Creating or updating Power Query queries without testing M code first:
 ```
 WRONG: Creating permanent query with untested M code
 
-powerquery(action: 'create', mCode: '...', ...)
+powerquery(action: 'create', m_code: '...', ...)
 // M code has syntax error → COM exception with cryptic message
 // Now workbook is polluted with broken query
 ```
@@ -401,12 +401,12 @@ Always evaluate M code BEFORE creating permanent queries:
 CORRECT: Test-first development workflow
 
 // Step 1: Test M code without persisting
-powerquery(action: 'evaluate', mCode: '...')
+powerquery(action: 'evaluate', m_code: '...')
 // → Returns actual data preview with columns and rows
 // → Better error messages if M code has issues
 
 // Step 2: Create permanent query with validated code
-powerquery(action: 'create', mCode: '...', ...)
+powerquery(action: 'create', m_code: '...', ...)
 
 // Step 3: Load data to destination
 powerquery(action: 'refresh', ...)
@@ -432,7 +432,7 @@ If create/update fails with COM error, use evaluate to get detailed Power Query 
 
 ```
 powerquery(action: 'create', ...)  // → COM exception
-powerquery(action: 'evaluate', mCode: '...')  // → Detailed M error
+powerquery(action: 'evaluate', m_code: '...')  // → Detailed M error
 // Fix M code based on error
 powerquery(action: 'create', ...)  // → Success
 ```

@@ -24,6 +24,10 @@
              Link="Infrastructure\DaemonTrackingJson.cs" />
     <Compile Include="..\ExcelMcp.CLI\Infrastructure\OwnedProcessCleanup.cs"
              Link="Infrastructure\OwnedProcessCleanup.cs" />
+    <Compile Include="..\ExcelMcp.CLI\Infrastructure\PreBuildProcessCleanup.cs"
+             Link="Infrastructure\PreBuildProcessCleanup.cs" />
+    <Compile Include="..\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs"
+             Link="Infrastructure\ProcessTerminationPolicy.cs" />
     <Compile Include="..\ExcelMcp.Service\ServiceSecurity.cs"
              Link="Service\ServiceSecurity.cs" />
     <Compile Include="..\ExcelMcp.Service\ServiceClient.cs"

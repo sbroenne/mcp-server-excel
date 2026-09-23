@@ -19,25 +19,31 @@ This library provides Excel-specific COM object lifecycle management and OLE mes
 ## Usage Example
 
 ```csharp
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
-// Use ExcelSession for safe Excel automation
-await using var session = await ExcelSession.BeginAsync("path/to/workbook.xlsx");
-await using var batch = await session.BeginBatchAsync();
+using var batch = ExcelSession.BeginBatch(@"C:\Data\workbook.xlsx");
 
-await batch.ExecuteAsync<int>(async (ctx, ct) => 
+batch.Execute((ctx, ct) =>
 {
-    // Access Excel workbook through ctx.Book
-    dynamic worksheets = ctx.Book.Worksheets;
-    dynamic sheet = worksheets.Item[1];
-    
-    // Perform Excel operations
-    sheet.Name = "UpdatedSheet";
-    
-    return 0;
+    Excel.Sheets? worksheets = null;
+    Excel.Worksheet? sheet = null;
+
+    try
+    {
+        worksheets = ctx.Book.Worksheets;
+        sheet = (Excel.Worksheet)worksheets[1];
+        sheet.Name = "UpdatedSheet";
+    }
+    finally
+    {
+        ComUtilities.Release(ref sheet);
+        ComUtilities.Release(ref worksheets);
+    }
 });
 
-await batch.Save();
+batch.Save();
 ```
 
 ## Key Classes
@@ -59,4 +65,3 @@ await batch.Save();
 - ✅ Windows ARM64
 - ❌ Linux (Excel COM not available)
 - ❌ macOS (Excel COM not available)
-

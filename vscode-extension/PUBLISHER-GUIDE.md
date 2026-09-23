@@ -216,9 +216,9 @@ gh workflow run release.yml -f version_bump=patch
 ## Security Best Practices
 
 1. **Never commit tokens** to Git (use GitHub secrets only)
-2. **Set token expiration** to 1 year, renew before expiry
+2. **Set token expiration** to 6-12 months and renew before expiry
 3. **Use minimum scopes** (only Marketplace → Manage)
-4. **Rotate tokens annually** for security
+4. **Rotate tokens every 6-12 months**
 5. **Monitor usage** in Azure DevOps PAT settings
 
 ---

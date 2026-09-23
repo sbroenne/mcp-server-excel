@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Calculation;
@@ -189,8 +190,39 @@ public class CalculationModeCommandsTests : IClassFixture<TempDirectoryFixture>
         // Assert
         Assert.True(result.Success);
     }
-}
 
+    [Fact]
+    public void SetMode_UnknownMode_ThrowsBeforeBatchExecution()
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _commands.SetMode(null!, (CalculationMode)int.MaxValue));
+
+        Assert.Equal("mode", exception.ParamName);
+        Assert.Contains("Unknown calculation mode", exception.Message);
+    }
+
+    [Fact]
+    public void Calculate_UnknownScope_ThrowsBeforeBatchExecution()
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _commands.Calculate(null!, (CalculationScope)int.MaxValue));
+
+        Assert.Equal("scope", exception.ParamName);
+        Assert.Contains("Unknown calculation scope", exception.Message);
+    }
+
+    [Fact]
+    public void Calculate_MissingSheet_PropagatesExcelException()
+    {
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        var exception = Assert.Throws<COMException>(() =>
+            _commands.Calculate(batch, CalculationScope.Sheet, "MissingSheet"));
+
+        Assert.DoesNotContain("Calculation failed", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+}
 
 
 

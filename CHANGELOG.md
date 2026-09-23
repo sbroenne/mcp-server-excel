@@ -11,6 +11,94 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.8] - 2026-09-12
+
+### Patch Changes
+
+- [#872](https://github.com/sbroenne/mcp-server-excel/pull/872) [`9c4f400`](https://github.com/sbroenne/mcp-server-excel/commit/9c4f400028de8b0596326aecb09372e9a573710b) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP session-bound tools now defensively accept a top-level `sessionId` from client bridges that rewrite the canonical `session_id` argument. The published schema still uses `session_id`, and conflicting or malformed identity values return a privacy-safe input error.
+
+- [#868](https://github.com/sbroenne/mcp-server-excel/pull/868) [`b7f23af`](https://github.com/sbroenne/mcp-server-excel/commit/b7f23af1d083b3da1e5094f95cc9d0e0b1a41b6b) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP calls missing a required session ID now explain where to supply `session_id` instead of returning a generic tool error. File close and session-based worksheet errors use the same public parameter name, including when the supplied ID is not a string. This improves diagnosis but does not repair client bridges that drop arguments.
+
+- [#870](https://github.com/sbroenne/mcp-server-excel/pull/870) [`160edf1`](https://github.com/sbroenne/mcp-server-excel/commit/160edf1bbbaf3cd34dad348fe9263487c79bce31) Thanks [@sbroenne](https://github.com/sbroenne)! - CLI and MCP now preserve categories for wrapped Excel errors and known VBA and Data Model prerequisites without guessing the cause of unknown failures. Empty macro procedure names are rejected before execution, and Power Query evaluation retains the existing query error categories after cleaning up its temporary objects.
+
+  DAX execution errors now identify the failing operation while preserving the underlying Excel error, including when Excel returns only an error code.
+
+- [#869](https://github.com/sbroenne/mcp-server-excel/pull/869) [`4f46abb`](https://github.com/sbroenne/mcp-server-excel/commit/4f46abb46883f10fe1b496c6ff21c89890159928) Thanks [@sbroenne](https://github.com/sbroenne)! - **Older Excel formula compatibility** ([#750](https://github.com/sbroenne/mcp-server-excel/issues/750)): Formula reads and writes now use the legacy API when Excel does not support modern formulas, in both CLI and MCP. Modern Excel keeps dynamic arrays; older Excel retains its single-value implicit-intersection behavior. Invalid formulas and protected-cell errors are not retried.
+
+## [2.0.6] - 2026-09-02
+
+### Minor Changes
+
+- [#844](https://github.com/sbroenne/mcp-server-excel/pull/844) [`09694d8`](https://github.com/sbroenne/mcp-server-excel/commit/09694d8afe0ab5e141cd09944ea7433953e405b5) Thanks [@sbroenne](https://github.com/sbroenne)! - **Safer table creation** ([#838](https://github.com/sbroenne/mcp-server-excel/issues/838)): Preview merged cells, header problems, nearby excluded columns, formula sorting risks, and the effective table range before creating a table. Table creation now blocks deterministic problems while leaving uncertain warnings for review. Large-range merge discovery is bounded, and formula risk analysis reports when an oversized range was skipped.
+
+### Patch Changes
+
+- [#843](https://github.com/sbroenne/mcp-server-excel/pull/843) [`d2c9932`](https://github.com/sbroenne/mcp-server-excel/commit/d2c993248c4710992c81cc779f31dabff03d6786) Thanks [@sbroenne](https://github.com/sbroenne)! - **Range reads now explain formula errors.** `get-values` and `get-formulas` return canonical Excel names such as `#REF!` and `#N/A`, plus affected cells, formulas, raw error codes, and suggested fixes.
+
+- [#829](https://github.com/sbroenne/mcp-server-excel/pull/829) [`7bddb7d`](https://github.com/sbroenne/mcp-server-excel/commit/7bddb7d6b61f424f933bc260f5c41f5d88138d51) Thanks [@sbroenne](https://github.com/sbroenne)! - **Release changelogs now include the version being shipped.** VS Code and MCPB packages receive the newly generated changelog, and each release tag points to the metadata commit containing that release's entry instead of the previous version's changelog.
+
+- [#845](https://github.com/sbroenne/mcp-server-excel/pull/845) [`748a33b`](https://github.com/sbroenne/mcp-server-excel/commit/748a33b7c9e4bcd5262143b778e5934a2fee7490) Thanks [@sbroenne](https://github.com/sbroenne)! - **Stale-build cleanup now preserves unsaved CLI session changes when a shutdown reply is lost.** Session and pipe cleanup use one exact-process exit policy, giving an already-shutting-down daemon and its tracked Excel processes time to save and exit before bounded forced cleanup.
+
+- [#841](https://github.com/sbroenne/mcp-server-excel/pull/841) [`33a1a71`](https://github.com/sbroenne/mcp-server-excel/commit/33a1a71cdcf131d79fffb8c92a68a7413947f4fe) Thanks [@sbroenne](https://github.com/sbroenne)! - **Merged-cell writes now fail clearly instead of reporting false success** ([#831](https://github.com/sbroenne/mcp-server-excel/issues/831)). `set-values` and `set-formulas` identify affected merged ranges and explain whether to write to the top-left cell or unmerge the range.
+
+## [2.0.5] - 2026-08-28
+
+### Patch Changes
+
+- [#826](https://github.com/sbroenne/mcp-server-excel/pull/826) [`be26b87`](https://github.com/sbroenne/mcp-server-excel/commit/be26b87716ec527298dc333d9799278d3caa6634) Thanks [@sbroenne](https://github.com/sbroenne)! - **Separate expected results from product failures in anonymous reliability
+  reporting.** MCP telemetry now records only fixed outcome and failure-class
+  labels, keeps unknown failures visible, and preserves structured recovery
+  categories across MCP and CLI responses.
+
+## [2.0.4] - 2026-08-28
+
+### Patch Changes
+
+- [#816](https://github.com/sbroenne/mcp-server-excel/pull/816) [`3684583`](https://github.com/sbroenne/mcp-server-excel/commit/36845831ec3b92697a2ab2d36e6c023fb63fef18) Thanks [@sbroenne](https://github.com/sbroenne)! - **Publish transparent usage analytics.** A weekly privacy-checked public report
+  now shows overall use, feature adoption, errors by release, and broad problem
+  trends with a clearly labeled GitHub Copilot interpretation.
+
+- [#816](https://github.com/sbroenne/mcp-server-excel/pull/816) [`3684583`](https://github.com/sbroenne/mcp-server-excel/commit/36845831ec3b92697a2ab2d36e6c023fb63fef18) Thanks [@sbroenne](https://github.com/sbroenne)! - **Prevent exception details from entering telemetry.** Crash analytics now keep
+  only safe error classifications; exception messages and stack traces are
+  discarded both in the MCP Server and by an Azure ingestion privacy filter.
+  Automatic framework trace logs are also blocked.
+
+- [#825](https://github.com/sbroenne/mcp-server-excel/pull/825) [`654ac27`](https://github.com/sbroenne/mcp-server-excel/commit/654ac27e12fa62eff77b1c25586f59905be637e8) Thanks [@sbroenne](https://github.com/sbroenne)! - **Improve the VS Code extension's metadata and development guidance.** The Chat
+  Skills table now shows the skill name and description instead of empty
+  placeholders, package validation prevents incomplete Marketplace metadata, and
+  skill installation guidance now reflects the extension's actual bundled files.
+
+## [2.0.3] - 2026-08-27
+
+### Patch Changes
+
+- [#818](https://github.com/sbroenne/mcp-server-excel/pull/818) [`cfcd7a5`](https://github.com/sbroenne/mcp-server-excel/commit/cfcd7a582d9b953911311891d71248bb5d415c05) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix worksheet screenshots failing when using `capture-sheet`, and report failed MCP tool operations accurately in privacy-safe usage telemetry.
+
+- [#819](https://github.com/sbroenne/mcp-server-excel/pull/819) [`288ccea`](https://github.com/sbroenne/mcp-server-excel/commit/288ccea074c09898cf6bed7322a28a7eec9896af) Thanks [@sbroenne](https://github.com/sbroenne)! - **Clearer documentation and command help:** `excelcli --help` now presents a
+  concise command index, tool descriptions point to valid commands, and public
+  documentation accurately explains privacy, packaging, breaking changes, and
+  installation workflows.
+
+## [2.0.2] - 2026-08-26
+
+### Patch Changes
+
+- [#815](https://github.com/sbroenne/mcp-server-excel/pull/815) [`9a13dba`](https://github.com/sbroenne/mcp-server-excel/commit/9a13dba5ae43594259145d0779231604e3622318) Thanks [@sbroenne](https://github.com/sbroenne)! - ExcelMcp now reports calculation, range, file, Data Model, VBA timeout, and
+  window errors consistently across CLI and MCP. PivotTable chart creation now
+  produces genuinely linked PivotCharts, and worksheet view controls include
+  formula display. Local builds and plugin bundles now report the current released
+  version instead of stale `1.7.x` metadata.
+
+## [2.0.1] - 2026-08-24
+
+### Patch Changes
+
+- [#811](https://github.com/sbroenne/mcp-server-excel/pull/811) [`d43a165`](https://github.com/sbroenne/mcp-server-excel/commit/d43a165f85d08e79117cccfd1ecb58cb4bff479f) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reliable Agent Plugin packages**: ExcelMcp plugins now use the host-provided persistent cache, preserve CLI pipeline output, and ship current installation and tool examples.
+
+- [#809](https://github.com/sbroenne/mcp-server-excel/pull/809) [`cbbc529`](https://github.com/sbroenne/mcp-server-excel/commit/cbbc529be9c88553cb0c68f2637d47e8a48fab97) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reliable MCP Registry releases** ([#808](https://github.com/sbroenne/mcp-server-excel/issues/808)): Releases now stamp and verify both MCP Registry version fields, and report publishing failures instead of hiding them.
+
+- [#813](https://github.com/sbroenne/mcp-server-excel/pull/813) [`3ad8ca3`](https://github.com/sbroenne/mcp-server-excel/commit/3ad8ca383101636fe5ef9df90f16fd46810538ee) Thanks [@sbroenne](https://github.com/sbroenne)! - **Verified plugin runtime downloads**: The ExcelMcp Copilot plugins now check downloaded and cached Windows runtime ZIPs against SHA-256 checksums published with the exact GitHub release before extraction.
+
 ## [2.0.0] - 2026-08-21
 
 ### Major Changes
@@ -252,7 +340,7 @@ Entries are short and end-user-facing. Format follows [Keep a Changelog](https:/
 
 - [#740](https://github.com/sbroenne/mcp-server-excel/pull/740) [`59ebf29`](https://github.com/sbroenne/mcp-server-excel/commit/59ebf29b15d61a0c6bbce714c50338b4db4c82b3) Thanks [@sbroenne](https://github.com/sbroenne)! - **Fix `conditionalformat add` throwing on `borderStyle`/`borderColor`** (#737). Writing border formatting on a conditional-format rule threw `COMException: Unable to set the LineStyle property of the Border class`. Root cause: `FormatCondition.Borders` is a 4-item collection indexed 1-4 (left/top/bottom/right), unlike `Range.Borders` which uses the `xlEdgeLeft`/`Top`/`Bottom`/`Right` constants (7-10) — writing (and reading) via those out-of-range indices silently returned an unbound placeholder that threw on write and reported blank values on read. Both the write path (`add`) and the read path (`list-rules`/`list-worksheet-rules`) now use the correct 1-4 indices, so border style and color round-trip correctly.
 
-- [`352b1da`](https://github.com/sbroenne/mcp-server-excel/commit/352b1da895b84c66d9565e013576ab198ffd50ea) Thanks [@github-actions[bot]](https://github.com/github-actions%5Bbot%5D)! - **Release automation: reliably commit the changelog back to `main`.** The post-release step now pushes the compiled `CHANGELOG.md` update directly to `main` using an admin `RELEASE_PAT`, instead of opening a `chore/changelog-vX` PR. On this user-owned repo the GitHub Actions bot can't be a branch-protection bypass actor, so that PR could never satisfy the required status checks and piled up open — leaving several releases with a stale/missing CHANGELOG on `main`. The direct push (as a ruleset bypass actor) removes the stuck-PR failure mode entirely.
+- [`352b1da`](https://github.com/sbroenne/mcp-server-excel/commit/352b1da895b84c66d9565e013576ab198ffd50ea) Thanks [@github-actions](https://github.com/apps/github-actions)! - **Release automation: reliably commit the changelog back to `main`.** The post-release step now pushes the compiled `CHANGELOG.md` update directly to `main` using an admin `RELEASE_PAT`, instead of opening a `chore/changelog-vX` PR. On this user-owned repo the GitHub Actions bot can't be a branch-protection bypass actor, so that PR could never satisfy the required status checks and piled up open — leaving several releases with a stale/missing CHANGELOG on `main`. The direct push (as a ruleset bypass actor) removes the stuck-PR failure mode entirely.
 
 ## [1.10.0] - 2026-07-23
 
@@ -814,7 +902,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 
 ### Added
 
-- **LLM Integration Testing** (#341): Real AI agent testing using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)
+- **LLM Integration Testing** (#341): Real AI agent testing using `pytest-aitest`
 
 ### Changed
 

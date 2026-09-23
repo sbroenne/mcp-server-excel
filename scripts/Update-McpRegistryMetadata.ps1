@@ -48,7 +48,11 @@ foreach ($packageId in $mcpServerPackageIds) {
     $package.version = $Version
 }
 
-$server | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $ServerJsonPath -NoNewline
+$content = ($server | ConvertTo-Json -Depth 20) -replace "`r?`n", "`n"
+[System.IO.File]::WriteAllText(
+    $ServerJsonPath,
+    "$content`n",
+    [System.Text.UTF8Encoding]::new($false))
 
 $updatedServer = Get-Content -LiteralPath $ServerJsonPath -Raw | ConvertFrom-Json
 if ($updatedServer.version -ne $Version) {

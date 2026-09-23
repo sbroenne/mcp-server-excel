@@ -1,0 +1,99 @@
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#fff}
+body{font-family:"Segoe UI",Arial,sans-serif;color:#101714}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#fff}
+.scene{position:absolute;inset:0;padding:72px 86px;background:#fff;visibility:hidden;transform-origin:center}
+.scene.dark{background:#14251c;color:#fff}
+.kicker{font:26px "Cascadia Mono",Consolas,monospace;letter-spacing:3px;text-transform:uppercase;color:#107c41;margin-bottom:35px}
+.kicker:before{content:"✱ ";font-size:30px}
+h1{font-size:158px;line-height:.99;letter-spacing:-7px;font-weight:400}
+h2{font-size:92px;line-height:1.08;letter-spacing:-3px;font-weight:400}
+em{font-style:normal;color:#107c41}
+.dark em{color:#86d3a5}
+.lead{font-size:38px;line-height:1.35;margin-top:32px;color:#3c5145}
+.hero-copy{position:absolute;left:86px;top:238px}
+.intro-definition{font-size:34px;line-height:1.4;margin-top:30px;color:#3c5145}
+.comparison-row{display:flex;gap:42px;margin-top:40px}
+.comparison-card{width:850px;padding:30px 34px;border:1px solid #bfcfc5}
+.comparison-card h3{font-size:37px;font-weight:500;margin-top:18px}
+.comparison-card p{font-size:31px;line-height:1.4;margin-top:13px;color:#3c5145}
+.comparison-card .secondary-heading{font-size:32px;margin-top:24px}
+.excel-engine{border-top:5px solid #107c41;background:#f4f9f6}
+.engine-features{display:flex;gap:22px;margin-top:32px;font:27px "Cascadia Mono",Consolas,monospace;color:#205236}
+.engine-features span{border-bottom:2px solid #107c41;padding-bottom:10px}
+.comparison-footer{font-size:30px;margin-top:30px;color:#3c5145;text-align:center}
+.fit-list{position:absolute;left:86px;top:436px;width:1030px}
+.fit-item{font-size:40px;padding:22px 0;border-bottom:1px solid #bfcfc5}
+.fit-alternative{position:absolute;left:1200px;top:300px;width:625px;padding:34px;border:1px solid #bfcfc5;background:#f4f9f6}
+.fit-alternative .mono{font-size:23px}
+.fit-alternative h3{font-size:51px;line-height:1.18;font-weight:400;margin-top:26px}
+.fit-alternative p{font-size:31px;line-height:1.4;margin-top:25px}
+.fit-requirement{position:absolute;left:86px;top:827px;font:28px "Cascadia Mono",Consolas,monospace;color:#205236}
+.hero-evidence{position:absolute;left:1030px;top:260px;width:780px;border:1px solid #d4ded8;background:#fff;box-shadow:0 12px 38px #1017140c}
+.hero-evidence img{width:100%;display:block}
+.proof-label{padding:17px 22px;background:#e6f2ea;color:#205236;font:23px "Cascadia Mono",Consolas,monospace}
+.foot-label{position:absolute;left:86px;bottom:154px;font:26px "Cascadia Mono",Consolas,monospace;color:#496251}
+.scene-number{position:absolute;right:86px;top:78px;font:24px "Cascadia Mono",Consolas,monospace;color:#4b6855}
+.dark .scene-number{color:#bdd1c4}
+.interface-row{display:flex;gap:42px;margin-top:44px}
+.interface{width:850px;padding:36px;border:1px solid #bfcfc5;border-top:5px solid #107c41}
+.mono{font:25px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
+.request{font-size:44px;line-height:1.35;margin:28px 0}
+.tag{display:inline-block;padding:10px 18px;border:1px solid #9cbda8;color:#205236;background:#eff7f2;font:25px "Cascadia Mono",Consolas,monospace}
+.workbook-chip{font:32px "Cascadia Mono",Consolas,monospace;text-align:center;margin-top:46px;color:#234f34}
+.workbook-chip span{padding:0 30px;color:#107c41}
+.split-copy{position:absolute;left:86px;top:190px;width:780px}
+.steps{margin-top:42px}
+.step{font:30px "Cascadia Mono",Consolas,monospace;margin:20px 0;color:#107c41}
+.step span{margin-left:22px;font:34px "Segoe UI",Arial,sans-serif;color:#234f34}
+.query-proof{position:absolute;left:922px;top:194px;width:905px;border:1px solid #c5d3ca}
+.query-proof img{display:block;width:100%}
+.query-code{position:absolute;left:924px;top:736px;width:900px}
+pre{font:32px/1.5 "Cascadia Mono",Consolas,monospace;white-space:pre-wrap}
+.query-code pre{font-size:26px;margin-top:15px;color:#234f34}
+.light{color:#fff}
+.dax-code{position:absolute;left:1000px;top:225px;width:824px;padding:34px;border:1px solid #557362}
+.dax-code .mono{color:#b5d0bf}
+.dax-code pre{font-size:37px;line-height:1.6;margin-top:24px;color:#b4ebca}
+.data-flow{display:flex;gap:30px;align-items:center;position:absolute;left:1000px;top:502px;font:29px "Cascadia Mono",Consolas,monospace}
+.data-flow span{border-bottom:2px solid #86d3a5;padding:14px 0}
+.data-flow b{color:#86d3a5;font-weight:400}
+.results{position:absolute;left:86px;right:86px;top:631px;display:flex;gap:50px}
+.stat{flex:1;border-top:1px solid #789585;padding-top:20px}
+.stat span{display:block;font-size:31px;color:#b5d0bf}
+.stat strong{font-size:110px;font-weight:400;letter-spacing:-3px}
+.chart-title{font-size:76px;letter-spacing:-2px}
+.report-proof{position:absolute;left:86px;top:280px;width:1300px;border:1px solid #c5d3ca}
+.report-proof img{display:block;width:100%}
+.report-callout{position:absolute;left:1480px;top:460px;width:350px}
+.report-callout strong{display:block;font-size:102px;font-weight:400;letter-spacing:-5px;color:#107c41}
+.report-callout span{display:block;font-size:35px;margin-top:12px}
+.vba-code{position:absolute;left:925px;top:232px;width:900px;padding:40px;background:#14251c;color:#fff}
+.vba-code .mono{color:#b5d0bf;font-size:25px}
+.vba-code pre{font-size:29px;margin-top:32px}
+.syntax{color:#86d3a5}
+.code-note{border-top:1px solid #547360;margin-top:40px;padding-top:22px;font-size:27px;color:#cde5d6}
+.python-proof{position:absolute;left:86px;top:490px;width:1380px;border:1px solid #bfcfc5}
+.python-proof img{display:block;width:100%}
+.python-note{position:absolute;left:1498px;top:520px;width:340px}
+.python-note .tag{font-size:22px}
+.python-note p{font-size:31px;line-height:1.4;margin-top:28px}
+.calc-formula{position:absolute;left:1030px;top:238px;width:795px;padding:34px;border:1px solid #aac2b3;background:#f4f9f6}
+.calc-formula pre{font-size:37px;margin-top:24px}
+.calc-result{position:absolute;left:86px;right:86px;top:510px;display:flex;align-items:center;justify-content:space-between}
+.calc-result span{display:block;font-size:31px;color:#3e5b49}
+.calc-result strong{font-size:153px;font-weight:400;letter-spacing:-6px}
+#after strong{color:#107c41}
+#calc-arrow{font-size:126px;font-weight:400;color:#107c41}
+.preserve{position:absolute;left:86px;right:86px;top:833px;border-top:1px solid #b3c7ba;padding-top:26px;font-size:33px}
+.preserve i{padding:0 35px;color:#107c41;font-style:normal}
+.closing{text-align:center;margin-top:95px;font-size:96px}
+.closing-interfaces{display:flex;justify-content:center;gap:46px;margin-top:60px}
+.closing-card{width:630px;padding:27px 42px;border:1px solid #abc5b6;border-top:5px solid #107c41;text-align:center}
+.closing-card strong{display:block;font-size:72px;font-weight:400;color:#107c41}
+.closing-card span{display:block;font-size:32px;margin-top:8px}
+.cta{text-align:center;margin-top:46px;font:33px "Cascadia Mono",Consolas,monospace;color:#107c41}
+.requirements{text-align:center;margin-top:22px;font-size:27px;color:#496251}
+.caption-overlay{position:absolute;inset:0;z-index:100;pointer-events:none}
+.caption{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);max-width:1550px;width:max-content;background:#101714f2;color:#fff;padding:14px 28px 17px;font:400 37px/1.25 "Segoe UI",Arial,sans-serif;text-align:center;border-radius:8px;visibility:hidden}
+#progress{position:absolute;bottom:0;left:0;width:1920px;height:6px;background:#107c41;transform-origin:left;z-index:110}

@@ -14,7 +14,12 @@ $RepoOwner = "sbroenne"
 $RepoName = "mcp-server-excel"
 $ReleaseApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 $ReleasePageUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
-$CacheRoot = Join-Path $env:USERPROFILE ".copilot\plugin-runtime\mcp-server-excel\$PluginName"
+$ChecksumAssetName = "SHA256SUMS"
+$CacheRoot = if (-not [string]::IsNullOrWhiteSpace($env:PLUGIN_DATA)) {
+    Join-Path $env:PLUGIN_DATA "runtime"
+} else {
+    Join-Path $env:USERPROFILE ".copilot\plugin-runtime\mcp-server-excel\$PluginName"
+}
 $DownloadsDir = Join-Path $CacheRoot "downloads"
 $ReleasesDir = Join-Path $CacheRoot "releases"
 $StatePath = Join-Path $CacheRoot "bootstrap-state.json"
@@ -178,6 +183,7 @@ function New-State {
         latestVersion = $null
         assetName = $null
         assetUrl = $null
+        expectedSha256 = $null
         cachedReleaseTag = $null
         binaryPath = $null
     }
@@ -190,7 +196,7 @@ function Get-State {
 
     try {
         $loadedState = Get-Content $StatePath -Raw | ConvertFrom-Json
-        foreach ($name in @("checkedSessionId", "checkedAtUtc", "latestTag", "latestVersion", "assetName", "assetUrl", "cachedReleaseTag", "binaryPath")) {
+        foreach ($name in @("checkedSessionId", "checkedAtUtc", "latestTag", "latestVersion", "assetName", "assetUrl", "expectedSha256", "cachedReleaseTag", "binaryPath")) {
             if ($null -eq $loadedState.PSObject.Properties[$name]) {
                 $loadedState | Add-Member -MemberType NoteProperty -Name $name -Value $null
             }
@@ -211,6 +217,62 @@ function Save-State {
     [System.IO.File]::WriteAllText($StatePath, "$json`n", [System.Text.UTF8Encoding]::new($false))
 }
 
+function Get-ExpectedSha256 {
+    param(
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $true)][string]$AssetName
+    )
+
+    $manifestPath = Join-Path ([System.IO.Path]::GetTempPath()) ("excelmcp-" + [Guid]::NewGuid().ToString("N") + "-SHA256SUMS")
+
+    try {
+        try {
+            Invoke-WebRequest -Uri $Uri -OutFile $manifestPath
+        } catch {
+            $exception = [System.InvalidOperationException]::new(
+                "Failed to download checksum metadata '$ChecksumAssetName'. $($_.Exception.Message)",
+                $_.Exception)
+            $exception.Data["AllowCachedFallback"] = $true
+            throw $exception
+        }
+
+        if (-not (Test-Path $manifestPath -PathType Leaf)) {
+            throw "Checksum metadata '$ChecksumAssetName' was not downloaded."
+        }
+
+        $matchingHashes = @()
+        $lineNumber = 0
+        foreach ($line in @(Get-Content -Path $manifestPath)) {
+            $lineNumber++
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                continue
+            }
+
+            if ($line -notmatch '^([0-9A-Fa-f]{64})[ \t]+[*]?(.+)$') {
+                throw "Checksum metadata '$ChecksumAssetName' is malformed at line $lineNumber."
+            }
+
+            if ($Matches[2] -eq $AssetName) {
+                $matchingHashes += $Matches[1].ToLowerInvariant()
+            }
+        }
+
+        if ($matchingHashes.Count -eq 0) {
+            throw "Checksum metadata '$ChecksumAssetName' does not contain an entry for '$AssetName'."
+        }
+
+        if ($matchingHashes.Count -ne 1) {
+            throw "Checksum metadata '$ChecksumAssetName' contains multiple entries for '$AssetName'."
+        }
+
+        return $matchingHashes[0]
+    } finally {
+        if (Test-Path $manifestPath) {
+            Remove-Item -Path $manifestPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Get-LatestReleaseMetadata {
     Write-Status "[{{PLUGIN_NAME}}] Checking latest GitHub release..." "Cyan"
 
@@ -228,7 +290,15 @@ function Get-LatestReleaseMetadata {
             $headers["Authorization"] = "Bearer $token"
         }
 
-        $release = Invoke-RestMethod -Uri $ReleaseApiUrl -Headers $headers
+        try {
+            $release = Invoke-RestMethod -Uri $ReleaseApiUrl -Headers $headers
+        } catch {
+            $exception = [System.InvalidOperationException]::new(
+                "Failed to resolve the latest {{RELEASE_DESCRIPTION}}. Failed to query the GitHub release API. $($_.Exception.Message)`nRelease page: $ReleasePageUrl",
+                $_.Exception)
+            $exception.Data["AllowCachedFallback"] = $true
+            throw $exception
+        }
         $releaseVersion = $release.tag_name -replace '^v', ''
         $assetName = "{{ASSET_PREFIX}}$releaseVersion-windows.zip"
         $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
@@ -237,13 +307,25 @@ function Get-LatestReleaseMetadata {
             throw "Latest release '$($release.tag_name)' does not contain asset '$assetName'."
         }
 
+        $checksumAsset = $release.assets | Where-Object { $_.name -eq $ChecksumAssetName } | Select-Object -First 1
+        if ($null -eq $checksumAsset) {
+            throw "Latest release '$($release.tag_name)' does not contain checksum asset '$ChecksumAssetName'."
+        }
+
+        $expectedSha256 = Get-ExpectedSha256 -Uri $checksumAsset.browser_download_url -AssetName $asset.name
+
         return [pscustomobject]@{
             Tag = $release.tag_name
             Version = $releaseVersion
             AssetName = $asset.name
             AssetUrl = $asset.browser_download_url
+            ExpectedSha256 = $expectedSha256
         }
     } catch {
+        if ($_.Exception.Data.Contains("AllowCachedFallback")) {
+            throw $_.Exception
+        }
+
         throw "Failed to resolve the latest {{RELEASE_DESCRIPTION}}. $_`nRelease page: $ReleasePageUrl"
     }
 }
@@ -293,7 +375,8 @@ function Resolve-BinaryPath {
 function Save-RuntimeArchive {
     param(
         [Parameter(Mandatory = $true)][string]$Uri,
-        [Parameter(Mandatory = $true)][string]$DestinationPath
+        [Parameter(Mandatory = $true)][string]$DestinationPath,
+        [Parameter(Mandatory = $true)][string]$ExpectedSha256
     )
 
     # Download to a sibling temp file and rename into place, so an interrupted transfer can never
@@ -303,6 +386,11 @@ function Save-RuntimeArchive {
     try {
         Ensure-Directory -Path (Split-Path -Parent $DestinationPath)
         Invoke-WebRequest -Uri $Uri -OutFile $partialPath
+
+        $actualSha256 = (Get-FileHash -Path $partialPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualSha256 -ne $ExpectedSha256) {
+            throw "SHA-256 mismatch for '$(Split-Path $DestinationPath -Leaf)': expected $ExpectedSha256, got $actualSha256."
+        }
 
         if (-not (Test-ZipArchive -Path $partialPath)) {
             throw "Downloaded package '$(Split-Path $DestinationPath -Leaf)' is not a readable archive."
@@ -318,6 +406,20 @@ function Save-RuntimeArchive {
             Remove-Item -Path $partialPath -Force -ErrorAction SilentlyContinue
         }
     }
+}
+
+function Test-RuntimeArchiveChecksum {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedSha256
+    )
+
+    if (-not (Test-Path $Path -PathType Leaf)) {
+        return $false
+    }
+
+    $actualSha256 = (Get-FileHash -Path $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    return $actualSha256 -eq $ExpectedSha256
 }
 
 function Install-RuntimeArchive {
@@ -386,8 +488,10 @@ function Ensure-LatestRuntime {
         }
     }
 
-    if ([string]::IsNullOrWhiteSpace($State.assetName) -or [string]::IsNullOrWhiteSpace($State.assetUrl)) {
-        throw "{{PLUGIN_NAME}} must download the runtime but has no release metadata available. Check your network connection and try again.`nRelease page: $ReleasePageUrl"
+    if ([string]::IsNullOrWhiteSpace($State.assetName) -or
+        [string]::IsNullOrWhiteSpace($State.assetUrl) -or
+        [string]::IsNullOrWhiteSpace($State.expectedSha256)) {
+        throw "{{PLUGIN_NAME}} must download the runtime but has no verified release metadata available. Check your network connection and try again.`nRelease page: $ReleasePageUrl"
     }
 
     $downloadZipPath = Join-Path $DownloadsDir $State.assetName
@@ -423,14 +527,17 @@ function Ensure-LatestRuntime {
 
         for ($attempt = 1; $attempt -le 2; $attempt++) {
             try {
-                # Validating the cached archive rather than merely testing for its presence is what
-                # breaks the permanent wedge: a corrupt zip whose tag still matches used to skip the
-                # download and then fail extraction on every subsequent run, forever.
-                $downloadRequired = $Force -or $attempt -gt 1 -or $State.cachedReleaseTag -ne $State.latestTag -or -not (Test-ZipArchive -Path $downloadZipPath)
+                # A readable ZIP is not necessarily the published ZIP. Verify cached bytes against
+                # the checksum resolved from this exact release before any reuse or extraction.
+                $downloadRequired = $Force -or
+                    $attempt -gt 1 -or
+                    $State.cachedReleaseTag -ne $State.latestTag -or
+                    -not (Test-RuntimeArchiveChecksum -Path $downloadZipPath -ExpectedSha256 $State.expectedSha256) -or
+                    -not (Test-ZipArchive -Path $downloadZipPath)
 
                 if ($downloadRequired) {
                     Write-Status "[{{PLUGIN_NAME}}] Downloading $($State.assetName)..." "Yellow"
-                    Save-RuntimeArchive -Uri $State.assetUrl -DestinationPath $downloadZipPath
+                    Save-RuntimeArchive -Uri $State.assetUrl -DestinationPath $downloadZipPath -ExpectedSha256 $State.expectedSha256
                 } else {
                     Write-Status "[{{PLUGIN_NAME}}] Reusing cached package $($State.assetName)." "DarkGray"
                 }
@@ -479,7 +586,10 @@ if ($env:OS -ne "Windows_NT") {
 }
 
 $state = Get-State
-$sessionNeedsFreshnessCheck = $Force -or [string]::IsNullOrWhiteSpace($state.checkedSessionId) -or $state.checkedSessionId -ne $SessionId
+$sessionNeedsFreshnessCheck = $Force -or
+    [string]::IsNullOrWhiteSpace($state.checkedSessionId) -or
+    $state.checkedSessionId -ne $SessionId -or
+    [string]::IsNullOrWhiteSpace($state.expectedSha256)
 
 if (-not $sessionNeedsFreshnessCheck -and -not $HasCopilotSession) {
     $sessionNeedsFreshnessCheck = Test-FreshnessWindowElapsed -State $state
@@ -494,8 +604,15 @@ if ($sessionNeedsFreshnessCheck) {
         $state.latestVersion = $latest.Version
         $state.assetName = $latest.AssetName
         $state.assetUrl = $latest.AssetUrl
+        $state.expectedSha256 = $latest.ExpectedSha256
         Save-State -State $state
     } catch {
+        $allowCachedFallback = $_.Exception.Data.Contains("AllowCachedFallback") -and
+            [bool]$_.Exception.Data["AllowCachedFallback"]
+        if (-not $allowCachedFallback -or [string]::IsNullOrWhiteSpace($state.expectedSha256)) {
+            throw
+        }
+
         # A failed update check must not take down a working installation. If a usable runtime
         # is already cached, degrade to it instead of aborting.
         $cachedBinary = Resolve-BinaryPath -State $state

@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Utilities;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -24,6 +25,43 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class ExcelMcpServiceErrorTests
 {
+    [Theory]
+    [InlineData("wrapped-com", "ComInterop")]
+    [InlineData("cancelled", "Cancelled")]
+    [InlineData("unknown", null)]
+    [InlineData("prerequisite", "Prerequisite")]
+    [InlineData("dependency", "DependencyUnavailable")]
+    [InlineData("permissions", "Permissions")]
+    public void CreateErrorResponse_PreservesKnownNestedCategory(string scenario, string? category)
+    {
+#pragma warning disable CA2201 // Synthetic exceptions exercise serialization, not COM behavior.
+        Exception error = scenario switch
+        {
+            "wrapped-com" => new InvalidOperationException("Operation context",
+                new TargetInvocationException(new COMException("Excel failure", unchecked((int)0x800A03EC)))),
+            "cancelled" => new OperationCanceledException("Cancelled operation"),
+            "prerequisite" => new OperationFailureException(OperationFailureCategory.Prerequisite, "Missing model"),
+            "dependency" => new OperationFailureException(OperationFailureCategory.DependencyUnavailable, "Missing provider"),
+            "permissions" => new OperationFailureException(OperationFailureCategory.Permissions, "Access blocked"),
+            _ => new InvalidOperationException("Unknown condition")
+        };
+#pragma warning restore CA2201
+        var method = typeof(ExcelMcpService).GetMethod("CreateErrorResponse",
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        var response = Assert.IsType<ServiceResponse>(method.Invoke(null, [error, "vba.run", "session"]));
+
+        Assert.False(response.Success);
+        Assert.Equal(category, response.ErrorCategory);
+        Assert.Contains(error.Message, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(error.GetType().Name, response.ExceptionType);
+        Assert.Equal("vba.run", response.Command);
+        Assert.Equal("session", response.SessionId);
+        if (scenario == "wrapped-com")
+        {
+            Assert.Equal("0x800A03EC", response.HResult);
+        }
+    }
+
     /// <summary>
     /// REGRESSION TEST for Bug 5 (#482): When an unexpected exception escapes
     /// the ProcessAsync routing switch (e.g. NullReferenceException on null Command),
@@ -104,6 +142,48 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.False(response.Success);
         Assert.NotNull(response.ErrorMessage);
         Assert.NotEmpty(response.ErrorMessage);
+        Assert.Equal("SessionNotFound", response.ErrorCategory);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SessionCommandWithoutSessionId_ReturnsInvalidInputCategory()
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list"
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains("sessionId", response.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SessionCreateForExistingFile_ReturnsConflictCategory()
+    {
+        using var service = new ExcelMcpService();
+        var existingPath = Path.Combine(
+            Path.GetTempPath(),
+            $"{Guid.NewGuid():N}.xlsx");
+        File.WriteAllText(existingPath, string.Empty);
+
+        try
+        {
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.create",
+                Args = JsonSerializer.Serialize(new { filePath = existingPath })
+            });
+
+            Assert.False(response.Success);
+            Assert.Equal("Conflict", response.ErrorCategory);
+        }
+        finally
+        {
+            File.Delete(existingPath);
+        }
     }
 
     [Fact]
@@ -258,6 +338,7 @@ public sealed class ExcelMcpServiceErrorTests
         });
 
         Assert.False(response.Success);
+        Assert.Equal("SessionInvalidated", response.ErrorCategory);
         Assert.NotNull(response.ErrorMessage);
         Assert.Contains("timed out or was cancelled", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("reopen", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);

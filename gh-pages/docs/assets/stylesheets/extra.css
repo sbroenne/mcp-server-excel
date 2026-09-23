@@ -12,7 +12,7 @@
   --md-accent-fg-color: #107c41;
 
   --mcp-hero-bg-1: #217346; /* Excel green */
-  --mcp-hero-bg-2: #33a85c; /* Excel green (lighter) */
+  --mcp-hero-bg-2: #1d7a4c; /* Keeps white text above WCAG AA contrast */
 }
 
 /* Dark mode: lift the greens slightly for contrast on the slate background */
@@ -138,4 +138,198 @@
   .md-typeset .mcp-hero__title {
     font-size: 1.6rem;
   }
+}
+
+/* Public analytics: simple, accessible comparisons without a chart library. */
+.analytics-cards strong {
+  font-size: 1.05rem;
+}
+
+.analytics-bars {
+  margin: 1rem 0 1.4rem;
+}
+
+.analytics-bars__row {
+  margin: 0.65rem 0;
+}
+
+.analytics-bars__label {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.analytics-bars__track {
+  height: 0.55rem;
+  overflow: hidden;
+  margin-top: 0.18rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--md-default-fg-color) 12%, transparent);
+}
+
+.analytics-bars__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--md-primary-fg-color);
+}
+
+.analytics-week-chart {
+  margin: 1.2rem 0 1.6rem;
+}
+
+.analytics-week-chart__body {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.analytics-week-chart__y-axis {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 2.8rem;
+  height: 10rem;
+  padding: 0.1rem 0 1rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+}
+
+.analytics-week-chart__plot {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: end;
+  gap: 0.35rem;
+  height: 10rem;
+  padding-top: 0.8rem;
+  background: linear-gradient(
+    to bottom,
+    transparent 49.5%,
+    color-mix(in srgb, var(--md-default-fg-color) 12%, transparent) 50%,
+    transparent 50.5%
+  );
+  border-bottom: 1px solid color-mix(in srgb, var(--md-default-fg-color) 25%, transparent);
+}
+
+.analytics-week-chart__week {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: end;
+  min-width: 0;
+  height: 100%;
+  text-align: center;
+}
+
+.analytics-week-chart__week span {
+  display: block;
+  min-height: 0.2rem;
+  border-radius: 0.2rem 0.2rem 0 0;
+  background: var(--md-primary-fg-color);
+}
+
+.analytics-week-chart__week small {
+  overflow: hidden;
+  margin-top: 0.25rem;
+  font-size: 0.58rem;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.analytics-version-chart {
+  margin: 1.2rem 0 1.6rem;
+}
+
+.analytics-version-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.65rem;
+}
+
+.analytics-version-chart__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.analytics-version-chart__legend i {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 0.15rem;
+}
+
+.analytics-version-chart__body {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.analytics-version-chart__y-axis {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 2.8rem;
+  height: 10rem;
+  padding: 0.1rem 0 1rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+}
+
+.analytics-version-chart__plot {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: end;
+  gap: 0.35rem;
+  height: 10rem;
+  background: linear-gradient(
+    to bottom,
+    transparent 49.5%,
+    color-mix(in srgb, var(--md-default-fg-color) 18%, transparent) 50%,
+    transparent 50.5%
+  );
+  border-bottom: 1px solid color-mix(in srgb, var(--md-default-fg-color) 25%, transparent);
+}
+
+.analytics-version-chart__week {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: end;
+  min-width: 0;
+  height: 100%;
+  text-align: center;
+}
+
+.analytics-version-chart__stack {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column-reverse;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 0.2rem 0.2rem 0 0;
+}
+
+.analytics-version-chart__stack span {
+  display: block;
+  flex: 0 0 auto;
+  min-height: 1px;
+}
+
+.analytics-version-chart__week small {
+  overflow: hidden;
+  margin-top: 0.25rem;
+  font-size: 0.58rem;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
 }

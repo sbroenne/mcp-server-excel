@@ -52,11 +52,11 @@ Build a Power Pivot Data Model — manage tables, DAX measures, and relationship
 - **Rename Table:** Rename a Data Model table (best-effort via Power Query; returns clear error if not supported)
 - **Delete Table:** Remove table from Data Model
 - **List Columns:** List columns for a table
-- **List Workbook Connections:** List Power Query sources available for integration
 
 **Measures:**
 - **List Measures:** List all DAX measures with formula previews
-- **Create Measure:** Create new DAX measure, preserving DAX by default (format types: Currency, Percentage, Decimal, General)
+- **Read Measure:** Get one measure's full DAX formula, format, description, and table
+- **Create Measure:** Create new DAX measure, preserving DAX by default
 - **Update Measure:** Modify existing measure, preserving DAX by default
 - **Delete Measure:** Remove measure from model
 
@@ -76,18 +76,21 @@ Build a Power Pivot Data Model — manage tables, DAX measures, and relationship
 
 **Notes:**
 - **DAX formatting:** DAX formulas are preserved exactly by default, subject to Excel locale separator translation. CreateMeasure and UpdateMeasure can opt in to remote formatting with `formatDax=true`, which sends DAX to daxformatter.com and adds network latency. If remote formatting fails, the original DAX is saved unchanged.
+- **Measure formats:** Create Measure and Update Measure accept General, Currency, Decimal, Percentage, and WholeNumber case-insensitively. Unknown values are rejected before Excel is called. Create defaults to General when the format is omitted or empty; Update keeps the existing format when omitted or empty.
+- **Workbook connections:** Use the existing `connection list` action to list workbook connections and Power Query sources; this is not a Data Model action.
 - **Source metadata:** Read Table returns each table's source connection name, description, type, and model-membership flag.
 - **COM limitations:** Excel exposes calculated columns as read-only entries but provides no reliable PIA formula/mutation or live refresh-status API. Use Power Query for computed columns.
 
 ---
 
-## 📇 Excel Tables (ListObjects) (27 operations)
+## 📇 Excel Tables (ListObjects) (28 operations)
 
 Create and manage Excel Tables (ListObjects) — structured ranges with styling, filtering, and sorting.
 
 **Lifecycle:**
 - **List:** List Excel Tables in a worksheet or workbook
 - **Read:** Get table structure (columns, range, style)
+- **Preflight:** Non-destructively check the effective range, merged cells, blank or duplicate headers, excluded contiguous columns, and formulas that may be unsafe to sort. Deterministic problems block creation; uncertain adjacency and formula findings are warnings. Ranges over 100,000 cells return an explicit warning that formula risk analysis was skipped.
 - **Create:** Create a new Excel Table from a range
 - **Rename:** Rename an existing table
 - **Resize:** Resize table range to match new data bounds

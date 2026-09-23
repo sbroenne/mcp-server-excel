@@ -25,14 +25,8 @@ excelcli -q session close --session 1 --save
 
 ### GitHub Copilot
 
-The [Excel MCP Server VS Code extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) installs this skill automatically to `~/.copilot/skills/excel-cli/`.
-
-Enable skills in VS Code settings:
-```json
-{
-  "chat.useAgentSkills": true
-}
-```
+The VS Code extension bundles only the MCP Server skill. Install this CLI skill
+separately with `npx skills`, as shown below, after installing `excelcli`.
 
 ### Other Platforms
 
@@ -63,21 +57,32 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli
 excel-cli/
 ├── SKILL.md           # Main skill definition with CLI command guidance
 ├── README.md          # This file
-└── references/        # Exact CLI command/action/flag reference
-    └── cli-commands.md
+├── VERSION            # Published plugin version
+└── references/        # CLI command reference and workflow guidance
+    └── *.md
 ```
 
 ## CLI Tool Installation
 
-The **GitHub Copilot `excel-cli` plugin** installs the skill package only.
+The **GitHub Copilot `excel-cli` plugin** installs the skill plus a runtime
+bootstrap wrapper. The wrapper downloads and caches the latest self-contained
+Windows CLI runtime on first use.
 
 ### Via GitHub Copilot Plugin
 
-If you install `excel-cli` through the GitHub Copilot plugin marketplace, install `excelcli` separately and keep using the plugin for workflow guidance:
+Plugin-driven flows use the plugin wrapper and keep runtime state under the
+host-provided `PLUGIN_DATA\runtime` directory. To make `excelcli` available on
+PATH for shell commands, run the optional global shim installer from the
+installed plugin folder:
 
 ```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+pwsh -ExecutionPolicy Bypass -File `
+  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
+
+The global shim runs outside the plugin host, uses
+`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli`, and checks for updates
+at most once every 24 hours.
 
 ### Via Skill Package
 
@@ -85,13 +90,9 @@ Plain skill-only installs still need `excelcli` available separately on PATH (fo
 
 ### Manual Download (Standalone)
 
-For other environments, download the standalone CLI:
-```powershell
-# Download from releases
-$url = "https://github.com/sbroenne/mcp-server-excel/releases/latest/download/ExcelMcp-CLI-latest-windows.zip"
-Invoke-WebRequest -Uri $url -OutFile ExcelMcp-CLI.zip
-Expand-Archive -Path ExcelMcp-CLI.zip -DestinationPath $env:ProgramFiles\ExcelMcp
-```
+For other environments, download `ExcelMcp-CLI-{version}-windows.zip` from the
+[latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest),
+extract it to a permanent directory, and add that directory to PATH.
 
 ### Via NuGet Package Manager (Secondary)
 
@@ -108,6 +109,6 @@ excelcli --help
 
 ## Related
 
-- [Excel MCP Skill](../excel-mcp/SKILL.md) - For conversational AI (Claude Desktop, VS Code Chat)
+- [Excel MCP Skill](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp) - For conversational AI (Claude Desktop, VS Code Chat)
 - [Documentation](https://excelmcpserver.dev/)
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)

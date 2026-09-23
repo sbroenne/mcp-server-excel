@@ -70,7 +70,8 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests : McpIntegrationTestB
             ["sheet_name"] = "View",
             ["show_gridlines"] = false,
             ["show_headings"] = false,
-            ["show_outline_symbols"] = false
+            ["show_outline_symbols"] = false,
+            ["show_formulas"] = true
         }), "window.set-display-options");
         AssertSuccess(await CallToolAsync("window", new()
         {
@@ -103,6 +104,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests : McpIntegrationTestB
         Assert.False(root.GetProperty("displayGridlines").GetBoolean());
         Assert.False(root.GetProperty("displayHeadings").GetBoolean());
         Assert.False(root.GetProperty("displayOutlineSymbols").GetBoolean());
+        Assert.True(root.GetProperty("displayFormulas").GetBoolean());
     }
 
     [Fact]

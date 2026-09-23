@@ -57,7 +57,10 @@ function Write-PackageManifest {
     $manifest = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
     & $Update $manifest
     $json = ($manifest | ConvertTo-Json -Depth 20) -replace "`r?`n", "`n"
-    Set-Content -LiteralPath $Path -Value $json -NoNewline
+    [System.IO.File]::WriteAllText(
+        $Path,
+        $json,
+        [System.Text.UTF8Encoding]::new($false))
 }
 
 function New-NpmTarball {

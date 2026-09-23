@@ -1,0 +1,12 @@
+node_modules/
+.hyperframes/
+scratch/
+snapshots/
+renders/
+.thumbnails/
+.waveform-cache/
+.media/cache/
+.media/preferences.json
+assets/voice/01*.wav
+assets/voice/0[2-9].wav
+*.log

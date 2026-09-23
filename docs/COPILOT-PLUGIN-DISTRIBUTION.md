@@ -6,7 +6,7 @@ This document outlines how the Excel MCP Server and Excel CLI are distributed as
 
 ExcelMcp is published as **two complementary plugins** in the GitHub Copilot plugin marketplace:
 
-- **`excel-mcp`** — MCP Server with 31 tools (325 operations) for conversational AI (Claude Desktop, Copilot chat)
+- **`excel-mcp`** — MCP Server with 31 tools (326 operations) for conversational AI (Claude Desktop, Copilot chat)
 - **`excel-cli`** — CLI-only skill for coding agents (token-efficient, `--help` discoverable)
 
 Both plugins are maintained in a separate published repository and auto-synced from this source repo.
@@ -50,7 +50,7 @@ Agent Plugins discovers skills from the fixed `skills/` directory and MCP server
 
 Each generated plugin receives an exact copy of its canonical skill directory, including every referenced file. This prevents stale published references and preserves skill-specific files such as `references/calculation.md`.
 
-Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed, then reuses it for the rest of the chat session. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
+Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed. The bootstrap reads the exact release's `SHA256SUMS` asset and verifies the selected ZIP before extraction; cached ZIPs are verified again before reuse. Missing, malformed, unmatched, or incorrect checksum data stops installation. Agent Plugins hosts provide `PLUGIN_DATA`; the bootstrap stores persistent runtime state under `PLUGIN_DATA\runtime`, checks release freshness once per Copilot session, and then reuses the verified runtime. Standalone shims fall back to `~\.copilot\plugin-runtime\mcp-server-excel\<plugin>` and check for updates at most once every 24 hours. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
 
 ## Installation
 
@@ -67,7 +67,7 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 
 ### Excel MCP Plugin
 
-Provides the full MCP Server with 31 tools (325 operations) for conversational AI:
+Provides the full MCP Server with 31 tools (326 operations) for conversational AI:
 
 ```powershell
 copilot plugin install excel-mcp@mcp-server-excel-plugins

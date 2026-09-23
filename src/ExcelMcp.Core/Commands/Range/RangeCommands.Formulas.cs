@@ -19,8 +19,7 @@ public partial class RangeCommands
         {
             FilePath = batch.WorkbookPath,
             SheetName = sheetName,
-            RangeAddress = rangeAddress,
-            CellErrors = []
+            RangeAddress = rangeAddress
         };
 
         return batch.Execute((ctx, ct) =>
@@ -39,10 +38,8 @@ public partial class RangeCommands
                 int startRow = Convert.ToInt32(range.Row);
                 int startColumn = Convert.ToInt32(range.Column);
 
-                // Get formulas and values - handle single cell case
-                // Use Formula2 (modern) instead of Formula (legacy) to avoid implicit intersection (@)
-                // operator being injected in Excel Table cells. Formula2 respects dynamic array semantics.
-                object formulaOrArray = range.Formula2;
+                // Preserve dynamic arrays where supported; older Excel uses legacy semantics.
+                object formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -60,27 +57,16 @@ public partial class RangeCommands
                         {
                             string formula = formulas[r, c]?.ToString() ?? string.Empty;
                             object? cellValue = values[r, c];
+                            string returnedFormula = formula.StartsWith('=') ? formula : string.Empty;
 
                             // Only return actual formulas (starting with =), not values
-                            formulaRow.Add(formula.StartsWith('=') ? formula : string.Empty);
-                            valueRow.Add(cellValue);
-
-                            // ERROR CODE DETECTION: Map Excel error codes to human-readable messages
-                            if (cellValue is int errorCode && errorCode < 0)
-                            {
-                                int row = startRow + r - 1;
-                                int column = startColumn + c - 1;
-                                result.CellErrors.Add(new RangeCellError
-                                {
-                                    CellAddress = $"{GetColumnLetter(column)}{row}",
-                                    Row = row,
-                                    Column = column,
-                                    CurrentValue = cellValue,
-                                    ErrorCode = errorCode,
-                                    ErrorMessage = MapErrorCodeToMessage(errorCode),
-                                    Suggestion = MapErrorCodeToSuggestion(errorCode)
-                                });
-                            }
+                            formulaRow.Add(returnedFormula);
+                            valueRow.Add(ConvertErrorForRead(
+                                cellValue,
+                                returnedFormula,
+                                startRow + r - 1,
+                                startColumn + c - 1,
+                                result.CellErrors));
                         }
 
                         result.Formulas.Add(formulaRow);
@@ -96,23 +82,16 @@ public partial class RangeCommands
                     object? cellValue = valueOrArray;
 
                     // Only return actual formulas (starting with =), not values
-                    result.Formulas.Add([formula.StartsWith('=') ? formula : string.Empty]);
-                    result.Values.Add([cellValue]);
-
-                    // ERROR CODE DETECTION: Single cell error
-                    if (cellValue is int errorCode && errorCode < 0)
-                    {
-                        result.CellErrors.Add(new RangeCellError
-                        {
-                            CellAddress = $"{GetColumnLetter(startColumn)}{startRow}",
-                            Row = startRow,
-                            Column = startColumn,
-                            CurrentValue = cellValue,
-                            ErrorCode = errorCode,
-                            ErrorMessage = MapErrorCodeToMessage(errorCode),
-                            Suggestion = MapErrorCodeToSuggestion(errorCode)
-                        });
-                    }
+                    string returnedFormula = formula.StartsWith('=') ? formula : string.Empty;
+                    result.Formulas.Add([returnedFormula]);
+                    result.Values.Add([
+                        ConvertErrorForRead(
+                            cellValue,
+                            returnedFormula,
+                            startRow,
+                            startColumn,
+                            result.CellErrors)
+                    ]);
                 }
 
                 result.Success = true;
@@ -130,36 +109,45 @@ public partial class RangeCommands
         });
     }
 
-    /// <summary>
-    /// Maps Excel error codes to human-readable error messages.
-    /// Internal (not private) so sibling feature areas (e.g. PythonInExcel) can reuse the same
-    /// mapping table instead of duplicating it - see Bug Fix Pattern Search rule.
-    /// </summary>
-    internal static string MapErrorCodeToMessage(int errorCode) =>
-        errorCode switch
+    internal static object? ConvertErrorForRead(
+        object? cellValue,
+        string formula,
+        int row,
+        int column,
+        List<RangeCellError> cellErrors)
+    {
+        if (!ExcelErrorMapper.TryGet(cellValue, out int errorCode, out var error))
         {
-            -2146826288 => "#NULL! - Invalid intersection of ranges",
-            -2147483648 => "#DIV/0! - Division by zero",
-            -2146826259 => "#VALUE! - Wrong type of argument",
-            -2146826246 => "#REF! - Invalid cell reference",
-            -2146826252 => "#NUM! - Invalid numeric value",
-            -2142019887 => "#N/A - Value not available",
-            -2146826233 => "#PYTHON! - Python code raised an error (syntax or runtime exception)",
-            _ => $"#ERROR! - Unknown error code {errorCode}"
-        };
+            return cellValue;
+        }
 
-    private static string MapErrorCodeToSuggestion(int errorCode) =>
-        errorCode switch
+        return ConvertMappedErrorForRead(cellValue, formula, row, column, cellErrors, errorCode, error);
+    }
+
+    private static string ConvertMappedErrorForRead(
+        object? cellValue,
+        string formula,
+        int row,
+        int column,
+        List<RangeCellError> cellErrors,
+        int errorCode,
+        ExcelErrorMapper.ExcelErrorInfo error)
+    {
+        cellErrors.Add(new RangeCellError
         {
-            -2146826288 => "Check the intersection operator and referenced ranges.",
-            -2147483648 => "Ensure the formula does not divide by zero.",
-            -2146826259 => "Check function names and argument types.",
-            -2146826246 => "Check that referenced cells and ranges still exist.",
-            -2146826252 => "Check numeric inputs and supported value ranges.",
-            -2142019887 => "Check that the lookup value and source data are available.",
-            -2146826233 => "Check the Python formula syntax and runtime inputs.",
-            _ => "Check the formula syntax and referenced values."
-        };
+            CellAddress = $"{GetColumnLetter(column)}{row}",
+            ErrorName = error.Name,
+            Formula = string.IsNullOrEmpty(formula) ? null : formula,
+            Row = row,
+            Column = column,
+            CurrentValue = cellValue,
+            ErrorCode = errorCode,
+            ErrorMessage = $"{error.Name} - {error.Description}",
+            Suggestion = error.Suggestion
+        });
+
+        return error.Name;
+    }
 
     /// <summary>
     /// Converts 1-based column index to Excel column letter (1=A, 26=Z, 27=AA)
@@ -198,6 +186,8 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
+                ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
+
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
@@ -228,10 +218,16 @@ public partial class RangeCommands
                         }
                     }
 
-                    // Use Formula2 (modern) instead of Formula (legacy) to prevent Excel from
-                    // injecting the @ implicit intersection operator in table cells, which causes
-                    // #FIELD! errors with custom functions that return entity cards.
-                    range.Formula2 = arrayFormulas;
+                    // Select before writing: a write failure can mean invalid input or protection,
+                    // not missing API support, and must never trigger a legacy retry.
+                    if (ctx.Capabilities.SupportsFormula2)
+                    {
+                        ((Excel.Range)range).Formula2 = arrayFormulas;
+                    }
+                    else
+                    {
+                        ((Excel.Range)range).Formula = arrayFormulas;
+                    }
                 }
 
                 result.Success = true;
@@ -259,6 +255,7 @@ public partial class RangeCommands
             }
         });
     }
+
+    private static object ReadFormulas(ExcelContext context, Excel.Range range) =>
+        context.Capabilities.SupportsFormula2 ? range.Formula2 : range.Formula;
 }
-
-

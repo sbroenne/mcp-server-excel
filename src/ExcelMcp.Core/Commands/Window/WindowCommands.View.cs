@@ -42,6 +42,7 @@ public partial class WindowCommands
                 result.DisplayGridlines = window.DisplayGridlines;
                 result.DisplayHeadings = window.DisplayHeadings;
                 result.DisplayOutlineSymbols = window.DisplayOutline;
+                result.DisplayFormulas = window.DisplayFormulas;
                 result.Success = true;
                 return result;
             }
@@ -189,11 +190,15 @@ public partial class WindowCommands
         string sheetName,
         bool? showGridlines = null,
         bool? showHeadings = null,
-        bool? showOutlineSymbols = null)
+        bool? showOutlineSymbols = null,
+        bool? showFormulas = null)
     {
         return batch.Execute((ctx, ct) =>
         {
-            if (!showGridlines.HasValue && !showHeadings.HasValue && !showOutlineSymbols.HasValue)
+            if (!showGridlines.HasValue
+                && !showHeadings.HasValue
+                && !showOutlineSymbols.HasValue
+                && !showFormulas.HasValue)
             {
                 throw new ArgumentException("Provide at least one display option to change.");
             }
@@ -221,6 +226,11 @@ public partial class WindowCommands
                 if (showOutlineSymbols.HasValue)
                 {
                     window.DisplayOutline = showOutlineSymbols.Value;
+                }
+
+                if (showFormulas.HasValue)
+                {
+                    window.DisplayFormulas = showFormulas.Value;
                 }
 
                 return ViewOperationResult(batch, "set-display-options", sheetName);

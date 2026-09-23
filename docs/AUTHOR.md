@@ -7,11 +7,17 @@
 
 ### About the Author
 
-Stefan Broenner is the creator and maintainer of ExcelMcp, a command-line interface tool designed specifically for coding agents and developers to automate Microsoft Excel operations. With a focus on creating clean, reliable tools that bridge the gap between AI coding assistants and Excel automation, Stefan has developed ExcelMcp to be the the solution for programmatic Excel manipulation.
+Stefan Broenner is the creator and maintainer of ExcelMcp, an open-source MCP
+Server and CLI that let AI assistants and developers automate Microsoft Excel.
+The project focuses on clear, reliable tools that connect coding agents with
+Excel's native automation capabilities.
 
 ### Project Vision
 
-ExcelMcp was born from the need for a simple, reliable way for coding agents like GitHub Copilot to interact with Excel files. Rather than dealing with complex OpenXML libraries or unreliable automation, ExcelMcp provides direct COM automation that uses Excel's native VBA object model for maximum compatibility and reliability.
+ExcelMcp was born from the need for a reliable way for coding agents such as
+GitHub Copilot to work with Excel. It drives the real Excel application through
+its official COM API, which preserves workbook features and runs operations that
+file-format libraries cannot.
 
 ### Contact
 

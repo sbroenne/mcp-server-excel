@@ -166,6 +166,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
             dynamic? dataRange = null;
             dynamic? pivotCache = null;
             dynamic? newSheet = null;
+            dynamic? dashboardSheet = null;
             dynamic? pivot = null;
             dynamic? rowField = null;
             dynamic? dataField = null;
@@ -189,6 +190,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
                 newSheet = ctx.Book.Worksheets.Add();
                 newSheet.Name = "PivotSheet";
                 pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], pivotTableName);
+                dashboardSheet = ctx.Book.Worksheets.Add();
+                dashboardSheet.Name = "Dashboard";
 
                 // Add fields
                 rowField = pivot.PivotFields("Product");
@@ -204,6 +207,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
                 ComUtilities.Release(ref dataField);
                 ComUtilities.Release(ref rowField);
                 ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref dashboardSheet);
                 ComUtilities.Release(ref newSheet);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref dataRange);
@@ -215,7 +219,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         var result = _commands.CreateFromPivotTable(
             batch,
             pivotTableName,
-            "PivotSheet",
+            "Dashboard",
             ChartType.ColumnClustered,
             300,
             50,
@@ -226,13 +230,46 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         // Assert
         Assert.True(result.IsPivotChart, "Chart should be marked as PivotChart");
         Assert.Equal(pivotTableName, result.LinkedPivotTable);
-        Assert.Equal("PivotSheet", result.SheetName);
+        Assert.Equal("Dashboard", result.SheetName);
         Assert.Equal(ChartType.ColumnClustered, result.ChartType);
 
-        // Verify chart exists in list
+        // Verify Excel reports a real PivotChart linked to the source PivotTable.
+        var chartInfo = _commands.Read(batch, result.ChartName);
+        Assert.True(chartInfo.IsPivotChart);
+        Assert.Equal(pivotTableName, chartInfo.LinkedPivotTable);
+
+        // Verify the live link follows PivotTable field changes.
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? pivotSheet = null;
+            dynamic? pivotTable = null;
+            dynamic? secondDataField = null;
+
+            try
+            {
+                pivotSheet = ctx.Book.Worksheets["PivotSheet"];
+                pivotTable = pivotSheet.PivotTables(pivotTableName);
+                secondDataField = pivotTable.PivotFields("Region");
+                secondDataField.Orientation = (int)Excel.XlPivotFieldOrientation.xlDataField;
+                secondDataField.Function = (int)Excel.XlConsolidationFunction.xlCount;
+                pivotTable.RefreshTable();
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref secondDataField);
+                ComUtilities.Release(ref pivotTable);
+                ComUtilities.Release(ref pivotSheet);
+            }
+        });
+
+        // Verify chart exists in list and now exposes both PivotTable value fields.
         var charts = _commands.List(batch);
         Assert.True(charts.Success);
-        Assert.Contains(charts.Charts, c => c.Name == result.ChartName && c.IsPivotChart);
+        var linkedChart = Assert.Single(charts.Charts, c => c.Name == result.ChartName);
+        Assert.True(linkedChart.IsPivotChart);
+        Assert.Equal(pivotTableName, linkedChart.LinkedPivotTable);
+        Assert.Equal(2, linkedChart.SeriesCount);
     }
 
     [Fact]
@@ -250,6 +287,84 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
                 50));
 
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CreateFromPivotTable_UnsupportedPivotChartType_ThrowsWithoutLeavingRegularChart()
+    {
+        // Arrange
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
+        const string pivotTableName = "UnsupportedTypePivot";
+        const string pivotSheetName = "UnsupportedTypePivotSheet";
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sourceSheet = null;
+            dynamic? sourceRange = null;
+            dynamic? pivotCaches = null;
+            dynamic? pivotCache = null;
+            dynamic? pivotSheet = null;
+            dynamic? pivotDestination = null;
+            dynamic? pivotTable = null;
+            dynamic? rowField = null;
+            dynamic? dataField = null;
+
+            try
+            {
+                sourceSheet = ctx.Book.Worksheets["Sheet1"];
+                sourceRange = sourceSheet.Range["A1:B4"];
+                pivotCaches = ctx.Book.PivotCaches();
+                pivotCache = pivotCaches.Create(
+                    Excel.XlPivotTableSourceType.xlDatabase,
+                    sourceRange);
+                pivotSheet = ctx.Book.Worksheets.Add();
+                pivotSheet.Name = pivotSheetName;
+                pivotDestination = pivotSheet.Range["A1"];
+                pivotTable = pivotCache.CreatePivotTable(
+                    pivotDestination,
+                    pivotTableName);
+
+                rowField = pivotTable.PivotFields("X");
+                rowField.Orientation = (int)Excel.XlPivotFieldOrientation.xlRowField;
+                dataField = pivotTable.PivotFields("Y");
+                dataField.Orientation = (int)Excel.XlPivotFieldOrientation.xlDataField;
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataField);
+                ComUtilities.Release(ref rowField);
+                ComUtilities.Release(ref pivotTable);
+                ComUtilities.Release(ref pivotDestination);
+                ComUtilities.Release(ref pivotSheet);
+                ComUtilities.Release(ref pivotCache);
+                ComUtilities.Release(ref pivotCaches);
+                ComUtilities.Release(ref sourceRange);
+                ComUtilities.Release(ref sourceSheet);
+            }
+        });
+
+        int chartCountBefore = _commands.List(batch).Charts.Count(
+            chart => chart.SheetName == pivotSheetName);
+
+        // Act
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.CreateFromPivotTable(
+                batch,
+                pivotTableName,
+                pivotSheetName,
+                ChartType.XYScatter,
+                300,
+                50,
+                400,
+                300,
+                "UnsupportedPivotChart"));
+
+        // Assert
+        Assert.Contains("linked PivotChart", exception.Message, StringComparison.OrdinalIgnoreCase);
+        int chartCountAfter = _commands.List(batch).Charts.Count(
+            chart => chart.SheetName == pivotSheetName);
+        Assert.Equal(chartCountBefore, chartCountAfter);
     }
 
     [Fact]
@@ -448,7 +563,3 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         Assert.Equal(chartTypes.Length, charts.Charts.Count);
     }
 }
-
-
-
-

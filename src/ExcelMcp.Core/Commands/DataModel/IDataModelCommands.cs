@@ -157,10 +157,10 @@ public interface IDataModelCommands
     /// <param name="tableName">Name of the table to add the measure to</param>
     /// <param name="measureName">Name of the new measure</param>
     /// <param name="daxFormula">DAX formula. Public callers must supply either inline daxFormula or a readable daxFormulaFile, not both.</param>
-    /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
+    /// <param name="formatType">Optional format type: General, Currency, Decimal, Percentage, or WholeNumber (case-insensitive). Null or empty defaults to General on create and keeps the existing format on update.</param>
     /// <param name="description">Optional: Description of the measure</param>
     /// <param name="formatDax">Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy.</param>
-    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
+    /// <exception cref="ArgumentException">Thrown when parameters are invalid, including an unknown formatType</exception>
     /// <exception cref="InvalidOperationException">Thrown when table not found or creation fails</exception>
     [ServiceAction("create-measure")]
     OperationResult CreateMeasure(
@@ -180,10 +180,10 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to update</param>
     /// <param name="daxFormula">Optional new DAX formula. Public callers may supply inline daxFormula or a readable daxFormulaFile, not both.</param>
-    /// <param name="formatType">Optional: New format type (null to keep existing)</param>
+    /// <param name="formatType">Optional format type: General, Currency, Decimal, Percentage, or WholeNumber (case-insensitive). Null or empty defaults to General on create and keeps the existing format on update.</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
     /// <param name="formatDax">Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy.</param>
-    /// <exception cref="ArgumentException">Thrown when measureName is invalid or all parameters are null</exception>
+    /// <exception cref="ArgumentException">Thrown when measureName is invalid, formatType is unknown, or all update parameters are null</exception>
     /// <exception cref="InvalidOperationException">Thrown when measure not found or update fails</exception>
     [ServiceAction("update-measure")]
     OperationResult UpdateMeasure(
@@ -228,4 +228,3 @@ public interface IDataModelCommands
     [ServiceAction("execute-dmv")]
     DmvQueryResult ExecuteDmv(IExcelBatch batch, [RequiredParameter, FileOrValue] string dmvQuery);
 }
-

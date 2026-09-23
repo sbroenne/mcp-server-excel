@@ -1,0 +1,13 @@
+{
+  "name": "excel-mcp-intro",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.27 preview",
+    "check": "npx --yes hyperframes@0.8.27 check",
+    "render": "npm run render:quality",
+    "render:quality": "npx --yes hyperframes@0.8.27 render --quality=high --crf=18 --resolution=landscape-4k --format=mp4 --output renders/excel-mcp-intro-4k.mp4",
+    "render:draft": "npx --yes hyperframes@0.8.27 render --quality=draft --resolution=landscape --format=mp4 --output renders/excel-mcp-intro-draft.mp4",
+    "publish": "npx --yes hyperframes@0.8.27 publish"
+  }
+}

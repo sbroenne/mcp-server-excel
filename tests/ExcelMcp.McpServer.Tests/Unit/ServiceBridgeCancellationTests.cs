@@ -31,6 +31,7 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
             cancellationToken: CancellationToken.None);
 
         Assert.False(response.Success);
+        Assert.Equal("Timeout", response.ErrorCategory);
         Assert.Contains("timed out", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Single(backend.ClosedSessions);
         Assert.Contains("session-1", backend.ClosedSessions);
@@ -51,6 +52,7 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
             cancellationToken: cts.Token);
 
         Assert.False(response.Success);
+        Assert.Equal("Cancelled", response.ErrorCategory);
         Assert.Contains("cancelled", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.True(backend.Disposed);
     }
@@ -108,6 +110,7 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
         var response = await Bridge.SendAsync("session.open");
 
         Assert.False(response.Success);
+        Assert.Equal("ServiceStartup", response.ErrorCategory);
         Assert.Contains("Failed to start ExcelMCP Service in-process", response.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("FileNotFoundException", response.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("office runtime missing", response.ErrorMessage, StringComparison.Ordinal);

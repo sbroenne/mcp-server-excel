@@ -306,7 +306,8 @@ function Copy-SharedReferences {
             $destination = Join-Path $RefsDir $sourceFile.Name
             if ($SkillName -eq "excel-cli") {
                 $cliSyntaxNotice = "> **CLI syntax note:** This shared domain guide may use MCP-style ``tool(action: ...)`` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live ``--help``; notably, MCP ``file`` open/close maps to CLI ``session`` open/close, and MCP ``worksheet`` maps to CLI ``sheet``."
-                $adaptedContent = "$cliSyntaxNotice`r`n`r`n$(Get-Content -Path $sourceFile.FullName -Raw)"
+                $sourceContent = (Get-Content -Path $sourceFile.FullName -Raw) -replace "`r`n?", "`n"
+                $adaptedContent = "$cliSyntaxNotice`n`n$sourceContent"
                 Set-Content -Path $destination -Value $adaptedContent -Encoding UTF8 -NoNewline
             } else {
                 Copy-Item -Path $sourceFile.FullName -Destination $destination -Force

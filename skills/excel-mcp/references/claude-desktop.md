@@ -1,106 +1,87 @@
 # Claude Desktop Configuration
 
-Excel MCP Server works with Claude Desktop on Windows, but requires specific configuration for the Windows container environment.
+Excel MCP Server works with Claude Desktop on Windows through the MCPB bundle
+or a manual stdio configuration.
 
-## Configuration Location
+## Requirements
 
-Claude Desktop config file:
-```
-%APPDATA%\Claude\claude_desktop_config.json
-```
+- Windows 10 or later
+- Microsoft Excel 2016 or later (desktop version)
 
-## Basic Configuration
+The published Windows packages are self-contained; no .NET runtime is required.
+
+## Recommended: MCPB Bundle
+
+1. Download `excel-mcp-{version}.mcpb` from the
+   [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).
+2. Double-click the bundle or drag it into Claude Desktop.
+3. Restart Claude Desktop.
+
+The bundle contains the MCP server and configures Claude Desktop automatically.
+
+## Manual Configuration
+
+1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` from the
+   [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).
+2. Extract it to a permanent directory such as `C:\Tools\ExcelMcp`.
+3. Add the server to `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "excel-mcp-server.exe",
+      "command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe",
       "args": []
     }
   }
 }
 ```
 
-Or using the .NET tool:
-```json
-{
-  "mcpServers": {
-    "excel-mcp": {
-      "command": "dotnet",
-      "args": ["excel-mcp-server"]
-    }
-  }
-}
-```
-
-## Windows Container Considerations
-
-Claude Desktop runs in a Windows container with specific constraints:
-
-### File System Access
-
-The container has limited file system access. Excel files should be in accessible locations:
-
-- **User Documents**: `C:\Users\<username>\Documents\`
-- **User Desktop**: `C:\Users\<username>\Desktop\`
-- **Temp directory**: `%TEMP%` or `C:\Users\<username>\AppData\Local\Temp\`
-
-**Recommendation**: Work with files in your Documents folder.
-
-### Excel Instance
-
-- Excel MCP Server manages its own Excel instance via COM automation
-- The Excel window may be visible or hidden depending on operation
-- Long-running operations show Excel's progress indicators
-
-### Session Persistence
-
-Sessions are tied to the Claude Desktop session:
-- Closing Claude Desktop terminates active Excel sessions
-- Unsaved changes may be lost
-- Use explicit `file(action: 'close', save: true)` to persist work
+Restart Claude Desktop after saving the configuration.
 
 ## Recommended Workflow
 
-```
-1. Create or open file in accessible location:
-   file(action: 'create', filePath: 'C:\\Users\\Me\\Documents\\report.xlsx')
+```text
+1. Create or open a workbook:
+   file(action: 'create', path: 'C:\Users\Me\Documents\report.xlsx')
 
-2. Perform operations with returned sessionId
+2. Use the returned session ID for workbook operations.
 
-3. Explicitly save and close when done:
-   file(action: 'close', sessionId: '...', save: true)
+3. Save and close:
+   file(action: 'close', session_id: '...', save: true)
 ```
+
+Use full Windows paths and close sessions explicitly so Excel processes do not
+remain open and lock workbooks.
 
 ## Troubleshooting
 
-### "Excel not found" Error
-- Ensure Microsoft Excel is installed on the Windows system
-- Excel 2016, 2019, 2021, or Microsoft 365 required
+### Excel not found
 
-### "Access denied" Error
-- Check file path is in accessible directory
-- Ensure file is not open in another Excel instance
-- Try using Documents folder instead of other locations
+- Confirm that desktop Excel 2016 or later is installed.
+- Confirm that Excel starts normally for the current Windows user.
 
-### "COM timeout" Error
-- Excel may be showing a dialog - check for visible Excel window
-- Operation may be long-running - wait for completion
-- Restart Claude Desktop if Excel becomes unresponsive
+### Access denied or file locked
 
-### VBA Operations Fail
-VBA requires explicit trust setting in Excel:
-1. Open Excel Options → Trust Center → Trust Center Settings
-2. Enable "Trust access to the VBA project object model"
-3. Restart Excel MCP Server
+- Confirm that the path is writable.
+- Close any other Excel instance that already has the workbook open.
+- Try a workbook in the user's Documents directory.
 
-## MCPB Bundle Alternative
+### COM timeout
 
-For simplified installation, use the MCPB bundle which auto-configures Claude Desktop:
+- Check whether Excel is displaying a modal dialog.
+- Allow long-running refresh or calculation operations to finish.
+- Restart Claude Desktop if the Excel process is unresponsive.
 
-1. Download `excel-mcp-bundle.mcpb` from releases
-2. Double-click to install
-3. Restart Claude Desktop
+### VBA operations fail
 
-See the main repository for MCPB installation instructions.
+VBA project editing requires explicit trust:
+
+1. Open Excel Options.
+2. Select **Trust Center** and then **Trust Center Settings**.
+3. Enable **Trust access to the VBA project object model**.
+4. Restart Excel MCP Server.
+
+See the current
+[MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/)
+for other supported clients and setup methods.

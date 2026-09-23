@@ -82,6 +82,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Npm lockfile portability regression tests
+        timeout-minutes: 2
+        shell: pwsh
+        run: ./scripts/Test-NpmLockfiles.ps1
+
+      - name: Npm lockfile portability
+        timeout-minutes: 2
+        shell: pwsh
+        run: ./scripts/check-npm-lockfiles.ps1
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
@@ -103,6 +113,9 @@ jobs:
       # Review workflow owns vulnerability scanning).
       - name: Build (Release)
         run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore -p:NuGetAudit=false
+
+      - name: Pre-commit hook regression tests
+        run: dotnet test tests/ExcelMcp.SkillGeneration.Tests/ExcelMcp.SkillGeneration.Tests.csproj --configuration Release --no-build --no-restore --filter "Feature=PreCommit" --blame-hang-timeout 60s
 
       # --- Excel-free correctness gates (ported from scripts/pre-commit.ps1) ---
 
@@ -139,7 +152,7 @@ jobs:
       - name: Documentation tool/operation counts
         shell: pwsh
         run: |
-          & scripts/check-doc-counts.ps1
+          & scripts/check-doc-counts.ps1 -SkipBuild
           if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
 
       - name: Dynamic cast audit (documented ((dynamic)) casts)

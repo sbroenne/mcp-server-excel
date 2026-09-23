@@ -8,8 +8,8 @@ import * as path from 'path';
  * enabling AI assistants like GitHub Copilot to interact with Microsoft Excel
  * through native COM automation.
  *
- * The extension bundles self-contained executables for both the MCP server and CLI -
- * no .NET SDK or runtime installation required.
+ * The extension bundles a self-contained MCP server executable, so no .NET SDK
+ * or runtime installation is required.
  *
  * Agent Skills are registered via the chatSkills contribution point in package.json.
  */

@@ -40,3 +40,42 @@ npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
 **Via VS Code Extension (auto-installs excel-mcp):**
 Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) — it registers the `excel-mcp` skill via `chatSkills`. For the `excel-cli` skill, use the plugin or `npx skills` methods above.
+
+## Maintaining skills and MCP prompts
+
+The installed `SKILL.md` files are generated. Fix their sources rather than
+editing output that the next build replaces.
+
+| Change | Source |
+|--------|--------|
+| Tool or parameter description | Core interface XML documentation and attributes |
+| Skill prose and tool-selection rules | `templates/SKILL.cli.sbn` and `templates/SKILL.mcp.sbn` |
+| Shared workflows, examples, and limitations | `shared/*.md` |
+| Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
+| MCP prompt description overrides | `GenerateSkillPromptsClass` in the MCP Server project file |
+
+Release builds follow two related paths:
+
+```text
+Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
+  -> GenerateSkillFile + Scriban templates -> both SKILL.md files
+
+skills/shared/*.md -> copied skill references
+  -> embedded MCP prompt content + generated ExcelSkillPrompts.g.cs
+```
+
+To add a shared reference, create the Markdown under `shared/`. Review the MCP
+prompt description overrides if its automatic description is insufficient.
+Build the solution in Release, then inspect both skill references and the
+generated prompt surface for the intended content. The extension packages a
+copy of the MCP skill; it is not another source.
+
+Write for an agent that already knows Excel and can read tool schemas. Explain
+which overlapping tool to choose, non-obvious load/save/refresh semantics,
+destructive effects, and recovery from predictable errors. Add concrete examples
+when schemas alone cannot explain a workflow, not to duplicate enum catalogs or
+CLI help.
+
+If a tool is misunderstood in an evaluation, fix the relevant source above,
+rebuild, and rerun the affected scenario. See the
+[evaluation authoring guide](../llm-tests/README.md#writing-evaluations).

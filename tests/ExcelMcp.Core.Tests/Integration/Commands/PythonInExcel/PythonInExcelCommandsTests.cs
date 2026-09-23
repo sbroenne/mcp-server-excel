@@ -283,7 +283,7 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
 
         var formulaResult = _rangeCommands.GetFormulas(batch, "Sheet1", targetCell);
         Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
-        object? nameErrorValue = formulaResult.Values[0][0];
+        object? nameErrorValue = Assert.Single(formulaResult.CellErrors).CurrentValue;
 
         Assert.True(PythonInExcelCommands.IsPythonInExcelUnavailable(
             "=PY(\"1 + 1\",0)",

@@ -1211,11 +1211,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 {
                     -2146826288 => "#NULL!",
                     -2146826281 => "#DIV/0!",
-                    -2146826246 => "#VALUE!",
-                    -2146826259 => "#REF!",
-                    -2146826252 => "#NAME?",
-                    -2146826265 => "#NUM!",
-                    -2146826245 => "#N/A",
+                    -2146826273 => "#VALUE!",
+                    -2146826265 => "#REF!",
+                    -2146826259 => "#NAME?",
+                    -2146826252 => "#NUM!",
+                    -2146826246 => "#N/A",
+                    -2146826245 => "#GETTING_DATA",
                     _ => $"Error {code}"
                 };
                 return $"{code} ({errName})";
@@ -1232,11 +1233,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
         {
             -2146826288 => "#NULL! - Incorrect range operator or missing intersection",
             -2146826281 => "#DIV/0! - Division by zero",
-            -2146826246 => "#VALUE! - Wrong argument type",
-            -2146826259 => "#REF! - Invalid cell reference",
-            -2146826252 => "#NAME? - Unrecognized formula name",
-            -2146826265 => "#NUM! - Invalid numeric value",
-            -2146826245 => "#N/A - Value not found, CUBE member not found, or Data Model not refreshed/calculated",
+            -2146826273 => "#VALUE! - Wrong argument type",
+            -2146826265 => "#REF! - Invalid cell reference",
+            -2146826259 => "#NAME? - Unrecognized formula name",
+            -2146826252 => "#NUM! - Invalid numeric value",
+            -2146826246 => "#N/A - Value not found, CUBE member not found, or Data Model not refreshed/calculated",
+            -2146826245 => "#GETTING_DATA - Data is still being retrieved",
             _ => $"Unknown error code: {code}"
         };
         _output.WriteLine($"  Error code {code} = {description}");
@@ -1925,7 +1927,6 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
         _output.WriteLine($"=== SCENARIO 13 ({visibilityLabel}) COMPLETE ===\n");
     }
 }
-
 
 
 

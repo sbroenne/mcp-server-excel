@@ -13,14 +13,10 @@ Agent Skill for AI assistants using the Excel MCP Server via the Model Context P
 
 ### GitHub Copilot
 
-The [Excel MCP Server VS Code extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) installs this skill automatically to `~/.copilot/skills/excel-mcp/`.
-
-Enable skills in VS Code settings:
-```json
-{
-  "chat.useAgentSkills": true
-}
-```
+The [Excel MCP Server VS Code extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
+registers this skill automatically through VS Code's `chatSkills` contribution
+point. It does not copy the skill into a user directory, and no preview setting
+is required.
 
 ### Other Platforms
 
@@ -81,6 +77,6 @@ The skill works with the Excel MCP Server. See [Installation Guide](https://exce
 
 ## Related
 
-- [Excel CLI Skill](../excel-cli/SKILL.md) - For coding agents preferring CLI tools
+- [Excel CLI Skill](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli) - For coding agents preferring CLI tools
 - [Documentation](https://excelmcpserver.dev/)
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)

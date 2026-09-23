@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -10,11 +11,11 @@ internal static class CliErrorOutput
     {
         Console.WriteLine(Serialize(
             ex.Message,
-            errorCategory,
+            errorCategory ?? OperationFailureClassifier.Classify(ex),
             null,
             null,
             ex.GetType().Name,
-            null,
+            OperationFailureClassifier.GetComHResult(ex),
             ex.InnerException?.Message,
             null,
             null));

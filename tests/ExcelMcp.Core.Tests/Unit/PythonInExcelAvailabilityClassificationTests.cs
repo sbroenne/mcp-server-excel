@@ -32,6 +32,15 @@ public sealed class PythonInExcelAvailabilityClassificationTests
             string.Empty));
     }
 
+    [Fact]
+    public void IsPythonInExcelUnavailable_DoubleNameErrorCode_ReturnsTrue()
+    {
+        Assert.True(PythonInExcelCommands.IsPythonInExcelUnavailable(
+            "=PY(\"1 + 1\",0)",
+            (double)-2146826259,
+            string.Empty));
+    }
+
     [Theory]
     [InlineData("#BUSY!")]
     [InlineData("#CONNECT!")]

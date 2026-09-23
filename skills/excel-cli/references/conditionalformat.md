@@ -6,14 +6,14 @@
 
 | Type | Description | Parameters |
 |------|-------------|------------|
-| `cell-value` | Format based on cell value comparison | operatorType + formula1 (+ formula2 for between) |
+| `cell-value` | Format based on cell value comparison | `operator_type` + formula1 (+ formula2 for between) |
 | `expression` | Format based on formula result | formula only |
-| `color-scale` | 2- or 3-color gradient across the range | colorScaleMin/Mid/Max Type/Value/Color |
-| `data-bar` | In-cell bars proportional to value | dataBarColor, dataBarNegativeColor, dataBarDirection, dataBarShowValue, dataBarMin/Max Type/Value |
-| `icon-set` | Icons (arrows, traffic lights, etc.) per value band | iconSetId, iconSetReverse, iconSetShowIconOnly, iconThreshold1..4 Type/Value |
-| `top10` | Highlight top/bottom N (or percent) | rank, top10Percent, topBottom + formatting |
-| `above-average` | Highlight values above/below average | aboveBelow + formatting |
-| `time-period` | Highlight dates in a period | datePeriod + formatting |
+| `color-scale` | 2- or 3-color gradient across the range | `color_scale_min_*`, `color_scale_mid_*`, `color_scale_max_*` |
+| `data-bar` | In-cell bars proportional to value | `data_bar_color`, `data_bar_negative_color`, `data_bar_direction`, `data_bar_show_value`, `data_bar_min_*`, `data_bar_max_*` |
+| `icon-set` | Icons (arrows, traffic lights, etc.) per value band | `icon_set_id`, `icon_set_reverse`, `icon_set_show_icon_only`, `icon_threshold1_*` through `icon_threshold4_*` |
+| `top10` | Highlight top/bottom N (or percent) | rank, `top10_percent`, `top_bottom` + formatting |
+| `above-average` | Highlight values above/below average | `above_below` + formatting |
+| `time-period` | Highlight dates in a period | `date_period` + formatting |
 | `unique-values` | Highlight unique (or duplicate) values | formatting |
 | `blanks-condition` | Highlight blank cells | formatting |
 
@@ -32,30 +32,30 @@
 
 **Format Options**:
 
-- `interiorColor`: Background fill color as `#RRGGBB` hex
-- `fontColor`: Text color as `#RRGGBB` hex
-- `fontBold`: `true` or `false`
-- `fontItalic`: `true` or `false`
-- `borderStyle`: Excel border style name
-- `borderColor`: Border color as `#RRGGBB` hex
+- `interior_color`: Background fill color as `#RRGGBB` hex
+- `font_color`: Text color as `#RRGGBB` hex
+- `font_bold`: `true` or `false`
+- `font_italic`: `true` or `false`
+- `border_style`: Excel border style name
+- `border_color`: Border color as `#RRGGBB` hex
 
-**Visual rule parameters** (used by the corresponding `ruleType`):
+**Visual rule parameters** (used by the corresponding `rule_type`):
 
-- **color-scale**: `colorScaleMinType`/`colorScaleMidType`/`colorScaleMaxType`
+- **color-scale**: `color_scale_min_type`/`color_scale_mid_type`/`color_scale_max_type`
   (`minimum`, `maximum`, `number`, `percent`, `percentile`, `formula`), matching
-  `...Value` (when the type needs one) and `...Color` (`#RRGGBB`). Supplying any `mid*`
+  `*_value` (when the type needs one) and `*_color` (`#RRGGBB`). Supplying any `color_scale_mid_*`
   parameter creates a 3-color scale, otherwise a 2-color scale.
-- **data-bar**: `dataBarColor` (`#RRGGBB`), `dataBarNegativeColor`, `dataBarDirection`
-  (`context`, `leftToRight`, `rightToLeft`), `dataBarShowValue` (`true`/`false`),
-  `dataBarMinType`/`dataBarMaxType` (+ matching values).
-- **icon-set**: `iconSetId` (e.g. `3Arrows`, `3TrafficLights1`, `4Ratings`, `5Quarters`),
-  `iconSetReverse` (`true`/`false`), `iconSetShowIconOnly` (`true`/`false`),
-  `iconThreshold1Type..iconThreshold4Type` (+ matching `...Value`) for the editable bands.
-- **top10**: `rank` (count or percent), `top10Percent` (`true`/`false`),
-  `topBottom` (`top`/`bottom`), plus standard formatting options.
-- **above-average**: `aboveBelow` (`aboveAverage`, `belowAverage`, `aboveStdDev`,
+- **data-bar**: `data_bar_color` (`#RRGGBB`), `data_bar_negative_color`, `data_bar_direction`
+  (`context`, `leftToRight`, `rightToLeft`), `data_bar_show_value` (`true`/`false`),
+  `data_bar_min_type`/`data_bar_max_type` (+ matching values).
+- **icon-set**: `icon_set_id` (e.g. `3Arrows`, `3TrafficLights1`, `4Ratings`, `5Quarters`),
+  `icon_set_reverse` (`true`/`false`), `icon_set_show_icon_only` (`true`/`false`),
+  `icon_threshold1_type` through `icon_threshold4_type` (+ matching `*_value`) for the editable bands.
+- **top10**: `rank` (count or percent), `top10_percent` (`true`/`false`),
+  `top_bottom` (`top`/`bottom`), plus standard formatting options.
+- **above-average**: `above_below` (`aboveAverage`, `belowAverage`, `aboveStdDev`,
   `belowStdDev`, `equalAboveAverage`, `equalBelowAverage`), plus formatting options.
-- **time-period**: `datePeriod` (`today`, `yesterday`, `tomorrow`, `last7Days`,
+- **time-period**: `date_period` (`today`, `yesterday`, `tomorrow`, `last7Days`,
   `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`), plus formatting.
 
 **Actions**:
@@ -98,11 +98,11 @@
 ```json
 {
   "action": "add-rule",
-  "rangeAddress": "A1:A10",
-  "ruleType": "cell-value",
-  "operatorType": "greater",
+  "range_address": "A1:A10",
+  "rule_type": "cell-value",
+  "operator_type": "greater",
   "formula1": "100",
-  "interiorColor": "#FFFF00"
+  "interior_color": "#FFFF00"
 }
 ```
 
@@ -110,12 +110,12 @@
 ```json
 {
   "action": "add-rule",
-  "rangeAddress": "A1:A10",
-  "ruleType": "cell-value",
-  "operatorType": "between",
+  "range_address": "A1:A10",
+  "rule_type": "cell-value",
+  "operator_type": "between",
   "formula1": "50",
   "formula2": "100",
-  "interiorColor": "#90EE90"
+  "interior_color": "#90EE90"
 }
 ```
 
@@ -123,10 +123,10 @@
 ```json
 {
   "action": "add-rule",
-  "rangeAddress": "A1:D10",
-  "ruleType": "expression",
+  "range_address": "A1:D10",
+  "rule_type": "expression",
   "formula1": "=$A1=\"Active\"",
-  "interiorColor": "#90EE90"
+  "interior_color": "#90EE90"
 }
 ```
 
@@ -134,15 +134,15 @@
 ```json
 {
   "action": "add-rule",
-  "rangeAddress": "A1:A100",
-  "ruleType": "color-scale",
-  "colorScaleMinType": "minimum",
-  "colorScaleMinColor": "#F8696B",
-  "colorScaleMidType": "percentile",
-  "colorScaleMidValue": "50",
-  "colorScaleMidColor": "#FFEB84",
-  "colorScaleMaxType": "maximum",
-  "colorScaleMaxColor": "#63BE7B"
+  "range_address": "A1:A100",
+  "rule_type": "color-scale",
+  "color_scale_min_type": "minimum",
+  "color_scale_min_color": "#F8696B",
+  "color_scale_mid_type": "percentile",
+  "color_scale_mid_value": "50",
+  "color_scale_mid_color": "#FFEB84",
+  "color_scale_max_type": "maximum",
+  "color_scale_max_color": "#63BE7B"
 }
 ```
 
@@ -150,11 +150,11 @@
 ```json
 {
   "action": "add-rule",
-  "rangeAddress": "B1:B100",
-  "ruleType": "data-bar",
-  "dataBarColor": "#638EC6",
-  "dataBarDirection": "leftToRight",
-  "dataBarShowValue": true
+  "range_address": "B1:B100",
+  "rule_type": "data-bar",
+  "data_bar_color": "#638EC6",
+  "data_bar_direction": "leftToRight",
+  "data_bar_show_value": true
 }
 ```
 
@@ -162,13 +162,13 @@
 ```json
 {
   "action": "add-rule",
-  "rangeAddress": "C1:C100",
-  "ruleType": "icon-set",
-  "iconSetId": "3TrafficLights1",
-  "iconThreshold1Type": "percent",
-  "iconThreshold1Value": "33",
-  "iconThreshold2Type": "percent",
-  "iconThreshold2Value": "67"
+  "range_address": "C1:C100",
+  "rule_type": "icon-set",
+  "icon_set_id": "3TrafficLights1",
+  "icon_threshold1_type": "percent",
+  "icon_threshold1_value": "33",
+  "icon_threshold2_type": "percent",
+  "icon_threshold2_value": "67"
 }
 ```
 
@@ -195,7 +195,7 @@ excelcli conditionalformat list-worksheet-rules --session <id> --sheet "Data"
 
 **Common Mistakes**:
 
-- Using `cell-value` type without `operatorType` → Error
+- Using `cell-value` type without `operator_type` → Error
 - Using `between` without both formula1 AND formula2 → Error
 - Forgetting `$` in expression formulas → Rule applies incorrectly across rows/columns
 - Colors without `#` prefix → May not apply correctly

@@ -20,13 +20,42 @@ If you are looking for percentage, currency, date, or text display formatting, u
 If you are looking for auto-fit, width, height, borders, fill, or font styling, use `range_format`.
 If you need the same styling on multiple non-contiguous ranges, use `format-ranges` instead of repeating `format-range`.
 
+## Formula Compatibility
+
+Both CLI and MCP check `Range.Formula2` support with a read-only probe once per
+session. Supported Excel keeps modern dynamic-array behavior. Older Excel uses
+`Range.Formula` for formula reads and writes, including formulas passed through
+`set-values` and formula details in `get-values` errors.
+
+The legacy path uses implicit intersection: a formula that refers to several
+cells may resolve to one value rather than spill, including inside tables.
+It does not add newer functions or dynamic arrays to Excel 2016/2019. Use
+formulas supported by the installed Excel version. Invalid formulas and
+protected-cell write errors still fail; they do not trigger a legacy retry.
+
+## Formula Errors in Range Reads
+
+`get-values` and `get-formulas` return formula errors in their `values` arrays as
+canonical Excel names such as `#REF!`, `#N/A`, and `#DIV/0!`, not raw negative
+COM integers. Both results also include cell error details with the affected
+cell, full formula text when Excel exposes it, raw error code, explanation,
+and suggested fix.
+
+Excel COM does not reliably identify the exact broken part of a reference.
+Use the returned cell address and full formula rather than inferring a
+sub-reference that Excel did not provide.
+
 ## Quick Pattern: Write, Format, Auto-Fit
 
 ```
-range(action: 'set-values', rangeAddress: 'A1:D4', values: [[...], [...]])
-range(action: 'set-number-format', rangeAddress: 'C2:D4', formatCode: '$#,##0.00')
-range_format(action: 'auto-fit-columns', rangeAddress: 'A:D')
+range(action: 'set-values', range_address: 'A1:D4', values: [[...], [...]])
+range(action: 'set-number-format', range_address: 'C2:D4', format_code: '$#,##0.00')
+range_format(action: 'auto-fit-columns', range_address: 'A:D')
 ```
+
+## Writes to Merged Cells
+
+`set-values` and `set-formulas` reject writes that include merged cells unless the target is only the merged range's top-left cell. The error lists the affected merged ranges. Write to that top-left cell when changing one merged value, or unmerge the range before writing a larger grid.
 
 ## Quick Pattern: Repeated Section Headers
 
@@ -34,11 +63,11 @@ Use `format-ranges` when the same header or section style repeats across disjoin
 
 ```
 range_format(action: 'format-ranges',
-    rangeAddresses: ['A1:G1', 'A12:G12', 'A24:G24'],
+    range_addresses: ['A1:G1', 'A12:G12', 'A24:G24'],
     bold: true,
-    fillColor: '#243F60',
-    fontColor: '#FFFFFF',
-    horizontalAlignment: 'center')
+    fill_color: '#243F60',
+    font_color: '#FFFFFF',
+    horizontal_alignment: 'center')
 ```
 
 All target ranges are validated before formatting begins. If any target range is invalid, nothing is formatted.
@@ -49,11 +78,11 @@ All target ranges are validated before formatting begins. If any target range is
 Pass ALL properties in **one call**:
 
 ```
-range_format(action: 'format-range', rangeAddress: 'A1:D1',
+range_format(action: 'format-range', range_address: 'A1:D1',
     bold: true,
-    fillColor: '#4472C4',
-    fontColor: '#FFFFFF',
-    horizontalAlignment: 'center')
+    fill_color: '#4472C4',
+    font_color: '#FFFFFF',
+    horizontal_alignment: 'center')
 ```
 
 ## Quick Pattern: Semantic Status Cells
@@ -61,8 +90,8 @@ range_format(action: 'format-range', rangeAddress: 'A1:D1',
 Use `set-style` when the meaning (Good/Bad/Neutral) matters and theme-awareness is useful:
 
 ```
-range_format(action: 'set-style', rangeAddress: 'B2:B10', styleName: 'Good')
-range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
+range_format(action: 'set-style', range_address: 'B2:B10', style_name: 'Good')
+range_format(action: 'set-style', range_address: 'C2:C10', style_name: 'Bad')
 ```
 
 ## format-range Properties
@@ -72,15 +101,15 @@ range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
 | `bold` | bool | `true` |
 | `italic` | bool | `true` |
 | `underline` | bool | `true` |
-| `fontSize` | number | `14` |
-| `fontName` | string | `"Calibri"` |
-| `fontColor` | hex color | `"#FFFFFF"` |
-| `fillColor` | hex color | `"#4472C4"` |
-| `horizontalAlignment` | string | `"center"`, `"left"`, `"right"` |
-| `verticalAlignment` | string | `"middle"`, `"top"`, `"bottom"` |
-| `wrapText` | bool | `true` |
-| `borderStyle` | string | `"thin"`, `"medium"`, `"thick"` |
-| `borderColor` | hex color | `"#000000"` |
+| `font_size` | number | `14` |
+| `font_name` | string | `"Calibri"` |
+| `font_color` | hex color | `"#FFFFFF"` |
+| `fill_color` | hex color | `"#4472C4"` |
+| `horizontal_alignment` | string | `"center"`, `"left"`, `"right"` |
+| `vertical_alignment` | string | `"middle"`, `"top"`, `"bottom"` |
+| `wrap_text` | bool | `true` |
+| `border_style` | string | `"thin"`, `"medium"`, `"thick"` |
+| `border_color` | hex color | `"#000000"` |
 | `orientation` | int | `-90` to `90` (degrees) |
 
 ## set-style Presets
@@ -88,7 +117,7 @@ range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
 Built-in style names: `Normal`, `Heading 1`, `Heading 2`, `Heading 3`, `Heading 4`, `Title`, `Good`, `Bad`, `Neutral`, `Currency`, `Percent`, `Comma`
 
 ```
-range_format(action: 'set-style', rangeAddress: 'A1:D1', styleName: 'Heading 1')
+range_format(action: 'set-style', range_address: 'A1:D1', style_name: 'Heading 1')
 ```
 
 ## Format Codes
@@ -124,7 +153,7 @@ than raw ones and will render as `#####` at the default column width.
 
 **SetNumberFormat**: Apply one format to entire range.
 
-- `formatCode`: Format code from table above
+- `format_code`: Format code from table above
 
 **SetNumberFormats**: Apply different formats per cell.
 
@@ -136,10 +165,10 @@ than raw ones and will render as `#####` at the default column width.
 Use modern threaded comments only when the installed desktop Excel build exposes them:
 
 ```text
-range_link(action: 'add-threaded-comment', sheetName: 'Review', cellAddress: 'B2', text: 'Check this value')
-range_link(action: 'add-threaded-comment-reply', sheetName: 'Review', cellAddress: 'B2', text: 'Confirmed')
-range_link(action: 'list-threaded-comments', sheetName: 'Review', cellAddress: 'B2')
-range_link(action: 'delete-threaded-comment', sheetName: 'Review', cellAddress: 'B2')
+range_link(action: 'add-threaded-comment', sheet_name: 'Review', cell_address: 'B2', text: 'Check this value')
+range_link(action: 'add-threaded-comment-reply', sheet_name: 'Review', cell_address: 'B2', text: 'Confirmed')
+range_link(action: 'list-threaded-comments', sheet_name: 'Review', cell_address: 'B2')
+range_link(action: 'delete-threaded-comment', sheet_name: 'Review', cell_address: 'B2')
 ```
 
 These actions expose local Excel PIA comment text, author, date, and replies. Microsoft 365 service features such as @mentions, assignments, reactions, presence, sharing, and coauthoring state are not available through local Excel COM.

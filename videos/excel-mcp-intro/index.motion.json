@@ -1,0 +1,10 @@
+{
+  "duration": 120,
+  "assertions": [
+    {"kind":"appearsBy","selector":"#hero-title","bySec":1},
+    {"kind":"appearsBy","selector":"#s02 .excel-engine","bySec":12},
+    {"kind":"appearsBy","selector":"#s03 .fit-alternative","bySec":30},
+    {"kind":"appearsBy","selector":"#after","bySec":107},
+    {"kind":"appearsBy","selector":"#s11 .closing-card:first-child","bySec":114}
+  ]
+}

@@ -13,7 +13,7 @@ public static partial class ExcelFileTool
     /// <summary>
     /// File and session management for Excel automation.
     ///
-    /// WORKFLOW: open → use sessionId with other tools → close (save=true to persist changes).
+    /// WORKFLOW: open → pass the returned ID as session_id to other tools → close (save=true to persist changes).
     /// NEW FILES: Use 'create' action to create file AND start session in one call.
     ///
     /// SESSION REUSE: Call 'list' first to check for existing sessions.
@@ -59,6 +59,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = $"timeout_seconds must be between 10 and 3600 seconds, got {timeout_seconds}",
+                errorCategory = "InvalidInput",
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
@@ -108,6 +109,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = $"File not found: {path}",
+                errorCategory = "NotFound",
                 filePath = path,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
@@ -181,7 +183,7 @@ public static partial class ExcelFileTool
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            throw new ArgumentException("sessionId is required for 'close' action", nameof(sessionId));
+            throw new ArgumentException(SessionIdentityFilter.ErrorMessage);
         }
 
         var response = ServiceBridge.ServiceBridge.SendAsync(
@@ -236,11 +238,6 @@ public static partial class ExcelFileTool
 
         // Determine if macro-enabled from extension
         bool macroEnabled = path.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
-        var extension = macroEnabled ? ".xlsm" : ".xlsx";
-        if (!path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-        {
-            path = Path.ChangeExtension(path, extension);
-        }
 
         var timeoutSeconds = (int)timeout.TotalSeconds;
         var response = ServiceBridge.ServiceBridge.SendAsync(

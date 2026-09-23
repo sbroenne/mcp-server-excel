@@ -37,7 +37,7 @@ jobs:
           node-version: '22'
 
       - name: Install changesets CLI
-        run: npm install --no-save --registry https://registry.npmjs.org/
+        run: npm install --no-save
 
       - name: Check for a changeset
         run: |

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Globalization;
+using System.Diagnostics;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
@@ -25,6 +26,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 /// </summary>
 public static class ExcelMcpTelemetry
 {
+    private const string RedactedExceptionMessage = "[REDACTED]";
+    private const int MaxExceptionDepth = 16;
+
     /// <summary>
     /// Unique session ID for correlating telemetry within a single MCP server process.
     /// Changes each time the MCP server starts.
@@ -118,27 +122,43 @@ public static class ExcelMcpTelemetry
     /// <param name="toolName">The MCP tool name (e.g., "range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
     /// <param name="durationMs">Duration in milliseconds</param>
-    /// <param name="success">Whether the operation succeeded</param>
-    /// <param name="excelPath">Optional Excel file path (will be hashed for privacy)</param>
-    public static void TrackToolInvocation(string toolName, string action, long durationMs, bool success, string? excelPath = null)
+    /// <param name="result">Privacy-safe outcome and optional failure classification.</param>
+    internal static void TrackToolInvocation(
+        string toolName,
+        string action,
+        long durationMs,
+        ToolInvocationResult result)
     {
         if (_telemetryClient == null) return;
 
+        var (eventTelemetry, requestTelemetry) =
+            CreateToolInvocationTelemetry(toolName, action, durationMs, result);
+        _telemetryClient.TrackEvent(eventTelemetry);
+        _telemetryClient.TrackRequest(requestTelemetry);
+    }
+
+    internal static (EventTelemetry Event, RequestTelemetry Request)
+        CreateToolInvocationTelemetry(
+            string toolName,
+            string action,
+            long durationMs,
+            ToolInvocationResult result)
+    {
         var operationName = $"{toolName}/{action}";
         var startTime = DateTimeOffset.UtcNow.AddMilliseconds(-durationMs);
         var duration = TimeSpan.FromMilliseconds(durationMs);
-
+        var requestSucceeded = result.Outcome != ToolInvocationOutcome.Failed;
         var properties = new Dictionary<string, string>
         {
             ["Tool"] = toolName,
             ["Action"] = action,
-            ["Success"] = success.ToString()
+            ["Success"] = requestSucceeded.ToString(),
+            ["Outcome"] = GetOutcomeValue(result.Outcome)
         };
 
-        // Add hashed file path for grouping (if provided)
-        if (!string.IsNullOrEmpty(excelPath))
+        if (result.FailureClass.HasValue)
         {
-            properties["FileSessionId"] = HashFilePath(excelPath);
+            properties["FailureClass"] = GetFailureClassValue(result.FailureClass.Value);
         }
 
         // Track as customEvent for analytics (tool usage, parameters, success/failure)
@@ -148,9 +168,7 @@ public static class ExcelMcpTelemetry
             eventTelemetry.Properties[property.Key] = property.Value;
         }
         eventTelemetry.Properties["DurationMs"] = durationMs.ToString(CultureInfo.InvariantCulture);
-
         ApplyContext(eventTelemetry);
-        _telemetryClient.TrackEvent(eventTelemetry);
 
         // Track as request for Performance blade, Failures blade, Smart Detection
         var request = new RequestTelemetry
@@ -158,8 +176,8 @@ public static class ExcelMcpTelemetry
             Name = operationName,
             Timestamp = startTime,
             Duration = duration,
-            ResponseCode = success ? "200" : "500",
-            Success = success
+            ResponseCode = requestSucceeded ? "200" : "500",
+            Success = requestSucceeded
         };
 
         // Copy properties to request for consistent filtering
@@ -169,8 +187,65 @@ public static class ExcelMcpTelemetry
         }
 
         ApplyContext(request);
-        _telemetryClient.TrackRequest(request);
+        return (eventTelemetry, request);
     }
+
+    internal static void TrackSessionIdAliasObserved(string toolName, string action)
+    {
+        if (_telemetryClient == null) return;
+
+        TryTrackSessionIdAliasObserved(_telemetryClient.TrackEvent, toolName, action);
+    }
+
+    internal static void TryTrackSessionIdAliasObserved(
+        Action<EventTelemetry> trackEvent,
+        string toolName,
+        string action)
+    {
+        try
+        {
+            trackEvent(CreateSessionIdAliasTelemetry(toolName, action));
+        }
+        catch (Exception)
+        {
+            // Compatibility telemetry must never affect tool execution.
+        }
+    }
+
+    internal static EventTelemetry CreateSessionIdAliasTelemetry(string toolName, string action)
+    {
+        var telemetry = new EventTelemetry("SessionIdCompatibilityAliasObserved");
+        telemetry.Properties["Tool"] = toolName;
+        telemetry.Properties["Action"] = action;
+        telemetry.Properties["Alias"] = "sessionId";
+        telemetry.Properties["AppVersion"] = GetVersion();
+        ApplyContext(telemetry);
+        return telemetry;
+    }
+
+    private static string GetOutcomeValue(ToolInvocationOutcome outcome) =>
+        outcome switch
+        {
+            ToolInvocationOutcome.Succeeded => "succeeded",
+            ToolInvocationOutcome.ExpectedNegative => "expected-negative",
+            ToolInvocationOutcome.Failed => "failed",
+            _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null)
+        };
+
+    private static string GetFailureClassValue(ToolFailureClass failureClass) =>
+        failureClass switch
+        {
+            ToolFailureClass.InputState => "input-state",
+            ToolFailureClass.ExternalDependency => "external-dependency",
+            ToolFailureClass.TimeoutCancellation => "timeout-cancellation",
+            ToolFailureClass.ExcelRuntime => "excel-runtime",
+            ToolFailureClass.InternalProductFault => "internal-product-fault",
+            ToolFailureClass.Unclassified => "unclassified",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(failureClass),
+                failureClass,
+                null)
+        };
 
     /// <summary>
     /// Tracks an unhandled exception.
@@ -182,16 +257,120 @@ public static class ExcelMcpTelemetry
     {
         if (_telemetryClient == null || exception == null) return;
 
-        // Redact sensitive data from exception
-        var (type, _, _) = SensitiveDataRedactor.RedactException(exception);
-
-        // Track as exception in Application Insights (for Failures blade)
-        var telemetry = new ExceptionTelemetry(exception);
-        telemetry.Properties["Source"] = source;
-        telemetry.Properties["ExceptionType"] = type;
-        telemetry.Properties["AppVersion"] = GetVersion();
-        ApplyContext(telemetry);
+        var telemetry = CreateSanitizedExceptionTelemetry(exception, source);
         _telemetryClient.TrackException(telemetry);
+    }
+
+    internal static ExceptionTelemetry CreateSanitizedExceptionTelemetry(
+        Exception exception,
+        string source)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        var exceptions = EnumerateExceptions(exception)
+            .Take(MaxExceptionDepth)
+            .ToArray();
+        var exceptionType = exception.GetType().Name;
+        var safeSource = NormalizeExceptionSource(source);
+        var failureSite = FindOwnedFailureSite(exceptions);
+        var properties = new Dictionary<string, string>
+        {
+            ["Sanitized"] = bool.TrueString.ToLowerInvariant(),
+            ["Source"] = safeSource,
+            ["ExceptionType"] = exceptionType,
+            ["InnerExceptionTypes"] = string.Join(
+                ",",
+                exceptions
+                    .Skip(1)
+                    .Select(item => item.GetType().Name)
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)),
+            ["AppVersion"] = GetVersion()
+        };
+
+        if (failureSite != null)
+        {
+            properties["FailureSite"] = failureSite;
+        }
+
+        var details = exceptions.Select((item, index) =>
+            new ExceptionDetailsInfo(
+                id: index + 1,
+                outerId: index == 0 ? 0 : 1,
+                typeName: item.GetType().FullName ?? item.GetType().Name,
+                message: RedactedExceptionMessage,
+                hasFullStack: false,
+                stack: string.Empty,
+                parsedStack: Array.Empty<Microsoft.ApplicationInsights.DataContracts.StackFrame>()));
+        var problemId = failureSite == null
+            ? $"{exceptionType} at {safeSource}"
+            : $"{exceptionType} at {failureSite}";
+        var telemetry = new ExceptionTelemetry(
+            details,
+            SeverityLevel.Critical,
+            problemId,
+            properties);
+        ApplyContext(telemetry);
+        return telemetry;
+    }
+
+    private static IEnumerable<Exception> EnumerateExceptions(Exception exception)
+    {
+        yield return exception;
+
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var innerException in aggregate.Flatten().InnerExceptions)
+            {
+                foreach (var nestedException in EnumerateExceptions(innerException))
+                {
+                    yield return nestedException;
+                }
+            }
+
+            yield break;
+        }
+
+        if (exception.InnerException != null)
+        {
+            foreach (var innerException in EnumerateExceptions(exception.InnerException))
+            {
+                yield return innerException;
+            }
+        }
+    }
+
+    private static string NormalizeExceptionSource(string source) =>
+        source switch
+        {
+            "AppDomain.UnhandledException" => source,
+            "TaskScheduler.UnobservedTaskException" => source,
+            "McpServer.RunAsync" => source,
+            _ => "Unknown"
+        };
+
+    private static string? FindOwnedFailureSite(IEnumerable<Exception> exceptions)
+    {
+        foreach (var exception in exceptions)
+        {
+            var frames = new StackTrace(exception, false).GetFrames();
+            if (frames == null)
+            {
+                continue;
+            }
+
+            foreach (var frame in frames)
+            {
+                var method = frame.GetMethod();
+                var declaringType = method?.DeclaringType?.FullName;
+                if (declaringType?.StartsWith("Sbroenne.ExcelMcp.", StringComparison.Ordinal) == true)
+                {
+                    return $"{declaringType}.{method!.Name}";
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -229,19 +408,6 @@ public static class ExcelMcpTelemetry
         }
     }
 
-    /// <summary>
-    /// Hashes a file path for privacy-preserving grouping.
-    /// Enables grouping telemetry by file without exposing actual file paths.
-    /// </summary>
-    /// <param name="filePath">The file path to hash</param>
-    /// <returns>First 12 characters of SHA256 hash (lowercase hex)</returns>
-    private static string HashFilePath(string filePath)
-    {
-        var bytes = Encoding.UTF8.GetBytes(filePath.ToLowerInvariant());
-        var hash = SHA256.HashData(bytes);
-        return Convert.ToHexString(hash)[..12].ToLowerInvariant();
-    }
-
     private static void ApplyContext(ITelemetry telemetry)
     {
         telemetry.Context.User.Id ??= UserId;
@@ -251,5 +417,3 @@ public static class ExcelMcpTelemetry
         telemetry.Context.Component.Version = GetVersion();
     }
 }
-
-

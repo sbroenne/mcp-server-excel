@@ -271,8 +271,90 @@ public partial class RangeCommandsTests
         Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void SetValues_MergedNonAnchorCell_ThrowsAndPreservesExistingValue()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "A1", [["Original"]]);
+        _commands.MergeCells(batch, sheetName, "A1:B1");
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _commands.SetValues(batch, sheetName, "B1", [["Updated"]]));
+
+        Assert.Contains("$A$1:$B$1", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("top-left", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unmerge", exception.Message, StringComparison.OrdinalIgnoreCase);
+
+        var readResult = _commands.GetValues(batch, sheetName, "A1");
+        Assert.Equal("Original", readResult.Values[0][0]);
+    }
+
+    [Fact]
+    public void SetValues_MergedTopLeftCell_WritesAndRetainsValue()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "A1:B1");
+
+        var result = _commands.SetValues(batch, sheetName, "A1", [["Updated"]]);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var readResult = _commands.GetValues(batch, sheetName, "A1");
+        Assert.Equal("Updated", readResult.Values[0][0]);
+    }
+
+    [Fact]
+    public void SetValues_RangeIntersectingMergedCells_ThrowsBeforeWriting()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "A1", [["Anchor"]]);
+        _commands.SetValues(batch, sheetName, "C1", [["Outside"]]);
+        _commands.MergeCells(batch, sheetName, "A1:B1");
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _commands.SetValues(
+                batch,
+                sheetName,
+                "A1:C1",
+                [["New anchor", "Discarded", "New outside"]]));
+
+        Assert.Contains("$A$1:$B$1", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Anchor", _commands.GetValues(batch, sheetName, "A1").Values[0][0]);
+        Assert.Equal("Outside", _commands.GetValues(batch, sheetName, "C1").Values[0][0]);
+    }
+
+    [Fact]
+    public void SetValues_FormulaInMergedNonAnchorCell_Throws()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "A1:B1");
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _commands.SetValues(batch, sheetName, "B1", [["=1+1"]]));
+
+        Assert.Contains("$A$1:$B$1", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetValues_InvalidRange_ReportsSheetAndAddress()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.GetValues(batch, sheetName, "NotARange"));
+
+        Assert.Contains($"Sheet '{sheetName}' exists", exception.Message);
+        Assert.Contains("range 'NotARange' is invalid", exception.Message);
+        Assert.Contains("Verify the range address format", exception.Message);
+    }
+
 }
-
-
-
 

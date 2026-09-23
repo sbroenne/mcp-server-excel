@@ -44,10 +44,13 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 1. **Create feature branch**: `git checkout -b feature/your-feature`
 2. **Make changes**: Code, tests, documentation
-3. **Run the pre-commit hook**: install it once with `Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit`, then let it run on every commit — it enforces 14 automated gates (COM leak detection, MCP/CLI coverage parity, Release build, packaging deliverables, smoke tests, and more). Never bypass it with `--no-verify`.
+3. **Run the pre-commit hook**: follow the
+   [pre-commit setup guide](PRE-COMMIT-SETUP.md), then let it run on every
+   commit. It checks COM cleanup, MCP/CLI parity, the Release build, packaging,
+   smoke tests, and other required gates. Never bypass it with `--no-verify`.
 4. **Push branch**: `git push origin feature/your-feature`
 5. **Create PR**: Use GitHub's PR template
-6. **Address review**: Make requested changes, including any automated review comments (Copilot, GitHub Advanced Security)
+6. **Address review**: Investigate human and automated comments, fix verified defects, and explain why an incorrect or inapplicable suggestion was not applied. Do not make unrelated style changes simply because a bot suggested them.
 7. **Merge**: After approval and CI checks pass — **GitHub will squash commits automatically**
    - Verify the final commit message accurately describes the changes
    - After merge, your feature branch can be safely deleted
@@ -56,13 +59,69 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 ## 📋 Development Guidelines
 
+### Portable npm lockfiles
+
+Every npm project with a tracked lockfile needs its own `.npmrc` containing:
+
+```ini
+omit-lockfile-registry-resolved=true
+```
+
+This applies to the repository root, `vscode-extension`, and
+`videos/excel-mcp-intro`, as well as any new nested npm project. npm does not
+inherit the root project's configuration in nested projects. Preserve any
+other existing project settings; do not change registry, proxy, credentials,
+or user/global npm configuration to clean up a lockfile.
+
+Run this command **inside each affected project**:
+
+```powershell
+npm install --package-lock-only --ignore-scripts
+```
+
+Use npm to regenerate lockfiles, not search-and-replace. For portability-only
+changes, keep dependency versions and integrity hashes unchanged; do not run
+`npm update` or `npm audit fix`. Downloads then use the developer's or CI
+environment's configured registry rather than a URL saved by another machine.
+Direct URL dependencies are not portable under this policy and must use
+registry versions or local dependencies instead.
+
+Run the focused checks from the repository root (no Excel required):
+
+```powershell
+pwsh -NoProfile -File scripts\Test-NpmLockfiles.ps1
+pwsh -NoProfile -File scripts\check-npm-lockfiles.ps1
+```
+
+The required CI Gate runs both checks with two-minute limits. The pre-commit
+hook checks the staged contents with `-Staged`. The guard discovers tracked
+`package-lock.json` and `npm-shrinkwrap.json` files at any depth, excludes
+`node_modules`, and reports offending filenames without exposing URLs or
+credentials. New lockfiles must be staged before the guard can discover them.
+
+### Respect local package sources
+
+npm installs and .NET restores use the package manager's normal configuration
+hierarchy. The repository does not clear NuGet package sources or force a
+registry/source/configuration file for restores. Keep local feeds, credentials,
+proxy settings, caches, and environment settings under the developer's or CI
+environment's control; do not overwrite them to work around a restore failure.
+Report an unavailable configured feed instead.
+
+NuGet publishing commands intentionally name the public publishing destination.
+That `dotnet nuget push --source` setting is not a restore-source override.
+
 ### Code Style
 
-- **C# 12** features encouraged (file-scoped namespaces, records, pattern matching)
+- **C# version** follows `Directory.Build.props` and the SDK selected by `global.json`
 - **Nullable reference types** enabled - handle nulls properly
 - **No warnings** - project must build with zero warnings
 - **XML documentation** for public APIs (these docs are extracted into MCP tool descriptions and shown to LLMs — keep them accurate)
 - **Consistent naming** - follow established patterns
+- **Type organization** - one public type per file, with a matching file name;
+  split large command classes into domain-specific partial files
+- **Typed boundaries** - use result models for cross-layer data rather than
+  anonymous or loosely typed payloads
 
 ### Architecture
 
@@ -85,26 +144,35 @@ CLI ─────────► CLI Daemon (named pipe) ─────► Co
 Core Commands use the batch API and let exceptions propagate — never wrap `batch.Execute()` in a try-catch that returns an error result:
 
 ```csharp
-public DataType MyOperation(IExcelBatch batch, string arg1)
+public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
 {
+    ArgumentException.ThrowIfNullOrWhiteSpace(oldName);
+    ArgumentException.ThrowIfNullOrWhiteSpace(newName);
+
     return batch.Execute((ctx, ct) =>
     {
-        dynamic? item = null;
+        Excel.Worksheet? sheet = null;
         try
         {
-            item = ctx.Book.SomeObject;
-            // ... operation logic ...
-            return someData;
+            ct.ThrowIfCancellationRequested();
+            sheet = ComUtilities.FindSheet(ctx.Book, oldName)
+                ?? throw new InvalidOperationException(
+                    $"Worksheet '{oldName}' was not found.");
+            sheet.Name = newName;
+            return new OperationResult { Success = true };
         }
         finally
         {
-            ComUtilities.Release(ref item!); // COM cleanup only — no catch block here
+            ComUtilities.Release(ref sheet);
         }
     });
-    // batch.Execute() catches exceptions via TaskCompletionSource and
-    // returns OperationResult { Success = false, ErrorMessage } automatically
 }
 ```
+
+Here `Excel` aliases `Microsoft.Office.Interop.Excel`. Validate ordinary .NET
+arguments before entering the batch. The batch propagates callback failures to
+the caller; Service and MCP boundaries serialize failures with their diagnostic
+context. Do not replace that context with a second generic error result.
 
 #### Critical Rules
 
@@ -116,30 +184,34 @@ public DataType MyOperation(IExcelBatch batch, string arg1)
 
 ### Excel COM Best Practices
 
-- **Late binding with dynamic types** for COM interop
+- **Typed Excel PIAs first** - use late binding only for documented PIA/runtime dependency gaps
 - **Proper error handling** - Catch `COMException` where specific handling is needed; otherwise let exceptions propagate
-- **Resource cleanup** - Batch API handles COM object lifecycle automatically; release ad-hoc `dynamic` COM objects yourself in `finally`
+- **Resource cleanup** - the batch owns its application and workbook; release every COM reference acquired by a command in reverse order in `finally`, including intermediate collections
 - **Input validation** - Check file existence and argument validity early
+- **Performance** - reuse sessions and bulk range operations instead of per-cell COM calls
+
+See the [COM pitfalls](../.github/instructions/excel-com-interop.instructions.md)
+for application-state, refresh, numeric conversion, and shutdown constraints.
 
 ### Testing
 
-ExcelMcp uses **integration tests only** — no unit tests, since COM interop bugs (STA threading, leaks, type conversion) only manifest against a real Excel instance. Follow TDD: write a failing test first, watch it fail, then implement.
+COM behavior requires real Excel integration tests. Pure parsing, mapping,
+serialization, and generation can use focused tests without Excel. For behavior
+changes, write a failing regression test before implementation. See the
+[test guide](../tests/README.md) for fixtures, assertions, and persistence.
 
 ```powershell
-# Surgical, feature-scoped testing (2-5 minutes) — always prefer this over the full suite
-dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
+# Select the affected project and feature; use a hard execution timeout
+dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
 
-# Full non-VBA suite (10-15 minutes) — only when you need broad confidence
-dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
-
-# Session/batch changes require the slower OnDemand suite too
-dotnet test --filter "RunType=OnDemand"
+# Session/batch changes also require relevant ComInterop OnDemand tests
+dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 ```
 
 Before submitting a PR:
 
 1. Tests pass for the feature(s) you changed
-2. Excel process cleanup verified - no `excel.exe` remains after tests finish
+2. Test-owned Excel processes clean up; do not terminate unrelated user sessions
 3. Error conditions tested (missing files, invalid arguments, etc.)
 4. Build has zero warnings
 5. Pre-commit hook passes every gate applicable to the staged paths. Excel E2E is required only when Core, CLI, or MCP runtime paths change, including `ComInterop`, `Service`, and their source generators.
@@ -153,6 +225,41 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
 4. **Add integration tests** for the new operation (TDD: write them first).
 5. **Update `FEATURES.md` and the appropriate `docs/features/*.md` file** with the new operation and updated operation count — `scripts/check-doc-counts.ps1` enforces that documented counts match the code.
+
+### Tracing a bug or contract change
+
+Start at the failing entry point and trace generated routing, Service, Core,
+and Excel to identify the owning layer. Check sibling operations, fallback and
+retry branches, and cached or parallel paths for the same defect before choosing
+a fix.
+
+For changed actions or parameters, compare the Core contract, generated Service
+arguments, CLI options and batch JSON, MCP schema and manual exceptions, tests,
+and shared guidance. Names, defaults, validation, results, and timeout behavior
+must agree. A successful build does not establish that every operation is exposed;
+run the applicable [repository audits](../.github/copilot-instructions.md#build-and-validation).
+
+Reproduce the bug in a focused test, observe the failure, fix the owning layer,
+then rerun that test and the smallest related group. Coverage should follow the
+risk, not a fixed number of tests or documentation edits.
+
+### Documentation changes
+
+Keep entry READMEs focused on their audience: repository acquisition and quick
+start, component installation/use, or Marketplace benefits. Put detailed feature
+behavior in `docs/features/` and shared agent workflows in `skills/shared/`.
+There is no fixed README length or requirement to edit every README.
+
+Before shortening or moving a page, identify where each substantive caveat,
+example, installation option, and workflow will remain. Update that destination
+first, then replace duplicate material with a link. Permanent guides belong in
+`docs/`, decisions in `docs/ADR-*.md`, and feature requirements in `specs/`.
+Temporary investigations belong in issue/PR discussions, not SUMMARY/FIX files.
+
+Use current declared action names and verify operation tables, not just headline
+counts. The count audit derives the advertised surface from generated metadata.
+See the [website authoring guide](../gh-pages/README.md#publishing-canonical-documentation)
+for source maps, wrappers, navigation, and machine-readable outputs.
 
 ## 📝 Pull Request Process
 
@@ -242,7 +349,7 @@ Great feature requests include:
 - [Excel VBA Object Model Reference](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
 - [Power Query M Language Reference](https://docs.microsoft.com/en-us/powerquery-m/)
 - [Spectre.Console Documentation](https://spectreconsole.net/)
-- [.NET COM Interop Guide](https://docs.microsoft.com/en-us/dotnet/framework/interop/interoperating-with-unmanaged-code)
+- [.NET COM Interop Guide](https://learn.microsoft.com/en-us/dotnet/framework/interop/)
 
 ## 📦 For Maintainers
 

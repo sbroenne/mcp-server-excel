@@ -6,16 +6,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Worksheet lifecycle management: create, rename, copy, delete, move, list sheets.
-/// Use range for data operations. Use sheetstyle for tab colors and visibility.
+/// Use range for data operations. Use worksheetstyle for tab colors and visibility.
 ///
 /// ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session -
 /// they open/close files automatically.
 ///
 /// POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after'
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
-/// 
-/// NOTE: MCP tool is manually implemented in ExcelWorksheetTool.cs to properly handle
-/// mixed session requirements (copy-to-file and move-to-file are atomic and don't need sessions).
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
 public interface ISheetCommands
@@ -126,6 +123,5 @@ public interface ISheetCommands
         string? beforeSheet = null,
         string? afterSheet = null);
 }
-
 
 

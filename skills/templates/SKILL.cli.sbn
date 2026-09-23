@@ -24,9 +24,10 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
   install the runtime independently via the standalone release zip or
   `dotnet tool install --global Sbroenne.ExcelMcp.CLI`.
   If `excelcli` is not found, report that and stop — do not guess at a path.
-- The runtime itself is downloaded and cached on first use under
-  `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli`, so only the first invocation needs
-  network access
+- In an Agent Plugins host, the runtime is downloaded and cached under
+  `PLUGIN_DATA\runtime`; release freshness is checked once per Copilot session. The optional
+  global shim falls back to `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` and checks
+  for updates at most once every 24 hours.
 
 ## Workflow Checklist
 

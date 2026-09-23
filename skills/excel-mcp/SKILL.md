@@ -12,7 +12,7 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 # Excel MCP Server Skill
 
-Provides 325 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 326 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
 ## Workflow Checklist
 
@@ -95,7 +95,7 @@ Always convert tabular data to Excel Tables:
 
 ```
 1. range set-values (write data including headers)
-2. table create tableName="SalesData" rangeAddress="A1:D100"
+2. table(action: 'create', table_name: 'SalesData', range_address: 'A1:D100')
 ```
 
 **Why:** Structured references, auto-expand, required for Data Model/DAX.
@@ -103,10 +103,15 @@ Always convert tabular data to Excel Tables:
 ### Rule 5: Session Lifecycle
 
 ```
-1. file(action: 'open', path: '...')  → sessionId
-2. All operations use sessionId
-3. file(action: 'close', save: true)  → saves and closes
+1. file(action: 'open', path: '...')  → capture response.session_id as sessionId
+2. workbook(action: 'get-info', session_id: sessionId)
+3. file(action: 'close', session_id: sessionId, save: true)  → saves and closes
 ```
+
+Pass that same value as `session_id` on every session-based follow-up call.
+`sessionId` above is a local variable, not an MCP argument name. When reusing a
+session from `file(list)`, copy the matching entry's `sessionId` value into
+`session_id`. Never guess or substitute a session.
 
 **Unclosed sessions leave Excel processes running, locking files.**
 
@@ -116,7 +121,7 @@ DAX operations require tables in the Data Model:
 
 ```
 Step 1: Create table → Table exists
-Step 2: table(action: 'add-to-datamodel') → Table in Data Model
+Step 2: table(action: 'add-to-data-model') → Table in Data Model
 Step 3: datamodel(action: 'create-measure') → NOW this works
 ```
 
@@ -125,7 +130,7 @@ Step 3: datamodel(action: 'create-measure') → NOW this works
 **BEST PRACTICE: Test-First Workflow**
 
 ```
-1. powerquery(action: 'evaluate', mCode: '...') → Test WITHOUT persisting
+1. powerquery(action: 'evaluate', m_code: '...') → Test WITHOUT persisting
 2. powerquery(action: 'create', ...) → Store validated query
 3. powerquery(action: 'refresh', ...) → Load data
 ```
@@ -153,7 +158,7 @@ Error responses include actionable hints:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
+  "suggestedNextActions": ["table(action: 'add-to-data-model', table_name: 'Sales')"]
 }
 ```
 

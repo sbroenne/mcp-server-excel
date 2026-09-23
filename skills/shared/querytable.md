@@ -15,18 +15,18 @@ Use `querytable` for worksheet QueryTables backed by the desktop Excel COM objec
 
 ```text
 querytable(action: 'create-text',
-    queryTableName: 'OrdersCsv',
-    sourcePath: 'C:\Data\orders.csv',
-    sheetName: 'Orders',
-    destinationAddress: 'A1',
+    query_table_name: 'OrdersCsv',
+    source_path: 'C:\Data\orders.csv',
+    sheet_name: 'Orders',
+    destination_address: 'A1',
     delimiter: ',',
-    textQualifier: 'double-quote',
+    text_qualifier: 'double-quote',
     encoding: 65001,
-    hasHeaders: true)
+    has_headers: true)
 ```
 
 - `delimiter` is exactly one character.
-- `textQualifier` is `double-quote`, `single-quote`, or `none`.
+- `text_qualifier` is `double-quote`, `single-quote`, or `none`.
 - `encoding` is a Windows code page; use `65001` for UTF-8.
 - Creation refreshes synchronously so imported data is ready when the call returns.
 
@@ -34,17 +34,17 @@ querytable(action: 'create-text',
 
 ```text
 querytable(action: 'create-web',
-    queryTableName: 'RatesHtml',
+    query_table_name: 'RatesHtml',
     url: 'https://example.com/rates.html',
-    sheetName: 'Rates',
-    destinationAddress: 'A1',
-    selectionType: 'specified-tables',
-    webTables: '1',
+    sheet_name: 'Rates',
+    destination_address: 'A1',
+    selection_type: 'specified-tables',
+    web_tables: '1',
     formatting: 'none')
 ```
 
-- `selectionType` is `entire-page`, `all-tables`, or `specified-tables`.
-- `webTables` is required with `specified-tables`.
+- `selection_type` is `entire-page`, `all-tables`, or `specified-tables`.
+- `web_tables` is required with `specified-tables`.
 - `formatting` is `none`, `rich-text`, or `all`.
 - This is Excel's legacy HTML web-query engine, not a general HTTP or browser automation API.
 

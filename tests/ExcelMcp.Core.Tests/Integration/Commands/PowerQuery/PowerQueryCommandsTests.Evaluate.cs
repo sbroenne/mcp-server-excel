@@ -85,6 +85,7 @@ in
     Source";
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
+        var initialState = EvaluateObjectCounts(batch);
 
         // Act & Assert
         var exception = Assert.ThrowsAny<Exception>(() =>
@@ -92,6 +93,8 @@ in
 
         // Verify error message contains Power Query error
         Assert.Contains("Expression.Error", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Expression", Assert.IsType<PowerQueryCommandException>(exception).ErrorCategory);
+        Assert.Equal(initialState, EvaluateObjectCounts(batch));
     }
 
     /// <summary>
@@ -112,6 +115,7 @@ in
         // Get initial state
         var initialQueries = _powerQueryCommands.List(batch);
         var initialQueryCount = initialQueries.Queries.Count;
+        var initialState = EvaluateObjectCounts(batch);
 
         // Act
         var result = _powerQueryCommands.Evaluate(batch, mCode);
@@ -123,8 +127,9 @@ in
         var finalQueries = _powerQueryCommands.List(batch);
         Assert.Equal(initialQueryCount, finalQueries.Queries.Count);
 
-        // Verify no temp worksheets remain (__pq_eval_ prefix)
-        // Check worksheet count hasn't changed significantly
+        Assert.Equal(initialState, EvaluateObjectCounts(batch));
+        Assert.Equal("X", Assert.Single(result.Columns));
+        Assert.Equal(1.0, Assert.IsType<double>(Assert.Single(Assert.Single(result.Rows))));
     }
 
     /// <summary>
@@ -202,8 +207,27 @@ in
         Assert.Equal(3, result.RowCount); // Values 3, 4, 5
         Assert.Contains("Doubled", result.Columns);
     }
+
+    private static (int Sheets, int Queries, int Connections) EvaluateObjectCounts(IExcelBatch batch) =>
+        batch.Execute((ctx, ct) =>
+        {
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Queries? queries = null;
+            Microsoft.Office.Interop.Excel.Connections? connections = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                queries = ctx.Book.Queries;
+                connections = ctx.Book.Connections;
+                return (sheets.Count, queries.Count, connections.Count);
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref connections);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref queries);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
+        });
 }
-
-
 
 

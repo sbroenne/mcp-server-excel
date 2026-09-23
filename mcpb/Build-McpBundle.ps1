@@ -49,6 +49,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "McpbPackaging.ps1")
 
 # Get script and project directories
 $McpbDir = $PSScriptRoot
@@ -199,7 +200,7 @@ Write-Host "   ✓ Created $McpbFileName" -ForegroundColor Green
 Copy-Item $ManifestDst (Join-Path $OutputDir "manifest.json") -Force
 
 # Clean up staging
-Remove-Item -Recurse -Force $StagingDir
+Remove-McpbStagingDirectory -Path $StagingDir
 
 # Show results
 $McpbSize = (Get-Item $McpbPath).Length / 1MB

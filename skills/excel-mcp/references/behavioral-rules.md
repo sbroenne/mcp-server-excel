@@ -91,7 +91,7 @@ When creating or modifying Excel files:
 
 **Use `format-range` for visual layout (header rows, custom colours) — ALL properties in ONE call:**
 - `set-style('Heading 1')` does NOT apply a fill colour; if you want a coloured header row use `format-range`
-- Pass bold, fillColor, fontColor, and alignment together in a single call — do not call `format-range` multiple times for the same range
+- Pass `bold`, `fill_color`, `font_color`, and alignment together in a single call — do not call `format-range` multiple times for the same range
 - If the same formatting payload repeats across multiple non-contiguous ranges, prefer one `format-ranges` call over repeated `format-range` calls
 
 **Apply each formatting operation once** — do not reapply the same properties to the same range unless a later step explicitly changes them.
@@ -134,7 +134,7 @@ Always convert tabular data to Excel Tables (ListObjects):
 
 ```
 1. range set-values (write data including headers)
-2. table create tableName="SalesData" rangeAddress="A1:D100"
+2. table(action: 'create', table_name: 'SalesData', range_address: 'A1:D100')
 ```
 
 **Why Tables over plain ranges:**
@@ -178,13 +178,31 @@ when access or information protection is uncertain. The shared result reports
 IRM/AIP files report `canOpen:false` until the required interactive Excel
 authentication occurs; open them with a visible session.
 
-Always close sessions when done:
+Always close sessions when done. MCP example:
 
 ```
-1. file(action: 'open', path: '...')  → sessionId
-2. All operations use sessionId
-3. file(action: 'close', sessionId: '...', save: true)  → saves and closes
+1. file(action: 'open', path: '...')  → capture response.session_id as sessionId
+2. workbook(action: 'get-info', session_id: sessionId)
+3. file(action: 'close', session_id: sessionId, save: true)  → saves and closes
 ```
+
+Pass that same value as `session_id` on every session-based MCP follow-up.
+`sessionId` above is a local variable, not an MCP argument name. For `file(list)`,
+copy the matching entry's `sessionId` value into `session_id`; never guess a session.
+The MCP server has a defensive bridge-compatibility fallback for a top-level
+`sessionId`, but agents must continue to send the canonical `session_id`.
+Compatibility use is recorded with a privacy-safe warning and telemetry signal.
+
+CLI commands instead return `sessionId` and accept `--session`:
+
+```powershell
+$session = excelcli -q session open C:\path\file.xlsx | ConvertFrom-Json
+$sessionId = $session.sessionId
+excelcli -q workbook get-info --session $sessionId
+excelcli -q session close --session $sessionId --save
+```
+
+CLI and MCP sessions are separate; IDs cannot be transferred between them.
 
 **Why**: Unclosed sessions leave Excel processes running, consuming memory and locking files.
 
@@ -220,10 +238,10 @@ When displaying Data Model data:
 
 When creating charts from Data Model:
 
-- **Use**: `chart create-from-pivottable` (creates PivotChart)
-- **NOT**: Create PivotTable → Create separate Chart from the PivotTable
+- **Use**: `chart create-from-pivottable` (creates and verifies a live PivotChart)
+- **NOT**: Create a regular chart from the PivotTable's displayed cell range
 
-**Why**: A PivotChart is a single object connected to the Data Model. Creating PivotTable + Chart is redundant - two objects instead of one.
+**Why**: The verified PivotLayout link keeps field changes and refreshes live.
 
 ## Data Modification Rules
 
@@ -310,7 +328,7 @@ belong to the selected action are rejected instead of being defaulted or ignored
 
 ```
 Step 1: powerquery(action: 'create', ...) → Query created
-Step 2: powerquery(action: 'refresh', queryName: '...') → Data loaded
+Step 2: powerquery(action: 'refresh', query_name: '...') → Data loaded
 ```
 
 Without refresh, the query exists but contains no data.
@@ -325,11 +343,25 @@ Excel MCP errors include actionable context:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
+  "suggestedNextActions": ["table(action: 'add-to-data-model', table_name: 'Sales')"]
 }
 ```
 
 Follow `suggestedNextActions` when provided.
+
+Use the structured `errorCategory` when it is present. For `InvalidInput`,
+`NotFound`, or `Conflict`, correct the named input or workbook state before
+retrying. For `SessionNotFound`, reopen the workbook once and continue with the
+new session ID. A timeout, cancellation, or dead Excel process can invalidate
+and close the session; reopen it instead of retrying against the old session.
+
+`Prerequisite` means required workbook data or a feature is missing, such as
+tables in the Data Model. `DependencyUnavailable` means an external component
+is missing, such as the MSOLAP provider. `Permissions` can indicate blocked VBA
+project access; do not change security settings automatically. Running an
+existing macro does not itself require VBA project access. Unknown Excel
+errors remain unknown: do not assume a generic COM failure is a bad query or
+a trust problem.
 
 ### Retry with Corrections
 

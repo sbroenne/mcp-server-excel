@@ -28,13 +28,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
 
     /// <summary>
-    /// Gets values from a range as 2D array.
+    /// Gets values from a range as a 2D array. Formula errors are returned as canonical Excel
+    /// names such as #REF! and are also listed in cellErrors with the affected cell, formula,
+    /// raw COM code, and suggested fix.
     /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]].
     /// Named ranges: Use empty sheetName and rangeAddress="NamedRange".
     /// </summary>
@@ -50,6 +52,7 @@ public interface IRangeCommands
     /// JSON file: must contain a 2D array like [[1,2],[3,4]].
     /// CSV file: rows become array rows, comma-separated values become columns.
     /// Every row must be rectangular and match the target range column count.
+    /// Writes that intersect merged cells fail unless the target is only the merged range's top-left cell.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
@@ -62,7 +65,10 @@ public interface IRangeCommands
     // === FORMULA OPERATIONS ===
 
     /// <summary>
-    /// Gets formulas from a range as 2D array (empty string if no formula).
+    /// Gets formulas from a range as a 2D array (empty string if no formula), together with
+    /// calculated values. Formula errors are returned as canonical Excel names such as #REF!
+    /// and are also listed in cellErrors with the affected cell, formula, raw COM code, and
+    /// suggested fix.
     /// Single cell "A1" returns [["=SUM(B:B)"]], range "A1:B2" returns [[f1,f2],[f3,f4]].
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -75,6 +81,7 @@ public interface IRangeCommands
     /// Sets formulas in a range from 2D array or file.
     /// Provide EITHER formulas (inline JSON 2D array) OR formulasFile (path to .json file), not both.
     /// Every row must be rectangular and match the target range column count.
+    /// Writes that intersect merged cells fail unless the target is only the merged range's top-left cell.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -301,6 +308,5 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
-
 
 

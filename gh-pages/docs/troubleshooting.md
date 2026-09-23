@@ -54,7 +54,7 @@ Also remember VBA lives in **`.xlsm`** workbooks, not `.xlsx`.
 DAX query execution needs the **Microsoft Analysis Services OLE DB Provider
 (MSOLAP)**, which isn't always installed with Office.
 
-- **Easiest:** install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (it includes MSOLAP).
+- **Easiest:** install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (it includes MSOLAP).
 - **Alternative:** install the [OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries).
 
 ### Protected (IRM / AIP) workbooks won't open

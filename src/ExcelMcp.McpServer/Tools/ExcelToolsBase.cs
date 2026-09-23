@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
@@ -200,15 +201,32 @@ public static class ExcelToolsBase
         string actionName,
         string? path,
         Func<string> operation,
+        Func<Exception, string?>? customHandler = null) =>
+        ExecuteToolAction(
+            toolName,
+            actionName,
+            path,
+            operation,
+            ExcelMcpTelemetry.TrackToolInvocation,
+            customHandler);
+
+    internal static string ExecuteToolAction(
+        string toolName,
+        string actionName,
+        string? path,
+        Func<string> operation,
+        Action<string, string, long, ToolInvocationResult> trackInvocation,
         Func<Exception, string?>? customHandler = null)
     {
         var stopwatch = Stopwatch.StartNew();
-        var success = false;
+        var invocationResult = new ToolInvocationResult(
+            ToolInvocationOutcome.Failed,
+            ToolFailureClass.Unclassified);
 
         try
         {
             var result = operation();
-            success = true;
+            invocationResult = ClassifyToolResponse(toolName, actionName, result);
             return result;
         }
         catch (Exception ex)
@@ -232,18 +250,107 @@ public static class ExcelToolsBase
                 var custom = customHandler(ex);
                 if (!string.IsNullOrWhiteSpace(custom))
                 {
+                    invocationResult = ClassifyThrownExceptionResponse(
+                        toolName,
+                        actionName,
+                        custom!);
                     return custom!;
                 }
             }
 
-            return SerializeToolError(actionName, path, ex);
+            var errorResponse = SerializeToolError(actionName, path, ex);
+            invocationResult = ClassifyThrownExceptionResponse(
+                toolName,
+                actionName,
+                errorResponse);
+            return errorResponse;
         }
         finally
         {
             stopwatch.Stop();
-            ExcelMcpTelemetry.TrackToolInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, success, path);
+            trackInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, invocationResult);
         }
     }
+
+    private static ToolInvocationResult ClassifyThrownExceptionResponse(
+        string toolName,
+        string actionName,
+        string response)
+    {
+        var classified = ClassifyToolResponse(toolName, actionName, response);
+        return classified.Outcome == ToolInvocationOutcome.Failed
+            ? classified
+            : new ToolInvocationResult(
+                ToolInvocationOutcome.Failed,
+                ToolFailureClass.Unclassified);
+    }
+
+    private static ToolInvocationResult ClassifyToolResponse(
+        string toolName,
+        string actionName,
+        string response)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(response);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null);
+            }
+
+            var root = document.RootElement;
+            var reportsNegative = root.TryGetProperty("success", out var success)
+                && success.ValueKind == JsonValueKind.False;
+            var reportsError = root.TryGetProperty("isError", out var isError)
+                && isError.ValueKind == JsonValueKind.True;
+
+            if (reportsNegative
+                && !reportsError
+                && toolName == "file"
+                && actionName == "test")
+            {
+                return new ToolInvocationResult(
+                    ToolInvocationOutcome.ExpectedNegative,
+                    null);
+            }
+
+            if (reportsNegative || reportsError)
+            {
+                var errorCategory = root.TryGetProperty("errorCategory", out var category)
+                    && category.ValueKind == JsonValueKind.String
+                    ? category.GetString()
+                    : null;
+                return new ToolInvocationResult(
+                    ToolInvocationOutcome.Failed,
+                    ClassifyFailure(errorCategory));
+            }
+
+            return new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null);
+        }
+        catch (JsonException)
+        {
+            return new ToolInvocationResult(
+                ToolInvocationOutcome.Failed,
+                ToolFailureClass.Unclassified);
+        }
+    }
+
+    private static ToolFailureClass ClassifyFailure(string? errorCategory) =>
+        errorCategory switch
+        {
+            "InvalidInput" or "SessionNotFound" or "SessionUnavailable"
+                or "NotFound" or "Conflict" or "Syntax" or "Expression" or "Prerequisite"
+                => ToolFailureClass.InputState,
+            "Privacy" or "Authentication" or "Connectivity" or "Permissions" or "DependencyUnavailable"
+                => ToolFailureClass.ExternalDependency,
+            "Timeout" or "Cancelled" or "SessionInvalidated"
+                => ToolFailureClass.TimeoutCancellation,
+            "ComInterop" or "ExcelProcessDied" or "Cleanup"
+                => ToolFailureClass.ExcelRuntime,
+            "ServiceUnavailable" or "ServiceStartup" or "InvalidResponse"
+                => ToolFailureClass.InternalProductFault,
+            _ => ToolFailureClass.Unclassified
+        };
 
     /// <summary>
     /// Validates that a path is a valid Windows absolute path.
@@ -282,6 +389,7 @@ public static class ExcelToolsBase
                 success = false,
                 error = errorMessage,
                 errorMessage,
+                errorCategory = "InvalidInput",
                 filePath = path,
                 suggestedPath,
                 documentsFolder,
@@ -309,16 +417,9 @@ public static class ExcelToolsBase
 
         // Add detailed COM exception info for diagnostics
         string? exceptionType = ex.GetType().Name;
-        string? hresult = null;
+        string? hresult = OperationFailureClassifier.GetComHResult(ex);
         string? innerError = null;
-        var errorCategory = ex switch
-        {
-            ArgumentException => "InvalidInput",
-            TimeoutException => "Timeout",
-            OperationCanceledException => "Cancelled",
-            System.Runtime.InteropServices.COMException => "ComInterop",
-            _ => null
-        };
+        var errorCategory = OperationFailureClassifier.Classify(ex);
 
         if (ex is System.Runtime.InteropServices.COMException comEx)
         {
@@ -364,10 +465,8 @@ public static class ExcelToolsBase
             success = false,
             error = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
             errorMessage = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
+            errorCategory = "InvalidInput",
             isError = true
         }, JsonOptions);
     }
 }
-
-
-

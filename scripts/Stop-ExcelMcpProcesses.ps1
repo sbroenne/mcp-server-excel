@@ -55,6 +55,7 @@ $safetyInputs = @(
     (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonStartupLock.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\DaemonTrackingJson.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\OwnedProcessCleanup.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.CLI\Infrastructure\PreBuildProcessCleanup.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.Cleanup\ExcelMcp.Cleanup.csproj'),
     (Join-Path $repoRoot 'src\ExcelMcp.Cleanup\Program.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.Cleanup\ParameterTransforms.cs'),
@@ -66,6 +67,7 @@ $safetyInputs = @(
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ExcelBatch.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ExcelProcessIdentity.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\OwnedProcessGuard.cs'),
+    (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.ComInterop\Session\SessionManager.cs'),
     (Join-Path $repoRoot 'src\ExcelMcp.Service\ServiceSecurity.cs')
 )
@@ -155,7 +157,7 @@ try {
     if ($exitCode -ne 0) {
         Write-Host "  Owned CLI cleanup failed with exit code $exitCode. No process sweep was attempted." -ForegroundColor Yellow
         if ($output) {
-            Write-Status ($output | Out-String).Trim()
+            [Console]::Error.WriteLine(($output | Out-String).Trim())
         }
         exit $exitCode
     }

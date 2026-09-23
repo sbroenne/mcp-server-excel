@@ -1,0 +1,36 @@
+{
+  "source": "Live Excel MCP operations on a new synthetic workbook",
+  "workbook": "assets/sales-workbook.xlsx",
+  "rows": 12,
+  "query": {"name":"CleanSales","evaluatedRows":12,"loadedTo":["worksheet","data-model"]},
+  "measure": {"name":"Total Revenue","formula":"SUM(CleanSales[Revenue])"},
+  "daxEvaluation": [{"region":"North","revenue":194000},{"region":"South","revenue":165000},{"region":"West","revenue":225000}],
+  "pivotTable": "SalesByRegion",
+  "pivotChart": {"name":"RevenueByRegion","isPivotChart":true,"linkedPivotTable":"SalesByRegion"},
+  "calculation": {"formula":"=SUM(Sales[Revenue])","original":584000,"inputChange":{"cell":"Sales!D2","from":42000,"to":52000},"recalculated":594000,"inputRestored":true},
+  "vba": "Illustrative code only; no macros executed and no security settings changed.",
+  "python": "Genuine pre-existing repository screenshot; no fresh Python execution claimed.",
+  "factReview": {
+    "date": "2026-09-10",
+    "anthropicSource": "https://github.com/anthropics/skills/blob/fa0fa64bdc967915dc8399e803be67759e1e62b8/skills/xlsx/SKILL.md",
+    "anthropicFinding": "The published xlsx skill uses openpyxl for editing and LibreOffice for formula calculation. No claim that file-based workflows cannot calculate at all.",
+    "pythonSource": "https://support.microsoft.com/en-us/excel/python/python-in-excel-availability",
+    "pythonProductSource": "docs/features/AUTOMATION-ADVANCED.md",
+    "pythonFinding": "Requires supported Microsoft 365, Python enabled, and internet. Python code executes in Microsoft's cloud, not locally.",
+    "vbaSources": [
+      "src/ExcelMcp.Core/Commands/Vba/VbaCommands.Operations.cs",
+      "src/ExcelMcp.Core/Commands/Vba/VbaCommands.Lifecycle.cs",
+      "src/ExcelMcp.ComInterop/Session/ExcelBatch.cs"
+    ],
+    "vbaFinding": "VBA project editing needs manually enabled trust. Macro execution changes the application's AutomationSecurity setting, so the video must not promise all security settings are preserved.",
+    "featureSources": [
+      "CONTEXT.md",
+      "docs/features/DATA-ANALYTICS.md",
+      "docs/features/AUTOMATION-ADVANCED.md",
+      "docs/guides/EXCEL-COM-VS-FILE-PARSERS.md"
+    ],
+    "executionBoundary": "Live evidence covers Power Query, Data Model/DAX, native PivotTable/PivotChart, and recalculation. VBA and Python are supported features, not newly executed demonstrations.",
+    "cliTokenSource": "docs/ARCHITECTURE.md",
+    "cliTokenFinding": "The repository reports a same-task, same-model benchmark of about 59K CLI tokens versus 163K MCP tokens. The video says CLI can use fewer tokens for coding agents; it does not promise a fixed reduction for every client, model, or workflow."
+  }
+}

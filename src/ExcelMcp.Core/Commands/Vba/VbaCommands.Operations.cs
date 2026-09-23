@@ -16,6 +16,7 @@ public partial class VbaCommands
     /// <inheritdoc />
     public OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(procedureName);
         parameters ??= [];
 
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
@@ -23,6 +24,10 @@ public partial class VbaCommands
         {
             throw new ArgumentException(validationError, nameof(batch));
         }
+
+        using var timeoutCts = timeout.HasValue
+            ? new CancellationTokenSource(timeout.Value)
+            : null;
 
         return batch.Execute((ctx, ct) =>
         {
@@ -73,23 +78,28 @@ public partial class VbaCommands
             }
             finally
             {
-                if (originalAutomationSecurity != null)
+                try
                 {
-                    try
+                    if (originalAutomationSecurity != null)
                     {
-                        // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
-                        // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
-                        ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
-                    }
-                    catch (COMException)
-                    {
+                        try
+                        {
+                            // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
+                            // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
+                            ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
+                        }
+                        catch (COMException)
+                        {
+                        }
                     }
                 }
-
-                CultureInfo.CurrentCulture = originalCulture;
-                CultureInfo.CurrentUICulture = originalUiCulture;
+                finally
+                {
+                    CultureInfo.CurrentCulture = originalCulture;
+                    CultureInfo.CurrentUICulture = originalUiCulture;
+                }
             }
-        });
+        }, timeoutCts?.Token ?? default);
     }
 
     /// <inheritdoc />
@@ -98,13 +108,13 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            throw new InvalidOperationException(validationError);
+            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            throw new InvalidOperationException(VbaTrustErrorMessage);
+            throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -143,7 +153,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    throw new InvalidOperationException($"Module '{moduleName}' not found.");
+                    throw new OperationFailureException(OperationFailureCategory.NotFound, $"Module '{moduleName}' not found.");
                 }
 
                 vbComponents.Remove(targetComponent);
@@ -152,7 +162,7 @@ public partial class VbaCommands
             }
             catch (COMException comEx) when (IsVbaTrustError(comEx))
             {
-                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+                throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, comEx);
             }
             catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
             {
@@ -169,6 +179,4 @@ public partial class VbaCommands
         });
     }
 }
-
-
 

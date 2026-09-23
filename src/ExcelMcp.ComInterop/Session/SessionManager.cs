@@ -617,15 +617,28 @@ public sealed class SessionManager : IDisposable
     public bool TryBeginOperation(
         string sessionId,
         [NotNullWhen(true)] out IExcelBatch? batch,
-        [NotNullWhen(false)] out string? errorMessage)
+        [NotNullWhen(false)] out string? errorMessage) =>
+        TryBeginOperation(sessionId, out batch, out errorMessage, out _);
+
+    /// <summary>
+    /// Atomically validates a session, reports a typed failure state, and marks
+    /// one operation as active.
+    /// </summary>
+    public bool TryBeginOperation(
+        string sessionId,
+        [NotNullWhen(true)] out IExcelBatch? batch,
+        [NotNullWhen(false)] out string? errorMessage,
+        out SessionOperationError error)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         batch = null;
+        error = SessionOperationError.None;
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
             errorMessage = "sessionId is required";
+            error = SessionOperationError.MissingSessionId;
             return false;
         }
 
@@ -636,18 +649,21 @@ public sealed class SessionManager : IDisposable
             {
                 errorMessage = $"Session '{sessionId}' is quarantined after a failed close: " +
                                teardownFailure.SourceException.Message;
+                error = SessionOperationError.Quarantined;
                 return false;
             }
 
             if (_closingSessions.ContainsKey(sessionId))
             {
                 errorMessage = $"Session '{sessionId}' is closing";
+                error = SessionOperationError.Closing;
                 return false;
             }
 
             if (!_activeSessions.TryGetValue(sessionId, out batch))
             {
                 errorMessage = $"Session '{sessionId}' not found";
+                error = SessionOperationError.NotFound;
                 return false;
             }
 
@@ -656,6 +672,7 @@ public sealed class SessionManager : IDisposable
                 errorMessage = $"A previous operation on session '{sessionId}' timed out or was cancelled. " +
                                "Please close the session and reopen the workbook before retrying.";
                 batch = null;
+                error = SessionOperationError.TimedOutOrCancelled;
                 return false;
             }
 
@@ -665,11 +682,13 @@ public sealed class SessionManager : IDisposable
                 CleanupDeadSession(sessionId, batch);
                 batch = null;
                 errorMessage = $"Excel process for session '{sessionId}' has died. Session has been closed. Please create a new session.";
+                error = SessionOperationError.ExcelProcessDied;
                 return false;
             }
 
             _activeOperationCounts.AddOrUpdate(sessionId, 1, (_, count) => count + 1);
             errorMessage = null;
+            error = SessionOperationError.None;
             return true;
         }
     }

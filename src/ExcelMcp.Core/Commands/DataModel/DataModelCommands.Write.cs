@@ -205,6 +205,8 @@ public partial class DataModelCommands
                                string daxFormula, string? formatType = null,
                                string? description = null, bool formatDax = false)
     {
+        ValidateMeasureFormatType(formatType);
+
         string daxToSave = formatDax
             ? DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult()
             : daxFormula;
@@ -289,6 +291,8 @@ public partial class DataModelCommands
                                string? daxFormula = null, string? formatType = null,
                                string? description = null, bool formatDax = false)
     {
+        ValidateMeasureFormatType(formatType);
+
         string? daxToSave = null;
         if (!string.IsNullOrEmpty(daxFormula))
         {

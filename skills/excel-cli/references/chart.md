@@ -11,19 +11,21 @@
 
 ### From Range
 ```
-chart(create-from-range, chartType, sourceRange, sheetName)
+chart(create-from-range, chart_type, source_range, sheet_name)
 ```
 Best for: Simple data in worksheet ranges
 
 ### From PivotTable (PivotChart)
 ```
-chart(create-from-pivottable, pivotTableName)
+chart(create-from-pivottable, pivot_table_name)
 ```
-Best for: Data Model data - creates a single PivotChart object (don't create separate PivotTable + Chart)
+Best for: Interactive PivotTable and Data Model visuals. The action creates a live
+PivotChart, verifies its `PivotLayout` link to the requested PivotTable, and fails
+instead of returning a regular chart if Excel cannot create that link.
 
 ### From Table
 ```
-chart(create-from-table, tableName, chartType)
+chart(create-from-table, table_name, chart_type)
 ```
 Best for: Excel Tables with structured references
 
@@ -36,19 +38,19 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 ## Configuration Actions (chart_config)
 
 ### Series Management
-- `add-series`: Add data series with valuesRange and optional categoryRange
+- `add-series`: Add data series with `values_range` and optional `category_range`
 - `remove-series`: Remove series by index (1-based)
 - `set-source-range`: Replace entire chart data source
 - `set-series-chart-type`: Assign a chart type to one regular-chart series for combo charts
 
 ### Plot Behavior
 - `get-plot-options`: Read row/column orientation, blank-cell display, and hidden-cell plotting
-- `set-plot-options`: Configure `plotBy`, `displayBlanksAs`, and `plotVisibleOnly`
+- `set-plot-options`: Configure `plot_by`, `display_blanks_as`, and `plot_visible_only`
 
 ### Titles and Labels
 - `set-title`: Set chart title (empty string hides)
 - `set-axis-title`: Set axis labels (Category, Value, CategorySecondary, ValueSecondary)
-- `set-data-labels`: Configure data labels (position, showValue, showCategory, showPercentage, showSeriesName, showLegendKey)
+- `set-data-labels`: Configure data labels (`label_position`, `show_value`, `show_category_name`, `show_percentage`, and `show_series_name`)
 
 ### Axis Formatting
 - `get-axis-scale`: Get min, max, majorUnit, minorUnit, and auto flags
@@ -92,8 +94,8 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 - **period**: Required for MovingAverage (2+, default 2)
 - **forward/backward**: Forecast periods ahead/behind data
 - **intercept**: Force trend through specific Y value
-- **displayEquation**: Show formula on chart
-- **displayRSquared**: Show R² goodness-of-fit value
+- **display_equation**: Show formula on chart
+- **display_r_squared**: Show R² goodness-of-fit value
 
 ## Common Workflows
 
@@ -102,19 +104,19 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 1. chart(create-from-range) → chartName
 2. chart_config(set-title, title="Monthly Sales")
 3. chart_config(set-axis-title, axis="Value", title="Revenue ($)")
-4. chart_config(set-axis-number-format, axis="Value", numberFormat="$#,##0")
-5. chart_config(set-data-labels, position="OutsideEnd", showValue=true)
+4. chart_config(set-axis-number-format, axis="Value", number_format="$#,##0")
+5. chart_config(set-data-labels, label_position="OutsideEnd", show_value=true)
 ```
 
 ### Add Analysis
 ```
-1. chart_config(add-trendline, trendlineType="Linear", displayEquation=true, displayRSquared=true)
+1. chart_config(add-trendline, trendline_type="Linear", display_equation=true, display_r_squared=true)
 2. chart_config(set-trendline, forward=3) # Forecast 3 periods ahead
 ```
 
 ## Best Practices
 
-1. **PivotCharts for Data Model**: Use `create-from-pivottable` not PivotTable + separate chart
+1. **PivotCharts for Data Model**: Use `create-from-pivottable`; it preserves live field and refresh updates
 2. **Format numbers**: Set axis number format for readability
 3. **Use gridlines sparingly**: Minor gridlines often add clutter
 4. **Trendlines for insights**: Add R² to show fit quality
@@ -124,22 +126,22 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 
 Charts support three positioning modes, listed in order of preference:
 
-### 1. targetRange (PREFERRED - One Step)
+### 1. `target_range` (PREFERRED - One Step)
 ```
-chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
+chart(create-from-range, source_range='A1:B10', chart_type='Line', target_range='F2:K15')
 ```
 Creates chart AND positions it to the cell range in one call. No point math needed.
 
 ### 2. Auto-Positioning (No Position Specified)
-When you omit both `targetRange` and `left`/`top`, the chart is automatically placed below all existing content (data ranges + other charts) with 10pt padding. This prevents overlap automatically.
+When you omit both `target_range` and `left`/`top`, the chart is automatically placed below all existing content (data ranges + other charts) with 10pt padding. This prevents overlap automatically.
 ```
-chart(create-from-range, sourceRange='A1:B10', chartType='Line')
+chart(create-from-range, source_range='A1:B10', chart_type='Line')
 # → Chart auto-positioned below the used range and any existing charts
 ```
 
 ### 3. Manual Coordinates
 ```
-chart(create-from-range, sourceRange='A1:B10', left=360, top=20)
+chart(create-from-range, source_range='A1:B10', left=360, top=20)
 # left/top in points (72 points = 1 inch)
 ```
 
@@ -156,9 +158,9 @@ Result example with collision warning:
 ```
 
 **If you see an overlap warning:**
-1. Use `chart(fit-to-range, chartName, rangeAddress='F2:K15')` to reposition
-2. Or use `chart(move, chartName, left=..., top=...)` to adjust
-3. Always follow up with `screenshot(capture, rangeAddress='A1:M25')` to include and verify the chart
+1. Use `chart(fit-to-range, chart_name, range_address='F2:K15')` to reposition
+2. Or use `chart(move, chart_name, left=..., top=...)` to adjust
+3. Always follow up with `screenshot(capture, range_address='A1:M25')` to include and verify the chart
 
 ### Position Estimates
 - Rows: ~15 points per row (varies with row height)
@@ -166,10 +168,10 @@ Result example with collision warning:
 - Default chart: 400×300 points
 
 ### Positioning Workflow
-1. **Preferred**: Use `targetRange='F2:K15'` in create call — avoids all overlap issues
+1. **Preferred**: Use `target_range='F2:K15'` in create call — avoids all overlap issues
 2. **Alternative**: Omit position — auto-positioning places chart below content
 3. **Manual**: `get-used-range` → calculate coordinates → specify left/top
-4. **Always verify**: Use `screenshot(capture, rangeAddress='A1:M25')` to visually confirm layout
+4. **Always verify**: Use `screenshot(capture, range_address='A1:M25')` to visually confirm layout
 
 ## Multi-Chart Layout (CRITICAL)
 
@@ -179,15 +181,15 @@ When creating dashboards with multiple charts, **every chart needs explicit posi
 ```
 Data at A1:D10. Place 4 charts in a 2×2 grid below data:
 
-chart(create-from-range, ..., targetRange='A12:F25')   # Top-left
-chart(create-from-range, ..., targetRange='G12:L25')   # Top-right
-chart(create-from-range, ..., targetRange='A27:F40')   # Bottom-left
-chart(create-from-range, ..., targetRange='G27:L40')   # Bottom-right
-screenshot(capture, rangeAddress='A1:M40') → Verify no overlaps
+chart(create-from-range, ..., target_range='A12:F25')   # Top-left
+chart(create-from-range, ..., target_range='G12:L25')   # Top-right
+chart(create-from-range, ..., target_range='A27:F40')   # Bottom-left
+chart(create-from-range, ..., target_range='G27:L40')   # Bottom-right
+screenshot(capture, range_address='A1:M40') → Verify no overlaps
 ```
 
 ### Rules
-- **Use targetRange for every chart** in multi-chart layouts — auto-positioning stacks vertically
+- **Use `target_range` for every chart** in multi-chart layouts — auto-positioning stacks vertically
 - Leave at least 1-2 rows/columns gap between charts
 - If any chart result includes an overlap warning, fix it before creating the next chart
-- Take a final `screenshot(capture, rangeAddress='A1:M40')` to verify the complete layout
+- Take a final `screenshot(capture, range_address='A1:M40')` to verify the complete layout

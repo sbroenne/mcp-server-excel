@@ -32,7 +32,7 @@ Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
 **M-Code Formatting and reads**:
 
 - Create and Update preserve M code exactly by default and do not call remote services
-- Set `formatMCode=true` only with explicit user consent; it sends M code to powerqueryformatter.com
+- Set `format_m_code=true` only with explicit user consent; it sends M code to powerqueryformatter.com
 - Remote formatting adds ~100-500ms network latency per call
 - Graceful fallback: saves original M code if the formatting service is unavailable
 - `list` returns compact metadata, exact load mode, character count, and at most
@@ -52,7 +52,7 @@ Destination values are case-insensitive. Unknown values fail before the query is
 changed; they never fall back to connection-only or another enum default.
 
 To create DAX measures on Power Query data:
-1. Use powerquery create/load-to with `loadDestination='data-model'`
+1. Use powerquery create/load-to with `load_destination='data-model'`
 2. Then use datamodel to create DAX measures
 
 Alternative path (for existing worksheet tables):
@@ -62,9 +62,9 @@ Alternative path (for existing worksheet tables):
 **Action disambiguation**:
 
 - **evaluate**: **CRITICAL - USE THIS FIRST** - Execute M code directly, return results WITHOUT creating a permanent query (test before create/update!)
-- create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
+- create: Import NEW query using inline `m_code` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
-- rename: Change query name (requires both `queryName` and `newName` parameters)
+- rename: Change query name (requires both `old_name` and `new_name`)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
 - delete: Completely removes query AND all associated data (worksheet, Data Model connections)
@@ -99,15 +99,15 @@ Alternative path (for existing worksheet tables):
 
 **Inline M code**:
 
-- Provide raw M code directly via `mCode`
+- Provide raw M code directly via `m_code`
 - Keep `.pq` files only for GIT workflows
 
 **Create/LoadTo with existing sheets**:
 
-- Use `targetCellAddress` to place the table on an existing worksheet without deleting other content
+- Use `target_cell_address` to place the table on an existing worksheet without deleting other content
 - Applies to BOTH create and load-to
-- If the worksheet already has data and you omit `targetCellAddress`, the tool returns guidance telling you to provide one
-- Existing tables are refreshed in-place; specifying a different `targetCellAddress` requires unload + reload
+- If the worksheet already has data and you omit `target_cell_address`, the tool returns guidance telling you to provide one
+- Existing tables are refreshed in-place; specifying a different `target_cell_address` requires unload + reload
 - Worksheets that exist but are empty behave like new sheets (default destination = A1)
 
 **Common mistakes**:
@@ -117,15 +117,15 @@ Alternative path (for existing worksheet tables):
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)
 - Assuming unload only removes worksheet data → Also removes Data Model connections
-- Calling rename without trimming newName → Server trims automatically, " Query " becomes "Query"
+- Calling rename without trimming `new_name` → Server trims automatically, " Query " becomes "Query"
 - Renaming to conflicting name → Check list first if unsure about existing names
-- Passing an option from another action (for example `mCode` on delete or `timeout` on load-to) → ERROR; category-wide schemas expose the union of options, but each action validates its own subset
+- Passing an option from another action (for example `m_code` on delete or `timeout_seconds` on load-to) → ERROR; category-wide schemas expose the union of options, but each action validates its own subset
 
 **Server-specific quirks**:
 
 - Validation = execution: M code only validated when data loads/refreshes
 - connection-only queries: NOT validated until first execution
-- refresh with loadDestination: Applies load config + refreshes (2-in-1)
+- load-to with `load_destination`: Applies load config + refreshes (2-in-1)
 - Single cell returns [[value]] not scalar
 - Public timeout inputs are integer seconds. Refresh/refresh-all accepts 0-2147483 and defaults to the 30-minute data-operation timeout when `timeout_seconds`/`--timeout` is 0 or omitted. For quick queries use a smaller value (e.g., 60-120 seconds).
 - load-to has no caller timeout parameter and uses the fixed 30-minute data-operation timeout; passing `timeout` to load-to is rejected instead of ignored.
@@ -170,7 +170,7 @@ Reference other queries by name directly: `Source = OtherQueryName`
 ### Source Control Pattern
 
 1. Store M code in `.pq` files
-2. `powerquery create` or `update` with inline `mCode`
+2. `powerquery create` or `update` with inline `m_code`
 3. `refresh` to validate
 4. File name MUST match query name
 

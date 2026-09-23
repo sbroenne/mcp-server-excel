@@ -130,13 +130,12 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string rangeAddress, bool hasHeaders = true, string? tableStyle = null)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateCreateInputs(sheetName, tableName, rangeAddress);
 
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? rangeObj = null;
+            Excel.Range? rangeObj = null;
             dynamic? listObjects = null;
             dynamic? newTable = null;
             try
@@ -147,36 +146,25 @@ public partial class TableCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
-                // Check if table name already exists
-                if (TableExists(ctx.Book, tableName))
+                rangeObj = ResolveEffectiveRange(sheet, rangeAddress);
+                TablePreflightResult preflight = AnalyzePreflight(
+                    ctx.Book,
+                    rangeObj,
+                    batch.WorkbookPath,
+                    sheetName,
+                    tableName,
+                    rangeAddress,
+                    hasHeaders,
+                    ct);
+                if (!preflight.SafeToCreate)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' already exists");
-                }
-
-                // Get the range to convert to table
-                rangeObj = sheet.Range[rangeAddress];
-
-                // Auto-expand single cell to current region (common UX pattern)
-                // This allows users to specify just "A1" instead of the full range
-                dynamic? currentRegion = null;
-                try
-                {
-                    // Check if single cell (no colon in address = single cell)
-                    if (!rangeAddress.Contains(':'))
-                    {
-                        currentRegion = rangeObj.CurrentRegion;
-                        if (currentRegion != null && currentRegion.Cells.Count > 1)
-                        {
-                            // Use the expanded current region instead
-                            ComUtilities.Release(ref rangeObj);
-                            rangeObj = currentRegion;
-                            currentRegion = null; // Don't release twice
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref currentRegion);
+                    string reasons = string.Join(
+                        " ",
+                        preflight.Findings
+                            .Where(finding => finding.Severity == TablePreflightSeverity.Blocker)
+                            .Select(finding => finding.Message));
+                    throw new InvalidOperationException(
+                        $"Table '{tableName}' cannot be created because preflight found blocking issues. {reasons}");
                 }
 
                 listObjects = sheet.ListObjects;
@@ -376,6 +364,4 @@ public partial class TableCommands
         });
     }
 }
-
-
 

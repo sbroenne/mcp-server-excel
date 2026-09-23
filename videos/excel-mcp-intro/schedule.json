@@ -1,0 +1,90 @@
+[
+  {
+    "id": "01",
+    "voiceKey": "intro",
+    "start": 0,
+    "end": 9.5,
+    "title": "What is Excel MCP Server?",
+    "voiceDuration": 8.469
+  },
+  {
+    "id": "02",
+    "voiceKey": "compare",
+    "start": 9.5,
+    "end": 27.5,
+    "title": "File editing or the real Excel engine?",
+    "voiceDuration": 17.386
+  },
+  {
+    "id": "03",
+    "voiceKey": "fit",
+    "start": 27.5,
+    "end": 39.5,
+    "title": "When should you use it?",
+    "voiceDuration": 11.158000000000001
+  },
+  {
+    "id": "04",
+    "voiceKey": "02",
+    "start": 39.5,
+    "end": 48,
+    "title": "One workbook, two ways",
+    "voiceDuration": 7.723
+  },
+  {
+    "id": "05",
+    "voiceKey": "03",
+    "start": 48,
+    "end": 60,
+    "title": "Power Query",
+    "voiceDuration": 9.600999999999999
+  },
+  {
+    "id": "06",
+    "voiceKey": "04",
+    "start": 60,
+    "end": 72,
+    "title": "Data Model and DAX",
+    "voiceDuration": 9.493
+  },
+  {
+    "id": "07",
+    "voiceKey": "05",
+    "start": 72,
+    "end": 84,
+    "title": "PivotTables and charts",
+    "voiceDuration": 8.149999999999999
+  },
+  {
+    "id": "08",
+    "voiceKey": "06",
+    "start": 84,
+    "end": 93,
+    "title": "VBA workflows",
+    "voiceDuration": 7.339
+  },
+  {
+    "id": "09",
+    "voiceKey": "07",
+    "start": 93,
+    "end": 103,
+    "title": "Python in Excel",
+    "voiceDuration": 8.704
+  },
+  {
+    "id": "10",
+    "voiceKey": "08",
+    "start": 103,
+    "end": 112,
+    "title": "Real calculation",
+    "voiceDuration": 7.744
+  },
+  {
+    "id": "11",
+    "voiceKey": "09",
+    "start": 112,
+    "end": 120,
+    "title": "Two equal entry points",
+    "voiceDuration": 6.741
+  }
+]

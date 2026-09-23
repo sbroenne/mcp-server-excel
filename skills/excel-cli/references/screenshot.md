@@ -8,7 +8,7 @@
 
 ```
 1. chart(create-from-range, ...)  → Chart created
-2. screenshot(capture, rangeAddress='A1:M20')  ← REQUIRED — never skip this step
+2. screenshot(capture, range_address='A1:M20')  ← REQUIRED — never skip this step
 3. file(close, save=true)
 ```
 
@@ -25,8 +25,8 @@ This rule applies even if:
 
 | Action | Purpose | Parameters |
 |--------|---------|------------|
-| `capture` | Capture a specific range | `rangeAddress` (default: A1:Z30), `sheetName`, `quality` |
-| `capture-sheet` | Capture the worksheet's used cell range | `sheetName`, `quality` |
+| `capture` | Capture a specific range | `range_address` (default: A1:Z30), `sheet_name`, `quality` |
+| `capture-sheet` | Capture the worksheet's used cell range | `sheet_name`, `quality` |
 
 `capture-sheet` is cell-driven: it captures Excel's used range. On a chart-only worksheet, or when a chart extends beyond the used cells, use `capture` with an explicit range that covers the chart (for example, `A1:M25`).
 
@@ -53,8 +53,8 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 
 ### After Chart Creation or Positioning
 ```
-1. chart(create-from-range, ..., targetRange='F2:K15')
-2. screenshot(capture, rangeAddress='A1:O25')  → Verify chart doesn't overlap data
+1. chart(create-from-range, ..., target_range='F2:K15')
+2. screenshot(capture, range_address='A1:O25')  → Verify chart doesn't overlap data
 ```
 
 ### After Complex Formatting
@@ -68,7 +68,7 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 ```
 1. pivottable(add-row-field, ...)
 2. pivottable(add-value-field, ...)
-3. screenshot(capture, rangeAddress='A1:M25')  → Include charts and verify layout
+3. screenshot(capture, range_address='A1:M25')  → Include charts and verify layout
 ```
 
 ## Best Practices
@@ -86,8 +86,8 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 ### Chart Overlap Verification
 ```
 1. range(get-used-range) → "A1:D20"
-2. chart(create-from-range, sourceRange='A1:D20', targetRange='F2:K15')
-3. screenshot(capture, rangeAddress='A1:K20')
+2. chart(create-from-range, source_range='A1:D20', target_range='F2:K15')
+3. screenshot(capture, range_address='A1:K20')
    → Visually confirm chart is positioned next to data, not on top of it
 ```
 
@@ -96,13 +96,13 @@ Default is `Medium` — use this for most cases. Only use `High` when fine text 
 When creating dashboards with multiple charts:
 
 1. get-used-range → Know where data ends
-2. Create Chart 1 with targetRange below/beside data
-3. Create Chart 2 with targetRange that does NOT overlap Chart 1
-4. Create Chart 3, Chart 4, etc. — each in a non-overlapping targetRange
-5. screenshot(capture, rangeAddress='A1:M40') → Verify NO charts overlap each other or data
+2. Create Chart 1 with `target_range` below/beside data
+3. Create Chart 2 with `target_range` that does NOT overlap Chart 1
+4. Create Chart 3, Chart 4, etc. — each in a non-overlapping `target_range`
+5. screenshot(capture, range_address='A1:M40') → Verify NO charts overlap each other or data
 
 Key rules for multi-chart layouts:
-- Use targetRange for every chart — never rely on default positioning
+- Use `target_range` for every chart — never rely on default positioning
 - Leave at least 1-2 rows/columns between charts
 - Place charts in a grid pattern (e.g., 2x2) below the data area
 - If overlap detected, use chart(fit-to-range) to reposition
@@ -111,7 +111,7 @@ Key rules for multi-chart layouts:
 ### Dashboard Layout Check
 ```
 1. Create multiple charts and tables
-2. screenshot(capture, rangeAddress='A1:M40')
+2. screenshot(capture, range_address='A1:M40')
    → Verify overall dashboard layout, spacing, and alignment
 3. If issues found: reposition with chart(fit-to-range), then screenshot again
 ```

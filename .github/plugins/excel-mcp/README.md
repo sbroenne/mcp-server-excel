@@ -40,7 +40,12 @@ The plugin does **not** rely on a bundled `mcp-excel.exe`. Its Agent Plugins 1.0
 
 - checks GitHub Releases for the newest `ExcelMcp-MCP-Server-*-windows.zip`
 - downloads and caches the latest self-contained Windows server on first invocation
+- stores plugin-hosted runtime state under `PLUGIN_DATA\runtime`
 - re-checks freshness at most once per Copilot chat session
+
+The optional global shim runs outside an Agent Plugins host, uses
+`~\.copilot\plugin-runtime\mcp-server-excel\excel-mcp`, and checks for updates at
+most once every 24 hours.
 
 If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
 
@@ -53,11 +58,11 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## What You Can Do
 
-**31 specialized tools with 325 operations** for comprehensive Excel automation:
+**31 specialized tools with 326 operations** for comprehensive Excel automation:
 
 ### Core Operations
 
-- **Power Query** (12 ops) — Create, update, refresh; M code formatting via powerqueryformatter.com
+- **Power Query** (12 ops) — Create, update, refresh; optional remote M code formatting
 - **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
 - **PivotTables** (35 ops) — Fields, grouping, cache options, drill-through, calculations
 - **Excel Tables** (27 ops) — Lifecycle, filtering, sorting, DAX-backed tables
@@ -75,7 +80,7 @@ pwsh -ExecutionPolicy Bypass -File `
 - **What-If Analysis** (8 ops) — Goal Seek, scenarios, summaries, data tables
 - **XML Maps** (6 ops) — Schemas, XPath mapping, secure import/export
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
-- **Conditional Formatting** (2 ops) — Add rules (cell value, expression), clear
+- **Conditional Formatting** (4 ops) — Add and clear rules; list range or worksheet rules
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation (performance optimization)
 - **Python in Excel** (2 ops) — Set/get `=PY()` formulas and results
@@ -84,7 +89,7 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ### File Operations
 
-- **Session Management** (6 ops) — Create, open, close, list sessions
+- **File Operations** (5 ops) — Create, open, close, list, and test files
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for authentication
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
@@ -144,12 +149,12 @@ ExcelMcp drives the **actual Excel application** through its official COM API �
 - 👀 **Show Excel Mode** — Watch changes live as AI works
 - 🚀 **First-Run Bootstrap** — Auto-download the newest self-contained MCP runtime when the plugin is first invoked
 
-### Automatic Code Formatting
+### Optional Remote Code Formatting
 
-- **M Code** — Formatted via powerqueryformatter.com (mogularGmbH, MIT License)
-- **DAX** — Formatted via SQLBI Dax.Formatter library
-- Adds ~100-500ms per operation for dramatically improved readability
-- Graceful fallback if formatting unavailable
+- M and DAX code is preserved locally by default.
+- Setting `formatMCode=true` sends M code to powerqueryformatter.com.
+- Setting `formatDax=true` sends DAX to daxformatter.com.
+- Remote formatting requires explicit user consent and adds network latency.
 
 ---
 

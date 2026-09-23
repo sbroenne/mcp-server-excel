@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -434,25 +436,36 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? worksheet = null;
-            dynamic? pivotChartShape = null;
-            dynamic? chart = null;
-            dynamic? pivotTable = null;
-            dynamic? tableRange = null;
-            dynamic? shapes = null;
-            dynamic? targetRangeObj = null;
+            Excel.Worksheet? worksheet = null;
+            Excel.Worksheet? sourceWorksheet = null;
+            Excel.Worksheet? previousWorksheet = null;
+            Excel.Range? previousCell = null;
+            Excel.Shape? pivotChartShape = null;
+            Excel.Chart? chart = null;
+            Excel.PivotTable? pivotTable = null;
+            Excel.Range? tableRange = null;
+            Excel.Sheets? worksheets = null;
+            Excel.Shapes? shapes = null;
+            Excel.Range? targetRangeObj = null;
+            Excel.PivotLayout? pivotLayout = null;
+            Excel.PivotTable? linkedPivotTable = null;
 
             try
             {
                 // Find PivotTable
-                pivotTable = FindPivotTable(ctx.Book, pivotTableName);
+                pivotTable = (Excel.PivotTable?)FindPivotTable(ctx.Book, pivotTableName);
                 if (pivotTable == null)
                 {
                     throw new InvalidOperationException($"PivotTable '{pivotTableName}' not found in workbook.");
                 }
 
                 // Get target worksheet
-                worksheet = ctx.Book.Worksheets[sheetName];
+                worksheets = (Excel.Sheets)ctx.Book.Worksheets;
+                worksheet = (Excel.Worksheet)worksheets[sheetName];
+                sourceWorksheet = (Excel.Worksheet)pivotTable.Parent;
+                tableRange = pivotTable.TableRange1;
+                previousWorksheet = ctx.App.ActiveSheet as Excel.Worksheet;
+                previousCell = ctx.App.ActiveCell as Excel.Range;
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
                 double finalLeft = left;
@@ -463,10 +476,10 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 if (!string.IsNullOrWhiteSpace(targetRange))
                 {
                     targetRangeObj = worksheet.Range[targetRange];
-                    finalLeft = Convert.ToDouble(targetRangeObj.Left);
-                    finalTop = Convert.ToDouble(targetRangeObj.Top);
-                    finalWidth = Convert.ToDouble(targetRangeObj.Width);
-                    finalHeight = Convert.ToDouble(targetRangeObj.Height);
+                    finalLeft = targetRangeObj.Left;
+                    finalTop = targetRangeObj.Top;
+                    finalWidth = targetRangeObj.Width;
+                    finalHeight = targetRangeObj.Height;
                 }
                 else if (left == 0 && top == 0)
                 {
@@ -476,26 +489,56 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     finalTop = autoPos.Top;
                 }
 
-                // Create a chart via Shapes.AddChart and set source to PivotTable's range.
-                // This approach works for both OLAP (Data Model) and non-OLAP PivotTables,
-                // unlike PivotCache.CreatePivotChart which has parameter issues in dynamic
-                // COM and throws DISP_E_UNKNOWNNAME for OLAP sources.
+                // Match Excel's Insert PivotChart sequence: activate/select the source
+                // PivotTable before adding the chart, then bind the selected PivotTable range.
+                sourceWorksheet.Activate();
+                tableRange.Select();
                 shapes = worksheet.Shapes;
 
-                // Create chart using AddChart
-                pivotChartShape = shapes.AddChart(
-                    XlChartType: (int)chartType,
-                    Left: finalLeft,
-                    Top: finalTop,
-                    Width: finalWidth,
-                    Height: finalHeight
-                );
+                try
+                {
+                    pivotChartShape = shapes.AddChart2(
+                        Style: -1,
+                        XlChartType: (int)chartType,
+                        Left: finalLeft,
+                        Top: finalTop,
+                        Width: finalWidth,
+                        Height: finalHeight,
+                        NewLayout: true);
 
-                chart = pivotChartShape.Chart;
+                    chart = pivotChartShape.Chart;
+                    chart.SetSourceData(tableRange);
+                }
+                catch (COMException ex)
+                {
+                    DeleteCreatedChart(pivotChartShape);
+                    throw new InvalidOperationException(
+                        $"Excel could not create a linked PivotChart from PivotTable '{pivotTableName}' " +
+                        $"with chart type '{chartType}'. The requested chart type or PivotTable layout " +
+                        "is not supported for PivotCharts.", ex);
+                }
 
-                // Get the PivotTable's data range and set it as the chart's source
-                tableRange = pivotTable.TableRange1;
-                chart.SetSourceData(tableRange);
+                try
+                {
+                    pivotLayout = chart.PivotLayout;
+                    linkedPivotTable = pivotLayout?.PivotTable;
+                }
+                catch (COMException ex)
+                {
+                    DeleteCreatedChart(pivotChartShape);
+                    throw new InvalidOperationException(
+                        $"Excel created a regular chart instead of a linked PivotChart for PivotTable " +
+                        $"'{pivotTableName}'. No chart was kept.", ex);
+                }
+
+                string linkedPivotTableName = linkedPivotTable?.Name ?? string.Empty;
+                if (!linkedPivotTableName.Equals(pivotTableName, StringComparison.OrdinalIgnoreCase))
+                {
+                    DeleteCreatedChart(pivotChartShape);
+                    throw new InvalidOperationException(
+                        $"Excel did not link the new PivotChart to PivotTable '{pivotTableName}'. " +
+                        "No chart was kept.");
+                }
 
                 // Set custom name if provided
                 if (!string.IsNullOrWhiteSpace(chartName))
@@ -515,9 +558,9 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     Success = true,
                     ChartName = finalName,
                     SheetName = sheetName,
-                    ChartType = chartType,
+                    ChartType = (ChartType)chart.ChartType,
                     IsPivotChart = true,
-                    LinkedPivotTable = pivotTableName,
+                    LinkedPivotTable = linkedPivotTableName,
                     Left = finalLeft,
                     Top = finalTop,
                     Width = finalWidth,
@@ -529,15 +572,51 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             }
             finally
             {
+                if (previousWorksheet != null)
+                {
+                    try
+                    {
+                        previousWorksheet.Activate();
+                        previousCell?.Select();
+                    }
+                    catch (COMException)
+                    {
+                        // Restoring the prior selection is best-effort after Excel completed the operation.
+                    }
+                }
+
+                ComUtilities.Release(ref linkedPivotTable);
+                ComUtilities.Release(ref pivotLayout);
                 ComUtilities.Release(ref targetRangeObj!);
                 ComUtilities.Release(ref chart!);
                 ComUtilities.Release(ref pivotChartShape!);
                 ComUtilities.Release(ref tableRange!);
                 ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref worksheets);
+                ComUtilities.Release(ref previousCell);
+                ComUtilities.Release(ref previousWorksheet);
+                ComUtilities.Release(ref sourceWorksheet);
                 ComUtilities.Release(ref worksheet!);
                 ComUtilities.Release(ref pivotTable!);
             }
         });
+    }
+
+    private static void DeleteCreatedChart(Excel.Shape? chartShape)
+    {
+        if (chartShape == null)
+        {
+            return;
+        }
+
+        try
+        {
+            chartShape.Delete();
+        }
+        catch (COMException)
+        {
+            // Preserve the creation failure if Excel already removed the partial chart.
+        }
     }
 
     /// <inheritdoc />
@@ -714,5 +793,3 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         return pivotTable;
     }
 }
-
-

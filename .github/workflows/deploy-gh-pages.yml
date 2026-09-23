@@ -24,6 +24,8 @@ on:
       - 'skills/README.md'
       - '.github/workflows/deploy-gh-pages.yml'
       - '.github/star-history.csv'
+      - '.github/usage-analytics.json'
+      - 'scripts/Restore-UsageAnalytics.ps1'
       - 'scripts/Update-StarHistory.ps1'
       - 'scripts/Restore-StarHistory.ps1'
   schedule:
@@ -49,6 +51,8 @@ jobs:
     env:
       STAR_HISTORY_BRANCH: star-history-data
       STAR_HISTORY_PATH: .github/star-history.csv
+      USAGE_ANALYTICS_BRANCH: analytics-data
+      USAGE_ANALYTICS_PATH: .github/usage-analytics.json
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -68,6 +72,17 @@ jobs:
             -Branch $env:STAR_HISTORY_BRANCH `
             -HistoryPath $env:STAR_HISTORY_PATH `
             -RemotePath $env:STAR_HISTORY_PATH
+
+      - name: Restore persisted usage analytics
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./scripts/Restore-UsageAnalytics.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch $env:USAGE_ANALYTICS_BRANCH `
+            -ReportPath $env:USAGE_ANALYTICS_PATH `
+            -RemotePath $env:USAGE_ANALYTICS_PATH
 
       - name: Render star history chart
         shell: pwsh

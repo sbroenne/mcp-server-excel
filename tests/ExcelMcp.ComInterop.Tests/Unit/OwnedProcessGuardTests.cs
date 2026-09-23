@@ -21,4 +21,56 @@ public sealed class OwnedProcessGuardTests
         var probe = (OwnedProcessGuard.ProcessIdentityProbe)probeValue;
         Assert.Equal(expected, OwnedProcessGuard.IsAlive(probe));
     }
+
+    [Fact]
+    public async Task TerminationUnavailable_ProcessExitsDuringFinalObservation_Succeeds()
+    {
+        var waits = new Queue<ProcessTerminationPolicy.ProcessWaitOutcome>(
+        [
+            ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut,
+            ProcessTerminationPolicy.ProcessWaitOutcome.Exited
+        ]);
+        var terminated = false;
+
+        var result = await ProcessTerminationPolicy.TryCompleteAsync(
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(3),
+            (_, _) => Task.FromResult(waits.Dequeue()),
+            () => ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable,
+            CancellationToken.None,
+            value => terminated = value);
+
+        Assert.True(result);
+        Assert.False(terminated);
+        Assert.Empty(waits);
+    }
+
+    [Fact]
+    public async Task TerminationUnavailable_ProcessRemainsLive_Fails()
+    {
+        var waits = new Queue<ProcessTerminationPolicy.ProcessWaitOutcome>(
+        [
+            ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut,
+            ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut
+        ]);
+
+        var result = await ProcessTerminationPolicy.TryCompleteAsync(
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(3),
+            (_, _) => Task.FromResult(waits.Dequeue()),
+            () => ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable,
+            CancellationToken.None,
+            _ => { });
+
+        Assert.False(result);
+        Assert.Empty(waits);
+    }
+
+    [Fact]
+    public void ProcessExitTimeout_MatchesPipeAndSessionTeardownBudget()
+    {
+        Assert.Equal(
+            TimeSpan.FromSeconds(10),
+            ProcessTerminationPolicy.ProcessExitTimeout);
+    }
 }

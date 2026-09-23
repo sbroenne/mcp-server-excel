@@ -340,8 +340,9 @@ foreach (Connection in workbook.Connections)
 - **CUBEMEMBER worksheet function** - also fails with #N/A
 - Calculate methods succeed but don't resolve CUBEVALUE
 - Error codes:
-  - -2146826245 = #N/A (member doesn't exist in cube or syntax incorrect)
-  - -2146826246 = #VALUE! (invalid tuple element)
+  - -2146826246 = #N/A (member doesn't exist in cube or syntax incorrect)
+  - -2146826273 = #VALUE! (invalid tuple element)
+  - -2146826245 = #GETTING_DATA (data retrieval is still in progress)
   - 0x800AC472 = Excel busy (Calculate blocked in hidden mode)
 
 **Root Cause (Confirmed by Microsoft Documentation):**

@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Microsoft.ApplicationInsights.DataContracts;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -13,6 +14,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Telemetry")]
+[Collection("ProgramTransport")]
 public class TelemetryTests
 {
     #region ExcelMcpTelemetry Tests
@@ -65,6 +67,59 @@ public class TelemetryTests
         {
             Assert.DoesNotContain("__", connectionString);
         }
+    }
+
+    [Fact]
+    public void TrackUnhandledException_SendsOnlySanitizedClassification()
+    {
+        InvalidOperationException inner;
+        try
+        {
+            throw new InvalidOperationException(
+                @"Failed to open C:\Users\customer\secret.xlsx for customer@example.com");
+        }
+        catch (InvalidOperationException ex)
+        {
+            inner = ex;
+        }
+
+        var exception = new AggregateException("******", inner);
+        var telemetry = ExcelMcpTelemetry.CreateSanitizedExceptionTelemetry(
+            exception,
+            "TaskScheduler.UnobservedTaskException");
+
+        Assert.Equal("true", telemetry.Properties["Sanitized"]);
+        Assert.Equal("AggregateException", telemetry.Properties["ExceptionType"]);
+        Assert.Equal("InvalidOperationException", telemetry.Properties["InnerExceptionTypes"]);
+        Assert.Equal("TaskScheduler.UnobservedTaskException", telemetry.Properties["Source"]);
+        Assert.All(telemetry.ExceptionDetailsInfoList, detail =>
+        {
+            Assert.Equal("[REDACTED]", detail.Message);
+        });
+        Assert.True(string.IsNullOrEmpty(telemetry.Exception?.StackTrace));
+
+        var serialized = string.Join(
+            "\n",
+            telemetry.ExceptionDetailsInfoList.Select(
+                detail => $"{detail.TypeName}|{detail.Message}"));
+        Assert.DoesNotContain(@"C:\Users", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("customer@example.com", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret.xlsx", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password", serialized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TrackUnhandledException_RejectsUnapprovedSourceText()
+    {
+        ExceptionTelemetry telemetry = ExcelMcpTelemetry.CreateSanitizedExceptionTelemetry(
+            new InvalidOperationException("sensitive"),
+            @"C:\Users\customer\source");
+
+        Assert.Equal("Unknown", telemetry.Properties["Source"]);
+        Assert.DoesNotContain(
+            @"C:\Users",
+            string.Join("\n", telemetry.Properties.Values),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -200,8 +255,5 @@ public class TelemetryTests
     }
 
     #endregion
+
 }
-
-
-
-

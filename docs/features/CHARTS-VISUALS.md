@@ -13,7 +13,10 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 **Creation:**
 - **Create from Range:** Build a chart from a cell range
 - **Create from Excel Table:** Build a chart from an Excel Table
-- **Create from PivotTable:** Build a chart from a PivotTable
+- **Create from PivotTable:** Build a live PivotChart linked to the requested
+  PivotTable, including OLAP/Data Model PivotTables. ExcelMcp verifies the
+  PivotLayout link and fails without leaving a static chart if the requested
+  chart type or layout cannot produce a PivotChart.
 
 **Series Management:**
 - **Add Series:** Add a data series to a chart
