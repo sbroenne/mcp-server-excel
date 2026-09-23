@@ -88,4 +88,67 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.True(read.Success, $"Read failed: {read.ErrorMessage}");
         Assert.Equal(tableStyle, read.Table!.TableStyle);
     }
+
+    [Fact]
+    public void Create_WithNonAsciiTableName_CreatesReadableTable()
+    {
+        var batch = _fixture.BatchToken;
+        _fixture.CreateNamedTestSheet(batch, "Data");
+        _rangeCommands.SetValues(
+            batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
+
+        var result = _tableCommands.Create(
+            batch, "Data", "表1", "A1:B2", true, "TableStyleLight1");
+        Assert.True(result.Success, result.ErrorMessage);
+
+        var info = _tableCommands.Read(batch, "表1");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.NotNull(info.Table);
+        Assert.Equal("表1", info.Table.Name);
+        Assert.Equal("Data", info.Table.SheetName);
+    }
+
+    [Fact]
+    public void ReadAndRename_WithExistingNonAsciiTableName_Succeeds()
+    {
+        var batch = _fixture.BatchToken;
+        _fixture.CreateNamedTestSheet(batch, "Data");
+        _rangeCommands.SetValues(
+            batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
+        var result = _tableCommands.Create(
+            batch, "Data", "PlainTable", "A1:B2", true, "TableStyleLight1");
+        Assert.True(result.Success, result.ErrorMessage);
+
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.ListObjects? listObjects = null;
+            Excel.ListObject? table = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, "Data")
+                    ?? throw new InvalidOperationException("Data not found.");
+                listObjects = sheet.ListObjects;
+                table = listObjects["PlainTable"];
+                table.Name = "表1";
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var info = _tableCommands.Read(batch, "表1");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.Equal("表1", info.Table!.Name);
+
+        var renamed = _tableCommands.Rename(batch, "表1", "テーブル1");
+        Assert.True(renamed.Success, renamed.ErrorMessage);
+
+        var renamedInfo = _tableCommands.Read(batch, "テーブル1");
+        Assert.True(renamedInfo.Success, renamedInfo.ErrorMessage);
+        Assert.Equal("テーブル1", renamedInfo.Table!.Name);
+    }
 }
