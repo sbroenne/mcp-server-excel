@@ -24,6 +24,7 @@ public sealed class TableNameValidationTests
     [InlineData("テーブル1")]
     [InlineData("표1")]
     [InlineData("Tâblé1")]
+    [InlineData("तालिका1")]
     public void ValidateTableName_WithLocalizedExcelTableName_DoesNotThrow(string tableName)
     {
         InvokeValidateTableName(tableName);

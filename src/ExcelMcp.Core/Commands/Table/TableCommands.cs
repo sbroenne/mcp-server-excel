@@ -12,7 +12,7 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     /// <summary>
     /// Regex pattern for valid table names
     /// </summary>
-    private static readonly Regex TableNameRegex = new(@"^[\p{L}_][\p{L}\p{N}_]*$", RegexOptions.Compiled);
+    private static readonly Regex TableNameRegex = new(@"^[\p{L}_][\p{L}\p{M}\p{N}_]*$", RegexOptions.Compiled);
 
     /// <summary>
     /// Maximum allowed table name length
@@ -83,4 +83,3 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
 
     #endregion
 }
-
