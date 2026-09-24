@@ -60,11 +60,12 @@ code, issues, or documents without a site page.
 | `tools.json` | Tool/operation catalogue derived from canonical feature references |
 | FAQ structured data | Troubleshooting question blocks |
 
-These are generated, not separately maintained. `tools.json` derives its totals
-from the feature groups and operation counts in `docs/features/`. The release
-workflow runs `scripts/check-doc-counts.ps1 -Update` to refresh advertised
-headlines from code-derived metadata; do not substitute manual file or folder
-counts.
+These are generated, not separately maintained. `tools.json` derives its
+catalogue and operation total from the feature groups and operation counts in
+`docs/features/`, while its tool total follows the release-owned `FEATURES.md`
+headline. The release workflow runs `scripts/check-doc-counts.ps1 -Update` to
+refresh advertised headlines from code-derived metadata; do not substitute
+manual file or folder counts.
 
 ## Theme overrides
 

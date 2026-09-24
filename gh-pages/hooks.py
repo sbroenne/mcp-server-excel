@@ -1406,8 +1406,9 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
 def _write_tools_json(config) -> None:
     """Emit /tools.json: every tool and operation as structured JSON.
 
-    Derived from the canonical ``docs/features/*.md`` references, so the machine
-    -readable catalogue and its totals come from the same source as the human pages.
+    The machine-readable catalogue and operation total are derived from the
+    canonical ``docs/features/*.md`` references. The tool total follows the
+    release-owned ``FEATURES.md`` headline.
     """
     category_titles = {
         "docs/features/DATA-ANALYTICS.md": "Data & Analytics",
