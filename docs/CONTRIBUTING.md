@@ -224,7 +224,7 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 2. **Implement it** in the corresponding partial class (e.g. `SheetCommands.Lifecycle.cs`), following the batch-API pattern above.
 3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
 4. **Add integration tests** for the new operation (TDD: write them first).
-5. **Update the appropriate `docs/features/*.md` file** with the new operation and category count. Release automation refreshes total tool and operation claims from code.
+5. **Update the appropriate `docs/features/*.md` file** with the new operation and its section count. Do not hand-edit repeated headline totals; release automation refreshes those advertised claims from code.
 
 ### Tracing a bug or contract change
 

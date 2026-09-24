@@ -270,10 +270,12 @@ public sealed class ReleaseMetadataScriptTests
                 $"all {canonicalOperations} operations",
                 await File.ReadAllTextAsync(readmePath),
                 StringComparison.Ordinal);
-            Assert.Contains(
-                $"{canonicalTools} tools and {canonicalOperations} operations",
-                await File.ReadAllTextAsync(hooksPath),
-                StringComparison.Ordinal);
+            var hooksContent = await File.ReadAllTextAsync(hooksPath);
+            Assert.Contains("_read_release_headline_counts()", hooksContent, StringComparison.Ordinal);
+            Assert.Contains("for output_name, source_rel in FEATURE_SOURCES.items():", hooksContent, StringComparison.Ordinal);
+            Assert.DoesNotMatch(
+                @"exposing \d+ tools and \d+ operations",
+                hooksContent);
 
             var validation = await RunPowerShellScriptAsync(
                 Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),

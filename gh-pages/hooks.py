@@ -113,6 +113,13 @@ FEATURE_SOURCES = {
     "features-automation.md": "docs/features/AUTOMATION-ADVANCED.md",
 }
 
+FEATURE_TITLES = {
+    "features-data.md": "Data & Analytics",
+    "features-workbooks.md": "Cells & Workbooks",
+    "features-visualization.md": "Charts & Visualization",
+    "features-automation.md": "Automation & Advanced",
+}
+
 # Canonical task guides -> intent-focused website pages. Same contract as the
 # feature references: the wrapper owns presentation and SEO metadata only.
 GUIDE_SOURCES = {
@@ -287,6 +294,16 @@ def _read(rel: str) -> str:
     if not path.is_file():
         raise FileNotFoundError(f"Source doc not found: {path}")
     return path.read_text(encoding="utf-8")
+
+
+def _read_release_headline_counts() -> tuple[int, int]:
+    headline = re.search(
+        r"\*\*(?P<tools>\d+) specialized tools with (?P<operations>\d+) operations",
+        _read("FEATURES.md"),
+    )
+    if headline is None:
+        raise RuntimeError("could not read the advertised counts from FEATURES.md")
+    return int(headline.group("tools")), int(headline.group("operations"))
 
 
 def _write(name: str, source_rel: str, content: str) -> None:
@@ -1173,6 +1190,7 @@ def _write_llm_outputs(config) -> None:
     captured Markdown, so they cannot drift from the site.
     """
     site_dir = Path(config["site_dir"])
+    headline_tools, headline_operations = _read_release_headline_counts()
 
     # Markdown mirrors: /guides/refresh-power-query/index.md next to index.html.
     mirrored = 0
@@ -1194,7 +1212,8 @@ def _write_llm_outputs(config) -> None:
         "# Excel MCP Server",
         "",
         "> Excel MCP Server (ExcelMcp) automates the real Microsoft Excel "
-        "application through its COM API, exposing 31 tools and 325 operations to AI assistants "
+        f"application through its COM API, exposing {headline_tools} tools and "
+        f"{headline_operations} operations to AI assistants "
         "over the Model Context Protocol and to scripts through "
         "the `excelcli` command line. Unlike file-parser libraries it can refresh "
         "Power Query, evaluate DAX against the Data Model, refresh PivotTables, "
@@ -1410,34 +1429,16 @@ def _write_tools_json(config) -> None:
     canonical ``docs/features/*.md`` references. The tool total follows the
     release-owned ``FEATURES.md`` headline.
     """
-    category_titles = {
-        "docs/features/DATA-ANALYTICS.md": "Data & Analytics",
-        "docs/features/CELLS-WORKBOOKS.md": "Cells & Workbooks",
-        "docs/features/CHARTS-VISUALS.md": "Charts & Visualization",
-        "docs/features/AUTOMATION-ADVANCED.md": "Automation & Advanced",
-    }
-    site_page = {
-        "docs/features/DATA-ANALYTICS.md": "/features/data-analytics/",
-        "docs/features/CELLS-WORKBOOKS.md": "/features/cells-workbooks/",
-        "docs/features/CHARTS-VISUALS.md": "/features/charts-visuals/",
-        "docs/features/AUTOMATION-ADVANCED.md": "/features/automation-advanced/",
-    }
-
     heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
     operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
 
-    headline = re.search(
-        r"\*\*(?P<tools>\d+) specialized tools with \d+ operations",
-        _read("FEATURES.md"),
-    )
-    if headline is None:
-        raise RuntimeError("could not read the headline tool count from FEATURES.md")
-    headline_tools = int(headline.group("tools"))
+    headline_tools, _ = _read_release_headline_counts()
 
     categories = []
     total_ops = 0
 
-    for source_rel, title in category_titles.items():
+    for output_name, source_rel in FEATURE_SOURCES.items():
+        title = FEATURE_TITLES[output_name]
         groups: list[dict] = []
         current: dict | None = None
         for line in _read(source_rel).splitlines():
@@ -1465,7 +1466,7 @@ def _write_tools_json(config) -> None:
         categories.append(
             {
                 "name": title,
-                "url": SITE_URL.rstrip("/") + site_page[source_rel],
+                "url": SITE_URL.rstrip("/") + SITE_PAGE_MAP[source_rel],
                 "operationCount": sum(g["operationCount"] for g in groups),
                 "featureGroups": groups,
             }

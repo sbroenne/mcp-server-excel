@@ -63,9 +63,10 @@ code, issues, or documents without a site page.
 These are generated, not separately maintained. `tools.json` derives its
 catalogue and operation total from the feature groups and operation counts in
 `docs/features/`, while its tool total follows the release-owned `FEATURES.md`
-headline. The release workflow runs `scripts/check-doc-counts.ps1 -Update` to
-refresh advertised headlines from code-derived metadata; do not substitute
-manual file or folder counts.
+headline. `llms.txt` reads its advertised summary from that same headline. The
+release workflow runs `scripts/check-doc-counts.ps1 -Update` to refresh
+advertised headlines from code-derived metadata; do not substitute manual file
+or folder counts.
 
 ## Theme overrides
 

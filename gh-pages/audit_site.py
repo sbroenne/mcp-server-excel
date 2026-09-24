@@ -31,7 +31,7 @@ SITE_URL = "https://excelmcpserver.dev/"
 # Imported rather than duplicated: this is the same mapping hooks.py uses to
 # rewrite links, so the audit cannot drift away from what the build produces.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hooks import SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
+from hooks import FEATURE_SOURCES, SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
 
 # Google truncates around these lengths; well outside them is a real problem.
 TITLE_MAX = 70
@@ -441,6 +441,27 @@ def audit_tools_json() -> None:
     if not categories:
         fail("tools.json has no categories")
         return
+
+    expected_sources = set(FEATURE_SOURCES.values())
+    actual_sources = {
+        source.relative_to(SITE_DIR.parent.parent).as_posix()
+        for source in (SITE_DIR.parent.parent / "docs" / "features").glob("*.md")
+    }
+    if actual_sources != expected_sources:
+        fail(
+            "FEATURE_SOURCES must list exactly the canonical docs/features/*.md files "
+            f"(missing {sorted(str(value) for value in actual_sources - expected_sources)}, "
+            f"extra {sorted(str(value) for value in expected_sources - actual_sources)})"
+        )
+
+    expected_urls = {SITE_URL.rstrip("/") + SOURCE_TO_SITE[source] for source in expected_sources}
+    actual_urls = {category.get("url") for category in categories}
+    if actual_urls != expected_urls:
+        fail(
+            "tools.json categories must match FEATURE_SOURCES "
+            f"(missing {sorted(str(value) for value in expected_urls - actual_urls)}, "
+            f"extra {sorted(str(value) for value in actual_urls - expected_urls)})"
+        )
 
     parsed_operations = sum(category.get("operationCount", 0) for category in categories)
     if not isinstance(data.get("toolCount"), int) or data["toolCount"] <= 0:
