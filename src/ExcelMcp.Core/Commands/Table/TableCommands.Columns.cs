@@ -12,9 +12,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -69,9 +66,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult RemoveColumn(IExcelBatch batch, string tableName, string columnName)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -126,9 +120,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;

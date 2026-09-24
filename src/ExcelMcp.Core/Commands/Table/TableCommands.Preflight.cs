@@ -27,7 +27,7 @@ public partial class TableCommands
         string rangeAddress,
         bool hasHeaders = true)
     {
-        ValidateCreateInputs(sheetName, tableName, rangeAddress);
+        ValidateCreateInputs(sheetName, rangeAddress);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -57,11 +57,10 @@ public partial class TableCommands
         });
     }
 
-    private static void ValidateCreateInputs(string sheetName, string tableName, string rangeAddress)
+    private static void ValidateCreateInputs(string sheetName, string rangeAddress)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
         ArgumentException.ThrowIfNullOrWhiteSpace(rangeAddress);
-        ValidateTableName(tableName);
     }
 
     private static Excel.Range ResolveEffectiveRange(Excel.Worksheet sheet, string rangeAddress)

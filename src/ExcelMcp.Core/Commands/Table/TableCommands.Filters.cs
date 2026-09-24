@@ -12,9 +12,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -97,9 +94,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -182,9 +176,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ClearFilters(IExcelBatch batch, string tableName)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -212,9 +203,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public TableFilterResult GetFilters(IExcelBatch batch, string tableName)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         var result = new TableFilterResult { FilePath = batch.WorkbookPath, TableName = tableName };
         return batch.Execute((ctx, ct) =>
         {

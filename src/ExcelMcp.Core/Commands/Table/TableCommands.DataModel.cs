@@ -12,9 +12,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public AddToDataModelResult AddToDataModel(IExcelBatch batch, string tableName, bool stripBracketColumnNames = false)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;

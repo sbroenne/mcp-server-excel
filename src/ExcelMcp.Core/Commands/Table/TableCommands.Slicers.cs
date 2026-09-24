@@ -16,9 +16,6 @@ public partial class TableCommands
     public SlicerResult CreateTableSlicer(IExcelBatch batch, string tableName,
         string columnName, string slicerName, string destinationSheet, string position)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -93,12 +90,6 @@ public partial class TableCommands
     /// <inheritdoc />
     public SlicerListResult ListTableSlicers(IExcelBatch batch, string? tableName = null)
     {
-        // Security: Validate table name if provided
-        if (!string.IsNullOrEmpty(tableName))
-        {
-            ValidateTableName(tableName);
-        }
-
         return batch.Execute((ctx, ct) =>
         {
             var result = new SlicerListResult { Success = true };
@@ -696,5 +687,4 @@ public partial class TableCommands
 
     #endregion
 }
-
 
