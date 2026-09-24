@@ -118,9 +118,14 @@ public sealed partial class PersistentServiceTablePreflightTests
         var beforeCount = GetWorksheetTableCount("Data");
 
         Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.Create(batch, "Data", "Invalid Name", "A1:B2", true, "TableStyleLight1"));
+            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", true, "TableStyleLight1"));
 
         Assert.Equal(beforeCount, GetWorksheetTableCount("Data"));
+        var values = GetRangeValues("Data", "A1:B2");
+        Assert.Equal("Name", values[1, 1]);
+        Assert.Equal("Value", values[1, 2]);
+        Assert.Equal("North", values[2, 1]);
+        Assert.Equal(100, values[2, 2]);
     }
 
     [Fact]
@@ -171,8 +176,8 @@ public sealed partial class PersistentServiceTablePreflightTests
     {
         return _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            ExcelWorksheet? sheet = null;
-            ExcelListObjects? listObjects = null;
+            Excel.Worksheet? sheet = null;
+            Excel.ListObjects? listObjects = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
@@ -183,6 +188,27 @@ public sealed partial class PersistentServiceTablePreflightTests
             finally
             {
                 ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
+    private object[,] GetRangeValues(string sheetName, string rangeAddress)
+    {
+        return _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                range = sheet.Range[rangeAddress];
+                return (object[,])range.Value2;
+            }
+            finally
+            {
+                ComUtilities.Release(ref range);
                 ComUtilities.Release(ref sheet);
             }
         });

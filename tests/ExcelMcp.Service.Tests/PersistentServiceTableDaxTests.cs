@@ -154,7 +154,7 @@ public class PersistentServiceTableDaxTests(
         Assert.ThrowsAny<Exception>(() =>
             CreateFromDax(
                 "Sheet1",
-                "Invalid Name",
+                new string('A', 256),
                 "EVALUATE 'SalesTable'",
                 "Z1"));
 
