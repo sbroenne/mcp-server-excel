@@ -293,20 +293,30 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                         }
 
                         // Open workbook with Excel COM
+                        Excel.Workbooks? workbooks = null;
                         try
                         {
                             BeforeWorkbookOpenHook?.Invoke(normalizedPath, _shutdownCts.Token);
                             _shutdownCts.Token.ThrowIfCancellationRequested();
+                            // The Excel PIA adds an LCID to Open, which makes Excel rewrite
+                            // locale-specific table column format definitions during a later save.
+                            // IDispatch preserves the workbook's native definitions.
+                            workbooks = tempExcel.Workbooks;
+                            dynamic workbooksDispatch = (dynamic)(object)workbooks;
                             wb = isIrm
                                 // ReadOnly=true prevents "exclusive access required" errors on IRM-encrypted files
-                                ? (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, UpdateLinks: 0, ReadOnly: true, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false)
+                                ? (Excel.Workbook)workbooksDispatch.Open(normalizedPath, UpdateLinks: 0, ReadOnly: true, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false)
                                 // Explicitly suppress link/update/read-only prompts so rapid reopen cycles fail fast instead of blocking hidden Excel.
-                                : (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, UpdateLinks: 0, ReadOnly: false, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
+                                : (Excel.Workbook)workbooksDispatch.Open(normalizedPath, UpdateLinks: 0, ReadOnly: false, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
                         }
                         catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
                         {
                             // Excel Error 1004 - File is already open or locked
                             throw FileAccessValidator.CreateFileLockedError(path, ex);
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref workbooks);
                         }
                     }
 

@@ -57,7 +57,9 @@ public static class ExcelShutdownService
             {
                 try
                 {
-                    workbook.Save();
+                    // The Excel PIA adds an LCID to Save, which can rewrite locale-specific
+                    // table column format definitions. IDispatch preserves those definitions.
+                    ((dynamic)(object)workbook).Save();
                     logger.LogDebug("Workbook {FileName} saved successfully", fileName);
                     return; // Success — exit method
                 }
@@ -70,6 +72,8 @@ public static class ExcelShutdownService
                         attempt, fileName, ex.HResult, saveRetryDelayMs * attempt);
                     Thread.Sleep(saveRetryDelayMs * attempt);
                 }
+
+
                 // Other COMException falls through to existing catch block below
             }
         }
@@ -317,5 +321,3 @@ public static class ExcelShutdownService
         }
     }
 }
-
-
