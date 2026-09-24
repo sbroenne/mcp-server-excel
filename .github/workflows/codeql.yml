@@ -22,8 +22,108 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Determines which language areas changed so pull_request runs only analyze
+  # the relevant CodeQL languages (e.g. a C#-only PR should not also pay for
+  # the javascript-typescript/python/actions matrix legs). Push to main,
+  # merge_group, schedule, and workflow_dispatch always analyze every language
+  # for full security coverage regardless of these filters.
+  changes:
+    name: Detect changed languages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      has-any: ${{ steps.matrix.outputs.has-any }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Filter changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          filters: |
+            csharp:
+              - 'src/**'
+              - 'tests/**'
+              - '**/*.csproj'
+              - '**/*.sln'
+              - 'global.json'
+              - 'Directory.Build.*'
+              - 'Directory.Packages.props'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+            javascript-typescript:
+              - 'vscode-extension/**'
+              - 'videos/**/*.mjs'
+              - 'videos/**/*.cjs'
+              - 'videos/**/*.js'
+              - 'gh-pages/**/*.js'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+            python:
+              - 'llm-tests/**'
+              - 'gh-pages/**/*.py'
+              - 'videos/**/*.py'
+              - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
+            actions:
+              - '.github/workflows/**'
+              - '.github/codeql/**'
+
+      - name: Build analysis matrix
+        id: matrix
+        shell: bash
+        env:
+          IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+          CSHARP: ${{ steps.filter.outputs.csharp }}
+          JAVASCRIPT_TYPESCRIPT: ${{ steps.filter.outputs['javascript-typescript'] }}
+          PYTHON: ${{ steps.filter.outputs.python }}
+          ACTIONS: ${{ steps.filter.outputs.actions }}
+        run: |
+          set -euo pipefail
+          # Trace the C# build so source-generated CLI, MCP, and Service code is scanned.
+          all='[
+            {"language":"csharp","os":"windows-latest","build-mode":"manual"},
+            {"language":"javascript-typescript","os":"ubuntu-latest","build-mode":"none"},
+            {"language":"python","os":"ubuntu-latest","build-mode":"none"},
+            {"language":"actions","os":"ubuntu-latest","build-mode":"none"}
+          ]'
+          if [ "$IS_PULL_REQUEST" = "true" ]; then
+            wanted='[]'
+            for language in csharp javascript-typescript python actions; do
+              case "$language" in
+                csharp) changed="${CSHARP:-}" ;;
+                javascript-typescript) changed="${JAVASCRIPT_TYPESCRIPT:-}" ;;
+                python) changed="${PYTHON:-}" ;;
+                actions) changed="${ACTIONS:-}" ;;
+              esac
+              if [ "$changed" = "true" ]; then
+                wanted=$(jq -c --arg language "$language" '. + [$language]' <<<"$wanted")
+              fi
+            done
+            include=$(jq -cn --argjson all "$all" --argjson wanted "$wanted" \
+              '[$all[] | select(.language as $l | $wanted | index($l))]')
+          else
+            include=$(jq -c . <<<"$all")
+          fi
+          matrix=$(jq -cn --argjson include "$include" '{include: $include}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [ "$(jq 'length' <<<"$include")" -gt 0 ]; then
+            echo "has-any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-any=false" >> "$GITHUB_OUTPUT"
+          fi
+
   analyze:
     name: Analyze Code with CodeQL (${{ matrix.language }})
+    needs: [ changes ]
+    if: ${{ needs.changes.outputs.has-any == 'true' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     permissions:
@@ -32,21 +132,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Trace the build so source-generated CLI, MCP, and Service code is scanned.
-          - language: csharp
-            os: windows-latest
-            build-mode: manual
-          - language: javascript-typescript
-            os: ubuntu-latest
-            build-mode: none
-          - language: python
-            os: ubuntu-latest
-            build-mode: none
-          - language: actions
-            os: ubuntu-latest
-            build-mode: none
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
     - name: Checkout repository
