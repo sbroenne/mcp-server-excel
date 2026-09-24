@@ -1,8 +1,12 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
+using ExcelListObjects = Microsoft.Office.Interop.Excel.ListObjects;
+using ExcelRange = Microsoft.Office.Interop.Excel.Range;
+using ExcelWorksheet = Microsoft.Office.Interop.Excel.Worksheet;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 
@@ -80,5 +84,218 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
         var info = _tableCommands.Read(batch, "DataTable");
         Assert.True(info.Success, $"Read after append failed: {info.ErrorMessage}");
         Assert.Equal(3, info.Table!.RowCount); // 1 original + 2 appended
+    }
+
+    /// <summary>
+    /// Regression test for issue #894:
+    /// Excel accepts localized non-ASCII table names such as 表1, so create must not
+    /// reject them before Excel can create the table.
+    /// </summary>
+    [Fact]
+    public void Create_WithNonAsciiTableName_CreatesReadableTable()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(Create_WithNonAsciiTableName_CreatesReadableTable),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? dataRange = null;
+            try
+            {
+                sheet = (ExcelWorksheet)ctx.Book.Worksheets[1];
+                sheet.Name = "Data";
+                dataRange = sheet.Range["A1:B2"];
+                dataRange.Value2 = new object[,]
+                {
+                    { "Name", "Value" },
+                    { "North", 100 },
+                };
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        _tableCommands.Create(batch, "Data", "表1", "A1:B2", true, "TableStyleLight1");
+
+        var info = _tableCommands.Read(batch, "表1");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.NotNull(info.Table);
+        Assert.Equal("表1", info.Table.Name);
+        Assert.Equal("Data", info.Table.SheetName);
+    }
+
+    /// <summary>
+    /// Regression test for failed Excel name assignment leaving behind the default
+    /// table created before Excel rejected the requested name.
+    /// </summary>
+    [Fact]
+    public void Create_WithExcelInvalidTableName_DoesNotLeaveDefaultTable()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(Create_WithExcelInvalidTableName_DoesNotLeaveDefaultTable),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? dataRange = null;
+            try
+            {
+                sheet = (ExcelWorksheet)ctx.Book.Worksheets[1];
+                sheet.Name = "Data";
+                dataRange = sheet.Range["A1:B2"];
+                dataRange.Value2 = new object[,]
+                {
+                    { "Name", "Value" },
+                    { "North", 100 },
+                };
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var beforeCount = GetWorksheetTableCount(batch, "Data");
+
+        Assert.ThrowsAny<Exception>(() =>
+            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", true, "TableStyleLight1"));
+
+        Assert.Equal(beforeCount, GetWorksheetTableCount(batch, "Data"));
+        var values = GetRangeValues(batch, "Data", "A1:B2");
+        Assert.Equal("Name", values[1, 1]);
+        Assert.Equal("Value", values[1, 2]);
+        Assert.Equal("North", values[2, 1]);
+        Assert.Equal(100, values[2, 2]);
+    }
+
+    /// <summary>
+    /// Regression test for issue #894:
+    /// Existing Excel-created localized table names must be readable and renamable
+    /// through the shared table commands.
+    /// </summary>
+    [Fact]
+    public void ReadAndRename_WithExistingNonAsciiTableName_Succeeds()
+    {
+        var testFile = CoreTestHelper.CreateUniqueTestFile(
+            nameof(TableCommandsTests_BugRegression),
+            nameof(ReadAndRename_WithExistingNonAsciiTableName_Succeeds),
+            _fixture.TempDir,
+            ".xlsx");
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? dataRange = null;
+            try
+            {
+                sheet = (ExcelWorksheet)ctx.Book.Worksheets[1];
+                sheet.Name = "Data";
+                dataRange = sheet.Range["A1:B2"];
+                dataRange.Value2 = new object[,]
+                {
+                    { "Name", "Value" },
+                    { "North", 100 },
+                };
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+        _tableCommands.Create(batch, "Data", "PlainTable", "A1:B2", true, "TableStyleLight1");
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? listObjects = null;
+            dynamic? table = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets[1];
+                listObjects = sheet.ListObjects;
+                table = listObjects.Item("PlainTable");
+                table.Name = "表1";
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var info = _tableCommands.Read(batch, "表1");
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.Equal("表1", info.Table!.Name);
+
+        _tableCommands.Rename(batch, "表1", "テーブル1");
+
+        var renamedInfo = _tableCommands.Read(batch, "テーブル1");
+        Assert.True(renamedInfo.Success, renamedInfo.ErrorMessage);
+        Assert.Equal("テーブル1", renamedInfo.Table!.Name);
+    }
+
+    private static int GetWorksheetTableCount(IExcelBatch batch, string sheetName)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelListObjects? listObjects = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                listObjects = sheet.ListObjects;
+                return listObjects.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
+    private static object[,] GetRangeValues(IExcelBatch batch, string sheetName, string rangeAddress)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? range = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                range = sheet.Range[rangeAddress];
+                return (object[,])range.Value2;
+            }
+            finally
+            {
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 }

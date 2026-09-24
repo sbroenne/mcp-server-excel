@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -7,58 +7,6 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 public partial class TableCommands : ITableCommands, ITableColumnCommands
 {
-    #region Constants and Validation
-
-    /// <summary>
-    /// Regex pattern for valid table names
-    /// </summary>
-    private static readonly Regex TableNameRegex = new(@"^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Maximum allowed table name length
-    /// </summary>
-    private const int MaxTableNameLength = 255;
-
-    /// <summary>
-    /// Validates a table name to prevent injection attacks and ensure Excel compatibility
-    /// </summary>
-    /// <param name="tableName">Table name to validate</param>
-    /// <exception cref="ArgumentException">Thrown if table name is invalid</exception>
-    private static void ValidateTableName(string tableName)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("Table name cannot be null or empty", nameof(tableName));
-        }
-
-        if (tableName.Length > MaxTableNameLength)
-        {
-            throw new ArgumentException(
-                $"Table name too long: {tableName.Length} characters (maximum: {MaxTableNameLength})",
-                nameof(tableName));
-        }
-
-        if (!TableNameRegex.IsMatch(tableName))
-        {
-            throw new ArgumentException(
-                $"Invalid table name '{tableName}'. Table names must start with a letter or underscore, " +
-                "and can only contain letters, numbers, and underscores (no spaces or special characters).",
-                nameof(tableName));
-        }
-
-        // Check for reserved names
-        string upperName = tableName.ToUpperInvariant();
-        if (upperName == "PRINT_AREA" || upperName == "PRINT_TITLES" ||
-            upperName == "_XLNM" || upperName.StartsWith("_XLNM.", StringComparison.Ordinal))
-        {
-            throw new ArgumentException(
-                $"Table name '{tableName}' is reserved by Excel",
-                nameof(tableName));
-        }
-    }
-
-    #endregion
-
     #region Helper Methods
 
     /// <summary>
@@ -81,7 +29,79 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     private static bool TableExists(dynamic workbook, string tableName)
         => CoreLookupHelpers.TableExists(workbook, tableName);
 
+    private static void SetCreatedTableNameOrRollback(
+        dynamic listObject,
+        string tableName,
+        dynamic? workbookConnection = null,
+        bool preserveSourceRange = false)
+    {
+        try
+        {
+            listObject.Name = tableName;
+        }
+        catch (Exception nameException)
+        {
+            var cleanupErrors = new List<Exception>();
+            TryRemoveCreatedTable(
+                listObject,
+                $"the default-named table created before Excel rejected '{tableName}'",
+                preserveSourceRange,
+                cleanupErrors);
+
+            if (workbookConnection != null)
+            {
+                TryDeleteCreatedObject(
+                    workbookConnection,
+                    $"the workbook connection created before Excel rejected '{tableName}'",
+                    cleanupErrors);
+            }
+
+            if (cleanupErrors.Count > 0)
+            {
+                cleanupErrors.Insert(0, nameException);
+                throw new InvalidOperationException(
+                    $"Excel rejected table name '{tableName}', and cleanup of created workbook objects failed.",
+                    new AggregateException(cleanupErrors));
+            }
+
+            throw;
+        }
+    }
+
+    private static void TryRemoveCreatedTable(
+        dynamic value,
+        string description,
+        bool preserveSourceRange,
+        List<Exception> cleanupErrors)
+    {
+        try
+        {
+            if (preserveSourceRange)
+            {
+                value.Unlist();
+            }
+            else
+            {
+                value.Delete();
+            }
+        }
+        catch (COMException ex)
+        {
+            cleanupErrors.Add(new InvalidOperationException($"Failed to remove {description}.", ex));
+        }
+    }
+
+    private static void TryDeleteCreatedObject(dynamic value, string description, List<Exception> cleanupErrors)
+    {
+        try
+        {
+            value.Delete();
+        }
+        catch (COMException ex)
+        {
+            cleanupErrors.Add(new InvalidOperationException($"Failed to delete {description}.", ex));
+        }
+    }
+
     #endregion
 }
-
-

@@ -18,9 +18,6 @@ public partial class TableCommands
         TableRegion region,
         string? columnName = null)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
-
         var result = new TableStructuredReferenceResult { FilePath = batch.WorkbookPath };
         return batch.Execute((ctx, ct) =>
         {
