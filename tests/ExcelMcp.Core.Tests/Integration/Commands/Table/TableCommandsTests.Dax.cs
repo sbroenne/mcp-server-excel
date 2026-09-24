@@ -1,7 +1,9 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
+using ExcelConnections = Microsoft.Office.Interop.Excel.Connections;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 
@@ -142,6 +144,30 @@ public class TableCommandsTests_Dax
         Assert.NotNull(readResult.Table?.Range);
         // Range should include C5
         Assert.Contains("C", readResult.Table!.Range, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Failed Excel name assignment must not leave the created default table or
+    /// model workbook connection in the open workbook.
+    /// </summary>
+    [Fact]
+    public void CreateFromDax_WithExcelInvalidTableName_DoesNotLeaveTableOrConnection()
+    {
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+
+        var beforeTables = _tableCommands.List(batch).Tables.Count;
+        var beforeConnections = GetWorkbookConnectionCount(batch);
+
+        Assert.ThrowsAny<Exception>(() =>
+            _tableCommands.CreateFromDax(
+                batch,
+                "Sheet1",
+                "Invalid Name",
+                "EVALUATE 'SalesTable'",
+                "Z1"));
+
+        Assert.Equal(beforeTables, _tableCommands.List(batch).Tables.Count);
+        Assert.Equal(beforeConnections, GetWorkbookConnectionCount(batch));
     }
 
     #endregion
@@ -340,8 +366,24 @@ public class TableCommandsTests_Dax
     }
 
     #endregion
-}
 
+    private static int GetWorkbookConnectionCount(IExcelBatch batch)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            ExcelConnections? connections = null;
+            try
+            {
+                connections = ctx.Book.Connections;
+                return connections.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref connections);
+            }
+        });
+    }
+}
 
 
 
