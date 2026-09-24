@@ -32,7 +32,8 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     private static void SetCreatedTableNameOrRollback(
         dynamic listObject,
         string tableName,
-        dynamic? workbookConnection = null)
+        dynamic? workbookConnection = null,
+        bool preserveSourceRange = false)
     {
         try
         {
@@ -41,9 +42,10 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
         catch (Exception nameException)
         {
             var cleanupErrors = new List<Exception>();
-            TryDeleteCreatedObject(
+            TryRemoveCreatedTable(
                 listObject,
                 $"the default-named table created before Excel rejected '{tableName}'",
+                preserveSourceRange,
                 cleanupErrors);
 
             if (workbookConnection != null)
@@ -63,6 +65,29 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
             }
 
             throw;
+        }
+    }
+
+    private static void TryRemoveCreatedTable(
+        dynamic value,
+        string description,
+        bool preserveSourceRange,
+        List<Exception> cleanupErrors)
+    {
+        try
+        {
+            if (preserveSourceRange)
+            {
+                value.Unlist();
+            }
+            else
+            {
+                value.Delete();
+            }
+        }
+        catch (COMException ex)
+        {
+            cleanupErrors.Add(new InvalidOperationException($"Failed to remove {description}.", ex));
         }
     }
 

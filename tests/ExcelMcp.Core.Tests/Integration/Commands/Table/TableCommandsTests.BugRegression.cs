@@ -175,9 +175,14 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
         var beforeCount = GetWorksheetTableCount(batch, "Data");
 
         Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.Create(batch, "Data", "Invalid Name", "A1:B2", true, "TableStyleLight1"));
+            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", true, "TableStyleLight1"));
 
         Assert.Equal(beforeCount, GetWorksheetTableCount(batch, "Data"));
+        var values = GetRangeValues(batch, "Data", "A1:B2");
+        Assert.Equal("Name", values[1, 1]);
+        Assert.Equal("Value", values[1, 2]);
+        Assert.Equal("North", values[2, 1]);
+        Assert.Equal(100, values[2, 2]);
     }
 
     /// <summary>
@@ -268,6 +273,27 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
             finally
             {
                 ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
+    private static object[,] GetRangeValues(IExcelBatch batch, string sheetName, string rangeAddress)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? range = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                range = sheet.Range[rangeAddress];
+                return (object[,])range.Value2;
+            }
+            finally
+            {
+                ComUtilities.Release(ref range);
                 ComUtilities.Release(ref sheet);
             }
         });

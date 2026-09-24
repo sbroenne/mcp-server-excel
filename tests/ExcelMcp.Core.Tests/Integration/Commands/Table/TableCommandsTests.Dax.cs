@@ -162,7 +162,7 @@ public class TableCommandsTests_Dax
             _tableCommands.CreateFromDax(
                 batch,
                 "Sheet1",
-                "Invalid Name",
+                new string('A', 256),
                 "EVALUATE 'SalesTable'",
                 "Z1"));
 
@@ -384,6 +384,5 @@ public class TableCommandsTests_Dax
         });
     }
 }
-
 
 
