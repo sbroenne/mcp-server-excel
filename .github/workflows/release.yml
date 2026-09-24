@@ -546,7 +546,8 @@ jobs:
         $version = $env:VERSION
         $nugetPackageId = "sbroenne.excelmcp.mcpserver"
         $nugetReadmeUrl = "https://api.nuget.org/v3-flatcontainer/$nugetPackageId/$version/readme"
-        $npmPackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
+        $npmLauncherPackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
+        $npmRuntimePackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-x64/$version"
 
         Write-Output "Waiting for NuGet and npm propagation..."
         $maxAttempts = 3
@@ -555,7 +556,8 @@ jobs:
         for ($i = 1; $i -le $maxAttempts; $i++) {
           Write-Output "Attempt $i of $maxAttempts..."
           $nugetReady = $false
-          $npmReady = $false
+          $npmLauncherReady = $false
+          $npmRuntimeReady = $false
 
           try {
             $response = Invoke-WebRequest -Uri $nugetReadmeUrl -UseBasicParsing -ErrorAction Stop
@@ -567,13 +569,21 @@ jobs:
           }
 
           try {
-            $npmPackage = Invoke-RestMethod -Uri $npmPackageUrl -ErrorAction Stop
-            $npmReady = $npmPackage.mcpName -eq "io.github.sbroenne/mcp-server-excel"
+            $npmLauncherPackage = Invoke-RestMethod -Uri $npmLauncherPackageUrl -ErrorAction Stop
+            $npmLauncherReady = $npmLauncherPackage.mcpName -eq "io.github.sbroenne/mcp-server-excel"
           } catch {
-            Write-Output "npm package not yet available"
+            Write-Output "npm launcher package not yet available"
           }
 
-          if ($nugetReady -and $npmReady) {
+          try {
+            $npmRuntimePackage = Invoke-RestMethod -Uri $npmRuntimePackageUrl -ErrorAction Stop
+            $npmRuntimeReady = $npmRuntimePackage.name -eq "@sbroenne/mcp-server-excel-win32-x64" -and
+              $npmRuntimePackage.version -eq $version
+          } catch {
+            Write-Output "npm runtime package not yet available"
+          }
+
+          if ($nugetReady -and $npmLauncherReady -and $npmRuntimeReady) {
             Write-Output "NuGet and npm metadata propagated successfully"
             break
           }
@@ -582,8 +592,11 @@ jobs:
             if (-not $nugetReady) {
               throw "NuGet package metadata did not propagate after $maxAttempts attempts."
             }
-            if (-not $npmReady) {
-              throw "npm package metadata did not propagate after $maxAttempts attempts."
+            if (-not $npmLauncherReady) {
+              throw "npm launcher package metadata did not propagate after $maxAttempts attempts."
+            }
+            if (-not $npmRuntimeReady) {
+              throw "npm runtime package metadata did not propagate after $maxAttempts attempts."
             }
           }
 

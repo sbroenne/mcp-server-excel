@@ -145,6 +145,7 @@ public sealed class ReleaseMetadataScriptTests
         var prepareRelease = ExtractWorkflowJob(releaseWorkflow, "prepare-release");
         var buildVsCode = ExtractWorkflowJob(releaseWorkflow, "build-vscode");
         var buildMcpb = ExtractWorkflowJob(releaseWorkflow, "build-mcpb");
+        var publishMcpRegistry = ExtractWorkflowJob(releaseWorkflow, "publish-mcp-registry");
         var createTag = ExtractWorkflowJob(releaseWorkflow, "create-tag");
         var createRelease = ExtractWorkflowJob(releaseWorkflow, "create-release");
 
@@ -176,6 +177,8 @@ public sealed class ReleaseMetadataScriptTests
             StringComparison.Ordinal);
         Assert.DoesNotContain("./scripts/Build-Changelog.ps1", createRelease, StringComparison.Ordinal);
         Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
+        Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$version", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$nugetReady -and $npmLauncherReady -and $npmRuntimeReady", publishMcpRegistry, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -334,6 +337,13 @@ public sealed class ReleaseMetadataScriptTests
                 Path.Combine(root, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
                 "packages",
                 "0",
+                "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(
+                Path.Combine(root, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
+                "packages",
+                "1",
                 "version"));
         Assert.Equal(
             expectedVersion,
