@@ -135,10 +135,11 @@ public static class ExcelSession
                     $"File path exceeds Excel's maximum length (~218 characters): {fullPath.Length} characters");
             }
 
+            // New workbooks are always saved as .xlsx or .xlsm; the legacy .xls format is not created.
             string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+            if (extension is not (".xlsx" or ".xlsm"))
             {
-                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+                throw new ArgumentException($"Invalid file extension '{extension}'. Only .xlsx and .xlsm are supported.");
             }
 
             string? directory = Path.GetDirectoryName(fullPath);
