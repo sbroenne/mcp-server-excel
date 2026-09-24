@@ -105,14 +105,17 @@ public sealed class PreCommitScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PreCommit")]
-    public void AdvertisedCounts_AreGeneratedOnlyByReleaseAutomation()
+    public void AdvertisedCounts_AreGeneratedOnlyByTheMainMergeWorkflow()
     {
         var hook = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
-        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+        var releaseWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+        var docCountsWorkflow = File.ReadAllText(
+            Path.Combine(RepoRoot, ".github", "workflows", "doc-counts.yml"));
 
         Assert.DoesNotContain("check-doc-counts.ps1", hook, StringComparison.Ordinal);
-        Assert.Contains("check-doc-counts.ps1 -Update -SkipBuild", workflow, StringComparison.Ordinal);
-        Assert.Contains("release-doc-counts.patch", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains("branches: [main]", docCountsWorkflow, StringComparison.Ordinal);
     }
 
     private static async Task<ScriptResult> RunHookAsync(

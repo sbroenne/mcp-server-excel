@@ -4,10 +4,14 @@
     Updates or validates tool/operation counts from the authoritative code-derived counts.
 
 .DESCRIPTION
-    Release automation uses -Update to refresh every managed headline. Development
-    CI uses -AllowStaleAdvertisedCounts so feature-section totals and the count
-    derivation remain guarded without requiring release-owned headlines to be
-    updated manually on feature branches.
+    A workflow that runs on every push to `main` uses -Update to compute the canonical
+    counts once and write them to the single generated include file `doc-counts.json`
+    (repo root) and to every managed headline claim. Nothing else derives or restates
+    these numbers: gh-pages, release notes, and every managed doc read `doc-counts.json`
+    or the headline text it wrote. Development CI (pull requests) uses
+    -AllowStaleAdvertisedCounts so feature-section totals and the count derivation
+    remain guarded without requiring `main`'s already-current headlines to be
+    re-updated on every feature branch.
 
     THE PROBLEM IT PREVENTS
     -----------------------
@@ -281,6 +285,33 @@ if ($Update) {
     foreach ($file in $updatedFiles) {
         Set-Content -LiteralPath (Join-Path $rootDir $file) -Value $documentContent[$file] -NoNewline -Encoding utf8
         Write-Host "Updated $file" -ForegroundColor Green
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 5a. Canonical generated include file - the ONE machine-readable place other
+# automation (gh-pages, release notes, third-party tooling) reads counts from,
+# instead of re-deriving them or parsing markdown headline text.
+# ---------------------------------------------------------------------------
+$docCountsFile = "doc-counts.json"
+$docCountsPath = Join-Path $rootDir $docCountsFile
+$docCountsJson = ([ordered]@{ tools = $canonicalTools; operations = $canonicalOps } | ConvertTo-Json) + "`n"
+
+if ($Update) {
+    $currentDocCounts = if (Test-Path -LiteralPath $docCountsPath) { Get-Content -LiteralPath $docCountsPath -Raw } else { $null }
+    if ($currentDocCounts -ne $docCountsJson) {
+        Set-Content -LiteralPath $docCountsPath -Value $docCountsJson -NoNewline -Encoding utf8
+        Write-Host "Updated $docCountsFile" -ForegroundColor Green
+    }
+} elseif (-not (Test-Path -LiteralPath $docCountsPath)) {
+    Add-Failure "$docCountsFile not found. It is the single generated include file every other count consumer reads; run this script with -Update to create it."
+} else {
+    $parsedDocCounts = $null
+    try { $parsedDocCounts = Get-Content -LiteralPath $docCountsPath -Raw | ConvertFrom-Json } catch { $parsedDocCounts = $null }
+    if (-not $parsedDocCounts -or $null -eq $parsedDocCounts.tools -or $null -eq $parsedDocCounts.operations) {
+        Add-Failure "$docCountsFile is malformed - expected a JSON object with 'tools' and 'operations' properties."
+    } elseif (([int]$parsedDocCounts.tools -ne $canonicalTools -or [int]$parsedDocCounts.operations -ne $canonicalOps) -and -not $AllowStaleAdvertisedCounts) {
+        Add-Failure ("{0}: reports {1} tools / {2} operations but the canonical count is {3} tools / {4} operations." -f $docCountsFile, $parsedDocCounts.tools, $parsedDocCounts.operations, $canonicalTools, $canonicalOps)
     }
 }
 

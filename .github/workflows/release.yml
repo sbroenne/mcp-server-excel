@@ -110,6 +110,10 @@ jobs:
   # =============================================================================
   # Job 1: Prepare generated release metadata before packaging
   # =============================================================================
+  # Advertised tool/operation counts are NOT generated here. The "Update
+  # Documentation Counts" workflow (.github/workflows/doc-counts.yml) keeps
+  # `main` current on every push, so every job below packages counts that are
+  # already correct straight from checkout.
   prepare-release:
     name: Prepare Release Metadata
     needs: [version]
@@ -121,11 +125,6 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
-
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
@@ -133,23 +132,6 @@ jobs:
 
     - name: Install changesets CLI
       run: npm ci
-
-    - name: Generate Advertised Tool and Operation Counts
-      shell: pwsh
-      run: |
-        dotnet restore Sbroenne.ExcelMcp.sln
-        dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore -p:NuGetAudit=false
-        & ./scripts/check-doc-counts.ps1 -Update -SkipBuild
-        if ($LASTEXITCODE -ne 0) {
-          throw "Could not generate documentation counts."
-        }
-
-        git diff --binary --output=release-doc-counts.patch
-        $updatedFiles = @(git diff --name-only)
-        [System.IO.File]::WriteAllLines(
-          (Join-Path $PWD "release-doc-count-files.txt"),
-          $updatedFiles,
-          [System.Text.UTF8Encoding]::new($false))
 
     - name: Compile changesets into CHANGELOG.md
       shell: pwsh
@@ -168,36 +150,19 @@ jobs:
           CHANGELOG.md
           release_notes_body.md
           release_date.txt
-          release-doc-counts.patch
-          release-doc-count-files.txt
 
   # =============================================================================
   # Job 2: Build CLI (standalone exe — primary + NuGet pack — secondary)
   # =============================================================================
   build-cli:
     name: CLI
-    needs: [version, prepare-release]
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
-
-    - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@v8
-      with:
-        name: release-metadata
-        path: prepared-release
-
-    - name: Apply Generated Documentation Counts
-      shell: pwsh
-      run: |
-        $patch = Get-Item "prepared-release/release-doc-counts.patch"
-        if ($patch.Length -gt 0) {
-          git apply --whitespace=nowarn $patch.FullName
-          if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-        }
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -269,28 +234,13 @@ jobs:
   # =============================================================================
   build-mcp-server:
     name: MCP Server
-    needs: [version, prepare-release]
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
-
-    - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@v8
-      with:
-        name: release-metadata
-        path: prepared-release
-
-    - name: Apply Generated Documentation Counts
-      shell: pwsh
-      run: |
-        $patch = Get-Item "prepared-release/release-doc-counts.patch"
-        if ($patch.Length -gt 0) {
-          git apply --whitespace=nowarn $patch.FullName
-          if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-        }
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -395,15 +345,6 @@ jobs:
         name: release-metadata
         path: prepared-release
 
-    - name: Apply Generated Documentation Counts
-      shell: pwsh
-      run: |
-        $patch = Get-Item "prepared-release/release-doc-counts.patch"
-        if ($patch.Length -gt 0) {
-          git apply --whitespace=nowarn $patch.FullName
-          if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-        }
-
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
@@ -478,15 +419,6 @@ jobs:
         name: release-metadata
         path: prepared-release
 
-    - name: Apply Generated Documentation Counts
-      shell: pwsh
-      run: |
-        $patch = Get-Item "prepared-release/release-doc-counts.patch"
-        if ($patch.Length -gt 0) {
-          git apply --whitespace=nowarn $patch.FullName
-          if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-        }
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
@@ -521,28 +453,13 @@ jobs:
   # =============================================================================
   build-agent-skills:
     name: Agent Skills
-    needs: [version, prepare-release]
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
-
-    - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@v8
-      with:
-        name: release-metadata
-        path: prepared-release
-
-    - name: Apply Generated Documentation Counts
-      shell: pwsh
-      run: |
-        $patch = Get-Item "prepared-release/release-doc-counts.patch"
-        if ($patch.Length -gt 0) {
-          git apply --whitespace=nowarn $patch.FullName
-          if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-        }
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -575,28 +492,13 @@ jobs:
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
-    needs: [version, prepare-release, create-tag, build-mcp-server]
+    needs: [version, create-tag, build-mcp-server]
     runs-on: windows-latest
     permissions:
       id-token: write
 
     steps:
     - uses: actions/checkout@v7
-
-    - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@v8
-      with:
-        name: release-metadata
-        path: prepared-release
-
-    - name: Apply Generated Documentation Counts
-      shell: pwsh
-      run: |
-        $patch = Get-Item "prepared-release/release-doc-counts.patch"
-        if ($patch.Length -gt 0) {
-          git apply --whitespace=nowarn $patch.FullName
-          if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-        }
 
     - name: Set Version
       run: |
@@ -690,12 +592,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $patch = Get-Item "prepared-release/release-doc-counts.patch"
-          if ($patch.Length -gt 0) {
-            git apply --whitespace=nowarn $patch.FullName
-            if ($LASTEXITCODE -ne 0) { throw "Could not apply generated documentation counts." }
-          }
-
           $releaseDate = Get-Content -Raw prepared-release/release_date.txt
           ./scripts/Build-Changelog.ps1 -Version "${{ needs.version.outputs.version }}" -Date $releaseDate
 
@@ -737,10 +633,6 @@ jobs:
           git add -A CHANGELOG.md package.json package-lock.json Directory.Build.props \
             mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json \
             vscode-extension/package.json vscode-extension/package-lock.json .changeset
-          while IFS= read -r path || [ -n "$path" ]; do
-            path=${path%$'\r'}
-            [ -z "$path" ] || git add -- "$path"
-          done < prepared-release/release-doc-count-files.txt
 
           if git diff --cached --quiet; then
             echo "No release metadata changes to commit; tagging main@$BASE_SHA."

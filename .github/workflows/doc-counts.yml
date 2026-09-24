@@ -1,0 +1,78 @@
+# Update Documentation Counts
+#
+# Generates the single canonical tool/operation counts from code and writes
+# them once: to `doc-counts.json` (the generated include file every other
+# consumer reads - gh-pages, release notes, packaging metadata) and to every
+# managed headline claim across the repository. Runs on every push to `main`
+# so counts are always current *before* release automation or the website
+# build reads them - neither one derives or restates these numbers itself.
+#
+# See scripts/check-doc-counts.ps1 for how the canonical counts are derived,
+# and docs/RELEASE-STRATEGY.md for how release automation consumes them.
+
+name: Update Documentation Counts
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: doc-counts-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update-doc-counts:
+    name: Generate documentation counts
+    # Guards against the commit this job pushes re-triggering itself in a loop.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Generate documentation counts
+        shell: pwsh
+        run: |
+          & ./scripts/check-doc-counts.ps1 -Update
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not generate documentation counts."
+          }
+
+      - name: Commit and push updated counts
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if (git diff --cached --quiet) {
+            Write-Host "Documentation counts already current; nothing to commit."
+            exit 0
+          }
+
+          $committed = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            if (-not $committed) {
+              git commit -m "chore: update documentation counts"
+              $committed = $true
+            }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -eq 0) {
+              exit 0
+            }
+
+            Write-Host "Push rejected (main advanced); rebasing and retrying (attempt $attempt)..."
+            git fetch origin main
+            git rebase origin/main
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not rebase generated documentation counts onto main."
+            }
+          }
+
+          throw "Could not push generated documentation counts to main after 3 attempts."

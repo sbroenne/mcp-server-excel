@@ -184,46 +184,21 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
-    public void ReleaseFlow_EveryConsumerAppliesGeneratedCounts()
+    public void ReleaseFlow_DoesNotGenerateOrPatchDocumentationCounts()
     {
         var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
-        var jobs = ExtractWorkflowJobs(releaseWorkflow);
 
-        var expectedConsumers = new[]
-        {
-            "build-cli",
-            "build-mcp-server",
-            "build-vscode",
-            "build-mcpb",
-            "build-agent-skills",
-            "publish-mcp-registry",
-            "create-tag"
-        };
+        Assert.DoesNotContain("check-doc-counts.ps1", releaseWorkflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("release-doc-counts.patch", releaseWorkflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Apply Generated Documentation Counts", releaseWorkflow, StringComparison.Ordinal);
 
-        Assert.Contains("release-doc-counts.patch", jobs["prepare-release"], StringComparison.Ordinal);
+        var docCountsWorkflow = File.ReadAllText(
+            Path.Combine(RepoRoot, ".github", "workflows", "doc-counts.yml"));
 
-        var actualConsumers = jobs
-            .Where(job => job.Key != "prepare-release"
-                && job.Value.Contains("release-doc-counts.patch", StringComparison.Ordinal))
-            .Select(job => job.Key)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(
-            expectedConsumers.OrderBy(name => name, StringComparer.Ordinal).ToArray(),
-            actualConsumers);
-
-        foreach (var consumer in expectedConsumers)
-        {
-            var job = jobs[consumer];
-            Assert.Contains("prepare-release", job, StringComparison.Ordinal);
-            Assert.Contains("name: release-metadata", job, StringComparison.Ordinal);
-            Assert.Contains("path: prepared-release", job, StringComparison.Ordinal);
-            Assert.Contains(
-                "git apply --whitespace=nowarn $patch.FullName",
-                job,
-                StringComparison.Ordinal);
-        }
+        Assert.Contains("branches: [main]", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains("contents: write", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains("git push origin HEAD:main", docCountsWorkflow, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -277,6 +252,11 @@ public sealed class ReleaseMetadataScriptTests
                 @"exposing \d+ tools and \d+ operations",
                 hooksContent);
 
+            var docCountsPath = Path.Combine(sandbox, "doc-counts.json");
+            Assert.True(File.Exists(docCountsPath), "-Update must generate the single doc-counts.json include file.");
+            Assert.Equal(canonicalTools, ReadJsonInt(docCountsPath, "tools"));
+            Assert.Equal(canonicalOperations, ReadJsonInt(docCountsPath, "operations"));
+
             var validation = await RunPowerShellScriptAsync(
                 Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
                 ["-SkipBuild"],
@@ -305,6 +285,38 @@ public sealed class ReleaseMetadataScriptTests
                 ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
                 sandbox);
             Assert.True(allowStale.ExitCode == 0, allowStale.CombinedOutput);
+
+            // Restore the README headline, then make doc-counts.json itself stale to
+            // prove it is validated (and regenerated) independently of the headline text.
+            await File.WriteAllTextAsync(
+                readmePath,
+                (await File.ReadAllTextAsync(readmePath))
+                    .Replace(
+                        "1 tools with 2 operations",
+                        $"{canonicalTools} tools with {canonicalOperations} operations",
+                        StringComparison.Ordinal));
+            await File.WriteAllTextAsync(docCountsPath, "{\n  \"tools\": 1,\n  \"operations\": 2\n}\n");
+
+            var staleDocCounts = await RunPowerShellScriptAsync(
+                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
+                ["-SkipBuild"],
+                sandbox);
+            Assert.NotEqual(0, staleDocCounts.ExitCode);
+            Assert.Contains("doc-counts.json", staleDocCounts.CombinedOutput, StringComparison.Ordinal);
+
+            var allowStaleDocCounts = await RunPowerShellScriptAsync(
+                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
+                ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
+                sandbox);
+            Assert.True(allowStaleDocCounts.ExitCode == 0, allowStaleDocCounts.CombinedOutput);
+
+            var regenerate = await RunPowerShellScriptAsync(
+                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
+                ["-Update", "-SkipBuild"],
+                sandbox);
+            Assert.True(regenerate.ExitCode == 0, regenerate.CombinedOutput);
+            Assert.Equal(canonicalTools, ReadJsonInt(docCountsPath, "tools"));
+            Assert.Equal(canonicalOperations, ReadJsonInt(docCountsPath, "operations"));
 
             var incompatible = await RunPowerShellScriptAsync(
                 Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
@@ -564,24 +576,10 @@ public sealed class ReleaseMetadataScriptTests
         return element.GetString()!;
     }
 
-    private static Dictionary<string, string> ExtractWorkflowJobs(string workflow)
+    private static int ReadJsonInt(string path, string propertyName)
     {
-        var normalized = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
-        var jobsMarker = "\njobs:\n";
-        var jobsStart = normalized.IndexOf(jobsMarker, StringComparison.Ordinal);
-        Assert.True(jobsStart >= 0, "The workflow does not declare any jobs.");
-
-        var jobNames = System.Text.RegularExpressions.Regex
-            .Matches(normalized[jobsStart..], @"(?m)^  (?<name>[A-Za-z0-9_-]+):$")
-            .Select(match => match.Groups["name"].Value)
-            .ToArray();
-
-        Assert.NotEmpty(jobNames);
-
-        return jobNames.ToDictionary(
-            name => name,
-            name => ExtractWorkflowJob(normalized, name),
-            StringComparer.Ordinal);
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        return document.RootElement.GetProperty(propertyName).GetInt32();
     }
 
     private static string ExtractWorkflowJob(string workflow, string jobName)

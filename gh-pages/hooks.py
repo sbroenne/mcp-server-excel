@@ -297,13 +297,15 @@ def _read(rel: str) -> str:
 
 
 def _read_release_headline_counts() -> tuple[int, int]:
-    headline = re.search(
-        r"\*\*(?P<tools>\d+) specialized tools with (?P<operations>\d+) operations",
-        _read("FEATURES.md"),
-    )
-    if headline is None:
-        raise RuntimeError("could not read the advertised counts from FEATURES.md")
-    return int(headline.group("tools")), int(headline.group("operations"))
+    """Read the canonical tool/operation totals from the single generated include file.
+
+    ``doc-counts.json`` (repo root) is written once, by ``scripts/check-doc-counts.ps1
+    -Update``, from a workflow that runs on every push to ``main``. Every other count
+    consumer -- this site, release notes, packaging metadata -- reads that one file
+    instead of separately deriving or parsing the totals from markdown headline text.
+    """
+    counts = json.loads(_read("doc-counts.json"))
+    return int(counts["tools"]), int(counts["operations"])
 
 
 def _write(name: str, source_rel: str, content: str) -> None:
@@ -1426,8 +1428,8 @@ def _write_tools_json(config) -> None:
     """Emit /tools.json: every tool and operation as structured JSON.
 
     The machine-readable catalogue and operation total are derived from the
-    canonical ``docs/features/*.md`` references. The tool total follows the
-    release-owned ``FEATURES.md`` headline.
+    canonical ``docs/features/*.md`` references. The tool total comes from the
+    single generated ``doc-counts.json`` include file.
     """
     heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
     operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
