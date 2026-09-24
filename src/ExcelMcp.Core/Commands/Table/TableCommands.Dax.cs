@@ -74,9 +74,6 @@ public partial class TableCommands
         {
             throw new ArgumentException("tableName is required for create-from-dax action", nameof(tableName));
         }
-
-        ValidateTableName(tableName);
-
         if (string.IsNullOrWhiteSpace(daxQuery))
         {
             throw new ArgumentException("daxQuery is required for create-from-dax action", nameof(daxQuery));
@@ -214,9 +211,6 @@ public partial class TableCommands
         {
             throw new ArgumentException("tableName is required for update-dax action", nameof(tableName));
         }
-
-        ValidateTableName(tableName);
-
         if (string.IsNullOrWhiteSpace(daxQuery))
         {
             throw new ArgumentException("daxQuery is required for update-dax action", nameof(daxQuery));
@@ -309,9 +303,6 @@ public partial class TableCommands
         {
             throw new ArgumentException("tableName is required for get-dax action", nameof(tableName));
         }
-
-        ValidateTableName(tableName);
-
         var result = new TableDaxInfoResult
         {
             FilePath = batch.WorkbookPath,
