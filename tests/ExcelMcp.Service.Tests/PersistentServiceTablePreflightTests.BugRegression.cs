@@ -54,12 +54,14 @@ public sealed partial class PersistentServiceTablePreflightTests
 
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
+            Excel.Sheets? sheets = null;
             Excel.Worksheet? sheet = null;
             Excel.ListObjects? tables = null;
             Excel.ListObject? table = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[sheetName];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
                 tables = sheet.ListObjects;
                 table = tables["PlainTable"];
                 table.TableStyle = "";
@@ -69,6 +71,7 @@ public sealed partial class PersistentServiceTablePreflightTests
                 ComUtilities.Release(ref table);
                 ComUtilities.Release(ref tables);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
 
