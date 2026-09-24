@@ -109,6 +109,21 @@ public sealed partial class PersistentServiceTablePreflightTests
     }
 
     [Fact]
+    public void Create_WithExcelInvalidTableName_DoesNotLeaveDefaultTable()
+    {
+        var batch = _fixture.BatchToken;
+        _fixture.CreateNamedTestSheet(batch, "Data");
+        _rangeCommands.SetValues(
+            batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
+        var beforeCount = GetWorksheetTableCount("Data");
+
+        Assert.ThrowsAny<Exception>(() =>
+            _tableCommands.Create(batch, "Data", "Invalid Name", "A1:B2", true, "TableStyleLight1"));
+
+        Assert.Equal(beforeCount, GetWorksheetTableCount("Data"));
+    }
+
+    [Fact]
     public void ReadAndRename_WithExistingNonAsciiTableName_Succeeds()
     {
         var batch = _fixture.BatchToken;
@@ -150,5 +165,26 @@ public sealed partial class PersistentServiceTablePreflightTests
         var renamedInfo = _tableCommands.Read(batch, "テーブル1");
         Assert.True(renamedInfo.Success, renamedInfo.ErrorMessage);
         Assert.Equal("テーブル1", renamedInfo.Table!.Name);
+    }
+
+    private int GetWorksheetTableCount(string sheetName)
+    {
+        return _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelListObjects? listObjects = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
+                listObjects = sheet.ListObjects;
+                return listObjects.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 }

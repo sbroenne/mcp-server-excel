@@ -1,6 +1,8 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using ExcelConnections = Microsoft.Office.Interop.Excel.Connections;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -134,6 +136,32 @@ public class PersistentServiceTableDaxTests(
         Assert.NotNull(readResult.Table?.Range);
         // Range should include C5
         Assert.Contains("C", readResult.Table!.Range, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Failed Excel name assignment must not leave the created default table or
+    /// model workbook connection in the open workbook.
+    /// </summary>
+    [Fact]
+    public void CreateFromDax_WithExcelInvalidTableName_DoesNotLeaveTableOrConnection()
+    {
+        var batch = _fixture.BatchToken;
+
+        var beforeTables = _tableCommands.List(batch);
+        Assert.True(beforeTables.Success, beforeTables.ErrorMessage);
+        var beforeConnections = GetWorkbookConnectionCount();
+
+        Assert.ThrowsAny<Exception>(() =>
+            CreateFromDax(
+                "Sheet1",
+                "Invalid Name",
+                "EVALUATE 'SalesTable'",
+                "Z1"));
+
+        var afterTables = _tableCommands.List(batch);
+        Assert.True(afterTables.Success, afterTables.ErrorMessage);
+        Assert.Equal(beforeTables.Tables.Count, afterTables.Tables.Count);
+        Assert.Equal(beforeConnections, GetWorkbookConnectionCount());
     }
 
     #endregion
@@ -358,4 +386,21 @@ public class PersistentServiceTableDaxTests(
     }
 
     #endregion
+
+    private int GetWorkbookConnectionCount()
+    {
+        return _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            ExcelConnections? connections = null;
+            try
+            {
+                connections = ctx.Book.Connections;
+                return connections.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref connections);
+            }
+        });
+    }
 }

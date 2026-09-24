@@ -177,7 +177,7 @@ public partial class TableCommands
                 int headerOption = hasHeaders ? xlYes : xlGuess;
 
                 newTable = listObjects.Add(xlSrcRange, rangeObj, null, headerOption);
-                newTable.Name = tableName;
+                SetCreatedTableNameOrRollback(newTable, tableName);
 
                 // Apply table style if specified
                 if (!string.IsNullOrWhiteSpace(tableStyle))
