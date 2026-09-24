@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       has-any: ${{ steps.matrix.outputs.has-any }}
