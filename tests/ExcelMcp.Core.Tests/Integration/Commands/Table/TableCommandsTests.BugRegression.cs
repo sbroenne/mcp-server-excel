@@ -4,6 +4,8 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
+using ExcelRange = Microsoft.Office.Interop.Excel.Range;
+using ExcelWorksheet = Microsoft.Office.Interop.Excel.Worksheet;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 
@@ -101,13 +103,25 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            sheet.Name = "Data";
-            sheet.Range["A1"].Value2 = "Name";
-            sheet.Range["B1"].Value2 = "Value";
-            sheet.Range["A2"].Value2 = "North";
-            sheet.Range["B2"].Value2 = 100;
-            return 0;
+            ExcelWorksheet? sheet = null;
+            ExcelRange? dataRange = null;
+            try
+            {
+                sheet = (ExcelWorksheet)ctx.Book.Worksheets[1];
+                sheet.Name = "Data";
+                dataRange = sheet.Range["A1:B2"];
+                dataRange.Value2 = new object[,]
+                {
+                    { "Name", "Value" },
+                    { "North", 100 },
+                };
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
         });
 
         _tableCommands.Create(batch, "Data", "表1", "A1:B2", true, "TableStyleLight1");
@@ -137,13 +151,25 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            sheet.Name = "Data";
-            sheet.Range["A1"].Value2 = "Name";
-            sheet.Range["B1"].Value2 = "Value";
-            sheet.Range["A2"].Value2 = "North";
-            sheet.Range["B2"].Value2 = 100;
-            return 0;
+            ExcelWorksheet? sheet = null;
+            ExcelRange? dataRange = null;
+            try
+            {
+                sheet = (ExcelWorksheet)ctx.Book.Worksheets[1];
+                sheet.Name = "Data";
+                dataRange = sheet.Range["A1:B2"];
+                dataRange.Value2 = new object[,]
+                {
+                    { "Name", "Value" },
+                    { "North", 100 },
+                };
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
         });
         _tableCommands.Create(batch, "Data", "PlainTable", "A1:B2", true, "TableStyleLight1");
 
