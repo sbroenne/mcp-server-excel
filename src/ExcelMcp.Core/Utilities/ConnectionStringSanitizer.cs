@@ -17,6 +17,6 @@ internal static partial class ConnectionStringSanitizer
         return CredentialPattern().Replace(connectionString, "$1=(redacted)");
     }
 
-    [GeneratedRegex(@"\b(password|pwd|user\s+id|uid)\s*=\s*(?:""(?:[^""]|"""")*""|'(?:[^']|'')*'|\{(?:[^}]|}})*\}|[^;]*)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(password|passwd|pwd|user\s*id|uid|user\s*name|user|account\s*key|shared\s*access\s*signature|client\s*secret|secret|api\s*key|access\s*token|token)\s*=\s*(?:""(?:[^""]|"""")*""|'(?:[^']|'')*'|\{(?:[^}]|}})*\}|[^;]*)", RegexOptions.IgnoreCase)]
     private static partial Regex CredentialPattern();
 }

@@ -98,14 +98,15 @@ internal static class ConnectionRefreshHelpers
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Synchronous refresh needs inbound Excel callbacks; do not use EnterLongOperation.
-        OleMessageFilter.SetPendingCancellationToken(cancellationToken);
+        // Restore the enclosing batch operation token so later polling/cancellation calls stay cancellable.
+        var previousToken = OleMessageFilter.ExchangePendingCancellationToken(cancellationToken);
         try
         {
             refresh();
         }
         finally
         {
-            OleMessageFilter.ClearPendingCancellationToken();
+            OleMessageFilter.ExchangePendingCancellationToken(previousToken);
         }
     }
 

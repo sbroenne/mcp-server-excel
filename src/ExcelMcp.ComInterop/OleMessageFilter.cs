@@ -118,15 +118,18 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
             int result = CoRegisterMessageFilter(_oldFilterPtr, out revokedFilterPtr);
             if (result != 0)
             {
+                // The saved filter is still needed for a retry, so keep it referenced and registered.
                 throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{result:X8}");
             }
+
+            // Only drop the saved filter reference once it has been restored successfully.
+            if (_oldFilterPtr != 0) Marshal.Release(_oldFilterPtr);
+            _oldFilterPtr = 0;
+            _isRegistered = false;
         }
         finally
         {
             if (revokedFilterPtr != 0) Marshal.Release(revokedFilterPtr);
-            if (_oldFilterPtr != 0) Marshal.Release(_oldFilterPtr);
-            _oldFilterPtr = 0;
-            _isRegistered = false;
         }
     }
 
@@ -177,6 +180,17 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     public static void SetPendingCancellationToken(CancellationToken token)
     {
         _pendingCancellationToken = token;
+    }
+
+    /// <summary>
+    /// Installs a pending cancellation token and returns the token it replaced.
+    /// Use when a nested scope must restore the enclosing operation's token instead of clearing it.
+    /// </summary>
+    public static CancellationToken ExchangePendingCancellationToken(CancellationToken token)
+    {
+        var previous = _pendingCancellationToken;
+        _pendingCancellationToken = token;
+        return previous;
     }
 
     /// <summary>
