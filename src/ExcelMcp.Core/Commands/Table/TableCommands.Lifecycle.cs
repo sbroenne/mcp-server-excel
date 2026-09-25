@@ -36,17 +36,24 @@ public partial class TableCommands
                             dynamic? table = null;
                             dynamic? headerRowRange = null;
                             dynamic? dataBodyRange = null;
+                            dynamic? tableRange = null;
+                            dynamic? tableStyle = null;
+                            dynamic? tableColumns = null;
+                            dynamic? dataRows = null;
                             try
                             {
                                 table = listObjects.Item(j);
                                 string tableName = table.Name;
-                                string rangeAddress = table.Range.Address;
+                                tableRange = table.Range;
+                                string rangeAddress = tableRange.Address;
                                 bool showHeaders = table.ShowHeaders;
                                 bool showTotals = table.ShowTotals;
-                                string tableStyleName = table.TableStyle?.Name ?? "";
+                                tableStyle = table.TableStyle;
+                                string tableStyleName = tableStyle?.Name ?? "";
 
                                 // Get column count and names
-                                int columnCount = table.ListColumns.Count;
+                                tableColumns = table.ListColumns;
+                                int columnCount = tableColumns.Count;
                                 var columns = new List<string>();
 
                                 if (showHeaders)
@@ -83,11 +90,13 @@ public partial class TableCommands
                                     dataBodyRange = table.DataBodyRange;
                                     if (dataBodyRange != null)
                                     {
-                                        rowCount = dataBodyRange.Rows.Count;
+                                        dataRows = dataBodyRange.Rows;
+                                        rowCount = dataRows.Count;
                                     }
                                 }
                                 finally
                                 {
+                                    ComUtilities.Release(ref dataRows);
                                     ComUtilities.Release(ref dataBodyRange);
                                 }
 
@@ -106,6 +115,9 @@ public partial class TableCommands
                             }
                             finally
                             {
+                                ComUtilities.Release(ref tableColumns);
+                                ComUtilities.Release(ref tableStyle);
+                                ComUtilities.Release(ref tableRange);
                                 ComUtilities.Release(ref headerRowRange);
                                 ComUtilities.Release(ref table);
                             }
@@ -281,19 +293,26 @@ public partial class TableCommands
             dynamic? sheet = null;
             dynamic? dataBodyRange = null;
             dynamic? headerRowRange = null;
+            dynamic? tableRange = null;
+            dynamic? tableStyle = null;
+            dynamic? tableColumns = null;
+            dynamic? dataRows = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
 
                 sheet = table.Parent;
                 string sheetName = sheet.Name;
-                string rangeAddress = table.Range.Address;
+                tableRange = table.Range;
+                string rangeAddress = tableRange.Address;
                 bool showHeaders = table.ShowHeaders;
                 bool showTotals = table.ShowTotals;
-                string tableStyleName = table.TableStyle?.Name ?? "";
+                tableStyle = table.TableStyle;
+                string tableStyleName = tableStyle?.Name ?? "";
 
                 // Get column count and names
-                int columnCount = table.ListColumns.Count;
+                tableColumns = table.ListColumns;
+                int columnCount = tableColumns.Count;
                 var columns = new List<string>();
 
                 if (showHeaders)
@@ -330,11 +349,13 @@ public partial class TableCommands
                     dataBodyRange = table.DataBodyRange;
                     if (dataBodyRange != null)
                     {
-                        rowCount = dataBodyRange.Rows.Count;
+                        dataRows = dataBodyRange.Rows;
+                        rowCount = dataRows.Count;
                     }
                 }
                 finally
                 {
+                    ComUtilities.Release(ref dataRows);
                     ComUtilities.Release(ref dataBodyRange);
                 }
 
@@ -356,6 +377,9 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref tableColumns);
+                ComUtilities.Release(ref tableStyle);
+                ComUtilities.Release(ref tableRange);
                 ComUtilities.Release(ref headerRowRange);
                 ComUtilities.Release(ref dataBodyRange);
                 ComUtilities.Release(ref sheet);
@@ -364,4 +388,3 @@ public partial class TableCommands
         });
     }
 }
-

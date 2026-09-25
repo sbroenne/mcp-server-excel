@@ -1,11 +1,10 @@
-using System.Runtime.InteropServices;
 using System.Text.Json;
-using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -87,40 +86,44 @@ public partial class ConnectionCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                if (conn == null)
+                {
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                }
+
+                result.Type = ConnectionHelpers.GetConnectionTypeName((int)conn.Type);
+                result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
+
+                result.ConnectionString = ConnectionStringSanitizer.Sanitize(GetConnectionString(conn)) ?? "";
+
+                // Get command text and type
+                result.CommandText = GetCommandText(conn);
+                result.CommandType = GetCommandType(conn);
+
+                // Build comprehensive JSON definition
+                var definition = new
+                {
+                    Name = connectionName,
+                    Type = result.Type,
+                    Description = conn.Description?.ToString() ?? "",
+                    IsPowerQuery = result.IsPowerQuery,
+                    ConnectionString = result.ConnectionString,
+                    CommandText = result.CommandText,
+                    CommandType = result.CommandType,
+                    Properties = GetConnectionProperties(conn)
+                };
+
+                result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
+
+                result.Success = true;
+                return result;
             }
-
-            result.Type = ConnectionHelpers.GetConnectionTypeName((int)conn.Type);
-            result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
-
-            // Get connection string (raw for LLM usage - sanitization removed)
-            string? rawConnectionString = GetConnectionString(conn);
-            result.ConnectionString = rawConnectionString ?? "";
-
-            // Get command text and type
-            result.CommandText = GetCommandText(conn);
-            result.CommandType = GetCommandType(conn);
-
-            // Build comprehensive JSON definition
-            var definition = new
+            finally
             {
-                Name = connectionName,
-                Type = result.Type,
-                Description = conn.Description?.ToString() ?? "",
-                IsPowerQuery = result.IsPowerQuery,
-                ConnectionString = result.ConnectionString,
-                CommandText = result.CommandText,
-                CommandType = result.CommandType,
-                Properties = GetConnectionProperties(conn)
-            };
-
-            result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
-
-            result.Success = true;
-            return result;
+                ComUtilities.Release(ref conn);
+            }
         });
     }
 
@@ -168,151 +171,37 @@ public partial class ConnectionCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
-            }
-
-            // Check if this is a Power Query connection (handle separately)
-            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-            {
-                // Check if this is an orphaned Power Query connection
-                if (PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
+                if (conn == null)
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' is an orphaned Power Query connection with no corresponding query. Use connection 'delete' to remove it.");
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
                 }
-                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery 'refresh' instead.");
-            }
 
-            RefreshWorkbookConnection(conn, ct);
-            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                // Check if this is a Power Query connection (handle separately)
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
+                {
+                    // Check if this is an orphaned Power Query connection
+                    if (PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
+                    {
+                        throw new InvalidOperationException($"Connection '{connectionName}' is an orphaned Power Query connection with no corresponding query. Use connection 'delete' to remove it.");
+                    }
+                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery 'refresh' instead.");
+                }
+
+                RefreshWorkbookConnection(conn, ct);
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            }
+            finally
+            {
+                ComUtilities.Release(ref conn);
+            }
         }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
     }
 
     private static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
-        dynamic? subConnection = null;
-        bool originalBackgroundQuery = false;
-        bool canRestoreBackgroundQuery = false;
-        bool supportsRefreshing = false;
-
-        try
-        {
-            try
-            {
-                subConnection = GetTypedSubConnection(connection);
-                if (subConnection != null)
-                {
-                    originalBackgroundQuery = subConnection.BackgroundQuery;
-                    canRestoreBackgroundQuery = true;
-
-                    // CRITICAL: Force BackgroundQuery = false to ensure synchronous refresh.
-                    //
-                    // With BackgroundQuery = true (async), connection.Refresh() returns immediately
-                    // while Excel processes the query in a background thread. We then poll
-                    // connection.Refreshing with Thread.Sleep(5000). On STA threads with the
-                    // OleMessageFilter registered, COM events from Excel during the background refresh
-                    // cause Thread.Sleep to return via MsgWaitForMultipleObjectsEx — turning the
-                    // polling loop into a 100% CPU spin for the entire duration of the refresh.
-                    //
-                    // With BackgroundQuery = false (synchronous), connection.Refresh() blocks the
-                    // STA thread until done. connection.Refreshing is false when it returns, so
-                    // WaitForConnectionRefreshCompletion exits immediately with zero CPU overhead.
-                    subConnection.BackgroundQuery = false;
-                }
-            }
-            catch (COMException)
-            {
-                // Provider doesn't support BackgroundQuery — proceed with default behavior.
-            }
-            catch (RuntimeBinderException)
-            {
-                // Sub-connection doesn't expose BackgroundQuery — proceed with default behavior.
-            }
-
-            // Do NOT use EnterLongOperation here. Like Power Query refresh, synchronous
-            // connection.Refresh() can require inbound Excel/provider callbacks to complete.
-            // Rejecting those callbacks can deadlock the refresh.
-            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
-            try
-            {
-                connection.Refresh();
-            }
-            finally
-            {
-                OleMessageFilter.ClearPendingCancellationToken();
-            }
-
-            try
-            {
-                // PIA gap: WorkbookConnection.Refreshing is not in Microsoft.Office.Interop.Excel.
-                _ = ((dynamic)connection).Refreshing;
-                supportsRefreshing = true;
-            }
-            catch (COMException)
-            {
-                supportsRefreshing = false;
-            }
-            catch (RuntimeBinderException)
-            {
-                supportsRefreshing = false;
-            }
-
-            if (supportsRefreshing)
-            {
-                WaitForConnectionRefreshCompletion(
-                    () =>
-                    {
-                        try
-                        {
-                            // PIA gap: WorkbookConnection.Refreshing is not in Microsoft.Office.Interop.Excel.
-                            return ((dynamic)connection).Refreshing;
-                        }
-                        catch (COMException)
-                        {
-                            return false;
-                        }
-                        catch (RuntimeBinderException)
-                        {
-                            return false;
-                        }
-                    },
-                    () =>
-                    {
-                        try
-                        {
-                            // PIA gap: WorkbookConnection.CancelRefresh is not in Microsoft.Office.Interop.Excel.
-                            ((dynamic)connection).CancelRefresh();
-                        }
-                        catch (COMException)
-                        {
-                            // Provider does not support cancellation.
-                        }
-                        catch (RuntimeBinderException)
-                        {
-                            // Provider does not expose cancellation.
-                        }
-                    },
-                    cancellationToken);
-            }
-        }
-        finally
-        {
-            if (canRestoreBackgroundQuery && subConnection != null)
-            {
-                try
-                {
-                    subConnection.BackgroundQuery = originalBackgroundQuery;
-                }
-                catch (COMException)
-                {
-                    // Ignore inability to restore provider-specific setting.
-                }
-            }
-
-            ComUtilities.Release(ref subConnection);
-        }
+        ConnectionRefreshHelpers.RefreshWorkbookConnection(connection, cancellationToken, WaitForConnectionRefreshCompletion);
     }
 
     private static void WaitForConnectionRefreshCompletion(
@@ -326,6 +215,7 @@ public partial class ConnectionCommands
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!isRefreshing())
                 return;
 
@@ -340,6 +230,7 @@ public partial class ConnectionCommands
                 if (!isRefreshing())
                     break;
             }
+            cancellationToken.ThrowIfCancellationRequested();
         }
         catch (OperationCanceledException)
         {

@@ -23,16 +23,23 @@ public static class RangeHelpers
         // Named range (empty sheetName)
         if (string.IsNullOrEmpty(sheetName))
         {
+            dynamic? names = null;
+            dynamic? name = null;
             try
             {
-                dynamic names = book.Names;
-                dynamic name = names.Item(rangeAddress);
+                names = book.Names;
+                name = names.Item(rangeAddress);
                 return name.RefersToRange;
             }
             catch (System.Runtime.InteropServices.COMException)
             {
                 specificError = $"Named range '{rangeAddress}' not found.";
                 return null;
+            }
+            finally
+            {
+                ComUtilities.Release(ref name);
+                ComUtilities.Release(ref names);
             }
         }
 
@@ -241,4 +248,3 @@ public partial class RangeCommands
         });
     }
 }
-

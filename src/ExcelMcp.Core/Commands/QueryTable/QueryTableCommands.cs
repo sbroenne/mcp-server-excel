@@ -153,7 +153,7 @@ public sealed class QueryTableCommands : IQueryTableCommands
                 queryTable.TextFileTextQualifier = ParseTextQualifier(textQualifier);
                 SetTextDelimiter(queryTable, delimiter[0]);
                 queryTable.BackgroundQuery = false;
-                queryTable.Refresh(false);
+                ConnectionRefreshHelpers.EnsureQueryTableRefreshSucceeded(queryTable.Refresh(false));
                 return Success(batch.WorkbookPath, "create-text");
             }
             finally
@@ -215,7 +215,7 @@ public sealed class QueryTableCommands : IQueryTableCommands
                 }
 
                 queryTable.BackgroundQuery = false;
-                queryTable.Refresh(false);
+                ConnectionRefreshHelpers.EnsureQueryTableRefreshSucceeded(queryTable.Refresh(false));
                 return Success(batch.WorkbookPath, "create-web");
             }
             finally
@@ -271,7 +271,7 @@ public sealed class QueryTableCommands : IQueryTableCommands
             Excel.QueryTable? queryTable = FindQueryTable(ctx.Book, sheetName, queryTableName);
             try
             {
-                queryTable.Refresh(false);
+                ConnectionRefreshHelpers.EnsureQueryTableRefreshSucceeded(queryTable.Refresh(false));
                 return Success(batch.WorkbookPath, "refresh");
             }
             finally

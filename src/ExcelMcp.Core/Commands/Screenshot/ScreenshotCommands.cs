@@ -34,11 +34,13 @@ public class ScreenshotCommands : IScreenshotCommands
         {
             dynamic? sheet = null;
             dynamic? range = null;
+            dynamic? sheets = null;
             try
             {
+                sheets = ctx.Book.Worksheets;
                 sheet = string.IsNullOrWhiteSpace(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                    : sheets[sheetName];
 
                 range = sheet.Range[rangeAddress];
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
@@ -50,6 +52,7 @@ public class ScreenshotCommands : IScreenshotCommands
             {
                 ComUtilities.Release(ref range);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
     }
@@ -66,17 +69,26 @@ public class ScreenshotCommands : IScreenshotCommands
             dynamic? sheet = null;
             dynamic? usedRange = null;
             dynamic? captureRange = null;
+            dynamic? sheets = null;
+            dynamic? rangeRows = null;
+            dynamic? rangeColumns = null;
+            dynamic? cells = null;
+            dynamic? firstCell = null;
+            dynamic? lastCell = null;
             try
             {
+                sheets = ctx.Book.Worksheets;
                 sheet = string.IsNullOrWhiteSpace(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                    : sheets[sheetName];
 
                 usedRange = sheet.UsedRange;
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
 
-                int rows = Convert.ToInt32(usedRange.Rows.Count);
-                int cols = Convert.ToInt32(usedRange.Columns.Count);
+                rangeRows = usedRange.Rows;
+                rangeColumns = usedRange.Columns;
+                int rows = Convert.ToInt32(rangeRows.Count);
+                int cols = Convert.ToInt32(rangeColumns.Count);
 
                 const int maxRows = 500;
                 const int maxCols = 50;
@@ -87,7 +99,10 @@ public class ScreenshotCommands : IScreenshotCommands
                     int startCol = Convert.ToInt32(usedRange.Column);
                     int endRow = startRow + Math.Min(rows, maxRows) - 1;
                     int endCol = startCol + Math.Min(cols, maxCols) - 1;
-                    captureRange = sheet.Range[sheet.Cells[startRow, startCol], sheet.Cells[endRow, endCol]];
+                    cells = sheet.Cells;
+                    firstCell = cells[startRow, startCol];
+                    lastCell = cells[endRow, endCol];
+                    captureRange = sheet.Range[firstCell, lastCell];
                 }
 
                 dynamic rangeToCapture = captureRange ?? usedRange;
@@ -98,8 +113,14 @@ public class ScreenshotCommands : IScreenshotCommands
             finally
             {
                 ComUtilities.Release(ref captureRange);
+                ComUtilities.Release(ref lastCell);
+                ComUtilities.Release(ref firstCell);
+                ComUtilities.Release(ref cells);
+                ComUtilities.Release(ref rangeColumns);
+                ComUtilities.Release(ref rangeRows);
                 ComUtilities.Release(ref usedRange);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
     }
@@ -397,14 +418,17 @@ public class ScreenshotCommands : IScreenshotCommands
     private static double GetRowTop(dynamic sheet, int row)
     {
         dynamic? cell = null;
+        dynamic? cells = null;
         try
         {
-            cell = sheet.Cells[row, 1];
+            cells = sheet.Cells;
+            cell = cells[row, 1];
             return Convert.ToDouble(cell.Top);
         }
         finally
         {
             ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref cells);
         }
     }
 
@@ -412,14 +436,17 @@ public class ScreenshotCommands : IScreenshotCommands
     private static double GetColumnLeft(dynamic sheet, int column)
     {
         dynamic? cell = null;
+        dynamic? cells = null;
         try
         {
-            cell = sheet.Cells[1, column];
+            cells = sheet.Cells;
+            cell = cells[1, column];
             return Convert.ToDouble(cell.Left);
         }
         finally
         {
             ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref cells);
         }
     }
 
@@ -474,11 +501,13 @@ public class ScreenshotCommands : IScreenshotCommands
     {
         dynamic? topLeft = null;
         dynamic? bottomRight = null;
+        dynamic? cells = null;
 
         try
         {
-            topLeft = range.Cells[rowSegment.Start, columnSegment.Start];
-            bottomRight = range.Cells[rowSegment.Start + rowSegment.Count - 1, columnSegment.Start + columnSegment.Count - 1];
+            cells = range.Cells;
+            topLeft = cells[rowSegment.Start, columnSegment.Start];
+            bottomRight = cells[rowSegment.Start + rowSegment.Count - 1, columnSegment.Start + columnSegment.Count - 1];
 
             return sheet.Range[topLeft, bottomRight];
         }
@@ -486,6 +515,7 @@ public class ScreenshotCommands : IScreenshotCommands
         {
             ComUtilities.Release(ref bottomRight);
             ComUtilities.Release(ref topLeft);
+            ComUtilities.Release(ref cells);
         }
     }
 

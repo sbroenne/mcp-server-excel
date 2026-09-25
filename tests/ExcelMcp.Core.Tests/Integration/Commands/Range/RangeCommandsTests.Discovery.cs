@@ -8,6 +8,26 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Discovery_SinglePopulatedCell_ReturnsScalarAsOneByOne(bool currentRegion)
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+        _commands.SetValues(batch, sheetName, "B2", [["Only value"]]);
+
+        var result = currentRegion
+            ? _commands.GetCurrentRegion(batch, sheetName, "B2")
+            : _commands.GetUsedRange(batch, sheetName);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.RowCount);
+        Assert.Equal(1, result.ColumnCount);
+        Assert.Equal("$B$2", result.RangeAddress);
+        Assert.Equal("Only value", Assert.Single(Assert.Single(result.Values)));
+    }
+
     // === NATIVE EXCEL COM OPERATIONS TESTS ===
 
     [Fact]
@@ -148,7 +168,6 @@ public partial class RangeCommandsTests
     }
 
 }
-
 
 
 

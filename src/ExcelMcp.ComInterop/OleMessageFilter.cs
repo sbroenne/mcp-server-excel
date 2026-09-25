@@ -75,14 +75,25 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
 
         var newFilter = new OleMessageFilter();
         nint newFilterPtr = s_comWrappers.GetOrCreateComInterfaceForObject(newFilter, CreateComInterfaceFlags.None);
-
-        int result = CoRegisterMessageFilter(newFilterPtr, out _oldFilterPtr);
-        if (result != 0)
+        nint previousFilterPtr = 0;
+        try
         {
-            throw new InvalidOperationException($"Failed to register OLE message filter. HRESULT: 0x{result:X8}");
-        }
+            int result = CoRegisterMessageFilter(newFilterPtr, out previousFilterPtr);
+            if (result != 0)
+            {
+                throw new InvalidOperationException($"Failed to register OLE message filter. HRESULT: 0x{result:X8}");
+            }
 
-        _isRegistered = true;
+            _oldFilterPtr = previousFilterPtr;
+            previousFilterPtr = 0; // Retain the returned reference until Revoke restores it.
+            _isRegistered = true;
+        }
+        finally
+        {
+            // OLE owns its own reference after successful registration.
+            Marshal.Release(newFilterPtr);
+            if (previousFilterPtr != 0) Marshal.Release(previousFilterPtr);
+        }
     }
 
     /// <summary>
@@ -101,14 +112,25 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
             return;
         }
 
-        int result = CoRegisterMessageFilter(_oldFilterPtr, out _);
-        if (result != 0)
+        nint revokedFilterPtr = 0;
+        try
         {
-            throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{result:X8}");
-        }
+            int result = CoRegisterMessageFilter(_oldFilterPtr, out revokedFilterPtr);
+            if (result != 0)
+            {
+                // The saved filter is still needed for a retry, so keep it referenced and registered.
+                throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{result:X8}");
+            }
 
-        _oldFilterPtr = 0;
-        _isRegistered = false;
+            // Only drop the saved filter reference once it has been restored successfully.
+            if (_oldFilterPtr != 0) Marshal.Release(_oldFilterPtr);
+            _oldFilterPtr = 0;
+            _isRegistered = false;
+        }
+        finally
+        {
+            if (revokedFilterPtr != 0) Marshal.Release(revokedFilterPtr);
+        }
     }
 
     /// <summary>
@@ -161,6 +183,17 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     }
 
     /// <summary>
+    /// Installs a pending cancellation token and returns the token it replaced.
+    /// Use when a nested scope must restore the enclosing operation's token instead of clearing it.
+    /// </summary>
+    public static CancellationToken ExchangePendingCancellationToken(CancellationToken token)
+    {
+        var previous = _pendingCancellationToken;
+        _pendingCancellationToken = token;
+        return previous;
+    }
+
+    /// <summary>
     /// Clears the pending cancellation token after the COM call completes or is cancelled.
     /// Must be called in a finally block after every <see cref="SetPendingCancellationToken"/> call.
     /// </summary>
@@ -207,6 +240,11 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// </returns>
     int IOleMessageFilter.RetryRejectedCall(nint htaskCallee, int dwTickCount, int dwRejectType)
     {
+        if (_pendingCancellationToken.IsCancellationRequested)
+        {
+            return -1;
+        }
+
         // dwRejectType values:
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
         // SERVERCALL_REJECTED (1) = Server rejected the call (may be showing a modal dialog)
@@ -302,5 +340,3 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         nint lpMessageFilter,
         out nint lplpMessageFilter);
 }
-
-

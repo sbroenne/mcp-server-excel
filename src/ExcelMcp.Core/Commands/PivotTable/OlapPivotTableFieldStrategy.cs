@@ -257,12 +257,13 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     {
         dynamic? cubeField = null;
         dynamic? workbook = null;
+        dynamic? worksheet = null;
         dynamic? model = null;
         dynamic? modelTables = null;
         dynamic? table = null;
         dynamic? measures = null;
         dynamic? newMeasure = null;
-        dynamic? formatObject;
+        dynamic? formatObject = null;
 
         try
         {
@@ -271,7 +272,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             // MODE 2: Auto-create DAX measure from column (legacy behavior)
 
             // Get workbook and model
-            workbook = pivot.Parent.Parent; // PivotTable -> Worksheet -> Workbook
+            worksheet = pivot.Parent;
+            workbook = worksheet.Parent;
             model = workbook.Model;
 
             if (model == null)
@@ -496,13 +498,14 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
-            // Don't release formatObject - it's owned by the model
             ComUtilities.Release(ref newMeasure);
+            ComUtilities.Release(ref formatObject);
             ComUtilities.Release(ref measures);
             ComUtilities.Release(ref table);
             ComUtilities.Release(ref modelTables);
             ComUtilities.Release(ref model);
             ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref worksheet);
             ComUtilities.Release(ref cubeField);
         }
     }
@@ -636,6 +639,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     public PivotFieldResult SetFieldFunction(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath)
     {
         dynamic? workbook = null;
+        dynamic? worksheet = null;
         dynamic? model = null;
         dynamic? measures = null;
         dynamic? measure = null;
@@ -643,7 +647,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         {
             // For OLAP PivotTables, we need to update the DAX measure in the Data Model
             // Get workbook and model
-            workbook = pivot.Parent.Parent;
+            worksheet = pivot.Parent;
+            workbook = worksheet.Parent;
             model = workbook.Model;
 
             if (model == null)
@@ -726,6 +731,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref measures);
             ComUtilities.Release(ref model);
             ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref worksheet);
         }
     }
     /// <inheritdoc/>
@@ -1572,4 +1578,3 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     #endregion
 }
-

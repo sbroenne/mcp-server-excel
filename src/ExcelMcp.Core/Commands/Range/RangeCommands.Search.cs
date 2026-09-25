@@ -65,7 +65,16 @@ public partial class RangeCommands
                             Value = foundCell.Value2
                         });
 
-                        foundCell = range.FindNext(foundCell);
+                        dynamic? nextCell = null;
+                        try
+                        {
+                            nextCell = range.FindNext(foundCell);
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref foundCell);
+                        }
+                        foundCell = nextCell;
                     } while (foundCell != null && foundCell.Address != firstAddress);
                 }
 
@@ -128,6 +137,7 @@ public partial class RangeCommands
             dynamic? key1 = null;
             dynamic? key2 = null;
             dynamic? key3 = null;
+            dynamic? columns = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -148,9 +158,10 @@ public partial class RangeCommands
                 }
 
                 // Get sort key ranges
-                key1 = sortColumns.Count >= 1 ? range.Columns[sortColumns[0].ColumnIndex] : Type.Missing;
-                key2 = sortColumns.Count >= 2 ? range.Columns[sortColumns[1].ColumnIndex] : Type.Missing;
-                key3 = sortColumns.Count >= 3 ? range.Columns[sortColumns[2].ColumnIndex] : Type.Missing;
+                columns = range.Columns;
+                key1 = sortColumns.Count >= 1 ? columns[sortColumns[0].ColumnIndex] : Type.Missing;
+                key2 = sortColumns.Count >= 2 ? columns[sortColumns[1].ColumnIndex] : Type.Missing;
+                key3 = sortColumns.Count >= 3 ? columns[sortColumns[2].ColumnIndex] : Type.Missing;
 
                 // Excel COM constants
                 int order1 = sortColumns[0].Ascending ? 1 : 2; // xlAscending : xlDescending
@@ -180,6 +191,7 @@ public partial class RangeCommands
                 ComUtilities.Release(ref key3);
                 ComUtilities.Release(ref key2);
                 ComUtilities.Release(ref key1);
+                ComUtilities.Release(ref columns);
                 ComUtilities.Release(ref range);
             }
         });
@@ -188,6 +200,5 @@ public partial class RangeCommands
     // === NATIVE EXCEL COM OPERATIONS ===
 
 }
-
 
 

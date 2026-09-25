@@ -45,12 +45,14 @@ public partial class RangeCommands
         {
             dynamic? sheet = null;
             dynamic? range = null;
+            dynamic? sheets = null;
 
             try
             {
+                sheets = ctx.Book.Worksheets;
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                    : sheets[sheetName];
 
                 range = sheet.Range[rangeAddress];
                 range.Style = styleName;
@@ -66,6 +68,7 @@ public partial class RangeCommands
             {
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
+                ComUtilities.Release(ref sheets);
             }
         });
     }
@@ -82,19 +85,23 @@ public partial class RangeCommands
             dynamic? range = null;
             dynamic? styles = null;
             dynamic? style = null;
+            dynamic? rangeStyle = null;
+            dynamic? sheets = null;
 
             try
             {
+                sheets = ctx.Book.Worksheets;
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                    : sheets[sheetName];
 
                 range = sheet.Range[rangeAddress];
 
                 string styleName;
                 try
                 {
-                    styleName = ComUtilities.SafeGetString(range.Style, "Name");
+                    rangeStyle = range.Style;
+                    styleName = ComUtilities.SafeGetString(rangeStyle, "Name");
                     if (string.IsNullOrEmpty(styleName))
                     {
                         styleName = "Normal";
@@ -146,8 +153,10 @@ public partial class RangeCommands
             {
                 ComUtilities.Release(ref style!);
                 ComUtilities.Release(ref styles!);
+                ComUtilities.Release(ref rangeStyle);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
+                ComUtilities.Release(ref sheets);
             }
         });
     }
@@ -176,6 +185,7 @@ public partial class RangeCommands
         {
             dynamic? sheet = null;
             dynamic? range = null;
+            dynamic? sheets = null;
 
             try
             {
@@ -195,9 +205,10 @@ public partial class RangeCommands
                     wrapText,
                     orientation);
 
+                sheets = ctx.Book.Worksheets;
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                    : sheets[sheetName];
 
                 range = sheet.Range[rangeAddress];
                 ApplyFormattingToRange(range, formatRequest);
@@ -213,6 +224,7 @@ public partial class RangeCommands
             {
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
+                ComUtilities.Release(ref sheets);
             }
         });
     }
@@ -241,6 +253,7 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
+            dynamic? sheets = null;
 
             try
             {
@@ -263,9 +276,10 @@ public partial class RangeCommands
                     orientation,
                     numberFormat);
 
+                sheets = ctx.Book.Worksheets;
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                    : sheets[sheetName];
 
                 ValidateTargetRanges(sheet, rangeAddresses, nameof(rangeAddresses));
 
@@ -294,6 +308,7 @@ public partial class RangeCommands
             finally
             {
                 ComUtilities.Release(ref sheet!);
+                ComUtilities.Release(ref sheets);
             }
         });
     }
@@ -337,6 +352,7 @@ public partial class RangeCommands
     {
         dynamic? font = null;
         dynamic? interior = null;
+        dynamic? borders = null;
 
         try
         {
@@ -359,13 +375,14 @@ public partial class RangeCommands
 
             if (formatRequest.HasBorderFormatting)
             {
+                borders = range.Borders;
                 foreach (var edge in BorderEdges)
                 {
                     dynamic? border = null;
 
                     try
                     {
-                        border = range.Borders.Item(edge);
+                        border = borders.Item(edge);
                         if (formatRequest.BorderStyle != null) border.LineStyle = formatRequest.BorderStyle.Value;
                         if (formatRequest.BorderColor != null) border.Color = formatRequest.BorderColor.Value;
                         if (formatRequest.BorderWeight != null) border.Weight = formatRequest.BorderWeight.Value;
@@ -404,6 +421,7 @@ public partial class RangeCommands
         }
         finally
         {
+            ComUtilities.Release(ref borders);
             ComUtilities.Release(ref interior!);
             ComUtilities.Release(ref font!);
         }
@@ -486,6 +504,5 @@ public partial class RangeCommands
         };
     }
 }
-
 
 
