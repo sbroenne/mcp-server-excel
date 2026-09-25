@@ -388,14 +388,14 @@ if ($errors.Count -gt 0) {
     foreach ($e in $errors) { Write-Host "  - $e" -ForegroundColor Red }
     Write-Host ""
     Write-Host "Canonical counts are derived from code: $canonicalTools tools / $canonicalOps operations." -ForegroundColor Yellow
-    Write-Host "Fix the structural mismatch above before release-time count generation can proceed." -ForegroundColor Yellow
+    Write-Host "Fix the structural mismatch above before the next -Update pass can proceed." -ForegroundColor Yellow
     exit 1
 }
 
 if ($Update) {
     Write-Host "Documentation counts generated - $canonicalTools tools / $canonicalOps operations ($($updatedFiles.Count) file(s) changed)" -ForegroundColor Green
 } elseif ($AllowStaleAdvertisedCounts) {
-    Write-Host "Documentation count structure passed - release-owned advertised totals may remain unchanged" -ForegroundColor Green
+    Write-Host "Documentation count structure passed - advertised totals may be behind the latest main (regenerated on every push to main)" -ForegroundColor Green
 } else {
     Write-Host "Documentation count validation passed - all docs report $canonicalTools tools / $canonicalOps operations" -ForegroundColor Green
 }
