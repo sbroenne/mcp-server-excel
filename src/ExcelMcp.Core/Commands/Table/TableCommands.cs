@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
 /// <summary>
@@ -28,80 +26,6 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     /// <returns>True if table exists, false otherwise</returns>
     private static bool TableExists(dynamic workbook, string tableName)
         => CoreLookupHelpers.TableExists(workbook, tableName);
-
-    private static void SetCreatedTableNameOrRollback(
-        dynamic listObject,
-        string tableName,
-        dynamic? workbookConnection = null,
-        bool preserveSourceRange = false)
-    {
-        try
-        {
-            listObject.Name = tableName;
-        }
-        catch (Exception nameException)
-        {
-            var cleanupErrors = new List<Exception>();
-            TryRemoveCreatedTable(
-                listObject,
-                $"the default-named table created before Excel rejected '{tableName}'",
-                preserveSourceRange,
-                cleanupErrors);
-
-            if (workbookConnection != null)
-            {
-                TryDeleteCreatedObject(
-                    workbookConnection,
-                    $"the workbook connection created before Excel rejected '{tableName}'",
-                    cleanupErrors);
-            }
-
-            if (cleanupErrors.Count > 0)
-            {
-                cleanupErrors.Insert(0, nameException);
-                throw new InvalidOperationException(
-                    $"Excel rejected table name '{tableName}', and cleanup of created workbook objects failed.",
-                    new AggregateException(cleanupErrors));
-            }
-
-            throw;
-        }
-    }
-
-    private static void TryRemoveCreatedTable(
-        dynamic value,
-        string description,
-        bool preserveSourceRange,
-        List<Exception> cleanupErrors)
-    {
-        try
-        {
-            if (preserveSourceRange)
-            {
-                value.Unlist();
-            }
-            else
-            {
-                value.Delete();
-            }
-        }
-        catch (COMException ex)
-        {
-            cleanupErrors.Add(new InvalidOperationException($"Failed to remove {description}.", ex));
-        }
-    }
-
-    private static void TryDeleteCreatedObject(dynamic value, string description, List<Exception> cleanupErrors)
-    {
-        try
-        {
-            value.Delete();
-        }
-        catch (COMException ex)
-        {
-            cleanupErrors.Add(new InvalidOperationException($"Failed to delete {description}.", ex));
-        }
-    }
 
     #endregion
 }

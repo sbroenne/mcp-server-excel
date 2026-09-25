@@ -160,7 +160,6 @@ public partial class TableCommands
                 {
                     OleMessageFilter.ClearPendingCancellationToken();
                 }
-                ComUtilities.Release(ref modelConnection);
 
                 // Get target range for the table
                 destRange = sheet.Range[targetCell];
@@ -176,7 +175,7 @@ public partial class TableCommands
                 );
 
                 // Set the table name
-                SetCreatedTableNameOrRollback(listObject, tableName, modelWbConn);
+                listObject.Name = tableName;
 
                 OleMessageFilter.SetPendingCancellationToken(ct);
                 try
@@ -378,4 +377,5 @@ public partial class TableCommands
         });
     }
 }
+
 

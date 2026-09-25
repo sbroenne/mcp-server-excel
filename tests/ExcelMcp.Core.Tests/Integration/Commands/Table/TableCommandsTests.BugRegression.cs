@@ -4,7 +4,6 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
-using ExcelListObjects = Microsoft.Office.Interop.Excel.ListObjects;
 using ExcelRange = Microsoft.Office.Interop.Excel.Range;
 using ExcelWorksheet = Microsoft.Office.Interop.Excel.Worksheet;
 
@@ -135,57 +134,6 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
     }
 
     /// <summary>
-    /// Regression test for failed Excel name assignment leaving behind the default
-    /// table created before Excel rejected the requested name.
-    /// </summary>
-    [Fact]
-    public void Create_WithExcelInvalidTableName_DoesNotLeaveDefaultTable()
-    {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(TableCommandsTests_BugRegression),
-            nameof(Create_WithExcelInvalidTableName_DoesNotLeaveDefaultTable),
-            _fixture.TempDir,
-            ".xlsx");
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        batch.Execute((ctx, ct) =>
-        {
-            ExcelWorksheet? sheet = null;
-            ExcelRange? dataRange = null;
-            try
-            {
-                sheet = (ExcelWorksheet)ctx.Book.Worksheets[1];
-                sheet.Name = "Data";
-                dataRange = sheet.Range["A1:B2"];
-                dataRange.Value2 = new object[,]
-                {
-                    { "Name", "Value" },
-                    { "North", 100 },
-                };
-                return 0;
-            }
-            finally
-            {
-                ComUtilities.Release(ref dataRange);
-                ComUtilities.Release(ref sheet);
-            }
-        });
-
-        var beforeCount = GetWorksheetTableCount(batch, "Data");
-
-        Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", true, "TableStyleLight1"));
-
-        Assert.Equal(beforeCount, GetWorksheetTableCount(batch, "Data"));
-        var values = GetRangeValues(batch, "Data", "A1:B2");
-        Assert.Equal("Name", values[1, 1]);
-        Assert.Equal("Value", values[1, 2]);
-        Assert.Equal("North", values[2, 1]);
-        Assert.Equal(100, values[2, 2]);
-    }
-
-    /// <summary>
     /// Regression test for issue #894:
     /// Existing Excel-created localized table names must be readable and renamable
     /// through the shared table commands.
@@ -255,47 +203,5 @@ public sealed class TableCommandsTests_BugRegression : IClassFixture<TempDirecto
         var renamedInfo = _tableCommands.Read(batch, "テーブル1");
         Assert.True(renamedInfo.Success, renamedInfo.ErrorMessage);
         Assert.Equal("テーブル1", renamedInfo.Table!.Name);
-    }
-
-    private static int GetWorksheetTableCount(IExcelBatch batch, string sheetName)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            ExcelWorksheet? sheet = null;
-            ExcelListObjects? listObjects = null;
-            try
-            {
-                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
-                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
-                listObjects = sheet.ListObjects;
-                return listObjects.Count;
-            }
-            finally
-            {
-                ComUtilities.Release(ref listObjects);
-                ComUtilities.Release(ref sheet);
-            }
-        });
-    }
-
-    private static object[,] GetRangeValues(IExcelBatch batch, string sheetName, string rangeAddress)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            ExcelWorksheet? sheet = null;
-            ExcelRange? range = null;
-            try
-            {
-                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
-                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
-                range = sheet.Range[rangeAddress];
-                return (object[,])range.Value2;
-            }
-            finally
-            {
-                ComUtilities.Release(ref range);
-                ComUtilities.Release(ref sheet);
-            }
-        });
     }
 }
