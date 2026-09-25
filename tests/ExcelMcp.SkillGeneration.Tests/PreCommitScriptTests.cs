@@ -11,7 +11,7 @@ public sealed class PreCommitScriptTests
     [InlineData("FEATURES.md", false)]
     [InlineData("gh-pages/hooks.py", false)]
     [InlineData("scripts/pre-commit.ps1", false)]
-    [InlineData("scripts/check-doc-counts.ps1", true)]
+    [InlineData("scripts/check-doc-counts.ps1", false)]
     [InlineData("tests/ExcelMcp.SkillGeneration.Tests/PreCommitScriptTests.cs", true)]
     [InlineData(".github/workflows/ci.yml", true)]
     [Trait("Category", "Integration")]
@@ -23,7 +23,6 @@ public sealed class PreCommitScriptTests
         Assert.True(result.ExitCode == 0, result.CombinedOutput);
         Assert.DoesNotContain("Building CLI release deliverables", result.CombinedOutput, StringComparison.Ordinal);
         Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Building Release solution", StringComparison.Ordinal));
-        Assert.Equal(requiresBuild, result.CombinedOutput.Contains("Validating documentation tool/operation counts", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -103,6 +102,22 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("Stopping pipe-owned", result.CombinedOutput, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "PreCommit")]
+    public void AdvertisedCounts_AreGeneratedOnlyByTheMainMergeWorkflow()
+    {
+        var hook = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
+        var releaseWorkflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+        var docCountsWorkflow = File.ReadAllText(
+            Path.Combine(RepoRoot, ".github", "workflows", "doc-counts.yml"));
+
+        Assert.DoesNotContain("check-doc-counts.ps1", hook, StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains("branches: [main]", docCountsWorkflow, StringComparison.Ordinal);
+    }
+
     private static async Task<ScriptResult> RunHookAsync(
         string paths, int failureExitCode = 23, bool merging = false,
         string failureCommand = "publish", string failureProject = "CLI", bool createArtifacts = true,
@@ -122,7 +137,7 @@ public sealed class PreCommitScriptTests
             {
                 "Stop-ExcelMcpProcesses", "check-com-leaks", "audit-core-coverage",
                 "check-mcp-core-implementations", "check-success-flag", "Build-BootstrapScripts",
-                "check-doc-counts", "Test-E2E", "check-plugin-readmes", "check-dynamic-casts"
+                "Test-E2E", "check-plugin-readmes", "check-dynamic-casts"
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"), "$global:LASTEXITCODE = 0");

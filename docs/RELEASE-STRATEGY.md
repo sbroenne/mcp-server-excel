@@ -81,8 +81,8 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 The workflow will:
 1. Calculate the next version from the latest git tag
-2. Compile pending changesets into the current release changelog
-3. Build all components (standalone exes + NuGet packages), packaging that changelog where applicable
+2. Generate advertised tool and operation totals and compile pending changesets into the current release changelog
+3. Build all components (standalone exes + NuGet packages), packaging the generated documentation where applicable
 4. Commit the generated release metadata and create the git tag (`v1.5.7`) at that commit
 5. Publish to NuGet.org, VS Code Marketplace, and MCP Registry
 6. Create the GitHub Release with all artifacts and the prepared release notes
@@ -92,13 +92,13 @@ The workflow will:
 The main release workflow runs automatically (11 jobs), then the plugin publish workflow runs automatically if the release succeeds:
 
 1. **version** → Calculates the version from the latest tag and dispatch input
-2. **prepare-release** → Compiles changesets and uploads the changelog and release notes used by packaging jobs
+2. **prepare-release** → Builds the generated surface, refreshes advertised counts, compiles changesets, and uploads the metadata used by packaging jobs
 3. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
 4. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
 5. **build-vscode** (5-8 min) → Builds the self-contained VSIX with the prepared changelog
 6. **build-mcpb** (3-5 min) → Builds the Claude Desktop bundle with the prepared changelog
 7. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package (for direct skill extraction via `npx skills add`)
-8. **create-tag** → Regenerates and verifies release metadata, commits it to `main`, then tags that exact commit
+8. **create-tag** → Regenerates and verifies the changelog, applies the prepared count updates, commits release metadata to `main`, then tags that exact commit
 9. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
 10. **publish** → Publishes to NuGet.org and VS Code Marketplace
 11. **create-release** → Creates the GitHub Release with all artifacts and the prepared release notes
@@ -216,6 +216,17 @@ The release workflow injects the correct version from the tag.
    - Extracts the new section verbatim into `release_notes_body.md`, used directly as the "What's New" body of the GitHub Release.
 4. **Artifact builds** consume that prepared changelog, so packaged VS Code and MCPB changelog files include the version being released.
 5. **After all builds pass**, the `create-tag` job regenerates the metadata using the same release date and verifies it byte-for-byte against the prepared artifact. It commits `CHANGELOG.md`, synchronized version metadata, and consumed `.changeset/*.md` deletions to `main` through the Git Data API, then points the release tag at that exact commit.
+
+Advertised tool and operation totals are generated once, from code, by a
+dedicated workflow (`.github/workflows/doc-counts.yml`) that runs
+`scripts/check-doc-counts.ps1 -Update` on every push to `main` and commits any
+changes straight back. That writes the single canonical include file
+`doc-counts.json` (repo root) plus every managed headline claim across the
+repository. Release automation and the website never derive or restate these
+numbers themselves — they read `doc-counts.json` or the headlines it already
+wrote, both of which are always current on `main` by the time a release or a
+site build runs. Feature PRs update operation tables and per-category counts,
+but do not manually update repeated headline totals.
 
 Root `package.json` and `.changeset/config.json` (using `@changesets/changelog-github` for PR-linked entries) exist solely to drive this tooling — they have no bearing on the actual MCP Server / CLI / VS Code Extension / MCPB version, which remains fully controlled by the `version_bump` / `custom_version` workflow inputs as described above.
 

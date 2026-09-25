@@ -11,7 +11,6 @@
     3. MCP-Core implementation audit - ensures every MCP action still has a Core implementation
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
     5. Release solution build - generates Release binaries and skill outputs used by downstream packaging (skipped for docs-only commits)
-    5b. Documentation count validation - ensures all docs report the code-derived tool/operation counts (skipped for docs-only commits)
     6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
     7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
     8. CLI release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
@@ -97,16 +96,16 @@ function Stop-DotNetBuildServers {
 # changes, including edits to the gh-pages documentation website and its star-history
 # generation workflow. These files do not affect the shipped Excel binaries. Cheap
 # source-level guards still run for every commit.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|check-doc-counts|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
 $mergeHead = git rev-parse --verify --quiet MERGE_HEAD 2>$null
 $validationBase = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { "HEAD" }
 $stagedFiles = git diff --cached --name-only $validationBase 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0
 
-# Validation changes still build and check counts, but do not change release artifacts.
+# Validation changes still build, but do not change release artifacts.
 # Unrecognized paths continue to require packaging.
-$validationOnlyPattern = '(^tests/)|(^scripts/check-doc-counts\.ps1$)|(^\.github/workflows/ci\.yml$)'
+$validationOnlyPattern = '(^tests/)|(^\.github/workflows/ci\.yml$)'
 $packagingChangedFiles = $codeChangedFiles | Where-Object { $_ -notmatch $validationOnlyPattern }
 $requiresReleasePackaging = @($packagingChangedFiles).Count -gt 0
 
@@ -326,15 +325,6 @@ catch {
     Write-Host "Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
 }
-
-Invoke-ValidationStep `
-    -Heading "Validating documentation tool/operation counts..." `
-    -FailureSummary "Documentation count validation failed! A doc advertises a tool/operation count that does not match the code-derived canonical count." `
-    -SuccessSummary "Documentation count validation passed - all docs match the canonical counts" `
-    -Action {
-        $docCountScript = Join-Path $rootDir "scripts\check-doc-counts.ps1"
-        & $docCountScript -SkipBuild
-    }
 
 if ($requiresExcelE2E) {
     Invoke-ValidationStep `

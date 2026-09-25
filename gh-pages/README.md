@@ -60,10 +60,14 @@ code, issues, or documents without a site page.
 | `tools.json` | Tool/operation catalogue derived from canonical feature references |
 | FAQ structured data | Troubleshooting question blocks |
 
-These are generated, not separately maintained. `tools.json` generation checks
-feature operation totals against the headline count in `FEATURES.md`. The
-repository's `scripts/check-doc-counts.ps1` checks advertised counts against
-code-derived metadata; do not substitute manual file or folder counts.
+These are generated, not separately maintained. `tools.json` derives its
+catalogue and operation total from the feature groups and operation counts in
+`docs/features/`, while its tool total comes from `doc-counts.json` (repo
+root) - the single generated include file every count consumer reads.
+`llms.txt` reads its advertised summary from that same file. A dedicated
+workflow (`.github/workflows/doc-counts.yml`) writes `doc-counts.json` and
+every managed headline claim from code-derived metadata on every push to
+`main`; do not substitute manual file or folder counts.
 
 ## Theme overrides
 
