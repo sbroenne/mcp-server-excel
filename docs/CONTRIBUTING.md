@@ -224,7 +224,7 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 2. **Implement it** in the corresponding partial class (e.g. `SheetCommands.Lifecycle.cs`), following the batch-API pattern above.
 3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
 4. **Add integration tests** for the new operation (TDD: write them first).
-5. **Update `FEATURES.md` and the appropriate `docs/features/*.md` file** with the new operation and updated operation count — `scripts/check-doc-counts.ps1` enforces that documented counts match the code.
+5. **Update the appropriate `docs/features/*.md` file** with the new operation and its section count. Do not hand-edit repeated headline totals; release automation refreshes those advertised claims from code.
 
 ### Tracing a bug or contract change
 
@@ -256,8 +256,8 @@ first, then replace duplicate material with a link. Permanent guides belong in
 `docs/`, decisions in `docs/ADR-*.md`, and feature requirements in `specs/`.
 Temporary investigations belong in issue/PR discussions, not SUMMARY/FIX files.
 
-Use current declared action names and verify operation tables, not just headline
-counts. The count audit derives the advertised surface from generated metadata.
+Use current declared action names and verify operation tables and category
+counts. Advertised totals are generated from code during the release.
 See the [website authoring guide](../gh-pages/README.md#publishing-canonical-documentation)
 for source maps, wrappers, navigation, and machine-readable outputs.
 
@@ -269,7 +269,7 @@ for source maps, wrappers, navigation, and machine-readable outputs.
 - [ ] Feature-scoped tests pass (`dotnet test --filter "Feature=<name>&RunType!=OnDemand"`)
 - [ ] Excel processes clean up properly
 - [ ] Added appropriate error handling (no suppressed exceptions)
-- [ ] Updated `FEATURES.md` and `docs/features/*.md` if operation counts or behaviors changed
+- [ ] Updated `docs/features/*.md` if category operations or behaviors changed (release automation refreshes advertised totals)
 - [ ] Pre-commit hook passes locally
 
 ### PR Description Template

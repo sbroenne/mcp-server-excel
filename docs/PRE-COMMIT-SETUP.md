@@ -25,10 +25,11 @@ The hook selects checks from staged paths. During a merge, it compares against
 the incoming parent so already-validated imported changes do not trigger
 unrelated Excel tests.
 
-| Changes | Release build and count checks | Excel E2E | Release packaging |
+| Changes | Release build | Excel E2E | Release packaging |
 |---|---|---|---|
 | Documentation and website content, including website build scripts | No | No | No |
-| Tests, `scripts/check-doc-counts.ps1`, or `.github/workflows/ci.yml` only | Yes | No | No |
+| `scripts/check-doc-counts.ps1` only | No | No | No |
+| Tests or `.github/workflows/ci.yml` only | Yes | No | No |
 | Runtime code in Core, COM, Service, CLI, MCP, or source generators | Yes | Yes | Yes |
 | Other build or release inputs | Yes | Only when the runtime/E2E path filter matches | Yes |
 
@@ -158,7 +159,8 @@ chmod +x .git/hooks/pre-commit
 The Excel-free subset of these checks runs in CI/CD (GitHub-hosted runners have no Excel):
 - `ci.yml` (**CI Gate**) runs a Release build, then the Excel-free audits
   (`check-com-leaks.ps1`, `audit-core-coverage.ps1`, `check-mcp-core-implementations.ps1`,
-  `check-success-flag.ps1`, `check-doc-counts.ps1`, `check-dynamic-casts.ps1`, `check-plugin-readmes.ps1`)
+  `check-success-flag.ps1`, `check-doc-counts.ps1 -AllowStaleAdvertisedCounts`,
+  `check-dynamic-casts.ps1`, `check-plugin-readmes.ps1`)
   plus the hook regression tests on every PR to `main`
 - Excel-dependent gates (CLI/MCP runtime smoke, integration tests) run **local-only** via the pre-commit hook
 

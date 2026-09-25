@@ -142,11 +142,11 @@ jobs:
           & scripts/Build-BootstrapScripts.ps1 -Check
           if ($LASTEXITCODE -ne 0) { throw "Bootstrap drift detected. Regenerate the canonical download.ps1 template output before committing." }
 
-      - name: Documentation tool/operation counts
+      - name: Documentation count structure
         shell: pwsh
         run: |
-          & scripts/check-doc-counts.ps1 -SkipBuild
-          if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
+          & scripts/check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts
+          if ($LASTEXITCODE -ne 0) { throw "Documentation count derivation, managed locations, or feature totals are inconsistent." }
 
       - name: Dynamic cast audit (documented ((dynamic)) casts)
         shell: pwsh
