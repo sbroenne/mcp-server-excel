@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service;
@@ -36,7 +37,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-        var response = await client.SendAsync(new ServiceRequest
+        var request = new ServiceRequest
         {
             Command = "session.create",
             Args = JsonSerializer.Serialize(new
@@ -45,7 +46,10 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
                 show = settings.Show,
                 timeoutSeconds = settings.TimeoutSeconds
             }, ServiceProtocol.JsonOptions)
-        }, cancellationToken);
+        };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => client.SendAsync(request, cancellationToken));
 
         if (response.Success)
         {
@@ -97,7 +101,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-        var response = await client.SendAsync(new ServiceRequest
+        var request = new ServiceRequest
         {
             Command = "session.open",
             Args = JsonSerializer.Serialize(new
@@ -106,7 +110,10 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
                 show = settings.Show,
                 timeoutSeconds = settings.TimeoutSeconds
             }, ServiceProtocol.JsonOptions)
-        }, cancellationToken);
+        };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => client.SendAsync(request, cancellationToken));
 
         if (response.Success)
         {
@@ -145,12 +152,15 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-        var response = await client.SendAsync(new ServiceRequest
+        var request = new ServiceRequest
         {
             Command = "session.close",
             SessionId = settings.SessionId,
             Args = JsonSerializer.Serialize(new { save = settings.Save }, ServiceProtocol.JsonOptions)
-        }, cancellationToken);
+        };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => client.SendAsync(request, cancellationToken));
 
         if (response.Success)
         {
@@ -181,13 +191,16 @@ internal sealed class SessionListCommand : AsyncCommand
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var observation = DaemonConnectionPolicy.Observe(pipeName);
-        var response = await DaemonConnectionPolicy.SendControlRequestAsync(
-            pipeName,
-            new ServiceRequest { Command = "session.list" },
-            cancellationToken,
-            observation.IsStopped
-                ? DaemonConnectionPolicy.InitialProbeTimeout
-                : DaemonConnectionPolicy.ControlTimeout);
+        var request = new ServiceRequest { Command = "session.list" };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => DaemonConnectionPolicy.SendControlRequestAsync(
+                pipeName,
+                request,
+                cancellationToken,
+                observation.IsStopped
+                    ? DaemonConnectionPolicy.InitialProbeTimeout
+                    : DaemonConnectionPolicy.ControlTimeout));
         if (response.Success && response.Result != null)
         {
             var result = JsonNode.Parse(response.Result) as JsonObject
@@ -240,13 +253,16 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-        var response = await client.SendAsync(new ServiceRequest
+        var request = new ServiceRequest
         {
             Command = "session.test",
             Args = JsonSerializer.Serialize(
                 new { filePath = settings.FilePath },
                 ServiceProtocol.JsonOptions)
-        }, cancellationToken);
+        };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => client.SendAsync(request, cancellationToken));
 
         if (!response.Success)
         {

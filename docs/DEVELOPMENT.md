@@ -420,7 +420,10 @@ dotnet build -c Release
 
 ## 📊 **Application Insights / Telemetry Setup**
 
-ExcelMcp uses Azure Application Insights (Classic SDK with WorkerService integration) for anonymous usage telemetry and crash reporting. Telemetry is **opt-out** (enabled by default in release builds).
+ExcelMcp uses Azure Application Insights for anonymous usage telemetry. The MCP
+Server uses WorkerService integration and also reports sanitized crashes; the CLI
+uses the base SDK for command telemetry. Telemetry is **opt-out** (enabled by
+default in release builds).
 
 ### **How It Works**
 
@@ -433,8 +436,9 @@ The Application Insights connection string is **embedded at build time** via MSB
 
 ### **What is Tracked**
 
-- **Tool invocations**: Tool name, action, duration (ms), success/failure
-- **Unhandled exceptions**: Exception type, approved source, and project-owned
+- **Tool invocations**: Tool name, action, CLI or MCP Server entry point,
+  duration (ms), success/failure
+- **Unhandled exceptions (MCP Server only)**: Exception type, approved source, and project-owned
   failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
@@ -477,11 +481,12 @@ Copy-Item "Directory.Build.props.user.template" "Directory.Build.props.user"
 # 2. Edit Directory.Build.props.user and add your connection string
 # <AppInsightsConnectionString>InstrumentationKey=xxx;IngestionEndpoint=...</AppInsightsConnectionString>
 
-# 3. Build - connection string is embedded at compile time
-dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+# 3. Build - connection string is embedded into both entry points at compile time
+dotnet build Sbroenne.ExcelMcp.sln
 
-# 4. Run - telemetry is automatically sent to Azure
+# 4. Run either entry point - telemetry is automatically sent to Azure
 dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+dotnet run --project src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -- session list --quiet
 ```
 
 **Note:** `Directory.Build.props.user` is gitignored - your connection string won't be committed.
@@ -546,11 +551,11 @@ Build Time:
   MSBuild → reads AppInsightsConnectionString → generates TelemetryConfig.g.cs
 
 Runtime:
-  MCP Tool Invocation
+  CLI or MCP Tool Invocation
       │
       ▼
-  ExcelMcpTelemetry.TrackToolInvocation()
-      │ (tracks: tool, action, duration, success)
+  CliTelemetry / ExcelMcpTelemetry
+      │ (tracks: tool, action, entry point, duration, success)
       ▼
   Allowlisted telemetry construction
       │ (exception messages and stacks are omitted)
@@ -563,9 +568,10 @@ Runtime:
 | File | Purpose |
 |------|---------|
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
+| `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI command telemetry and lifecycle |
 | `Telemetry/SensitiveDataRedactor.cs` | Redacts sensitive local diagnostic text |
-| `Program.cs` | Application Insights WorkerService configuration |
-| `ExcelMcp.McpServer.csproj` | MSBuild target that generates TelemetryConfig.g.cs |
+| Entry-point `Program.cs` files | Application Insights lifecycle configuration |
+| CLI and MCP Server project files | MSBuild targets that generate `TelemetryConfig.g.cs` |
 | `Directory.Build.props.user.template` | Template for local dev connection string |
 | `infrastructure/azure/appinsights-resources.bicep` | Azure resources and ingestion privacy transforms |
 | `infrastructure/azure/deploy-appinsights.ps1` | Deployment script |

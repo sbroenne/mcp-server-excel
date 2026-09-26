@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
@@ -80,12 +81,15 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
 
         // Connect to CLI daemon service (auto-starts if not running)
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-        var response = await client.SendAsync(new ServiceRequest
+        var request = new ServiceRequest
         {
             Command = command,
             SessionId = sessionId,
             Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
-        }, cancellationToken);
+        };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request,
+            () => client.SendAsync(request, cancellationToken));
 
         // Check for --output file path (generated on all CliSettings)
         var outputPath = settings.GetType().GetProperty("OutputPath")?.GetValue(settings) as string;
