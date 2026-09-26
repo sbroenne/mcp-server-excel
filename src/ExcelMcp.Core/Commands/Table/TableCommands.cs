@@ -9,6 +9,9 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
 {
     #region Helper Methods
 
+    private static void ValidateRequiredTableName(string tableName)
+        => ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
+
     /// <summary>
     /// Finds a table by name in the workbook, throwing if not found.
     /// Delegates to CoreLookupHelpers.FindTable for the actual lookup.

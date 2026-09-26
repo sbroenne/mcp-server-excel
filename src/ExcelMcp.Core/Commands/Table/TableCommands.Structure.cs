@@ -12,6 +12,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult Resize(IExcelBatch batch, string tableName, string newRange)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -41,6 +43,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ToggleTotals(IExcelBatch batch, string tableName, bool showTotals)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -62,6 +66,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -140,6 +146,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult SetStyle(IExcelBatch batch, string tableName, string tableStyle)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -158,6 +166,5 @@ public partial class TableCommands
         });
     }
 }
-
 
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
@@ -125,7 +126,7 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal("Name", values[1, 1]);
         Assert.Equal("Value", values[1, 2]);
         Assert.Equal("North", values[2, 1]);
-        Assert.Equal(100, values[2, 2]);
+        Assert.Equal(100d, Convert.ToDouble(values[2, 2], CultureInfo.InvariantCulture));
     }
 
     [Fact]

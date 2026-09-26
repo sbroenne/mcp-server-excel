@@ -27,7 +27,7 @@ public partial class TableCommands
         string rangeAddress,
         bool hasHeaders = true)
     {
-        ValidateCreateInputs(sheetName, rangeAddress);
+        ValidateCreateInputs(sheetName, tableName, rangeAddress);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -57,9 +57,10 @@ public partial class TableCommands
         });
     }
 
-    private static void ValidateCreateInputs(string sheetName, string rangeAddress)
+    private static void ValidateCreateInputs(string sheetName, string tableName, string rangeAddress)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+        ValidateRequiredTableName(tableName);
         ArgumentException.ThrowIfNullOrWhiteSpace(rangeAddress);
     }
 

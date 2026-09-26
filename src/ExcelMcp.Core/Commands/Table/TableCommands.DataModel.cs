@@ -12,6 +12,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public AddToDataModelResult AddToDataModel(IExcelBatch batch, string tableName, bool stripBracketColumnNames = false)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -209,6 +211,5 @@ public partial class TableCommands
         }
     }
 }
-
 
 

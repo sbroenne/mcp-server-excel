@@ -16,6 +16,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null)
     {
+        ValidateRequiredTableName(tableName);
+
         // Resolve rows from inline parameter or file
         var resolvedRows = ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows");
 
@@ -146,6 +148,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public TableDataResult GetData(IExcelBatch batch, string tableName, bool visibleOnly)
     {
+        ValidateRequiredTableName(tableName);
+
         var result = new TableDataResult
         {
             FilePath = batch.WorkbookPath,
@@ -288,6 +292,5 @@ public partial class TableCommands
         }
     }
 }
-
 
 

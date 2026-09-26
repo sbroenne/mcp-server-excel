@@ -130,7 +130,7 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string rangeAddress, bool hasHeaders = true, string? tableStyle = null)
     {
-        ValidateCreateInputs(sheetName, rangeAddress);
+        ValidateCreateInputs(sheetName, tableName, rangeAddress);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -200,6 +200,9 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult Rename(IExcelBatch batch, string tableName, string newName)
     {
+        ValidateRequiredTableName(tableName);
+        ValidateRequiredTableName(newName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -226,6 +229,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult Delete(IExcelBatch batch, string tableName)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -264,6 +269,8 @@ public partial class TableCommands
     /// <inheritdoc />
     public TableInfoResult Read(IExcelBatch batch, string tableName)
     {
+        ValidateRequiredTableName(tableName);
+
         var result = new TableInfoResult { FilePath = batch.WorkbookPath };
         return batch.Execute((ctx, ct) =>
         {

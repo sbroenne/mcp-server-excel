@@ -23,6 +23,8 @@ public partial class TableCommands
         string columnName,
         bool ascending = true)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
@@ -73,6 +75,8 @@ public partial class TableCommands
         string tableName,
         List<TableSortColumn> sortColumns)
     {
+        ValidateRequiredTableName(tableName);
+
         return batch.Execute((ctx, ct) =>
         {
             if (sortColumns == null || sortColumns.Count == 0)
@@ -174,6 +178,5 @@ public partial class TableCommands
         });
     }
 }
-
 
 
