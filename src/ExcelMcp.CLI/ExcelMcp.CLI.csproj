@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework Condition="'$(OS)' == 'Windows_NT'">net10.0-windows</TargetFramework>
     <TargetFramework Condition="'$(OS)' != 'Windows_NT'">net10.0</TargetFramework>
-    <UseWindowsForms Condition="'$(OS)' == 'Windows_NT'">true</UseWindowsForms>
+    <UseWindowsForms Condition="'$(TargetFramework)' == 'net10.0-windows'">true</UseWindowsForms>
     <ExcelMcpSkipCleanup Condition="'$(OS)' != 'Windows_NT'">true</ExcelMcpSkipCleanup>
 
     <PublishAot>false</PublishAot>
@@ -26,7 +26,7 @@
     <!-- NuGet Package Configuration (secondary distribution — primary is standalone exe) -->
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
     <Title>ExcelMcp CLI</Title>
-    <Description>Command-line interface for 326 operations across Power Query, VBA, worksheets, ranges, tables, charts, PivotTables, formatting, validation, connections, and more. Windows uses the complete COM backend; macOS support is experimental and capability-gated.</Description>
+    <Description>Command-line interface for 326 operations across Power Query, VBA, worksheets, ranges, tables, charts, PivotTables, formatting, validation, connections, and more. Windows uses the complete COM backend; macOS provides the documented capability-gated operation set.</Description>
     <PackageTags>excel;cli;powerquery;dax;power-pivot;automation;com;rpa;ci-cd;scripting;github-copilot;mcp;windows;dotnet-tool;sbroenne;excel-automation;vba;pivottables;excel-tables;batch-processing;devops</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
@@ -87,10 +87,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\excelcli.ico" Condition="'$(OS)' == 'Windows_NT'" />
+    <EmbeddedResource Include="Resources\excelcli.ico" Condition="'$(TargetFramework)' == 'net10.0-windows'" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <Compile Remove="Infrastructure\CliServiceTray.cs" />
   </ItemGroup>
 
@@ -117,14 +117,16 @@
 
   <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows -->
   <!-- See: https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
-  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation"
+          Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <PropertyGroup>
       <TargetPlatformIdentifier></TargetPlatformIdentifier>
       <TargetPlatformMoniker></TargetPlatformMoniker>
     </PropertyGroup>
   </Target>
 
-  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool"
+          Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <PropertyGroup>
       <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     </PropertyGroup>

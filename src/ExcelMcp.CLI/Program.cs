@@ -3,6 +3,7 @@ using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Service.Mac;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -15,6 +16,11 @@ internal sealed class Program
 
     private static async Task<int> Main(string[] args)
     {
+        if (MacAutomationHost.TryRun(args, out var automationExitCode))
+        {
+            return automationExitCode;
+        }
+
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
         var showVersion = filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));

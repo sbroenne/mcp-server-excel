@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using OpenTelemetry.Metrics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Sbroenne.ExcelMcp.Service.Mac;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -99,6 +100,11 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
+        if (MacAutomationHost.TryRun(args, out var automationExitCode))
+        {
+            return automationExitCode;
+        }
+
         // Handle --help and --version flags for easy verification
         if (args.Length > 0)
         {

@@ -14,13 +14,13 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **⚡ Powered by the Real Excel Engine**
 
-Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drives the **actual Excel application** through its official COM API. That means it can run live operations file-based tools can't — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()` — and edit your existing workbooks with formulas, PivotTables, charts, macros and formatting left intact. Watch it happen in real time.
+Unlike file-parser libraries, ExcelMcp drives the **actual Excel application**. Windows uses the complete COM backend. macOS uses a capability-gated Apple Events backend for the documented initial operation set; unsupported operations fail explicitly.
 
 **🔗 In-Process Service Architecture** - The MCP Server hosts the ExcelMcp Service in-process and calls it directly (no pipe), for low-latency Excel automation. The CLI is an equal entry point that runs the same service as a background daemon.
 
-**CLI also available:** `mcp-excel.exe` (MCP Server) and `excelcli.exe` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
+**CLI also available:** `mcp-excel` (MCP Server) and `excelcli` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
 
-**Requirements:** Windows OS + Excel 2016+
+**Requirements:** Windows 10+ with Excel 2016+, or Apple Silicon macOS with Excel for Mac 16.112+
 
 ## 🚀 Installation
 
@@ -37,7 +37,8 @@ Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drive
 ```powershell
 # Download from latest release:
 # https://github.com/sbroenne/mcp-server-excel/releases/latest
-# ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+# Windows: ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+# macOS ARM64: ExcelMcp-MCP-Server-{version}-macos-arm64.zip → extract mcp-excel
 
 # Add to PATH, then configure your MCP client:
 # { "command": "mcp-excel" }
@@ -63,7 +64,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**31 specialized tools with 326 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
+**31 specialized tools with 326 operations** are available through the complete Windows backend. The first macOS release supports session lifecycle, worksheet list/rename/delete, core range values/formulas/clears, and calculation; unsupported operations return `PlatformNotSupported`.
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 326 operations, grouped by category
 
@@ -105,5 +106,5 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
-**Platform:** Windows only (requires Excel 2016+)  
+**Platform:** Windows (complete backend) and Apple Silicon macOS (capability-gated initial backend)
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

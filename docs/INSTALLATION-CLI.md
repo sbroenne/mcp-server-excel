@@ -5,8 +5,11 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 ## System Requirements
 
 ### Required
-- **Windows OS** (Windows 10 or later)
-- **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
+- **Windows:** Windows 10 or later with Microsoft Excel 2016 or later
+- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+
+Windows provides the complete operation set. The first macOS release is
+capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 
 > **.NET runtime is NOT required** for the standalone exe — it's fully self-contained.
 
@@ -28,11 +31,19 @@ The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically 
 ### Standalone Executable (Primary)
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download **`ExcelMcp-CLI-{version}-windows.zip`**
-3. Extract to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
+2. Download the archive for your platform:
+   - Windows: **`ExcelMcp-CLI-{version}-windows.zip`**
+   - Apple Silicon macOS: **`ExcelMcp-CLI-{version}-macos-arm64.zip`**
+3. Extract to a permanent location.
 
 ```powershell
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
+```
+
+```bash
+mkdir -p "$HOME/.local/bin"
+unzip ExcelMcp-CLI-1.x.x-macos-arm64.zip -d "$HOME/.local/bin"
+chmod +x "$HOME/.local/bin/excelcli"
 ```
 
 ### Add CLI to PATH
@@ -128,11 +139,18 @@ excelcli --version
 **Standalone exe (primary):**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download the new ZIP: `ExcelMcp-CLI-{version}-windows.zip`
+2. Download the new ZIP for your platform:
+   - Windows: `ExcelMcp-CLI-{version}-windows.zip`
+   - Apple Silicon macOS: `ExcelMcp-CLI-{version}-macos-arm64.zip`
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp" -Force
+```
+
+```bash
+unzip -o ExcelMcp-CLI-1.x.x-macos-arm64.zip -d "$HOME/.local/bin/excelmcp"
+chmod +x "$HOME/.local/bin/excelmcp/excelcli"
 ```
 
 **NuGet (secondary):**

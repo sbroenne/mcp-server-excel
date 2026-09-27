@@ -5,8 +5,11 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 ## System Requirements
 
 ### Required
-- **Windows OS** (Windows 10 or later)
-- **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
+- **Windows:** Windows 10 or later with Microsoft Excel 2016 or later
+- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+
+Windows provides the complete operation set. The first macOS release is
+capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 
 > **.NET runtime is NOT required** for any installation method — all distributions are self-contained.
 
@@ -31,6 +34,9 @@ Use this order to avoid setup confusion:
 3. **Optional:** also install the [CLI](INSTALLATION-CLI.md) (`excelcli`) for scripting/RPA
 
 ### VS Code Extension (Easiest - One-Click Setup)
+
+The VS Code extension and MCPB bundle remain Windows-only. On macOS, use the
+standalone MCP Server archive or the .NET global tool.
 
 1. **Install the Extension**
    - Open VS Code
@@ -83,15 +89,23 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 ### Step 1: Download MCP Server
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download **`ExcelMcp-MCP-Server-{version}-windows.zip`**
-3. Extract the ZIP to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
+2. Download the archive for your platform:
+   - Windows: **`ExcelMcp-MCP-Server-{version}-windows.zip`**
+   - Apple Silicon macOS: **`ExcelMcp-MCP-Server-{version}-macos-arm64.zip`**
+3. Extract it to a permanent location.
 
 ```powershell
 # Example extraction
 Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-The ZIP contains `mcp-excel.exe` — a fully self-contained executable (no .NET runtime needed).
+```bash
+mkdir -p "$HOME/.local/bin"
+unzip ExcelMcp-MCP-Server-1.x.x-macos-arm64.zip -d "$HOME/.local/bin"
+chmod +x "$HOME/.local/bin/mcp-excel"
+```
+
+The ZIP contains `mcp-excel.exe` on Windows or `mcp-excel` on macOS — a fully self-contained executable.
 
 ### Step 2: Add to PATH (Recommended)
 
@@ -308,7 +322,9 @@ mcp-excel --version
 **Standalone exe (primary):**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download the new ZIP: `ExcelMcp-MCP-Server-{version}-windows.zip`
+2. Download the new ZIP for your platform:
+   - Windows: `ExcelMcp-MCP-Server-{version}-windows.zip`
+   - Apple Silicon macOS: `ExcelMcp-MCP-Server-{version}-macos-arm64.zip`
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell
@@ -316,7 +332,12 @@ mcp-excel --version
 Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp" -Force
 ```
 
-4. Restart your MCP client (VS Code, Claude Desktop, Cursor, etc.)
+```bash
+unzip -o ExcelMcp-MCP-Server-1.x.x-macos-arm64.zip -d "$HOME/.local/bin/excelmcp"
+chmod +x "$HOME/.local/bin/excelmcp/mcp-excel"
+```
+
+4. Restart your MCP client.
 
 **NuGet (secondary):**
 

@@ -6,53 +6,47 @@ namespace Sbroenne.ExcelMcp.Service.Mac;
 
 internal sealed class MacExcelBackend
 {
-    private const string ResourceName = "Sbroenne.ExcelMcp.Service.Mac.MacExcelBridge.js";
-    private readonly string _script;
+    private static readonly SemaphoreSlim OpenGate = new(1, 1);
     private readonly Func<ProcessStartInfo, string?, CancellationToken, Task<MacProcessResult>> _runProcess;
-    private readonly Func<int> _checkPermission;
 
     public MacExcelBackend(
-        Func<ProcessStartInfo, string?, CancellationToken, Task<MacProcessResult>>? runProcess = null,
-        Func<int>? checkPermission = null)
+        Func<ProcessStartInfo, string?, CancellationToken, Task<MacProcessResult>>? runProcess = null)
     {
         _runProcess = runProcess ?? RunProcessAsync;
-        _checkPermission = checkPermission ?? MacAutomationAccess.Check;
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"Embedded macOS bridge '{ResourceName}' was not found.");
-        using var reader = new StreamReader(stream);
-        _script = reader.ReadToEnd();
     }
 
     public async Task<JsonElement> InvokeAsync(string command, object? arguments, TimeSpan timeout)
     {
         using var timeoutCts = new CancellationTokenSource(timeout);
         var serializedArguments = JsonSerializer.Serialize(arguments, ServiceProtocol.JsonOptions);
-        var permission = _checkPermission();
-        if (permission != 0)
-        {
-            throw new MacExcelOperationException("ComInterop",
-                $"Mac Excel automation is not ready: {MacAutomationAccess.DescribeStatus(permission)} " +
-                $"(OSStatus {permission}). Open licensed Excel and grant Automation permission interactively. " +
-                "No permission prompt was requested.");
-        }
 
         try
         {
             timeoutCts.Token.ThrowIfCancellationRequested();
             if (command == "session.open")
             {
-                using var args = JsonDocument.Parse(serializedArguments);
-                var filePath = args.RootElement.GetProperty("filePath").GetString();
-                ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-                await InvokeScriptAsync("session.prepare-open", serializedArguments, timeoutCts.Token);
+                await OpenGate.WaitAsync(timeoutCts.Token);
+                try
+                {
+                    await using var crossProcessLock = await AcquireOpenLockAsync(timeoutCts.Token);
+                    using var args = JsonDocument.Parse(serializedArguments);
+                    var filePath = args.RootElement.GetProperty("filePath").GetString();
+                    ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+                    await InvokeScriptAsync("session.prepare-open", serializedArguments, timeoutCts.Token);
 
-                var handoff = new ProcessStartInfo("/usr/bin/open");
-                handoff.ArgumentList.Add("-g");
-                handoff.ArgumentList.Add("-b");
-                handoff.ArgumentList.Add("com.microsoft.Excel");
-                handoff.ArgumentList.Add(filePath);
-                var result = await _runProcess(handoff, null, timeoutCts.Token);
-                EnsureSuccessfulExit("LaunchServices handoff", result);
+                    var handoff = new ProcessStartInfo("/usr/bin/open");
+                    handoff.ArgumentList.Add("-g");
+                    handoff.ArgumentList.Add("-b");
+                    handoff.ArgumentList.Add("com.microsoft.Excel");
+                    handoff.ArgumentList.Add(filePath);
+                    var result = await _runProcess(handoff, null, timeoutCts.Token);
+                    EnsureSuccessfulExit("LaunchServices handoff", result);
+                    return await InvokeScriptAsync(command, serializedArguments, timeoutCts.Token);
+                }
+                finally
+                {
+                    OpenGate.Release();
+                }
             }
 
             return await InvokeScriptAsync(command, serializedArguments, timeoutCts.Token);
@@ -68,14 +62,8 @@ internal sealed class MacExcelBackend
     private async Task<JsonElement> InvokeScriptAsync(
         string command, string arguments, CancellationToken cancellationToken)
     {
-        var startInfo = new ProcessStartInfo("/usr/bin/osascript")
-        { RedirectStandardInput = true };
-        startInfo.ArgumentList.Add("-l");
-        startInfo.ArgumentList.Add("JavaScript");
-        startInfo.ArgumentList.Add("-");
-        startInfo.ArgumentList.Add(command);
-        startInfo.ArgumentList.Add(arguments);
-        var result = await _runProcess(startInfo, _script, cancellationToken);
+        var startInfo = CreateAutomationStartInfo(command);
+        var result = await _runProcess(startInfo, arguments, cancellationToken);
         EnsureSuccessfulExit(command, result);
 
         using var document = JsonDocument.Parse(result.StandardOutput);
@@ -94,6 +82,53 @@ internal sealed class MacExcelBackend
         }
 
         return root;
+    }
+
+    private static ProcessStartInfo CreateAutomationStartInfo(string command)
+    {
+        var processPath = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Current process path is unavailable.");
+        var startInfo = new ProcessStartInfo(processPath)
+        {
+            RedirectStandardInput = true
+        };
+        if (string.Equals(Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase)
+            && Assembly.GetEntryAssembly()?.GetName().Name is { Length: > 0 } entryAssemblyName)
+        {
+            var entryAssemblyPath = Path.Combine(AppContext.BaseDirectory, $"{entryAssemblyName}.dll");
+            if (!File.Exists(entryAssemblyPath))
+            {
+                throw new InvalidOperationException(
+                    $"Entry assembly '{entryAssemblyPath}' is unavailable for Mac automation.");
+            }
+            startInfo.ArgumentList.Add(entryAssemblyPath);
+        }
+        startInfo.ArgumentList.Add(MacAutomationHost.Marker);
+        startInfo.ArgumentList.Add(command);
+        return startInfo;
+    }
+
+    private static async Task<FileStream> AcquireOpenLockAsync(CancellationToken cancellationToken)
+    {
+        var lockPath = Path.Combine(Path.GetTempPath(), "excelmcp-launchservices-open.lock");
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                return new FileStream(
+                    lockPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    bufferSize: 1,
+                    FileOptions.Asynchronous);
+            }
+            catch (IOException)
+            {
+                await Task.Delay(50, cancellationToken);
+            }
+        }
     }
 
     private static void EnsureSuccessfulExit(string command, MacProcessResult result)
