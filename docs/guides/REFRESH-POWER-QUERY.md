@@ -16,6 +16,9 @@ same-directory backup: closing the session without saving restores the original,
 while explicit save commits it. `refresh`, `refresh-all`, and update's default
 `refresh=true` remain explicitly gated until a repository-safe unattended
 fixture proves exact completion and error behavior through Mac Excel.
+The repository-authored MS-QDEFF/OOXML candidates currently time out at the
+exact-path real-Excel attachment gate and are not accepted refresh fixtures;
+see [macOS support](../../specs/MACOS-SUPPORT.md#helper-free-saved-package-investigation).
 
 ## What you ask for
 

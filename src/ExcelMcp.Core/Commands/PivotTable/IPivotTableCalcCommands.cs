@@ -24,6 +24,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// - 2 = Outline (hierarchical with expand/collapse)
 /// </summary>
 [ServiceCategory("pivottablecalc", "PivotTableCalc")]
+[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
 [McpTool("pivottable_calc", Title = "PivotTable Calc Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable calculated fields/members, layout configuration, and data extraction. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
 public interface IPivotTableCalcCommands

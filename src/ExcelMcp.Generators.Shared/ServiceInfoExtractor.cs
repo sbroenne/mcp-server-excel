@@ -77,6 +77,7 @@ public static class ServiceInfoExtractor
 
         // Extract interface-level XML documentation
         var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);
+        var interfaceMacCapability = ExtractMacCapabilityInfo(interfaceSymbol, null);
 
         var methods = new List<MethodInfo>();
 
@@ -103,7 +104,8 @@ public static class ServiceInfoExtractor
                     parameters,
                     xmlDoc?.Summary,
                     hasBatchParameter,
-                    hasProgressParameter));
+                    hasProgressParameter,
+                    ExtractMacCapabilityInfo(method, interfaceMacCapability)));
             }
         }
 
@@ -121,7 +123,138 @@ public static class ServiceInfoExtractor
             mcpToolDestructive,
             mcpToolCategory,
             mcpToolDescription,
-            hasMcpToolAttribute: mcpTool != null);
+            hasMcpToolAttribute: mcpTool != null,
+            macCapability: interfaceMacCapability);
+    }
+
+    public static MacCapabilityInfo ExtractMacCapabilityInfo(
+        ISymbol symbol,
+        MacCapabilityInfo? inherited)
+    {
+        var attribute = symbol.GetAttributes()
+            .FirstOrDefault(candidate => candidate.AttributeClass?.Name == "MacCapabilityAttribute");
+        if (attribute is null)
+        {
+            return inherited ?? MacCapabilityInfo.Unclassified;
+        }
+
+        var tier = attribute.ConstructorArguments.Length > 0
+            ? GetEnumArgumentName(attribute.ConstructorArguments[0], "Unsupported")
+            : "Unsupported";
+        var status = attribute.ConstructorArguments.Length > 1
+            ? GetEnumArgumentName(attribute.ConstructorArguments[1], "NotTested")
+            : "NotTested";
+        var isAvailable = attribute.ConstructorArguments.Length > 2
+            && attribute.ConstructorArguments[2].Value is true;
+        string? evidence = null;
+        string? excelApiVersion = null;
+        string? blocker = null;
+        foreach (var argument in attribute.NamedArguments)
+        {
+            switch (argument.Key)
+            {
+                case "Evidence":
+                    evidence = argument.Value.Value?.ToString();
+                    break;
+                case "ExcelApiVersion":
+                    excelApiVersion = argument.Value.Value?.ToString();
+                    break;
+                case "Blocker":
+                    blocker = argument.Value.Value?.ToString();
+                    break;
+            }
+        }
+
+        var defaults = GetMacCapabilityDefaults(tier, isAvailable);
+        return new MacCapabilityInfo(
+            tier,
+            status,
+            isAvailable,
+            evidence ?? defaults.Evidence,
+            excelApiVersion ?? defaults.ExcelApiVersion,
+            isAvailable ? string.Empty : blocker ?? defaults.Blocker);
+    }
+
+    private static MacCapabilityInfo GetMacCapabilityDefaults(string tier, bool isAvailable)
+    {
+        if (isAvailable && tier == "Native")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "Implemented",
+                true,
+                "Real desktop Excel coverage exercises the native Apple Events action through CLI and MCP.",
+                "Excel for Mac 16.112.3; Apple Events dictionary inspected for the same version.",
+                string.Empty);
+        }
+
+        if (tier == "PowerQueryPackage")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "Blocked",
+                isAvailable,
+                "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
+                "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
+                "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity");
+        }
+
+        if (tier == "OfficeAddIn")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "NotTested",
+                false,
+                "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+                "Office.js requirement and Excel build not yet established.",
+                "the optional Office.js add-in tier, which is not installed in this release");
+        }
+
+        if (tier == "MacroHelper")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "Blocked",
+                false,
+                "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+                "Excel for Mac 16.112.3 Apple Events dictionary.",
+                "the optional macro helper tier, which requires the user to enable macros");
+        }
+
+        if (tier == "VbaProjectModel")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "Blocked",
+                false,
+                "The installed Excel dictionary exposes no VBProject, VBComponents, or CodeModule surface.",
+                "Excel for Mac 16.112.3 Apple Events dictionary.",
+                "the optional VBA project object model tier, which requires explicit user trust");
+        }
+
+        return new MacCapabilityInfo(
+            "Unsupported",
+            "NotTested",
+            false,
+            "Windows contract and generated routing are the only recorded evidence.",
+            "Unverified.",
+            "a capability that is not supported by the macOS Excel backend");
+    }
+
+    private static string GetEnumArgumentName(TypedConstant argument, string fallback)
+    {
+        if (argument.Type is not INamedTypeSymbol enumType || argument.Value is null)
+        {
+            return fallback;
+        }
+
+        return enumType.GetMembers()
+            .OfType<IFieldSymbol>()
+            .FirstOrDefault(field =>
+                field.HasConstantValue
+                && Equals(field.ConstantValue, argument.Value))
+            ?.Name
+            ?? fallback;
     }
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)

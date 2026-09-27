@@ -26,10 +26,11 @@ public sealed class ServiceInfo
 
     /// <summary>Whether the interface has an explicit [McpTool] attribute. Used by MCP generator to skip hand-written tools.</summary>
     public bool HasMcpToolAttribute { get; }
+    public MacCapabilityInfo MacCapability { get; }
 
     public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods,
         string? xmlDocSummary = null, string? mcpToolTitle = null, bool mcpToolDestructive = true, string? mcpToolCategory = null,
-        string? mcpToolDescription = null, bool hasMcpToolAttribute = true)
+        string? mcpToolDescription = null, bool hasMcpToolAttribute = true, MacCapabilityInfo? macCapability = null)
     {
         Category = category;
         CategoryPascal = categoryPascal;
@@ -42,6 +43,7 @@ public sealed class ServiceInfo
         McpToolCategory = mcpToolCategory;
         McpToolDescription = mcpToolDescription;
         HasMcpToolAttribute = hasMcpToolAttribute;
+        MacCapability = macCapability ?? MacCapabilityInfo.Unclassified;
     }
 }
 
@@ -61,10 +63,11 @@ public sealed class MethodInfo
 
     /// <summary>Whether the original interface method has an IProgress&lt;T&gt; parameter.</summary>
     public bool HasProgressParameter { get; }
+    public MacCapabilityInfo MacCapability { get; }
 
     public MethodInfo(string methodName, string actionName, string returnType, string mcpTool,
         List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true,
-        bool hasProgressParameter = false)
+        bool hasProgressParameter = false, MacCapabilityInfo? macCapability = null)
     {
         MethodName = methodName;
         ActionName = actionName;
@@ -74,7 +77,42 @@ public sealed class MethodInfo
         XmlDocSummary = xmlDocSummary;
         HasBatchParameter = hasBatchParameter;
         HasProgressParameter = hasProgressParameter;
+        MacCapability = macCapability ?? MacCapabilityInfo.Unclassified;
     }
+}
+
+public sealed class MacCapabilityInfo
+{
+    public static MacCapabilityInfo Unclassified { get; } = new(
+        "Unsupported",
+        "NotTested",
+        false,
+        "Windows contract and generated routing are the only recorded evidence.",
+        "Unverified",
+        "No verified macOS backend route exists for this action.");
+
+    public MacCapabilityInfo(
+        string tier,
+        string status,
+        bool isAvailable,
+        string evidence,
+        string excelApiVersion,
+        string blocker)
+    {
+        Tier = tier;
+        Status = status;
+        IsAvailable = isAvailable;
+        Evidence = evidence;
+        ExcelApiVersion = excelApiVersion;
+        Blocker = blocker;
+    }
+
+    public string Tier { get; }
+    public string Status { get; }
+    public bool IsAvailable { get; }
+    public string Evidence { get; }
+    public string ExcelApiVersion { get; }
+    public string Blocker { get; }
 }
 
 /// <summary>

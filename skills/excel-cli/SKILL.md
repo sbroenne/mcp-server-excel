@@ -28,14 +28,18 @@ compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Exc
 
 ## macOS Capability Gate
 
-On macOS, use only `session create/open/list/close`, `sheet list/rename/delete`,
-range get/set values and formulas, range clear all/contents/formats, and
-calculation commands. Do not attempt Power Query, VBA, Data Model/DAX,
-PivotTables, tables, charts, slicers, connections, QueryTables, named ranges,
+On macOS, use `session create/open/list/close/test`, `sheet
+list/create/rename/delete`, range get/set values and formulas, range clear
+all/contents/formats, number-format reads and one-format writes, explicit
+column width/row height, and `calculationmode calculate`. Power Query supports
+`list`, `view`, `get-load-config`, and `update` only with `--refresh false` on
+a clean saved workbook without a Data Model. Do not attempt Power Query
+refresh or destination/lifecycle actions, VBA, Data Model/DAX, PivotTables,
+tables, charts, slicers, connections, QueryTables, named ranges, other
 formatting, screenshots, windows, Python, What-If analysis, XML maps, drawings,
 sparklines, or unsupported worksheet/range commands. Report the capability
 limit instead of retrying, clicking dialogs, changing security settings, or
-rewriting the workbook package with another library.
+using an unverified package rewrite.
 
 ## Workflow Checklist
 

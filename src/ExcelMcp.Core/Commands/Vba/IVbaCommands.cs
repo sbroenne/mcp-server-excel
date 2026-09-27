@@ -21,6 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// ExcelMcp does not configure VBA trust settings for you.
 /// </summary>
 [ServiceCategory("vba", "Vba")]
+[MacCapability(MacCapabilityTier.VbaProjectModel, MacImplementationStatus.Blocked, false)]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
     Description = "VBA module and procedure operations for macro-enabled workbooks (.xlsm). Lists and views existing VBA components, imports new standard modules, updates or deletes module code, and runs procedures. VBA trust must be enabled manually in Excel; ExcelMcp does not configure Trust Center settings.")]
 public interface IVbaCommands
@@ -60,6 +61,7 @@ public interface IVbaCommands
     /// <param name="procedureName">Name of the procedure to run (for example "Module1.MySub")</param>
     /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
     /// <param name="parameters">Optional parameters to pass to the procedure</param>
+    [MacCapability(MacCapabilityTier.MacroHelper, MacImplementationStatus.Blocked, false)]
     [ServiceAction("run")]
     OperationResult Run(IExcelBatch batch, [RequiredParameter] string procedureName, TimeSpan? timeout, params string[] parameters);
 
@@ -70,5 +72,4 @@ public interface IVbaCommands
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
 }
-
 
