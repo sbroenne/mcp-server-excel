@@ -67,6 +67,9 @@ async function route(request, response, config, state) {
     if (request.method === "POST" && url.pathname === "/v1/requests") {
       return json(response, 202, state.createRequest(body));
     }
+    if (request.method === "POST" && url.pathname === "/v1/requests/status") {
+      return json(response, 200, state.getRequest(body));
+    }
     if (request.method === "POST" && url.pathname === "/v1/office/next") {
       return json(response, 200, state.takeNext(body));
     }
@@ -74,7 +77,10 @@ async function route(request, response, config, state) {
       return json(response, 200, state.complete(body));
     }
     if (request.method === "POST" && url.pathname === "/v1/requests/cancel") {
-      return json(response, 200, { cancelled: state.cancel(body.requestId) });
+      return json(response, 200, { cancelled: state.cancel(body) });
+    }
+    if (request.method === "POST" && url.pathname === "/v1/sessions/close") {
+      return json(response, 200, state.unregisterSession(body));
     }
     throw new BridgeHttpError(404, "Route not found.");
   } catch (error) {

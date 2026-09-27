@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import test from "node:test";
+import { OfficeBridgeState } from "../src/bridge-state.mjs";
 import { createRequestHandler } from "../src/server.mjs";
 
 const config = {
@@ -10,7 +11,9 @@ const config = {
 };
 
 test("HTTP protocol rejects unauthenticated traffic and correlates a health request", async (context) => {
-  const server = http.createServer(createRequestHandler(config));
+  let now = 100;
+  const state = new OfficeBridgeState(() => now);
+  const server = http.createServer(createRequestHandler(config, state));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   context.after(() => new Promise((resolve) => server.close(resolve)));
   const port = server.address().port;
@@ -77,6 +80,98 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
   });
   assert.equal(completed.statusCode, 200);
   assert.equal(completed.body.result.errorMessage, null);
+
+  const observed = await request(port, "POST", "/v1/requests/status", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    requestId: created.body.requestId
+  });
+  assert.equal(observed.statusCode, 200);
+  assert.equal(observed.body.status, "completed");
+  assert.deepEqual(observed.body.result.value, { requirementSets: ["1.1", "1.16"] });
+
+  const wrongWorkbook = await request(port, "POST", "/v1/requests/status", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/other.xlsx",
+    requestId: created.body.requestId
+  });
+  assert.equal(wrongWorkbook.statusCode, 409);
+
+  const failed = await request(port, "POST", "/v1/requests", headers, {
+    sessionId: "session-1",
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+  await request(port, "POST", "/v1/office/next", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    instanceId: "instance-1"
+  });
+  await request(port, "POST", "/v1/office/results", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    instanceId: "instance-1",
+    requestId: failed.body.requestId,
+    success: false,
+    errorMessage: "Office.js health probe failed."
+  });
+  const observedFailure = await request(port, "POST", "/v1/requests/status", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    requestId: failed.body.requestId
+  });
+  assert.equal(observedFailure.body.status, "failed");
+  assert.equal(observedFailure.body.result.errorMessage, "Office.js health probe failed.");
+
+  const expiring = await request(port, "POST", "/v1/requests", headers, {
+    sessionId: "session-1",
+    action: "bridge.health",
+    timeoutMs: 10
+  });
+  now = 111;
+  const observedExpiry = await request(port, "POST", "/v1/requests/status", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    requestId: expiring.body.requestId
+  });
+  assert.equal(observedExpiry.body.status, "expired");
+
+  const cancelling = await request(port, "POST", "/v1/requests", headers, {
+    sessionId: "session-1",
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+  const cancelled = await request(port, "POST", "/v1/requests/cancel", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    requestId: cancelling.body.requestId
+  });
+  assert.equal(cancelled.body.cancelled, true);
+  const observedCancellation = await request(port, "POST", "/v1/requests/status", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    requestId: cancelling.body.requestId
+  });
+  assert.equal(observedCancellation.body.status, "cancelled");
+
+  const closed = await request(port, "POST", "/v1/sessions/close", headers, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx"
+  });
+  assert.equal(closed.statusCode, 200);
+  assert.equal(closed.body.removedRequests, 4);
+
+  const reopened = await request(port, "POST", "/v1/sessions", headers, {
+    sessionId: "session-2",
+    workbookUrl: "file:///tmp/book.xlsx"
+  });
+  assert.equal(reopened.statusCode, 201);
 });
 
 function request(port, method, requestPath, headers = {}, body = null) {
