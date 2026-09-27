@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Service.Mac;
 using Xunit;
 
@@ -190,6 +191,44 @@ public sealed class MacExcelSessionManagerTests
     }
 
     [Fact]
+    public async Task PackageMutation_UserSaveImmediatelyBeforeCloseBecomesBaseline()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-save-race-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open" &&
+                AutomationCommand(start) == "session.close-if-saved")
+            {
+                File.WriteAllText(path, "latest-user-save");
+            }
+
+            return Task.FromResult(Success());
+        });
+        using var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "updated"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+
+        Assert.True(await manager.CloseAsync(sessionId, save: false));
+        Assert.Equal("latest-user-save", await File.ReadAllTextAsync(path));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
     public async Task PackageMutation_EditAfterStateCheckRejectsAtomicCloseWithoutDiscardingEdits()
     {
         var directory = Directory.CreateTempSubdirectory("excelmcp-package-dirty-race-");
@@ -207,6 +246,13 @@ public sealed class MacExcelSessionManagerTests
                     return Task.FromResult(new MacProcessResult(
                         0,
                         """{"success":false,"errorMessage":"Workbook has unsaved changes.","errorCategory":"InvalidOperation"}""",
+                        ""));
+                }
+                if (command == "session.is-open")
+                {
+                    return Task.FromResult(new MacProcessResult(
+                        0,
+                        """{"success":true,"errorMessage":"","open":true}""",
                         ""));
                 }
             }
@@ -411,6 +457,223 @@ public sealed class MacExcelSessionManagerTests
         directory.Delete();
     }
 
+    [Fact]
+    public async Task Close_TimeoutAfterWorkbookClosedReconcilesAndRestoresBaseline()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-close-timeout-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var open = true;
+        var timeoutFinalClose = false;
+        var backend = new MacExcelBackend(async (start, input, cancellationToken) =>
+        {
+            if (start.FileName == "/usr/bin/open")
+            {
+                return Success();
+            }
+
+            switch (AutomationCommand(start))
+            {
+                case "session.prepare-open":
+                    return Success();
+                case "session.open":
+                    open = true;
+                    return Success();
+                case "session.close-if-saved":
+                    open = false;
+                    return Success();
+                case "session.close" when timeoutFinalClose:
+                    open = false;
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    throw new InvalidOperationException("Unreachable.");
+                case "session.close":
+                    open = false;
+                    return Success();
+                case "session.is-open":
+                    Assert.Equal(path, InputFilePath(input));
+                    return Success($$"""{"success":true,"errorMessage":"","open":{{JsonSerializer.Serialize(open)}}}""");
+                default:
+                    return Success();
+            }
+        });
+        using var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromMilliseconds(50));
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "updated"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+        timeoutFinalClose = true;
+
+        Assert.True(await manager.CloseAsync(sessionId, save: false));
+
+        Assert.Equal("original", await File.ReadAllTextAsync(path));
+        Assert.Empty(TransactionArtifacts(directory));
+        Assert.Empty(manager.Sessions);
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
+    public async Task Close_TimeoutWhileWorkbookRemainsOpenCancelsLogicalClose()
+    {
+        var backend = new MacExcelBackend(async (start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open")
+            {
+                switch (AutomationCommand(start))
+                {
+                    case "session.close":
+                        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                        break;
+                    case "session.is-open":
+                        return Success("""{"success":true,"errorMessage":"","open":true}""");
+                }
+            }
+            return Success();
+        });
+        using var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            "/tmp/close-timeout-open.xlsx",
+            show: false,
+            TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAsync<TimeoutException>(
+            () => manager.CloseAsync(sessionId, save: false));
+
+        Assert.True(await manager.ExecuteAsync(sessionId, _ => Task.FromResult(true)));
+    }
+
+    [Fact]
+    public async Task Close_IndeterminateTimeoutMarksSessionRecoveryRequired()
+    {
+        var backend = new MacExcelBackend(async (start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open" &&
+                AutomationCommand(start) is "session.close" or "session.is-open")
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            return Success();
+        });
+        using var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            "/tmp/close-timeout-indeterminate.xlsx",
+            show: false,
+            TimeSpan.FromMilliseconds(50));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.CloseAsync(sessionId, save: false));
+
+        Assert.Contains("could not determine", error.Message, StringComparison.OrdinalIgnoreCase);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ExecuteAsync(sessionId, _ => Task.FromResult(true)));
+        Assert.True(Assert.Single(manager.Sessions).RequiresPackageRecovery);
+    }
+
+    [Fact]
+    public async Task Dispose_CloseFailureRetainsStagedWorkbookAndRecoveryArtifacts()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-dispose-failure-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var failFinalClose = false;
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open" &&
+                AutomationCommand(start) == "session.close" &&
+                failFinalClose)
+            {
+                return Task.FromResult(Success(
+                    """{"success":false,"errorMessage":"close failed","errorCategory":"ComInterop"}"""));
+            }
+
+            return Task.FromResult(Success());
+        });
+        var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "updated"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+        var session = Assert.Single(manager.Sessions);
+        var baselinePath = Assert.IsType<string>(session.PackageBaselinePath);
+        var transactionPath = Assert.IsType<string>(session.PackageTransactionPath);
+        failFinalClose = true;
+
+        manager.Dispose();
+
+        Assert.Equal("updated", await File.ReadAllTextAsync(path));
+        Assert.True(File.Exists(baselinePath));
+        Assert.True(File.Exists(transactionPath));
+
+        File.Delete(baselinePath);
+        File.Delete(transactionPath);
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
+    public async Task Dispose_CloseTimeoutAfterSideEffectRestoresBaseline()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-dispose-timeout-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var timeoutFinalClose = false;
+        var backend = new MacExcelBackend(async (start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open")
+            {
+                switch (AutomationCommand(start))
+                {
+                    case "session.close" when timeoutFinalClose:
+                        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                        break;
+                    case "session.is-open":
+                        Assert.Equal(path, InputFilePath(input));
+                        return Success("""{"success":true,"errorMessage":"","open":false}""");
+                }
+            }
+            return Success();
+        });
+        var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromMilliseconds(50));
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "updated"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+        timeoutFinalClose = true;
+
+        manager.Dispose();
+
+        Assert.Equal("original", await File.ReadAllTextAsync(path));
+        Assert.Empty(TransactionArtifacts(directory));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
     private static MacExcelSessionManager CreateManager(Action<string, string>? copyFile = null)
     {
         var backend = new MacExcelBackend((start, input, cancellationToken) =>
@@ -423,6 +686,16 @@ public sealed class MacExcelSessionManagerTests
             .Where(candidate =>
                 Path.GetFileName(candidate).Contains("excelmcp-pq-", StringComparison.Ordinal))
             .ToArray();
+
+    private static MacProcessResult Success(
+        string output = """{"success":true,"errorMessage":""}""") =>
+        new(0, output, "");
+
+    private static string InputFilePath(string? input)
+    {
+        using var document = JsonDocument.Parse(Assert.IsType<string>(input));
+        return Assert.IsType<string>(document.RootElement.GetProperty("filePath").GetString());
+    }
 
     private static async Task WaitForAsync(Func<bool> predicate)
     {
