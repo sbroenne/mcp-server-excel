@@ -2,7 +2,7 @@ name: Release All Components
 
 # Unified release workflow for all ExcelMcp components:
 # - MCP Server (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
-# - CLI (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
+# - CLI (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
 # - Agent Skills (ZIP package)
@@ -177,6 +177,13 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
+        package-manager-cache: false
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
@@ -213,6 +220,26 @@ jobs:
           -p:NuGetAudit=false `
           --output ./cli-publish
       shell: pwsh
+
+    - name: Build and Test CLI npm Packages
+      run: |
+        .\scripts\Build-NpmPackages.ps1 `
+          -Component Cli `
+          -Version $env:VERSION `
+          -RuntimeExecutable "cli-publish\excelcli.exe" `
+          -OutputDirectory "cli-npm-artifacts"
+
+        .\scripts\Test-NpmPackages.ps1 `
+          -Component Cli `
+          -LauncherPackage "cli-npm-artifacts\sbroenne-excelcli-$env:VERSION.tgz" `
+          -RuntimePackage "cli-npm-artifacts\sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
+      shell: pwsh
+
+    - name: Upload CLI npm Artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: cli-npm
+        path: cli-npm-artifacts/*.tgz
 
     - name: Create CLI ZIP
       run: |
@@ -334,10 +361,12 @@ jobs:
         Compress-Archive -Path "mcp-server-release/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
 
-    - name: Test npm Launcher
+    - name: Test npm Launchers and Packaging
       run: |
-        npm ci --prefix npm-packages/mcp-server-excel --ignore-scripts
-        npm test --prefix npm-packages/mcp-server-excel
+        npm ci --prefix npm-packages/shared --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
+        npm test --prefix npm-packages/shared
+        if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
       shell: pwsh
 
     - name: Build and Test npm Packages
@@ -577,7 +606,7 @@ jobs:
 
           try {
             $response = Invoke-WebRequest -Uri $nugetReadmeUrl -UseBasicParsing -ErrorAction Stop
-            $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
+            $content = $response.Content
             $nugetReady = $response.StatusCode -eq 200 -and
               $content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel"
           } catch {
@@ -825,6 +854,12 @@ jobs:
         name: mcp-server-npm
         path: npm-packages
 
+    - name: Download CLI npm Packages
+      uses: actions/download-artifact@v8
+      with:
+        name: cli-npm
+        path: npm-packages
+
     - name: Download VS Code VSIX
       uses: actions/download-artifact@v8
       with:
@@ -881,6 +916,12 @@ jobs:
         Publish-NpmPackage `
           -PackageName "@sbroenne/mcp-server-excel" `
           -Tarball "npm-packages/sbroenne-mcp-server-excel-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/excelcli-win32-x64" `
+          -Tarball "npm-packages/sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/excelcli" `
+          -Tarball "npm-packages/sbroenne-excelcli-$env:VERSION.tgz"
       shell: pwsh
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

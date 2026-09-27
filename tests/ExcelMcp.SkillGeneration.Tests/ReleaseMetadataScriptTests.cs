@@ -182,6 +182,48 @@ public sealed class ReleaseMetadataScriptTests
         Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
         Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$version", publishMcpRegistry, StringComparison.Ordinal);
         Assert.Contains("$nugetReady -and $npmLauncherReady -and $npmRuntimeReady", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$content = $response.Content", publishMcpRegistry, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseFlow_BuildsTestsAndPublishesBothNpmDistributions()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        var cli = ExtractWorkflowJob(workflow, "build-cli");
+        var mcp = ExtractWorkflowJob(workflow, "build-mcp-server");
+        var publish = ExtractWorkflowJob(workflow, "publish");
+
+        Assert.Contains("actions/setup-node@", cli, StringComparison.Ordinal);
+        Assert.Contains("-Component Cli", cli, StringComparison.Ordinal);
+        Assert.Contains("Build-NpmPackages.ps1", cli, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", cli, StringComparison.Ordinal);
+        Assert.Contains("name: cli-npm", cli, StringComparison.Ordinal);
+        Assert.Contains("Build-NpmPackages.ps1", mcp, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", mcp, StringComparison.Ordinal);
+        Assert.Contains("npm test --prefix npm-packages/shared", mcp, StringComparison.Ordinal);
+        Assert.Contains("name: mcp-server-npm", mcp, StringComparison.Ordinal);
+        Assert.Contains("name: cli-npm", publish, StringComparison.Ordinal);
+        Assert.Contains("name: mcp-server-npm", publish, StringComparison.Ordinal);
+
+        foreach (var packageName in new[] { "excelcli", "mcp-server-excel" })
+        {
+            var runtimeIndex = publish.IndexOf(
+                $"-PackageName \"@sbroenne/{packageName}-win32-x64\"",
+                StringComparison.Ordinal);
+            var launcherIndex = publish.IndexOf(
+                $"-PackageName \"@sbroenne/{packageName}\"",
+                StringComparison.Ordinal);
+            Assert.True(runtimeIndex >= 0);
+            Assert.True(launcherIndex > runtimeIndex, "Publish the runtime before its launcher.");
+        }
+
+        var preCommit = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
+        Assert.Contains("-Component Cli", preCommit, StringComparison.Ordinal);
+        Assert.Contains("sbroenne-excelcli-win32-x64-$version.tgz", preCommit, StringComparison.Ordinal);
+        Assert.Contains("Join-Path $rootDir \"npm-packages/shared\"", preCommit, StringComparison.Ordinal);
+        Assert.Contains("npm test --prefix $npmTestDirectory", preCommit, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -430,7 +472,9 @@ public sealed class ReleaseMetadataScriptTests
                 }
                 """);
 
-            var result = await RunUpdaterAsync(metadataPath, "9.8.7");
+            var result = await RunPowerShellScriptAsync(
+                UpdateMetadataScript,
+                ["-ServerJsonPath", metadataPath, "-Version", "9.8.7"]);
 
             Assert.NotEqual(0, result.ExitCode);
             Assert.Contains(

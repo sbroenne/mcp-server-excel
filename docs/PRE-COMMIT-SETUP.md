@@ -12,7 +12,7 @@ This repository includes automated pre-commit checks to prevent code quality iss
 6. **Release Solution Build** - Builds the solution in Release so generated skill docs and downstream packaging inputs are fresh
 7. **CLI Workflow Smoke Test** - Validates the end-to-end CLI workflow
 8. **MCP Server Smoke Test** - Validates the all-tools MCP smoke workflow
-9. **CLI Release Deliverables** - Builds the CLI NuGet package and standalone ZIP locally
+9. **CLI Release Deliverables** - Builds and tests the CLI npm packages, NuGet package, and standalone ZIP locally
 10. **MCP Server Release Deliverables** - Builds and tests the MCP Server npm packages, NuGet package, and standalone ZIP locally
 11. **VS Code Extension Packaging** - Runs the VSIX release packaging path (`npm run package`)
 12. **MCPB Bundle Packaging** - Builds the Claude Desktop `.mcpb` bundle locally
@@ -170,7 +170,7 @@ The Excel-free subset of these checks runs in CI/CD (GitHub-hosted runners have 
 - **Double protection** against coverage regression
 
  When shipping inputs change, the hook validates every locally buildable release artifact before commit publication:
- - CLI NuGet package + standalone ZIP
+ - CLI npm packages + NuGet package + standalone ZIP
  - MCP Server npm packages + NuGet package + standalone ZIP
  - VS Code VSIX
  - Claude Desktop MCPB bundle

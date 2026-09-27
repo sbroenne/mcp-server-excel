@@ -1,5 +1,8 @@
 [CmdletBinding()]
 param(
+    [ValidateSet('McpServer', 'Cli')]
+    [string]$Component = 'McpServer',
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$LauncherPackage,
@@ -13,9 +16,14 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$smokeScript = Join-Path $repoRoot 'npm-packages\mcp-server-excel\scripts\verify-runtime.mjs'
+$packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
+$commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
+$smokeScript = Join-Path $repoRoot "npm-packages\$packageName\scripts\verify-runtime.mjs"
 $resolvedLauncher = (Resolve-Path -LiteralPath $LauncherPackage).Path
 $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimePackage).Path
+if (-not $IsWindows) {
+    throw 'npm runtime smoke tests require Windows.'
+}
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpmTest-$([Guid]::NewGuid().ToString('N'))"
 
 function Remove-Sandbox {
@@ -48,7 +56,7 @@ try {
         throw "npm package installation failed with exit code $LASTEXITCODE."
     }
 
-    $launcherScript = Join-Path $sandbox 'node_modules\@sbroenne\mcp-server-excel\bin\mcp-excel.js'
+    $launcherScript = Join-Path $sandbox "node_modules\@sbroenne\$packageName\bin\$commandName.js"
     $versionOutput = & node.exe $launcherScript --version 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "npm launcher --version failed with exit code $LASTEXITCODE. $versionOutput"
@@ -57,7 +65,7 @@ try {
 
     $smokeOutput = & node.exe $smokeScript $launcherScript 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
-        throw "npm launcher MCP handshake failed with exit code $LASTEXITCODE. $smokeOutput"
+        throw "$Component npm runtime smoke test failed with exit code $LASTEXITCODE. $smokeOutput"
     }
     Write-Output ($smokeOutput.Trim())
 }

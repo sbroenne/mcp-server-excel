@@ -9,7 +9,7 @@ All ExcelMcp components are released together with a single version tag:
 | Component | Primary Distribution | Secondary Distribution | Description |
 |-----------|---------------------|----------------------|-------------|
 | **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel` or `mcp-excel.exe` — no .NET runtime required |
-| **CLI** | Standalone exe ZIP | NuGet (.NET tool) | `excelcli.exe` — no .NET runtime required |
+| **CLI** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/excelcli` or `excelcli.exe` — no .NET runtime required |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
 | **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with wrapper/bootstrap assets that fetch the latest runtime on first use |
@@ -25,6 +25,7 @@ All ExcelMcp components are released together with a single version tag:
 When you run the release workflow, all components are released together:
 
 1. **CLI** → Standalone self-contained exe (`excelcli.exe`) shipped as:
+   - npm launcher and Windows runtime packages (primary distribution)
    - ZIP file (primary distribution)
    - NuGet package (secondary distribution)
 2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained exe ZIP [primary] + NuGet pack [secondary]
@@ -42,6 +43,8 @@ When you run the release workflow, all components are released together:
 |----------|--------|--------------|
 | `@sbroenne/mcp-server-excel@{version}` | npm | npm registry (primary launcher package) |
 | `@sbroenne/mcp-server-excel-win32-x64@{version}` | npm | npm registry (self-contained Windows runtime) |
+| `@sbroenne/excelcli@{version}` | npm | npm registry (primary CLI launcher package) |
+| `@sbroenne/excelcli-win32-x64@{version}` | npm | npm registry (self-contained Windows CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs) |
@@ -95,7 +98,7 @@ The main release workflow runs automatically (11 jobs), then the plugin publish 
 
 1. **version** → Calculates the version from the latest tag and dispatch input
 2. **prepare-release** → Builds the generated surface, refreshes advertised counts, compiles changesets, and uploads the metadata used by packaging jobs
-3. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
+3. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates and tests npm packages, ZIP, and NuGet pack
 4. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates and tests npm packages, ZIP, and NuGet pack
 5. **build-vscode** (5-8 min) → Builds the self-contained VSIX with the prepared changelog
 6. **build-mcpb** (3-5 min) → Builds the Claude Desktop bundle with the prepared changelog
@@ -112,7 +115,7 @@ Afterward, **publish-plugins.yml** runs as a follow-on workflow and sync-gates r
 After workflow completes:
 
 - [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, `SHA256SUMS`, VSIX, MCPB, skills ZIP)
-- [ ] npm launcher and Windows runtime packages are available at the release version
+- [ ] All four npm packages (MCP Server and CLI launchers plus their Windows runtimes) are available at the release version
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
@@ -266,7 +269,7 @@ Configure these GitHub repository secrets and variables:
 
 > **Notes:**
 > - NuGet uses OIDC trusted publishing (no API key needed). The `NUGET_USER` is just the NuGet.org profile name for OIDC token exchange.
-> - npm trusted publishing cannot bootstrap a new package. Use `NPM_TOKEN` for the first release, configure `release.yml` as the trusted publisher for both npm packages, then remove the token; npm automatically prefers OIDC and generates provenance.
+> - npm trusted publishing cannot bootstrap a new package. Use `NPM_TOKEN` for the first release, configure `release.yml` as the trusted publisher for all four npm packages (MCP Server and CLI launchers and runtimes), then remove the token; npm automatically prefers OIDC and generates provenance.
 > - The follow-on plugin publish workflow uses a stored cross-repo token (`PLUGINS_REPO_TOKEN`) with write access to the published plugin repo. A PAT needs `public_repo`; an app token needs `contents:write`.
 
 ## Troubleshooting
@@ -279,8 +282,28 @@ Configure these GitHub repository secrets and variables:
 ### npm Publishing Fails
 
 - For the first release, verify `NPM_TOKEN` can publish public packages under the `@sbroenne` scope
-- After the first release, configure both packages to trust the `release.yml` GitHub Actions workflow
+- After the first release, configure all four npm packages to trust the `release.yml` GitHub Actions workflow
 - Confirm the workflow has `id-token: write` and uses npm 11 or later
+
+### npm Packaging Development
+
+`npm-packages/shared/launcher.js` is copied into each staged launcher's `lib/`
+by `scripts/Build-NpmPackages.ps1`; do not maintain separate launcher
+implementations. Package directories are build inputs, not directly runnable
+source installations. The shared tests cover both launchers and inspect real
+tarballs built with fixture payloads (no Excel required):
+
+```powershell
+npm ci --prefix npm-packages/shared --ignore-scripts
+npm test --prefix npm-packages/shared
+```
+
+On Windows, build and smoke-test each real runtime with
+`scripts/Build-NpmPackages.ps1` and `scripts/Test-NpmPackages.ps1`.
+Pass `-Component Cli` for `excelcli`; the default remains `McpServer`.
+The CLI smoke test checks help, version, subcommand arguments, output, and
+failure exit codes; the MCP smoke test checks initialization and tool discovery.
+These smoke tests do not exercise Excel automation.
 
 ### VS Code Marketplace Fails
 

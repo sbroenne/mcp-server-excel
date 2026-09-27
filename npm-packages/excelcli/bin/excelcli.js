@@ -3,10 +3,9 @@
 import { createLauncher } from '../lib/launcher.js';
 
 const { main } = createLauncher({
-  packageName: '@sbroenne/mcp-server-excel',
-  commandName: 'excel-mcp'
+  packageName: '@sbroenne/excelcli',
+  commandName: 'excelcli'
 });
-
 const exitCode = main();
 if (exitCode !== undefined) {
   process.exitCode = exitCode;

@@ -1,5 +1,8 @@
 [CmdletBinding()]
 param(
+    [ValidateSet('McpServer', 'Cli')]
+    [string]$Component = 'McpServer',
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$Version,
@@ -17,14 +20,18 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$launcherSource = Join-Path $repoRoot 'npm-packages\mcp-server-excel'
-$runtimeSource = Join-Path $repoRoot 'npm-packages\mcp-server-excel-win32-x64'
+$packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
+$commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
+$launcherSource = Join-Path $repoRoot "npm-packages\$packageName"
+$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-win32-x64"
+$sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
+$npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
 $licensePath = Join-Path $repoRoot 'LICENSE'
 $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimeExecutable).Path
 $resolvedOutput = [IO.Path]::GetFullPath($OutputDirectory)
 $stagingRoot = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpm-$([Guid]::NewGuid().ToString('N'))"
-$launcherStage = Join-Path $stagingRoot 'mcp-server-excel'
-$runtimeStage = Join-Path $stagingRoot 'mcp-server-excel-win32-x64'
+$launcherStage = Join-Path $stagingRoot $packageName
+$runtimeStage = Join-Path $stagingRoot "$packageName-win32-x64"
 
 function Copy-PackageSource {
     param(
@@ -57,7 +64,10 @@ function Write-PackageManifest {
     $manifest = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
     & $Update $manifest
     $json = ($manifest | ConvertTo-Json -Depth 20) -replace "`r?`n", "`n"
-    Set-Content -LiteralPath $Path -Value $json -NoNewline
+    [System.IO.File]::WriteAllText(
+        $Path,
+        $json,
+        [System.Text.UTF8Encoding]::new($false))
 }
 
 function New-NpmTarball {
@@ -78,7 +88,7 @@ function New-NpmTarball {
         Remove-Item -LiteralPath $archivePath -Force
     }
 
-    & npm.cmd pack $PackageDirectory --pack-destination $resolvedOutput --silent | Out-Null
+    & $npmCommand pack $PackageDirectory --pack-destination $resolvedOutput --silent | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "npm pack failed for '$PackageDirectory' with exit code $LASTEXITCODE."
     }
@@ -124,12 +134,14 @@ try {
     Copy-PackageSource `
         -Source $launcherSource `
         -Destination $launcherStage `
-        -Entries @('package.json', 'README.md', 'bin', 'lib')
+        -Entries @('package.json', 'README.md', 'bin')
+    $launcherLib = New-Item -ItemType Directory -Path (Join-Path $launcherStage 'lib')
+    Copy-Item -LiteralPath $sharedLauncher -Destination $launcherLib.FullName
     Copy-PackageSource `
         -Source $runtimeSource `
         -Destination $runtimeStage `
         -Entries @('package.json', 'README.md')
-    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage 'mcp-excel.exe')
+    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage "$commandName.exe")
 
     Write-PackageManifest -Path (Join-Path $runtimeStage 'package.json') -Update {
         param($manifest)
@@ -138,15 +150,15 @@ try {
     Write-PackageManifest -Path (Join-Path $launcherStage 'package.json') -Update {
         param($manifest)
         $manifest.version = $Version
-        $manifest.optionalDependencies.'@sbroenne/mcp-server-excel-win32-x64' = $Version
+        $manifest.optionalDependencies."@sbroenne/$packageName-win32-x64" = $Version
     }
 
     $runtimeTarball = New-NpmTarball `
         -PackageDirectory $runtimeStage `
-        -RequiredFiles @('mcp-excel.exe', 'package.json')
+        -RequiredFiles @("$commandName.exe", 'package.json', 'LICENSE')
     $launcherTarball = New-NpmTarball `
         -PackageDirectory $launcherStage `
-        -RequiredFiles @('bin/mcp-excel.js', 'lib/launcher.js', 'package.json')
+        -RequiredFiles @("bin/$commandName.js", 'lib/launcher.js', 'package.json', 'LICENSE')
 
     [pscustomobject]@{
         LauncherPackage = $launcherTarball
