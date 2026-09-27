@@ -49,7 +49,9 @@ internal static class MacCommandCapabilities
         "conditionalformat"
     };
 
-    public static MacCommandCapability Get(string command)
+    public static MacCommandCapability Get(
+        string command,
+        MacVbaPreflightResult? vbaPreflight = null)
     {
         if (NativeCommands.Contains(command))
         {
@@ -81,15 +83,21 @@ internal static class MacCommandCapabilities
 
         if (category == "vba")
         {
+            vbaPreflight ??= MacVbaPreflight.Check();
             return action == "run"
                 ? Unavailable(
                     MacCapabilityTier.MacroHelper,
                     command,
-                    "the optional macro helper tier, which requires the user to enable macros")
+                    "the optional macOS macro execution tier; preflight reports that " +
+                    $"{MacVbaPreflight.DescribeMacroExecution(vbaPreflight.MacroExecution)}; " +
+                    "a repository-owned synthetic fixture has not yet proven unattended, " +
+                    "workbook-qualified execution through both CLI and MCP")
                 : Unavailable(
                     MacCapabilityTier.VbaProjectModel,
                     command,
-                    "the optional VBA project object model tier, which requires explicit user trust");
+                    "the optional macOS VBA project-model tier; preflight reports that " +
+                    $"{MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess)}, " +
+                    "and Excel's installed scripting dictionary exposes no VBA project-model route");
         }
 
         if (OfficeAddInCategories.Contains(category)

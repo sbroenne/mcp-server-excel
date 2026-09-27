@@ -66,6 +66,20 @@ permission and dispatch occur in the same bounded executable child because
 Automation authorization is sender-specific. ExcelMcp does not automate System
 Settings, weaken macro security, or click Excel warnings.
 
+macOS VBA capability checks read the effective Office macro and project-model
+preferences without changing them. A permissive preference is not treated as
+proof that a workbook or macro is trusted: macro execution stays disabled until
+a repository-owned fixture proves unattended CLI and MCP behavior. VBA source
+operations remain unavailable because Excel's Apple Events dictionary has no
+project-model route. The Mac distribution may include reviewable source for an
+optional, version-matched `ExcelMcpHelper.xlam` dispatcher that the user imports
+into a new add-in with Excel. ExcelMcp does not install it, inject code into
+user workbooks, change trust, or dynamically select VBA to execute. The helper
+accepts only a fixed action allowlist, exact configured add-in and target
+workbook identities, correlated bounded JSON, and sanitized errors. Installing
+it is not proof that any method is safe; public actions remain independently
+gated until real CLI and MCP evidence exists.
+
 **Security Implications:**
 
 - If malware runs under your user account, it could theoretically connect to the CLI daemon and control Excel
@@ -218,8 +232,11 @@ We follow responsible disclosure practices:
   permission and owns exact workbooks inside shared desktop Excel
 - **No Prompt Automation**: ExcelMcp does not click permission or macro dialogs,
   change system privacy settings, or weaken macro security
-- **Macro Security**: Windows VBA operations require the user to manually enable
-  "Trust access to the VBA project object model"; VBA is capability-gated on macOS
+- **Macro Security**: Windows VBA source operations require the user to manually
+  enable "Trust access to the VBA project object model". On macOS, ExcelMcp only
+  reads the user-managed macro and project-model preferences; execution and
+  source operations remain capability-gated until their independent evidence
+  requirements are met.
 
 ### File System Access
 

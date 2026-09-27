@@ -33,13 +33,37 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
-    public void VbaRun_RequiresMacroHelperWithoutProjectModelTrust()
+    public void VbaRun_RemainsGatedWithoutRepositoryFixtureEvidence()
     {
-        var capability = MacCommandCapabilities.Get("vba.run");
+        var capability = MacCommandCapabilities.Get(
+            "vba.run",
+            new MacVbaPreflightResult(
+                MacMacroExecutionAvailability.Available,
+                MacVbaProjectModelAccess.Disabled));
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
         Assert.DoesNotContain("project object model", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("repository-owned", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unattended", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("Disabled", "disabled")]
+    [InlineData("UserApprovalRequired", "approval")]
+    [InlineData("Unknown", "could not")]
+    public void VbaRun_ReportsNonPromptingMacroPreflight(
+        string availabilityName,
+        string expectedMessage)
+    {
+        var availability = Enum.Parse<MacMacroExecutionAvailability>(availabilityName);
+        var capability = MacCommandCapabilities.Get(
+            "vba.run",
+            new MacVbaPreflightResult(availability, MacVbaProjectModelAccess.Disabled));
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains(expectedMessage, capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -80,13 +104,34 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("vba.import")]
     [InlineData("vba.update")]
     [InlineData("vba.delete")]
-    public void VbaSourceCommands_RequireProjectModelTrust(string command)
+    public void VbaSourceCommands_ReportMissingTrustAndScriptingRoute(string command)
     {
-        var capability = MacCommandCapabilities.Get(command);
+        var capability = MacCommandCapabilities.Get(
+            command,
+            new MacVbaPreflightResult(
+                MacMacroExecutionAvailability.Available,
+                MacVbaProjectModelAccess.Disabled));
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.VbaProjectModel, capability.RequiredTier);
         Assert.Contains("project object model", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("disabled", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scripting", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void VbaSourceCommands_StayGatedWhenProjectModelTrustIsEnabled()
+    {
+        var capability = MacCommandCapabilities.Get(
+            "vba.list",
+            new MacVbaPreflightResult(
+                MacMacroExecutionAvailability.Available,
+                MacVbaProjectModelAccess.Enabled));
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.VbaProjectModel, capability.RequiredTier);
+        Assert.Contains("enabled", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scripting", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
