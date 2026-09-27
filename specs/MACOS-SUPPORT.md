@@ -93,6 +93,12 @@ user trust. Base macOS support must not require macros or VBA project trust.
 
 ## Required parity and priorities
 
+Implementation status is branch-specific: a capability implemented in another
+open feature PR is not present in the base branch until integrated. The feature
+branches must be combined and their capability metadata regenerated before
+claiming a complete product. Classifying an action as blocked is not completing
+its implementation.
+
 The existing Windows source contracts are the baseline. Match operation names,
 parameters, defaults, validation, results, errors, persistence and observable
 behavior wherever Mac Excel permits. MCP and CLI must remain equal entry points
@@ -319,6 +325,98 @@ contract still to implement and validate. VBA source parsing is viable, but
 source mutation is not yet executable in Excel and remains blocked on a valid
 recompilation/cache strategy plus unattended trust. No production capability
 is enabled solely from these probes.
+
+## Implementation routes for remaining features
+
+The following routes are selected for further implementation, not advertised as
+working features. Microsoft documentation and the installed Excel dictionary
+identify callable APIs; actual CLI/MCP behavior still requires real-Excel tests.
+The target is Mac-only execution. Remote Windows Excel is not a fallback.
+
+### Power Query and VBA helper
+
+Use a versioned, optional `.xlam` add-in authored from original source and saved
+by Excel itself. One-time installation and approval are explicit user steps.
+Do not synthesize executable VBA project binaries or silently install source
+into target workbooks. Native features remain independent of this helper.
+
+An allowlisted dispatcher receives a bounded structured request through
+`run VB Macro`, selects the target by exact `Workbook.FullName`, and returns a
+correlated structured result. It must not use `ActiveWorkbook`, evaluate
+arbitrary incoming code, or change trust settings. Permission to execute the
+helper does not imply permission to inspect or edit VBA projects.
+
+- **Power Query:** use `Workbook.Queries`, `Queries.Add`,
+  `WorkbookQuery.Formula`, `Name`, and `Delete`, plus query-backed `ListObjects`
+  and `QueryTable.Refresh`. Microsoft's
+  [Mac Power Query documentation](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query)
+  explicitly describes these query objects and gives a worksheet-load example.
+  Prove refresh completion, connection-only behavior and cleanup separately.
+- **VBA source:** use `VBProject.VBComponents` and `CodeModule` through the
+  helper, with explicit user-managed project trust. The absence of these objects
+  from Apple Events does not prove their absence inside VBA. Verify the actual
+  Mac methods, protected/signed projects and component-type restrictions before
+  enabling source actions.
+- **Timeouts:** terminating the automation caller does not stop VBA already
+  running in Excel. Invalidate the affected session and reconcile completion;
+  never retry a possibly completed mutation through another backend.
+
+Create original query and macro fixtures through Excel rather than treating
+package-parser round-trips as proof that Excel accepts an executable workbook.
+A failed LaunchServices handoff affecting ordinary baseline workbooks is not,
+by itself, evidence that a query package is invalid. Stop on repair/recovery UI;
+never repeatedly open suspect files as part of default tests.
+
+### Native and Office.js coverage
+
+The installed native dictionary exposes tables, chart/series properties,
+PivotTables and fields, scenarios, QueryTables, shapes and workbook windows.
+Use those APIs where reliable; use the optional Office.js bridge or trusted VBA
+helper where the complete existing contract needs another route.
+
+The Office.js bridge requires real action dispatch through the shared Service,
+not just a health response. Negotiate numbered `ExcelApi` sets and
+[`ExcelApiDesktop 1.1`](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/excel/excel-api-desktop-1-1-requirement-set)
+independently: desktop APIs include Mac window geometry, panes and
+point-to-screen conversion. Bind requests to the exact workbook at execution
+and completion, and preserve mutation uncertainty after cancellation.
+
+Worksheet copy/move must preserve entire sheet content and identity, not merely
+copy cell values. Likewise, a chart over PivotTable result cells is not a linked
+PivotChart. Test these distinctions rather than substituting superficially
+similar output.
+
+### Python and screenshots
+
+[Python in Excel is available on qualifying Macs](https://support.microsoft.com/en-gb/excel/python/python-in-excel-availability).
+The native dictionary exposes `formula2`; use it for the existing `=PY()` command
+contract, with explicit return type, calculation-state checks, `#BUSY!` handling
+and useful license/network errors. Python continues to execute in Microsoft's
+cloud as documented by the command; a local Python interpreter is not equivalent.
+
+Screenshots must capture the actual Excel window, including floating charts,
+without modifying the clipboard. Use
+[ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-in-macos)
+with an exact-window filter and Excel-provided screen geometry for cropping.
+Screen Recording permission requires explicit user setup. Cell or chart image
+export alone does not satisfy the existing screenshot contract.
+
+### XML maps and Data Model limits
+
+Office.js `CustomXmlPart` stores XML but does not implement Excel XML maps.
+Test `Workbook.XmlMaps`, `Range.XPath` and map import/export through the helper.
+A package-backed alternative must preserve genuine mapped-cell bindings,
+repeating rows, schema validation and save/reopen behavior. Importing XML into
+ordinary cells is not an equivalent replacement.
+
+Office.js explicitly
+[does not support OLAP PivotTables or Power Pivot](https://learn.microsoft.com/en-us/office/dev/add-ins/excel/excel-add-ins-pivottables).
+The Windows model commands also depend on Excel model objects and
+ADO/MSOLAP execution. Probe the Mac `Workbook.Model` and model connection through
+the helper before reaching a platform conclusion. Reading package metadata does
+not establish DAX execution, model refresh or model mutation. If no Mac engine
+route exists, retain the specific unresolved actions as a disclosed limitation;
+do not simulate them with worksheet formulas or silently use a remote service.
 
 ## Experiment
 
@@ -620,7 +718,7 @@ tests for parsing/dispatch. This macOS release does not change that policy.
 | --- | --- |
 | Native Apple Events / AppleScript | Demonstrated desktop workbook transport; evaluate together with deeper object-model access, rather than letting dictionary coverage define the product scope |
 | Transactional saved-package editing plus Apple Events | Demonstrated for an existing Power Query M update and worksheet refresh; preferred helper-free direction for clean workbooks. Full metadata mutation, rollback and VBA recompilation remain to implement |
-| Optional macro helper invoked from AppleScript | Approved as a later opt-in tier for known macro execution only; requires explicit macro enablement and unattended preflight |
+| Optional macro helper invoked from AppleScript | Selected opt-in route for known macro execution and live Power Query APIs; requires explicit installation, execution permission and unattended preflight |
 | Optional VBA project-model helper | Approved only as a separate, explicit-trust tier for source CRUD; must never change the trust setting itself |
 | Office.js add-in + local bridge | Approved as a gradual optional tier for tables, charts, PivotTables, conditional formatting, and related workbook surfaces; requires deployment, lifetime, and per-version API checks |
 | Windows Excel behind a remote service | Could preserve more existing behavior, but not native macOS support; introduces remote data handling/security and is outside this release |
