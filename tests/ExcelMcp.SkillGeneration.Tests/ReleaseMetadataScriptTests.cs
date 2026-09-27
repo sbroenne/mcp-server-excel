@@ -206,6 +206,12 @@ public sealed class ReleaseMetadataScriptTests
         Assert.Contains("name: mcp-server-npm", mcp, StringComparison.Ordinal);
         Assert.Contains("name: cli-npm", publish, StringComparison.Ordinal);
         Assert.Contains("name: mcp-server-npm", publish, StringComparison.Ordinal);
+        Assert.Contains("Detect npm authentication mode", publish, StringComparison.Ordinal);
+        Assert.Contains("if: steps.npm-auth.outputs.mode == 'token'", publish, StringComparison.Ordinal);
+        Assert.Contains("if: steps.npm-auth.outputs.mode == 'oidc'", publish, StringComparison.Ordinal);
+        Assert.Contains("NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
+        Assert.Contains("$env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
 
         foreach (var packageName in new[] { "excelcli", "mcp-server-excel" })
         {
