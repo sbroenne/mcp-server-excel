@@ -8,11 +8,11 @@ All ExcelMcp components are released together with a single version tag:
 
 | Component | Primary Distribution | Secondary Distribution | Description |
 |-----------|---------------------|----------------------|-------------|
-| **MCP Server** | Platform-native standalone ZIPs | NuGet (.NET tool) | `mcp-excel.exe` on Windows; `mcp-excel` on Apple Silicon macOS |
-| **CLI** | Platform-native standalone ZIPs | NuGet (.NET tool) | `excelcli.exe` on Windows; `excelcli` on Apple Silicon macOS |
+| **MCP Server** | npm on Windows x64/Apple Silicon + platform-native standalone ZIPs | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel`, `mcp-excel.exe` on Windows, or `mcp-excel` on Apple Silicon macOS |
+| **CLI** | npm on Windows x64/Apple Silicon + platform-native standalone ZIPs | NuGet (.NET tool) | `npx @sbroenne/excelcli`, `excelcli.exe` on Windows, or `excelcli` on Apple Silicon macOS |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Platform-specific Claude Desktop bundles | — | Self-contained Windows x64 and Apple Silicon macOS installation |
-| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with wrapper/bootstrap assets that fetch the latest runtime on first use |
+| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with skills and compatibility helpers; `excel-mcp` launches the npm package through `npx` |
 | **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
 ## Unified Release Workflow
@@ -25,13 +25,14 @@ All ExcelMcp components are released together with a single version tag:
 When you run the release workflow, all components are released together:
 
 1. **CLI** → Standalone self-contained executable shipped as:
+   - npm launcher plus Windows x64 and Darwin ARM64 runtime packages (primary distribution)
    - Windows x64 and macOS ARM64 ZIP files (primary distribution)
    - NuGet package (secondary distribution)
-2. **MCP Server** → Windows x64 and macOS ARM64 standalone ZIPs [primary] + NuGet pack [secondary]
-3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
+2. **MCP Server** → npm launcher plus Windows x64 and Darwin ARM64 runtime packages + Windows x64 and macOS ARM64 standalone ZIPs [primary] + NuGet pack [secondary]
+3. **VS Code Extension** → Platform-specific self-contained VSIX packages (each bundles its matching MCP runtime + skills) → VS Code Marketplace
 4. **MCPB** → Windows x64 and Apple Silicon macOS Claude Desktop bundles
 5. **Agent Skills** → ZIP package for AI coding assistants
-6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
+6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with manifests, skills, and compatibility bootstrap assets; the MCP plugin launches the cross-platform npm package through `npx` (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
 8. **MCP Registry** → Updated after NuGet and npm propagation
 9. **GitHub Release** → Created with all artifacts and the prepared changelog notes
@@ -42,8 +43,10 @@ When you run the release workflow, all components are released together:
 |----------|--------|--------------|
 | `@sbroenne/mcp-server-excel@{version}` | npm | npm registry (primary launcher package) |
 | `@sbroenne/mcp-server-excel-win32-x64@{version}` | npm | npm registry (self-contained Windows runtime) |
+| `@sbroenne/mcp-server-excel-darwin-arm64@{version}` | npm | npm registry (self-contained Apple Silicon runtime) |
 | `@sbroenne/excelcli@{version}` | npm | npm registry (primary CLI launcher package) |
 | `@sbroenne/excelcli-win32-x64@{version}` | npm | npm registry (self-contained Windows CLI runtime) |
+| `@sbroenne/excelcli-darwin-arm64@{version}` | npm | npm registry (self-contained Apple Silicon CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `ExcelMcp-MCP-Server-{version}-macos-arm64.zip` | ZIP | GitHub Release (primary — contains executable `mcp-excel`) |
@@ -52,7 +55,8 @@ When you run the release workflow, all components are released together:
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
-| `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained with both exes + skills) |
+| `excelmcp-{version}-win32-x64.vsix` | VSIX | GitHub Release + VS Code Marketplace (self-contained Windows MCP runtime + skills) |
+| `excelmcp-{version}-darwin-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (self-contained Apple Silicon MCP runtime + skills) |
 | `excel-mcp-{version}-windows.mcpb` | MCPB | GitHub Release (Windows Claude Desktop bundle) |
 | `excel-mcp-{version}-macos-arm64.mcpb` | MCPB | GitHub Release (Apple Silicon macOS Claude Desktop bundle) |
 
@@ -116,7 +120,8 @@ Afterward, **publish-plugins.yml** runs as a follow-on workflow and sync-gates r
 
 After workflow completes:
 
-- [ ] GitHub Release created with all artifacts (MCP Server ZIPs, CLI ZIPs, `SHA256SUMS`, VSIX files, both MCPB bundles, skills ZIP)
+- [ ] GitHub Release created with all artifacts (MCP Server ZIPs, CLI ZIPs, `SHA256SUMS`, platform VSIX files, both MCPB bundles, skills ZIP)
+- [ ] All six npm packages (MCP Server and CLI launchers plus Windows x64 and Darwin ARM64 runtimes) are available at the release version
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
@@ -136,8 +141,8 @@ The `publish-plugins.yml` workflow automatically publishes updated plugins when 
 3. **Builds plugins** via `scripts/Build-Plugins.ps1`:
     - Copies validated plugin structure from the published marketplace repo
     - Applies source-owned plugin overlays from `.github/plugins/` (overlay content only; not standalone plugin roots)
-    - Strips committed runtime payloads from plugin bundles so the published repo stays wrapper/bootstrap-only
-    - Updates version in plugin.json and version.txt for release-tag metadata, while runtime bootstrap still targets the newest GitHub Release at invocation time
+    - Strips committed runtime payloads so the published repo contains manifests, skills, and compatibility bootstrap helpers only
+    - Updates version in plugin.json and version.txt for release-tag metadata; the MCP plugin resolves its platform runtime through the npm launcher
     - Refreshes skill content (always uses latest source) and stamps the explicit release-tag version into each packaged skill's generated `VERSION`
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches

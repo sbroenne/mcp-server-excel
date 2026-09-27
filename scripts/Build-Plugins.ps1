@@ -4,21 +4,20 @@
 
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
-       Render bootstrap scripts only in the output tree; source templates stay read-only.
-    2. Strip any runtime payloads from plugin bin/ roots
-    3. Update runtime-bootstrap metadata in plugin.json and version.txt
+    2. Strip any runtime payloads from plugin roots
+    3. Update release metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
-    RUNTIME BOOTSTRAP MODEL:
-    - Published plugins ship wrapper/download logic and metadata only
-    - Self-contained Windows runtimes are downloaded from the latest GitHub release on first use
+    RUNTIME MODEL:
+    - Published plugins ship manifests, compatibility helpers, and skills only
+    - Primary launch and CLI guidance use the cross-platform npm launchers
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
     OUTPUT:
     plugins/
-      excel-mcp/     → MCP plugin (wrapper/bootstrap assets + updated version + fresh skills)
-      excel-cli/     → CLI plugin (wrapper/bootstrap assets + updated version + fresh skills)
+      excel-mcp/     → MCP plugin (manifest, compatibility helpers, updated version, fresh skills)
+      excel-cli/     → CLI plugin (compatibility helpers, updated version, fresh skills)
 
 .PARAMETER Version
     Plugin version. Required for distributable builds.
@@ -271,6 +270,13 @@ function Assert-AgentPluginPackage {
         }
         if (@($server.args) | Where-Object { $_ -match "\{pluginDir\}" }) {
             throw "$mcpPath server '$($serverProperty.Name)' still uses the legacy '{pluginDir}' placeholder."
+        }
+        if ($PluginName -eq "excel-mcp" -and
+            ($server.command -ne "npx" -or
+             @($server.args).Count -ne 2 -or
+             $server.args[0] -ne "-y" -or
+             $server.args[1] -ne "@sbroenne/mcp-server-excel")) {
+            throw "$mcpPath must launch the cross-platform @sbroenne/mcp-server-excel npm package."
         }
     }
 }

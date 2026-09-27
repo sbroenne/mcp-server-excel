@@ -66,7 +66,7 @@ export function resolveBundledRuntime(
 
 	throw new Error(
 		`Excel MCP Server does not include a runtime for ${platform}-${architecture}. ` +
-		'Supported platforms are Windows x64 and Apple Silicon macOS.'
+		'Supported platforms are Windows x64 and Apple Silicon macOS. Intel macOS is not supported.'
 	);
 }
 

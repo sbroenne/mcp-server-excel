@@ -151,7 +151,7 @@ public sealed class McpbPackagingScriptTests
 
     [Fact]
     [Trait("Feature", "McpbPackaging")]
-    public void BuildScript_ProducesSeparateWindowsAndMacBundles()
+    public void BuildScript_ProducesSeparateWindowsAndAppleSiliconBundles()
     {
         var script = File.ReadAllText(Path.Combine(RepoRoot, "mcpb", "Build-McpBundle.ps1"));
         var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));

@@ -1,6 +1,6 @@
 # ExcelMcp Copilot CLI Plugins
 
-Windows-only GitHub Copilot CLI plugins for ExcelMcp.
+GitHub Copilot CLI plugins for ExcelMcp on Windows x64 and Apple Silicon macOS.
 
 This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel).
 
@@ -42,11 +42,17 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-Both plugins publish wrapper/bootstrap assets plus skills. On first use they fetch the newest self-contained Windows runtime from the main `sbroenne/mcp-server-excel` GitHub Releases feed. The bootstrap compares the release tag and executable version once per Copilot session, stores runtime state in the host-provided `PLUGIN_DATA` directory, and reuses the verified runtime for the rest of the session. Standalone shim use checks for updates at most once every 24 hours.
+Both plugins publish skills and compatibility bootstrap assets. `excel-mcp`
+launches `npx -y @sbroenne/mcp-server-excel`, which installs the matching
+self-contained Windows x64 or Darwin ARM64 runtime package. Install
+`@sbroenne/excelcli` globally when the `excel-cli` skill needs `excelcli` on
+`PATH`. Unsupported operating systems and architectures, including Intel
+macOS, fail closed.
 
 ## Notes
 
-- **Windows only** — ExcelMcp depends on Microsoft Excel COM automation.
+- **Windows x64 or Apple Silicon macOS** — Microsoft Excel is required; the
+  supported operation surface depends on the host backend.
 - **excel-mcp** includes portable root `mcp.json` configuration plus plugin-local bootstrap helpers for the ExcelMcp MCP runtime.
 - **excel-cli** includes plugin-local bootstrap helpers for the Excel CLI runtime; separate PATH installation is optional, not required for plugin use.
 - Both root `plugin.json` manifests target `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills are discovered from the fixed `skills/` directory.

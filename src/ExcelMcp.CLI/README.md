@@ -7,7 +7,7 @@
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Primary distribution: Standalone executable** — Download the Windows `excelcli.exe` or macOS ARM64 `excelcli` archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+> **Primary distribution: npm or standalone executable** — On Windows x64 or Apple Silicon macOS, run `npx -y @sbroenne/excelcli --help` or download the platform-native archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required. Intel macOS is unsupported.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.

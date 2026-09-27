@@ -114,5 +114,5 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
-**Platform:** Windows (complete backend) and Apple Silicon macOS (capability-gated initial backend)
+**Platform:** Windows x64 (complete backend) and Apple Silicon macOS (capability-gated initial backend). Intel macOS is unsupported.
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

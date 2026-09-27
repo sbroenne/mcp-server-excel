@@ -13,9 +13,13 @@ for (const [component, packageName, commandName] of [
   ['McpServer', 'mcp-server-excel', 'mcp-excel'],
   ['Cli', 'excelcli', 'excelcli']
 ]) {
-  test(`${component} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
+  for (const [runtimeIdentifier, runtimeSuffix, executableName, expectedOs, expectedCpu] of [
+    ['win-x64', 'win32-x64', `${commandName}.exe`, ['win32'], ['x64', 'arm64']],
+    ['osx-arm64', 'darwin-arm64', commandName, ['darwin'], ['arm64']]
+  ]) {
+  test(`${component} ${runtimeIdentifier} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
-    const executable = join(sandbox, `${commandName}.exe`);
+    const executable = join(sandbox, executableName);
     const payload = Buffer.from('package fixture, not an executable');
     const sourceManifest = join(repoRoot, 'npm-packages', packageName, 'package.json');
     const originalManifest = readFileSync(sourceManifest, 'utf8');
@@ -24,6 +28,7 @@ for (const [component, packageName, commandName] of [
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version,
+        '-RuntimeIdentifier', runtimeIdentifier,
         '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
       ], { encoding: 'utf8', timeout: 90_000 });
       assert.ifError(result.error);
@@ -32,7 +37,7 @@ for (const [component, packageName, commandName] of [
 
       for (const [kind, archive, name] of [
         ['launcher', packages.LauncherPackage, packageName],
-        ['runtime', packages.RuntimePackage, `${packageName}-win32-x64`]
+        ['runtime', packages.RuntimePackage, `${packageName}-${runtimeSuffix}`]
       ]) {
         const destination = join(sandbox, kind);
         mkdirSync(destination);
@@ -48,12 +53,15 @@ for (const [component, packageName, commandName] of [
         assert.equal(manifest.version, version);
         assert.equal(readFileSync(join(root, 'LICENSE'), 'utf8'), readFileSync(join(repoRoot, 'LICENSE'), 'utf8'));
         if (kind === 'runtime') {
-          assert.equal(manifest.main, `${commandName}.exe`);
-          assert.deepEqual(manifest.os, ['win32']);
-          assert.deepEqual(manifest.cpu, ['x64', 'arm64']);
+          assert.equal(manifest.main, executableName);
+          assert.deepEqual(manifest.os, expectedOs);
+          assert.deepEqual(manifest.cpu, expectedCpu);
           assert.deepEqual(readFileSync(join(root, manifest.main)), payload);
         } else {
-          assert.deepEqual(manifest.optionalDependencies, { [`@sbroenne/${packageName}-win32-x64`]: version });
+          assert.deepEqual(manifest.optionalDependencies, {
+            [`@sbroenne/${packageName}-win32-x64`]: version,
+            [`@sbroenne/${packageName}-darwin-arm64`]: version
+          });
           assert.equal(manifest.bin[commandName], `bin/${commandName}.js`);
           assert.match(readFileSync(join(root, manifest.bin[commandName]), 'utf8'), new RegExp(`packageName: '@sbroenne/${packageName}'`));
           assert.equal(readFileSync(join(root, 'lib', 'launcher.js'), 'utf8'), readFileSync(join(repoRoot, 'npm-packages', 'shared', 'launcher.js'), 'utf8'));
@@ -67,4 +75,5 @@ for (const [component, packageName, commandName] of [
       rmSync(sandbox, { recursive: true, force: true });
     }
   });
+  }
 }

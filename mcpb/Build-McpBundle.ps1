@@ -112,6 +112,11 @@ if ($RuntimeIdentifier -eq "osx-arm64" -and -not $IsWindows) {
     if ($LASTEXITCODE -ne 0) {
         throw "Could not mark the macOS MCP Server executable."
     }
+
+    & (Join-Path $RootDir "scripts/Sign-MacBinary.ps1") -Path $FinalExecutable
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not sign the macOS MCP Server executable."
+    }
 }
 
 $CanRunTarget = ($RuntimeIdentifier -eq "win-x64" -and $IsWindows) -or

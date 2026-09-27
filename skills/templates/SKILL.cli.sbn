@@ -18,16 +18,13 @@ compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Exc
 - Windows host with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
 - Windows uses COM; macOS uses the capability-gated Apple Events backend
 - **Every command below invokes `excelcli` directly, so it must resolve on PATH.**
-  Installing the `excel-cli` plugin does *not* put it there — the global shim is opt-in. Run
-  `com.github.copilot\bin\install-global.ps1` from the installed plugin folder once (it writes
-  `excelcli.cmd` / `excelcli.ps1` into `~\.copilot\bin` and adds that to your user PATH), or
-  install the runtime independently via the standalone release zip or
+  Installing the `excel-cli` plugin does *not* put it there. Run
+  `npm install --global @sbroenne/excelcli`, or install the runtime independently
+  via the standalone release zip or
   `dotnet tool install --global Sbroenne.ExcelMcp.CLI`.
   If `excelcli` is not found, report that and stop — do not guess at a path.
-- In an Agent Plugins host, the runtime is downloaded and cached under
-  `PLUGIN_DATA\runtime`; release freshness is checked once per Copilot session. The optional
-  global shim falls back to `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` and checks
-  for updates at most once every 24 hours.
+- npm installs the Windows x64 or Darwin ARM64 optional runtime package for the
+  current host. Intel macOS and other unsupported platforms fail closed.
 
 ## macOS Capability Gate
 

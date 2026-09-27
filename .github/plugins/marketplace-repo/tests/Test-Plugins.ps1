@@ -59,8 +59,11 @@ if ($server.type -ne "stdio" -or $server.command -match '\s') {
     throw "excel-mcp must use a stdio server with a single executable command token."
 }
 
-if ($server.args -notcontains '${PLUGIN_ROOT}/bin/start-mcp.ps1') {
-    throw "excel-mcp does not resolve its wrapper through PLUGIN_ROOT."
+if ($server.command -ne "npx" -or
+    @($server.args).Count -ne 2 -or
+    $server.args[0] -ne "-y" -or
+    $server.args[1] -ne "@sbroenne/mcp-server-excel") {
+    throw "excel-mcp must launch npx -y @sbroenne/mcp-server-excel."
 }
 
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
@@ -109,6 +112,7 @@ foreach ($script in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File
     }
 }
 
+if ($IsWindows) {
 $tempProfile = Join-Path ([IO.Path]::GetTempPath()) ("excel-plugin-test-" + [Guid]::NewGuid().ToString("N"))
 $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
@@ -198,6 +202,7 @@ try {
     if (Test-Path $tempProfile) {
         Remove-Item $tempProfile -Recurse -Force
     }
+}
 }
 
 Write-Output "All plugin validation checks passed."
