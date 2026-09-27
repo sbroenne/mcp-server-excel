@@ -41,6 +41,18 @@ for (const target of targets) {
   }
 
   if (target.runtime === 'osx-arm64') {
-    chmodSync(resolve(output, target.executable), 0o755);
+    const executablePath = resolve(output, target.executable);
+    chmodSync(executablePath, 0o755);
+    const signing = spawnSync(
+      'pwsh',
+      ['-NoProfile', '-File', resolve(repositoryRoot, 'scripts', 'Sign-MacBinary.ps1'), '-Path', executablePath],
+      { cwd: repositoryRoot, encoding: 'utf8', stdio: 'inherit' }
+    );
+    if (signing.error) {
+      throw signing.error;
+    }
+    if (signing.status !== 0) {
+      process.exit(signing.status ?? 1);
+    }
   }
 }

@@ -1,0 +1,27 @@
+{
+  "name": "@sbroenne/excelcli-darwin-arm64",
+  "version": "0.0.0-development",
+  "description": "Apple Silicon macOS runtime for the ExcelMcp CLI.",
+  "license": "MIT",
+  "main": "excelcli",
+  "files": [
+    "excelcli"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "preferUnplugged": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-excel",
+    "directory": "npm-packages/excelcli-darwin-arm64"
+  },
+  "homepage": "https://excelmcpserver.dev/",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

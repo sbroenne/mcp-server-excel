@@ -7,6 +7,9 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$Version,
 
+    [ValidateSet('win-x64', 'osx-arm64')]
+    [string]$RuntimeIdentifier = 'win-x64',
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$RuntimeExecutable,
@@ -22,8 +25,10 @@ Set-StrictMode -Version Latest
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
 $commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
+$runtimePackageSuffix = if ($RuntimeIdentifier -eq 'osx-arm64') { 'darwin-arm64' } else { 'win32-x64' }
+$runtimeFileName = if ($RuntimeIdentifier -eq 'osx-arm64') { $commandName } else { "$commandName.exe" }
 $launcherSource = Join-Path $repoRoot "npm-packages\$packageName"
-$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-win32-x64"
+$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-$runtimePackageSuffix"
 $sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
 $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
 $licensePath = Join-Path $repoRoot 'LICENSE'
@@ -31,7 +36,7 @@ $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimeExecutable).Path
 $resolvedOutput = [IO.Path]::GetFullPath($OutputDirectory)
 $stagingRoot = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpm-$([Guid]::NewGuid().ToString('N'))"
 $launcherStage = Join-Path $stagingRoot $packageName
-$runtimeStage = Join-Path $stagingRoot "$packageName-win32-x64"
+$runtimeStage = Join-Path $stagingRoot "$packageName-$runtimePackageSuffix"
 
 function Copy-PackageSource {
     param(
@@ -123,8 +128,11 @@ if (-not (Test-Path -LiteralPath $launcherSource -PathType Container) -or
     throw 'npm package source directories are missing.'
 }
 
-if ([IO.Path]::GetExtension($resolvedRuntime) -ne '.exe') {
-    throw "Runtime executable must be an .exe file: $resolvedRuntime"
+if ($RuntimeIdentifier -eq 'win-x64' -and [IO.Path]::GetExtension($resolvedRuntime) -ne '.exe') {
+    throw "Windows runtime executable must be an .exe file: $resolvedRuntime"
+}
+if ($RuntimeIdentifier -eq 'osx-arm64' -and [IO.Path]::GetExtension($resolvedRuntime) -eq '.exe') {
+    throw "macOS runtime executable must not have an .exe extension: $resolvedRuntime"
 }
 
 New-Item -ItemType Directory -Path $resolvedOutput -Force | Out-Null
@@ -141,7 +149,7 @@ try {
         -Source $runtimeSource `
         -Destination $runtimeStage `
         -Entries @('package.json', 'README.md')
-    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage "$commandName.exe")
+    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage $runtimeFileName)
 
     Write-PackageManifest -Path (Join-Path $runtimeStage 'package.json') -Update {
         param($manifest)
@@ -150,12 +158,14 @@ try {
     Write-PackageManifest -Path (Join-Path $launcherStage 'package.json') -Update {
         param($manifest)
         $manifest.version = $Version
-        $manifest.optionalDependencies."@sbroenne/$packageName-win32-x64" = $Version
+        foreach ($property in $manifest.optionalDependencies.PSObject.Properties) {
+            $property.Value = $Version
+        }
     }
 
     $runtimeTarball = New-NpmTarball `
         -PackageDirectory $runtimeStage `
-        -RequiredFiles @("$commandName.exe", 'package.json', 'LICENSE')
+        -RequiredFiles @($runtimeFileName, 'package.json', 'LICENSE')
     $launcherTarball = New-NpmTarball `
         -PackageDirectory $launcherStage `
         -RequiredFiles @("bin/$commandName.js", 'lib/launcher.js', 'package.json', 'LICENSE')

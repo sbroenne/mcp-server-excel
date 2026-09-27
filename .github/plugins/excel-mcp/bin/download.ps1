@@ -9,14 +9,17 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $PluginName = "excel-mcp"
+$HostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture
 $IsWindowsRuntime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
-    [Runtime.InteropServices.OSPlatform]::Windows)
+    [Runtime.InteropServices.OSPlatform]::Windows) -and
+    $HostArchitecture -in @(
+        [Runtime.InteropServices.Architecture]::X64,
+        [Runtime.InteropServices.Architecture]::Arm64)
 $IsMacArm64Runtime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [Runtime.InteropServices.OSPlatform]::OSX) -and
-    [Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq
-        [Runtime.InteropServices.Architecture]::Arm64
+    $HostArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64
 if (-not $IsWindowsRuntime -and -not $IsMacArm64Runtime) {
-    throw "excel-mcp supports Windows x64 and Apple Silicon macOS only."
+    throw "excel-mcp supports Windows x64 and Apple Silicon macOS only. Intel macOS is not supported."
 }
 $ExecutableName = if ($IsWindowsRuntime) { "mcp-excel.exe" } else { "mcp-excel" }
 $AssetPlatform = if ($IsWindowsRuntime) { "windows" } else { "macos-arm64" }

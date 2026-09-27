@@ -8,7 +8,7 @@ name: Publish Plugins
 #
 # WHAT IT DOES:
 # 1. Builds both Agent Plugins 1.0 bundles (excel-mcp, excel-cli) from canonical source templates
-# 2. Validates that published plugins contain wrapper/bootstrap assets, not bundled runtimes
+# 2. Validates that published plugins contain manifests, skills, and compatibility helpers, not bundled runtimes
 # 3. Updates version.txt to match the release version
 # 4. Pushes published plugin artifacts to sbroenne/mcp-server-excel-plugins
 # 5. Rewrites the published repo to the canonical marketplace layout (.github/plugin/marketplace.json, no legacy root manifest)
@@ -311,7 +311,7 @@ jobs:
               throw "Published plugin '$pluginName' still contains committed runtime payload(s):`n$payloadList"
             }
 
-            Write-Host "Validated wrapper/bootstrap-only payload for $pluginName" -ForegroundColor Green
+            Write-Host "Validated runtime-free plugin payload for $pluginName" -ForegroundColor Green
           }
 
       - name: Upload excel-mcp plugin artifact
@@ -612,8 +612,8 @@ jobs:
             echo "**Marketplace manifest:** \`.github/plugin/marketplace.json\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
              echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
-             echo "- ✅ excel-mcp (wrapper/bootstrap assets only)" >> $GITHUB_STEP_SUMMARY
-             echo "- ✅ excel-cli (wrapper/bootstrap assets only)" >> $GITHUB_STEP_SUMMARY
+             echo "- ✅ excel-mcp (manifest, skills, and compatibility helpers)" >> $GITHUB_STEP_SUMMARY
+             echo "- ✅ excel-cli (skills and compatibility helpers)" >> $GITHUB_STEP_SUMMARY
              echo "" >> $GITHUB_STEP_SUMMARY
              echo "### Copilot CLI Installation Examples" >> $GITHUB_STEP_SUMMARY
             echo '```powershell' >> $GITHUB_STEP_SUMMARY

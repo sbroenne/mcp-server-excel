@@ -17,7 +17,7 @@ capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
-- **Node.js** - Required for the recommended `npx` installation and other `npx` commands. Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
+- **Node.js 18+** - Required for the recommended `npx` installation and other `npx` commands. Install from [nodejs.org](https://nodejs.org/) or with `winget install OpenJS.NodeJS.LTS` on Windows.
 
 ---
 
@@ -38,6 +38,7 @@ Use this order to avoid setup confusion:
 
 The VS Code extension and MCPB bundle are available for Windows x64 and Apple
 Silicon macOS. Choose the platform-specific artifact when installing manually.
+Intel macOS is unsupported.
 
 1. **Install the Extension**
    - Open VS Code
@@ -100,9 +101,10 @@ Run the self-contained server directly through npm:
 npx -y @sbroenne/mcp-server-excel --version
 ```
 
-The npm package includes the Windows server, so it does not require .NET or a
-separate download from GitHub Releases. npm caches the package after the first
-run.
+The npm launcher installs `@sbroenne/mcp-server-excel-win32-x64` on Windows or
+`@sbroenne/mcp-server-excel-darwin-arm64` on Apple Silicon, so it does not
+require .NET or a separate GitHub Release download. npm caches packages after
+the first run. Intel macOS fails closed instead of selecting the ARM64 runtime.
 
 #### Option B: Standalone Executable
 
@@ -384,19 +386,18 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 ### 1. "mcp-excel is not recognized as an internal or external command"
 
 This error applies to the standalone executable. Either use the recommended npm
-configuration or add `mcp-excel.exe` to your PATH.
+configuration or add `mcp-excel.exe` (Windows) or `mcp-excel` (macOS) to your
+PATH.
 
 Either:
-- Add the directory containing `mcp-excel.exe` to your PATH (see Step 2 above)
-- Or use the full path in your MCP client config: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
+- Add the directory containing the executable to your PATH (see Step 2 above)
+- Or use its full path in your MCP client configuration
 
 ### 2. MCP Server Not Responding
 
-**Check if the exe exists:**
+**Check which executable is on PATH:**
 ```powershell
-where.exe mcp-excel
-# Or with full path:
-Test-Path "C:\Tools\ExcelMcp\mcp-excel.exe"
+Get-Command mcp-excel
 ```
 
 **Verify it runs:**
