@@ -63,6 +63,13 @@ internal sealed class ServiceStopCommand : AsyncCommand
             {
                 if (await WaitForDaemonExitAsync(pipeName, cancellationToken))
                 {
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        Console.WriteLine(JsonSerializer.Serialize(
+                            new { success = true, message = "Service stopped." },
+                            ServiceProtocol.JsonOptions));
+                        return 0;
+                    }
                     return await WriteCleanupResultAsync(
                         pipeName,
                         preShutdownSnapshot,
@@ -164,6 +171,11 @@ internal sealed class ServiceStopCommand : AsyncCommand
         OwnedProcessCleanup.ProcessSnapshot preShutdownSnapshot,
         CancellationToken cancellationToken)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
         var cleanupResult = await OwnedProcessCleanup.CleanupAsync(
             pipeName,
             preShutdownSnapshot,

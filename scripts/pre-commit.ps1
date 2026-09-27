@@ -287,7 +287,11 @@ Invoke-ValidationStep `
     -Action {
         Push-Location $rootDir
         try {
-            dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal
+            $buildArguments = @('build', 'Sbroenne.ExcelMcp.sln', '--configuration', 'Release', '-p:NuGetAudit=false', '--verbosity', 'minimal')
+            if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+                $buildArguments += '-p:EnableWindowsTargeting=true'
+            }
+            dotnet @buildArguments
         }
         finally {
             Pop-Location
@@ -469,7 +473,8 @@ Invoke-ValidationStep `
         $packageLog = Join-Path $preCommitArtifactsDir "vscode-package.log"
         Push-Location $extensionDir
         try {
-            & $env:ComSpec /d /s /c "npm run package > `"$packageLog`" 2>&1"
+            $npm = Get-Command npm -CommandType Application -ErrorAction Stop | Select-Object -First 1
+            & $npm.Source run package *> $packageLog
             $packageExitCode = $LASTEXITCODE
             if ($packageExitCode -ne 0) {
                 Get-Content -LiteralPath $packageLog

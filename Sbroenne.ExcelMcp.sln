@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelMcp.SkillGeneration.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelMcp.Generators.Mcp", "src\ExcelMcp.Generators.Mcp\ExcelMcp.Generators.Mcp.csproj", "{4D675883-7474-41DE-9144-5C5E62E92B0B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelMcp.Portable.Tests", "tests\ExcelMcp.Portable.Tests\ExcelMcp.Portable.Tests.csproj", "{9563B0E3-DF30-49CF-9463-9DF475CAADCF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -241,6 +243,18 @@ Global
 		{4D675883-7474-41DE-9144-5C5E62E92B0B}.Release|x64.Build.0 = Release|Any CPU
 		{4D675883-7474-41DE-9144-5C5E62E92B0B}.Release|x86.ActiveCfg = Release|Any CPU
 		{4D675883-7474-41DE-9144-5C5E62E92B0B}.Release|x86.Build.0 = Release|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Debug|x64.Build.0 = Debug|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Debug|x86.Build.0 = Debug|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Release|x64.ActiveCfg = Release|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Release|x64.Build.0 = Release|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Release|x86.ActiveCfg = Release|Any CPU
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -262,5 +276,6 @@ Global
 		{CB3952BE-76FE-4CCA-88DF-DE3BB9DE836A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{0D116A1B-E515-4C74-B72A-89F9D25AC421} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{4D675883-7474-41DE-9144-5C5E62E92B0B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{9563B0E3-DF30-49CF-9463-9DF475CAADCF} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
