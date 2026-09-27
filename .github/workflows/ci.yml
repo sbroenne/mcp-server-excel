@@ -97,6 +97,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
       - name: Restore
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
@@ -159,6 +166,14 @@ jobs:
         run: |
           & scripts/check-plugin-readmes.ps1
           if ($LASTEXITCODE -ne 0) { throw "Plugin README validation failed." }
+
+      - name: npm launcher and packaging tests (MCP + CLI)
+        shell: pwsh
+        run: |
+          npm ci --prefix npm-packages/shared --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
+          npm test --prefix npm-packages/shared
+          if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
 
       # --- Excel-free build smoke checks (absorbed from the old Build CLI /
       #     Build MCP Server workflows) ---

@@ -1,6 +1,6 @@
 {
   "name": "excelmcp",
-  "version": "2.0.9",
+  "version": "2.0.11",
   "private": true,
   "description": "ExcelMcp is an Excel automation toolset for Windows and macOS (MCP Server and CLI; the VS Code Extension and MCPB remain Windows-specific). This package.json exists solely to host Changesets tooling for CHANGELOG.md generation — it is never published to npm and has no runtime dependencies.",
   "repository": {

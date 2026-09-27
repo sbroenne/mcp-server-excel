@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.10] - 2026-09-27
+
+### Minor Changes
+
+- [#812](https://github.com/sbroenne/mcp-server-excel/pull/812) [`c342820`](https://github.com/sbroenne/mcp-server-excel/commit/c34282078ba060e1e4422abfdc267f5d37558ca6) Thanks [@sbroenne](https://github.com/sbroenne)! - **Install the MCP Server and CLI with npm**: Run `npx -y @sbroenne/mcp-server-excel` or `npx -y @sbroenne/excelcli --help` to use the self-contained Windows tools without installing .NET or downloading executables manually.
+
 ## [2.0.9] - 2026-09-27
 
 ### Patch Changes
