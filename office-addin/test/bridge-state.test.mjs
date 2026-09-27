@@ -91,7 +91,10 @@ test("expires deadlines and honors cancellation", () => {
   });
 
   now = 111;
-  assert.equal(state.getRequest(expired.requestId).status, "expired");
+  assert.equal(state.getRequest({
+    ...identity,
+    requestId: expired.requestId
+  }).status, "expired");
   assert.equal(state.takeNext(identity), null);
 
   const cancelled = state.createRequest({
@@ -99,8 +102,45 @@ test("expires deadlines and honors cancellation", () => {
     action: "bridge.health",
     timeoutMs: 10
   });
-  assert.equal(state.cancel(cancelled.requestId), true);
-  assert.equal(state.getRequest(cancelled.requestId).status, "cancelled");
+  assert.equal(state.cancel({ ...identity, requestId: cancelled.requestId }), true);
+  assert.equal(state.getRequest({
+    ...identity,
+    requestId: cancelled.requestId
+  }).status, "cancelled");
+});
+
+test("teardown releases the workbook and removes all session requests", () => {
+  const state = new OfficeBridgeState();
+  activate(state);
+  const completed = state.createRequest({
+    sessionId: identity.sessionId,
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+  state.takeNext(identity);
+  state.complete({ ...identity, requestId: completed.requestId, success: true });
+  const outstanding = state.createRequest({
+    sessionId: identity.sessionId,
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+
+  assert.throws(() => state.unregisterSession({
+    sessionId: identity.sessionId,
+    workbookUrl: "file:///tmp/other.xlsx"
+  }), /exact workbook/);
+  const teardown = state.unregisterSession(identity);
+
+  assert.equal(teardown.terminalizedRequests, 1);
+  assert.equal(teardown.removedRequests, 2);
+  assert.throws(() => state.getRequest({
+    ...identity,
+    requestId: outstanding.requestId
+  }), /not registered/);
+  assert.doesNotThrow(() => state.registerSession({
+    sessionId: "session-2",
+    workbookUrl: identity.workbookUrl
+  }));
 });
 
 test("prevents session identifiers from being rebound to another workbook", () => {

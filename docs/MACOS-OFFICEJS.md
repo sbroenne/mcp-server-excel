@@ -62,6 +62,13 @@ for the exact workbook, on a different protocol version, past its deadline, or
 missing its required requirement set. It must never fall back to a different
 workbook or report success with an error.
 
+Native initiators retrieve status and terminal results through the
+authenticated, exact-session-bound request status endpoint. Session close
+invalidates the task-pane binding, terminalizes and removes outstanding
+requests, removes completed results, and releases the workbook reservation.
+The CLI health probe fails with actionable guidance after a fixed five-second
+deadline instead of waiting indefinitely.
+
 ## Upgrade
 
 Stop the bridge, update the source or installed package, then run:

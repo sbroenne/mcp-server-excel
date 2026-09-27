@@ -158,17 +158,65 @@ export class OfficeBridgeState {
     return { ...request };
   }
 
-  cancel(requestId) {
-    const request = this.#requests.get(requireString(requestId, "requestId", 128));
-    if (!request || request.status === "completed" || request.status === "failed") {
+  getRequest(input) {
+    this.expireRequests();
+    const session = this.#requireNativeSession(input);
+    const request = this.#requests.get(requireString(input.requestId, "requestId", 128));
+    if (!request || request.sessionId !== session.sessionId) {
+      throw new Error("Request is not registered for this exact workbook session.");
+    }
+    return { ...request };
+  }
+
+  cancel(input) {
+    this.expireRequests();
+    const boundSession = this.#requireNativeSession(input);
+    const request = this.#requests.get(requireString(input.requestId, "requestId", 128));
+    if (!request || request.sessionId !== boundSession.sessionId) {
+      throw new Error("Request is not registered for this exact workbook session.");
+    }
+    if (request.status !== "queued" && request.status !== "active") {
       return false;
     }
     request.status = "cancelled";
-    const session = this.#sessions.get(request.sessionId);
-    if (session?.activeRequestId === request.requestId) {
-      session.activeRequestId = null;
+    if (boundSession.activeRequestId === request.requestId) {
+      boundSession.activeRequestId = null;
     }
     return true;
+  }
+
+  unregisterSession(input) {
+    this.expireRequests();
+    const session = this.#requireNativeSession(input);
+    let terminalizedRequests = 0;
+    let removedRequests = 0;
+    session.instanceId = null;
+    session.runtime = null;
+    session.queue.length = 0;
+    session.activeRequestId = null;
+    for (const [requestId, request] of this.#requests) {
+      if (request.sessionId !== session.sessionId) {
+        continue;
+      }
+      if (request.status === "queued" || request.status === "active") {
+        request.status = "cancelled";
+        request.result = {
+          success: false,
+          value: null,
+          errorMessage: "The exact workbook session was closed."
+        };
+        terminalizedRequests++;
+      }
+      this.#requests.delete(requestId);
+      removedRequests++;
+    }
+    this.#sessions.delete(session.sessionId);
+    return {
+      sessionId: session.sessionId,
+      workbookUrl: session.workbookUrl,
+      terminalizedRequests,
+      removedRequests
+    };
   }
 
   expireRequests() {
@@ -185,12 +233,6 @@ export class OfficeBridgeState {
     }
   }
 
-  getRequest(requestId) {
-    this.expireRequests();
-    const request = this.#requests.get(requestId);
-    return request ? { ...request } : null;
-  }
-
   describeSession(session) {
     return {
       sessionId: session.sessionId,
@@ -205,6 +247,14 @@ export class OfficeBridgeState {
     const session = this.#sessions.get(requireString(sessionId, "sessionId", 128));
     if (!session) {
       throw new Error("Bridge session is not registered.");
+    }
+    return session;
+  }
+
+  #requireNativeSession(input) {
+    const session = this.#requireSession(input.sessionId);
+    if (session.workbookUrl !== normalizeWorkbookUrl(input.workbookUrl)) {
+      throw new Error("Native request is not bound to this exact workbook session.");
     }
     return session;
   }

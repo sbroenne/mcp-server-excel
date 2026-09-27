@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
-import https from "node:https";
 import process from "node:process";
+import { requestBridgeHealth } from "./health.mjs";
 import { defaultPaths, installBridge, removeBridge } from "./lifecycle.mjs";
 import { startServer } from "./server.mjs";
 
@@ -32,20 +32,7 @@ try {
   } else if (command === "health") {
     const config = JSON.parse(await readFile(`${configDir}/bridge.json`, "utf8"));
     const certificate = await readFile(config.certificatePath);
-    const result = await new Promise((resolve, reject) => {
-      const request = https.get(`${config.origin}/v1/health`, {
-        ca: certificate,
-        headers: { Authorization: `Bearer ${config.token}` }
-      }, (response) => {
-        const chunks = [];
-        response.on("data", (chunk) => chunks.push(chunk));
-        response.on("end", () => resolve({
-          ok: response.statusCode >= 200 && response.statusCode < 300,
-          body: Buffer.concat(chunks).toString("utf8")
-        }));
-      });
-      request.on("error", reject);
-    });
+    const result = await requestBridgeHealth(config, certificate);
     console.log(JSON.stringify(JSON.parse(result.body), null, 2));
     if (!result.ok) {
       process.exitCode = 1;
