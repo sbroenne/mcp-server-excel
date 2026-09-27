@@ -59,7 +59,8 @@ export async function installBridge(options) {
     origin: `https://localhost:${port}`,
     token,
     certificatePath,
-    privateKeyPath
+    privateKeyPath,
+    enabledActions: ["bridge.health"]
   };
   await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
   await chmod(configPath, 0o600);

@@ -8,6 +8,58 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 public sealed class MacExcelSessionManagerTests
 {
     [Fact]
+    public async Task Execute_AfterUncertainOfficeMutation_RejectsFurtherOperations()
+    {
+        using var manager = CreateManager();
+        var sessionId = await manager.OpenAsync(
+            "/tmp/uncertain-office-mutation.xlsx",
+            show: false,
+            TimeSpan.FromSeconds(5));
+        var session = Assert.Single(manager.Sessions);
+        session.MarkUnsafe("The dispatched mutation may still complete.");
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ExecuteAsync(sessionId, _ => Task.FromResult(true)));
+
+        Assert.Contains("unsafe", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("may still complete", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Execute_QueuedBeforeUncertainMutation_DoesNotRunAfterSessionBecomesUnsafe()
+    {
+        using var manager = CreateManager();
+        var sessionId = await manager.OpenAsync(
+            "/tmp/queued-after-uncertain-mutation.xlsx",
+            show: false,
+            TimeSpan.FromSeconds(5));
+        var session = Assert.Single(manager.Sessions);
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondRan = false;
+        var first = manager.ExecuteAsync(sessionId, async _ =>
+        {
+            firstStarted.SetResult();
+            await releaseFirst.Task;
+            return true;
+        });
+        await firstStarted.Task;
+        var second = manager.ExecuteAsync(sessionId, _ =>
+        {
+            secondRan = true;
+            return Task.FromResult(true);
+        });
+        await WaitForAsync(() => session.PendingOperations == 2);
+
+        session.MarkUnsafe("The dispatched mutation may still complete.");
+        releaseFirst.SetResult();
+
+        Assert.True(await first);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => second);
+        Assert.False(secondRan);
+    }
+
+    [Fact]
     public async Task Close_DrainsAdmittedOperationsBeforeDisposingSession()
     {
         using var manager = CreateManager();

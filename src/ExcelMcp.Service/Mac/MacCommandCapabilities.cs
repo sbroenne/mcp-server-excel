@@ -37,19 +37,7 @@ internal static class MacCommandCapabilities
         "calculation.calculate"
     };
 
-    private static readonly HashSet<string> OfficeAddInCategories = new(StringComparer.Ordinal)
-    {
-        "table",
-        "tablecolumn",
-        "chart",
-        "chartconfig",
-        "pivottable",
-        "pivottablefield",
-        "pivottablecalc",
-        "conditionalformat"
-    };
-
-    public static MacCommandCapability Get(string command)
+    public static MacCommandCapability Get(string command, bool officeCandidateEnabled = false)
     {
         if (NativeCommands.Contains(command))
         {
@@ -59,6 +47,21 @@ internal static class MacCommandCapabilities
         var separator = command.IndexOf('.');
         var category = separator > 0 ? command[..separator] : command;
         var action = separator > 0 ? command[(separator + 1)..] : string.Empty;
+
+        if (MacOfficeActionCatalog.TryGet(command, out _))
+        {
+            if (officeCandidateEnabled)
+            {
+                return new MacCommandCapability(
+                    true,
+                    MacCapabilityTier.OfficeAddIn,
+                    string.Empty);
+            }
+            return Unavailable(
+                MacCapabilityTier.OfficeAddIn,
+                command,
+                "an Office.js implementation candidate that has not passed live contract parity validation");
+        }
 
         if (category == "powerquery")
         {
@@ -92,13 +95,20 @@ internal static class MacCommandCapabilities
                     "the optional VBA project object model tier, which requires explicit user trust");
         }
 
-        if (OfficeAddInCategories.Contains(category)
-            || category == "rangeformat")
+        if (category is "table"
+            or "tablecolumn"
+            or "chart"
+            or "chartconfig"
+            or "pivottable"
+            or "pivottablefield"
+            or "pivottablecalc"
+            or "conditionalformat"
+            or "rangeformat")
         {
             return Unavailable(
                 MacCapabilityTier.OfficeAddIn,
                 command,
-                "the optional Office.js add-in tier, which is not installed in this release");
+                "an Office.js implementation that has not passed contract parity validation");
         }
 
         return Unavailable(
