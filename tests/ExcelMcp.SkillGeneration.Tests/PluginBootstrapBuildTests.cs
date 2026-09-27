@@ -2063,11 +2063,13 @@ public sealed class PluginBootstrapBuildTests
 
         var server = root.GetProperty("mcpServers").GetProperty("excel-mcp");
         Assert.Equal("stdio", server.GetProperty("type").GetString());
-        Assert.Equal("powershell", server.GetProperty("command").GetString());
+        Assert.Equal("npx", server.GetProperty("command").GetString());
         Assert.DoesNotContain(' ', server.GetProperty("command").GetString()!);
 
         var args = server.GetProperty("args").EnumerateArray().Select(arg => arg.GetString()).ToArray();
-        Assert.Contains("${PLUGIN_ROOT}/bin/start-mcp.ps1", args);
+        Assert.Equal(2, args.Length);
+        Assert.Equal("-y", args[0]);
+        Assert.Equal("@sbroenne/mcp-server-excel", args[1]);
         Assert.DoesNotContain(args, arg => arg?.Contains("{pluginDir}", StringComparison.Ordinal) == true);
     }
 

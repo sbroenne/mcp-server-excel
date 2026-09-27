@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/excelcli",
   "version": "0.0.0-development",
-  "description": "Excel automation CLI for Windows, distributed through npm.",
+  "description": "Excel automation CLI for Windows x64 and macOS x64/Arm64, distributed through npm.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -28,7 +28,9 @@
     "foreground-child": "^4.0.3"
   },
   "optionalDependencies": {
-    "@sbroenne/excelcli-win32-x64": "file:../excelcli-win32-x64"
+    "@sbroenne/excelcli-win32-x64": "file:../excelcli-win32-x64",
+    "@sbroenne/excelcli-darwin-arm64": "file:../excelcli-darwin-arm64",
+    "@sbroenne/excelcli-darwin-x64": "file:../excelcli-darwin-x64"
   },
   "publishConfig": {
     "access": "public",

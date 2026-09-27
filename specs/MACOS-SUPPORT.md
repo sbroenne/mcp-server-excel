@@ -54,9 +54,11 @@ The first implementation increment now exists behind runtime platform selection:
 - MCP Server and `excelcli` compile as `net10.0` hosts on macOS. Windows retains
   `net10.0-windows`, WinForms tray integration, SID-secured pipes, COM routing
   and owned-process cleanup.
-- Apple Silicon release ZIPs, VSIX, MCPB, and Darwin ARM64 npm runtime packages
+- Apple Silicon and Intel release ZIPs, VSIX, MCPB, and matching Darwin npm runtime packages
   contain self-contained executables. The npm launchers and Copilot plugins
-  resolve the Darwin ARM64 packages through `npx`; Intel macOS fails closed.
+  resolve the architecture-matched Darwin packages through `npx`. Intel
+  packages are cross-built and structurally validated; physical Intel Mac Excel
+  execution remains unverified.
 - The shared Service selects a serialized JXA/Apple Events backend on macOS.
   CLI IPC uses a stable hashed per-user identity and current-user-only Unix
   named pipes. The Mac daemon has no tray and never force-kills shared Excel.

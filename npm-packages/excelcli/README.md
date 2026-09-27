@@ -14,9 +14,11 @@ npm install --global @sbroenne/excelcli
 excelcli --version
 ```
 
-Requires Node.js 18 or later, Windows x64 or Arm64 (x64 emulation), and
-Microsoft Excel 2016 or later. No separate .NET runtime is needed. Keep
-optional dependencies enabled so npm installs the matching Windows runtime.
+Requires Node.js 18 or later and either Windows x64/Arm64 (x64 emulation) with
+Microsoft Excel 2016+, or macOS x64/Arm64 with Excel for Mac 16.112+.
+Intel macOS uses the separate `darwin-x64` runtime package; physical Intel Mac
+Excel execution remains unverified. No separate .NET runtime is needed. Keep
+optional dependencies enabled so npm installs the matching native runtime.
 
 The launcher forwards arguments, standard input/output, and exit codes to the
 existing CLI. Excel operations and session management are unchanged.

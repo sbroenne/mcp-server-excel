@@ -8,7 +8,7 @@ param(
     [string]$ExecutableRelativePath,
 
     [Parameter(Mandatory)]
-    [ValidateSet("windows-x64", "macos-arm64")]
+    [ValidateSet("windows-x64", "macos-arm64", "macos-x64")]
     [string]$ExpectedArchitecture,
 
     [string[]]$ForbiddenExecutableRelativePath = @(),
@@ -61,7 +61,7 @@ try {
     }
     else {
         & /bin/chmod +x $executable
-        $architecture = "arm64"
+        $architecture = if ($ExpectedArchitecture -eq "macos-arm64") { "arm64" } else { "x86_64" }
         $reported = (& /usr/bin/lipo -archs $executable 2>&1).Trim()
         if ($LASTEXITCODE -ne 0 -or $reported -notmatch "(^|\s)$([regex]::Escape($architecture))(\s|$)") {
             throw "'$normalizedEntry' does not contain expected Mach-O architecture '$architecture' (reported: '$reported')."

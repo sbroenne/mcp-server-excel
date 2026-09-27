@@ -16,7 +16,7 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 ### Development Environment
 
 1. **Prerequisites**:
-   - Windows x64 or Apple Silicon macOS
+   - Windows x64 or macOS x64/Arm64
    - Visual Studio 2022 or VS Code
    - .NET 10 SDK
    - Microsoft Excel installed for Excel-dependent tests

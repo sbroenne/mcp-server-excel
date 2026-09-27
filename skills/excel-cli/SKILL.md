@@ -1,21 +1,21 @@
 ---
 name: excel-cli
 description: >
-  Excel CLI automation skill for Windows and Apple Silicon macOS workbooks. Use when a coding agent needs
+  Excel CLI automation skill for Windows and macOS x64/Arm64 workbooks. Use when a coding agent needs
   token-efficient, scriptable, or unattended Excel automation via excelcli commands.
   Best for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk
   workbook edits. Windows supports the complete operation set; macOS supports
   session, worksheet, range value/formula/clear, and calculation operations. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+; feature availability differs by platform.
+compatibility: Requires Windows with Excel 2016+ or macOS x64/Arm64 with Excel 16.112+; feature availability differs by platform. Intel packages are cross-built and hardware-unverified.
 ---
 
 # Excel Automation with excelcli
 
 ## Preconditions
 
-- Windows host with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
+- Windows host with Microsoft Excel 2016+, or macOS x64/Arm64 with Excel 16.112+
 - Windows uses COM; macOS uses the capability-gated Apple Events backend
 - **Every command below invokes `excelcli` directly, so it must resolve on PATH.**
   Installing the `excel-cli` plugin does *not* put it there. Run
@@ -23,8 +23,8 @@ compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Exc
   via the standalone release zip or
   `dotnet tool install --global Sbroenne.ExcelMcp.CLI`.
   If `excelcli` is not found, report that and stop — do not guess at a path.
-- npm installs the Windows x64 or Darwin ARM64 optional runtime package for the
-  current host. Intel macOS and other unsupported platforms fail closed.
+- npm installs the Windows x64, Darwin ARM64, or Darwin x64 optional runtime
+  package for the current host. Other unsupported platforms fail closed.
 
 ## macOS Capability Gate
 
