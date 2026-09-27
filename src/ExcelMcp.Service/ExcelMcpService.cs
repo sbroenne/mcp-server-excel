@@ -87,6 +87,10 @@ public sealed class ExcelMcpService : IDisposable
         {
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
+            var helperClient = new MacVbaHelperClient(_macBackend);
+            _getMacHelperCapabilities = helperClient.GetCapabilitiesAsync;
+            _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
+                helperClient.DispatchAsync);
         }
     }
 
@@ -633,6 +637,16 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "SessionNotFound",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacVbaHelperException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.Category,
                 ErrorMessage = ex.Message,
                 ExceptionType = ex.GetType().Name
             };
