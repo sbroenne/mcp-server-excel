@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -48,6 +49,7 @@ internal sealed class MacPowerQueryHelperDispatcher(
         }
         else if (publicAction == "refresh")
         {
+            ValidateRefreshResult(helperObject, publicArguments);
             result = OperationResult(workbookPath);
             CopyRequired(helperObject, result, "queryName");
             CopyRequired(helperObject, result, "hasErrors");
@@ -58,6 +60,7 @@ internal sealed class MacPowerQueryHelperDispatcher(
         }
         else if (publicAction == "evaluate")
         {
+            ValidateEvaluateResult(helperObject);
             result = OperationResult(workbookPath);
             result["mCode"] = RequiredString(publicArguments, "mCode");
             CopyRequired(helperObject, result, "columns");
@@ -84,6 +87,65 @@ internal sealed class MacPowerQueryHelperDispatcher(
             ["filePath"] = workbookPath
         };
 
+    private static void ValidateRefreshResult(
+        JsonObject helperResult,
+        JsonObject publicArguments)
+    {
+        var requestedName = RequiredString(publicArguments, "queryName");
+        var returnedName = RequiredString(helperResult, "queryName");
+        if (!string.Equals(requestedName, returnedName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Helper refresh result does not identify the requested query.");
+        }
+        if (RequiredBoolean(helperResult, "hasErrors"))
+        {
+            throw new InvalidOperationException(
+                "Helper refresh reported query errors in a successful response.");
+        }
+        if (helperResult["errorMessages"] is not JsonArray errorMessages
+            || errorMessages.Count != 0)
+        {
+            throw new InvalidOperationException(
+                "A successful helper refresh must return an empty errorMessages array.");
+        }
+        var refreshTime = RequiredString(helperResult, "refreshTime");
+        if (!DateTimeOffset.TryParse(
+                refreshTime,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out _))
+        {
+            throw new InvalidOperationException(
+                "Helper refresh result contains an invalid refreshTime.");
+        }
+        _ = RequiredBoolean(helperResult, "isConnectionOnly");
+    }
+
+    private static void ValidateEvaluateResult(JsonObject helperResult)
+    {
+        if (helperResult["columns"] is not JsonArray columns
+            || columns.Any(column => column is not JsonValue value
+                || !value.TryGetValue<string>(out _)))
+        {
+            throw new InvalidOperationException(
+                "Helper evaluate result contains invalid columns.");
+        }
+        if (helperResult["rows"] is not JsonArray rows
+            || rows.Any(row => row is not JsonArray cells
+                || cells.Count != columns.Count))
+        {
+            throw new InvalidOperationException(
+                "Helper evaluate result contains invalid rows.");
+        }
+        if (RequiredInt32(helperResult, "rowCount") != rows.Count
+            || RequiredInt32(helperResult, "columnCount") != columns.Count)
+        {
+            throw new InvalidOperationException(
+                "Helper evaluate result dimensions do not match its data.");
+        }
+    }
+
     private static void CopyRequired(
         JsonObject source,
         JsonObject destination,
@@ -109,4 +171,19 @@ internal sealed class MacPowerQueryHelperDispatcher(
         arguments[propertyName]?.GetValue<string>() is { } value
             ? value
             : throw new ArgumentException($"{propertyName} is required.");
+
+    private static bool RequiredBoolean(JsonObject value, string propertyName) =>
+        value[propertyName] is JsonValue property
+            && property.TryGetValue<bool>(out var result)
+                ? result
+                : throw new InvalidOperationException(
+                    $"Helper result property '{propertyName}' must be a Boolean.");
+
+    private static int RequiredInt32(JsonObject value, string propertyName) =>
+        value[propertyName] is JsonValue property
+            && property.TryGetValue<int>(out var result)
+            && result >= 0
+                ? result
+                : throw new InvalidOperationException(
+                    $"Helper result property '{propertyName}' must be a non-negative integer.");
 }

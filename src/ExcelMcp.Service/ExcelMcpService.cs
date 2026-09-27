@@ -541,6 +541,11 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (MacVbaHelperException ex)
         {
+            if (string.Equals(ex.Category, "RecoveryRequired", StringComparison.Ordinal)
+                || string.Equals(ex.Code, "rollback_failed", StringComparison.Ordinal))
+            {
+                await InvalidateMacSessionAsync(request.SessionId);
+            }
             return new ServiceResponse
             {
                 Success = false,
@@ -551,14 +556,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (TimeoutException ex)
         {
-            try
-            {
-                await _macSessionManager!.CloseAsync(request.SessionId, save: false);
-            }
-            catch
-            {
-                // Shared Excel is never killed; the logical session remains invalid after timeout.
-            }
+            await InvalidateMacSessionAsync(request.SessionId);
             return new ServiceResponse
             {
                 Success = false,
@@ -603,45 +601,18 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
-    private static async Task TryUnregisterOfficeSessionAsync(MacExcelSession session)
+    private async Task InvalidateMacSessionAsync(string sessionId)
     {
+        _macSessionManager!.RequireRecovery(sessionId);
         try
         {
-            using var officeClient = MacOfficeBridgeClient.CreateDefault();
-            await officeClient.TryUnregisterAsync(session.SessionId, session.FilePath);
+            await _macSessionManager.CloseAsync(sessionId, save: false);
         }
-        catch (Exception ex) when (ex is MacOfficeBridgeException
-                                   or IOException
-                                   or JsonException
-                                   or InvalidOperationException
-                                   or UriFormatException)
+        catch
         {
-            // The optional add-in must not prevent native session close.
+            // Shared Excel is never killed; recovery gating remains if exact close did not complete.
         }
     }
-
-    internal static bool CanUseScenarioForAcceptance(
-        string command,
-        string? e2eMode,
-        MacVbaHelperInstallation installation)
-    {
-        if (!string.Equals(e2eMode, "1", StringComparison.Ordinal))
-        {
-            return false;
-        }
-        return IsNativeScenarioCommand(command)
-            || IsScenarioHelperCommand(command)
-                && installation is { IsConfigured: true, SourceExists: true };
-    }
-
-    private static bool IsNativeScenarioCommand(string command) =>
-        command is "analysis.list-scenarios"
-            or "analysis.update-scenario"
-            or "analysis.delete-scenario"
-            or "analysis.create-scenario-summary";
-
-    private static bool IsScenarioHelperCommand(string command) =>
-        command is "analysis.create-scenario" or "analysis.show-scenario";
 
     private async Task<ServiceResponse> DispatchMacPowerQueryAsync(
         string action,
