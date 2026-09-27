@@ -45,6 +45,8 @@ public sealed class MacCommandCapabilitiesTests
     [Theory]
     [InlineData("powerquery.list")]
     [InlineData("powerquery.view")]
+    [InlineData("powerquery.get-load-config")]
+    [InlineData("powerquery.update")]
     public void PowerQueryReadCommands_AreAvailableThroughSecurePackageTier(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
@@ -54,14 +56,15 @@ public sealed class MacCommandCapabilitiesTests
         Assert.Empty(capability.UnavailableMessage);
     }
 
-    [Fact]
-    public void PowerQueryMutation_StaysGatedUntilWorkbookTransactionIsImplemented()
+    [Theory]
+    [InlineData("powerquery.refresh")]
+    [InlineData("powerquery.refresh-all")]
+    public void PowerQueryRefresh_StaysGatedWithoutRealExcelCompletionEvidence(string command)
     {
-        var capability = MacCommandCapabilities.Get("powerquery.update");
+        var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.PowerQueryPackage, capability.RequiredTier);
-        Assert.Contains("saved-package", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

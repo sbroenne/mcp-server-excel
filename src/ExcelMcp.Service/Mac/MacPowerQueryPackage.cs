@@ -48,14 +48,17 @@ internal static class MacPowerQueryPackage
         ParsedQuery? targetQuery = null;
         foreach (var section in sections)
         {
-            var query = ParseQueries(section.Content)
-                .SingleOrDefault(candidate =>
-                    string.Equals(candidate.Name, queryName, StringComparison.OrdinalIgnoreCase));
-            if (query is not null)
+            foreach (var query in ParseQueries(section.Content).Where(candidate =>
+                         string.Equals(candidate.Name, queryName, StringComparison.OrdinalIgnoreCase)))
             {
+                if (targetQuery is not null)
+                {
+                    throw new InvalidDataException(
+                        $"Power Query identity '{queryName}' is ambiguous.");
+                }
+
                 targetSection = section;
                 targetQuery = query;
-                break;
             }
         }
 

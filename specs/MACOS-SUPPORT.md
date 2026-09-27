@@ -38,11 +38,14 @@ access.
 
 A repository-owned `[MS-QDEFF]` package reader/writer now parses exact M query
 definitions and can update an exact query transactionally while resetting
-Power Query permissions. Production `list` and `view` use this reader for clean,
-saved workbooks. Worksheet load state is derived from OOXML worksheet, table,
-QueryTable, and connection relationships because the live Apple Events object
-model does not expose that graph reliably. Mutations remain gated until close,
-backup, reopen, refresh, and rollback orchestration is complete.
+Power Query permissions. Production `list`, `view`, and `get-load-config` use
+this reader for clean, saved workbooks. Package-only `update` is available when
+`refresh=false`; it uses exact-workbook close, same-directory backup, validated
+replacement, reopen, and rollback. Worksheet load state is derived from OOXML
+worksheet, table, QueryTable, and connection relationships because the live
+Apple Events object model does not expose that graph reliably. Refreshing
+updates and destination mutations remain gated pending unattended real-Excel
+fixtures that can prove completion, errors, and cleanup.
 
 ## Implementation status
 
@@ -61,15 +64,17 @@ The first implementation increment now exists behind runtime platform selection:
   create/list/rename/delete, range get/set values and formulas (including
   existing JSON/CSV file transforms), number-format read/write, explicit
   row/column sizing, clear operations, and calculation.
-- Power Query `list` and `view` are implemented for clean, saved workbooks using
-  package inspection. Dirty workbooks fail with save-or-discard guidance rather
-  than returning stale package data. Workbooks without a DataMashup return an
-  empty query list. Workbooks containing a Data Model fail explicitly until
-  package-level query-to-model identity can be established; they are not
-  misreported as connection-only.
-- Every other production Mac action, including Power Query mutation and VBA
-  source CRUD, returns an explicit capability-tier failure. It is not reported
-  as success and no unvalidated rewrite is substituted.
+- Power Query `list`, `view`, and `get-load-config` are implemented for clean,
+  saved workbooks using package inspection. Package-only `update` requires
+  `refresh=false`; the contract default remains `refresh=true`, so Mac callers
+  must opt out explicitly until refresh parity is proven. Dirty workbooks fail
+  with save-or-discard guidance rather than returning stale package data.
+  Workbooks without a DataMashup return an empty query list. Workbooks
+  containing a Data Model fail explicitly until package-level query-to-model
+  identity can be established; they are not misreported as connection-only.
+- Other production Mac Power Query actions and VBA source CRUD return an
+  explicit capability-tier failure. They are not reported as success and no
+  unvalidated rewrite is substituted.
 - Existing-file open uses a non-prompting native Automation preflight, rejects
   an already-open target, hands the exact path to LaunchServices, then attaches
   through JXA under a shared deadline.
@@ -83,13 +88,15 @@ The first implementation increment now exists behind runtime platform selection:
 
 This is **not completion of the parity plan**. Worksheet creation uses the
 working nested AppleScript form after JXA returned Excel parameter errors.
-Power Query mutation and refresh remain gated until completion, rollback, error,
-and identity semantics are implemented. VBA list/view/import/update/delete
-remain gated because Excel's installed Apple Events dictionary exposes macro
-execution but not the VB project/code-module object model. The approved design
-now permits gradual, optional helpers: Office.js for broad workbook features,
-a macro helper for execution, and a VBA project-model tier only after explicit
-user trust. Base macOS support must not require macros or VBA project trust.
+Power Query create/rename/delete/load/unload/evaluate and all refresh variants
+remain gated until their completion, error, destination, and cleanup semantics
+have repository-safe unattended real-Excel evidence. VBA
+list/view/import/update/delete remain gated because Excel's installed Apple
+Events dictionary exposes macro execution but not the VB project/code-module
+object model. The approved design now permits gradual, optional helpers:
+Office.js for broad workbook features, a macro helper for execution, and a VBA
+project-model tier only after explicit user trust. Base macOS support must not
+require macros or VBA project trust.
 
 ## Required parity and priorities
 
@@ -229,9 +236,9 @@ underlying feature.
 | --- | --- | --- |
 | Power Query `list` | `[MS-QDEFF]` DataMashup parsing plus OOXML relationship traversal | Implemented for clean, saved workbooks without a Data Model; worksheet and connection-only state verified |
 | Power Query `view` | `[MS-QDEFF]` DataMashup parsing with exact case-insensitive identity | Implemented for clean, saved workbooks without a Data Model |
-| Power Query `get-load-config` | OOXML worksheet/table/QueryTable/connection traversal | Package mechanism implemented; public action remains gated pending Data Model semantics |
+| Power Query `get-load-config` | OOXML worksheet/table/QueryTable/connection traversal | Implemented for clean, saved workbooks without a Data Model; ambiguous worksheet destinations fail |
 | Power Query `create` | No declared query-definition creation API | Blocked |
-| Power Query `update` | No declared M-formula write API | Blocked |
+| Power Query `update` | Transactional saved-package exact formula replacement | Implemented only with `refresh=false`, for clean, saved workbooks without a Data Model; explicit save commits and discard restores the session baseline |
 | Power Query `rename` | Renaming a QueryTable is not proven equivalent to renaming the query and preserving dependencies | Blocked |
 | Power Query `delete` | Removing a destination is not equivalent to deleting the query definition and its exact destinations | Blocked |
 | Power Query `evaluate` | No declared M execution API or temporary-query lifecycle | Blocked |
@@ -755,7 +762,7 @@ only when their own security and lifecycle gates are satisfied.
 | --- | --- | --- |
 | 0. Permission and ownership design | Choose direct-workbook versus explicit working-copy UX; test denied/revoked access and repeated launches under the intended host identity; decide broker/ownership semantics | User-approved onboarding, bounded failures, no recurring unexpected prompts for already-authorized files, no unauthorized copying or user-workbook closure |
 | 1. Native foundation | Shared capability metadata; secure IPC/ownership; workbook/sheet/range/calculation foundation | Implemented native slice passes actual MCP and CLI workflows without prompts |
-| 2. Saved-package Power Query | Independent `[MS-QDEFF]` reader/writer; exact query identity; worksheet load graph; clean-workbook safety | `list`/`view` implemented; next gate is transactional close/backup/reopen/refresh/rollback for mutations |
+| 2. Saved-package Power Query | Independent `[MS-QDEFF]` reader/writer; exact query identity; worksheet load graph; clean-workbook safety | `list`/`view`/`get-load-config` and package-only `update(refresh=false)` implemented with backup/reopen/rollback; next gate is repository-safe unattended refresh evidence |
 | 3. Office.js workbook tier | Deploy and activate an optional add-in/local bridge for tables, charts, PivotTables, conditional formatting, and related surfaces | Explicit install/removal and capability preflight; cross-entry-point real-Excel workflows pass |
 | 4. Macro execution tier | Add an optional, narrowly scoped macro helper without changing security settings | Known macros run unattended only when the user has enabled macros; prompts and unavailable trust fail before execution |
 | 5. VBA project-model tier | Add source CRUD only behind explicit user-managed project-model trust | Full synthetic import/view/run/update/delete lifecycle passes without trust mutation or dialog automation |
