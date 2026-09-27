@@ -145,6 +145,7 @@ public sealed class ReleaseMetadataScriptTests
         var prepareRelease = ExtractWorkflowJob(releaseWorkflow, "prepare-release");
         var buildVsCode = ExtractWorkflowJob(releaseWorkflow, "build-vscode");
         var buildMcpb = ExtractWorkflowJob(releaseWorkflow, "build-mcpb");
+        var publishMcpRegistry = ExtractWorkflowJob(releaseWorkflow, "publish-mcp-registry");
         var createTag = ExtractWorkflowJob(releaseWorkflow, "create-tag");
         var createRelease = ExtractWorkflowJob(releaseWorkflow, "create-release");
 
@@ -179,6 +180,57 @@ public sealed class ReleaseMetadataScriptTests
             StringComparison.Ordinal);
         Assert.DoesNotContain("./scripts/Build-Changelog.ps1", createRelease, StringComparison.Ordinal);
         Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
+        Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$version", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$nugetReady -and $npmLauncherReady -and $npmRuntimeReady", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$content = $response.Content", publishMcpRegistry, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseFlow_BuildsTestsAndPublishesBothNpmDistributions()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        var cli = ExtractWorkflowJob(workflow, "build-cli");
+        var mcp = ExtractWorkflowJob(workflow, "build-mcp-server");
+        var publish = ExtractWorkflowJob(workflow, "publish");
+
+        Assert.Contains("actions/setup-node@", cli, StringComparison.Ordinal);
+        Assert.Contains("-Component Cli", cli, StringComparison.Ordinal);
+        Assert.Contains("Build-NpmPackages.ps1", cli, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", cli, StringComparison.Ordinal);
+        Assert.Contains("name: cli-npm", cli, StringComparison.Ordinal);
+        Assert.Contains("Build-NpmPackages.ps1", mcp, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", mcp, StringComparison.Ordinal);
+        Assert.Contains("npm test --prefix npm-packages/shared", mcp, StringComparison.Ordinal);
+        Assert.Contains("name: mcp-server-npm", mcp, StringComparison.Ordinal);
+        Assert.Contains("name: cli-npm", publish, StringComparison.Ordinal);
+        Assert.Contains("name: mcp-server-npm", publish, StringComparison.Ordinal);
+        Assert.Contains("Detect npm authentication mode", publish, StringComparison.Ordinal);
+        Assert.Contains("if: steps.npm-auth.outputs.mode == 'token'", publish, StringComparison.Ordinal);
+        Assert.Contains("if: steps.npm-auth.outputs.mode == 'oidc'", publish, StringComparison.Ordinal);
+        Assert.Contains("NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
+        Assert.Contains("$env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
+        Assert.Contains("npm publish \"./$Tarball\" --access public", publish, StringComparison.Ordinal);
+
+        foreach (var packageName in new[] { "excelcli", "mcp-server-excel" })
+        {
+            var runtimeIndex = publish.IndexOf(
+                $"-PackageName \"@sbroenne/{packageName}-win32-x64\"",
+                StringComparison.Ordinal);
+            var launcherIndex = publish.IndexOf(
+                $"-PackageName \"@sbroenne/{packageName}\"",
+                StringComparison.Ordinal);
+            Assert.True(runtimeIndex >= 0);
+            Assert.True(launcherIndex > runtimeIndex, "Publish the runtime before its launcher.");
+        }
+
+        var preCommit = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
+        Assert.Contains("-Component Cli", preCommit, StringComparison.Ordinal);
+        Assert.Contains("sbroenne-excelcli-win32-x64-$version.tgz", preCommit, StringComparison.Ordinal);
+        Assert.Contains("Join-Path $rootDir \"npm-packages/shared\"", preCommit, StringComparison.Ordinal);
+        Assert.Contains("npm test --prefix $npmTestDirectory", preCommit, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -199,6 +251,18 @@ public sealed class ReleaseMetadataScriptTests
         Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
         Assert.Contains("contents: write", docCountsWorkflow, StringComparison.Ordinal);
         Assert.Contains("git push origin HEAD:main", docCountsWorkflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void DocumentationCounts_DefaultRefreshBuildsProjectDependencies()
+    {
+        // A fresh checkout has no built Service/ComInterop outputs, so the MCP Server
+        // build must include its project dependencies.
+        var script = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"));
+
+        Assert.DoesNotContain("--no-dependencies", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -354,9 +418,13 @@ public sealed class ReleaseMetadataScriptTests
             Assert.Equal("9.8.7", root.GetProperty("version").GetString());
 
             var packages = root.GetProperty("packages").EnumerateArray().ToArray();
-            var mcpPackage = Assert.Single(packages, package =>
+            var nugetPackage = Assert.Single(packages, package =>
                 package.GetProperty("identifier").GetString() == "Sbroenne.ExcelMcp.McpServer");
-            Assert.Equal("9.8.7", mcpPackage.GetProperty("version").GetString());
+            Assert.Equal("9.8.7", nugetPackage.GetProperty("version").GetString());
+
+            var npmPackage = Assert.Single(packages, package =>
+                package.GetProperty("identifier").GetString() == "@sbroenne/mcp-server-excel");
+            Assert.Equal("9.8.7", npmPackage.GetProperty("version").GetString());
         }
         finally
         {
@@ -381,6 +449,45 @@ public sealed class ReleaseMetadataScriptTests
 
             Assert.NotEqual(0, result.ExitCode);
             Assert.Contains("exactly one", result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task UpdateMetadata_RejectsMissingNpmPackage()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var metadataPath = Path.Combine(sandbox, "server.json");
+            await File.WriteAllTextAsync(
+                metadataPath,
+                """
+                {
+                  "version": "1.0.0",
+                  "packages": [
+                    {
+                      "identifier": "Sbroenne.ExcelMcp.McpServer",
+                      "version": "1.0.0"
+                    }
+                  ]
+                }
+                """);
+
+            var result = await RunPowerShellScriptAsync(
+                UpdateMetadataScript,
+                ["-ServerJsonPath", metadataPath, "-Version", "9.8.7"]);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(
+                "@sbroenne/mcp-server-excel",
+                result.CombinedOutput,
+                StringComparison.Ordinal);
         }
         finally
         {
@@ -540,6 +647,13 @@ public sealed class ReleaseMetadataScriptTests
                 Path.Combine(root, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
                 "packages",
                 "0",
+                "version"));
+        Assert.Equal(
+            expectedVersion,
+            ReadJsonProperty(
+                Path.Combine(root, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
+                "packages",
+                "1",
                 "version"));
         Assert.Equal(
             expectedVersion,

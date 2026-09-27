@@ -37,7 +37,9 @@ Key fields:
 
 ### Package Validation
 
-The MCP Registry validates ownership by checking for `mcp-name:` in the package README.
+The registry offers both NuGet and npm installations. It validates NuGet
+ownership through `mcp-name:` in the package README and npm ownership through
+the `mcpName` property in the launcher package.
 
 Location: `src/ExcelMcp.McpServer/README.md`
 
@@ -48,18 +50,26 @@ The README includes this validation metadata:
 
 This HTML comment is invisible to users but allows the registry to verify the package belongs to this server.
 
+The npm package at `npm-packages/mcp-server-excel/package.json` contains:
+
+```json
+{
+  "mcpName": "io.github.sbroenne/mcp-server-excel"
+}
+```
+
 ## Publishing Workflow
 
 The publishing process is automated as `publish-mcp-registry` job in `.github/workflows/release.yml`:
 
 ### 1. Version Update
 The workflow:
-- Parses `server.json`, updates both the top-level `version` and the MCP Server
-  package version, then validates that both values match the release version.
+- Parses `server.json`, updates the top-level version plus the NuGet and npm
+  package versions, then validates that all values match the release version.
 
-### 2. Wait for NuGet Propagation
-- The MCP Registry uses NuGet as the deployment mechanism
-- The job waits for the NuGet package README to propagate (validates `mcp-name:` tag)
+### 2. Wait for NuGet and npm Propagation
+- The MCP Registry offers both NuGet and npm deployment mechanisms
+- The job waits for the NuGet README and npm `mcpName` metadata to propagate
 - Polls up to 3 times with 10-minute intervals
 
 ### 3. MCP Registry Publishing
@@ -105,5 +115,5 @@ After release, verify publication:
 
 **Solution**: 
 - Check the `publish-mcp-registry` job logs
-- Confirm both `server.json` version fields were stamped with the release version
+- Confirm the top-level, NuGet, and npm `server.json` versions were stamped with the release version
   before rerunning the workflow or publishing manually
