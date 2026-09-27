@@ -82,7 +82,10 @@ public sealed class ExcelMcpService : IDisposable
         {
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
-            _macVbaHelperClient = new MacVbaHelperClient(_macBackend);
+            var helperClient = new MacVbaHelperClient(_macBackend);
+            _getMacHelperCapabilities = helperClient.GetCapabilitiesAsync;
+            _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
+                helperClient.DispatchAsync);
         }
     }
 
@@ -529,22 +532,12 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             };
         }
-        catch (MacOfficeMutationUncertainException ex)
+        catch (MacVbaHelperException ex)
         {
             return new ServiceResponse
             {
                 Success = false,
-                ErrorCategory = "MutationOutcomeUncertain",
-                ErrorMessage = ex.Message,
-                ExceptionType = ex.GetType().Name
-            };
-        }
-        catch (MacOfficeBridgeTimeoutException ex)
-        {
-            return new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = "Timeout",
+                ErrorCategory = ex.Category,
                 ErrorMessage = ex.Message,
                 ExceptionType = ex.GetType().Name
             };

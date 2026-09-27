@@ -86,6 +86,76 @@ public sealed class MacPowerQueryServiceRoutingTests
     }
 
     [Fact]
+    public async Task AdvertisedButUnprovenMutationDoesNotDispatch()
+    {
+        var helperCalls = 0;
+        var path = TempWorkbookPath();
+        using var service = new ExcelMcpService(
+            CreateBackend([]),
+            (workbookPath, timeout) =>
+                Task.FromResult(Capabilities(false, "powerquery.rename")),
+            (workbookPath, action, arguments, timeout) =>
+            {
+                helperCalls++;
+                return Task.FromResult(JsonSerializer.SerializeToElement(new { }));
+            });
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.rename",
+                SessionId = sessionId,
+                Args = """{"oldName":"Sales","newName":"Revenue"}"""
+            });
+
+            Assert.False(response.Success);
+            Assert.Equal("PlatformNotSupported", response.ErrorCategory);
+            Assert.Equal(0, helperCalls);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task StructuredHelperFailurePreservesPublicErrorCategory()
+    {
+        var path = TempWorkbookPath();
+        using var service = new ExcelMcpService(
+            CreateBackend([]),
+            (workbookPath, timeout) => Task.FromResult(Capabilities("powerquery.rename")),
+            (workbookPath, action, arguments, timeout) =>
+                throw new MacVbaHelperException(
+                    "Conflict",
+                    "query_conflict",
+                    "A query with that name already exists."));
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.rename",
+                SessionId = sessionId,
+                Args = """{"oldName":"Sales","newName":"Revenue"}"""
+            });
+
+            Assert.False(response.Success);
+            Assert.Equal("Conflict", response.ErrorCategory);
+            Assert.Equal(
+                "A query with that name already exists.",
+                response.ErrorMessage);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task UncertainHelperMutationIsNotRetriedWithPackageMutation()
     {
         var helperCalls = 0;
@@ -124,7 +194,7 @@ public sealed class MacPowerQueryServiceRoutingTests
     }
 
     [Fact]
-    public async Task RefreshPassesExplicitWholeSecondTimeoutToHelper()
+    public async Task RefreshIsNotRoutedWhenMethodIsNotInProvenContract()
     {
         TimeSpan? observedTimeout = null;
         var path = TempWorkbookPath();
@@ -154,8 +224,9 @@ public sealed class MacPowerQueryServiceRoutingTests
                 Args = """{"queryName":"Sales","timeout":17}"""
             });
 
-            Assert.True(response.Success, response.ErrorMessage);
-            Assert.Equal(TimeSpan.FromSeconds(17), observedTimeout);
+            Assert.False(response.Success);
+            Assert.Equal("PlatformNotSupported", response.ErrorCategory);
+            Assert.Null(observedTimeout);
         }
         finally
         {
@@ -235,11 +306,21 @@ public sealed class MacPowerQueryServiceRoutingTests
     }
 
     private static JsonElement Capabilities(params string[] actions) =>
+        Capabilities(true, actions);
+
+    private static JsonElement Capabilities(
+        bool powerQueryMutationProven,
+        params string[] actions) =>
         JsonSerializer.SerializeToElement(new
         {
             helperVersion = "1.0.0",
             protocolVersion = 1,
-            supportedActions = actions
+            supportedActions = actions,
+            provenMethods = new
+            {
+                powerQueryList = true,
+                powerQueryMutation = powerQueryMutationProven
+            }
         });
 
     private static string? AutomationCommandOrNull(ProcessStartInfo start)
