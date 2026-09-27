@@ -1,0 +1,37 @@
+{
+  "name": "@sbroenne/excelcli",
+  "version": "0.0.0-development",
+  "description": "Excel automation CLI for Windows, distributed through npm.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "excelcli": "bin/excelcli.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-excel",
+    "directory": "npm-packages/excelcli"
+  },
+  "homepage": "https://excelmcpserver.dev/",
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-excel/issues"
+  },
+  "keywords": ["excel", "cli", "windows", "automation"],
+  "dependencies": {
+    "foreground-child": "^4.0.3"
+  },
+  "optionalDependencies": {
+    "@sbroenne/excelcli-win32-x64": "file:../excelcli-win32-x64"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.Service.Mac;
@@ -9,9 +11,20 @@ internal sealed class MacExcelSessionManager : IDisposable
     private readonly ConcurrentDictionary<string, string> _paths = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Task<bool>> _closeTasks = new(StringComparer.Ordinal);
     private readonly MacExcelBackend _backend;
+    private readonly Action<string, string> _copyFile;
+    private readonly Action<string> _deleteFile;
     private bool _disposed;
 
-    public MacExcelSessionManager(MacExcelBackend backend) => _backend = backend;
+    public MacExcelSessionManager(
+        MacExcelBackend backend,
+        Action<string, string>? copyFile = null,
+        Action<string>? deleteFile = null)
+    {
+        _backend = backend;
+        _copyFile = copyFile ?? ((source, destination) =>
+            File.Copy(source, destination, overwrite: false));
+        _deleteFile = deleteFile ?? File.Delete;
+    }
 
     public int Count => _sessions.Count;
     public IReadOnlyCollection<MacExcelSession> Sessions => _sessions.Values.ToArray();
@@ -83,14 +96,23 @@ internal sealed class MacExcelSessionManager : IDisposable
     private async Task<bool> CloseSessionAsync(string sessionId, MacExcelSession session, bool save)
     {
         await session.BeginClose();
-        var workbookClosed = false;
+        var closeResult = await CloseAndReconcileAsync(
+            session,
+            "session.close",
+            new { filePath = session.FilePath, save });
+        if (closeResult.State == WorkbookCloseState.Open)
+        {
+            session.CancelClose();
+            ThrowCloseFailure(closeResult);
+        }
+        if (closeResult.State == WorkbookCloseState.Indeterminate)
+        {
+            session.RequiresPackageRecovery = true;
+            ThrowCloseFailure(closeResult);
+        }
+
         try
         {
-            await _backend.InvokeAsync(
-                "session.close",
-                new { filePath = session.FilePath, save },
-                session.OperationTimeout);
-            workbookClosed = true;
             if (save)
             {
                 DeletePackageBaseline(session);
@@ -104,14 +126,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
         catch
         {
-            if (workbookClosed)
-            {
-                RemoveSession(sessionId, session);
-            }
-            else
-            {
-                session.CancelClose();
-            }
+            RemoveSession(sessionId, session);
             throw;
         }
     }
@@ -160,48 +175,56 @@ internal sealed class MacExcelSessionManager : IDisposable
         ArgumentNullException.ThrowIfNull(afterReopen);
 
         var createdBaseline = session.PackageBaselinePath is null;
-        if (createdBaseline)
-        {
-            var baselinePath = CreateTransactionPath(session.FilePath, "baseline");
-            var transactionPath = GetTransactionJournalPath(session.FilePath);
-            try
-            {
-                using (var journal = new FileStream(
-                    transactionPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None))
-                using (var writer = new StreamWriter(journal))
-                {
-                    writer.Write(JsonSerializer.Serialize(
-                        new { baseline = Path.GetFileName(baselinePath) }));
-                }
-                File.Copy(session.FilePath, baselinePath, overwrite: false);
-                session.PackageBaselinePath = baselinePath;
-                session.PackageTransactionPath = transactionPath;
-            }
-            catch
-            {
-                File.Delete(baselinePath);
-                File.Delete(transactionPath);
-                throw;
-            }
-        }
-
+        var baselinePath = createdBaseline
+            ? CreateTransactionPath(session.FilePath, "baseline")
+            : null;
+        var transactionPath = createdBaseline
+            ? GetTransactionJournalPath(session.FilePath)
+            : null;
         var checkpointPath = CreateTransactionPath(session.FilePath, "checkpoint");
         var workingPath = CreateTransactionPath(session.FilePath, "working");
-        File.Copy(session.FilePath, checkpointPath, overwrite: false);
-        File.Copy(session.FilePath, workingPath, overwrite: false);
+        var journalCreated = false;
         var closed = false;
         var reopened = false;
+        var setupComplete = false;
         var preserveCheckpoint = false;
         try
         {
-            await _backend.InvokeAsync(
-                "session.close",
-                new { filePath = session.FilePath, save = false },
-                session.OperationTimeout);
+            var closeResult = await CloseAndReconcileAsync(
+                session,
+                "session.close-if-saved",
+                new { filePath = session.FilePath });
+            if (closeResult.State != WorkbookCloseState.Closed)
+            {
+                if (closeResult.State == WorkbookCloseState.Indeterminate)
+                {
+                    session.RequiresPackageRecovery = true;
+                }
+                ThrowCloseFailure(closeResult);
+            }
             closed = true;
+
+            if (createdBaseline)
+            {
+                using (var journal = new FileStream(
+                    transactionPath!,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None))
+                {
+                    journalCreated = true;
+                    using var writer = new StreamWriter(journal);
+                    writer.Write(JsonSerializer.Serialize(
+                        new { baseline = Path.GetFileName(baselinePath!) }));
+                }
+                _copyFile(session.FilePath, baselinePath!);
+                session.PackageBaselinePath = baselinePath;
+                session.PackageTransactionPath = transactionPath;
+            }
+
+            _copyFile(session.FilePath, checkpointPath);
+            _copyFile(session.FilePath, workingPath);
+            setupComplete = true;
 
             mutateWorkingCopy(workingPath);
             File.Move(workingPath, session.FilePath, overwrite: true);
@@ -217,9 +240,54 @@ internal sealed class MacExcelSessionManager : IDisposable
         {
             if (!closed && !reopened)
             {
-                if (createdBaseline)
+                throw;
+            }
+
+            if (!setupComplete)
+            {
+                Exception? cleanupError = null;
+                Exception? reopenError = null;
+                try
                 {
-                    DeletePackageBaseline(session);
+                    CleanupNewPackageBaseline(
+                        session,
+                        createdBaseline,
+                        baselinePath,
+                        transactionPath,
+                        journalCreated);
+                }
+                catch (Exception error)
+                {
+                    cleanupError = error;
+                }
+                try
+                {
+                    await _backend.InvokeAsync(
+                        "session.open",
+                        new { filePath = session.FilePath, show = session.IsVisible },
+                        session.OperationTimeout);
+                    closed = false;
+                }
+                catch (Exception error)
+                {
+                    reopenError = error;
+                }
+
+                if (cleanupError is not null || reopenError is not null)
+                {
+                    session.RequiresPackageRecovery = true;
+                    var recoveryErrors = new List<Exception> { operationError };
+                    if (cleanupError is not null)
+                    {
+                        recoveryErrors.Add(cleanupError);
+                    }
+                    if (reopenError is not null)
+                    {
+                        recoveryErrors.Add(reopenError);
+                    }
+                    throw new InvalidOperationException(
+                        "Power Query package setup failed and automatic cleanup or reopen did not complete.",
+                        new AggregateException(recoveryErrors));
                 }
                 throw;
             }
@@ -228,10 +296,14 @@ internal sealed class MacExcelSessionManager : IDisposable
             {
                 if (reopened)
                 {
-                    await _backend.InvokeAsync(
+                    var rollbackClose = await CloseAndReconcileAsync(
+                        session,
                         "session.close",
-                        new { filePath = session.FilePath, save = false },
-                        session.OperationTimeout);
+                        new { filePath = session.FilePath, save = false });
+                    if (rollbackClose.State != WorkbookCloseState.Closed)
+                    {
+                        ThrowCloseFailure(rollbackClose);
+                    }
                 }
 
                 RestoreFileAtomically(checkpointPath, session.FilePath);
@@ -265,6 +337,77 @@ internal sealed class MacExcelSessionManager : IDisposable
                 File.Delete(checkpointPath);
             }
         }
+    }
+
+    private void CleanupNewPackageBaseline(
+        MacExcelSession session,
+        bool createdBaseline,
+        string? baselinePath,
+        string? transactionPath,
+        bool journalCreated)
+    {
+        if (!createdBaseline)
+        {
+            return;
+        }
+        if (session.PackageBaselinePath is not null)
+        {
+            DeletePackageBaseline(session);
+            return;
+        }
+
+        if (journalCreated)
+        {
+            _deleteFile(transactionPath!);
+        }
+        _deleteFile(baselinePath!);
+    }
+
+    private async Task<WorkbookCloseResult> CloseAndReconcileAsync(
+        MacExcelSession session,
+        string command,
+        object arguments)
+    {
+        try
+        {
+            await _backend.InvokeAsync(command, arguments, session.OperationTimeout);
+            return new WorkbookCloseResult(WorkbookCloseState.Closed, null);
+        }
+        catch (Exception closeError)
+        {
+            try
+            {
+                var state = await _backend.InvokeAsync(
+                    "session.is-open",
+                    new { filePath = session.FilePath },
+                    session.OperationTimeout);
+                return new WorkbookCloseResult(
+                    state.GetProperty("open").GetBoolean()
+                        ? WorkbookCloseState.Open
+                        : WorkbookCloseState.Closed,
+                    closeError);
+            }
+            catch (Exception stateError)
+            {
+                return new WorkbookCloseResult(
+                    WorkbookCloseState.Indeterminate,
+                    new AggregateException(closeError, stateError));
+            }
+        }
+    }
+
+    [DoesNotReturn]
+    private static void ThrowCloseFailure(WorkbookCloseResult result)
+    {
+        if (result.State == WorkbookCloseState.Open && result.Error is not null)
+        {
+            ExceptionDispatchInfo.Capture(result.Error).Throw();
+        }
+
+        throw new InvalidOperationException(
+            "The service could not determine the exact workbook close outcome; " +
+            "the session requires manual package recovery.",
+            result.Error);
     }
 
     private string NormalizeAndClaim(string filePath, out string sessionId)
@@ -330,7 +473,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
     }
 
-    private static void RestorePackageBaseline(MacExcelSession session)
+    private void RestorePackageBaseline(MacExcelSession session)
     {
         if (session.PackageBaselinePath is not { } baselinePath)
         {
@@ -355,20 +498,20 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
     }
 
-    private static void DeletePackageBaseline(MacExcelSession session)
+    private void DeletePackageBaseline(MacExcelSession session)
     {
         if (session.PackageBaselinePath is not { } baselinePath)
         {
             return;
         }
 
-        File.Delete(baselinePath);
-        session.PackageBaselinePath = null;
         if (session.PackageTransactionPath is { } transactionPath)
         {
-            File.Delete(transactionPath);
+            _deleteFile(transactionPath);
             session.PackageTransactionPath = null;
         }
+        _deleteFile(baselinePath);
+        session.PackageBaselinePath = null;
     }
 
     public void Dispose()
@@ -405,10 +548,15 @@ internal sealed class MacExcelSessionManager : IDisposable
         await session.BeginClose();
         try
         {
-            await _backend.InvokeAsync(
+            var closeResult = await CloseAndReconcileAsync(
+                session,
                 "session.close",
-                new { filePath = session.FilePath, save = false },
-                session.OperationTimeout);
+                new { filePath = session.FilePath, save = false });
+            if (closeResult.State != WorkbookCloseState.Closed)
+            {
+                session.RequiresPackageRecovery = true;
+                ThrowCloseFailure(closeResult);
+            }
             RestorePackageBaseline(session);
         }
         finally
@@ -418,4 +566,15 @@ internal sealed class MacExcelSessionManager : IDisposable
             session.OperationLock.Dispose();
         }
     }
+
+    private enum WorkbookCloseState
+    {
+        Closed,
+        Open,
+        Indeterminate
+    }
+
+    private sealed record WorkbookCloseResult(
+        WorkbookCloseState State,
+        Exception? Error);
 }

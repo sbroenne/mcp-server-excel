@@ -177,6 +177,20 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.Equal(30, saved.GetProperty("values")[0][0].GetDouble());
             Success(await client.CallAsync("range", "set-values", mainSession,
                 RangeArgs("B2", ("values", UnsavedValues)), deadline.Token));
+            var dirtyClose = await InvokeAutomationHostAsync(
+                root,
+                "session.close-if-saved",
+                new { filePath = main },
+                deadline.Token);
+            Assert.False(dirtyClose.GetProperty("success").GetBoolean());
+            Assert.Equal("InvalidOperation", dirtyClose.GetProperty("errorCategory").GetString());
+            Assert.Contains(
+                "saved workbook",
+                dirtyClose.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+            var stillOpen = Success(await client.CallAsync(
+                "range", "get-values", mainSession, RangeArgs("B2"), deadline.Token));
+            Assert.Equal(999, stillOpen.GetProperty("values")[0][0].GetDouble());
             Success(await client.CallAsync("file", "close", mainSession, new(), deadline.Token));
             mainSession = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = main }, deadline.Token));
             var discarded = Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("B2"), deadline.Token));
@@ -210,6 +224,56 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
     private static Dictionary<string, object?> RangeArgs(string address, params (string Key, object? Value)[] extras)
         => RangeArgsOnSheet("Data", address, extras);
+
+    private static async Task<JsonElement> InvokeAutomationHostAsync(
+        string repositoryRoot,
+        string command,
+        object arguments,
+        CancellationToken cancellationToken)
+    {
+        var executable = Path.Combine(
+            repositoryRoot,
+            "src",
+            "ExcelMcp.CLI",
+            "bin",
+            "Release",
+            "net10.0",
+            "excelcli");
+        var start = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        start.ArgumentList.Add(MacAutomationHost.Marker);
+        start.ArgumentList.Add(command);
+        using var process = new Process { StartInfo = start };
+        Assert.True(process.Start());
+        await process.StandardInput.WriteAsync(
+            JsonSerializer.Serialize(arguments).AsMemory(),
+            cancellationToken);
+        process.StandardInput.Close();
+        var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            await process.WaitForExitAsync();
+            throw;
+        }
+        Assert.Equal("", await stderr);
+        Assert.Equal(0, process.ExitCode);
+        using var result = JsonDocument.Parse(await stdout);
+        return result.RootElement.Clone();
+    }
 
     private static Dictionary<string, object?> RangeArgsOnSheet(
         string sheetName,
