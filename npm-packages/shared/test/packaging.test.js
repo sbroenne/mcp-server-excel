@@ -15,7 +15,8 @@ for (const [component, packageName, commandName] of [
 ]) {
   for (const [runtimeIdentifier, runtimeSuffix, executableName, expectedOs, expectedCpu] of [
     ['win-x64', 'win32-x64', `${commandName}.exe`, ['win32'], ['x64', 'arm64']],
-    ['osx-arm64', 'darwin-arm64', commandName, ['darwin'], ['arm64']]
+    ['osx-arm64', 'darwin-arm64', commandName, ['darwin'], ['arm64']],
+    ['osx-x64', 'darwin-x64', commandName, ['darwin'], ['x64']]
   ]) {
   test(`${component} ${runtimeIdentifier} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
@@ -60,7 +61,8 @@ for (const [component, packageName, commandName] of [
         } else {
           assert.deepEqual(manifest.optionalDependencies, {
             [`@sbroenne/${packageName}-win32-x64`]: version,
-            [`@sbroenne/${packageName}-darwin-arm64`]: version
+            [`@sbroenne/${packageName}-darwin-arm64`]: version,
+            [`@sbroenne/${packageName}-darwin-x64`]: version
           });
           assert.equal(manifest.bin[commandName], `bin/${commandName}.js`);
           assert.match(readFileSync(join(root, manifest.bin[commandName]), 'utf8'), new RegExp(`packageName: '@sbroenne/${packageName}'`));

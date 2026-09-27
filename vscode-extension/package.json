@@ -61,7 +61,7 @@
     "chatSkills": [
       {
         "name": "excel-mcp",
-        "description": "Excel MCP Server skill for Windows x64 and Apple Silicon macOS workbook automation.",
+        "description": "Excel MCP Server skill for Windows x64 and macOS x64/Arm64 workbook automation.",
         "path": "./skills/excel-mcp/SKILL.md"
       }
     ]

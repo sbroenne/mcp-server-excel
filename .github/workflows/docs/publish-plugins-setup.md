@@ -313,8 +313,9 @@ TAG=$(git tag --points-at "$HEAD_SHA" --sort=-version:refname | grep -E '^v[0-9]
 - Published plugins ship **manifests, skills, and compatibility helpers only**.
 - The primary MCP launch path is `npx -y @sbroenne/mcp-server-excel`; CLI
   guidance uses `npx -y @sbroenne/excelcli`.
-- npm selects self-contained Windows x64 or Darwin ARM64 runtime packages.
-  Intel macOS is unsupported and must fail closed.
+- npm selects self-contained Windows x64, Darwin ARM64, or Darwin x64 runtime
+  packages. Other platforms fail closed; Intel hardware execution remains
+  unverified until physical Intel Mac Excel evidence exists.
 - `publish-plugins.yml` now validates that built plugin artifacts do **not** contain committed `.exe`, `.dll`, `.deps.json`, or `.runtimeconfig.json` payloads.
 - MCP configuration is portable root `mcp.json` with explicit transport type and `${PLUGIN_ROOT}` arguments; legacy `.mcp.json` is rejected.
 - Standard skills stay under `skills/`; any future Copilot-only files belong under `com.github.copilot/`.

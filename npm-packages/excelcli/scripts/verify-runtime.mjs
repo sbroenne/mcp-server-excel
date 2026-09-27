@@ -8,8 +8,8 @@ if (!launcherPath) {
 }
 
 const runtimePackage =
-  process.platform === 'darwin' && process.arch === 'arm64'
-    ? '@sbroenne/excelcli-darwin-arm64'
+  process.platform === 'darwin'
+    ? `@sbroenne/excelcli-darwin-${process.arch}`
     : '@sbroenne/excelcli-win32-x64';
 const runtime = createRequire(launcherPath).resolve(runtimePackage);
 for (const args of [['--version'], ['--help'], ['session', '--help'], ['--invalid-npm-smoke-option']]) {

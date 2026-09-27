@@ -1,14 +1,14 @@
 ---
 name: excel-mcp
 description: >
-  Excel MCP Server skill for Windows and Apple Silicon macOS workbook automation.
+  Excel MCP Server skill for Windows and macOS x64/Arm64 workbook automation.
   Use when an assistant needs MCP tools to create, inspect, or modify Excel files.
   Windows supports the complete Power Query, Data Model/DAX, PivotTable, Table,
   Range, Chart, VBA, connection, and formatting surface. macOS supports the
   documented session, worksheet, range value/formula/clear, and calculation subset.
   Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
   chart, dashboard, VBA, MCP.
-compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+; feature availability differs by platform.
+compatibility: Requires Windows with Excel 2016+ or macOS x64/Arm64 with Excel 16.112+; feature availability differs by platform. Intel packages are cross-built and hardware-unverified.
 ---
 
 # Excel MCP Server Skill
@@ -28,7 +28,7 @@ Provides {{ operationcount }} Excel operations via Model Context Protocol. The M
 
 ## Preconditions
 
-- Windows host with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
+- Windows host with Microsoft Excel 2016+, or macOS x64/Arm64 with Excel 16.112+
 - Use absolute native paths (`C:\Users\Name\Documents\Report.xlsx` or `/Users/name/Documents/Report.xlsx`)
 - Excel files must not be open in another Excel instance
 

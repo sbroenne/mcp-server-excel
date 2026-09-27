@@ -7,7 +7,7 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$Version,
 
-    [ValidateSet('win-x64', 'osx-arm64')]
+    [ValidateSet('win-x64', 'osx-arm64', 'osx-x64')]
     [string]$RuntimeIdentifier = 'win-x64',
 
     [Parameter(Mandatory)]
@@ -25,8 +25,12 @@ Set-StrictMode -Version Latest
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
 $commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
-$runtimePackageSuffix = if ($RuntimeIdentifier -eq 'osx-arm64') { 'darwin-arm64' } else { 'win32-x64' }
-$runtimeFileName = if ($RuntimeIdentifier -eq 'osx-arm64') { $commandName } else { "$commandName.exe" }
+$runtimePackageSuffix = switch ($RuntimeIdentifier) {
+    'osx-arm64' { 'darwin-arm64' }
+    'osx-x64' { 'darwin-x64' }
+    default { 'win32-x64' }
+}
+$runtimeFileName = if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal)) { $commandName } else { "$commandName.exe" }
 $launcherSource = Join-Path $repoRoot "npm-packages\$packageName"
 $runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-$runtimePackageSuffix"
 $sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
@@ -131,7 +135,7 @@ if (-not (Test-Path -LiteralPath $launcherSource -PathType Container) -or
 if ($RuntimeIdentifier -eq 'win-x64' -and [IO.Path]::GetExtension($resolvedRuntime) -ne '.exe') {
     throw "Windows runtime executable must be an .exe file: $resolvedRuntime"
 }
-if ($RuntimeIdentifier -eq 'osx-arm64' -and [IO.Path]::GetExtension($resolvedRuntime) -eq '.exe') {
+if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal) -and [IO.Path]::GetExtension($resolvedRuntime) -eq '.exe') {
     throw "macOS runtime executable must not have an .exe extension: $resolvedRuntime"
 }
 

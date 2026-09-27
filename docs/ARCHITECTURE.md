@@ -1,7 +1,7 @@
 # ExcelMcp Architecture
 
 ExcelMcp controls the actual Microsoft Excel desktop application—not just
-`.xlsx` files. Windows uses the complete COM backend. Apple Silicon macOS uses
+`.xlsx` files. Windows uses the complete COM backend. macOS x64/Arm64 uses
 a capability-gated Apple Events backend for the verified workbook, worksheet,
 range, formula, clear, and calculation subset.
 
