@@ -19,25 +19,27 @@ mcpb/
 ## Prerequisites
 
 - .NET 10 SDK
-- Windows to run the packaged executable verification
+- Windows x64 or Apple Silicon macOS to run matching executable verification
 
-The script can cross-compile on another operating system, but it skips the
-Windows executable launch check.
+The script can cross-compile either target, but it skips executable launch
+verification when the build host cannot run that target.
 
 ## Build the Bundle
 
 Run the script from the `mcpb` directory:
 
 ```powershell
-.\Build-McpBundle.ps1
+.\Build-McpBundle.ps1 -RuntimeIdentifier win-x64
+.\Build-McpBundle.ps1 -RuntimeIdentifier osx-arm64
 ```
 
-The default output is `artifacts\excel-mcp-{version}.mcpb`. The version comes
-from `Directory.Build.props` unless you pass it explicitly.
+The outputs are `artifacts\excel-mcp-{version}-windows.mcpb` and
+`artifacts\excel-mcp-{version}-macos-arm64.mcpb`. The version comes from
+`Directory.Build.props` unless you pass it explicitly.
 
 ```powershell
 # Use an explicit version
-.\Build-McpBundle.ps1 -Version "1.2.3"
+.\Build-McpBundle.ps1 -Version "1.2.3" -RuntimeIdentifier osx-arm64
 
 # Write artifacts to another directory
 .\Build-McpBundle.ps1 -OutputDir ".\dist"
@@ -48,19 +50,19 @@ from `Directory.Build.props` unless you pass it explicitly.
 An `.mcpb` file is a ZIP-compatible archive with this layout:
 
 ```text
-excel-mcp-{version}.mcpb
+excel-mcp-{version}-{platform}.mcpb
 |-- manifest.json
 |-- icon-512.png
 |-- README.md
 |-- LICENSE
 |-- CHANGELOG.md
 `-- server/
-    `-- excel-mcp-server.exe
+    `-- excel-mcp-server[.exe]
 ```
 
-`Build-McpBundle.ps1` publishes the MCP Server as a self-contained Windows x64
-single-file executable, renames it to match the manifest entry point, copies
-the package metadata, and verifies the executable on Windows.
+`Build-McpBundle.ps1` publishes exactly one self-contained native executable,
+stamps the matching `win32` or `darwin` compatibility metadata, and preserves
+the Unix executable mode in the macOS archive.
 
 ## Manifest and Tool Metadata
 
@@ -82,9 +84,9 @@ binary entry point:
 }
 ```
 
-The build stamps the package version into a staged copy of the manifest. Do not
-add a release download URL or an `install.win32` block; the executable is
-included in the bundle.
+The build stamps the package version, display name, description, and one
+platform into a staged copy of the manifest. Each bundle contains only its
+matching executable.
 
 The MCP Server generates its 31 tool schemas from the Core contracts and manual
 MCP tool definitions. Destructive metadata is set per tool: most tools can
@@ -93,7 +95,7 @@ workbook content.
 
 ## Release Workflow
 
-The unified release workflow builds and publishes the MCPB artifact with the
+The unified release workflow builds and publishes both MCPB artifacts with the
 MCP Server, CLI, VS Code extension, and NuGet packages. Do not edit the manifest
 or upload a differently named ZIP by hand.
 
@@ -101,7 +103,8 @@ See [Release Strategy](../docs/RELEASE-STRATEGY.md) for the release process. To
 rebuild locally before a release:
 
 ```powershell
-.\Build-McpBundle.ps1
+.\Build-McpBundle.ps1 -RuntimeIdentifier win-x64
+.\Build-McpBundle.ps1 -RuntimeIdentifier osx-arm64
 ```
 
 ## Verify the Archive
@@ -136,10 +139,11 @@ The packaging script also prints every archive entry after a successful build.
 Excel COM interop relies on runtime type activation and reflection. Trimming can
 remove required interop metadata, so the package sets `PublishTrimmed=false`.
 
-### Why Windows x64?
+### Why separate bundles?
 
-- Excel COM automation requires Windows.
-- Windows on ARM can run the x64 package through emulation.
+- PE and Mach-O are different native executable formats.
+- Claude Desktop receives only the runtime for the current platform.
+- The macOS archive must retain its Unix executable permission.
 
 ## Submission References
 

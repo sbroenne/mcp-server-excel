@@ -35,8 +35,8 @@ Use this order to avoid setup confusion:
 
 ### VS Code Extension (Easiest - One-Click Setup)
 
-The VS Code extension and MCPB bundle remain Windows-only. On macOS, use the
-standalone MCP Server archive or the .NET global tool.
+The VS Code extension and MCPB bundle are available for Windows x64 and Apple
+Silicon macOS. Choose the platform-specific artifact when installing manually.
 
 1. **Install the Extension**
    - Open VS Code
@@ -58,11 +58,14 @@ standalone MCP Server archive or the .NET global tool.
 
 **Best for:** Claude Desktop users who want the simplest installation
 
-1. Download `excel-mcp-{version}.mcpb` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+1. Download `excel-mcp-{version}-windows.mcpb` or
+   `excel-mcp-{version}-macos-arm64.mcpb` from the
+   [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Double-click the `.mcpb` file (or drag-and-drop onto Claude Desktop)
 3. Restart Claude Desktop
 
-That's it! The MCPB bundle includes everything needed - no .NET installation required.
+That's it! Each MCPB contains its matching native runtime—no .NET, Node.js, or
+PowerShell installation is required.
 
 ---
 

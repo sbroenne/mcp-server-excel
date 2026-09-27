@@ -65,3 +65,46 @@ function Remove-McpbStagingDirectory {
         }
     }
 }
+
+function New-McpbArchive {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourceDirectory,
+
+        [Parameter(Mandatory)]
+        [string]$DestinationPath,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$MacExecutableRelativePath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $DestinationPath) {
+        Remove-Item -LiteralPath $DestinationPath -Force
+    }
+
+    $archive = [System.IO.Compression.ZipFile]::Open(
+        $DestinationPath,
+        [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($file in Get-ChildItem -LiteralPath $SourceDirectory -Recurse -File) {
+            $relativePath = [System.IO.Path]::GetRelativePath($SourceDirectory, $file.FullName).Replace('\', '/')
+            $entry = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive,
+                $file.FullName,
+                $relativePath,
+                [System.IO.Compression.CompressionLevel]::Optimal)
+
+            if ($relativePath -eq $MacExecutableRelativePath) {
+                $unixExecutableMode = [BitConverter]::ToInt32(
+                    [BitConverter]::GetBytes([Convert]::ToUInt32("81ED0000", 16)),
+                    0)
+                $entry.ExternalAttributes = $unixExecutableMode
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
