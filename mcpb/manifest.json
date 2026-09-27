@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.3",
   "name": "excel-mcp",
-  "display_name": "Excel (Windows)",
-  "version": "2.0.11",
-  "description": "Manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
-  "long_description": "Automate the real Microsoft Excel application from Claude. 31 specialized tools with 326 operations for Power Query, DAX and the Data Model, VBA, PivotTables, Charts, Conditional Formatting, and more. Unlike file-parser libraries, it drives Excel through its official COM API, so PivotTables, macros, charts, the Data Model and workbook formatting are preserved. Windows-only, requires Microsoft Excel desktop application (2016 or later).",
+  "display_name": "Excel",
+  "version": "2.0.9",
+  "description": "Automate the installed Excel desktop application on Windows x64 or Apple Silicon macOS",
+  "long_description": "Excel MCP Server provides 31 specialized tools with 326 operations. Release builds stamp the exact platform, capabilities, and requirements into separate Windows x64 and Apple Silicon macOS bundles.",
   "author": {
     "name": "Stefan Broenner",
     "url": "https://github.com/sbroenne"
@@ -48,6 +48,6 @@
   "prompts_generated": true,
   "compatibility": {
     "claude_desktop": ">=0.10.0",
-    "platforms": ["win32"]
+    "platforms": ["win32", "darwin"]
   }
 }

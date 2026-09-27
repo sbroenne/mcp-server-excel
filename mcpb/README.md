@@ -1,6 +1,13 @@
-# Excel (Windows)
+# Excel MCP Server
 
-**Automate Microsoft Excel with Claude** - Control Excel through natural language conversations. Requires Windows and local Office install.
+**Automate Microsoft Excel with Claude** - Control the installed Excel desktop
+application through natural language conversations on Windows x64 or Apple
+Silicon macOS.
+
+Choose the MCPB matching your computer:
+
+- `excel-mcp-<version>-windows.mcpb`
+- `excel-mcp-<version>-macos-arm64.mcpb`
 
 ## What It Does
 
@@ -13,17 +20,20 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Automate** - VBA macros, batch operations, data refresh
 - **Agent Mode** - Say "show me Excel" and watch AI work in real-time, side-by-side with Claude
 
-**31 tools with 326 operations** for comprehensive Excel automation.
+The MCP Server provides **31 tools with 326 operations**. Windows exposes the
+complete operation set. The initial macOS backend supports workbook sessions,
+worksheet list/rename/delete, range values and formulas, range clearing, and
+calculation. Other actions return an explicit unsupported-platform error.
 
 ## Requirements
 
-- **Windows** (required - uses Excel COM automation)
-- **Microsoft Excel 2016 or later**
-- **Claude Desktop** (Windows version)
+- **Windows x64** with Microsoft Excel 2016 or later, or
+- **Apple Silicon macOS** with Excel for Mac 16.112 or later
+- **Claude Desktop**
 
 ## Installation
 
-1. Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+1. Download the `.mcpb` matching your platform from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Double-click to install in Claude Desktop
 3. Restart Claude Desktop if prompted
 
@@ -45,7 +55,7 @@ These examples work with any Excel file, including a new empty workbook.
 - Formats the data as an Excel Table
 - Confirms completion with file location
 
-### Example 2: Build a Dashboard with PivotTable and Chart
+### Example 2: Build a Dashboard with PivotTable and Chart (Windows)
 
 **You say:** *"I want to analyze this data. Create a PivotTable that shows total sales by Product, then add a bar chart to visualize the results."*
 
@@ -56,7 +66,7 @@ These examples work with any Excel file, including a new empty workbook.
 - Adds a bar chart based on the PivotTable
 - Returns confirmation with locations of both
 
-### Example 3: Power Query and Data Model Analysis
+### Example 3: Power Query and Data Model Analysis (Windows)
 
 **You say:** *"Use Power Query to import this CSV file: C:\Data\products.csv. Add the data to the Data Model and create measures for Total Revenue and Average Rating."*
 
@@ -111,6 +121,8 @@ See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 **Excel operations fail:**
 - Close the workbook in Excel before asking Claude to modify it
 - Ensure Excel is installed and working normally
+- On macOS, verify Excel Automation permission is already granted; ExcelMcp
+  never clicks permission prompts or weakens security settings
 
 **Need help?**
 - [Report an issue](https://github.com/sbroenne/mcp-server-excel/issues)

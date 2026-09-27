@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
@@ -102,6 +103,67 @@ public sealed class McpbPackagingScriptTests
         {
             Directory.Delete(sandbox, recursive: true);
         }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "McpbPackaging")]
+    public async Task NewArchive_PreservesMacExecutableMode()
+    {
+        var sandbox = CreateSandbox();
+        var archivePath = $"{sandbox}.mcpb";
+        File.WriteAllText(Path.Combine(sandbox, "server", "excel-mcp-server"), "test");
+
+        try
+        {
+            var script = $$"""
+                $ErrorActionPreference = 'Stop'
+                . '{{EscapePowerShellLiteral(PackagingHelpers)}}'
+                New-McpbArchive `
+                    -SourceDirectory '{{EscapePowerShellLiteral(sandbox)}}' `
+                    -DestinationPath '{{EscapePowerShellLiteral(archivePath)}}' `
+                    -MacExecutableRelativePath 'server/excel-mcp-server'
+                """;
+
+            var result = await RunPowerShellAsync(script);
+
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            using var archive = ZipFile.OpenRead(archivePath);
+            var macEntry = archive.GetEntry("server/excel-mcp-server");
+            var windowsEntry = archive.GetEntry("server/excel-mcp-server.exe");
+            Assert.NotNull(macEntry);
+            Assert.NotNull(windowsEntry);
+            Assert.NotEqual(0, macEntry.ExternalAttributes & 0x00400000);
+            Assert.Equal(0, windowsEntry.ExternalAttributes & 0x00400000);
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+            if (File.Exists(archivePath))
+            {
+                File.Delete(archivePath);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Feature", "McpbPackaging")]
+    public void BuildScript_ProducesSeparateWindowsAndMacBundles()
+    {
+        var script = File.ReadAllText(Path.Combine(RepoRoot, "mcpb", "Build-McpBundle.ps1"));
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+
+        Assert.Contains("[ValidateSet(\"win-x64\", \"osx-arm64\")]", script, StringComparison.Ordinal);
+        Assert.Contains("\"excel-mcp-$Version-$($Target.Slug).mcpb\"", script, StringComparison.Ordinal);
+        Assert.Contains("$Manifest.compatibility.platforms = @($Target.Platform)", script, StringComparison.Ordinal);
+        Assert.Contains("MacExecutableRelativePath", script, StringComparison.Ordinal);
+        Assert.Contains("runtime: win-x64", workflow, StringComparison.Ordinal);
+        Assert.Contains("runtime: osx-arm64", workflow, StringComparison.Ordinal);
+        Assert.Contains("runner: macos-14", workflow, StringComparison.Ordinal);
+        Assert.Contains("name: mcpb-bundle-${{ matrix.slug }}", workflow, StringComparison.Ordinal);
     }
 
     private static string CreateSandbox()

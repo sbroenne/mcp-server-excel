@@ -573,9 +573,18 @@ jobs:
   # Job 4: Build MCPB (Claude Desktop Bundle)
   # =============================================================================
   build-mcpb:
-    name: MCPB Bundle
+    name: MCPB Bundle (${{ matrix.slug }})
     needs: [version, prepare-release]
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - runner: windows-latest
+            runtime: win-x64
+            slug: windows
+          - runner: macos-14
+            runtime: osx-arm64
+            slug: macos-arm64
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
 
@@ -605,8 +614,9 @@ jobs:
 
     - name: Build MCPB Bundle
       run: |
-        cd mcpb
-        .\Build-McpBundle.ps1 -Version $env:VERSION
+        & ./mcpb/Build-McpBundle.ps1 `
+          -Version $env:VERSION `
+          -RuntimeIdentifier "${{ matrix.runtime }}"
       shell: pwsh
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
@@ -614,8 +624,8 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: mcpb-bundle
-        path: mcpb/artifacts/excel-mcp-*.mcpb
+        name: mcpb-bundle-${{ matrix.slug }}
+        path: mcpb/artifacts/excel-mcp-*-${{ matrix.slug }}.mcpb
 
   # =============================================================================
   # Job 5: Build Agent Skills Packages
@@ -1135,7 +1145,7 @@ jobs:
         for f in artifacts/mcp-server-zip-macos-arm64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/cli-zip-macos-arm64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/mcpb-bundle-*/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         ARTIFACTS="$ARTIFACTS SHA256SUMS"
 

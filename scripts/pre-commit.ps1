@@ -579,20 +579,28 @@ Invoke-ValidationStep `
     -FailureSummary "MCPB bundle validation failed!" `
     -SuccessSummary "MCPB bundle validation passed - Claude Desktop bundle was built locally" `
     -Action {
-        $mcpbOutputRelative = "..\artifacts\pre-commit\mcpb"
         $mcpbOutputDir = Join-Path $preCommitArtifactsDir "mcpb"
         Reset-Directory -Path $mcpbOutputDir
 
         $mcpbDir = Join-Path $rootDir "mcpb"
         Push-Location $mcpbDir
         try {
-            .\Build-McpBundle.ps1 -Version $version -OutputDir $mcpbOutputRelative
-            if ($LASTEXITCODE -ne 0) {
-                throw "Build-McpBundle.ps1 failed with exit code $LASTEXITCODE."
+            foreach ($target in @(
+                @{ Runtime = "win-x64"; Output = "..\artifacts\pre-commit\mcpb\windows" },
+                @{ Runtime = "osx-arm64"; Output = "..\artifacts\pre-commit\mcpb\macos-arm64" }
+            )) {
+                .\Build-McpBundle.ps1 `
+                    -Version $version `
+                    -RuntimeIdentifier $target.Runtime `
+                    -OutputDir $target.Output
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Build-McpBundle.ps1 failed for $($target.Runtime) with exit code $LASTEXITCODE."
+                }
             }
 
-            if (-not (Get-ChildItem $mcpbOutputDir -Filter "*.mcpb" -ErrorAction Stop)) {
-                throw "MCPB artifact was not created."
+            $mcpbArtifacts = @(Get-ChildItem $mcpbOutputDir -Filter "*.mcpb" -File -Recurse -ErrorAction Stop)
+            if ($mcpbArtifacts.Count -ne 2) {
+                throw "Expected two platform MCPB artifacts, found $($mcpbArtifacts.Count)."
             }
         }
         finally {

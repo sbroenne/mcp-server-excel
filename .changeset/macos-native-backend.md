@@ -12,6 +12,7 @@ Existing-file workflows use LaunchServices after a non-prompting Automation
 permission check and reject workbook-name collisions before Excel can display a
 modal dialog. Mac daemon output is isolated from CLI command output, and MCP
 path errors use platform-appropriate wording. macOS ARM64 CLI and MCP archives
-are included in releases. Power Query and VBA remain capability-gated while the
-validated Power Query package path and unresolved VBA recompilation/trust path
-are implemented.
+are included in releases, along with separate native Windows and Apple Silicon
+macOS Claude Desktop MCPB bundles. Power Query and VBA remain capability-gated
+while the validated Power Query package path and unresolved VBA
+recompilation/trust path are implemented.

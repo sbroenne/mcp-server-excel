@@ -8,11 +8,13 @@ or a manual stdio configuration.
 - Windows 10 or later
 - Microsoft Excel 2016 or later (desktop version)
 
-The published Windows packages are self-contained; no .NET runtime is required.
+The published Windows x64 and Apple Silicon macOS packages are self-contained;
+no .NET runtime is required.
 
 ## Recommended: MCPB Bundle
 
-1. Download `excel-mcp-{version}.mcpb` from the
+1. Download `excel-mcp-{version}-windows.mcpb` or
+   `excel-mcp-{version}-macos-arm64.mcpb` from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).
 2. Double-click the bundle or drag it into Claude Desktop.
 3. Restart Claude Desktop.

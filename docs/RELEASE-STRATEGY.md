@@ -8,10 +8,10 @@ All ExcelMcp components are released together with a single version tag:
 
 | Component | Primary Distribution | Secondary Distribution | Description |
 |-----------|---------------------|----------------------|-------------|
-| **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel` or `mcp-excel.exe` — no .NET runtime required |
-| **CLI** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/excelcli` or `excelcli.exe` — no .NET runtime required |
+| **MCP Server** | Platform-native standalone ZIPs | NuGet (.NET tool) | `mcp-excel.exe` on Windows; `mcp-excel` on Apple Silicon macOS |
+| **CLI** | Platform-native standalone ZIPs | NuGet (.NET tool) | `excelcli.exe` on Windows; `excelcli` on Apple Silicon macOS |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
-| **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
+| **MCPB** | Platform-specific Claude Desktop bundles | — | Self-contained Windows x64 and Apple Silicon macOS installation |
 | **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with wrapper/bootstrap assets that fetch the latest runtime on first use |
 | **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
@@ -24,13 +24,12 @@ All ExcelMcp components are released together with a single version tag:
 
 When you run the release workflow, all components are released together:
 
-1. **CLI** → Standalone self-contained exe (`excelcli.exe`) shipped as:
-   - npm launcher and Windows runtime packages (primary distribution)
-   - ZIP file (primary distribution)
+1. **CLI** → Standalone self-contained executable shipped as:
+   - Windows x64 and macOS ARM64 ZIP files (primary distribution)
    - NuGet package (secondary distribution)
-2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained exe ZIP [primary] + NuGet pack [secondary]
+2. **MCP Server** → Windows x64 and macOS ARM64 standalone ZIPs [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
-4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
+4. **MCPB** → Windows x64 and Apple Silicon macOS Claude Desktop bundles
 5. **Agent Skills** → ZIP package for AI coding assistants
 6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
@@ -47,12 +46,15 @@ When you run the release workflow, all components are released together:
 | `@sbroenne/excelcli-win32-x64@{version}` | npm | npm registry (self-contained Windows CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
-| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs) |
+| `ExcelMcp-MCP-Server-{version}-macos-arm64.zip` | ZIP | GitHub Release (primary — contains executable `mcp-excel`) |
+| `ExcelMcp-CLI-{version}-macos-arm64.zip` | ZIP | GitHub Release (primary — contains executable `excelcli`) |
+| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers all four runtime ZIPs) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
 | `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained with both exes + skills) |
-| `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop bundle, self-contained) |
+| `excel-mcp-{version}-windows.mcpb` | MCPB | GitHub Release (Windows Claude Desktop bundle) |
+| `excel-mcp-{version}-macos-arm64.mcpb` | MCPB | GitHub Release (Apple Silicon macOS Claude Desktop bundle) |
 
 ## Release Process
 
@@ -114,8 +116,7 @@ Afterward, **publish-plugins.yml** runs as a follow-on workflow and sync-gates r
 
 After workflow completes:
 
-- [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, `SHA256SUMS`, VSIX, MCPB, skills ZIP)
-- [ ] All four npm packages (MCP Server and CLI launchers plus their Windows runtimes) are available at the release version
+- [ ] GitHub Release created with all artifacts (MCP Server ZIPs, CLI ZIPs, `SHA256SUMS`, VSIX files, both MCPB bundles, skills ZIP)
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
