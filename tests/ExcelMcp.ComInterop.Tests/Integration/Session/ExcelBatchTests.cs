@@ -1,4 +1,8 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
+using System.Xml.Linq;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
@@ -197,6 +201,35 @@ public class ExcelBatchTests : IAsyncLifetime
         // Assert
         Assert.Equal(testValue, readValue);
         _output.WriteLine($"✓ Value persisted correctly: {testValue}");
+    }
+
+    [JapaneseLocaleFact]
+    [Trait("RunType", "OnDemand")]
+    [Trait("RequiresExcel", "true")]
+    [Trait("Locale", "ja-JP")]
+    public void OpenAndSave_JapaneseTableDateFormat_PreservesTableColumnDxf()
+    {
+        string workbookPath = Path.Join(Path.GetTempPath(), $"table-dxf-{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            CreateJapaneseTableWorkbook(workbookPath);
+            string expectedFormat = ReadTableColumnFormatCode(workbookPath, "Date");
+            Assert.Equal("yyyy/m/d", expectedFormat);
+
+            using (var batch = ExcelSession.BeginBatch(workbookPath))
+            {
+                batch.Save();
+            }
+
+            Assert.Equal(expectedFormat, ReadTableColumnFormatCode(workbookPath, "Date"));
+        }
+        finally
+        {
+            if (File.Exists(workbookPath))
+            {
+                File.Delete(workbookPath);
+            }
+        }
     }
 
     [Fact]
@@ -588,6 +621,123 @@ public class ExcelBatchTests : IAsyncLifetime
         }
     }
 
+    private static void CreateJapaneseTableWorkbook(string workbookPath)
+    {
+        object? excel = null;
+        object? workbooks = null;
+        object? workbook = null;
+        object? worksheets = null;
+        object? worksheet = null;
+        object? sourceRange = null;
+        object? listObjects = null;
+        object? table = null;
+        object? listColumns = null;
+        object? dateColumn = null;
+        object? dataBodyRange = null;
+
+        try
+        {
+            var excelType = Type.GetTypeFromProgID("Excel.Application")
+                ?? throw new InvalidOperationException("Microsoft Excel is not installed.");
+            excel = Activator.CreateInstance(excelType)
+                ?? throw new InvalidOperationException("Could not start Microsoft Excel.");
+            dynamic excelDispatch = excel;
+            excelDispatch.DisplayAlerts = false;
+
+            workbooks = excelDispatch.Workbooks;
+            dynamic workbooksDispatch = workbooks;
+            workbook = workbooksDispatch.Add();
+            dynamic workbookDispatch = workbook;
+            worksheets = workbookDispatch.Worksheets;
+            dynamic worksheetsDispatch = worksheets;
+            worksheet = worksheetsDispatch[1];
+            dynamic worksheetDispatch = worksheet;
+            sourceRange = worksheetDispatch.Range["A1:B3"];
+            dynamic sourceRangeDispatch = sourceRange;
+            sourceRangeDispatch.Value2 = new object[,] { { "Amount", "Date" }, { 1, 46000 }, { 2, 46001 } };
+
+            listObjects = worksheetDispatch.ListObjects;
+            dynamic listObjectsDispatch = listObjects;
+            table = listObjectsDispatch.Add(1, sourceRange, Type.Missing, 1);
+            dynamic tableDispatch = table;
+            listColumns = tableDispatch.ListColumns;
+            dynamic listColumnsDispatch = listColumns;
+            dateColumn = listColumnsDispatch["Date"];
+            dynamic dateColumnDispatch = dateColumn;
+            dataBodyRange = dateColumnDispatch.DataBodyRange;
+            dynamic dataBodyRangeDispatch = dataBodyRange;
+            dataBodyRangeDispatch.NumberFormatLocal = "yyyy/m/d";
+
+            workbookDispatch.SaveAs(workbookPath, 51);
+        }
+        finally
+        {
+            CloseWorkbookAndQuitExcel(workbook, excel);
+            ReleaseComObjects(dataBodyRange, dateColumn, listColumns, table, listObjects, sourceRange,
+                worksheet, worksheets, workbook, workbooks, excel);
+        }
+    }
+
+    private static string ReadTableColumnFormatCode(string workbookPath, string columnName)
+    {
+        using var archive = ZipFile.OpenRead(workbookPath);
+        var tableEntry = archive.Entries.Single(entry => entry.FullName.StartsWith("xl/tables/", StringComparison.OrdinalIgnoreCase));
+        var tableDocument = XDocument.Load(tableEntry.Open());
+        XNamespace spreadsheetNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        var column = tableDocument.Descendants(spreadsheetNamespace + "tableColumn")
+            .Single(element => element.Attribute("name")?.Value == columnName);
+        int dxfId = int.Parse(column.Attribute("dataDxfId")!.Value, CultureInfo.InvariantCulture);
+
+        var stylesEntry = archive.GetEntry("xl/styles.xml")
+            ?? throw new InvalidOperationException("Workbook styles were not found.");
+        var stylesDocument = XDocument.Load(stylesEntry.Open());
+        return stylesDocument.Root!
+            .Element(spreadsheetNamespace + "dxfs")!
+            .Elements(spreadsheetNamespace + "dxf")
+            .ElementAt(dxfId)
+            .Element(spreadsheetNamespace + "numFmt")!
+            .Attribute("formatCode")!
+            .Value;
+    }
+
+    private static void CloseWorkbookAndQuitExcel(object? workbook, object? excel)
+    {
+        if (workbook != null)
+        {
+            try
+            {
+                ((dynamic)workbook).Close(false);
+            }
+            catch (Exception)
+            {
+                // Best-effort cleanup - the workbook may already be closed.
+            }
+        }
+
+        if (excel != null)
+        {
+            try
+            {
+                ((dynamic)excel).Quit();
+            }
+            catch (Exception)
+            {
+                // Best-effort cleanup - Excel may already have exited.
+            }
+        }
+    }
+
+    private static void ReleaseComObjects(params object?[] comObjects)
+    {
+        foreach (var comObject in comObjects)
+        {
+            if (comObject != null && Marshal.IsComObject(comObject))
+            {
+                Marshal.FinalReleaseComObject(comObject);
+            }
+        }
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "FileLocking")]
@@ -698,6 +848,5 @@ public class ExcelBatchTests : IAsyncLifetime
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
-
 
 
