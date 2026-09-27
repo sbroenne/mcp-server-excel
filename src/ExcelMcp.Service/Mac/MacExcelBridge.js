@@ -114,6 +114,13 @@ function run(argv) {
             workbook.close({ saving: "no" });
             return json({ success: true, errorMessage: "" });
         }
+        if (command === "session.is-open") {
+            return json({
+                success: true,
+                errorMessage: "",
+                open: !!findWorkbookByPath(excel, args.filePath)
+            });
+        }
 
         const workbook = workbookByPath(excel, args.filePath);
         if (command === "workbook.state") {
