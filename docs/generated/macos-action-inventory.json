@@ -8,12 +8,12 @@
       "rowInputCell: string?; optional; default null",
       "columnInputCell: string?; optional; default null"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #914 commit 6a7aaec4 passed a prompt-free literal Data Table through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "analysis.create-scenario",
@@ -27,12 +27,12 @@
       "locked: bool; optional; default true",
       "hidden: bool; optional; default false"
     ],
-    "tier": "Unsupported",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The version 1 helper advertises analysis.create-scenario, but provenMethods.scenarioCreateShow remains false.",
+    "excelApiVersion": "Excel for Mac 16.113.1; ExcelMcpDispatch protocol 1.",
+    "blocker": "helper availability is not runtime parity; exact values, defaults, limits, and workbook effects require prompt-free CLI and MCP Excel tests"
   },
   {
     "command": "analysis.create-scenario-summary",
@@ -42,12 +42,12 @@
       "reportType: Sbroenne.ExcelMcp.Core.Commands.Analysis.ScenarioSummaryType; optional; default Sbroenne.ExcelMcp.Core.Commands.Analysis.ScenarioSummaryType.Summary",
       "resultCells: string?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Excel 16.113.1 dictionary exposes create summary for scenarios with standard and PivotTable report types.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "native API presence is not runtime parity; new-sheet identity and both summary types must pass prompt-free CLI and MCP Excel tests"
   },
   {
     "command": "analysis.delete-scenario",
@@ -56,12 +56,12 @@
       "sheetName: string; required",
       "scenarioName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Excel 16.113.1 dictionary exposes scenario elements and generic delete; portable routing is not real-Excel evidence.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "native API presence is not runtime parity; exact-name deletion and worksheet effects must pass prompt-free CLI and MCP Excel tests"
   },
   {
     "command": "analysis.goal-seek",
@@ -72,12 +72,12 @@
       "goal: double?; required",
       "changingCell: string; required"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #914 commit 6a7aaec4 passed prompt-free real-Excel Goal Seek through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "analysis.list-scenarios",
@@ -85,12 +85,12 @@
     "windowsVariants": [
       "sheetName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Excel 16.113.1 dictionary exposes scenario metadata and get values; portable routing is not real-Excel evidence.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "native API presence is not runtime parity; exact returned metadata must pass prompt-free CLI and MCP Excel tests"
   },
   {
     "command": "analysis.show-scenario",
@@ -99,12 +99,12 @@
       "sheetName: string; required",
       "scenarioName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The version 1 helper advertises analysis.show-scenario, but provenMethods.scenarioCreateShow remains false.",
+    "excelApiVersion": "Excel for Mac 16.113.1; ExcelMcpDispatch protocol 1.",
+    "blocker": "helper availability is not runtime parity; exact worksheet effects require prompt-free CLI and MCP Excel tests"
   },
   {
     "command": "analysis.update-scenario",
@@ -115,12 +115,12 @@
       "changingCells: string; required",
       "values: System.Collections.Generic.List<object?>; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Excel 16.113.1 dictionary exposes change scenario; portable routing is not real-Excel evidence.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "native API presence is not runtime parity; exact changed cells and values must pass prompt-free CLI and MCP Excel tests"
   },
   {
     "command": "calculation.calculate",
@@ -3409,12 +3409,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free tab-color set/get/clear through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.copy",
@@ -3562,12 +3562,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free tab-color set/get/clear through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.get-visibility",
@@ -3575,12 +3575,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.group",
@@ -3603,12 +3603,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.list",
@@ -3742,12 +3742,12 @@
       "green: int; required; Green color component (0-255)",
       "blue: int; required; Blue color component (0-255)"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free tab-color set/get/clear through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.set-visibility",
@@ -3756,12 +3756,12 @@
       "sheetName: string; required; Name of the worksheet",
       "visibility: Sbroenne.ExcelMcp.Core.Models.SheetVisibility; required; Visibility level: 'visible', 'hidden', or 'veryhidden'"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.show",
@@ -3769,12 +3769,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "sheet.show-outline-levels",
@@ -3812,12 +3812,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "tier": "Native",
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events/JXA.",
+    "blocker": ""
   },
   {
     "command": "slicer.create-slicer",

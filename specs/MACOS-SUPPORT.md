@@ -367,20 +367,22 @@ generated workbook binary is committed.
 
 Real-Excel acceptance is **not established** for these new packages. On
 2026-09-27, the opt-in exact-path run through both CLI and MCP timed out while
-attaching the connection-only fixture after LaunchServices handoff. Shared
-Excel then remained modal or busy enough that independent blank-workbook
-baseline opens also timed out. The run did not click or dismiss UI, terminate
-Excel, change trust/security, or access an Excel container. The worksheet-loaded
-fixture, save/reopen normalization, and synchronous refresh could therefore not
-be proven. Both generated variants remain test candidates, not accepted
-fixtures, and every refresh-dependent action stays gated.
+attaching the connection-only fixture after LaunchServices handoff. Independent
+blank-workbook baseline opens failed through the same host-wide LaunchServices
+path, so this result does not establish that either candidate package is
+malformed. The run did not click or dismiss UI, terminate Excel, change
+trust/security, or access an Excel container. The worksheet-loaded fixture,
+save/reopen normalization, and synchronous refresh could therefore not be
+proven. Both generated variants remain test candidates, not accepted fixtures,
+and every refresh-dependent action stays gated.
 
 The failing path is preserved as
-`RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated`; because an
-invalid package can leave shared Excel modal, it runs only with the explicit
+`RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated`. Because
+candidate acceptance is unproven and must be isolated from the established
+baseline workflow, it runs only with the explicit
 `scripts/Test-MacE2E.ps1 -IncludePowerQueryFixtures` switch. A normal Mac E2E
 run continues to exercise the established blank-workbook CLI/MCP workflows
-without launching a known-unaccepted candidate.
+without launching an unverified candidate.
 
 VBA package work reached a narrower result:
 
@@ -405,13 +407,27 @@ VBA package work reached a narrower result:
   trust design.
 
 No repository-owned `.xlsm` fixture is committed in this layer. Its acceptance
-contract is: a blank package generated solely from repository source, a
-repository-authored standard module and procedure, deterministic observable
-worksheet output, a provenance manifest and package audit, exact-path
-open/save/close/reopen, and prompt-free execution through both CLI and MCP.
+contract now requires Excel-authored executable state through the optional
+helper: the user imports the original repository `.bas` into a blank workbook
+and saves the `.xlsm`/`.xlam`, so Excel creates and compiles `vbaProject.bin`.
+The harness then uses the version 1 `ExcelMcpDispatch` envelope with exact
+workbook `FullName`, a 32-character lowercase hexadecimal request ID, strict
+allowlisted actions, typed arguments, structured success/error responses, and
+a 262144-byte UTF-8 request/result limit. It must add/read/update/delete the
+harmless `ExcelMcpFixtureModule` in that test-owned workbook and prove exact
+source through both CLI and MCP. It does not synthesize, download, or copy a
+`vbaProject.bin`, and helper v1 does not use arbitrary evaluation or `vba.run`.
 Existing MS-OVBA research proves source preservation and project recognition
 but not an executable project cache; committing that output as a VBA fixture
 would falsely imply runnable coverage.
+
+The companion helper Power Query harness creates a connection-only literal
+`#table` query, then lists, views, updates, renames, views, deletes with
+`deleteConnection=true`, and lists again to prove absence. Static API presence,
+trust readiness, and `supportedActions` are not proof: each corresponding
+`provenMethods` field remains false until the exact prompt-free real-Excel
+lifecycle passes. Connection-only helper coverage must not be reported as
+worksheet load or public create/load-to-table parity.
 
 **Conclusion:** transactional updates to an existing Excel-authored Power Query
 package remain viable, but independently creating an Excel-accepted package is
