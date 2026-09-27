@@ -9,9 +9,17 @@ internal sealed class MacExcelSessionManager : IDisposable
     private readonly ConcurrentDictionary<string, string> _paths = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Task<bool>> _closeTasks = new(StringComparer.Ordinal);
     private readonly MacExcelBackend _backend;
+    private readonly Action<string, string> _copyFile;
     private bool _disposed;
 
-    public MacExcelSessionManager(MacExcelBackend backend) => _backend = backend;
+    public MacExcelSessionManager(
+        MacExcelBackend backend,
+        Action<string, string>? copyFile = null)
+    {
+        _backend = backend;
+        _copyFile = copyFile ?? ((source, destination) =>
+            File.Copy(source, destination, overwrite: false));
+    }
 
     public int Count => _sessions.Count;
     public IReadOnlyCollection<MacExcelSession> Sessions => _sessions.Values.ToArray();
@@ -160,46 +168,43 @@ internal sealed class MacExcelSessionManager : IDisposable
         ArgumentNullException.ThrowIfNull(afterReopen);
 
         var createdBaseline = session.PackageBaselinePath is null;
-        if (createdBaseline)
-        {
-            var baselinePath = CreateTransactionPath(session.FilePath, "baseline");
-            var transactionPath = GetTransactionJournalPath(session.FilePath);
-            try
-            {
-                using (var journal = new FileStream(
-                    transactionPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None))
-                using (var writer = new StreamWriter(journal))
-                {
-                    writer.Write(JsonSerializer.Serialize(
-                        new { baseline = Path.GetFileName(baselinePath) }));
-                }
-                File.Copy(session.FilePath, baselinePath, overwrite: false);
-                session.PackageBaselinePath = baselinePath;
-                session.PackageTransactionPath = transactionPath;
-            }
-            catch
-            {
-                File.Delete(baselinePath);
-                File.Delete(transactionPath);
-                throw;
-            }
-        }
-
+        var baselinePath = createdBaseline
+            ? CreateTransactionPath(session.FilePath, "baseline")
+            : null;
+        var transactionPath = createdBaseline
+            ? GetTransactionJournalPath(session.FilePath)
+            : null;
         var checkpointPath = CreateTransactionPath(session.FilePath, "checkpoint");
         var workingPath = CreateTransactionPath(session.FilePath, "working");
-        File.Copy(session.FilePath, checkpointPath, overwrite: false);
-        File.Copy(session.FilePath, workingPath, overwrite: false);
+        var journalCreated = false;
         var closed = false;
         var reopened = false;
         var preserveCheckpoint = false;
         try
         {
+            if (createdBaseline)
+            {
+                using (var journal = new FileStream(
+                    transactionPath!,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None))
+                {
+                    journalCreated = true;
+                    using var writer = new StreamWriter(journal);
+                    writer.Write(JsonSerializer.Serialize(
+                        new { baseline = Path.GetFileName(baselinePath!) }));
+                }
+                _copyFile(session.FilePath, baselinePath!);
+                session.PackageBaselinePath = baselinePath;
+                session.PackageTransactionPath = transactionPath;
+            }
+
+            _copyFile(session.FilePath, checkpointPath);
+            _copyFile(session.FilePath, workingPath);
             await _backend.InvokeAsync(
-                "session.close",
-                new { filePath = session.FilePath, save = false },
+                "session.close-if-saved",
+                new { filePath = session.FilePath },
                 session.OperationTimeout);
             closed = true;
 
@@ -219,7 +224,18 @@ internal sealed class MacExcelSessionManager : IDisposable
             {
                 if (createdBaseline)
                 {
-                    DeletePackageBaseline(session);
+                    if (session.PackageBaselinePath is not null)
+                    {
+                        DeletePackageBaseline(session);
+                    }
+                    else
+                    {
+                        File.Delete(baselinePath!);
+                        if (journalCreated)
+                        {
+                            File.Delete(transactionPath!);
+                        }
+                    }
                 }
                 throw;
             }
