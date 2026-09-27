@@ -114,6 +114,7 @@ nav:
     - Overview: installation.md
     - MCP Server: installation-mcp-server.md
     - CLI: installation-cli.md
+    - Optional macOS Office.js bridge: installation-macos-officejs.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
   - Reference:
