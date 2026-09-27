@@ -10,6 +10,8 @@ export async function requestBridgeHealth(
 ) {
   return new Promise((resolve, reject) => {
     let deadline;
+    let request;
+    let terminalError;
     let settled = false;
     const settle = (callback, value) => {
       if (settled) {
@@ -20,7 +22,18 @@ export async function requestBridgeHealth(
       callback(value);
       return true;
     };
-    const request = requestFactory(`${config.origin}/v1/health`, {
+    const destroyRequest = (error) => {
+      if (request && !request.destroyed) {
+        request.destroy(error);
+      }
+    };
+    const fail = (error) => {
+      if (settle(reject, error)) {
+        terminalError = error;
+        destroyRequest(error);
+      }
+    };
+    request = requestFactory(`${config.origin}/v1/health`, {
       ca: certificate,
       headers: { Authorization: `Bearer ${config.token}` }
     }, (response) => {
@@ -33,31 +46,29 @@ export async function requestBridgeHealth(
         });
       });
       response.on("aborted", () => {
-        settle(reject, new Error("Bridge health response was aborted before completion."));
+        fail(new Error("Bridge health response was aborted before completion."));
       });
       response.on("error", (error) => {
-        settle(reject, new Error(`Bridge health response failed: ${error.message}`, {
+        fail(new Error(`Bridge health response failed: ${error.message}`, {
           cause: error
         }));
       });
       response.on("close", () => {
         if (!response.complete) {
-          settle(reject, new Error("Bridge health response closed before completion."));
+          fail(new Error("Bridge health response closed before completion."));
         }
       });
     });
+    request.on("error", fail);
     if (!settled) {
       deadline = setTimeout(() => {
-        const error = new Error(
+        fail(new Error(
           `Bridge health check did not respond within ${timeoutMs}ms. ` +
           "Confirm that the local bridge is running and the configured port is available."
-        );
-        settle(reject, error);
-        request.destroy(error);
+        ));
       }, timeoutMs);
+    } else {
+      destroyRequest(terminalError);
     }
-    request.on("error", (error) => {
-      settle(reject, error);
-    });
   });
 }
