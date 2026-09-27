@@ -164,6 +164,9 @@ public sealed class MacVbaHelperProtocolTests
         Assert.Contains("scenarios.Add", source);
         Assert.Contains("scenario.Show", source);
         Assert.Contains("scenarioCreateShow", source);
+        Assert.Contains("powerQueryCreate", source);
+        Assert.Contains("powerQueryEvaluate", source);
+        Assert.DoesNotContain("powerQueryMutation", source, StringComparison.Ordinal);
         Assert.Contains("engineCapabilities", source);
         Assert.Contains("helper_target_forbidden", source);
         Assert.Contains("If cleanupNumber <> 0 Then", source);

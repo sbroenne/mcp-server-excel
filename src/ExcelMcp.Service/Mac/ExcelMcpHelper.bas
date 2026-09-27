@@ -168,7 +168,15 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """vbaProjectReadable"":" & JsonBoolean(projectReady) & "},"
     output = output & """provenMethods"":{" & _
             """powerQueryList"":false," & _
-            """powerQueryMutation"":false," & _
+            """powerQueryCreate"":false," & _
+            """powerQueryUpdate"":false," & _
+            """powerQueryRename"":false," & _
+            """powerQueryDelete"":false," & _
+            """powerQueryRefresh"":false," & _
+            """powerQueryRefreshAll"":false," & _
+            """powerQueryLoadTo"":false," & _
+            """powerQueryUnload"":false," & _
+            """powerQueryEvaluate"":false," & _
             """xmlXPathRead"":false," & _
             """dataModelRead"":false," & _
             """scenarioCreateShow"":false," & _
