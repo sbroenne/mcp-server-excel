@@ -5,22 +5,19 @@ import { foregroundChild } from 'foreground-child';
 const require = createRequire(import.meta.url);
 
 export function createLauncher({ packageName, commandName }) {
+  const runtimePackageName = `${packageName}-win32-x64`;
+
   function resolveRuntime({
     platform = process.platform,
     arch = process.arch,
     resolvePackage = name => require.resolve(name)
   } = {}) {
-    let runtimePackageName;
-    if (platform === 'win32' && (arch === 'x64' || arch === 'arm64')) {
-      runtimePackageName = `${packageName}-win32-x64`;
-    } else if (platform === 'darwin' && arch === 'arm64') {
-      runtimePackageName = `${packageName}-darwin-arm64`;
-    } else if (platform === 'darwin' && arch === 'x64') {
-      throw new Error('ExcelMcp does not support Intel macOS. Apple Silicon is required.');
-    } else {
-      throw new Error(
-        `ExcelMcp supports Windows x64/Arm64 and Apple Silicon macOS; this Node.js process is ${platform}-${arch}.`
-      );
+    if (platform !== 'win32') {
+      throw new Error('ExcelMcp is Windows only.');
+    }
+
+    if (arch !== 'x64' && arch !== 'arm64') {
+      throw new Error(`ExcelMcp requires Windows x64 or Arm64; this Node.js process is ${arch}.`);
     }
 
     try {

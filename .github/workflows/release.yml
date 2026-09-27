@@ -245,6 +245,26 @@ jobs:
         name: cli-npm
         path: cli-npm-artifacts/*.tgz
 
+    - name: Build and Test CLI npm Packages
+      run: |
+        .\scripts\Build-NpmPackages.ps1 `
+          -Component Cli `
+          -Version $env:VERSION `
+          -RuntimeExecutable "cli-publish\excelcli.exe" `
+          -OutputDirectory "cli-npm-artifacts"
+
+        .\scripts\Test-NpmPackages.ps1 `
+          -Component Cli `
+          -LauncherPackage "cli-npm-artifacts\sbroenne-excelcli-$env:VERSION.tgz" `
+          -RuntimePackage "cli-npm-artifacts\sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
+      shell: pwsh
+
+    - name: Upload CLI npm Artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+      with:
+        name: cli-npm
+        path: cli-npm-artifacts/*.tgz
+
     - name: Create CLI ZIP
       run: |
         $version = $env:VERSION
@@ -505,6 +525,12 @@ jobs:
       with:
         name: mcp-server-nupkg
         path: nupkg/*.nupkg
+
+    - name: Upload npm Artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+      with:
+        name: mcp-server-npm
+        path: npm-artifacts/*.tgz
 
   build-mcp-server-macos:
     name: MCP Server (${{ matrix.label }})
@@ -1149,18 +1175,6 @@ jobs:
         name: cli-npm
         path: npm-packages
 
-    - name: Download Darwin npm Packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
-      with:
-        name: mcp-server-npm-macos
-        path: npm-packages
-
-    - name: Download CLI Darwin npm Packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
-      with:
-        name: cli-npm-macos
-        path: npm-packages
-
     - name: Download VS Code VSIX
       uses: actions/download-artifact@v8
       with:
@@ -1221,17 +1235,11 @@ jobs:
           -PackageName "@sbroenne/mcp-server-excel-win32-x64" `
           -Tarball "npm-packages/sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
         Publish-NpmPackage `
-          -PackageName "@sbroenne/mcp-server-excel-darwin-arm64" `
-          -Tarball "npm-packages/sbroenne-mcp-server-excel-darwin-arm64-$env:VERSION.tgz"
-        Publish-NpmPackage `
           -PackageName "@sbroenne/mcp-server-excel" `
           -Tarball "npm-packages/sbroenne-mcp-server-excel-$env:VERSION.tgz"
         Publish-NpmPackage `
           -PackageName "@sbroenne/excelcli-win32-x64" `
           -Tarball "npm-packages/sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
-        Publish-NpmPackage `
-          -PackageName "@sbroenne/excelcli-darwin-arm64" `
-          -Tarball "npm-packages/sbroenne-excelcli-darwin-arm64-$env:VERSION.tgz"
         Publish-NpmPackage `
           -PackageName "@sbroenne/excelcli" `
           -Tarball "npm-packages/sbroenne-excelcli-$env:VERSION.tgz"
@@ -1239,18 +1247,12 @@ jobs:
       env:
         NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-    - name: Publish platform VSIX packages to VS Code Marketplace
-      shell: pwsh
-      run: |
-        npm install --global @vscode/vsce@3.9.2
-        foreach ($target in @("win32-x64", "darwin-arm64")) {
-          vsce publish `
-            --packagePath "vscode-vsix/excelmcp-$env:VERSION-$target.vsix" `
-            --pat "${{ secrets.VSCE_TOKEN }}"
-          if ($LASTEXITCODE -ne 0) {
-            throw "VS Code Marketplace publish failed for $target."
-          }
-        }
+    - name: Publish to VS Code Marketplace
+      uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
+      with:
+        pat: ${{ secrets.VSCE_TOKEN }}
+        registryUrl: https://marketplace.visualstudio.com
+        extensionFile: vscode-vsix/excelmcp-${{ env.VERSION }}.vsix
       continue-on-error: true
 
   # =============================================================================

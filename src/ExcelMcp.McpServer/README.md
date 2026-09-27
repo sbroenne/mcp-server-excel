@@ -37,10 +37,8 @@ Unlike file-parser libraries, ExcelMcp drives the **actual Excel application**. 
 **Primary — npm (no .NET runtime required):**
 
 ```powershell
-# Download from latest release:
-# https://github.com/sbroenne/mcp-server-excel/releases/latest
-# Windows: ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
-# macOS ARM64: ExcelMcp-MCP-Server-{version}-macos-arm64.zip → extract mcp-excel
+npx -y @sbroenne/mcp-server-excel
+```
 
 Configure MCP clients with `command: "npx"` and
 `args: ["-y", "@sbroenne/mcp-server-excel"]`.
@@ -48,8 +46,9 @@ Configure MCP clients with `command: "npx"` and
 **Standalone executable:**
 
 ```powershell
-# Download ExcelMcp-MCP-Server-{version}-windows.zip from GitHub Releases,
-# extract mcp-excel.exe, and configure the client with { "command": "mcp-excel" }.
+# Download from GitHub Releases:
+# Windows: ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+# macOS ARM64: ExcelMcp-MCP-Server-{version}-macos-arm64.zip → extract mcp-excel
 ```
 
 **Secondary — .NET Global Tool (requires .NET 10 runtime):**

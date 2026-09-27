@@ -8,8 +8,8 @@ All ExcelMcp components are released together with a single version tag:
 
 | Component | Primary Distribution | Secondary Distribution | Description |
 |-----------|---------------------|----------------------|-------------|
-| **MCP Server** | npm on Windows x64/Apple Silicon + platform-native standalone ZIPs | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel`, `mcp-excel.exe` on Windows, or `mcp-excel` on Apple Silicon macOS |
-| **CLI** | npm on Windows x64/Apple Silicon + platform-native standalone ZIPs | NuGet (.NET tool) | `npx @sbroenne/excelcli`, `excelcli.exe` on Windows, or `excelcli` on Apple Silicon macOS |
+| **MCP Server** | npm on Windows + platform-native standalone ZIPs | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel`, `mcp-excel.exe` on Windows, or `mcp-excel` on Apple Silicon macOS |
+| **CLI** | npm on Windows + platform-native standalone ZIPs | NuGet (.NET tool) | `npx @sbroenne/excelcli`, `excelcli.exe` on Windows, or `excelcli` on Apple Silicon macOS |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Platform-specific Claude Desktop bundles | — | Self-contained Windows x64 and Apple Silicon macOS installation |
 | **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with skills and compatibility helpers; `excel-mcp` launches the npm package through `npx` |
@@ -25,11 +25,11 @@ All ExcelMcp components are released together with a single version tag:
 When you run the release workflow, all components are released together:
 
 1. **CLI** → Standalone self-contained executable shipped as:
-   - npm launcher plus Windows x64 and Darwin ARM64 runtime packages (primary distribution)
+   - npm launcher and Windows runtime packages (primary distribution)
    - Windows x64 and macOS ARM64 ZIP files (primary distribution)
    - NuGet package (secondary distribution)
-2. **MCP Server** → npm launcher plus Windows x64 and Darwin ARM64 runtime packages + Windows x64 and macOS ARM64 standalone ZIPs [primary] + NuGet pack [secondary]
-3. **VS Code Extension** → Platform-specific self-contained VSIX packages (each bundles its matching MCP runtime + skills) → VS Code Marketplace
+2. **MCP Server** → npm launcher and Windows runtime package + Windows x64 and macOS ARM64 standalone ZIPs [primary] + NuGet pack [secondary]
+3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Windows x64 and Apple Silicon macOS Claude Desktop bundles
 5. **Agent Skills** → ZIP package for AI coding assistants
 6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with manifests, skills, and compatibility bootstrap assets; the MCP plugin launches the cross-platform npm package through `npx` (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
@@ -43,10 +43,8 @@ When you run the release workflow, all components are released together:
 |----------|--------|--------------|
 | `@sbroenne/mcp-server-excel@{version}` | npm | npm registry (primary launcher package) |
 | `@sbroenne/mcp-server-excel-win32-x64@{version}` | npm | npm registry (self-contained Windows runtime) |
-| `@sbroenne/mcp-server-excel-darwin-arm64@{version}` | npm | npm registry (self-contained Apple Silicon runtime) |
 | `@sbroenne/excelcli@{version}` | npm | npm registry (primary CLI launcher package) |
 | `@sbroenne/excelcli-win32-x64@{version}` | npm | npm registry (self-contained Windows CLI runtime) |
-| `@sbroenne/excelcli-darwin-arm64@{version}` | npm | npm registry (self-contained Apple Silicon CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `ExcelMcp-MCP-Server-{version}-macos-arm64.zip` | ZIP | GitHub Release (primary — contains executable `mcp-excel`) |
@@ -120,8 +118,8 @@ Afterward, **publish-plugins.yml** runs as a follow-on workflow and sync-gates r
 
 After workflow completes:
 
-- [ ] GitHub Release created with all artifacts (MCP Server ZIPs, CLI ZIPs, `SHA256SUMS`, platform VSIX files, both MCPB bundles, skills ZIP)
-- [ ] All six npm packages (MCP Server and CLI launchers plus Windows x64 and Darwin ARM64 runtimes) are available at the release version
+- [ ] GitHub Release created with all artifacts (MCP Server ZIPs, CLI ZIPs, `SHA256SUMS`, VSIX files, both MCPB bundles, skills ZIP)
+- [ ] All four npm packages (MCP Server and CLI launchers plus their Windows runtimes) are available at the release version
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated

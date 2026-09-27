@@ -44,8 +44,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - Or download `excel-skills-v{{VERSION}}.zip`
 
 ### Requirements
-- Windows x64 with Microsoft Excel 2016+, or Apple Silicon macOS with Excel for Mac 16.112+
-- Node.js 18+ for npm or Skills CLI installation
+- Windows OS
+- Microsoft Excel 2016+
+- Node.js 18+ for npm installation
 - No .NET runtime required for npm, VS Code Extension, MCPB, or standalone executables
 - .NET 10 Runtime required for NuGet (.NET tool) installation only
 

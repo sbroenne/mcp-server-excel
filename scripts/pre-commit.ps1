@@ -320,11 +320,7 @@ Invoke-ValidationStep `
     -Action {
         Push-Location $rootDir
         try {
-            $buildArguments = @('build', 'Sbroenne.ExcelMcp.sln', '--configuration', 'Release', '-p:NuGetAudit=false', '--verbosity', 'minimal')
-            if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
-                $buildArguments += '-p:EnableWindowsTargeting=true'
-            }
-            dotnet @buildArguments
+            dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal $localBuildArguments
         }
         finally {
             Pop-Location
@@ -556,6 +552,12 @@ Invoke-ValidationStep `
         Push-Location $extensionDir
         try {
             $npm = Get-Command npm -CommandType Application -ErrorAction Stop | Select-Object -First 1
+            & $npm.Source ci --ignore-scripts *> $packageLog
+            if ($LASTEXITCODE -ne 0) {
+                Get-Content -LiteralPath $packageLog
+                throw "npm ci failed with exit code $LASTEXITCODE"
+            }
+
             & $npm.Source run package *> $packageLog
             $packageExitCode = $LASTEXITCODE
             if ($packageExitCode -ne 0) {

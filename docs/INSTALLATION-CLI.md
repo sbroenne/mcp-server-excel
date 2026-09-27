@@ -14,9 +14,8 @@ capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 > **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
 
 The npm option also requires **Node.js 18 or later**. Install the current LTS
-from [nodejs.org](https://nodejs.org/) (or with
-`winget install OpenJS.NodeJS.LTS` on Windows). Windows x64/Arm64 (via x64
-emulation) and Apple Silicon macOS are supported. Intel macOS fails closed.
+with `winget install OpenJS.NodeJS.LTS`. Windows x64 and Arm64 (via x64
+emulation) are supported.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -59,15 +58,13 @@ npm install --global @sbroenne/excelcli
 excelcli --version
 ```
 
-The launcher installs `@sbroenne/excelcli-win32-x64` on Windows or
-`@sbroenne/excelcli-darwin-arm64` on Apple Silicon as an optional dependency.
-Do not use `--omit=optional`. It forwards arguments, standard input/output, and
-exit codes to the same native `excelcli` executable; session management and
-Excel behavior are unchanged.
+The launcher installs the matching `@sbroenne/excelcli-win32-x64` runtime as an
+optional dependency. Do not use `--omit=optional`. It forwards arguments,
+standard input/output, and exit codes to the same `excelcli.exe`; session
+management and Excel behavior are unchanged.
 
 Avoid installing multiple distributions of `excelcli` on the same PATH. Use
-`Get-Command excelcli` in PowerShell to check which installation your shell
-will run.
+`where.exe excelcli` to check which installation your shell will run.
 
 ### Standalone Executable (Also Primary)
 
@@ -221,16 +218,15 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 
 ### npm Runtime Package Missing
 
-If the launcher cannot find `@sbroenne/excelcli-win32-x64` on Windows or
-`@sbroenne/excelcli-darwin-arm64` on Apple Silicon, reinstall with optional
-dependencies enabled:
+If the launcher cannot find `@sbroenne/excelcli-win32-x64`, reinstall with
+optional dependencies enabled:
 
 ```powershell
 npm install --global @sbroenne/excelcli --include=optional
 ```
 
-The npm launcher reports an error on Intel macOS, Linux, and unsupported
-Windows architectures rather than attempting to start Excel.
+The npm launcher reports an error on macOS/Linux and unsupported Windows
+architectures rather than attempting to start Excel.
 
 ### Command Not Found After Installation
 
