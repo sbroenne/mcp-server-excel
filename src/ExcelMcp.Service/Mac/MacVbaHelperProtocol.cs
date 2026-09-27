@@ -27,7 +27,7 @@ internal static class MacVbaHelperProtocol
 {
     public const int Version = 1;
     public const int MaxPayloadBytes = 262_144;
-    public const string HelperVersion = "1.0.0";
+    public const string HelperVersion = "1.0.1";
 
     private static readonly JsonSerializerOptions RequestJsonOptions =
         new(ServiceProtocol.JsonOptions)
