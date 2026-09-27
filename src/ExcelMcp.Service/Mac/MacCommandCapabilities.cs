@@ -7,6 +7,7 @@ internal enum MacCapabilityTier
     PowerQueryPackage,
     MacroHelper,
     VbaProjectModel,
+    OptionalNativeHelper,
     Unsupported
 }
 
@@ -42,7 +43,9 @@ internal static class MacCommandCapabilities
         "range.set-number-format",
         "rangeformat.set-column-width",
         "rangeformat.set-row-height",
-        "calculation.calculate"
+        "calculation.calculate",
+        "analysis.goal-seek",
+        "analysis.create-data-table"
     };
 
     private static readonly HashSet<string> OfficeAddInCategories = new(StringComparer.Ordinal)
@@ -54,7 +57,9 @@ internal static class MacCommandCapabilities
         "pivottable",
         "pivottablefield",
         "pivottablecalc",
-        "conditionalformat"
+        "conditionalformat",
+        "drawing",
+        "slicer"
     };
 
     public static MacCommandCapability Get(string command)
@@ -98,6 +103,23 @@ internal static class MacCommandCapabilities
                     MacCapabilityTier.VbaProjectModel,
                     command,
                     "the optional VBA project object model tier, which requires explicit user trust");
+        }
+
+        if (category is "connection" or "querytable" or "analysis" or "pythoninexcel")
+        {
+            return Unavailable(
+                MacCapabilityTier.Native,
+                command,
+                "an Apple Events route whose exact result, completion, error, and cleanup semantics " +
+                "have not yet passed a prompt-free real-Excel fixture");
+        }
+
+        if (category == "screenshot")
+        {
+            return Unavailable(
+                MacCapabilityTier.OptionalNativeHelper,
+                command,
+                "an optional native screen-capture helper with explicit Screen Recording permission");
         }
 
         if (OfficeAddInCategories.Contains(category)
