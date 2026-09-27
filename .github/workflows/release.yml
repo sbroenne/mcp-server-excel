@@ -65,8 +65,8 @@ jobs:
         run: |
           # If custom version is provided, use it
           if [[ -n "$CUSTOM_VERSION" ]]; then
-            if ! [[ "$CUSTOM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-              echo "::error::Custom version must be a supported semantic version (for example, 1.2.3)."
+            if ! [[ "$CUSTOM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Custom version must be three numeric parts (for example, 1.2.3)."
               exit 1
             fi
 
