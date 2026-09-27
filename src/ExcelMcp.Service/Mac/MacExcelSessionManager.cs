@@ -12,15 +12,18 @@ internal sealed class MacExcelSessionManager : IDisposable
     private readonly ConcurrentDictionary<string, Task<bool>> _closeTasks = new(StringComparer.Ordinal);
     private readonly MacExcelBackend _backend;
     private readonly Action<string, string> _copyFile;
+    private readonly Action<string> _deleteFile;
     private bool _disposed;
 
     public MacExcelSessionManager(
         MacExcelBackend backend,
-        Action<string, string>? copyFile = null)
+        Action<string, string>? copyFile = null,
+        Action<string>? deleteFile = null)
     {
         _backend = backend;
         _copyFile = copyFile ?? ((source, destination) =>
             File.Copy(source, destination, overwrite: false));
+        _deleteFile = deleteFile ?? File.Delete;
     }
 
     public int Count => _sessions.Count;
@@ -242,12 +245,21 @@ internal sealed class MacExcelSessionManager : IDisposable
 
             if (!setupComplete)
             {
-                CleanupNewPackageBaseline(
-                    session,
-                    createdBaseline,
-                    baselinePath,
-                    transactionPath,
-                    journalCreated);
+                Exception? cleanupError = null;
+                Exception? reopenError = null;
+                try
+                {
+                    CleanupNewPackageBaseline(
+                        session,
+                        createdBaseline,
+                        baselinePath,
+                        transactionPath,
+                        journalCreated);
+                }
+                catch (Exception error)
+                {
+                    cleanupError = error;
+                }
                 try
                 {
                     await _backend.InvokeAsync(
@@ -256,12 +268,26 @@ internal sealed class MacExcelSessionManager : IDisposable
                         session.OperationTimeout);
                     closed = false;
                 }
-                catch (Exception reopenError)
+                catch (Exception error)
+                {
+                    reopenError = error;
+                }
+
+                if (cleanupError is not null || reopenError is not null)
                 {
                     session.RequiresPackageRecovery = true;
+                    var recoveryErrors = new List<Exception> { operationError };
+                    if (cleanupError is not null)
+                    {
+                        recoveryErrors.Add(cleanupError);
+                    }
+                    if (reopenError is not null)
+                    {
+                        recoveryErrors.Add(reopenError);
+                    }
                     throw new InvalidOperationException(
-                        "Power Query package setup failed and the unchanged workbook could not be reopened.",
-                        new AggregateException(operationError, reopenError));
+                        "Power Query package setup failed and automatic cleanup or reopen did not complete.",
+                        new AggregateException(recoveryErrors));
                 }
                 throw;
             }
@@ -313,7 +339,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
     }
 
-    private static void CleanupNewPackageBaseline(
+    private void CleanupNewPackageBaseline(
         MacExcelSession session,
         bool createdBaseline,
         string? baselinePath,
@@ -330,11 +356,11 @@ internal sealed class MacExcelSessionManager : IDisposable
             return;
         }
 
-        File.Delete(baselinePath!);
         if (journalCreated)
         {
-            File.Delete(transactionPath!);
+            _deleteFile(transactionPath!);
         }
+        _deleteFile(baselinePath!);
     }
 
     private async Task<WorkbookCloseResult> CloseAndReconcileAsync(
@@ -447,7 +473,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
     }
 
-    private static void RestorePackageBaseline(MacExcelSession session)
+    private void RestorePackageBaseline(MacExcelSession session)
     {
         if (session.PackageBaselinePath is not { } baselinePath)
         {
@@ -472,20 +498,20 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
     }
 
-    private static void DeletePackageBaseline(MacExcelSession session)
+    private void DeletePackageBaseline(MacExcelSession session)
     {
         if (session.PackageBaselinePath is not { } baselinePath)
         {
             return;
         }
 
-        File.Delete(baselinePath);
-        session.PackageBaselinePath = null;
         if (session.PackageTransactionPath is { } transactionPath)
         {
-            File.Delete(transactionPath);
+            _deleteFile(transactionPath);
             session.PackageTransactionPath = null;
         }
+        _deleteFile(baselinePath);
+        session.PackageBaselinePath = null;
     }
 
     public void Dispose()

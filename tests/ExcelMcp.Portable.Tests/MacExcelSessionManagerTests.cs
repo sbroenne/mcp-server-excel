@@ -401,6 +401,143 @@ public sealed class MacExcelSessionManagerTests
     }
 
     [Fact]
+    public async Task PackageMutation_SetupCleanupFailureStillReopensAndRequiresRecovery()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-cleanup-failure-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var openCalls = 0;
+        var copyCount = 0;
+        var failJournalDelete = true;
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open" &&
+                AutomationCommand(start) == "session.open")
+            {
+                openCalls++;
+            }
+            return Task.FromResult(Success());
+        });
+        var manager = new MacExcelSessionManager(
+            backend,
+            (source, destination) =>
+            {
+                copyCount++;
+                if (copyCount == 2)
+                {
+                    throw new IOException("Checkpoint copy failed.");
+                }
+                File.Copy(source, destination, overwrite: false);
+            },
+            candidate =>
+            {
+                if (failJournalDelete &&
+                    candidate.EndsWith(".excelmcp-pq-transaction.json", StringComparison.Ordinal))
+                {
+                    throw new IOException("Journal delete failed.");
+                }
+                File.Delete(candidate);
+            });
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ExecuteAsync(sessionId, async session =>
+            {
+                await manager.MutatePackageAsync(
+                    session,
+                    workingPath => File.WriteAllText(workingPath, "updated"),
+                    static () => Task.CompletedTask);
+                return true;
+            }));
+
+        Assert.Contains("cleanup", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Checkpoint copy failed", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Journal delete failed", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal(2, openCalls);
+        var session = Assert.Single(manager.Sessions);
+        Assert.True(session.RequiresPackageRecovery);
+        Assert.True(File.Exists(Assert.IsType<string>(session.PackageBaselinePath)));
+        Assert.True(File.Exists(Assert.IsType<string>(session.PackageTransactionPath)));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ExecuteAsync(sessionId, _ => Task.FromResult(true)));
+
+        failJournalDelete = false;
+        manager.Dispose();
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
+    public async Task PackageMutation_SetupCleanupAndReopenFailuresAreAggregated()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-cleanup-reopen-failure-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var openCalls = 0;
+        var copyCount = 0;
+        var failRecovery = true;
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open" &&
+                AutomationCommand(start) == "session.open" &&
+                ++openCalls == 2 &&
+                failRecovery)
+            {
+                return Task.FromResult(Success(
+                    """{"success":false,"errorMessage":"reopen failed","errorCategory":"ComInterop"}"""));
+            }
+            return Task.FromResult(Success());
+        });
+        var manager = new MacExcelSessionManager(
+            backend,
+            (source, destination) =>
+            {
+                copyCount++;
+                if (copyCount == 2)
+                {
+                    throw new IOException("Checkpoint copy failed.");
+                }
+                File.Copy(source, destination, overwrite: false);
+            },
+            candidate =>
+            {
+                if (failRecovery &&
+                    candidate.EndsWith(".excelmcp-pq-transaction.json", StringComparison.Ordinal))
+                {
+                    throw new IOException("Journal delete failed.");
+                }
+                File.Delete(candidate);
+            });
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ExecuteAsync(sessionId, async session =>
+            {
+                await manager.MutatePackageAsync(
+                    session,
+                    workingPath => File.WriteAllText(workingPath, "updated"),
+                    static () => Task.CompletedTask);
+                return true;
+            }));
+
+        Assert.Contains("Checkpoint copy failed", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Journal delete failed", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("reopen failed", error.ToString(), StringComparison.Ordinal);
+        Assert.True(Assert.Single(manager.Sessions).RequiresPackageRecovery);
+
+        failRecovery = false;
+        manager.Dispose();
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
     public async Task Open_StalePackageTransactionFailsBeforeExcelHandoff()
     {
         var directory = Directory.CreateTempSubdirectory("excelmcp-package-stale-");
