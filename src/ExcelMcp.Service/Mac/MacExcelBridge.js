@@ -77,6 +77,87 @@ function requireRgb(value) {
     return value;
 }
 
+const pythonUnavailableMessage =
+    "Python in Excel is not available in this Excel session. It requires a licensed Microsoft 365 account " +
+    "with the Python in Excel feature enabled and internet access; it is not available with perpetual-license " +
+    "Excel (2016/2019/2021/2024) or offline.";
+const pythonTransientMarkers = ["#BUSY!", "#CONNECT!", "#BLOCKED!"];
+const pythonErrorMessages = {
+    "-2146826288": "#NULL! - Invalid intersection of ranges",
+    "-2146826281": "#DIV/0! - Division by zero",
+    "-2146826273": "#VALUE! - Wrong type of argument",
+    "-2146826265": "#REF! - Invalid cell reference",
+    "-2146826259": "#NAME? - Unrecognized formula name",
+    "-2146826252": "#NUM! - Invalid numeric value",
+    "-2146826246": "#N/A - Value not available",
+    "-2146826243": "#SPILL! - Dynamic array result cannot spill",
+    "-2146826240": "#UNKNOWN! - Excel cannot identify the data type",
+    "-2146826239": "#FIELD! - Referenced data field is unavailable",
+    "-2146826238": "#CALC! - Excel cannot complete the calculation"
+};
+
+function firstScalar(value) {
+    let current = value;
+    while (Array.isArray(current)) {
+        current = current.length ? current[0] : null;
+    }
+    return current;
+}
+
+function pythonFormulaUnavailable(formula, value, text) {
+    return /^\s*=(?:_xlfn\.)?PY\(/i.test(formula)
+        && (value === -2146826259 || text === "#NAME?");
+}
+
+function normalizedPythonFormula(formula) {
+    return formula.trim().replace(/^=_xlfn\.PY/i, "=PY");
+}
+
+function pythonCellState(range) {
+    const value = firstScalar(range.value());
+    const rawText = firstScalar(range.text());
+    const text = String(rawText == null ? "" : rawText);
+    return { value, text };
+}
+
+function pythonCalculationDone(excel) {
+    const state = excel.calculationState();
+    return state === 0 || /done/i.test(String(state));
+}
+
+function pythonFormulaReturnType(formula) {
+    const match = formula.match(/,\s*(\d+)\s*\)\s*$/);
+    return match ? Number.parseInt(match[1], 10) : 0;
+}
+
+function pythonRangeAddress(excel, range) {
+    return excel.getAddress(range);
+}
+
+function pythonErrorResult(result, value, returnType, text) {
+    const knownError = pythonErrorMessages[String(value)];
+    if (returnType === 1 && !(knownError && text.trim().toLocaleUpperCase() === knownError.split(" - ")[0])) {
+        result.success = true;
+        result.isPythonObject = true;
+        if (/[A-Za-z]/.test(text)) result.typeName = text;
+        result.message =
+            "Cell holds a Python Object (rich data type such as a DataFrame). " +
+            "Value2 cannot expose rich Python object data via COM automation - set returnType=0 " +
+            "(Excel Value) instead if you need to read the underlying data.";
+        return result;
+    }
+    if (knownError) {
+        result.success = false;
+        result.errorMessage = knownError;
+        return result;
+    }
+
+    result.success = false;
+    result.isPythonError = true;
+    result.errorMessage = "#PYTHON! - Python code raised an error (syntax or runtime exception)";
+    return result;
+}
+
 function normalizeMatrix(value) {
     return Array.isArray(value) ? value : [[value]];
 }
@@ -338,6 +419,127 @@ function run(argv) {
                 range.rowHeight = args.rowHeight;
                 return json({ success: true, filePath: args.filePath, action: "set-row-height" });
             }
+        }
+
+        if (command === "pythoninexcel.set-formula" || command === "pythoninexcel.get-result") {
+            const range = worksheetByName(workbook, args.sheetName).ranges.byName(args.rangeAddress);
+            if (command === "pythoninexcel.set-formula") {
+                const escapedCode = String(args.code).replace(/"/g, "\"\"");
+                const formula = `=PY("${escapedCode}",${args.returnType})`;
+                range.formula2 = [[formula]];
+                try {
+                    range.calculate();
+                } catch (_) {
+                    // Excel may already be calculating asynchronously.
+                }
+
+                const verificationRange =
+                    worksheetByName(workbook, args.sheetName).ranges.byName(args.rangeAddress);
+                const state = pythonCellState(verificationRange);
+                const storedFormula = String(firstScalar(verificationRange.formula2()) || "");
+                if (normalizedPythonFormula(storedFormula) !== formula) {
+                    return json({
+                        success: false,
+                        filePath: args.filePath,
+                        action: "set-formula",
+                        errorMessage:
+                            "Excel did not preserve the requested PY() formula through Range.Formula2. " +
+                            "The formula was not accepted as a reliable Python in Excel serialization."
+                    });
+                }
+                if (pythonFormulaUnavailable(storedFormula, state.value, state.text)) {
+                    return json({
+                        success: false,
+                        filePath: args.filePath,
+                        action: "set-formula",
+                        errorMessage: pythonUnavailableMessage
+                    });
+                }
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    action: "set-formula",
+                    message:
+                        `Set Python in Excel formula on '${pythonRangeAddress(excel, verificationRange)}'. ` +
+                        "Use get-result to read the computed value once the cloud Python backend finishes."
+                });
+            }
+
+            const formula = String(firstScalar(range.formula2()) || "");
+            const result = {
+                success: false,
+                filePath: args.filePath,
+                sheetName: args.sheetName,
+                rangeAddress: pythonRangeAddress(excel, range),
+                formula,
+                isPythonObject: false,
+                isPythonError: false
+            };
+            if (!/PY\(/i.test(formula)) {
+                result.errorMessage =
+                    `Cell '${result.rangeAddress}' does not contain a Python in Excel (PY()) formula.`;
+                return json(result);
+            }
+
+            try {
+                excel.calculate(workbook);
+            } catch (_) {
+                // Calculation may already be running; polling below remains authoritative.
+            }
+
+            const deadline = Date.now() + (args.maxWaitSeconds * 1000);
+            let state = { value: null, text: "" };
+            let nonBusyReads = 0;
+            let calculationDone = false;
+            let converged = false;
+            let lastMarker = "";
+            do {
+                state = pythonCellState(range);
+                calculationDone = pythonCalculationDone(excel);
+                if (pythonFormulaUnavailable(formula, state.value, state.text)) {
+                    result.errorMessage = pythonUnavailableMessage;
+                    return json(result);
+                }
+
+                const textMarker = pythonTransientMarkers.includes(state.text) ? state.text : "";
+                const cellBusy = state.value === -2146826237 || textMarker.length > 0;
+                lastMarker = state.value === -2146826237 ? "#BUSY!" : textMarker;
+                nonBusyReads = cellBusy ? 0 : nonBusyReads + 1;
+                if (!cellBusy && (calculationDone || nonBusyReads >= 3)) {
+                    converged = true;
+                    break;
+                }
+
+                const remainingSeconds = (deadline - Date.now()) / 1000;
+                if (remainingSeconds > 0) delay(Math.min(0.5, remainingSeconds));
+            } while (Date.now() < deadline);
+
+            if (!converged) {
+                const observed = lastMarker.length
+                    ? `the cell still reads as ${lastMarker}`
+                    : !calculationDone
+                        ? "the workbook is still calculating"
+                        : "the result did not settle";
+                const guidance = lastMarker === "#CONNECT!"
+                    ? "Excel could not connect to the Microsoft-hosted Python service. Check internet access, " +
+                        "the signed-in Microsoft 365 account, and connected experiences, then retry."
+                    : lastMarker === "#BLOCKED!"
+                        ? "Excel blocked a required cloud resource. Check the account's Python in Excel license " +
+                            "and organization-managed privacy, security, and connected-service policies."
+                        : "The Microsoft-hosted Python backend may be under cold-start load - call get-result " +
+                            "again, or increase maxWaitSeconds.";
+                result.errorMessage =
+                    `Python in Excel result did not finish within ${args.maxWaitSeconds}s (${observed}). ${guidance}`;
+                return json(result);
+            }
+
+            const returnType = pythonFormulaReturnType(formula);
+            if (Number.isInteger(state.value) && state.value < 0) {
+                return json(pythonErrorResult(result, state.value, returnType, state.text));
+            }
+            result.success = true;
+            result.value = state.value;
+            return json(result);
         }
 
         if (command === "calculation.calculate") {

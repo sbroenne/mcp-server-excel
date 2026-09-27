@@ -15,7 +15,11 @@ internal sealed class MacExcelBackend
         _runProcess = runProcess ?? RunProcessAsync;
     }
 
-    public async Task<JsonElement> InvokeAsync(string command, object? arguments, TimeSpan timeout)
+    public async Task<JsonElement> InvokeAsync(
+        string command,
+        object? arguments,
+        TimeSpan timeout,
+        bool allowFailureResult = false)
     {
         using var timeoutCts = new CancellationTokenSource(timeout);
         var serializedArguments = JsonSerializer.Serialize(arguments, ServiceProtocol.JsonOptions);
@@ -41,7 +45,11 @@ internal sealed class MacExcelBackend
                     handoff.ArgumentList.Add(filePath);
                     var result = await _runProcess(handoff, null, timeoutCts.Token);
                     EnsureSuccessfulExit("LaunchServices handoff", result);
-                    return await InvokeScriptAsync(command, serializedArguments, timeoutCts.Token);
+                    return await InvokeScriptAsync(
+                        command,
+                        serializedArguments,
+                        timeoutCts.Token,
+                        allowFailureResult);
                 }
                 finally
                 {
@@ -49,7 +57,11 @@ internal sealed class MacExcelBackend
                 }
             }
 
-            return await InvokeScriptAsync(command, serializedArguments, timeoutCts.Token);
+            return await InvokeScriptAsync(
+                command,
+                serializedArguments,
+                timeoutCts.Token,
+                allowFailureResult);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
@@ -60,7 +72,10 @@ internal sealed class MacExcelBackend
     }
 
     private async Task<JsonElement> InvokeScriptAsync(
-        string command, string arguments, CancellationToken cancellationToken)
+        string command,
+        string arguments,
+        CancellationToken cancellationToken,
+        bool allowFailureResult = false)
     {
         var startInfo = CreateAutomationStartInfo(command);
         var result = await _runProcess(startInfo, arguments, cancellationToken);
@@ -68,7 +83,9 @@ internal sealed class MacExcelBackend
 
         using var document = JsonDocument.Parse(result.StandardOutput);
         var root = document.RootElement.Clone();
-        if (root.TryGetProperty("success", out var success) && !success.GetBoolean())
+        if (root.TryGetProperty("success", out var success)
+            && !success.GetBoolean()
+            && (!allowFailureResult || !root.TryGetProperty("filePath", out _)))
         {
             var message = root.TryGetProperty("errorMessage", out var error)
                 ? error.GetString()

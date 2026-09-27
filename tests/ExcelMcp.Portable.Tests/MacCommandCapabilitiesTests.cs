@@ -28,6 +28,17 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("pythoninexcel.set-formula")]
+    [InlineData("pythoninexcel.get-result")]
+    public void PythonInExcel_RemainsGatedWithoutPersistentFormula2RoundTrip(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+    }
+
+    [Theory]
     [InlineData("sheet.copy")]
     [InlineData("sheet.move")]
     public void SheetReordering_RemainsGatedWithoutProvenAppleEventsParity(string command)

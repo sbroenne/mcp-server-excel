@@ -596,12 +596,17 @@ public sealed class ExcelMcpService : IDisposable
                 var arguments = string.IsNullOrWhiteSpace(request.Args)
                     ? new JsonObject()
                     : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                if (category == "pythoninexcel")
+                {
+                    MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
+                }
                 arguments["filePath"] = session.FilePath;
                 ResolveMacFileArguments(category, action, arguments);
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
-                    session.OperationTimeout);
+                    session.OperationTimeout,
+                    allowFailureResult: category == "pythoninexcel");
                 return new ServiceResponse
                 {
                     Success = true,

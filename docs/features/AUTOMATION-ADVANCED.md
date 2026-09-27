@@ -49,7 +49,8 @@ Write and read `=PY()` formulas that run in Excel's cloud Python engine.
 
 **Notes:**
 - **Requires:** a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel.
-- **Unavailable vs. transient:** `#NAME?` means this Excel session cannot use Python in Excel. `#BUSY!`, `#CONNECT!`, and `#BLOCKED!` remain transient cloud states and keep their existing retry behavior.
+- **Mac availability:** Microsoft documents Python in Excel for qualifying Business and Enterprise subscriptions beginning with Excel for Mac 16.96. ExcelMcp's native Mac `Formula2` route is not advertised as supported until its literal-formula CLI and MCP acceptance test passes on a licensed account.
+- **Unavailable vs. transient:** `#NAME?` means this Excel session cannot use Python in Excel. `#BUSY!` remains a transient cloud calculation state. At the polling deadline, `#CONNECT!` reports the internet/account/connected-experiences prerequisites and `#BLOCKED!` reports licensing or organization-managed privacy/security policy prerequisites instead of attributing either condition to a generic cold start.
 - **Data binding:** Reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
 
 ---
