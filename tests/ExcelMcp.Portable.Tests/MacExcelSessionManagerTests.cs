@@ -190,6 +190,171 @@ public sealed class MacExcelSessionManagerTests
     }
 
     [Fact]
+    public async Task PackageMutation_EditAfterStateCheckRejectsAtomicCloseWithoutDiscardingEdits()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-dirty-race-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var commands = new List<string>();
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open")
+            {
+                var command = AutomationCommand(start);
+                commands.Add(command);
+                if (command == "session.close-if-saved")
+                {
+                    return Task.FromResult(new MacProcessResult(
+                        0,
+                        """{"success":false,"errorMessage":"Workbook has unsaved changes.","errorCategory":"InvalidOperation"}""",
+                        ""));
+                }
+            }
+
+            return Task.FromResult(new MacProcessResult(0, """{"success":true,"errorMessage":""}""", ""));
+        });
+        using var manager = new MacExcelSessionManager(backend);
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+        var mutationRan = false;
+
+        var error = await Assert.ThrowsAsync<MacExcelOperationException>(
+            () => manager.ExecuteAsync(sessionId, async session =>
+            {
+                await manager.MutatePackageAsync(
+                    session,
+                    workingPath =>
+                    {
+                        mutationRan = true;
+                        File.WriteAllText(workingPath, "updated");
+                    },
+                    static () => Task.CompletedTask);
+                return true;
+            }));
+
+        Assert.Contains("unsaved changes", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(mutationRan);
+        Assert.Contains("session.close-if-saved", commands);
+        Assert.DoesNotContain("session.close", commands);
+        Assert.Equal("original", await File.ReadAllTextAsync(path));
+        Assert.Empty(TransactionArtifacts(directory));
+        Assert.True(await manager.ExecuteAsync(sessionId, _ => Task.FromResult(true)));
+        Assert.True(await manager.CloseAsync(sessionId, save: false));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task PackageMutation_SetupCopyFailureRemovesNewTransactionArtifacts(int failingCopy)
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-setup-failure-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var copyCount = 0;
+        using var manager = CreateManager((source, destination) =>
+        {
+            copyCount++;
+            if (copyCount == failingCopy)
+            {
+                throw new IOException($"Copy {failingCopy} failed.");
+            }
+            File.Copy(source, destination, overwrite: false);
+        });
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+
+        var error = await Assert.ThrowsAsync<IOException>(
+            () => manager.ExecuteAsync(sessionId, async session =>
+            {
+                await manager.MutatePackageAsync(
+                    session,
+                    workingPath => File.WriteAllText(workingPath, "updated"),
+                    static () => Task.CompletedTask);
+                return true;
+            }));
+
+        Assert.Contains($"Copy {failingCopy} failed", error.Message, StringComparison.Ordinal);
+        var session = Assert.Single(manager.Sessions);
+        Assert.Null(session.PackageBaselinePath);
+        Assert.Null(session.PackageTransactionPath);
+        Assert.Empty(TransactionArtifacts(directory));
+        Assert.Equal("original", await File.ReadAllTextAsync(path));
+        Assert.True(await manager.CloseAsync(sessionId, save: false));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task PackageMutation_SetupCopyFailurePreservesExistingTransaction(int failingSetupCopy)
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-existing-setup-failure-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var copyCount = 0;
+        int? failAtCopy = null;
+        using var manager = CreateManager((source, destination) =>
+        {
+            copyCount++;
+            if (copyCount == failAtCopy)
+            {
+                throw new IOException($"Setup copy {failingSetupCopy} failed.");
+            }
+            File.Copy(source, destination, overwrite: false);
+        });
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "staged"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+        var session = Assert.Single(manager.Sessions);
+        var baselinePath = Assert.IsType<string>(session.PackageBaselinePath);
+        var transactionPath = Assert.IsType<string>(session.PackageTransactionPath);
+        failAtCopy = copyCount + failingSetupCopy;
+
+        await Assert.ThrowsAsync<IOException>(
+            () => manager.ExecuteAsync(sessionId, async currentSession =>
+            {
+                await manager.MutatePackageAsync(
+                    currentSession,
+                    workingPath => File.WriteAllText(workingPath, "second"),
+                    static () => Task.CompletedTask);
+                return true;
+            }));
+
+        Assert.Equal(baselinePath, session.PackageBaselinePath);
+        Assert.Equal(transactionPath, session.PackageTransactionPath);
+        Assert.True(File.Exists(baselinePath));
+        Assert.True(File.Exists(transactionPath));
+        Assert.Equal("staged", await File.ReadAllTextAsync(path));
+        Assert.Equal(
+            new[] { baselinePath, transactionPath }.Order(StringComparer.Ordinal).ToArray(),
+            TransactionArtifacts(directory).Order(StringComparer.Ordinal).ToArray());
+        Assert.True(await manager.CloseAsync(sessionId, save: false));
+        Assert.Equal("original", await File.ReadAllTextAsync(path));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
     public async Task Open_StalePackageTransactionFailsBeforeExcelHandoff()
     {
         var directory = Directory.CreateTempSubdirectory("excelmcp-package-stale-");
@@ -246,12 +411,18 @@ public sealed class MacExcelSessionManagerTests
         directory.Delete();
     }
 
-    private static MacExcelSessionManager CreateManager()
+    private static MacExcelSessionManager CreateManager(Action<string, string>? copyFile = null)
     {
         var backend = new MacExcelBackend((start, input, cancellationToken) =>
             Task.FromResult(new MacProcessResult(0, """{"success":true,"errorMessage":""}""", "")));
-        return new MacExcelSessionManager(backend);
+        return new MacExcelSessionManager(backend, copyFile);
     }
+
+    private static string[] TransactionArtifacts(DirectoryInfo directory) =>
+        Directory.GetFiles(directory.FullName)
+            .Where(candidate =>
+                Path.GetFileName(candidate).Contains("excelmcp-pq-", StringComparison.Ordinal))
+            .ToArray();
 
     private static async Task WaitForAsync(Func<bool> predicate)
     {
