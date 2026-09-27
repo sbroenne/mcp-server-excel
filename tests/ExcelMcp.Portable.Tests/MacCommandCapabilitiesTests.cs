@@ -39,6 +39,70 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("analysis.goal-seek")]
+    [InlineData("analysis.create-data-table")]
+    public void ProvenWhatIfAnalysisCommands_AreNative(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
+    }
+
+    [Theory]
+    [InlineData("analysis.list-scenarios")]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.update-scenario")]
+    [InlineData("analysis.show-scenario")]
+    [InlineData("analysis.delete-scenario")]
+    [InlineData("analysis.create-scenario-summary")]
+    public void UnprovenScenarioCommands_RemainExplicitlyGated(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("drawing.add-sparkline")]
+    [InlineData("drawing.add-shape")]
+    [InlineData("slicer.list-slicers")]
+    [InlineData("slicer.set-table-slicer-selection")]
+    public void SpecializedOfficeJsCommands_ReportAddInTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+    }
+
+    [Fact]
+    public void Screenshot_ReportsOptionalNativeHelperTier()
+    {
+        var capability = MacCommandCapabilities.Get("screenshot.capture");
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OptionalNativeHelper, capability.RequiredTier);
+        Assert.Contains("Screen Recording", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("connection.list")]
+    [InlineData("querytable.list")]
+    [InlineData("pythoninexcel.set-formula")]
+    public void UnprovenAppleEventCandidates_ReportNativeTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("table.create")]
     [InlineData("chart.create")]
     [InlineData("pivottable.create")]

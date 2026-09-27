@@ -349,6 +349,54 @@ function run(argv) {
             return json({ success: true, filePath: args.filePath, action: "calculate" });
         }
 
+        if (command === "analysis.goal-seek") {
+            if (!args.sheetName) throw new Error("sheetName is required.");
+            if (!args.formulaCell) throw new Error("formulaCell is required.");
+            if (!Number.isFinite(args.goal)) throw new Error("goal must be a finite number.");
+            if (!args.changingCell) throw new Error("changingCell is required.");
+
+            const sheet = worksheetByName(workbook, args.sheetName);
+            const formulaRange = sheet.ranges.byName(args.formulaCell);
+            const changingRange = sheet.ranges.byName(args.changingCell);
+            const converged = formulaRange.goalSeek({
+                goal: args.goal,
+                changingCell: changingRange
+            });
+            return json({
+                success: true,
+                converged: !!converged,
+                formulaValue: Number(formulaRange.value()),
+                changingValue: Number(changingRange.value()),
+                message: converged
+                    ? `Goal Seek reached ${args.goal} in '${args.formulaCell}'.`
+                    : `Goal Seek completed without converging on ${args.goal} in '${args.formulaCell}'.`
+            });
+        }
+
+        if (command === "analysis.create-data-table") {
+            if (!args.sheetName) throw new Error("sheetName is required.");
+            if (!args.tableRange) throw new Error("tableRange is required.");
+            if (!args.rowInputCell && !args.columnInputCell) {
+                throw new Error("Provide rowInputCell, columnInputCell, or both for a data table.");
+            }
+
+            const sheet = worksheetByName(workbook, args.sheetName);
+            const parameters = {};
+            if (args.rowInputCell) {
+                parameters.rowInput = sheet.ranges.byName(args.rowInputCell);
+            }
+            if (args.columnInputCell) {
+                parameters.columnInput = sheet.ranges.byName(args.columnInputCell);
+            }
+            sheet.ranges.byName(args.tableRange).dataTable(parameters);
+            return json({
+                success: true,
+                filePath: args.filePath,
+                action: "create-data-table",
+                message: `Data table created in '${args.sheetName}'!${args.tableRange}.`
+            });
+        }
+
         requireSupported(command, []);
     } catch (error) {
         return json({

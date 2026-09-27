@@ -67,7 +67,7 @@ The first implementation increment now exists behind runtime platform selection:
   create/list/rename/delete, worksheet visibility and tab-color operations,
   range get/set values and formulas (including existing JSON/CSV file
   transforms), number-format read/write, explicit row/column sizing, clear
-  operations, and calculation.
+  operations, calculation, Goal Seek, and one- or two-variable Data Tables.
 - Power Query `list`, `view`, and `get-load-config` are implemented for clean,
   saved workbooks using package inspection. Package-only `update` requires
   `refresh=false`; the contract default remains `refresh=true`, so Mac callers
@@ -715,6 +715,140 @@ Windows COM tests remain **not run**: Mac Excel is not a replacement for Windows
 COM Excel.
 
 ## Architecture findings
+
+## Specialized feature evidence matrix
+
+This inventory was refreshed against Microsoft Excel for Mac **16.113.1** on
+Apple Silicon, the installed scripting dictionary from
+`/usr/bin/sdef '/Applications/Microsoft Excel.app'`, and Microsoft's Office.js
+reference updated in September 2026. Excel 16.113.1 is new enough for the
+documented stable `ExcelApi 1.21` floor (Mac 16.110.1), but host support for a
+requirement set is not contract evidence by itself.
+
+Status meanings:
+
+- **Enabled**: prompt-free real Excel passed through both `excelcli` and MCP,
+  including returned fields and workbook effects.
+- **Candidate**: an API route exists or one entry point passed, but complete
+  cross-entry-point result, completion, error, cleanup, and persistence
+  semantics are not yet proven.
+- **Blocked**: the inspected native and Office.js surfaces do not expose the
+  contract, or the only route violates an existing contract requirement.
+
+The serialized real-Excel validation slot is shared with the other macOS
+workstreams. Candidate operations stay gated until they receive that slot.
+
+### Connections and legacy QueryTables
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `connection.list` | Apple Events | Candidate | `workbook connection` is declared, but safe enumeration and sanitized type metadata are unverified. Users must use Windows for truthful connection inventory. |
+| `connection.view` | Apple Events | Candidate | The dictionary does not expose the complete typed OLEDB/ODBC property set; credential-safe parity is unproven. |
+| `connection.create` | Apple Events | Candidate | Provider availability, command type, and `Connections.Add2` parity are unproven on Mac. No connection is created by the gated command. |
+| `connection.refresh` | Apple Events | Candidate | A broad refresh command exists, but exact-connection completion and source errors are not established. |
+| `connection.get-refresh-status` | Apple Events | Candidate | Typed OLEDB/ODBC status equivalent is not declared. |
+| `connection.cancel-refresh` | Apple Events | Candidate | Cancellation is declared for QueryTables, not proven for exact typed workbook connections. |
+| `connection.delete` | Apple Events | Candidate | Exact ownership cleanup of only the target connection's QueryTables is unproven. |
+| `connection.load-to` | Apple Events | Candidate | Exact destination replacement and connection ownership semantics are unproven. |
+| `connection.get-properties` | Apple Events | Candidate | Complete typed settings and sanitized connection reporting are unverified. |
+| `connection.set-properties` | Apple Events | Candidate | Typed OLEDB/ODBC settings and password handling are unverified. |
+| `connection.test` | Apple Events | Candidate | Configuration-only validation cannot be inferred from refresh acceptance. |
+| `querytable.list` | Apple Events | Candidate | Worksheet `query table` elements and destination/refreshing properties are declared; a prompt-free fixture is still required. |
+| `querytable.view` | Apple Events | Candidate | Most legacy text/web properties are declared, but source classification and sanitized connection output are not yet round-tripped. |
+| `querytable.create-text` | Apple Events | Candidate | `TEXT;` construction is plausible; encoding, qualifier, delimiter, synchronous refresh, and local-file error behavior need a fixture. |
+| `querytable.create-web` | Apple Events | Candidate | `URL;` properties are declared, but unattended network completion and HTML selection/error behavior are unproven. |
+| `querytable.set-properties` | Apple Events | Candidate | Properties are declared; exact persistence and invalid-value behavior remain untested. |
+| `querytable.refresh` | Apple Events | Candidate | `refresh query table` returns a boolean, but source errors and synchronous completion need proof. |
+| `querytable.get-refresh-status` | Apple Events | Candidate | `refreshing` is declared; live background-refresh evidence is missing. |
+| `querytable.cancel-refresh` | Apple Events | Candidate | `cancel refresh` is declared; idle and active result DTO semantics are untested. |
+| `querytable.delete` | Apple Events | Candidate | Exact-name deletion and preservation of result cells/related objects need proof. |
+
+### Data Model, relationships, and DAX
+
+The installed dictionary has no `Model`, model-table, relationship, measure,
+DAX evaluate, DMV, or embedded ADO model surface. Stable Office.js through
+`ExcelApi 1.21` does not provide the Windows contract's Data Model CRUD and DAX
+execution APIs. Package inspection cannot truthfully report unsaved model state
+or execute DAX. Every action below is therefore gated as evidenced unsupported
+for the current native and Office.js tiers.
+
+| Action | Tier | Status | User impact / blocker |
+| --- | --- | --- | --- |
+| `datamodel.list-tables` | Evidenced unsupported | Blocked | No live model table collection. |
+| `datamodel.list-columns` | Evidenced unsupported | Blocked | No live model column collection. |
+| `datamodel.read-table` | Evidenced unsupported | Blocked | No complete live table/measure metadata route. |
+| `datamodel.read-info` | Evidenced unsupported | Blocked | Model counts and state cannot be guessed from package parts. |
+| `datamodel.read-connection` | Evidenced unsupported | Blocked | No credential-safe embedded model connection endpoint. |
+| `datamodel.list-measures` | Evidenced unsupported | Blocked | No measure collection or DAX formula access. |
+| `datamodel.read` | Evidenced unsupported | Blocked | No exact measure identity/formula endpoint. |
+| `datamodel.create-measure` | Evidenced unsupported | Blocked | No measure creation or format API. |
+| `datamodel.update-measure` | Evidenced unsupported | Blocked | No measure formula/description/format mutation API. |
+| `datamodel.delete-measure` | Evidenced unsupported | Blocked | No exact measure deletion API. |
+| `datamodel.delete-table` | Evidenced unsupported | Blocked | No exact model-table deletion API. |
+| `datamodel.rename-table` | Evidenced unsupported | Blocked | Renaming a query or worksheet table is not model-table parity. |
+| `datamodel.refresh` | Evidenced unsupported | Blocked | Broad workbook refresh cannot establish model completion or errors. |
+| `datamodel.evaluate` | Evidenced unsupported | Blocked | No DAX execution endpoint. |
+| `datamodel.execute-dmv` | Evidenced unsupported | Blocked | No embedded ADOMD/DMV endpoint. |
+| `datamodelrel.list-relationships` | Evidenced unsupported | Blocked | No relationship collection. |
+| `datamodelrel.read-relationship` | Evidenced unsupported | Blocked | No exact four-part relationship lookup. |
+| `datamodelrel.create-relationship` | Evidenced unsupported | Blocked | No relationship creation API. |
+| `datamodelrel.update-relationship` | Evidenced unsupported | Blocked | No active-state mutation API. |
+| `datamodelrel.delete-relationship` | Evidenced unsupported | Blocked | No exact relationship deletion API. |
+
+### What-if analysis
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `analysis.goal-seek` | Apple Events | **Enabled** | Excel 16.113.1 passed prompt-free CLI and MCP fixtures. Both returned `converged`, the approximate final formula value, and the changing value; the workbook was targeted by exact path and was not implicitly saved. |
+| `analysis.list-scenarios` | Apple Events | Candidate | Scenario elements/properties are declared, but value ordering, comment prefix, and protection metadata need a real fixture. |
+| `analysis.create-scenario` | Apple Events | Candidate | A scenario class exists, but construction, cell/value count validation, and protection flags are unproven. |
+| `analysis.update-scenario` | Apple Events | Candidate | `change scenario` is declared; exact value conversion and failure behavior are untested. |
+| `analysis.show-scenario` | Apple Events | Candidate | Applying stored values without invoking a dialog needs proof. |
+| `analysis.delete-scenario` | Apple Events | Candidate | Exact-name deletion and missing-name errors need proof. |
+| `analysis.create-scenario-summary` | Apple Events | Candidate | `create summary for scenarios` is declared; generated-sheet identity and PivotTable variant are untested. |
+| `analysis.create-data-table` | Apple Events | **Enabled** | Excel 16.113.1 passed prompt-free CLI and MCP fixtures for a one-variable table with exact `[1, 4, 9]` results. The same native command accepts the contract's optional row input, optional column input, or both; calls without either input remain rejected. |
+
+### Drawings, sparklines, slicers, and screenshots
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `drawing.list-objects` | Office.js add-in | Candidate | Office.js can enumerate shapes, but the optional bridge is not installed and Forms-control parity is incomplete. |
+| `drawing.get-object` | Office.js add-in | Candidate | Geometry/text/format/accessibility DTO parity needs the bridge and fixtures. |
+| `drawing.add-image` | Office.js add-in | Candidate | Base64 image insertion exists; local-file handling and exact dimensions need bridge validation. |
+| `drawing.add-shape` | Office.js add-in | Candidate | Shape creation exists; the contract's type mapping and formatting need validation. |
+| `drawing.add-text-box` | Office.js add-in | Candidate | Text shapes exist; exact font/fill/line semantics need validation. |
+| `drawing.add-connector` | Office.js add-in | Candidate | Connector coverage and endpoint semantics are incomplete. |
+| `drawing.add-form-control` | Office.js add-in | Blocked | Stable Office.js does not provide parity for the contract's safe worksheet Forms controls and bindings. |
+| `drawing.update-object` | Office.js add-in | Candidate | Common shape mutations exist; Forms bindings and all-or-error updates remain unproven. |
+| `drawing.delete-object` | Office.js add-in | Candidate | Exact identity and missing-object errors need bridge validation. |
+| `drawing.list-sparklines` | Office.js add-in | Candidate | Sparkline groups are available through Office.js; the optional bridge is not installed. |
+| `drawing.get-sparkline` | Office.js add-in | Candidate | Location/source/type/color DTO parity needs bridge validation. |
+| `drawing.add-sparkline` | Office.js add-in | Candidate | Creation exists; line/column/win-loss mapping and marker behavior need fixtures. |
+| `drawing.update-sparkline` | Office.js add-in | Candidate | Source/type/style mutation needs exact round-trip evidence. |
+| `drawing.delete-sparkline` | Office.js add-in | Candidate | Exact group deletion needs bridge validation. |
+| `slicer.create-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Slicer creation exists, but PivotTable-field identity and placement need the optional bridge. |
+| `slicer.list-slicers` | Office.js `ExcelApi 1.10` add-in | Candidate | Item/selection and PivotTable filtering DTOs need validation. |
+| `slicer.set-slicer-selection` | Office.js `ExcelApi 1.10` add-in | Candidate | `clearFirst` union semantics need real fixtures. |
+| `slicer.delete-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Exact slicer identity and missing-name behavior need validation. |
+| `slicer.create-table-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Table-column source and placement need bridge validation. |
+| `slicer.list-table-slicers` | Office.js `ExcelApi 1.10` add-in | Candidate | Table-only classification needs validation. |
+| `slicer.set-table-slicer-selection` | Office.js `ExcelApi 1.10` add-in | Candidate | Table filtering and `clearFirst` behavior need validation. |
+| `slicer.delete-table-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Exact table-slicer deletion needs validation. |
+| `screenshot.capture` | Optional native helper | Blocked | Apple Events only declares clipboard-based `copy picture`, which violates the no-clipboard live-window contract. A helper would require explicit Screen Recording permission and crop/stitch evidence. |
+| `screenshot.capture-sheet` | Optional native helper | Blocked | Same blocker; Office.js has no API that photographs the live Excel window with all visuals. |
+
+### XML maps and Python in Excel
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `xmlmap.list` | Evidenced unsupported | Blocked | Neither the installed dictionary nor stable Office.js exposes Excel XML maps. |
+| `xmlmap.add` | Evidenced unsupported | Blocked | Custom XML parts are not worksheet XML-map creation parity. |
+| `xmlmap.map-range` | Evidenced unsupported | Blocked | No XPath-to-cell mapping API. |
+| `xmlmap.import-xml` | Evidenced unsupported | Blocked | Generic XML parsing/package edits cannot invoke Excel's XML-map import semantics. |
+| `xmlmap.export-xml` | Evidenced unsupported | Blocked | No live mapped-cell export endpoint. |
+| `xmlmap.delete` | Evidenced unsupported | Blocked | No exact map deletion endpoint. |
+| `pythoninexcel.set-formula` | Apple Events | Candidate | Range `formula2` is declared, but licensed `PY()` availability, return type, immediate `#NAME?`, and cloud error behavior need a prompt-free account fixture. |
+| `pythoninexcel.get-result` | Apple Events | Candidate | The dictionary exposes `formula2` and values but no calculation-state endpoint proven equivalent to the Windows completion guard; returning `#BUSY!` would violate the contract. |
 
 Changing target frameworks or replacing COM activation alone is insufficient.
 
