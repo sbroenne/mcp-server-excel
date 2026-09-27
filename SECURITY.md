@@ -76,6 +76,15 @@ requests, and cancelled requests fail closed. Users or administrators must
 provide and trust the localhost certificate explicitly. Removal does not alter
 keychain trust that ExcelMcp did not create.
 
+macOS VBA capability checks read the effective Office macro and project-model
+preferences without changing them. A permissive preference is not treated as
+proof that a workbook or macro is trusted: macro execution stays disabled until
+a repository-owned fixture proves unattended CLI and MCP behavior. VBA source
+operations remain unavailable until the optional, explicitly installed helper
+has a verified project-model route under separate user-managed trust.
+Apple Events lacks that route, but this does not establish a VBA engine limit.
+ExcelMcp does not inject helper code into user workbooks.
+
 **Security Implications:**
 
 - If malware runs under your user account, it could theoretically connect to the CLI daemon and control Excel
@@ -228,8 +237,11 @@ We follow responsible disclosure practices:
   permission and owns exact workbooks inside shared desktop Excel
 - **No Prompt Automation**: ExcelMcp does not click permission or macro dialogs,
   change system privacy settings, or weaken macro security
-- **Macro Security**: Windows VBA operations require the user to manually enable
-  "Trust access to the VBA project object model"; VBA is capability-gated on macOS
+- **Macro Security**: Windows VBA source operations require the user to manually
+  enable "Trust access to the VBA project object model". On macOS, ExcelMcp only
+  reads the user-managed macro and project-model preferences; execution and
+  source operations remain capability-gated until their independent evidence
+  requirements are met.
 - **Office.js Capability Claims**: Requirement-set availability and installed
   Excel version are negotiated at runtime, but features remain gated until
   real-Excel contract tests establish support

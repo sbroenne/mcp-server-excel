@@ -7,11 +7,24 @@ macros keep working instead of being rewritten.
 This is something file-parser libraries cannot do at all: `.xlsm` macro code is
 only meaningful to Excel's VBA host.
 
+!!! note "Platform availability"
+    These commands currently run through the Windows COM backend. On macOS,
+    ExcelMcp checks the existing Office macro and VBA project-model preferences
+    without prompting or changing them, then returns an explicit capability
+    error. Macro execution remains gated until a repository-owned `.xlsm`
+    fixture proves unattended workbook-qualified execution through both CLI and
+    MCP. Source list/view/import/update/delete remain gated because Excel's
+    installed Apple Events dictionary exposes no VBA project-model route.
+
 ## One-time setup: enable VBA trust
 
 Excel blocks all programmatic access to the VBA project by default. **You must
 enable it manually** — ExcelMcp never changes this setting for you, because doing
 so silently would be a security problem.
+
+The setting enables source inspection and mutation; it is not required merely
+to invoke an already trusted macro. Macro execution is governed separately by
+Excel's macro security and per-workbook trust.
 
 1. Open Excel
 2. **File → Options → Trust Center → Trust Center Settings**
