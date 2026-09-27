@@ -31,13 +31,19 @@ test("health check rejects a partial response that aborts", async () => {
   const response = new EventEmitter();
   response.statusCode = 200;
   response.complete = false;
+  const destroyErrors = [];
   const requestFactory = (url, options, callback) => {
     const request = new EventEmitter();
-    request.destroy = (error) => request.emit("error", error);
+    request.destroy = (error) => {
+      request.destroyed = true;
+      destroyErrors.push(error);
+      request.emit("error", error);
+    };
     setImmediate(() => {
       callback(response);
       response.emit("data", Buffer.from('{"status":'));
       response.emit("aborted");
+      response.emit("close");
     });
     return request;
   };
@@ -51,4 +57,67 @@ test("health check rejects a partial response that aborts", async () => {
     /response was aborted/
   );
   assert.ok(Date.now() - startedAt < 500, "Partial response abort should fail before the deadline.");
+  assert.equal(destroyErrors.length, 1);
+  assert.match(destroyErrors[0].message, /response was aborted/);
+});
+
+test("health check destroys the request when the response emits an error", async () => {
+  const response = new EventEmitter();
+  response.statusCode = 200;
+  response.complete = false;
+  const destroyErrors = [];
+  const requestFactory = (url, options, callback) => {
+    const request = new EventEmitter();
+    request.destroy = (error) => {
+      request.destroyed = true;
+      destroyErrors.push(error);
+      request.emit("error", error);
+    };
+    setImmediate(() => {
+      callback(response);
+      response.emit("error", new Error("socket read failed"));
+      response.emit("close");
+    });
+    return request;
+  };
+
+  await assert.rejects(
+    requestBridgeHealth({
+      origin: "https://localhost:47132",
+      token: "token"
+    }, Buffer.from("certificate"), requestFactory, 1000),
+    /response failed: socket read failed/
+  );
+  assert.equal(destroyErrors.length, 1);
+  assert.match(destroyErrors[0].message, /response failed/);
+});
+
+test("health check destroys the request when the response closes incomplete", async () => {
+  const response = new EventEmitter();
+  response.statusCode = 200;
+  response.complete = false;
+  const destroyErrors = [];
+  const requestFactory = (url, options, callback) => {
+    const request = new EventEmitter();
+    request.destroy = (error) => {
+      request.destroyed = true;
+      destroyErrors.push(error);
+      request.emit("error", error);
+    };
+    setImmediate(() => {
+      callback(response);
+      response.emit("close");
+    });
+    return request;
+  };
+
+  await assert.rejects(
+    requestBridgeHealth({
+      origin: "https://localhost:47132",
+      token: "token"
+    }, Buffer.from("certificate"), requestFactory, 1000),
+    /response closed before completion/
+  );
+  assert.equal(destroyErrors.length, 1);
+  assert.match(destroyErrors[0].message, /response closed before completion/);
 });
