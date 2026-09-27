@@ -61,9 +61,10 @@ The first implementation increment now exists behind runtime platform selection:
   workbook. Timeout handling attempts workbook cleanup without killing Excel;
   complete invalidation and recovery guarantees still need hardening.
 - Implemented native bridge actions are session create/open/close, worksheet
-  create/list/rename/delete, range get/set values and formulas (including
-  existing JSON/CSV file transforms), number-format read/write, explicit
-  row/column sizing, clear operations, and calculation.
+  create/list/rename/delete, worksheet visibility and tab-color operations,
+  range get/set values and formulas (including existing JSON/CSV file
+  transforms), number-format read/write, explicit row/column sizing, clear
+  operations, and calculation.
 - Power Query `list`, `view`, and `get-load-config` are implemented for clean,
   saved workbooks using package inspection. Package-only `update` requires
   `refresh=false`; the contract default remains `refresh=true`, so Mac callers
@@ -213,6 +214,21 @@ Read-only inspection of the installed Excel 16.112.3 scripting dictionary found:
   declared. Legacy `QueryTable.sql` is not the query's M source.
 - `evaluate` (`smXL2435`) evaluates Excel names/formulas. It is not an exposed
   general VBA interpreter or a Power Query M evaluator.
+
+The next helper-free worksheet batch was evaluated against the same installed
+dictionary and synthetic real-Excel workbooks:
+
+| Existing action(s) | Declared Apple Events evidence | Real Excel evidence | Status |
+| --- | --- | --- | --- |
+| Worksheet style `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide` | Worksheet `visible` is a read/write `XlSheetVisibility` property with visible, hidden, and very-hidden enumerators | CLI and MCP exercised hidden, very hidden, explicit visible, and convenience show/hide transitions with exact result names | Implemented |
+| Worksheet style `set-tab-color`, `get-tab-color`, `clear-tab-color` | Worksheet `sheet tab` exposes read/write `color` and `color index`; `XlColorIndex` declares `none` | CLI and MCP round-tripped RGB `#112233`, cleared it, and observed `HasColor=false` | Implemented |
+| Worksheet `copy` | `copy worksheet` declares optional before/after sheet parameters | JXA renamed the existing destination rather than adding a sheet; typed AppleScript returned parameter errors or introduced an untitled workbook outside the owned session | Blocked; declared terminology did not prove contract parity |
+| Worksheet `move` | No move-worksheet command is declared | Not executed because no declared route exists and copy/delete is not an equivalent atomic move | Blocked |
+
+The failed copy probes did not authorize closing the untitled workbook or
+terminating shared Excel. Exact-path AppleScript lookup now skips workbooks
+whose `full name` cannot be represented, so unrelated unsaved workbooks do not
+break create/delete mutations for an owned workbook.
 
 The dictionary was read using `/usr/bin/sdef '/Applications/Microsoft Excel.app'`
 and XML inspection of command/class/property declarations. No workbook was
