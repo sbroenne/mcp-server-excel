@@ -650,6 +650,11 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (MacVbaHelperException ex)
         {
+            if (string.Equals(ex.Category, "RecoveryRequired", StringComparison.Ordinal)
+                || string.Equals(ex.Code, "rollback_failed", StringComparison.Ordinal))
+            {
+                await InvalidateMacSessionAsync(request.SessionId);
+            }
             return new ServiceResponse
             {
                 Success = false,
@@ -660,14 +665,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (TimeoutException ex)
         {
-            try
-            {
-                await _macSessionManager!.CloseAsync(request.SessionId, save: false);
-            }
-            catch
-            {
-                // Shared Excel is never killed; the logical session remains invalid after timeout.
-            }
+            await InvalidateMacSessionAsync(request.SessionId);
             return new ServiceResponse
             {
                 Success = false,
@@ -689,6 +687,19 @@ public sealed class ExcelMcpService : IDisposable
         catch (Exception ex)
         {
             return CreateErrorResponse(ex);
+        }
+    }
+
+    private async Task InvalidateMacSessionAsync(string sessionId)
+    {
+        _macSessionManager!.RequireRecovery(sessionId);
+        try
+        {
+            await _macSessionManager.CloseAsync(sessionId, save: false);
+        }
+        catch
+        {
+            // Shared Excel is never killed; recovery gating remains if exact close did not complete.
         }
     }
 

@@ -169,6 +169,46 @@ public sealed class MacPowerQueryServiceRoutingTests
     }
 
     [Fact]
+    public async Task DefaultCreateDispatchesAtomicWorksheetContract()
+    {
+        JsonObject? observedArguments = null;
+        var path = TempWorkbookPath();
+        using var service = new ExcelMcpService(
+            CreateBackend([]),
+            (workbookPath, timeout) =>
+                Task.FromResult(Capabilities(true, "powerquery.create")),
+            (workbookPath, action, arguments, timeout) =>
+            {
+                Assert.Equal("powerquery.create", action);
+                observedArguments = Assert.IsType<JsonObject>(arguments);
+                return Task.FromResult(JsonSerializer.SerializeToElement(new { }));
+            });
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.create",
+                SessionId = sessionId,
+                Args = """{"queryName":"Sales","mCode":"let Source = 1 in Source"}"""
+            });
+
+            Assert.True(response.Success, response.ErrorMessage);
+            Assert.NotNull(observedArguments);
+            Assert.Equal(
+                "load-to-table",
+                observedArguments["destination"]!.GetValue<string>());
+            Assert.Equal("Sales", observedArguments["sheetName"]!.GetValue<string>());
+            Assert.Equal("A1", observedArguments["cellAddress"]!.GetValue<string>());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task StructuredHelperFailurePreservesPublicErrorCategory()
     {
         var path = TempWorkbookPath();
@@ -234,6 +274,125 @@ public sealed class MacPowerQueryServiceRoutingTests
             Assert.Equal(1, helperCalls);
             Assert.DoesNotContain("workbook.state", backendCommands);
             Assert.DoesNotContain("session.close-if-saved", backendCommands);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task TimeoutWithWorkbookStillOpenRequiresRecovery()
+    {
+        var helperCalls = 0;
+        var path = TempWorkbookPath();
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            var command = AutomationCommandOrNull(start);
+            if (command == "session.close")
+            {
+                throw new TimeoutException("Close timed out.");
+            }
+            var output = command == "session.is-open"
+                ? """{"success":true,"errorMessage":"","open":true}"""
+                : """{"success":true,"errorMessage":""}""";
+            return Task.FromResult(new MacProcessResult(0, output, ""));
+        });
+        using var service = new ExcelMcpService(
+            backend,
+            (workbookPath, timeout) =>
+                Task.FromResult(Capabilities(true, "powerquery.rename")),
+            (workbookPath, action, arguments, timeout) =>
+            {
+                helperCalls++;
+                throw new TimeoutException("Helper mutation timed out.");
+            });
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var timeoutResponse = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.rename",
+                SessionId = sessionId,
+                Args = """{"oldName":"Sales","newName":"Revenue"}"""
+            });
+            var retryResponse = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.rename",
+                SessionId = sessionId,
+                Args = """{"oldName":"Sales","newName":"Revenue"}"""
+            });
+
+            Assert.False(timeoutResponse.Success);
+            Assert.Equal("Timeout", timeoutResponse.ErrorCategory);
+            Assert.False(retryResponse.Success);
+            Assert.Contains(
+                "requires manual recovery",
+                retryResponse.ErrorMessage,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(1, helperCalls);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task RollbackFailureWithWorkbookStillOpenRequiresRecovery()
+    {
+        var helperCalls = 0;
+        var path = TempWorkbookPath();
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            var command = AutomationCommandOrNull(start);
+            if (command == "session.close")
+            {
+                throw new TimeoutException("Close timed out.");
+            }
+            var output = command == "session.is-open"
+                ? """{"success":true,"errorMessage":"","open":true}"""
+                : """{"success":true,"errorMessage":""}""";
+            return Task.FromResult(new MacProcessResult(0, output, ""));
+        });
+        using var service = new ExcelMcpService(
+            backend,
+            (workbookPath, timeout) =>
+                Task.FromResult(Capabilities(true, "powerquery.update")),
+            (workbookPath, action, arguments, timeout) =>
+            {
+                helperCalls++;
+                throw new MacVbaHelperException(
+                    "RecoveryRequired",
+                    "rollback_failed",
+                    "The helper could not restore the original query state.");
+            });
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var failureResponse = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.update",
+                SessionId = sessionId,
+                Args = """{"queryName":"Sales","mCode":"let Source = 1 in Source"}"""
+            });
+            var retryResponse = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.update",
+                SessionId = sessionId,
+                Args = """{"queryName":"Sales","mCode":"let Source = 1 in Source"}"""
+            });
+
+            Assert.False(failureResponse.Success);
+            Assert.Equal("RecoveryRequired", failureResponse.ErrorCategory);
+            Assert.False(retryResponse.Success);
+            Assert.Contains(
+                "requires manual recovery",
+                retryResponse.ErrorMessage,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(1, helperCalls);
         }
         finally
         {

@@ -124,6 +124,32 @@ public sealed class MacPowerQueryHelperDispatcherTests
     }
 
     [Fact]
+    public async Task RefreshSuccessRejectsReportedQueryErrors()
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                queryName = "Sales",
+                hasErrors = true,
+                errorMessages = new List<string> { "Formula.Firewall" },
+                refreshTime = "2026-09-28T00:00:00Z",
+                isConnectionOnly = false
+            })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.refresh",
+            new JsonObject { ["name"] = "Sales" });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            dispatcher.DispatchAsync(
+                route,
+                "/tmp/exact.xlsx",
+                TimeSpan.FromSeconds(5),
+                "refresh",
+                Parse("""{"queryName":"Sales"}""")));
+    }
+
+    [Fact]
     public async Task EvaluateMapsOnlyPublicTabularResult()
     {
         var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
@@ -152,6 +178,31 @@ public sealed class MacPowerQueryHelperDispatcherTests
         Assert.Equal(1, result.GetProperty("rowCount").GetInt32());
         Assert.Equal(1, result.GetProperty("columnCount").GetInt32());
         Assert.False(result.TryGetProperty("temporaryQueryName", out _));
+    }
+
+    [Fact]
+    public async Task EvaluateRejectsInconsistentResultDimensions()
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                columns = new List<string> { "Value" },
+                rows = new List<List<object>> { new() { 42 } },
+                rowCount = 2,
+                columnCount = 1
+            })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.evaluate",
+            new JsonObject { ["formula"] = "let Source = 42 in Source" });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            dispatcher.DispatchAsync(
+                route,
+                "/tmp/exact.xlsx",
+                TimeSpan.FromSeconds(5),
+                "evaluate",
+                Parse("""{"mCode":"let Source = 42 in Source"}""")));
     }
 
     [Fact]

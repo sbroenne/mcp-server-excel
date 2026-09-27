@@ -143,7 +143,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         if (session.RequiresPackageRecovery)
         {
             throw new InvalidOperationException(
-                $"Session '{sessionId}' requires manual Power Query package recovery " +
+                $"Session '{sessionId}' requires manual recovery " +
                 "and cannot accept more operations.");
         }
 
@@ -163,6 +163,14 @@ internal sealed class MacExcelSessionManager : IDisposable
             Interlocked.Decrement(ref session.ActiveOperations);
             session.OperationLock.Release();
             session.CompleteOperation();
+        }
+    }
+
+    internal void RequireRecovery(string sessionId)
+    {
+        if (_sessions.TryGetValue(sessionId, out var session))
+        {
+            session.RequiresPackageRecovery = true;
         }
     }
 
