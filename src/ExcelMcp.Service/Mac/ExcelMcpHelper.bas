@@ -142,7 +142,8 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
     Err.Clear
     On Error GoTo 0
 
-    HelperCapabilities = "{" & _
+    Dim output As String
+    output = "{" & _
         """helperVersion"":" & JsonQuote(HELPER_VERSION) & "," & _
         """protocolVersion"":" & CStr(PROTOCOL_VERSION) & "," & _
         """staticAvailability"":{" & _
@@ -150,22 +151,22 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """queryTableApi"":true," & _
             """scenarioApi"":true," & _
             """vbProjectApi"":true," & _
-            """codeModuleApi"":true}," & _
-        """engineCapabilities"":{" & _
+            """codeModuleApi"":true},"
+    output = output & """engineCapabilities"":{" & _
             """xmlMapsApi"":null," & _
             """rangeXPathApi"":null," & _
             """workbookModelApi"":null," & _
-            """dataModelConnectionApi"":null}," & _
-        """supportedActions"":[" & _
+            """dataModelConnectionApi"":null},"
+    output = output & """supportedActions"":[" & _
             """helper.capabilities""," & _
             """powerquery.list"",""powerquery.view"",""powerquery.create""," & _
             """powerquery.update"",""powerquery.rename"",""powerquery.delete""," & _
             """analysis.create-scenario"",""analysis.show-scenario""," & _
-            """vba.list"",""vba.view"",""vba.import"",""vba.update"",""vba.delete""]," & _
-        """trustReadiness"":{" & _
+            """vba.list"",""vba.view"",""vba.import"",""vba.update"",""vba.delete""],"
+    output = output & """trustReadiness"":{" & _
             """powerQueryReadable"":" & JsonBoolean(queryReady) & "," & _
-            """vbaProjectReadable"":" & JsonBoolean(projectReady) & "}," & _
-        """provenMethods"":{" & _
+            """vbaProjectReadable"":" & JsonBoolean(projectReady) & "},"
+    output = output & """provenMethods"":{" & _
             """powerQueryList"":false," & _
             """powerQueryMutation"":false," & _
             """xmlXPathRead"":false," & _
@@ -173,6 +174,7 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """scenarioCreateShow"":false," & _
             """vbaListView"":false," & _
             """vbaMutation"":false}}"
+    HelperCapabilities = output
 End Function
 
 Private Function PowerQueryList(ByVal target As Workbook) As String
@@ -423,11 +425,17 @@ Private Function VbaImport( _
 ImportFailed:
     Dim failureNumber As Long
     Dim failureDescription As String
+    Dim cleanupNumber As Long
     failureNumber = Err.Number
     failureDescription = Err.Description
     On Error Resume Next
+    Err.Clear
     If Not component Is Nothing Then target.VBProject.VBComponents.Remove component
+    cleanupNumber = Err.Number
     On Error GoTo 0
+    If cleanupNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
     Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
 End Function
 
@@ -452,13 +460,23 @@ Private Function VbaUpdate( _
 UpdateFailed:
     Dim failureNumber As Long
     Dim failureDescription As String
+    Dim rollbackNumber As Long
     failureNumber = Err.Number
     failureDescription = Err.Description
     On Error Resume Next
+    Err.Clear
     lineCount = CLng(component.CodeModule.CountOfLines)
+    If Err.Number <> 0 Then rollbackNumber = Err.Number
+    Err.Clear
     If lineCount > 0 Then component.CodeModule.DeleteLines 1, lineCount
+    If Err.Number <> 0 And rollbackNumber = 0 Then rollbackNumber = Err.Number
+    Err.Clear
     If Len(previousSource) > 0 Then component.CodeModule.AddFromString previousSource
+    If Err.Number <> 0 And rollbackNumber = 0 Then rollbackNumber = Err.Number
     On Error GoTo 0
+    If rollbackNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
     Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
 End Function
 
@@ -970,6 +988,8 @@ Private Sub ClassifyError( _
             category = "Conflict"
         Case "signed_project", "locked_project", "helper_target_forbidden"
             category = "Permissions"
+        Case "rollback_failed"
+            category = "RecoveryRequired"
         Case "component_type", "invalid_request_id", "unsupported_version", _
              "unsupported_action", "invalid_properties", "duplicate_property", _
              "missing_property", "scenario_cell_count", "scenario_value_count", _
@@ -998,6 +1018,7 @@ Private Function SafeErrorMessage(ByVal code As String) As String
         Case "invalid_query_name": SafeErrorMessage = "The Power Query name must not be empty."
         Case "invalid_json": SafeErrorMessage = "The helper request contains invalid JSON."
         Case "helper_target_forbidden": SafeErrorMessage = "The helper add-in cannot be used as an operation target."
+        Case "rollback_failed": SafeErrorMessage = "The VBA project could not be restored after a failed mutation; close without saving."
         Case "signed_project": SafeErrorMessage = "The VBA project is signed and was not modified."
         Case "locked_project": SafeErrorMessage = "The VBA project is protected and was not modified."
         Case "component_type": SafeErrorMessage = "Only standard VBA modules can be updated or deleted."

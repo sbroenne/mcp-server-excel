@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Sbroenne.ExcelMcp.Service.Mac;
@@ -61,9 +62,12 @@ internal sealed class MacVbaHelperClient(MacExcelBackend backend)
         object arguments,
         TimeSpan timeout)
     {
+        var startedAt = Stopwatch.GetTimestamp();
         if (!string.Equals(action, "helper.capabilities", StringComparison.Ordinal))
         {
-            var capabilities = await GetCapabilitiesAsync(workbookFullName, timeout);
+            var capabilities = await GetCapabilitiesAsync(
+                workbookFullName,
+                RemainingTimeout(startedAt, timeout));
             var supported = capabilities.GetProperty("supportedActions")
                 .EnumerateArray()
                 .Any(item => string.Equals(item.GetString(), action, StringComparison.Ordinal));
@@ -76,7 +80,28 @@ internal sealed class MacVbaHelperClient(MacExcelBackend backend)
             }
         }
 
-        return await DispatchCoreAsync(workbookFullName, action, arguments, timeout);
+        return await DispatchCoreAsync(
+            workbookFullName,
+            action,
+            arguments,
+            RemainingTimeout(startedAt, timeout));
+    }
+
+    private static TimeSpan RemainingTimeout(long startedAt, TimeSpan timeout)
+    {
+        if (timeout == Timeout.InfiniteTimeSpan)
+        {
+            return timeout;
+        }
+
+        var remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
+        if (remaining <= TimeSpan.Zero)
+        {
+            throw new TimeoutException(
+                "The macOS VBA helper operation exceeded its shared capability-and-dispatch deadline. " +
+                "The workbook session is no longer safe to use.");
+        }
+        return remaining;
     }
 
     public async Task<JsonElement> GetCapabilitiesAsync(
