@@ -151,3 +151,53 @@ test("prevents session identifiers from being rebound to another workbook", () =
     workbookUrl: "file:///tmp/other.xlsx"
   }), /cannot be rebound/);
 });
+
+test("acknowledges late cancelled and expired results without stopping later work", () => {
+  let now = 100;
+  const state = new OfficeBridgeState(() => now);
+  activate(state);
+
+  const cancelled = state.createRequest({
+    sessionId: identity.sessionId,
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+  state.takeNext(identity);
+  state.cancel({ ...identity, requestId: cancelled.requestId });
+  const lateCancelled = state.complete({
+    ...identity,
+    requestId: cancelled.requestId,
+    success: true,
+    value: { late: true }
+  });
+  assert.equal(lateCancelled.status, "cancelled");
+  assert.equal(lateCancelled.lateResultIgnored, true);
+
+  const expired = state.createRequest({
+    sessionId: identity.sessionId,
+    action: "bridge.health",
+    timeoutMs: 10
+  });
+  state.takeNext(identity);
+  now = 111;
+  const lateExpired = state.complete({
+    ...identity,
+    requestId: expired.requestId,
+    success: true,
+    value: { late: true }
+  });
+  assert.equal(lateExpired.status, "expired");
+  assert.equal(lateExpired.lateResultIgnored, true);
+
+  const next = state.createRequest({
+    sessionId: identity.sessionId,
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+  assert.equal(state.takeNext(identity).requestId, next.requestId);
+  assert.equal(state.complete({
+    ...identity,
+    requestId: next.requestId,
+    success: true
+  }).status, "completed");
+});

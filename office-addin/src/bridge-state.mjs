@@ -142,8 +142,13 @@ export class OfficeBridgeState {
     const session = this.#requireBoundOfficeSession(input);
     const requestId = requireString(input.requestId, "requestId", 128);
     const request = this.#requests.get(requestId);
-    if (!request || request.sessionId !== session.sessionId
-        || session.activeRequestId !== requestId || request.status !== "active") {
+    if (!request || request.sessionId !== session.sessionId) {
+      throw new Error("Request correlation or workbook binding failed.");
+    }
+    if (request.status === "cancelled" || request.status === "expired") {
+      return { ...request, lateResultIgnored: true };
+    }
+    if (session.activeRequestId !== requestId || request.status !== "active") {
       throw new Error("Request correlation or workbook binding failed.");
     }
     request.status = input.success === true ? "completed" : "failed";

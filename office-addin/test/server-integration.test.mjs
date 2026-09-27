@@ -147,6 +147,14 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
     action: "bridge.health",
     timeoutMs: 1000
   });
+  await request(port, "POST", "/v1/office/next", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    instanceId: "instance-1"
+  });
   const cancelled = await request(port, "POST", "/v1/requests/cancel", headers, {
     sessionId: "session-1",
     workbookUrl: "file:///tmp/book.xlsx",
@@ -160,12 +168,64 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
   });
   assert.equal(observedCancellation.body.status, "cancelled");
 
+  const misboundLateResult = await request(port, "POST", "/v1/office/results", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/other.xlsx",
+    instanceId: "instance-1",
+    requestId: cancelling.body.requestId,
+    success: true
+  });
+  assert.equal(misboundLateResult.statusCode, 409);
+
+  const lateResult = await request(port, "POST", "/v1/office/results", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    instanceId: "instance-1",
+    requestId: cancelling.body.requestId,
+    success: true,
+    value: { late: true }
+  });
+  assert.equal(lateResult.statusCode, 200);
+  assert.equal(lateResult.body.lateResultIgnored, true);
+
+  const afterLate = await request(port, "POST", "/v1/requests", headers, {
+    sessionId: "session-1",
+    action: "bridge.health",
+    timeoutMs: 1000
+  });
+  const afterLateNext = await request(port, "POST", "/v1/office/next", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    instanceId: "instance-1"
+  });
+  assert.equal(afterLateNext.body.requestId, afterLate.body.requestId);
+  const afterLateCompleted = await request(port, "POST", "/v1/office/results", {
+    ...headers,
+    Origin: config.origin
+  }, {
+    sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
+    instanceId: "instance-1",
+    requestId: afterLate.body.requestId,
+    success: true
+  });
+  assert.equal(afterLateCompleted.body.status, "completed");
+
   const closed = await request(port, "POST", "/v1/sessions/close", headers, {
     sessionId: "session-1",
     workbookUrl: "file:///tmp/book.xlsx"
   });
   assert.equal(closed.statusCode, 200);
-  assert.equal(closed.body.removedRequests, 4);
+  assert.equal(closed.body.removedRequests, 5);
 
   const reopened = await request(port, "POST", "/v1/sessions", headers, {
     sessionId: "session-2",
