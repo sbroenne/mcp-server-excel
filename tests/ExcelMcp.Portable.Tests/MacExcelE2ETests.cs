@@ -32,6 +32,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     private static readonly int[][] SentinelValues = [[9876]];
     private static readonly int[][] UnsavedValues = [[999]];
     private static readonly string[][] SumFormula = [["=SUM(B2:B3)"]];
+    private static readonly string[] InitialSheetNames = ["Data", "Spare"];
 
     [MacExcelTheory]
     [InlineData("cli")]
@@ -46,6 +47,8 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         var directory = Directory.CreateTempSubdirectory("excelmcp-mac-e2e-");
         var workbookName = $"main with spaces-{Guid.NewGuid():N}.xlsx";
         var main = Path.Combine(directory.FullName, workbookName);
+        var created = Path.Combine(directory.FullName, $"created-{Guid.NewGuid():N}.XLSX");
+        var createdMacro = Path.Combine(directory.FullName, $"created-{Guid.NewGuid():N}.xlsm");
         var duplicateDirectory = Directory.CreateTempSubdirectory("excelmcp-mac-e2e-duplicate-");
         var duplicate = Path.Combine(duplicateDirectory.FullName, workbookName);
         var sentinel = Path.Combine(directory.FullName, $"sentinel-{Guid.NewGuid():N}.xlsx");
@@ -66,6 +69,55 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.False(duplicateName.GetProperty("success").GetBoolean());
             Assert.Contains("same name", duplicateName.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("ComInterop", duplicateName.GetProperty("errorCategory").GetString());
+
+            var sheets = Success(await client.CallAsync("sheet", "list", mainSession, new(), deadline.Token));
+            Assert.Equal(InitialSheetNames, sheets.GetProperty("worksheets").EnumerateArray()
+                .Select(sheet => sheet.GetProperty("name").GetString()!).ToArray());
+            Success(await client.CallAsync("sheet", "rename", mainSession,
+                new() { ["old_name"] = "Spare", ["new_name"] = "DeleteMe" }, deadline.Token));
+            Success(await client.CallAsync("sheet", "delete", mainSession,
+                new() { ["sheet_name"] = "DeleteMe" }, deadline.Token));
+            sheets = Success(await client.CallAsync("sheet", "list", mainSession, new(), deadline.Token));
+            Assert.Equal("Data", Assert.Single(sheets.GetProperty("worksheets").EnumerateArray()).GetProperty("name").GetString());
+            var unsupportedSheetCreate = await client.CallAsync("sheet", "create", mainSession,
+                new() { ["sheet_name"] = "NotCreated" }, deadline.Token);
+            Assert.False(unsupportedSheetCreate.GetProperty("success").GetBoolean());
+            Assert.Equal("PlatformNotSupported", unsupportedSheetCreate.GetProperty("errorCategory").GetString());
+            var unsupportedPowerQuery = await client.CallAsync("powerquery", "list", mainSession,
+                new(), deadline.Token);
+            Assert.False(unsupportedPowerQuery.GetProperty("success").GetBoolean());
+            Assert.Equal("PlatformNotSupported", unsupportedPowerQuery.GetProperty("errorCategory").GetString());
+
+            var createdSession = SessionId(await client.CallAsync("file", "create", null,
+                new() { ["path"] = created }, deadline.Token));
+            Success(await client.CallAsync("range", "set-values", createdSession,
+                RangeArgsOnSheet("Sheet1", "A1:B1", ("values", new object?[][] { ["keep", "clear"] })), deadline.Token));
+            Success(await client.CallAsync("range", "clear-formats", createdSession,
+                RangeArgsOnSheet("Sheet1", "A1"), deadline.Token));
+            var preserved = Success(await client.CallAsync("range", "get-values", createdSession,
+                RangeArgsOnSheet("Sheet1", "A1"), deadline.Token));
+            Assert.Equal("keep", preserved.GetProperty("values")[0][0].GetString());
+            Success(await client.CallAsync("range", "clear-contents", createdSession,
+                RangeArgsOnSheet("Sheet1", "B1"), deadline.Token));
+            Success(await client.CallAsync("range", "clear-all", createdSession,
+                RangeArgsOnSheet("Sheet1", "A1"), deadline.Token));
+            var cleared = Success(await client.CallAsync("range", "get-values", createdSession,
+                RangeArgsOnSheet("Sheet1", "A1:B1"), deadline.Token));
+            Assert.All(cleared.GetProperty("values").EnumerateArray().SelectMany(row => row.EnumerateArray()),
+                value => Assert.True(value.ValueKind is JsonValueKind.Null
+                    || value.ValueKind == JsonValueKind.String && string.IsNullOrEmpty(value.GetString())));
+            Success(await client.CallAsync("file", "close", createdSession, new(), deadline.Token));
+            Success(await client.CallAsync("file", "close", createdSession, new(), deadline.Token));
+
+            var macroSession = SessionId(await client.CallAsync("file", "create", null,
+                new() { ["path"] = createdMacro }, deadline.Token));
+            var unsupportedVba = await client.CallAsync("vba", "run", macroSession,
+                new() { ["procedure_name"] = "Module1.NotAvailable", ["timeout"] = 1 }, deadline.Token);
+            Assert.False(unsupportedVba.GetProperty("success").GetBoolean());
+            Assert.Equal("PlatformNotSupported", unsupportedVba.GetProperty("errorCategory").GetString());
+            Success(await client.CallAsync("file", "close", macroSession, new(), deadline.Token));
+
             var sentinelSession = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = sentinel }, deadline.Token));
             Success(await client.CallAsync("range", "set-values", sentinelSession,
@@ -123,6 +175,8 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             if (completed)
             {
                 File.Delete(main);
+                File.Delete(created);
+                File.Delete(createdMacro);
                 File.Delete(duplicate);
                 File.Delete(sentinel);
                 File.Delete(dataFile);
@@ -137,8 +191,14 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     }
 
     private static Dictionary<string, object?> RangeArgs(string address, params (string Key, object? Value)[] extras)
+        => RangeArgsOnSheet("Data", address, extras);
+
+    private static Dictionary<string, object?> RangeArgsOnSheet(
+        string sheetName,
+        string address,
+        params (string Key, object? Value)[] extras)
     {
-        var result = new Dictionary<string, object?> { ["sheet_name"] = "Data", ["range_address"] = address };
+        var result = new Dictionary<string, object?> { ["sheet_name"] = sheetName, ["range_address"] = address };
         foreach (var (key, value) in extras) { result.Add(key, value); }
         return result;
     }
@@ -175,11 +235,12 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     {
         var parts = new Dictionary<string, string>
         {
-            ["[Content_Types].xml"] = """<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>""",
+            ["[Content_Types].xml"] = """<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>""",
             ["_rels/.rels"] = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""",
-            ["xl/workbook.xml"] = """<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>""",
-            ["xl/_rels/workbook.xml.rels"] = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>""",
-            ["xl/worksheets/sheet1.xml"] = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>"""
+            ["xl/workbook.xml"] = """<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/><sheet name="Spare" sheetId="2" r:id="rId2"/></sheets></workbook>""",
+            ["xl/_rels/workbook.xml.rels"] = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>""",
+            ["xl/worksheets/sheet1.xml"] = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>""",
+            ["xl/worksheets/sheet2.xml"] = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>"""
         };
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
         foreach (var (name, content) in parts)
@@ -239,7 +300,8 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 args["action"] = action;
                 if (sessionId is not null) { args["session_id"] = sessionId; }
                 if (tool == "file" && action == "open") { args["timeout_seconds"] = 15; }
-                var result = await _mcp.CallToolAsync(tool, args, cancellationToken: cancellationToken);
+                var mcpTool = tool == "sheet" ? "worksheet" : tool;
+                var result = await _mcp.CallToolAsync(mcpTool, args, cancellationToken: cancellationToken);
                 json = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
             }
             else

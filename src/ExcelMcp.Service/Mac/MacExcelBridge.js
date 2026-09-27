@@ -75,13 +75,6 @@ function run(argv) {
             }
             return json({ success: true, errorMessage: "" });
         }
-        if (command === "session.create") {
-            const workbook = excel.Workbook().make();
-            const format = args.macroEnabled ? "macro enabled XML file format" : "Excel XML file format";
-            excel.saveWorkbookAs(workbook, { filename: args.filePath, fileFormat: format });
-            workbook.windows[0].visible = !!args.show;
-            return json({ success: true, errorMessage: "" });
-        }
         if (command === "session.open") {
             let workbook = null;
             for (let attempt = 0; attempt < 100 && !workbook; attempt++) {
@@ -111,19 +104,11 @@ function run(argv) {
             }
             return json({ success: true, filePath: args.filePath, worksheets: result });
         }
-        if (command === "sheet.create") {
-            requireSupported(command, []);
-        }
         if (command === "sheet.rename") {
             const sheet = worksheetByName(workbook, args.oldName);
             sheet.name = args.newName;
             return json({ success: true, filePath: args.filePath, oldName: args.oldName, newName: args.newName });
         }
-        if (command === "sheet.delete") {
-            worksheetByName(workbook, args.sheetName).delete();
-            return json({ success: true, filePath: args.filePath, sheetName: args.sheetName });
-        }
-
         if (command.startsWith("range.")) {
             const sheet = worksheetByName(workbook, args.sheetName);
             const range = sheet.ranges.byName(args.rangeAddress);
@@ -164,7 +149,7 @@ function run(argv) {
                 return json({ success: true, filePath: args.filePath, action: "set-formulas" });
             }
             if (command === "range.clear-all") {
-                range.clear();
+                range.clearRange();
                 return json({ success: true, filePath: args.filePath, action: "clear-all" });
             }
             if (command === "range.clear-contents") {
@@ -184,28 +169,6 @@ function run(argv) {
                 excel.calculate(workbook);
             }
             return json({ success: true, filePath: args.filePath, action: "calculate" });
-        }
-
-        if (command === "vba.run") {
-            const parameters = args.parameters || [];
-            if (parameters.length > 30) {
-                throw new Error("Excel supports at most 30 VBA procedure parameters.");
-            }
-            const options = {};
-            for (let index = 0; index < parameters.length; index++) {
-                options[`arg${index + 1}`] = parameters[index];
-            }
-            const workbookName = workbook.name().replace(/'/g, "''");
-            const qualifiedName = `'${workbookName}'!${args.procedureName}`;
-            const result = parameters.length === 0
-                ? excel.runVBMacro(qualifiedName)
-                : excel.runVBMacro(qualifiedName, options);
-            return json({
-                success: true,
-                filePath: args.filePath,
-                action: "run",
-                message: result === undefined ? "VBA procedure completed." : String(result)
-            });
         }
 
         requireSupported(command, []);

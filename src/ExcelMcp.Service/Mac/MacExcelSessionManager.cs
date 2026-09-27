@@ -6,6 +6,7 @@ internal sealed class MacExcelSessionManager : IDisposable
 {
     private readonly ConcurrentDictionary<string, MacExcelSession> _sessions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _paths = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Task<bool>> _closeTasks = new(StringComparer.Ordinal);
     private readonly MacExcelBackend _backend;
     private bool _disposed;
 
@@ -18,18 +19,22 @@ internal sealed class MacExcelSessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var normalizedPath = NormalizeAndClaim(filePath, out var sessionId);
+        var packageCreated = false;
         try
         {
-            await _backend.InvokeAsync(
-                "session.create",
-                new { filePath = normalizedPath, macroEnabled, show },
-                timeout);
+            MacWorkbookPackage.Create(normalizedPath, macroEnabled);
+            packageCreated = true;
+            await _backend.InvokeAsync("session.open", new { filePath = normalizedPath, show }, timeout);
             AddSession(sessionId, normalizedPath, timeout, show);
             return sessionId;
         }
         catch
         {
             _paths.TryRemove(normalizedPath, out _);
+            if (packageCreated)
+            {
+                File.Delete(normalizedPath);
+            }
             throw;
         }
     }
@@ -53,20 +58,30 @@ internal sealed class MacExcelSessionManager : IDisposable
 
     public async Task<bool> CloseAsync(string sessionId, bool save)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
             return false;
         }
 
-        await session.OperationLock.WaitAsync();
+        var closeTask = _closeTasks.GetOrAdd(
+            sessionId,
+            _ => CloseSessionAsync(sessionId, session, save));
         try
         {
-            if (Volatile.Read(ref session.ActiveOperations) != 0)
-            {
-                throw new InvalidOperationException(
-                    $"Session '{sessionId}' has active operations and cannot be closed.");
-            }
+            return await closeTask;
+        }
+        finally
+        {
+            _closeTasks.TryRemove(new KeyValuePair<string, Task<bool>>(sessionId, closeTask));
+        }
+    }
 
+    private async Task<bool> CloseSessionAsync(string sessionId, MacExcelSession session, bool save)
+    {
+        await session.BeginClose();
+        try
+        {
             await _backend.InvokeAsync(
                 "session.close",
                 new { filePath = session.FilePath, save },
@@ -76,12 +91,10 @@ internal sealed class MacExcelSessionManager : IDisposable
             session.OperationLock.Dispose();
             return true;
         }
-        finally
+        catch
         {
-            if (_sessions.ContainsKey(sessionId))
-            {
-                session.OperationLock.Release();
-            }
+            session.CancelClose();
+            throw;
         }
     }
 
@@ -89,9 +102,15 @@ internal sealed class MacExcelSessionManager : IDisposable
         string sessionId,
         Func<MacExcelSession, Task<T>> operation)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
             throw new KeyNotFoundException($"Session '{sessionId}' not found.");
+        }
+
+        if (!session.TryAdmitOperation())
+        {
+            throw new KeyNotFoundException($"Session '{sessionId}' is closing.");
         }
 
         await session.OperationLock.WaitAsync();
@@ -104,6 +123,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         {
             Interlocked.Decrement(ref session.ActiveOperations);
             session.OperationLock.Release();
+            session.CompleteOperation();
         }
     }
 
@@ -144,22 +164,42 @@ internal sealed class MacExcelSessionManager : IDisposable
         }
 
         _disposed = true;
-        foreach (var session in _sessions.Values)
+        foreach (var sessionId in _sessions.Keys)
         {
             try
             {
-                _backend.InvokeAsync(
-                    "session.close",
-                    new { filePath = session.FilePath, save = false },
-                    session.OperationTimeout).GetAwaiter().GetResult();
+                CloseForDisposeAsync(sessionId).GetAwaiter().GetResult();
             }
             catch
             {
                 // The process does not own shared Excel and must never kill it during disposal.
             }
-            session.OperationLock.Dispose();
         }
         _sessions.Clear();
         _paths.Clear();
+        _closeTasks.Clear();
+    }
+
+    private async Task CloseForDisposeAsync(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return;
+        }
+
+        await session.BeginClose();
+        try
+        {
+            await _backend.InvokeAsync(
+                "session.close",
+                new { filePath = session.FilePath, save = false },
+                session.OperationTimeout);
+        }
+        finally
+        {
+            _sessions.TryRemove(sessionId, out _);
+            _paths.TryRemove(session.FilePath, out _);
+            session.OperationLock.Dispose();
+        }
     }
 }

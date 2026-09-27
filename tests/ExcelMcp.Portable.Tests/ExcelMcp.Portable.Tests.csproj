@@ -23,6 +23,8 @@
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Service\ExcelMcp.Service.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj" />
-    <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj"
+                      ReferenceOutputAssembly="false"
+                      Condition="'$(OS)' != 'Windows_NT'" />
   </ItemGroup>
 </Project>

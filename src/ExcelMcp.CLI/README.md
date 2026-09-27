@@ -7,7 +7,7 @@
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+> **Primary distribution: Standalone executable** — Download the Windows `excelcli.exe` or macOS ARM64 `excelcli` archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
@@ -40,8 +40,8 @@ matching Windows runtime. CLI arguments follow the package name when using
 
 ### Primary Installation: Standalone Executable
 
-1. Download **`ExcelMcp-CLI-{version}-windows.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Extract `excelcli.exe` to a permanent location (e.g., `C:\Tools\ExcelMcp\`) and add the directory to your PATH
+1. Download **`ExcelMcp-CLI-{version}-windows.zip`** or **`ExcelMcp-CLI-{version}-macos-arm64.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Extract `excelcli.exe` (Windows) or `excelcli` (macOS) to a permanent location and add the directory to your PATH
 3. Verify: `excelcli --version` and `excelcli --help`
 
 ### Secondary Installation: .NET Global Tool
@@ -61,9 +61,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 What You Can Do
 
-ExcelMcp.CLI provides **326 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
+ExcelMcp.CLI provides **326 operations** across its feature categories through the complete Windows backend. The first macOS release supports session lifecycle, worksheet list/rename/delete, core range values/formulas/clears, and calculation; unsupported operations fail explicitly.
 
-Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
+It drives the **actual Excel application** via COM on Windows and Apple Events on macOS.
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Full documentation with all operations, grouped by category
 
@@ -71,9 +71,9 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 
 ## ⚙️ System Requirements
 
-- **Windows OS** (Windows 10/11 or Server 2016+) + **Microsoft Excel 2016 or later** — COM interop is Windows-specific and requires Excel to be installed
-- **Node.js 18+** only if using npm; Windows x64 and Arm64 (x64 emulation) are supported
-- **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for npm or the standalone exe)
+- **Windows:** Windows 10/11 or Server 2016+ with Microsoft Excel 2016 or later
+- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+- **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for the standalone exe)
 
 📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
 

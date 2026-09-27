@@ -250,7 +250,7 @@ jobs:
         $version = $env:VERSION
         New-Item -ItemType Directory -Path "cli-release" -Force
         Copy-Item "cli-publish/excelcli.exe" "cli-release/"
-        Copy-Item "README.md" "cli-release/"
+        Copy-Item "src/ExcelMcp.CLI/README.md" "cli-release/README.md"
         Copy-Item "LICENSE" "cli-release/"
         Compress-Archive -Path "cli-release/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
       shell: pwsh
@@ -272,6 +272,54 @@ jobs:
       with:
         name: cli-build
         path: cli-publish/
+
+  build-cli-macos:
+    name: CLI (macOS ARM64)
+    needs: [version]
+    runs-on: macos-14
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish CLI
+      run: |
+        dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj \
+          --configuration Release \
+          --framework net10.0 \
+          --runtime osx-arm64 \
+          --self-contained true \
+          -p:PublishSingleFile=true \
+          -p:IncludeNativeLibrariesForSelfExtract=true \
+          -p:PublishTrimmed=false \
+          -p:PublishReadyToRun=false \
+          -p:Version=${{ needs.version.outputs.version }} \
+          -p:AssemblyVersion=${{ needs.version.outputs.version }}.0 \
+          -p:FileVersion=${{ needs.version.outputs.version }}.0 \
+          -p:NuGetAudit=false \
+          --output ./cli-publish
+
+    - name: Create CLI ZIP
+      run: |
+        version="${{ needs.version.outputs.version }}"
+        mkdir -p cli-release
+        cp cli-publish/excelcli cli-release/
+        cp src/ExcelMcp.CLI/README.md cli-release/README.md
+        cp LICENSE cli-release/
+        chmod +x cli-release/excelcli
+        (cd cli-release && /usr/bin/zip -r "../ExcelMcp-CLI-$version-macos-arm64.zip" .)
+
+    - name: Upload CLI ZIP Artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: cli-zip-macos-arm64
+        path: ExcelMcp-CLI-*-macos-arm64.zip
 
   # =============================================================================
   # Job 2: Build MCP Server (standalone exe — primary + NuGet pack — secondary)
@@ -360,7 +408,7 @@ jobs:
         $version = $env:VERSION
         New-Item -ItemType Directory -Path "mcp-server-release" -Force
         Copy-Item "mcp-server-publish/mcp-excel.exe" "mcp-server-release/"
-        Copy-Item "README.md" "mcp-server-release/"
+        Copy-Item "src/ExcelMcp.McpServer/README.md" "mcp-server-release/README.md"
         Copy-Item "LICENSE" "mcp-server-release/"
         Compress-Archive -Path "mcp-server-release/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
@@ -397,11 +445,55 @@ jobs:
         name: mcp-server-nupkg
         path: nupkg/*.nupkg
 
-    - name: Upload npm Artifacts
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+  build-mcp-server-macos:
+    name: MCP Server (macOS ARM64)
+    needs: [version]
+    runs-on: macos-14
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
       with:
-        name: mcp-server-npm
-        path: npm-artifacts/*.tgz
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish MCP Server
+      run: |
+        dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj \
+          --configuration Release \
+          --framework net10.0 \
+          --runtime osx-arm64 \
+          --self-contained true \
+          -p:PublishSingleFile=true \
+          -p:IncludeNativeLibrariesForSelfExtract=true \
+          -p:PublishTrimmed=false \
+          -p:PublishReadyToRun=false \
+          -p:Version=${{ needs.version.outputs.version }} \
+          -p:AssemblyVersion=${{ needs.version.outputs.version }}.0 \
+          -p:FileVersion=${{ needs.version.outputs.version }}.0 \
+          -p:NuGetAudit=false \
+          --output ./mcp-server-publish
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+
+    - name: Create MCP Server ZIP
+      run: |
+        version="${{ needs.version.outputs.version }}"
+        mkdir -p mcp-server-release
+        cp mcp-server-publish/Sbroenne.ExcelMcp.McpServer mcp-server-release/mcp-excel
+        cp src/ExcelMcp.McpServer/README.md mcp-server-release/README.md
+        cp LICENSE mcp-server-release/
+        chmod +x mcp-server-release/mcp-excel
+        (cd mcp-server-release && /usr/bin/zip -r "../ExcelMcp-MCP-Server-$version-macos-arm64.zip" .)
+
+    - name: Upload MCP Server ZIP Artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: mcp-server-zip-macos-arm64
+        path: ExcelMcp-MCP-Server-*-macos-arm64.zip
 
   # =============================================================================
   # Job 3: Build and Publish VS Code Extension
@@ -675,7 +767,7 @@ jobs:
   # =============================================================================
   create-tag:
     name: Create Git Tag
-    needs: [version, prepare-release, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
+    needs: [version, prepare-release, build-cli, build-cli-macos, build-mcp-server, build-mcp-server-macos, build-vscode, build-mcpb, build-agent-skills]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1002,10 +1094,14 @@ jobs:
         $expectedArchives = @(
           "ExcelMcp-MCP-Server-${{ env.VERSION }}-windows.zip"
           "ExcelMcp-CLI-${{ env.VERSION }}-windows.zip"
+          "ExcelMcp-MCP-Server-${{ env.VERSION }}-macos-arm64.zip"
+          "ExcelMcp-CLI-${{ env.VERSION }}-macos-arm64.zip"
         )
         $archivePaths = @(
           Get-ChildItem -Path artifacts/mcp-server-zip -Filter *.zip -File
           Get-ChildItem -Path artifacts/cli-zip -Filter *.zip -File
+          Get-ChildItem -Path artifacts/mcp-server-zip-macos-arm64 -Filter *.zip -File
+          Get-ChildItem -Path artifacts/cli-zip-macos-arm64 -Filter *.zip -File
         )
 
         $actualNames = @($archivePaths | ForEach-Object Name)
@@ -1036,6 +1132,8 @@ jobs:
         ARTIFACTS=""
         for f in artifacts/mcp-server-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/mcp-server-zip-macos-arm64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/cli-zip-macos-arm64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done

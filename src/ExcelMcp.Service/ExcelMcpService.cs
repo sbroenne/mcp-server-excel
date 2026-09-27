@@ -34,6 +34,21 @@ namespace Sbroenne.ExcelMcp.Service;
 /// </summary>
 public sealed class ExcelMcpService : IDisposable
 {
+    private static readonly HashSet<string> MacSupportedCommands = new(StringComparer.Ordinal)
+    {
+        "sheet.list",
+        "sheet.rename",
+        "sheet.delete",
+        "range.get-values",
+        "range.set-values",
+        "range.get-formulas",
+        "range.set-formulas",
+        "range.clear-all",
+        "range.clear-contents",
+        "range.clear-formats",
+        "calculation.calculate"
+    };
+
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
@@ -197,6 +212,18 @@ public sealed class ExcelMcpService : IDisposable
 
             return AttachRequestContext(request, response);
         }
+        catch (MacExcelOperationException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.ErrorCategory,
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name,
+                Command = request.Command,
+                SessionId = request.SessionId
+            };
+        }
         catch (Exception ex)
         {
             // Include type name so callers can distinguish exception kinds (GitHub #482, Bug 5)
@@ -265,7 +292,7 @@ public sealed class ExcelMcpService : IDisposable
                 filePath = session.FilePath,
                 isExcelVisible = session.IsVisible,
                 activeOperations = Volatile.Read(ref session.ActiveOperations),
-                canClose = Volatile.Read(ref session.ActiveOperations) == 0
+                canClose = session.PendingOperations == 0 && !session.IsClosing
             }).ToList();
             return new ServiceResponse
             {
@@ -295,14 +322,26 @@ public sealed class ExcelMcpService : IDisposable
 
             var closeArgs = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
             var closed = await _macSessionManager!.CloseAsync(request.SessionId, closeArgs?.Save ?? false);
-            return closed
-                ? new ServiceResponse { Success = true }
-                : new ServiceResponse
+            if (closed)
+            {
+                return new ServiceResponse { Success = true };
+            }
+            if (_knownSessionIds.ContainsKey(request.SessionId))
+            {
+                return new ServiceResponse
                 {
-                    Success = false,
-                    ErrorCategory = "SessionNotFound",
-                    ErrorMessage = $"Session '{request.SessionId}' not found"
+                    Success = true,
+                    Result = JsonSerializer.Serialize(
+                        new { success = true, sessionId = request.SessionId, message = "Session already closed." },
+                        ServiceProtocol.JsonOptions)
                 };
+            }
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "SessionNotFound",
+                ErrorMessage = $"Session '{request.SessionId}' not found"
+            };
         }
 
         var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
@@ -336,7 +375,8 @@ public sealed class ExcelMcpService : IDisposable
         }
 
         var extension = Path.GetExtension(fullPath);
-        if (extension is not (".xlsx" or ".xlsm"))
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"Invalid file extension '{extension}'. session {action} supports .xlsx and .xlsm only.");
@@ -379,15 +419,15 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        var supportedCategory = category is "sheet" or "range" or "calculation" or "powerquery" or "vba";
-        if (!supportedCategory)
+        var command = $"{category}.{action}";
+        if (!MacSupportedCommands.Contains(command))
         {
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "PlatformNotSupported",
                 ErrorMessage =
-                    $"Command category '{category}' is not yet supported by the macOS Excel backend. " +
+                    $"Command '{command}' is not yet supported by the macOS Excel backend. " +
                     "It remains available on Windows."
             };
         }
@@ -402,7 +442,7 @@ public sealed class ExcelMcpService : IDisposable
                 arguments["filePath"] = session.FilePath;
                 ResolveMacFileArguments(category, action, arguments);
                 var result = await _macBackend!.InvokeAsync(
-                    $"{category}.{action}",
+                    command,
                     arguments,
                     session.OperationTimeout);
                 return new ServiceResponse
