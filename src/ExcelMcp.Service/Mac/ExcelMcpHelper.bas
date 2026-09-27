@@ -679,8 +679,21 @@ End Function
 Private Function JsonRequiredLong(ByVal json As String, ByVal propertyName As String) As Long
     Dim raw As String
     raw = JsonRequiredRaw(json, propertyName)
-    If Not IsNumeric(raw) Then Err.Raise vbObjectError + 7032
+    If Not IsJsonUnsignedLong(raw) Then Err.Raise vbObjectError + 7032
     JsonRequiredLong = CLng(raw)
+End Function
+
+Private Function IsJsonUnsignedLong(ByVal value As String) As Boolean
+    If Len(value) = 0 Or Len(value) > 10 Then Exit Function
+    If Len(value) > 1 And Left$(value, 1) = "0" Then Exit Function
+    Dim index As Long
+    For index = 1 To Len(value)
+        Dim character As String
+        character = Mid$(value, index, 1)
+        If character < "0" Or character > "9" Then Exit Function
+    Next index
+    If Len(value) = 10 And StrComp(value, "2147483647", vbBinaryCompare) > 0 Then Exit Function
+    IsJsonUnsignedLong = True
 End Function
 
 Private Function JsonRequiredBoolean(ByVal json As String, ByVal propertyName As String) As Boolean
