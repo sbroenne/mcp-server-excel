@@ -71,7 +71,14 @@ preferences without changing them. A permissive preference is not treated as
 proof that a workbook or macro is trusted: macro execution stays disabled until
 a repository-owned fixture proves unattended CLI and MCP behavior. VBA source
 operations remain unavailable because Excel's Apple Events dictionary has no
-project-model route; ExcelMcp does not inject helper code into user workbooks.
+project-model route. The Mac distribution may include reviewable source for an
+optional, version-matched `ExcelMcpHelper.xlam` dispatcher that the user imports
+into a new add-in with Excel. ExcelMcp does not install it, inject code into
+user workbooks, change trust, or dynamically select VBA to execute. The helper
+accepts only a fixed action allowlist, exact configured add-in and target
+workbook identities, correlated bounded JSON, and sanitized errors. Installing
+it is not proof that any method is safe; public actions remain independently
+gated until real CLI and MCP evidence exists.
 
 **Security Implications:**
 

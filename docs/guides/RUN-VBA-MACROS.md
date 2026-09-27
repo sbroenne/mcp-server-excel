@@ -13,8 +13,41 @@ only meaningful to Excel's VBA host.
     without prompting or changing them, then returns an explicit capability
     error. Macro execution remains gated until a repository-owned `.xlsm`
     fixture proves unattended workbook-qualified execution through both CLI and
-    MCP. Source list/view/import/update/delete remain gated because Excel's
-    installed Apple Events dictionary exposes no VBA project-model route.
+    MCP. The Mac distribution includes reviewable source for an optional,
+    versioned helper add-in, but source list/view/import/update/delete remain
+    gated until that helper passes real CLI and MCP evidence with user-managed
+    project-model trust.
+
+## Optional macOS helper setup (preview)
+
+The packaged `helpers/ExcelMcpHelper.bas` is repository-owned source for a fixed,
+allowlisted dispatcher. It is not installed automatically, and ExcelMcp never
+imports it into a user workbook or changes either VBA security setting.
+
+To prepare the helper for later capability probes:
+
+1. Review `helpers/ExcelMcpHelper.bas` from the same ExcelMcp build you installed.
+2. In Excel for Mac, create a new blank workbook and open the Visual Basic
+   Editor.
+3. Import the reviewed `.bas` file as a standard module.
+4. In Excel, save that new workbook as an Excel add-in named exactly
+   `ExcelMcpHelper.xlam`. Do not manufacture or replace `vbaProject.bin`.
+5. Enable that exact add-in through Excel's add-in manager.
+6. Set `EXCELMCP_MAC_VBA_HELPER_PATH` for the process that starts ExcelMcp to
+   the add-in's exact absolute path.
+
+The configured file name, open add-in `FullName`, helper version, protocol
+version, request correlation, target workbook `FullName`, action, and argument
+shape are all checked before a helper operation. Requests and responses are
+bounded to 262,144 UTF-8 bytes and the dispatcher has no arbitrary evaluation
+action. Installation alone does not enable a command: production actions stay
+gated until their individual methods have real-Excel evidence.
+
+Macro execution and VBA project access are separate settings. Do not enable all
+macros globally to install the helper. Enable only the trust your reviewed
+workflow requires. To remove the helper, disable it in Excel's add-in manager,
+close only that exact add-in if it is open, delete the `.xlam` if desired, and
+remove `EXCELMCP_MAC_VBA_HELPER_PATH`.
 
 ## One-time setup: enable VBA trust
 
@@ -26,11 +59,9 @@ The setting enables source inspection and mutation; it is not required merely
 to invoke an already trusted macro. Macro execution is governed separately by
 Excel's macro security and per-workbook trust.
 
-1. Open Excel
-2. **File → Options → Trust Center → Trust Center Settings**
-3. **Macro Settings**
-4. Tick **Trust access to the VBA project object model**
-5. Click OK, then restart Excel
+On Windows, use **File → Options → Trust Center → Trust Center Settings →
+Macro Settings**. On Mac, use Excel's corresponding **Security** preferences.
+Enable **Trust access to the VBA project object model**, then restart Excel.
 
 Without it, every VBA operation fails with an access error. This is a per-machine,
 per-Office-install setting, so remote and CI machines need it too.
