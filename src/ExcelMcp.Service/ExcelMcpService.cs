@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -41,6 +42,8 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
+    private readonly MacPowerQueryHelperDispatcher? _macPowerQueryHelperDispatcher;
+    private readonly Func<string, TimeSpan, Task<JsonElement>>? _getMacHelperCapabilities;
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Task, byte> _activeConnectionTasks = new();
     private readonly CancellationTokenSource _shutdownCts = new();
@@ -78,11 +81,26 @@ public sealed class ExcelMcpService : IDisposable
     public ExcelMcpService()
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _macPowerQueryHelperDispatcher = null;
+        _getMacHelperCapabilities = null;
         if (OperatingSystem.IsMacOS())
         {
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
         }
+    }
+
+    internal ExcelMcpService(
+        MacExcelBackend macBackend,
+        Func<string, TimeSpan, Task<JsonElement>> getMacHelperCapabilities,
+        MacPowerQueryHelperDispatch macPowerQueryHelperDispatch)
+    {
+        _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _macBackend = macBackend;
+        _macSessionManager = new MacExcelSessionManager(macBackend);
+        _getMacHelperCapabilities = getMacHelperCapabilities;
+        _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
+            macPowerQueryHelperDispatch);
     }
 
     public DateTime StartTime => _startTime;
@@ -662,20 +680,43 @@ public sealed class ExcelMcpService : IDisposable
             ? new JsonObject()
             : JsonNode.Parse(request.Args)?.AsObject()
                 ?? throw new ArgumentException($"Power Query {action} arguments must be an object.");
+        NormalizeMacPowerQueryArguments(action, arguments);
         var route = MacPowerQueryRouteSelector.Select(
             action,
             arguments,
             new HashSet<string>(StringComparer.Ordinal));
+        if (route.Kind == MacPowerQueryRouteKind.Unsupported
+            && _macPowerQueryHelperDispatcher is not null
+            && _getMacHelperCapabilities is not null)
+        {
+            var capabilities = await _getMacHelperCapabilities(
+                session.FilePath,
+                session.OperationTimeout);
+            route = MacPowerQueryRouteSelector.Select(
+                action,
+                arguments,
+                MacPowerQueryHelperCapabilities.Parse(capabilities));
+        }
         if (route.Kind == MacPowerQueryRouteKind.Unsupported)
         {
             throw UnsupportedMacPowerQueryVariant(
                 $"powerquery.{action}",
                 route.UnavailableReason ?? "the selected helper method is unavailable");
         }
+        await FormatMacPowerQueryMCodeAsync(action, arguments, route);
         if (route.Kind == MacPowerQueryRouteKind.Helper)
         {
-            throw new InvalidOperationException(
-                "A helper route was selected without a configured helper dispatcher.");
+            var result = await _macPowerQueryHelperDispatcher!.DispatchAsync(
+                route,
+                session.FilePath,
+                GetMacPowerQueryTimeout(action, arguments, session.OperationTimeout),
+                action,
+                arguments);
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = result.GetRawText()
+            };
         }
 
         var state = await _macBackend!.InvokeAsync(
@@ -761,18 +802,7 @@ public sealed class ExcelMcpService : IDisposable
 
         if (action == "update")
         {
-            var mCode = ParameterTransforms.ResolveFileOrValue(
-                arguments["mCode"]?.GetValue<string>(),
-                arguments["mCodeFile"]?.GetValue<string>(),
-                "mCode");
-            if (string.IsNullOrWhiteSpace(mCode))
-            {
-                throw new ArgumentException("M code cannot be empty.");
-            }
-            if (arguments["formatMCode"]?.GetValue<bool>() == true)
-            {
-                mCode = await MCodeFormatter.FormatAsync(mCode);
-            }
+            var mCode = arguments["mCode"]!.GetValue<string>();
             var refresh = arguments["refresh"]?.GetValue<bool>() ?? true;
             if (refresh)
             {
@@ -824,6 +854,67 @@ public sealed class ExcelMcpService : IDisposable
             IsConnectionOnly = info.IsConnectionOnly
         };
         return SerializeMacResult(view);
+    }
+
+    private static void NormalizeMacPowerQueryArguments(
+        string action,
+        JsonObject arguments)
+    {
+        if (action is not ("create" or "update" or "evaluate"))
+        {
+            return;
+        }
+
+        var mCode = ParameterTransforms.ResolveFileOrValue(
+            arguments["mCode"]?.GetValue<string>(),
+            arguments["mCodeFile"]?.GetValue<string>(),
+            "mCode");
+        if (string.IsNullOrWhiteSpace(mCode))
+        {
+            throw new ArgumentException(
+                action == "evaluate"
+                    ? "M code is required for evaluate action."
+                    : "M code cannot be empty.");
+        }
+        arguments["mCode"] = mCode;
+        arguments.Remove("mCodeFile");
+    }
+
+    private static async Task FormatMacPowerQueryMCodeAsync(
+        string action,
+        JsonObject arguments,
+        MacPowerQueryRoute route)
+    {
+        if (action is not ("create" or "update")
+            || arguments["formatMCode"]?.GetValue<bool>() != true)
+        {
+            return;
+        }
+
+        var formattedMCode = await MCodeFormatter.FormatAsync(
+            arguments["mCode"]!.GetValue<string>());
+        arguments["mCode"] = formattedMCode;
+        if (route.Kind == MacPowerQueryRouteKind.Helper)
+        {
+            route.HelperArguments!["formula"] = formattedMCode;
+        }
+    }
+
+    private static TimeSpan GetMacPowerQueryTimeout(
+        string action,
+        JsonObject arguments,
+        TimeSpan sessionTimeout)
+    {
+        if (action is "refresh" or "refresh-all")
+        {
+            var seconds = arguments["timeout"]?.GetValue<double>() ?? 0;
+            return seconds > 0
+                ? TimeSpan.FromSeconds(seconds)
+                : ComInteropConstants.DataOperationTimeout;
+        }
+        return action is "create" or "load-to" or "evaluate"
+            ? ComInteropConstants.DataOperationTimeout
+            : sessionTimeout;
     }
 
     private static MacExcelOperationException UnsupportedMacPowerQueryVariant(
