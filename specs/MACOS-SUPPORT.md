@@ -75,6 +75,12 @@ The first implementation increment now exists behind runtime platform selection:
 - Other production Mac Power Query actions and VBA source CRUD return an
   explicit capability-tier failure. They are not reported as success and no
   unvalidated rewrite is substituted.
+- Every macOS VBA request now performs a bounded, non-prompting read of the
+  effective Office macro preferences before dispatch. The result distinguishes
+  macros disabled, per-workbook approval required, unattended execution
+  configured, and indeterminate state. Source operations separately report
+  whether user-managed VBA project-model trust is enabled. ExcelMcp never
+  writes either preference.
 - Existing-file open uses a non-prompting native Automation preflight, rejects
   an already-open target, hands the exact path to LaunchServices, then attaches
   through JXA under a shared deadline.
@@ -97,6 +103,13 @@ object model. The approved design now permits gradual, optional helpers:
 Office.js for broad workbook features, a macro helper for execution, and a VBA
 project-model tier only after explicit user trust. Base macOS support must not
 require macros or VBA project trust.
+
+`vba.run` also remains gated. The installed dictionary's `run VB Macro` command
+is a candidate workbook-qualified execution route, but no independently
+authored repository fixture currently proves prompt-free execution through both
+CLI and MCP. A preference value of `EnabledWithoutWarnings` is necessary
+evidence, not sufficient proof that a workbook is safe or that a named
+procedure executed. ExcelMcp does not dispatch a probe macro as a preflight.
 
 ## Required parity and priorities
 
@@ -636,6 +649,14 @@ tests for parsing/dispatch. This macOS release does not change that policy.
 The ordinary-file LaunchServices path eliminated prompts for the tested
 non-macro workflows. Macro-enabled files still displayed Excel's macro warning
 on every open, including the same exact file after a prior explicit enable.
+
+The macro/VBA preflight reads `VisualBasicEntirelyDisabled`,
+`VisualBasicMacroExecutionState`, and `VBAObjectModelIsTrusted` from the
+documented `com.microsoft.office` preference domain with `/usr/bin/defaults`.
+It does not write defaults, request consent, launch UI, execute VBA, or infer
+project mutation from package parsing. Missing macro-execution state is treated
+as the documented `DisabledWithWarnings` default; unknown future values fail
+closed.
 
 For production, distinguish two file workflows:
 
