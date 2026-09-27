@@ -7,7 +7,7 @@
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Primary distribution: Standalone executable** — Download the Windows `excelcli.exe` or macOS ARM64 `excelcli` archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+> **Primary distribution: npm or standalone executable** — On Windows, run `npx -y @sbroenne/excelcli --help`; on Windows or Apple Silicon macOS, download the platform-native archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
@@ -24,6 +24,19 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 ---
 
 ## 🚀 Quick Start
+
+### Primary Installation: npm
+
+```powershell
+npx -y @sbroenne/excelcli --help
+# Or install the command on your PATH:
+npm install --global @sbroenne/excelcli
+excelcli --version
+```
+
+Requires Node.js 18+. Keep optional dependencies enabled so npm installs the
+matching Windows runtime. CLI arguments follow the package name when using
+`npx`, for example `npx -y @sbroenne/excelcli -q session list`.
 
 ### Primary Installation: Standalone Executable
 
@@ -60,7 +73,8 @@ It drives the **actual Excel application** via COM on Windows and Apple Events o
 
 - **Windows:** Windows 10/11 or Server 2016+ with Microsoft Excel 2016 or later
 - **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
-- **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for the standalone exe)
+- **Node.js 18+** only if using npm; the npm runtime currently supports Windows x64 and Arm64 through x64 emulation
+- **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for npm or the standalone exe)
 
 📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
 
@@ -68,6 +82,7 @@ It drives the **actual Excel application** via COM on Windows and Apple Events o
 
 ## 📖 Complete Documentation
 
+- **[npm Package](https://www.npmjs.com/package/@sbroenne/excelcli)** - Self-contained CLI through npm (primary)
 - **[GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - Download latest standalone exe (primary)
 - **[NuGet Package](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)** - .NET Global Tool (secondary)
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code and issues
