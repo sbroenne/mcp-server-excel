@@ -166,9 +166,37 @@ public sealed class MacVbaHelperProtocolTests
         Assert.Contains("scenarioCreateShow", source);
         Assert.Contains("engineCapabilities", source);
         Assert.Contains("helper_target_forbidden", source);
+        Assert.Contains("If cleanupNumber <> 0 Then", source);
+        Assert.Contains("If rollbackNumber <> 0 Then", source);
+        Assert.Contains(@"""rollback_failed""", source);
         Assert.DoesNotContain("Application.Evaluate", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ExecuteGlobal", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("VBComponents.Import", source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EmbeddedHelper_RespectsVbaStatementContinuationLimit()
+    {
+        using var stream = typeof(MacVbaHelperProtocol).Assembly.GetManifestResourceStream(
+            "Sbroenne.ExcelMcp.Service.Mac.ExcelMcpHelper.bas");
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream!);
+        var lines = reader.ReadToEnd().ReplaceLineEndings("\n").Split('\n');
+        var continuations = 0;
+        foreach (var line in lines)
+        {
+            if (line.TrimEnd().EndsWith(" _", StringComparison.Ordinal))
+            {
+                continuations++;
+                Assert.True(
+                    continuations <= 24,
+                    $"VBA statement ending near '{line.Trim()}' exceeds 24 continuations.");
+            }
+            else
+            {
+                continuations = 0;
+            }
+        }
     }
 
     [Fact]
