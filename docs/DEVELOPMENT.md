@@ -118,6 +118,21 @@ ExcelMcp tests behavior through real desktop Excel. Windows COM integration
 tests and macOS Apple Events E2E tests remain separate because neither can
 substitute for the other.
 
+The optional Office.js bridge has Excel-independent protocol, authentication,
+identity, timeout, and lifecycle tests under `office-addin/test`. Run:
+
+```bash
+cd office-addin
+npm run check
+npm test
+```
+
+These checks do not establish Excel behavior. A feature action may be enabled
+only after a prompt-free real Excel workflow proves its public CLI and MCP
+contracts. Add-in sideload activation and localhost certificate trust remain
+user-mediated; do not automate dialogs or weaken localhost, macro, or VBA
+security to make a smoke test pass.
+
 ```
 tests/
 ├── ExcelMcp.Core.Tests/

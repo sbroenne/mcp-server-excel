@@ -36,6 +36,9 @@ ExcelMcp includes several security measures:
 - **Resource Cleanup**: Controlled COM cleanup on Windows and exact-workbook
   ownership on macOS
 - **No Remote Connections**: Only local Excel automation supported
+- **Optional Office.js tier**: Binds only to authenticated localhost HTTPS,
+  validates browser origin and loopback host, bounds JSON payloads, and binds
+  requests to an exact workbook/session/task-pane instance
 
 ### ExcelMcp Service Security
 
@@ -65,6 +68,13 @@ commands and the daemon:
 permission and dispatch occur in the same bounded executable child because
 Automation authorization is sender-specific. ExcelMcp does not automate System
 Settings, weaken macro security, or click Excel warnings.
+
+The optional macOS Office.js bridge is not required by either entry point.
+Its per-user token and copied private key are mode `0600`; protocol mismatches,
+inactive add-ins, identity mismatches, unsupported requirement sets, expired
+requests, and cancelled requests fail closed. Users or administrators must
+provide and trust the localhost certificate explicitly. Removal does not alter
+keychain trust that ExcelMcp did not create.
 
 **Security Implications:**
 
@@ -220,6 +230,9 @@ We follow responsible disclosure practices:
   change system privacy settings, or weaken macro security
 - **Macro Security**: Windows VBA operations require the user to manually enable
   "Trust access to the VBA project object model"; VBA is capability-gated on macOS
+- **Office.js Capability Claims**: Requirement-set availability and installed
+  Excel version are negotiated at runtime, but features remain gated until
+  real-Excel contract tests establish support
 
 ### File System Access
 

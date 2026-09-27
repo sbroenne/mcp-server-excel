@@ -75,6 +75,36 @@ jobs:
         working-directory: gh-pages
         run: python check_deploy_paths.py
 
+  officejs-bridge:
+    name: Office.js Bridge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: office-addin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: office-addin
+        run: npm ci --ignore-scripts
+
+      - name: Check JavaScript
+        working-directory: office-addin
+        run: npm run check
+
+      - name: Test protocol and lifecycle
+        working-directory: office-addin
+        run: npm test
+
+      - name: Verify package contents
+        working-directory: office-addin
+        run: npm pack --dry-run
+
   ci-gate:
     name: CI Gate
     runs-on: windows-latest
