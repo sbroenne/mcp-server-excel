@@ -11,7 +11,9 @@ Disabled internal `ExcelApiDesktop 1.1` handlers can prepare exact range and
 window screen geometry and restore the prior workbook view with an opaque
 single-use token. They do not identify the macOS process or ScreenCaptureKit
 window and remain unavailable until native identity and coordinate mapping are
-proved in real Excel.
+proved in real Excel. Geometry preparation is fail-closed for ranges that do
+not fit in one contained window rectangle; it does not approximate the Windows
+tiling planner.
 
 The bridge binds only to `127.0.0.1`, requires HTTPS, authenticates every API
 request, validates task-pane origins, binds sessions to exact workbook URLs,

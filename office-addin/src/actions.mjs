@@ -120,10 +120,29 @@ async function prepareRangeGeometry(context, payload, request) {
 
 async function prepareSheetGeometry(context, payload, request) {
   const sheet = getWorksheet(context, payload.sheetName);
-  return prepareGeometry(context, sheet, sheet.getUsedRange(), request);
+  const usedRange = sheet.getUsedRange();
+  usedRange.load("rowIndex,columnIndex,rowCount,columnCount");
+  await context.sync();
+  const rowCount = Math.min(usedRange.rowCount, 500);
+  const columnCount = Math.min(usedRange.columnCount, 50);
+  const truncated = rowCount !== usedRange.rowCount || columnCount !== usedRange.columnCount;
+  const range = truncated
+    ? sheet.getRangeByIndexes(
+        usedRange.rowIndex,
+        usedRange.columnIndex,
+        rowCount,
+        columnCount
+      )
+    : usedRange;
+  return prepareGeometry(context, sheet, range, request, {
+    truncated,
+    ...(truncated
+      ? { message: "The worksheet capture was limited to its top-left 500 rows and 50 columns." }
+      : {})
+  });
 }
 
-async function prepareGeometry(context, sheet, range, request) {
+async function prepareGeometry(context, sheet, range, request, resultMetadata = {}) {
   const owner = captureOwner(request);
   if (captureTokenBySession.has(owner.key)) {
     throw new Error("This exact workbook session already has a capture awaiting view restoration.");
@@ -192,6 +211,14 @@ async function prepareGeometry(context, sheet, range, request) {
   const rangePixels = convertRectangle(window, rangePoints);
   const windowPixels = convertRectangle(window, windowPoints);
   await context.sync();
+  const screenRect = resolvedRectangle(rangePixels, "The screen");
+  const excelWindowScreenRect = resolvedRectangle(windowPixels, "The Excel window screen");
+  if (!containsRectangle(excelWindowScreenRect, screenRect)) {
+    throw new Error(
+      "The requested range does not fit within the Excel window as a single capture rectangle. " +
+      "Tiled Office.js capture is not implemented."
+    );
+  }
 
   const captureToken = globalThis.crypto.randomUUID();
   captureStates.set(captureToken, { owner, viewState });
@@ -210,9 +237,10 @@ async function prepareGeometry(context, sheet, range, request) {
       type: lowerFirst(window.type),
       state: lowerFirst(window.windowState)
     },
-    screenRect: resolvedRectangle(rangePixels, "The screen"),
-    excelWindowScreenRect: resolvedRectangle(windowPixels, "The Excel window screen"),
-    viewState
+    screenRect,
+    excelWindowScreenRect,
+    viewState,
+    ...resultMetadata
   });
 }
 
@@ -310,6 +338,13 @@ function positiveInt32(value, name) {
     throw new Error(`${name} must be a positive 32-bit integer.`);
   }
   return value;
+}
+
+function containsRectangle(outer, inner) {
+  return inner.left >= outer.left
+    && inner.top >= outer.top
+    && inner.right <= outer.right
+    && inner.bottom <= outer.bottom;
 }
 
 function isInt32(value) {
