@@ -480,28 +480,19 @@ public sealed class ExcelMcpService : IDisposable
                     return await DispatchMacPowerQueryAsync(action, request, session);
                 }
 
-                if (IsScenarioHelperCommand(command))
+                var arguments = string.IsNullOrWhiteSpace(request.Args)
+                    ? new JsonObject()
+                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                if (category == "pythoninexcel")
                 {
-                    var helperResult = await _macVbaHelperClient!.DispatchAsync(
-                        session.FilePath,
-                        command,
-                        arguments,
-                        session.OperationTimeout);
-                    var helperResponse = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
-                        ?? new JsonObject();
-                    helperResponse["success"] = true;
-                    return new ServiceResponse
-                    {
-                        Success = true,
-                        Result = helperResponse.ToJsonString(ServiceProtocol.JsonOptions)
-                    };
+                    MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
                 }
-
                 arguments["filePath"] = session.FilePath;
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
-                    session.OperationTimeout);
+                    session.OperationTimeout,
+                    allowFailureResult: category == "pythoninexcel");
                 return new ServiceResponse
                 {
                     Success = true,

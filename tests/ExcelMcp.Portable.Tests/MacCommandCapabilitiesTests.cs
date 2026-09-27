@@ -29,25 +29,20 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
-    [InlineData("analysis.goal-seek")]
-    [InlineData("analysis.create-data-table")]
-    public void VerifiedWhatIfAnalysisCommands_RecordNativeExcelEvidence(string command)
+    [InlineData("pythoninexcel.set-formula")]
+    [InlineData("pythoninexcel.get-result")]
+    public void PythonInExcel_RemainsGatedWithoutPersistentFormula2RoundTrip(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
-        Assert.True(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
-        Assert.Equal("Implemented", capability.ImplementationStatus);
-        Assert.Contains("CLI and MCP", capability.Evidence, StringComparison.Ordinal);
-        Assert.Contains("16.113.1", capability.ExcelApiVersion, StringComparison.Ordinal);
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
     }
 
     [Theory]
-    [InlineData("analysis.list-scenarios")]
-    [InlineData("analysis.update-scenario")]
-    [InlineData("analysis.delete-scenario")]
-    [InlineData("analysis.create-scenario-summary")]
-    public void DictionaryBackedScenarioCommands_RemainGatedUntilRealExcelEvidence(string command)
+    [InlineData("sheet.copy")]
+    [InlineData("sheet.move")]
+    public void SheetReordering_RemainsGatedWithoutProvenAppleEventsParity(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 

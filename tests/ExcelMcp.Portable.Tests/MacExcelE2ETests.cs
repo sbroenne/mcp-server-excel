@@ -79,6 +79,32 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         {
             var mainSession = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = main }, deadline.Token));
+            if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1")
+            {
+                Success(await client.CallAsync("pythoninexcel", "set-formula", mainSession,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["range_address"] = "Z1",
+                        ["code"] = "\"ExcelMcp\" + \" Python\"",
+                        ["return_type"] = 0
+                    }, deadline.Token));
+                var pythonResult = Success(await client.CallAsync(
+                    "pythoninexcel", "get-result", mainSession,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["range_address"] = "Z1",
+                        ["max_wait_seconds"] = 30
+                    }, deadline.Token));
+                Assert.Contains("Z1", pythonResult.GetProperty("rangeAddress").GetString(), StringComparison.Ordinal);
+                var pythonFormula = pythonResult.GetProperty("formula").GetString();
+                Assert.StartsWith("=PY(", pythonFormula, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("\"\"ExcelMcp\"\"", pythonFormula, StringComparison.Ordinal);
+                Assert.Equal("ExcelMcp Python", pythonResult.GetProperty("value").GetString());
+                Assert.False(pythonResult.GetProperty("isPythonObject").GetBoolean());
+                Assert.False(pythonResult.GetProperty("isPythonError").GetBoolean());
+            }
             var duplicateName = await client.CallAsync("file", "open", null,
                 new() { ["path"] = duplicate }, deadline.Token);
             Assert.False(duplicateName.GetProperty("success").GetBoolean());
@@ -790,7 +816,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             {
                 args["action"] = action;
                 if (sessionId is not null) { args["session_id"] = sessionId; }
-                if (tool == "file" && action == "open") { args["timeout_seconds"] = 15; }
+                if (tool == "file" && action == "open")
+                {
+                    args["timeout_seconds"] =
+                        Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1" ? 60 : 15;
+                }
                 var mcpTool = tool switch
                 {
                     "sheet" => "worksheet",
@@ -821,7 +851,13 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     });
                     command.Add(value is string text ? text : JsonSerializer.Serialize(value));
                 }
-                if (tool == "file" && action == "open") { command.AddRange(["--timeout", "15"]); }
+                if (tool == "file" && action == "open")
+                {
+                    command.AddRange([
+                        "--timeout",
+                        Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1" ? "60" : "15"
+                    ]);
+                }
                 json = await RunCliAsync(command, cancellationToken);
             }
             using var document = JsonDocument.Parse(json);

@@ -9,11 +9,7 @@ Excel's container. Includes repository-authored MS-QDEFF/OOXML Power Query
 fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
 #>
 [CmdletBinding()]
-param(
-    [switch]$SkipBuild,
-    [string]$PipeName,
-    [switch]$IncludePowerQueryFixtures
-)
+param([switch]$SkipBuild, [switch]$IncludePythonInExcel, [string]$PipeName)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -79,8 +75,8 @@ $environment = @{
     EXCELMCP_CLI_PIPE = $pipe
     DOTNET_ROOT = $dotnetRoot
 }
-if ($IncludePowerQueryFixtures) {
-    $environment.EXCELMCP_MAC_PQ_FIXTURE_E2E = '1'
+if ($IncludePythonInExcel) {
+    $environment.EXCELMCP_MAC_PYTHON_E2E = '1'
 }
 try {
     $test = Invoke-MacTestCommand dotnet @(

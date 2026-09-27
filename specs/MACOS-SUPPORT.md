@@ -66,10 +66,15 @@ The first implementation increment now exists behind runtime platform selection:
   workbook. Timeout handling attempts workbook cleanup without killing Excel;
   complete invalidation and recovery guarantees still need hardening.
 - Implemented native bridge actions are session create/open/close, worksheet
-  create/list/rename/delete, range get/set values and formulas (including
-  existing JSON/CSV file transforms), number-format read/write, explicit
-  row/column sizing, clear operations, calculation, Goal Seek, and one- or
-  two-variable Data Tables.
+  create/list/rename/delete, worksheet visibility and tab-color operations,
+  range get/set values and formulas (including existing JSON/CSV file
+  transforms), number-format read/write, explicit row/column sizing, clear
+  operations, and calculation.
+- A native Python in Excel `Range.Formula2` candidate and its portable
+  validation/polling regressions are staged, but both public actions remain
+  capability-gated. Microsoft documents Python in Excel on qualifying Business
+  and Enterprise subscriptions beginning with Excel for Mac 16.96, but declared
+  API presence and product availability did not establish automation parity.
 - Power Query `list`, `view`, and `get-load-config` are implemented for clean,
   saved workbooks using package inspection. Package-only `update` requires
   `refresh=false`; the contract default remains `refresh=true`, so Mac callers
@@ -293,6 +298,7 @@ dictionary and synthetic real-Excel workbooks:
 | Worksheet style `set-tab-color`, `get-tab-color`, `clear-tab-color` | Worksheet `sheet tab` exposes read/write `color` and `color index`; `XlColorIndex` declares `none` | CLI and MCP round-tripped RGB `#112233`, cleared it, and observed `HasColor=false` | Implemented |
 | Worksheet `copy` | `copy worksheet` declares optional before/after sheet parameters | JXA renamed the existing destination rather than adding a sheet; typed AppleScript returned parameter errors or introduced an untitled workbook outside the owned session | Blocked; declared terminology did not prove contract parity |
 | Worksheet `move` | No move-worksheet command is declared | Not executed because no declared route exists and copy/delete is not an equivalent atomic move | Blocked |
+| Python in Excel `set-formula`, `get-result` | Range `formula2` is declared read/write; Microsoft documents qualifying Mac availability from 16.96 | The first quoted-literal CLI/MCP run exposed incorrect use of a nonexistent range-address property. After switching to the declared `get address` command, both entry points resolved `$Z$1`, but the PY formula remained empty. A bounded transport comparison on Excel 16.113.1 proved JXA Formula2 persisted `=1+2` and value `3` across fresh processes; typed AppleScript returned `-50`; the same quoted PY literal immediately read back with empty `formula2`, `formula`, and value in both the setter and a fresh JXA process | Blocked; actions remain capability-gated because ordinary Formula2 works but PY cannot be invoked truthfully in the tested environment |
 
 The failed copy probes did not authorize closing the untitled workbook or
 terminating shared Excel. Exact-path AppleScript lookup now skips workbooks
@@ -766,6 +772,11 @@ consent, cross-builds Release, and requires exactly two passing entry-point
 cases. `-SkipBuild` is only appropriate after a successful Release build in the
 same worktree. Fixtures live in ordinary temporary storage, never Excel's
 container. The runner stops only its private daemon, not shared Excel.
+`-IncludePythonInExcel` opts those same two workflows into the literal `PY()`
+acceptance sequence; when selected, unavailable capability, licensing, cloud
+connection, policy, serialization, or result failures fail the run rather than
+being converted to a skip. It is intentionally not part of the default baseline
+while Python actions remain capability-gated.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,
@@ -1104,6 +1115,8 @@ future parity additions require their own user-visible changesets.
 - [Request access to multiple files; grants stored with the app](https://learn.microsoft.com/en-us/office/vba/office-mac/grantaccesstomultiplefiles)
 - [Mac Power Query, including VBA query authoring](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query)
 - [Excel analytics platform differences](https://support.microsoft.com/en-us/excel/learn-to-use-power-query-and-power-pivot-in-excel)
+- [Python in Excel availability, including qualifying Mac subscriptions and versions](https://support.microsoft.com/en-gb/excel/python/python-in-excel-availability)
+- [Range.Formula2 behavior](https://learn.microsoft.com/en-us/office/vba/api/excel.range.formula2)
 - [Office.js Excel API requirement sets](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/excel/excel-api-requirement-sets)
 - Installed Excel scripting dictionary, `Microsoft Excel.app/Contents/Resources/Excel.sdef`.
 
