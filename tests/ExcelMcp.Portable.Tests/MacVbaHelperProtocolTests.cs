@@ -169,6 +169,8 @@ public sealed class MacVbaHelperProtocolTests
         Assert.Contains("If cleanupNumber <> 0 Then", source);
         Assert.Contains("If rollbackNumber <> 0 Then", source);
         Assert.Contains(@"""rollback_failed""", source);
+        Assert.Contains("IsJsonUnsignedLong", source);
+        Assert.DoesNotContain("IsNumeric(raw)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Application.Evaluate", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ExecuteGlobal", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("VBComponents.Import", source, StringComparison.OrdinalIgnoreCase);
