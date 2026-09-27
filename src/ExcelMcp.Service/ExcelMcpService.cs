@@ -658,6 +658,26 @@ public sealed class ExcelMcpService : IDisposable
         ServiceRequest request,
         MacExcelSession session)
     {
+        var arguments = string.IsNullOrWhiteSpace(request.Args)
+            ? new JsonObject()
+            : JsonNode.Parse(request.Args)?.AsObject()
+                ?? throw new ArgumentException($"Power Query {action} arguments must be an object.");
+        var route = MacPowerQueryRouteSelector.Select(
+            action,
+            arguments,
+            new HashSet<string>(StringComparer.Ordinal));
+        if (route.Kind == MacPowerQueryRouteKind.Unsupported)
+        {
+            throw UnsupportedMacPowerQueryVariant(
+                $"powerquery.{action}",
+                route.UnavailableReason ?? "the selected helper method is unavailable");
+        }
+        if (route.Kind == MacPowerQueryRouteKind.Helper)
+        {
+            throw new InvalidOperationException(
+                "A helper route was selected without a configured helper dispatcher.");
+        }
+
         var state = await _macBackend!.InvokeAsync(
             "workbook.state",
             new { filePath = session.FilePath },
@@ -717,12 +737,6 @@ public sealed class ExcelMcpService : IDisposable
                 Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
             };
         }
-
-        var arguments = JsonNode.Parse(
-                request.Args ?? throw new ArgumentException(
-                    $"Power Query {action} arguments are required."))
-            ?.AsObject()
-            ?? throw new ArgumentException($"Power Query {action} arguments are required.");
 
         var queryName = arguments["queryName"]?.GetValue<string>()
             ?? throw new ArgumentException("queryName is required.");
