@@ -1,4 +1,7 @@
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -11,6 +14,53 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
 
     private static void ValidateRequiredTableName(string tableName)
         => ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
+
+    private static void ValidateTableNameWithExcel(Excel.Application application, Excel.Workbook sourceWorkbook, string tableName)
+    {
+        Excel.Workbooks? workbooks = null;
+        Excel.Workbook? scratchWorkbook = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? range = null;
+        Excel.ListObjects? tables = null;
+        Excel.ListObject? table = null;
+        try
+        {
+            // Probe Excel's own naming rules without converting any source cells to a table.
+            workbooks = application.Workbooks;
+            scratchWorkbook = workbooks.Add(Excel.XlWBATemplate.xlWBATWorksheet);
+            sheets = scratchWorkbook.Worksheets;
+            sheet = (Excel.Worksheet)sheets[1];
+            range = sheet.Range["A1:A2"];
+            range.Value2 = new object[,] { { "Header" }, { 1 } };
+            tables = sheet.ListObjects;
+            table = tables.Add(Excel.XlListObjectSourceType.xlSrcRange, range,
+                Type.Missing, Excel.XlYesNoGuess.xlYes);
+            table.Name = tableName;
+        }
+        finally
+        {
+            ComUtilities.Release(ref table);
+            ComUtilities.Release(ref tables);
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref sheets);
+            try
+            {
+                if (scratchWorkbook != null)
+                {
+                    ExcelShutdownService.CloseAndQuit(scratchWorkbook, null, save: false);
+                    scratchWorkbook = null;
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref scratchWorkbook);
+                ComUtilities.Release(ref workbooks);
+                sourceWorkbook.Activate();
+            }
+        }
+    }
 
     /// <summary>
     /// Finds a table by name in the workbook, throwing if not found.

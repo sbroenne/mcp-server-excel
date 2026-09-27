@@ -169,6 +169,8 @@ public partial class TableCommands
 
                 listObjects = sheet.ListObjects;
 
+                ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName);
+
                 // Create table using numeric constant (xlSrcRange = 1)
                 // XlListObjectSourceType.xlSrcRange causes enum assembly loading issues
                 int xlSrcRange = 1;

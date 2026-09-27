@@ -90,8 +90,11 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal(tableStyle, read.Table!.TableStyle);
     }
 
-    [Fact]
-    public void Create_WithNonAsciiTableName_CreatesReadableTable()
+    [Theory]
+    [InlineData("表1")]
+    [InlineData("テーブル1")]
+    [InlineData("표1")]
+    public void Create_WithNonAsciiTableName_CreatesReadableTable(string tableName)
     {
         var batch = _fixture.BatchToken;
         _fixture.CreateNamedTestSheet(batch, "Data");
@@ -99,13 +102,13 @@ public sealed partial class PersistentServiceTablePreflightTests
             batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
 
         var result = _tableCommands.Create(
-            batch, "Data", "表1", "A1:B2", true, "TableStyleLight1");
+            batch, "Data", tableName, "A1:B2", true, "TableStyleLight1");
         Assert.True(result.Success, result.ErrorMessage);
 
-        var info = _tableCommands.Read(batch, "表1");
+        var info = _tableCommands.Read(batch, tableName);
         Assert.True(info.Success, info.ErrorMessage);
         Assert.NotNull(info.Table);
-        Assert.Equal("表1", info.Table.Name);
+        Assert.Equal(tableName, info.Table.Name);
         Assert.Equal("Data", info.Table.SheetName);
     }
 
@@ -127,6 +130,112 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal("Value", values[1, 2]);
         Assert.Equal("North", values[2, 1]);
         Assert.Equal(100d, Convert.ToDouble(values[2, 2], CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Create_RejectedName_PreservesFormulasAndFormatting(bool hasHeaders)
+    {
+        var batch = _fixture.BatchToken;
+        SetUpSourceState(hasHeaders);
+
+        var before = GetSourceState();
+        Assert.Throws<ArgumentException>(() =>
+            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", hasHeaders));
+        var after = GetSourceState();
+
+        Assert.Equal(0, GetWorksheetTableCount("Data"));
+        Assert.Equal(before.WorkbookCount, after.WorkbookCount);
+        Assert.Equal(before.Formulas.Cast<object>(), after.Formulas.Cast<object>());
+        Assert.Equal(before.Formats, after.Formats);
+    }
+
+    private void SetUpSourceState(bool hasHeaders)
+    {
+        _fixture.CreateNamedTestSheet(_fixture.BatchToken, "Data");
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? range = null;
+            Microsoft.Office.Interop.Excel.Interior? interior = null;
+            Microsoft.Office.Interop.Excel.Font? font = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, "Data")
+                    ?? throw new InvalidOperationException("Data not found.");
+                range = sheet.Range["A1:C4"];
+                range.Formula = new object[,]
+                {
+                    { hasHeaders ? "Amount" : 10, hasHeaders ? "Calculated" : 20, "Beside" },
+                    { 30, "=A2*2", "Keep" },
+                    { 50, "=A3*2", "Below" },
+                    { 70, 80, "Untouched" }
+                };
+                range.NumberFormat = "0.0000";
+                interior = range.Interior;
+                interior.Color = 0x00336699;
+                font = range.Font;
+                font.Bold = false;
+            }
+            finally
+            {
+                ComUtilities.Release(ref font);
+                ComUtilities.Release(ref interior);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
+    private (object[,] Formulas, string[] Formats, int WorkbookCount) GetSourceState()
+    {
+        return _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            ExcelWorksheet? sheet = null;
+            ExcelRange? range = null;
+            Microsoft.Office.Interop.Excel.Workbooks? workbooks = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, "Data")
+                    ?? throw new InvalidOperationException("Data not found.");
+                range = sheet.Range["A1:C4"];
+                var formulas = (object[,])range.Formula;
+                var formats = new List<string>();
+                for (int row = 1; row <= 4; row++)
+                {
+                    for (int column = 1; column <= 3; column++)
+                    {
+                        ExcelRange? cell = null;
+                        Microsoft.Office.Interop.Excel.Interior? interior = null;
+                        Microsoft.Office.Interop.Excel.Font? font = null;
+                        try
+                        {
+                            cell = (ExcelRange)range[row, column];
+                            interior = cell.Interior;
+                            font = cell.Font;
+                            formats.Add(string.Format(CultureInfo.InvariantCulture,
+                                "{0}|{1}|{2}", cell.NumberFormat, interior.Color, font.Bold));
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref font);
+                            ComUtilities.Release(ref interior);
+                            ComUtilities.Release(ref cell);
+                        }
+                    }
+                }
+
+                workbooks = ctx.App.Workbooks;
+                return (formulas, formats.ToArray(), workbooks.Count);
+            }
+            finally
+            {
+                ComUtilities.Release(ref workbooks);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 
     [Fact]

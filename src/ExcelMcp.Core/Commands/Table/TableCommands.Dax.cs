@@ -107,6 +107,8 @@ public partial class TableCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
+                ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName);
+
                 // Check if workbook has Data Model and get first table name
                 // CreateModelWorkbookConnection requires a ModelTable name to create the connection
                 model = ctx.Book.Model;
@@ -378,4 +380,3 @@ public partial class TableCommands
         });
     }
 }
-
