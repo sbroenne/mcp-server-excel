@@ -196,9 +196,9 @@ jobs:
       - name: Verify MCP Server build
         shell: pwsh
         run: |
-          $exe = "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe"
+          $exe = "src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.exe"
           if (-not (Test-Path $exe)) { throw "MCP Server exe not found at $exe" }
-          if (-not (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/.mcp/server.json")) {
+          if (-not (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/.mcp/server.json")) {
             Write-Warning "MCP server.json configuration not found"
           }
           Write-Host "MCP Server build OK"
@@ -223,5 +223,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ExcelMcp-MCP-Server-${{ github.sha }}
-          path: src/ExcelMcp.McpServer/bin/Release/net10.0-windows/
+          path: src/ExcelMcp.McpServer/bin/Release/net10.0/
           if-no-files-found: error
