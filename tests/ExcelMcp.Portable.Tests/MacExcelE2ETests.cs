@@ -23,6 +23,21 @@ public sealed class MacExcelTheoryAttribute : TheoryAttribute
     }
 }
 
+public sealed class MacPowerQueryFixtureTheoryAttribute : TheoryAttribute
+{
+    public MacPowerQueryFixtureTheoryAttribute()
+    {
+        if (!OperatingSystem.IsMacOS()
+            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E") != "1"
+            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_PQ_FIXTURE_E2E") != "1")
+        {
+            Skip =
+                "Explicit potentially modal Power Query package run required: " +
+                "scripts/Test-MacE2E.ps1 -IncludePowerQueryFixtures.";
+        }
+    }
+}
+
 [CollectionDefinition("Mac Excel E2E", DisableParallelization = true)]
 public sealed class MacExcelCollectionDefinition;
 
@@ -361,6 +376,211 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         }
     }
 
+    [MacPowerQueryFixtureTheory]
+    [InlineData("cli")]
+    [InlineData("mcp")]
+    [Trait("Category", "Integration")]
+    [Trait("RequiresExcel", "true")]
+    [Trait("Feature", "MacPowerQueryFixture")]
+    public async Task RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated(
+        string entryPoint)
+    {
+        Assert.Equal(0, MacAutomationAccess.Check());
+        var root = FindRepository();
+        var directory = Directory.CreateTempSubdirectory("excelmcp-mac-pq-e2e-");
+        var connectionOnly = PowerQueryFixtureFactory.Create(
+            directory.FullName,
+            PowerQueryFixtureKind.ConnectionOnly);
+        var worksheetLoaded = PowerQueryFixtureFactory.Create(
+            directory.FullName,
+            PowerQueryFixtureKind.WorksheetLoaded);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+        await using var client = await EntryPointClient.CreateAsync(
+            root,
+            entryPoint,
+            output,
+            deadline.Token);
+        var completed = false;
+        try
+        {
+            await AssertPowerQueryRoundTripAsync(
+                client,
+                connectionOnly.WorkbookPath,
+                expectedLoadMode: "connection-only",
+                expectedTargetSheet: null,
+                deadline.Token);
+            await AssertPowerQueryRoundTripAsync(
+                client,
+                worksheetLoaded.WorkbookPath,
+                expectedLoadMode: "load-to-table",
+                expectedTargetSheet: PowerQueryFixtureFactory.WorksheetName,
+                deadline.Token);
+            completed = true;
+            output.WriteLine(
+                $"{entryPoint}: Excel accepted and preserved both repository-owned Power Query fixtures; " +
+                "refresh remains explicitly gated.");
+        }
+        finally
+        {
+            if (completed)
+            {
+                Directory.Delete(directory.FullName, recursive: true);
+            }
+            else
+            {
+                output.WriteLine(
+                    $"Failed Power Query run retained repository-owned evidence at {directory.FullName}.");
+            }
+        }
+    }
+
+    private static async Task AssertPowerQueryRoundTripAsync(
+        EntryPointClient client,
+        string workbookPath,
+        string expectedLoadMode,
+        string? expectedTargetSheet,
+        CancellationToken cancellationToken)
+    {
+        string? session = null;
+        try
+        {
+            session = SessionId(await client.CallAsync(
+                "file",
+                "open",
+                null,
+                new() { ["path"] = workbookPath },
+                cancellationToken));
+            await AssertPowerQueryStateAsync(
+                client,
+                session,
+                expectedLoadMode,
+                expectedTargetSheet,
+                cancellationToken);
+            Success(await client.CallAsync(
+                "file",
+                "close",
+                session,
+                new() { ["save"] = true },
+                cancellationToken));
+            session = null;
+
+            session = SessionId(await client.CallAsync(
+                "file",
+                "open",
+                null,
+                new() { ["path"] = workbookPath },
+                cancellationToken));
+            await AssertPowerQueryStateAsync(
+                client,
+                session,
+                expectedLoadMode,
+                expectedTargetSheet,
+                cancellationToken);
+
+            if (expectedTargetSheet is not null)
+            {
+                var before = Success(await client.CallAsync(
+                    "range",
+                    "get-values",
+                    session,
+                    RangeArgsOnSheet(expectedTargetSheet, "A1:B3"),
+                    cancellationToken));
+                AssertLiteralOutput(before);
+
+                var refresh = await client.CallAsync(
+                    "powerquery",
+                    "refresh",
+                    session,
+                    new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
+                    cancellationToken);
+                Assert.False(refresh.GetProperty("success").GetBoolean());
+                Assert.Equal(
+                    "PlatformNotSupported",
+                    refresh.GetProperty("errorCategory").GetString());
+                Assert.Contains(
+                    "completion",
+                    refresh.GetProperty("errorMessage").GetString(),
+                    StringComparison.OrdinalIgnoreCase);
+
+                var after = Success(await client.CallAsync(
+                    "range",
+                    "get-values",
+                    session,
+                    RangeArgsOnSheet(expectedTargetSheet, "A1:B3"),
+                    cancellationToken));
+                AssertLiteralOutput(after);
+            }
+
+            Success(await client.CallAsync(
+                "file",
+                "close",
+                session,
+                new(),
+                cancellationToken));
+            session = null;
+        }
+        finally
+        {
+            if (session is not null)
+            {
+                await client.TryCloseAsync(session);
+            }
+        }
+    }
+
+    private static async Task AssertPowerQueryStateAsync(
+        EntryPointClient client,
+        string session,
+        string expectedLoadMode,
+        string? expectedTargetSheet,
+        CancellationToken cancellationToken)
+    {
+        var list = Success(await client.CallAsync(
+            "powerquery",
+            "list",
+            session,
+            new(),
+            cancellationToken));
+        var query = Assert.Single(list.GetProperty("queries").EnumerateArray());
+        Assert.Equal(PowerQueryFixtureFactory.QueryName, query.GetProperty("name").GetString());
+        Assert.Equal(expectedLoadMode, query.GetProperty("loadMode").GetString());
+
+        var view = Success(await client.CallAsync(
+            "powerquery",
+            "view",
+            session,
+            new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
+            cancellationToken));
+        Assert.Equal(PowerQueryFixtureFactory.LiteralM, view.GetProperty("mCode").GetString());
+        Assert.Equal(expectedLoadMode, view.GetProperty("loadMode").GetString());
+
+        var load = Success(await client.CallAsync(
+            "powerquery",
+            "get-load-config",
+            session,
+            new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
+            cancellationToken));
+        Assert.Equal(expectedLoadMode, load.GetProperty("loadMode").GetString());
+        if (expectedTargetSheet is null)
+        {
+            Assert.False(load.TryGetProperty("targetSheet", out _));
+        }
+        else
+        {
+            Assert.Equal(expectedTargetSheet, load.GetProperty("targetSheet").GetString());
+        }
+    }
+
+    private static void AssertLiteralOutput(JsonElement values)
+    {
+        Assert.Equal("Item", values.GetProperty("values")[0][0].GetString());
+        Assert.Equal("Amount", values.GetProperty("values")[0][1].GetString());
+        Assert.Equal("Alpha", values.GetProperty("values")[1][0].GetString());
+        Assert.Equal(10, values.GetProperty("values")[1][1].GetDouble());
+        Assert.Equal("Beta", values.GetProperty("values")[2][0].GetString());
+        Assert.Equal(20, values.GetProperty("values")[2][1].GetDouble());
+    }
+
     private static Dictionary<string, object?> RangeArgs(string address, params (string Key, object? Value)[] extras)
         => RangeArgsOnSheet("Data", address, extras);
 
@@ -556,6 +776,26 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             }
             using var document = JsonDocument.Parse(json);
             return document.RootElement.Clone();
+        }
+
+        public async Task TryCloseAsync(string sessionId)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                var result = await CallAsync("file", "close", sessionId, new(), deadline.Token);
+                if (!result.GetProperty("success").GetBoolean())
+                {
+                    _output.WriteLine(
+                        $"Best-effort fixture workbook cleanup failed: {result.GetRawText()}");
+                }
+            }
+            catch (Exception exception)
+            {
+                _output.WriteLine(
+                    $"Best-effort fixture workbook cleanup threw {exception.GetType().Name}: " +
+                    exception.Message);
+            }
         }
 
         private static ProcessStartInfo CreateStart(string executable)

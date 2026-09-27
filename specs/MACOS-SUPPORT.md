@@ -152,6 +152,17 @@ Do not classify an untested action as a platform limitation. Every proposed
 exception needs evidence, its user impact, alternatives considered, and an
 explicit scope decision before release.
 
+The authoritative inventory is now generated from Core contract and capability
+annotations:
+
+- [Human-readable action inventory](../docs/MACOS-ACTION-INVENTORY.md)
+- [Machine-readable action inventory](../docs/generated/macos-action-inventory.json)
+
+`MacCommandCapabilities` consumes the same generated action records. Interface
+metadata supplies a default only where all actions share a candidate tier;
+verified native and package-backed actions use method-level overrides. Unknown
+commands are not inferred from a broad category.
+
 ### Power Query parity workstream
 
 Target the complete existing lifecycle, not just refreshing queries authored on
@@ -344,6 +355,35 @@ Power Query feasibility is now demonstrated beyond parser round-tripping:
   connection-only queries, Data Model loads, temporary-query cleanup, source
   errors, or refresh completion across all connectors.
 
+The repository now also owns an independent fixture factory in
+`tests/ExcelMcp.Portable.Tests/PowerQueryFixtureFactory.cs`. It generates blank
+OOXML packages containing only repository-authored identifiers, literal M,
+values, MS-QDEFF DataMashup streams, connections, and (for the worksheet
+variant) table/QueryTable relationships. Each temporary workbook receives a
+JSON provenance manifest with its SHA-256 hash. Package-audit tests reject
+missing content types, required parts, relationship edges, external
+relationships, invalid DataMashup content, and mismatched load graphs. No
+generated workbook binary is committed.
+
+Real-Excel acceptance is **not established** for these new packages. On
+2026-09-27, the opt-in exact-path run through both CLI and MCP timed out while
+attaching the connection-only fixture after LaunchServices handoff. Independent
+blank-workbook baseline opens failed through the same host-wide LaunchServices
+path, so this result does not establish that either candidate package is
+malformed. The run did not click or dismiss UI, terminate Excel, change
+trust/security, or access an Excel container. The worksheet-loaded fixture,
+save/reopen normalization, and synchronous refresh could therefore not be
+proven. Both generated variants remain test candidates, not accepted fixtures,
+and every refresh-dependent action stays gated.
+
+The failing path is preserved as
+`RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated`. Because
+candidate acceptance is unproven and must be isolated from the established
+baseline workflow, it runs only with the explicit
+`scripts/Test-MacE2E.ps1 -IncludePowerQueryFixtures` switch. A normal Mac E2E
+run continues to exercise the established blank-workbook CLI/MCP workflows
+without launching an unverified candidate.
+
 VBA package work reached a narrower result:
 
 - `[MS-OVBA]` documents the project storage format. The MIT-licensed
@@ -366,12 +406,35 @@ VBA package work reached a narrower result:
   separately approved user-managed trust prerequisite or another non-prompting
   trust design.
 
-**Conclusion:** helper-free Power Query authoring is technically viable through
-transactional saved-package editing and real Excel refresh, with the complete
-contract still to implement and validate. VBA source parsing is viable, but
-source mutation is not yet executable in Excel and remains blocked on a valid
-recompilation/cache strategy plus unattended trust. No production capability
-is enabled solely from these probes.
+No repository-owned `.xlsm` fixture is committed in this layer. Its acceptance
+contract now requires Excel-authored executable state through the optional
+helper: the user imports the original repository `.bas` into a blank workbook
+and saves the `.xlsm`/`.xlam`, so Excel creates and compiles `vbaProject.bin`.
+The harness then uses the version 1 `ExcelMcpDispatch` envelope with exact
+workbook `FullName`, a 32-character lowercase hexadecimal request ID, strict
+allowlisted actions, typed arguments, structured success/error responses, and
+a 262144-byte UTF-8 request/result limit. It must add/read/update/delete the
+harmless `ExcelMcpFixtureModule` in that test-owned workbook and prove exact
+source through both CLI and MCP. It does not synthesize, download, or copy a
+`vbaProject.bin`, and helper v1 does not use arbitrary evaluation or `vba.run`.
+Existing MS-OVBA research proves source preservation and project recognition
+but not an executable project cache; committing that output as a VBA fixture
+would falsely imply runnable coverage.
+
+The companion helper Power Query harness creates a connection-only literal
+`#table` query, then lists, views, updates, renames, views, deletes with
+`deleteConnection=true`, and lists again to prove absence. Static API presence,
+trust readiness, and `supportedActions` are not proof: each corresponding
+`provenMethods` field remains false until the exact prompt-free real-Excel
+lifecycle passes. Connection-only helper coverage must not be reported as
+worksheet load or public create/load-to-table parity.
+
+**Conclusion:** transactional updates to an existing Excel-authored Power Query
+package remain viable, but independently creating an Excel-accepted package is
+not yet proven. VBA source parsing is viable, but source mutation is not yet
+executable in Excel and remains blocked on a valid recompilation/cache strategy
+plus unattended trust. No production capability is enabled solely from these
+probes.
 
 ## Implementation routes for remaining features
 

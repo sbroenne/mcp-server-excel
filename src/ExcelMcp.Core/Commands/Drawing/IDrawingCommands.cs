@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 /// COLORS: use #RRGGBB hexadecimal values.
 /// </summary>
 [ServiceCategory("drawing", "Drawing")]
+[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
 [McpTool("drawing", Title = "Drawing Object Operations", Destructive = true, Category = "structure",
     Description = "Worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, and safe worksheet Forms controls with list/read/update/delete lifecycle and formatting. Add common geometric, arrow, and flowchart AutoShapes. Colors use #RRGGBB. Forms controls exclude ActiveX/OLE and macro assignment. Manage line, column, and win/loss sparklines. ")]
 public interface IDrawingCommands

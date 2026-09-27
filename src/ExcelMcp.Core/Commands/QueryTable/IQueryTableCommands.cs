@@ -9,6 +9,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Use powerquery for modern connectors and transformations.
 /// </summary>
 [ServiceCategory("querytable", "QueryTable")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+    Evidence = "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events.",
+    Blocker = "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture")]
 [McpTool("querytable", Title = "QueryTable Import Operations", Destructive = true, Category = "query",
     Description = "Local Excel COM QueryTable lifecycle and configuration. Supports text and CSV imports from local files, plus legacy HTML web imports. Use powerquery for modern connectors and transformations. QueryTables do not expose Power Query M, cloud data types, workbook coauthor presence, sharing, mentions, assignments, or other Microsoft 365 service APIs.")]
 public interface IQueryTableCommands

@@ -1,5 +1,14 @@
 # powerquery - Server Quirks
 
+## macOS saved-package subset
+
+On macOS, only `list`, `view`, `get-load-config`, and package-only `update`
+with `refresh=false` are enabled. The workbook must be clean, saved, and have
+no Data Model. Save or discard dirty workbook changes before reading package
+state. Do not retry `refresh`, `refresh-all`, `create`, `rename`, `delete`,
+`evaluate`, `load-to`, or `unload`; independently generated refresh fixtures
+have not passed the exact-path real-Excel acceptance gate.
+
 ## RECOMMENDED DEVELOPMENT WORKFLOW (ALWAYS USE THIS)
 
 **Test BEFORE persisting - avoid polluting workbooks with broken queries:**

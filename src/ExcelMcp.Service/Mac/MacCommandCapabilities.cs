@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Generated;
+
 namespace Sbroenne.ExcelMcp.Service.Mac;
 
 internal enum MacCapabilityTier
@@ -12,145 +14,86 @@ internal enum MacCapabilityTier
 }
 
 internal sealed record MacCommandCapability(
+    string Command,
     bool IsAvailable,
     MacCapabilityTier RequiredTier,
-    string UnavailableMessage);
+    string UnavailableMessage,
+    string WindowsSemantics,
+    IReadOnlyList<string> WindowsVariants,
+    string ImplementationStatus,
+    string Evidence,
+    string ExcelApiVersion,
+    string Blocker);
 
 internal static class MacCommandCapabilities
 {
-    private static readonly HashSet<string> NativeCommands = new(StringComparer.Ordinal)
-    {
-        "sheet.list",
-        "sheet.create",
-        "sheet.rename",
-        "sheet.delete",
-        "sheet.set-visibility",
-        "sheet.get-visibility",
-        "sheet.show",
-        "sheet.hide",
-        "sheet.very-hide",
-        "sheet.set-tab-color",
-        "sheet.get-tab-color",
-        "sheet.clear-tab-color",
-        "range.get-values",
-        "range.set-values",
-        "range.get-formulas",
-        "range.set-formulas",
-        "range.clear-all",
-        "range.clear-contents",
-        "range.clear-formats",
-        "range.get-number-formats",
-        "range.set-number-format",
-        "rangeformat.set-column-width",
-        "rangeformat.set-row-height",
-        "calculation.calculate",
-        "analysis.goal-seek",
-        "analysis.create-data-table"
-    };
+    private static readonly IReadOnlyList<MacCommandCapability> All =
+        MacActionInventory.Actions.Select(ToCapability).ToArray();
 
-    private static readonly HashSet<string> OfficeAddInCategories = new(StringComparer.Ordinal)
-    {
-        "table",
-        "tablecolumn",
-        "chart",
-        "chartconfig",
-        "pivottable",
-        "pivottablefield",
-        "pivottablecalc",
-        "conditionalformat",
-        "drawing",
-        "slicer"
-    };
+    private static readonly Dictionary<string, MacCommandCapability> ByCommand =
+        All.ToDictionary(item => item.Command, StringComparer.Ordinal);
+
+    public static IReadOnlyList<MacCommandCapability> Inventory => All;
+
+    public static string InventoryJson => MacActionInventory.Json;
 
     public static MacCommandCapability Get(
         string command,
         MacVbaPreflightResult? vbaPreflight = null)
     {
-        if (NativeCommands.Contains(command))
+        if (ByCommand.TryGetValue(command, out var capability))
         {
-            return new MacCommandCapability(true, MacCapabilityTier.Native, string.Empty);
-        }
-
-        var separator = command.IndexOf('.');
-        var category = separator > 0 ? command[..separator] : command;
-        var action = separator > 0 ? command[(separator + 1)..] : string.Empty;
-
-        if (category == "powerquery")
-        {
-            if (action is "list"
-                or "view"
-                or "get-load-config"
-                or "update")
+            if (!capability.IsAvailable && command.StartsWith("vba.", StringComparison.Ordinal))
             {
-                return new MacCommandCapability(
-                    true,
-                    MacCapabilityTier.PowerQueryPackage,
-                    string.Empty);
+                vbaPreflight ??= MacVbaPreflight.Check();
+                var readiness = command == "vba.run"
+                    ? MacVbaPreflight.DescribeMacroExecution(vbaPreflight.MacroExecution)
+                    : MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess);
+                var evidence = command == "vba.run"
+                    ? "A repository-owned fixture has not yet proven unattended workbook-qualified execution through CLI and MCP."
+                    : "Apple Events scripting exposes no project-model route; the optional helper requires separate execution evidence.";
+                return capability with
+                {
+                    UnavailableMessage = $"{capability.UnavailableMessage} Preflight reports that {readiness}. {evidence}"
+                };
             }
-
-            return Unavailable(
-                MacCapabilityTier.PowerQueryPackage,
-                command,
-                "the secure saved-package Power Query mutation tier, which is not enabled in this release");
+            return capability;
         }
 
-        if (category == "vba")
-        {
-            vbaPreflight ??= MacVbaPreflight.Check();
-            return action == "run"
-                ? Unavailable(
-                    MacCapabilityTier.MacroHelper,
-                    command,
-                    "the optional macOS macro execution tier; preflight reports that " +
-                    $"{MacVbaPreflight.DescribeMacroExecution(vbaPreflight.MacroExecution)}; " +
-                    "a repository-owned synthetic fixture has not yet proven unattended, " +
-                    "workbook-qualified execution through both CLI and MCP")
-                : Unavailable(
-                    MacCapabilityTier.VbaProjectModel,
-                    command,
-                    "the optional macOS VBA project-model tier; preflight reports that " +
-                    $"{MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess)}, " +
-                    "and Excel's installed scripting dictionary exposes no VBA project-model route");
-        }
-
-        if (category is "connection" or "querytable" or "analysis" or "pythoninexcel")
-        {
-            return Unavailable(
-                MacCapabilityTier.Native,
-                command,
-                "an Apple Events route whose exact result, completion, error, and cleanup semantics " +
-                "have not yet passed a prompt-free real-Excel fixture");
-        }
-
-        if (category == "screenshot")
-        {
-            return Unavailable(
-                MacCapabilityTier.OptionalNativeHelper,
-                command,
-                "an optional native screen-capture helper with explicit Screen Recording permission");
-        }
-
-        if (OfficeAddInCategories.Contains(category)
-            || category == "rangeformat")
-        {
-            return Unavailable(
-                MacCapabilityTier.OfficeAddIn,
-                command,
-                "the optional Office.js add-in tier, which is not installed in this release");
-        }
-
-        return Unavailable(
-            MacCapabilityTier.Unsupported,
+        return new MacCommandCapability(
             command,
+            false,
+            MacCapabilityTier.Unsupported,
+            $"Command '{command}' requires a capability that is not supported by the macOS Excel backend. It remains available on Windows.",
+            "No generated Windows contract exists for this command.",
+            [],
+            "NotTested",
+            "The command is absent from the generated public action inventory.",
+            "Unverified.",
             "a capability that is not supported by the macOS Excel backend");
     }
 
-    private static MacCommandCapability Unavailable(
-        MacCapabilityTier tier,
-        string command,
-        string requirement) =>
-        new(
-            false,
+    private static MacCommandCapability ToCapability(MacActionInventoryItem item)
+    {
+        if (!Enum.TryParse<MacCapabilityTier>(item.Tier, out var tier))
+        {
+            throw new InvalidOperationException(
+                $"Generated macOS capability tier '{item.Tier}' for '{item.Command}' is invalid.");
+        }
+
+        return new MacCommandCapability(
+            item.Command,
+            item.IsAvailable,
             tier,
-            $"Command '{command}' requires {requirement}. It remains available on Windows.");
+            item.IsAvailable
+                ? string.Empty
+                : $"Command '{item.Command}' is unavailable on macOS: " +
+                  $"{item.Blocker.TrimEnd('.')}. It remains available on Windows.",
+            item.WindowsSemantics,
+            item.WindowsVariants,
+            item.ImplementationStatus,
+            item.Evidence,
+            item.ExcelApiVersion,
+            item.Blocker);
+    }
 }

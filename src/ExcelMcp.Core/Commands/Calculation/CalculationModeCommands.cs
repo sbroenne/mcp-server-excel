@@ -71,6 +71,7 @@ public class CalculationModeResult : OperationResult
 /// for faster performance, then recalculate once at the end.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.NotTested, false)]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
     Description = "Optimize bulk write performance by controlling Excel's automatic recalculation. Use manual mode when writing 10+ cells to avoid recalculating after every write. MODES: automatic (default - recalculates on every change), manual (only when explicitly requested), semi-automatic (auto except data tables). BATCH WORKFLOW (required for 10+ cell operations): 1. set-mode(manual) 2. Perform all writes (range set-values, set-formulas) 3. calculate(workbook) 4. set-mode(automatic). SCOPES for calculate: workbook (all formulas), sheet (requires sheetName), range (requires sheetName + rangeAddress). NOT needed for: reading formulas, small edits (1-9 cells), or when immediate calculation results are required.")]
 public interface ICalculationModeCommands
@@ -100,6 +101,7 @@ public interface ICalculationModeCommands
     /// <param name="sheetName">Sheet name (required for Sheet/Range scope)</param>
     /// <param name="rangeAddress">Range address (required for Range scope)</param>
     /// <returns>Operation result confirming calculation completed</returns>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("calculate")]
     OperationResult Calculate(IExcelBatch batch, [FromString("scope")] CalculationScope scope, string? sheetName = null, string? rangeAddress = null);
 }

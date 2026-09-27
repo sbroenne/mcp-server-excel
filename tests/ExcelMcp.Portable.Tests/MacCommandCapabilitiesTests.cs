@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Service.Mac;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
@@ -48,22 +49,39 @@ public sealed class MacCommandCapabilitiesTests
         Assert.True(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
         Assert.Empty(capability.UnavailableMessage);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Contains("CLI and MCP", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("16.113.1", capability.ExcelApiVersion, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("analysis.list-scenarios")]
-    [InlineData("analysis.create-scenario")]
     [InlineData("analysis.update-scenario")]
-    [InlineData("analysis.show-scenario")]
     [InlineData("analysis.delete-scenario")]
     [InlineData("analysis.create-scenario-summary")]
-    public void UnprovenScenarioCommands_RemainExplicitlyGated(string command)
+    public void UnverifiedNativeScenarioActions_RemainGated(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
-        Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("dictionary", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void UnverifiedScenarioMutations_RecordMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("scenarioCreateShow", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -104,8 +122,8 @@ public sealed class MacCommandCapabilitiesTests
 
     [Theory]
     [InlineData("table.create")]
-    [InlineData("chart.create")]
-    [InlineData("pivottable.create")]
+    [InlineData("chart.create-from-range")]
+    [InlineData("pivottable.create-from-range")]
     public void OfficeAddInCommands_ReportTheirRequiredTier(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
@@ -218,5 +236,95 @@ public sealed class MacCommandCapabilitiesTests
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
         Assert.Contains("not supported", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GatedCommand_UsesBlockerAsAReasonWithoutDuplicatedPunctuation()
+    {
+        var capability = MacCommandCapabilities.Get("analysis.list-scenarios");
+
+        Assert.Equal(
+            "Command 'analysis.list-scenarios' is unavailable on macOS: " +
+            "native API presence is not runtime parity; exact returned metadata must pass prompt-free CLI and MCP Excel tests. " +
+            "It remains available on Windows.",
+            capability.UnavailableMessage);
+    }
+
+    [Fact]
+    public void Inventory_ClassifiesEveryPublicActionWithActionLevelEvidence()
+    {
+        var inventory = MacCommandCapabilities.Inventory;
+
+        Assert.True(inventory.Count > 300);
+        Assert.Equal(inventory.Count, inventory.Select(item => item.Command).Distinct(StringComparer.Ordinal).Count());
+        Assert.Contains(inventory, item => item.Command == "file.open");
+        Assert.Contains(inventory, item => item.Command == "powerquery.refresh");
+        Assert.Contains(inventory, item => item.Command == "vba.run");
+        Assert.All(inventory, item =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(item.Command));
+            Assert.False(string.IsNullOrWhiteSpace(item.WindowsSemantics));
+            Assert.False(string.IsNullOrWhiteSpace(item.ImplementationStatus));
+            Assert.False(string.IsNullOrWhiteSpace(item.Evidence));
+            Assert.False(string.IsNullOrWhiteSpace(item.ExcelApiVersion));
+            if (!item.IsAvailable)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(item.Blocker));
+            }
+        });
+    }
+
+    [Fact]
+    public void GeneratedMachineReadableInventory_MatchesRuntimeInventory()
+    {
+        var generated = MacCommandCapabilities.InventoryJson;
+
+        Assert.Contains("\"command\": \"sheet.create\"", generated, StringComparison.Ordinal);
+        Assert.Contains("\"tier\": \"Native\"", generated, StringComparison.Ordinal);
+        Assert.Contains("\"command\": \"powerquery.update\"", generated, StringComparison.Ordinal);
+        Assert.Equal(MacCommandCapabilities.Inventory.Count, CountOccurrences(generated, "\"command\":"));
+    }
+
+    [Fact]
+    public void GeneratedRepositoryInventories_AreCurrent()
+    {
+        var root = FindRepository();
+        using var expected = JsonDocument.Parse(MacCommandCapabilities.InventoryJson);
+        using var committed = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(root, "docs", "generated", "macos-action-inventory.json")));
+        Assert.True(JsonElement.DeepEquals(expected.RootElement, committed.RootElement));
+
+        var markdown = File.ReadAllText(
+            Path.Combine(root, "docs", "MACOS-ACTION-INVENTORY.md"));
+        Assert.Contains("Do not edit this table directly", markdown, StringComparison.Ordinal);
+        Assert.Equal(
+            MacCommandCapabilities.Inventory.Count,
+            markdown.Split('\n').Count(line => line.StartsWith("| `", StringComparison.Ordinal)));
+    }
+
+    private static int CountOccurrences(string value, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
+
+    private static string FindRepository()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null
+               && !File.Exists(Path.Combine(directory.FullName, "Sbroenne.ExcelMcp.sln")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName
+            ?? throw new InvalidOperationException("Repository root not found.");
     }
 }

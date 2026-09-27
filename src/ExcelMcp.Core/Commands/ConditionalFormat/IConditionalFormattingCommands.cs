@@ -17,6 +17,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// For 'between' and 'notBetween', both formula1 and formula2 are required.
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
+[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
 [McpTool("conditionalformat", Title = "Conditional Formatting", Destructive = true, Category = "structure",
     Description = "Conditional formatting - visual rules based on cell values. TYPES: cellValue, expression, colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition (accepts both camelCase and kebab-case). For cellValue: requires operatorType + formula1. Visual types use dedicated add-rule parameters and list-rules returns their type-specific config (colorScaleCriteria, dataBar, iconSet, top10, aboveBelow, datePeriod). FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 public interface IConditionalFormattingCommands

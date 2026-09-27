@@ -26,6 +26,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// NUMBER FORMAT: Use US format codes like '#,##0.00' for currency or '0.00%' for percentages.
 /// </summary>
 [ServiceCategory("pivottablefield", "PivotTableField")]
+[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
 [McpTool("pivottable_field", Title = "PivotTable Field Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field operations modify structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
 public interface IPivotTableFieldCommands
