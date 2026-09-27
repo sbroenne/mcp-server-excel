@@ -37,6 +37,14 @@ process/window identity and must independently validate its exact
 does not expose a macOS process ID or `CGWindowID`; title matching, frontmost
 window selection, and guessed window chrome are not valid substitutes.
 
+The current disabled geometry contract supports one contained rectangle only.
+It rejects a range whose converted rectangle extends outside the converted
+Excel window instead of guessing a tile split or allowing the native side to
+crop outside the window. Sheet preparation first limits the used range to its
+top-left 500 rows and 50 columns and reports that truncation. Office.js tiling,
+the Windows 10%-40% zoom planning rules, and the 36/64-tile behavior are not
+implemented, so large-range screenshot parity remains unavailable.
+
 The reported global top-left physical-pixel coordinate space and its mapping
 to ScreenCaptureKit's window-local backing pixels remain unverified until a
 real Mac Excel run proves that the Desktop API window number maps to the Cocoa

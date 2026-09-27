@@ -285,6 +285,70 @@ test("rejects a non-positive Desktop window number", async () => {
   );
 });
 
+test("rejects a single capture rectangle that is not contained in the Excel window", async () => {
+  const fixture = createGeometryContext();
+  fixture.window.width = 100;
+
+  await assert.rejects(
+    executeOfficeAction({
+      sessionId: "session-outside",
+      workbookUrl: "file:///tmp/owned.xlsx",
+      requestId: "request-outside",
+      action: "screenshot.prepare-range-geometry",
+      payload: { sheetName: "Data", rangeAddress: "B2:D8" }
+    }, {
+      requirementSets: { excelApi: ["1.21"], excelApiDesktop: ["1.1"] },
+      async run(callback) {
+        return callback(fixture.context);
+      }
+    }),
+    /does not fit within the Excel window/
+  );
+});
+
+test("caps sheet geometry to the top-left 500 rows and 50 columns", async () => {
+  const fixture = createGeometryContext();
+  fixture.usedRange.rowIndex = 0;
+  fixture.usedRange.columnIndex = 0;
+  fixture.usedRange.rowCount = 800;
+  fixture.usedRange.columnCount = 80;
+
+  const prepared = await executeOfficeAction({
+    sessionId: "session-sheet-cap",
+    workbookUrl: "file:///tmp/owned.xlsx",
+    requestId: "request-sheet-cap",
+    action: "screenshot.prepare-sheet-geometry",
+    payload: { sheetName: "Data" }
+  }, {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: ["1.1"] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+
+  assert.deepEqual(fixture.indexedRangeCalls, [{
+    rowIndex: 0,
+    columnIndex: 0,
+    rowCount: 500,
+    columnCount: 50
+  }]);
+  assert.deepEqual(prepared.range, { address: "Data!A1:AX500" });
+  assert.equal(prepared.truncated, true);
+  assert.match(prepared.message, /top-left 500 rows and 50 columns/);
+  await executeOfficeAction({
+    sessionId: "session-sheet-cap",
+    workbookUrl: "file:///tmp/owned.xlsx",
+    requestId: "request-sheet-cap-restore",
+    action: "screenshot.restore-view",
+    payload: { captureToken: prepared.captureToken }
+  }, {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: ["1.1"] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+});
+
 test("routes a table mutation through Excel.run and returns contract-shaped result", async () => {
   let syncCount = 0;
   const table = {};
@@ -419,6 +483,7 @@ function createWorksheetCollection() {
 
 function createGeometryContext() {
   const scrollCalls = [];
+  const indexedRangeCalls = [];
   const ranges = new Map();
   let activeSheet = "Summary";
   let selectedRange = "Summary!C3:E4";
@@ -500,6 +565,10 @@ function createGeometryContext() {
     },
     getUsedRange() {
       return range("A1:H40", this);
+    },
+    getRangeByIndexes(rowIndex, columnIndex, rowCount, columnCount) {
+      indexedRangeCalls.push({ rowIndex, columnIndex, rowCount, columnCount });
+      return range("A1:AX500", this);
     }
   };
   const sheets = new Map([
@@ -511,6 +580,11 @@ function createGeometryContext() {
   const selected = range("C3:E4", summary);
   const activeCell = range("D3", summary);
   const visible = range("A1:M30", summary);
+  const usedRange = data.getUsedRange();
+  usedRange.rowIndex = 0;
+  usedRange.columnIndex = 0;
+  usedRange.rowCount = 40;
+  usedRange.columnCount = 8;
   window.activeWorksheet = summary;
   window.activeCell = activeCell;
   window.visibleRange = visible;
@@ -541,6 +615,8 @@ function createGeometryContext() {
     context,
     window,
     scrollCalls,
+    indexedRangeCalls,
+    usedRange,
     get activeSheet() {
       return activeSheet;
     },
