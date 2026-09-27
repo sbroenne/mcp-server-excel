@@ -126,6 +126,126 @@ public sealed class MacExcelSessionManagerTests
         directory.Delete();
     }
 
+    [Theory]
+    [InlineData(false, "original")]
+    [InlineData(true, "updated")]
+    public async Task PackageMutation_CloseControlsPersistence(
+        bool save,
+        string expectedContent)
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-transaction-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        using var manager = CreateManager();
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "updated"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+
+        Assert.Equal("updated", await File.ReadAllTextAsync(path));
+        Assert.True(await manager.CloseAsync(sessionId, save));
+        Assert.Equal(expectedContent, await File.ReadAllTextAsync(path));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
+    public async Task PackageMutation_PostReopenFailureRollsBackOperation()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-rollback-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        using var manager = CreateManager();
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: true,
+            TimeSpan.FromSeconds(5));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ExecuteAsync(sessionId, async session =>
+            {
+                await manager.MutatePackageAsync(
+                    session,
+                    workingPath => File.WriteAllText(workingPath, "updated"),
+                    () => throw new InvalidOperationException("refresh failed"));
+                return true;
+            }));
+
+        Assert.Contains("refresh failed", error.Message, StringComparison.Ordinal);
+        Assert.Equal("original", await File.ReadAllTextAsync(path));
+        Assert.True(await manager.CloseAsync(sessionId, save: false));
+
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
+    public async Task Open_StalePackageTransactionFailsBeforeExcelHandoff()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-stale-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        var transactionPath = Path.Combine(
+            directory.FullName,
+            ".query.xlsx.excelmcp-pq-transaction.json");
+        await File.WriteAllTextAsync(path, "original");
+        await File.WriteAllTextAsync(transactionPath, """{"baseline":"retained.tmp"}""");
+        using var manager = CreateManager();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.OpenAsync(path, show: false, TimeSpan.FromSeconds(5)));
+
+        Assert.Contains("interrupted Power Query package transaction", error.Message, StringComparison.OrdinalIgnoreCase);
+
+        File.Delete(transactionPath);
+        File.Delete(path);
+        directory.Delete();
+    }
+
+    [Fact]
+    public async Task Close_RestoreFailureRemovesClosedSessionAndRetainsJournal()
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-close-failure-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        using var manager = CreateManager();
+        var sessionId = await manager.OpenAsync(
+            path,
+            show: false,
+            TimeSpan.FromSeconds(5));
+        await manager.ExecuteAsync(sessionId, async session =>
+        {
+            await manager.MutatePackageAsync(
+                session,
+                workingPath => File.WriteAllText(workingPath, "updated"),
+                static () => Task.CompletedTask);
+            return true;
+        });
+        var session = Assert.Single(manager.Sessions);
+        var transactionPath = Assert.IsType<string>(session.PackageTransactionPath);
+        File.Delete(Assert.IsType<string>(session.PackageBaselinePath));
+
+        await Assert.ThrowsAsync<FileNotFoundException>(
+            () => manager.CloseAsync(sessionId, save: false));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => manager.ExecuteAsync(sessionId, _ => Task.FromResult(true)));
+        Assert.True(File.Exists(transactionPath));
+
+        File.Delete(transactionPath);
+        File.Delete(path);
+        directory.Delete();
+    }
+
     private static MacExcelSessionManager CreateManager()
     {
         var backend = new MacExcelBackend((start, input, cancellationToken) =>
