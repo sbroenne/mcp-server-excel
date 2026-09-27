@@ -6,7 +6,7 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 
 ### Required
 - **Windows:** Windows 10 or later with Microsoft Excel 2016 or later
-- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+- **macOS:** Intel or Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
 
 Windows provides the complete operation set. The first macOS release is
 capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
@@ -16,7 +16,8 @@ capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 The npm option also requires **Node.js 18 or later**. Install the current LTS
 from [nodejs.org](https://nodejs.org/) (or with
 `winget install OpenJS.NodeJS.LTS` on Windows). Windows x64/Arm64 (via x64
-emulation) and Apple Silicon macOS are supported. Intel macOS fails closed.
+emulation) and macOS x64/Arm64 are supported. Intel packages are cross-built
+and structurally validated; physical Intel Mac Excel execution remains unverified.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -31,8 +32,8 @@ The **excel-cli GitHub Copilot plugin** guides agents to the cross-platform
 `@sbroenne/excelcli` npm launcher, which installs the matching optional runtime.
 The **VS Code extension**
 does *not* include the CLI (it only bundles the MCP server); install the CLI
-separately if you need it for scripting outside the plugin. Intel macOS is
-unsupported and fails closed. For a direct installation:
+separately if you need it for scripting outside the plugin. Intel macOS selects
+the x64 runtime and never falls back to ARM64. For a direct installation:
 
 Use npm (below) or download the standalone executable if you prefer not to
 install Node.js.
@@ -59,8 +60,9 @@ npm install --global @sbroenne/excelcli
 excelcli --version
 ```
 
-The launcher installs `@sbroenne/excelcli-win32-x64` on Windows or
-`@sbroenne/excelcli-darwin-arm64` on Apple Silicon as an optional dependency.
+The launcher installs `@sbroenne/excelcli-win32-x64` on Windows,
+`@sbroenne/excelcli-darwin-arm64` on Apple Silicon, or
+`@sbroenne/excelcli-darwin-x64` on Intel macOS as an optional dependency.
 Do not use `--omit=optional`. It forwards arguments, standard input/output, and
 exit codes to the same native `excelcli` executable; session management and
 Excel behavior are unchanged.
@@ -75,6 +77,7 @@ will run.
 2. Download the archive for your platform:
    - Windows: **`ExcelMcp-CLI-{version}-windows.zip`**
    - Apple Silicon macOS: **`ExcelMcp-CLI-{version}-macos-arm64.zip`**
+   - Intel macOS: **`ExcelMcp-CLI-{version}-macos-x64.zip`**
 3. Extract to a permanent location.
 
 ```powershell
@@ -194,6 +197,7 @@ npm uninstall --global @sbroenne/excelcli
 2. Download the new ZIP for your platform:
    - Windows: `ExcelMcp-CLI-{version}-windows.zip`
    - Apple Silicon macOS: `ExcelMcp-CLI-{version}-macos-arm64.zip`
+   - Intel macOS: `ExcelMcp-CLI-{version}-macos-x64.zip`
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell
@@ -221,16 +225,17 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 
 ### npm Runtime Package Missing
 
-If the launcher cannot find `@sbroenne/excelcli-win32-x64` on Windows or
-`@sbroenne/excelcli-darwin-arm64` on Apple Silicon, reinstall with optional
+If the launcher cannot find `@sbroenne/excelcli-win32-x64` on Windows,
+`@sbroenne/excelcli-darwin-arm64` on Apple Silicon, or
+`@sbroenne/excelcli-darwin-x64` on Intel macOS, reinstall with optional
 dependencies enabled:
 
 ```powershell
 npm install --global @sbroenne/excelcli --include=optional
 ```
 
-The npm launcher reports an error on Intel macOS, Linux, and unsupported
-Windows architectures rather than attempting to start Excel.
+The npm launcher reports an error on Linux and unsupported architectures rather
+than attempting to start Excel.
 
 ### Command Not Found After Installation
 

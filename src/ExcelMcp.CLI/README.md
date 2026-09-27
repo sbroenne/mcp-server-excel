@@ -7,7 +7,7 @@
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Primary distribution: npm or standalone executable** — On Windows x64 or Apple Silicon macOS, run `npx -y @sbroenne/excelcli --help` or download the platform-native archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required. Intel macOS is unsupported.
+> **Primary distribution: npm or standalone executable** — On Windows x64 or macOS x64/Arm64, run `npx -y @sbroenne/excelcli --help` or download the platform-native archive from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required. Intel packages are cross-built; physical Intel Mac Excel execution remains unverified.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
@@ -40,7 +40,7 @@ matching Windows runtime. CLI arguments follow the package name when using
 
 ### Primary Installation: Standalone Executable
 
-1. Download **`ExcelMcp-CLI-{version}-windows.zip`** or **`ExcelMcp-CLI-{version}-macos-arm64.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+1. Download **`ExcelMcp-CLI-{version}-windows.zip`**, **`ExcelMcp-CLI-{version}-macos-arm64.zip`**, or **`ExcelMcp-CLI-{version}-macos-x64.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract `excelcli.exe` (Windows) or `excelcli` (macOS) to a permanent location and add the directory to your PATH
 3. Verify: `excelcli --version` and `excelcli --help`
 
@@ -72,7 +72,7 @@ It drives the **actual Excel application** via COM on Windows and Apple Events o
 ## ⚙️ System Requirements
 
 - **Windows:** Windows 10/11 or Server 2016+ with Microsoft Excel 2016 or later
-- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+- **macOS:** Intel or Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
 - **Node.js 18+** only if using npm; the npm runtime currently supports Windows x64 and Arm64 through x64 emulation
 - **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for npm or the standalone exe)
 

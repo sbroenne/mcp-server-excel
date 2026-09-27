@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const extensionRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(resolve(extensionRoot, 'package.json'), 'utf8'));
-const targets = ['win32-x64', 'darwin-arm64'];
+const targets = ['win32-x64', 'darwin-arm64', 'darwin-x64'];
 const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const binRoot = resolve(extensionRoot, 'bin');
 const savedBinRoot = mkdtempSync(resolve(tmpdir(), 'excelmcp-vsix-bin-'));

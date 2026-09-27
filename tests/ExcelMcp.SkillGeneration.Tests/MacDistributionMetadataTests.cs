@@ -8,7 +8,7 @@ public sealed class MacDistributionMetadataTests
 
     [Fact]
     [Trait("Feature", "Distribution")]
-    public void DistributionSurfaces_DeclareAppleSiliconAndFailClosedForIntel()
+    public void DistributionSurfaces_DeclareSeparateAppleSiliconAndIntelArtifacts()
     {
         var release = Read(".github/workflows/release.yml");
         var bootstrap = Read(".github/plugins/_shared/download.ps1.template");
@@ -17,30 +17,37 @@ public sealed class MacDistributionMetadataTests
         var extensionPackage = Read("vscode-extension/scripts/package-platforms.mjs");
 
         Assert.Contains("osx-arm64", release, StringComparison.Ordinal);
-        Assert.DoesNotContain("runtime: osx-x64", release, StringComparison.Ordinal);
+        Assert.Contains("runtime: osx-x64", release, StringComparison.Ordinal);
+        Assert.Contains("@sbroenne/mcp-server-excel-darwin-x64", release, StringComparison.Ordinal);
+        Assert.Contains("@sbroenne/excelcli-darwin-x64", release, StringComparison.Ordinal);
+        Assert.Contains("ExcelMcp-MCP-Server-${{ env.VERSION }}-macos-x64.zip", release, StringComparison.Ordinal);
+        Assert.Contains("ExcelMcp-CLI-${{ env.VERSION }}-macos-x64.zip", release, StringComparison.Ordinal);
+        Assert.Contains("\"darwin-x64\"", release, StringComparison.Ordinal);
+        Assert.Contains("slug: macos-x64", release, StringComparison.Ordinal);
         Assert.Contains("Architecture]::X64", bootstrap, StringComparison.Ordinal);
         Assert.Contains("Architecture]::Arm64", bootstrap, StringComparison.Ordinal);
-        Assert.Contains("supports Windows x64 and Apple Silicon macOS only", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("supports Windows x64 and macOS x64/Arm64 only", bootstrap, StringComparison.Ordinal);
         Assert.Contains("\"macos-arm64\"", bootstrap, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"macos-x64\"", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("\"macos-x64\"", bootstrap, StringComparison.Ordinal);
         Assert.Contains("runtime: 'osx-arm64'", extensionBuild, StringComparison.Ordinal);
-        Assert.DoesNotContain("runtime: 'osx-x64'", extensionBuild, StringComparison.Ordinal);
+        Assert.Contains("runtime: 'osx-x64'", extensionBuild, StringComparison.Ordinal);
         Assert.Contains("platform === 'darwin' && architecture === 'arm64'", extensionRuntime, StringComparison.Ordinal);
-        Assert.Contains("Supported platforms are Windows x64 and Apple Silicon macOS", extensionRuntime, StringComparison.Ordinal);
+        Assert.Contains("platform === 'darwin' && architecture === 'x64'", extensionRuntime, StringComparison.Ordinal);
+        Assert.Contains("Supported platforms are Windows x64 and macOS x64/Arm64", extensionRuntime, StringComparison.Ordinal);
         Assert.Contains("'darwin-arm64'", extensionPackage, StringComparison.Ordinal);
-        Assert.DoesNotContain("'darwin-x64'", extensionPackage, StringComparison.Ordinal);
+        Assert.Contains("'darwin-x64'", extensionPackage, StringComparison.Ordinal);
     }
 
     [Fact]
     [Trait("Feature", "Distribution")]
-    public void ReleaseWorkflow_VerifiesArchivesAndDoesNotClaimIntelExecution()
+    public void ReleaseWorkflow_VerifiesIntelArchivesWithoutClaimingHardwareExecution()
     {
         var release = Read(".github/workflows/release.yml");
         var notarization = Read("scripts/Submit-MacNotarization.ps1");
 
         Assert.Contains("Test-DistributionPackages.ps1", release, StringComparison.Ordinal);
         Assert.Contains("Notarize Darwin VSIX payload", release, StringComparison.Ordinal);
-        Assert.Contains("Darwin x64 is unsupported and no Intel macOS artifacts are published", release, StringComparison.Ordinal);
+        Assert.Contains("Intel macOS artifacts are build-verified; physical Intel Excel execution remains unverified", release, StringComparison.Ordinal);
         Assert.Contains("$configured = @(@(", notarization, StringComparison.Ordinal);
         Assert.Contains("submission.zip", notarization, StringComparison.Ordinal);
         Assert.Contains("\".zip\", \".pkg\", \".dmg\"", notarization, StringComparison.Ordinal);
