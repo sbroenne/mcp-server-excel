@@ -204,6 +204,18 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
+    public void DocumentationCounts_DefaultRefreshBuildsProjectDependencies()
+    {
+        // A fresh checkout has no built Service/ComInterop outputs, so the MCP Server
+        // build must include its project dependencies.
+        var script = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"));
+
+        Assert.DoesNotContain("--no-dependencies", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
     public async Task DocumentationCounts_UpdatePersistValidateAndRejectIncompatibleModes()
     {
         var sandbox = CreateSandbox();
