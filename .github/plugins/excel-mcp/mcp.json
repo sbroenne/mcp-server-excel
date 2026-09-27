@@ -3,7 +3,7 @@
   "mcpServers": {
     "excel-mcp": {
       "type": "stdio",
-      "command": "powershell",
+      "command": "pwsh",
       "args": [
         "-NoProfile",
         "-ExecutionPolicy",

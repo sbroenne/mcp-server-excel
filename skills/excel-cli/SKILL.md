@@ -1,22 +1,22 @@
 ---
 name: excel-cli
 description: >
-  Excel CLI automation skill for Windows workbooks. Use when a coding agent needs
+  Excel CLI automation skill for Windows and Apple Silicon macOS workbooks. Use when a coding agent needs
   token-efficient, scriptable, or unattended Excel automation via excelcli commands.
   Best for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk
-  workbook edits. Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts,
-  VBA, Data Models, screenshots, and formatting. Triggers: excelcli, Excel CLI,
+  workbook edits. Windows supports the complete operation set; macOS supports
+  session, worksheet, range value/formula/clear, and calculation operations. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows, Microsoft Excel 2016 or later, and network access for first-run runtime download.
+compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+; feature availability differs by platform.
 ---
 
 # Excel Automation with excelcli
 
 ## Preconditions
 
-- Windows host with Microsoft Excel installed (2016+)
-- Uses COM interop — does NOT work on macOS or Linux
+- Windows host with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
+- Windows uses COM; macOS uses the capability-gated Apple Events backend
 - **Every command below invokes `excelcli` directly, so it must resolve on PATH.**
   Installing the `excel-cli` plugin does *not* put it there — the global shim is opt-in. Run
   `com.github.copilot\bin\install-global.ps1` from the installed plugin folder once (it writes
@@ -28,6 +28,17 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
   `PLUGIN_DATA\runtime`; release freshness is checked once per Copilot session. The optional
   global shim falls back to `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` and checks
   for updates at most once every 24 hours.
+
+## macOS Capability Gate
+
+On macOS, use only `session create/open/list/close`, `sheet list/rename/delete`,
+range get/set values and formulas, range clear all/contents/formats, and
+calculation commands. Do not attempt Power Query, VBA, Data Model/DAX,
+PivotTables, tables, charts, slicers, connections, QueryTables, named ranges,
+formatting, screenshots, windows, Python, What-If analysis, XML maps, drawings,
+sparklines, or unsupported worksheet/range commands. Report the capability
+limit instead of retrying, clicking dialogs, changing security settings, or
+rewriting the workbook package with another library.
 
 ## Workflow Checklist
 

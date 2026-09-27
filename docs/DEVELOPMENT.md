@@ -114,9 +114,9 @@ The `main` branch is protected with:
 
 ### **Integration-First Test Architecture**
 
-ExcelMcp tests Excel behavior through real COM automation. Unit tests that mock
-Excel do not validate the threading, type conversion, persistence, or resource
-management failures that matter in production.
+ExcelMcp tests behavior through real desktop Excel. Windows COM integration
+tests and macOS Apple Events E2E tests remain separate because neither can
+substitute for the other.
 
 ```
 tests/
@@ -625,7 +625,7 @@ The following warnings are suppressed in `Directory.Build.props` because they ca
 |---------|--------|
 | `IL2026` | Reflection/dynamic code incompatible with trimming |
 | `IL3050` | Code incompatible with Native AOT |
-| `CA1416` | Windows-only APIs (this is a Windows-only project) |
+| `CA1416` | Platform-specific APIs need an explicit Windows or macOS boundary |
 
 ### **Can We Ever Support Trimming?**
 

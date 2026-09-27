@@ -80,14 +80,21 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 new() { ["sheet_name"] = "DeleteMe" }, deadline.Token));
             sheets = Success(await client.CallAsync("sheet", "list", mainSession, new(), deadline.Token));
             Assert.Equal("Data", Assert.Single(sheets.GetProperty("worksheets").EnumerateArray()).GetProperty("name").GetString());
-            var unsupportedSheetCreate = await client.CallAsync("sheet", "create", mainSession,
-                new() { ["sheet_name"] = "NotCreated" }, deadline.Token);
-            Assert.False(unsupportedSheetCreate.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", unsupportedSheetCreate.GetProperty("errorCategory").GetString());
-            var unsupportedPowerQuery = await client.CallAsync("powerquery", "list", mainSession,
-                new(), deadline.Token);
-            Assert.False(unsupportedPowerQuery.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", unsupportedPowerQuery.GetProperty("errorCategory").GetString());
+            Success(await client.CallAsync("sheet", "create", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            sheets = Success(await client.CallAsync("sheet", "list", mainSession, new(), deadline.Token));
+            Assert.Contains(
+                sheets.GetProperty("worksheets").EnumerateArray(),
+                sheet => sheet.GetProperty("name").GetString() == "Created");
+            Success(await client.CallAsync("sheet", "delete", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            var dirtyPowerQueryRead = await client.CallAsync(
+                "powerquery", "list", mainSession, new(), deadline.Token);
+            Assert.False(dirtyPowerQueryRead.GetProperty("success").GetBoolean());
+            Assert.Contains(
+                "saved workbook",
+                dirtyPowerQueryRead.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
 
             var createdSession = SessionId(await client.CallAsync("file", "create", null,
                 new() { ["path"] = created }, deadline.Token));
@@ -124,6 +131,19 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 RangeArgs("A1", ("values", SentinelValues)), deadline.Token));
             Success(await client.CallAsync("range", "set-values", mainSession,
                 RangeArgs("A1:B3", ("values_file", dataFile)), deadline.Token));
+            Success(await client.CallAsync("range", "set-number-format", mainSession,
+                RangeArgs("B2:B3", ("format_code", "0.00")), deadline.Token));
+            var numberFormats = Success(await client.CallAsync("range", "get-number-formats", mainSession,
+                RangeArgs("B2:B3"), deadline.Token));
+            Assert.Equal(2, numberFormats.GetProperty("rowCount").GetInt32());
+            Assert.Equal(1, numberFormats.GetProperty("columnCount").GetInt32());
+            Assert.All(
+                numberFormats.GetProperty("formats").EnumerateArray(),
+                row => Assert.Equal("0.00", row[0].GetString()));
+            Success(await client.CallAsync("rangeformat", "set-column-width", mainSession,
+                RangeArgs("A:B", ("column_width", 14)), deadline.Token));
+            Success(await client.CallAsync("rangeformat", "set-row-height", mainSession,
+                RangeArgs("1:3", ("row_height", 20)), deadline.Token));
             Success(await client.CallAsync("range", "set-formulas", mainSession,
                 RangeArgs("C1", ("formulas", SumFormula)), deadline.Token));
             Success(await client.CallAsync("calculation_mode", "calculate", mainSession,
@@ -149,12 +169,10 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.False(string.IsNullOrWhiteSpace(error.GetProperty("errorMessage").GetString()));
             Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("A1"), deadline.Token));
 
-            var unsupported = await client.CallAsync("powerquery", "list", mainSession, new(), deadline.Token);
-            Assert.False(unsupported.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", unsupported.GetProperty("errorCategory").GetString());
-
             Success(await client.CallAsync("file", "close", mainSession, new() { ["save"] = true }, deadline.Token));
             mainSession = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = main }, deadline.Token));
+            var powerQueries = Success(await client.CallAsync("powerquery", "list", mainSession, new(), deadline.Token));
+            Assert.Empty(powerQueries.GetProperty("queries").EnumerateArray());
             var saved = Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("C1"), deadline.Token));
             Assert.Equal(30, saved.GetProperty("values")[0][0].GetDouble());
             Success(await client.CallAsync("range", "set-values", mainSession,
@@ -300,7 +318,12 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 args["action"] = action;
                 if (sessionId is not null) { args["session_id"] = sessionId; }
                 if (tool == "file" && action == "open") { args["timeout_seconds"] = 15; }
-                var mcpTool = tool == "sheet" ? "worksheet" : tool;
+                var mcpTool = tool switch
+                {
+                    "sheet" => "worksheet",
+                    "rangeformat" => "range_format",
+                    _ => tool
+                };
                 var result = await _mcp.CallToolAsync(mcpTool, args, cancellationToken: cancellationToken);
                 json = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
             }

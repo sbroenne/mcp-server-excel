@@ -1,13 +1,14 @@
 ---
 name: excel-mcp
 description: >
-  Excel MCP Server skill for Windows workbook automation. Use when an assistant
-  needs rich MCP tools to create, inspect, modify, format, or analyze Excel files.
-  Supports Power Query (M), Data Model/DAX, PivotTables, Tables, Ranges, Charts,
-  Slicers, formatting, screenshots, VBA macros, connections, and calculation mode.
+  Excel MCP Server skill for Windows and Apple Silicon macOS workbook automation.
+  Use when an assistant needs MCP tools to create, inspect, or modify Excel files.
+  Windows supports the complete Power Query, Data Model/DAX, PivotTable, Table,
+  Range, Chart, VBA, connection, and formatting surface. macOS supports the
+  documented session, worksheet, range value/formula/clear, and calculation subset.
   Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
   chart, dashboard, VBA, MCP.
-compatibility: Requires Windows, Microsoft Excel 2016 or later, and network access for first-run runtime download.
+compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+; feature availability differs by platform.
 ---
 
 # Excel MCP Server Skill
@@ -27,9 +28,25 @@ Provides 326 Excel operations via Model Context Protocol. The MCP Server hosts t
 
 ## Preconditions
 
-- Windows host with Microsoft Excel installed (2016+)
-- Use full Windows paths: `C:\Users\Name\Documents\Report.xlsx`
+- Windows host with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
+- Use absolute native paths (`C:\Users\Name\Documents\Report.xlsx` or `/Users/name/Documents/Report.xlsx`)
 - Excel files must not be open in another Excel instance
+
+## macOS Capability Gate
+
+On macOS, use only:
+
+- `file`: create, open, list, close
+- `worksheet`: list, rename, delete
+- `range`: get/set values, get/set formulas, clear all/contents/formats
+- `calculation_mode`: calculation actions
+
+Do not attempt Power Query, VBA, Data Model/DAX, PivotTables, tables, charts,
+slicers, connections, QueryTables, named ranges, formatting, screenshots,
+window management, Python, What-If analysis, XML maps, drawings, sparklines,
+or unsupported worksheet/range actions on macOS. Report the capability limit;
+do not retry, click dialogs, weaken macro security, or substitute file-format
+rewrites that could damage workbook features.
 
 ## Calculation Mode Workflow (Batch Performance)
 

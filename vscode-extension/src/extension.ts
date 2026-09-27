@@ -6,7 +6,7 @@ import * as path from 'path';
  *
  * This extension provides MCP server definitions for the ExcelMcp MCP server,
  * enabling AI assistants like GitHub Copilot to interact with Microsoft Excel
- * through native COM automation.
+ * through the platform Excel automation backend.
  *
  * The extension bundles a self-contained MCP server executable, so no .NET SDK
  * or runtime installation is required.
@@ -21,9 +21,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
 			provideMcpServerDefinitions: async () => {
-				// Return the MCP server definition for ExcelMcp
-				const extensionPath = context.extensionPath;
-				const mcpServerPath = path.join(extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
+				const runtime = resolveBundledRuntime(process.platform, process.arch);
+				const mcpServerPath = path.join(context.extensionPath, 'bin', runtime.directory, runtime.executable);
 
 				return [
 					new vscode.McpStdioServerDefinition(
@@ -45,6 +44,30 @@ export async function activate(context: vscode.ExtensionContext) {
 		showWelcomeMessage();
 		context.globalState.update('excelmcp.hasShownWelcome', true);
 	}
+}
+
+export function resolveBundledRuntime(
+	platform: NodeJS.Platform,
+	architecture: string
+): { directory: string; executable: string } {
+	if (platform === 'win32' && architecture === 'x64') {
+		return {
+			directory: 'win32-x64',
+			executable: 'Sbroenne.ExcelMcp.McpServer.exe'
+		};
+	}
+
+	if (platform === 'darwin' && architecture === 'arm64') {
+		return {
+			directory: 'darwin-arm64',
+			executable: 'Sbroenne.ExcelMcp.McpServer'
+		};
+	}
+
+	throw new Error(
+		`Excel MCP Server does not include a runtime for ${platform}-${architecture}. ` +
+		'Supported platforms are Windows x64 and Apple Silicon macOS.'
+	);
 }
 
 function showWelcomeMessage() {

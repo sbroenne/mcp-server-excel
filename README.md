@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
 [**Website**](https://excelmcpserver.dev/) ·
@@ -21,16 +21,19 @@
 Claude, ChatGPT, and other agents control Excel through natural-language
 requests—using either MCP or a token-efficient CLI.
 
-Unlike file-parser tools, ExcelMcp drives the **actual Excel application** through
-its official COM API. It can refresh Power Query, recalculate formulas, evaluate
-DAX, run VBA and Python `=PY()`, and preserve PivotTables, charts, macros, the
-Data Model, and workbook formatting.
+Unlike file-parser tools, ExcelMcp drives the **actual Excel application**.
+Windows uses the complete COM backend. Apple Silicon macOS uses a
+capability-gated Apple Events backend for session lifecycle, worksheet
+list/rename/delete, core range values/formulas/clears, and calculation.
 
 **31 tools with 326 operations** cover end-to-end Excel automation.
 
 > [!IMPORTANT]
-> Requires **Windows**, **Microsoft Excel 2016 or later**, and an interactive
-> desktop. It is not intended for Linux, macOS, or server-side batch processing.
+> Requires an interactive desktop with **Windows and Excel 2016+**, or an
+> **Apple Silicon Mac with Excel for Mac 16.112+**. Windows provides all 326
+> operations; macOS supports the documented initial subset and returns
+> `PlatformNotSupported` for other actions. Linux and headless servers are not
+> supported. See [macOS support](specs/MACOS-SUPPORT.md).
 
 ## 🚀 Get Started
 
@@ -55,7 +58,7 @@ while automating them.
 - **[Automation & advanced](https://excelmcpserver.dev/features/automation-advanced/):**
   VBA, Python in Excel, Goal Seek, scenarios, data tables, windows, and XML Maps.
 
-Explore the [complete reference for all 326 operations](https://excelmcpserver.dev/features/).
+Explore the [complete Windows reference for all 326 operations](https://excelmcpserver.dev/features/).
 
 ## See It in Action
 
@@ -90,9 +93,9 @@ AI assistant or script
         │
    MCP Server / CLI
         │
- ExcelMcp Core commands
+ ExcelMcp Service contracts
         │
- Real Excel COM API
+ Windows COM / macOS Apple Events
 ```
 
 [Read the architecture](docs/ARCHITECTURE.md) or browse the

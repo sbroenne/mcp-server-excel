@@ -2,13 +2,16 @@
 
 ## Purpose
 
-ExcelMcp is a Windows-only automation system that controls the installed Microsoft Excel application through its COM API. It uses Excel itself to calculate formulas, refresh data, run macros, and preserve workbook features that file-only tools cannot safely reproduce.
+ExcelMcp is a cross-platform desktop Excel automation system. Windows uses the
+complete COM backend. Apple Silicon macOS uses a capability-gated Apple Events
+backend for the verified initial operation subset. Both use Excel itself rather
+than a file-only calculation engine.
 
 ## System map
 
 ```text
-MCP Server -> in-process ExcelMcpService -> Core commands -> Excel COM
-CLI        -> background ExcelMcpService -> Core commands -> Excel COM
+MCP Server -> in-process ExcelMcpService -> platform backend -> desktop Excel
+CLI        -> background ExcelMcpService -> platform backend -> desktop Excel
 ```
 
 The MCP Server and `excelcli` are equal user entry points. They expose the same operations and behavior, but they run in separate processes and do not share open sessions.
@@ -16,10 +19,17 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 ## Glossary
 
 - **Entry point:** The MCP Server or `excelcli`, through which a user or agent requests Excel work.
-- **Session:** A managed connection to an open workbook and its Excel process. A session stays open across operations until it is closed.
+- **Session:** A managed connection to an open workbook. On Windows it owns an
+  Excel process; on macOS it owns only the exact workbook inside shared desktop
+  Excel. A session stays open across operations until it is closed.
 - **Session ID:** The identifier returned when a workbook is opened or created. Later operations use it to select the session.
-- **Batch (`IExcelBatch`):** The internal object that keeps Excel and its workbook open and runs COM work on Excel's required thread.
-- **Core command:** Transport-independent Excel behavior implemented under `src/ExcelMcp.Core`.
+- **Batch (`IExcelBatch`):** The Windows internal object that keeps Excel and its
+  workbook open and runs COM work on Excel's required thread.
+- **Core command:** A Windows Excel behavior implementation under
+  `src/ExcelMcp.Core`; annotated interfaces also define the shared generated
+  public contract used by both platforms.
+- **Mac backend:** The Service adapter that sends bounded Apple Events through
+  OSAKit and explicitly gates operations that do not have verified parity.
 - **Service:** The shared command router and session owner used by both entry points.
 - **COM reference:** A live Excel object such as a workbook, worksheet, range, chart, or model object. It belongs to the Excel process and requires controlled cleanup.
 - **Generated surface:** CLI commands, service routes, MCP schemas, or reference material produced from a source contract rather than maintained separately.
@@ -33,9 +43,14 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 
 ## Runtime relationships
 
-- One session owns one Excel application process and may contain one or more open workbooks.
+- On Windows, one session owns one Excel application process and may contain one
+  or more open workbooks.
+- On macOS, one session owns one exact workbook in shared desktop Excel and must
+  never terminate Excel or close unknown user workbooks.
 - Operations inside one session run in order on one Excel thread.
-- Different sessions can run independently, but the same workbook cannot be opened in multiple sessions.
+- Different sessions have separate public namespaces. The same workbook cannot
+  be opened in multiple sessions; macOS also serializes open preflight,
+  LaunchServices handoff, and attachment across participating processes.
 - A timeout can leave Excel busy after the caller stops waiting. Such a session is no longer safe for additional work and must be closed.
 - Workbook changes are not automatically saved when a batch or session is disposed. Saving is an explicit operation.
 

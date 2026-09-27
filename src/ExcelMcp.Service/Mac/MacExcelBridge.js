@@ -49,6 +49,18 @@ function normalizeMatrix(value) {
     return Array.isArray(value) ? value : [[value]];
 }
 
+function repeatMatrix(value, rowCount, columnCount) {
+    const result = [];
+    for (let row = 0; row < rowCount; row++) {
+        const values = [];
+        for (let column = 0; column < columnCount; column++) {
+            values.push(value);
+        }
+        result.push(values);
+    }
+    return result;
+}
+
 function requireSupported(command, supported) {
     if (!supported.includes(command)) {
         const error = new Error(
@@ -92,6 +104,13 @@ function run(argv) {
         }
 
         const workbook = workbookByPath(excel, args.filePath);
+        if (command === "workbook.state") {
+            return json({
+                success: true,
+                filePath: args.filePath,
+                saved: workbook.saved()
+            });
+        }
         if (command === "sheet.list") {
             const sheets = workbook.worksheets;
             const result = [];
@@ -159,6 +178,40 @@ function run(argv) {
             if (command === "range.clear-formats") {
                 range.clearFormats();
                 return json({ success: true, filePath: args.filePath, action: "clear-formats" });
+            }
+            if (command === "range.get-number-formats") {
+                const rowCount = range.rows.length;
+                const columnCount = range.columns.length;
+                const rawFormats = range.numberFormat();
+                const formats = Array.isArray(rawFormats)
+                    ? normalizeMatrix(rawFormats)
+                    : repeatMatrix(rawFormats || "General", rowCount, columnCount);
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    sheetName: args.sheetName,
+                    rangeAddress: range.address(),
+                    formats,
+                    rowCount,
+                    columnCount
+                });
+            }
+            if (command === "range.set-number-format") {
+                range.numberFormat = args.formatCode;
+                return json({ success: true, filePath: args.filePath, action: "set-number-format" });
+            }
+        }
+
+        if (command.startsWith("rangeformat.")) {
+            const sheet = worksheetByName(workbook, args.sheetName);
+            const range = sheet.ranges.byName(args.rangeAddress);
+            if (command === "rangeformat.set-column-width") {
+                range.columnWidth = args.columnWidth;
+                return json({ success: true, filePath: args.filePath, action: "set-column-width" });
+            }
+            if (command === "rangeformat.set-row-height") {
+                range.rowHeight = args.rowHeight;
+                return json({ success: true, filePath: args.filePath, action: "set-row-height" });
             }
         }
 

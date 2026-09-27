@@ -4,6 +4,12 @@
 
 Excel MCP Server automates the real Microsoft Excel application through four focused capability areas. Start with the category that matches your goal, or use the quick reference below to find a tool for a specific task.
 
+> **Platform availability:** The full 326-operation reference describes the
+> complete Windows COM backend. The first Apple Silicon macOS release supports
+> session lifecycle, worksheet list/rename/delete, core range
+> values/formulas/clears, and calculation. Other macOS actions return
+> `PlatformNotSupported`; see [macOS support](specs/MACOS-SUPPORT.md).
+
 ## Explore by goal
 
 | Goal | Feature area | Included tools |

@@ -55,7 +55,7 @@ $downloadScript = Join-Path $PSScriptRoot "download.ps1"
 $binaryPath = & $downloadScript -PassThru -Quiet
 
 if ([string]::IsNullOrWhiteSpace($binaryPath) -or -not (Test-Path $binaryPath)) {
-    throw "excel-cli bootstrap did not resolve a usable excelcli.exe runtime."
+    throw "excel-cli bootstrap did not resolve a usable excelcli runtime."
 }
 
 if ($null -eq $PassthroughArgs) {

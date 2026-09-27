@@ -11,7 +11,7 @@ $downloadScript = Join-Path $PSScriptRoot "download.ps1"
 $binaryPath = & $downloadScript -PassThru -Quiet
 
 if ([string]::IsNullOrWhiteSpace($binaryPath) -or -not (Test-Path $binaryPath)) {
-    throw "excel-mcp bootstrap did not resolve a usable mcp-excel.exe runtime."
+    throw "excel-mcp bootstrap did not resolve a usable MCP runtime."
 }
 
 & $binaryPath @PassthroughArgs
