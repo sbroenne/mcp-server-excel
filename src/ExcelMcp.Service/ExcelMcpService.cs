@@ -21,6 +21,8 @@ using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 
@@ -34,21 +36,6 @@ namespace Sbroenne.ExcelMcp.Service;
 /// </summary>
 public sealed class ExcelMcpService : IDisposable
 {
-    private static readonly HashSet<string> MacSupportedCommands = new(StringComparer.Ordinal)
-    {
-        "sheet.list",
-        "sheet.rename",
-        "sheet.delete",
-        "range.get-values",
-        "range.set-values",
-        "range.get-formulas",
-        "range.set-formulas",
-        "range.clear-all",
-        "range.clear-contents",
-        "range.clear-formats",
-        "calculation.calculate"
-    };
-
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
@@ -420,15 +407,14 @@ public sealed class ExcelMcpService : IDisposable
         }
 
         var command = $"{category}.{action}";
-        if (!MacSupportedCommands.Contains(command))
+        var capability = MacCommandCapabilities.Get(command);
+        if (!capability.IsAvailable)
         {
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "PlatformNotSupported",
-                ErrorMessage =
-                    $"Command '{command}' is not yet supported by the macOS Excel backend. " +
-                    "It remains available on Windows."
+                ErrorMessage = capability.UnavailableMessage
             };
         }
 
@@ -436,6 +422,11 @@ public sealed class ExcelMcpService : IDisposable
         {
             return await _macSessionManager!.ExecuteAsync(request.SessionId, async session =>
             {
+                if (category == "powerquery" && action is "list" or "view")
+                {
+                    return await DispatchMacPowerQueryReadAsync(action, request, session);
+                }
+
                 var arguments = string.IsNullOrWhiteSpace(request.Args)
                     ? new JsonObject()
                     : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
@@ -496,6 +487,95 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
+    private async Task<ServiceResponse> DispatchMacPowerQueryReadAsync(
+        string action,
+        ServiceRequest request,
+        MacExcelSession session)
+    {
+        var state = await _macBackend!.InvokeAsync(
+            "workbook.state",
+            new { filePath = session.FilePath },
+            session.OperationTimeout);
+        if (!state.GetProperty("saved").GetBoolean())
+        {
+            throw new InvalidOperationException(
+                "Power Query package reads on macOS require a saved workbook. " +
+                "Save or discard the current workbook changes, then retry.");
+        }
+
+        var queries = MacPowerQueryPackage.ReadQueries(session.FilePath);
+        var loads = MacPowerQueryPackage.ReadWorksheetLoads(session.FilePath);
+
+        PowerQueryInfo CreateInfo(MacPowerQueryDefinition query)
+        {
+            var load = loads.FirstOrDefault(candidate =>
+                PowerQueryHelpers.MatchesMashupLocation(candidate.Connection, query.Name));
+            var isConnectionOnly = load is null;
+            return new PowerQueryInfo
+            {
+                Name = query.Name,
+#pragma warning disable CS0618
+                Formula = query.Formula,
+#pragma warning restore CS0618
+                FormulaPreview = query.Formula.Length > 80
+                    ? query.Formula[..77] + "..."
+                    : query.Formula,
+                CharacterCount = query.Formula.Length,
+                LoadMode = isConnectionOnly
+                    ? PowerQueryLoadMode.ConnectionOnly
+                    : PowerQueryLoadMode.LoadToTable,
+                TargetSheet = load?.SheetName,
+                IsConnectionOnly = isConnectionOnly,
+                IsLoadedToDataModel = false
+            };
+        }
+
+        if (action == "list")
+        {
+            var result = new PowerQueryListResult
+            {
+                Success = true,
+                FilePath = session.FilePath,
+                Queries = queries.Select(CreateInfo).ToList()
+            };
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
+            };
+        }
+
+        var viewArguments = JsonNode.Parse(
+                request.Args ?? throw new ArgumentException(
+                    "Power Query view arguments are required."))
+            ?.AsObject()
+            ?? throw new ArgumentException("Power Query view arguments are required.");
+        var queryName = viewArguments["queryName"]?.GetValue<string>()
+            ?? throw new ArgumentException("queryName is required.");
+        var query = queries.SingleOrDefault(candidate =>
+                string.Equals(candidate.Name, queryName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"Query '{queryName}' not found.");
+        var info = CreateInfo(query);
+        var view = new PowerQueryViewResult
+        {
+            Success = true,
+            FilePath = session.FilePath,
+            QueryName = query.Name,
+            MCode = query.Formula,
+            CharacterCount = query.Formula.Length,
+            LoadMode = info.LoadMode,
+            TargetSheet = info.TargetSheet,
+            HasConnection = !info.IsConnectionOnly,
+            IsLoadedToDataModel = false,
+            IsConnectionOnly = info.IsConnectionOnly
+        };
+        return new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(view, ServiceProtocol.JsonOptions)
+        };
+    }
+
     private static void ResolveMacFileArguments(
         string category,
         string action,
@@ -503,6 +583,7 @@ public sealed class ExcelMcpService : IDisposable
     {
         if (category != "range")
         {
+            ValidateMacRangeFormatArguments(category, action, arguments);
             return;
         }
 
@@ -523,6 +604,36 @@ public sealed class ExcelMcpService : IDisposable
                 ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile),
                 ServiceProtocol.JsonOptions);
             arguments.Remove("formulasFile");
+        }
+    }
+
+    private static void ValidateMacRangeFormatArguments(
+        string category,
+        string action,
+        JsonObject arguments)
+    {
+        if (category != "rangeformat")
+        {
+            return;
+        }
+
+        if (action == "set-column-width")
+        {
+            var width = arguments["columnWidth"]?.GetValue<double>()
+                ?? throw new ArgumentException("columnWidth is required.");
+            if (width is < 0.25 or > 409)
+            {
+                throw new ArgumentException("columnWidth must be between 0.25 and 409 points");
+            }
+        }
+        else if (action == "set-row-height")
+        {
+            var height = arguments["rowHeight"]?.GetValue<double>()
+                ?? throw new ArgumentException("rowHeight is required.");
+            if (height is < 0 or > 409)
+            {
+                throw new ArgumentException("rowHeight must be between 0 and 409 points");
+            }
         }
     }
 

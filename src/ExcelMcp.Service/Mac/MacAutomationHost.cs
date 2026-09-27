@@ -38,8 +38,8 @@ public static class MacAutomationHost
                 ?? throw new InvalidOperationException($"Embedded macOS bridge '{ResourceName}' was not found.");
             using var reader = new StreamReader(stream);
             var arguments = Console.In.ReadToEnd();
-            var result = args[1] == "sheet.delete"
-                ? DeleteWorksheet(arguments)
+            var result = args[1] is "sheet.create" or "sheet.delete"
+                ? MutateWorksheet(args[1], arguments)
                 : MacOsaScriptRuntime.Execute(reader.ReadToEnd(), args[1], arguments);
             Console.Out.Write(result);
             exitCode = 0;
@@ -58,13 +58,21 @@ public static class MacAutomationHost
         return true;
     }
 
-    private static string DeleteWorksheet(string arguments)
+    private static string MutateWorksheet(string command, string arguments)
     {
         using var document = JsonDocument.Parse(arguments);
         var filePath = document.RootElement.GetProperty("filePath").GetString();
         var sheetName = document.RootElement.GetProperty("sheetName").GetString();
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+        var mutation = command == "sheet.create"
+            ? $"""
+                tell workbook targetWorkbookIndex
+                    set createdWorksheet to make new worksheet at end
+                    set name of createdWorksheet to "{EscapeAppleScript(sheetName)}"
+                end tell
+                """
+            : $"delete worksheet \"{EscapeAppleScript(sheetName)}\" of workbook targetWorkbookIndex";
         var script = $$"""
             set workbookPath to "{{EscapeAppleScript(filePath)}}"
             tell application "Microsoft Excel"
@@ -75,7 +83,7 @@ public static class MacAutomationHost
                     end if
                 end repeat
                 if targetWorkbookIndex is 0 then error "Workbook is not open in this ExcelMcp session."
-                delete worksheet "{{EscapeAppleScript(sheetName)}}" of workbook targetWorkbookIndex
+                {{mutation}}
                 return "{\"success\":true,\"errorMessage\":\"\"}"
             end tell
             """;

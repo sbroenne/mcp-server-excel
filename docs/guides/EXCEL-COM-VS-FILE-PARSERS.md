@@ -11,9 +11,9 @@ ZIP archive of XML, so a library can open it, edit the XML, and write it back
 without Excel being installed. `openpyxl`, `ExcelJS`, `SheetJS`, `EPPlus`, and
 `ClosedXML` all work this way.
 
-**COM automation** launches the real Microsoft Excel application and drives it
-through Excel's official `Excel.Application` API — the same API VBA uses. ExcelMcp
-takes this approach.
+**Native Excel automation** launches the real Microsoft Excel application.
+ExcelMcp uses Excel's COM API on Windows and a capability-gated Apple Events
+backend on Apple Silicon macOS.
 
 ## What each can do
 
@@ -31,7 +31,7 @@ takes this approach.
 | Run Python `=PY()` formulas | No | Yes |
 | Preserve unknown/complex workbook parts | Varies — some are dropped on rewrite | Yes, Excel owns the file |
 | Interactive authentication for protected sources | No | Yes |
-| Runs on Linux / macOS / containers | Yes | No — Windows + Excel required |
+| Runs on Linux / macOS / containers | Yes | Apple Silicon macOS subset; no Linux or containers |
 | Runs without Excel installed | Yes | No |
 | Speed for bulk cell writes | Very fast | Slower (process boundary) |
 
@@ -58,7 +58,7 @@ construction.
 - You are writing large volumes of cell data and throughput matters
 - The workbook has no Power Query, PivotTables, Data Model, or macros
 
-**Use COM automation (ExcelMcp) when:**
+**Use native Excel automation (ExcelMcp) when:**
 
 - The workbook contains Power Query, PivotTables, the Data Model, or VBA
 - You need calculated formula results, not just formula text
@@ -69,11 +69,11 @@ construction.
 The dividing line in practice: **generating a new simple file** favours parsers;
 **operating on an existing real-world workbook** favours COM.
 
-## What ExcelMcp adds on top of COM
+## What ExcelMcp adds on top of native automation
 
-Raw COM automation from a script is possible but unpleasant — STA threading, COM
-object lifetime, message filters, and Excel process cleanup are all easy to get
-wrong and leak `EXCEL.EXE` processes. ExcelMcp handles that layer and exposes 326
+Raw Excel automation is possible but unpleasant—STA threading, COM object
+lifetime, Apple Event permission identity, workbook ownership, and process
+cleanup are easy to get wrong. ExcelMcp handles that layer and exposes 326
 operations across 31 tools through two equal entry points:
 
 - an **MCP server** for conversational AI clients (Claude, Copilot, Cursor)
@@ -85,10 +85,11 @@ for MCP — a 64% reduction. Actual usage varies by client, model, and workflow.
 
 ## Requirements and trade-offs
 
-ExcelMcp is **Windows-only and requires Microsoft Excel desktop (2016 or later)**.
-That is the direct cost of using Excel's real engines. If you need
-cross-platform execution, a file parser is the right tool and no amount of
-architecture changes that.
+ExcelMcp requires an interactive desktop: **Windows with Excel 2016+**, or an
+**Apple Silicon Mac with Excel 16.112+**. Windows provides the complete
+operation set. macOS currently supports session lifecycle, worksheet
+list/rename/delete, range values/formulas/clears, and calculation. If you need
+Linux, containers, Intel Mac, or Excel-free processing, use a file parser.
 
 ## Related
 

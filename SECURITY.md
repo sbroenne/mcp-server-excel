@@ -28,19 +28,23 @@ ExcelMcp includes several security measures:
 - **Treat Warnings as Errors**: All code quality issues must be resolved
 - **CodeQL Scanning**: C#, JavaScript/TypeScript, Python, and GitHub Actions scanning on pull requests to `main`, pushes to `main`, merge groups, and a weekly schedule
 
-### COM Security
+### Excel Automation Security
 
-- **Controlled Excel Automation**: Excel.Application runs with `Visible=false` and `DisplayAlerts=false`
-- **Resource Cleanup**: Comprehensive COM object disposal and garbage collection
+- **Windows COM**: Excel.Application runs with `Visible=false` and `DisplayAlerts=false`
+- **macOS Apple Events**: Permission checks never request consent; users grant
+  Automation access through macOS and ExcelMcp never clicks permission dialogs
+- **Resource Cleanup**: Controlled COM cleanup on Windows and exact-workbook
+  ownership on macOS
 - **No Remote Connections**: Only local Excel automation supported
 
 ### ExcelMcp Service Security
 
-The ExcelMcp Service manages Excel COM automation sessions:
+The ExcelMcp Service manages local Excel automation sessions:
 
 **MCP Server**: The service runs fully **in-process** — no inter-process communication. There is no attack surface beyond the MCP Server process itself.
 
-**CLI**: The CLI daemon uses a **Windows named pipe** (`excelmcp-cli-{USER_SID}`) for communication between CLI commands and the daemon process:
+**CLI on Windows** uses a named pipe (`excelmcp-cli-{USER_SID}`) between CLI
+commands and the daemon:
 
 | Protection | Status | Description |
 |------------|--------|-------------|
@@ -56,6 +60,11 @@ The ExcelMcp Service manages Excel COM automation sessions:
 2. **No cross-user access**: User A cannot connect to User B's CLI daemon. Each user has a separate named pipe with their SID.
 
 3. **No network access**: The named pipe is strictly local. Remote processes cannot connect.
+
+**CLI on macOS** uses user-local IPC and a private daemon identity. Apple Event
+permission and dispatch occur in the same bounded executable child because
+Automation authorization is sender-specific. ExcelMcp does not automate System
+Settings, weaken macro security, or click Excel warnings.
 
 **Security Implications:**
 
@@ -200,12 +209,17 @@ We follow responsible disclosure practices:
 
 ## Known Security Considerations
 
-### Excel COM Automation
+### Desktop Excel Automation
 
 - **Local Only**: ExcelMcp only supports local Excel automation
-- **Windows Only**: Requires Windows with Excel installed
-- **Excel Process**: Creates Excel.Application COM objects
-- **Macro Security**: VBA operations require the user to manually enable "Trust access to the VBA project object model" in Excel Trust Center settings
+- **Windows Backend**: Creates owned `Excel.Application` COM objects and provides
+  the complete operation set
+- **macOS Backend**: Uses Apple Events with the user's existing Automation
+  permission and owns exact workbooks inside shared desktop Excel
+- **No Prompt Automation**: ExcelMcp does not click permission or macro dialogs,
+  change system privacy settings, or weaken macro security
+- **Macro Security**: Windows VBA operations require the user to manually enable
+  "Trust access to the VBA project object model"; VBA is capability-gated on macOS
 
 ### File System Access
 

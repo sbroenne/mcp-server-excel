@@ -52,6 +52,20 @@ for (const provider of providers) {
   );
 }
 
+assert.deepEqual(
+  manifest.os,
+  ['win32', 'darwin'],
+  'Extension operating systems must include Windows and macOS.'
+);
+assert.ok(
+  extensionSource.includes("platform === 'win32' && architecture === 'x64'"),
+  'Extension must resolve its bundled Windows x64 runtime.'
+);
+assert.ok(
+  extensionSource.includes("platform === 'darwin' && architecture === 'arm64'"),
+  'Extension must resolve its bundled Apple Silicon macOS runtime.'
+);
+
 const skills = manifest.contributes?.chatSkills ?? [];
 assert.ok(skills.length > 0, 'At least one chat skill must be contributed.');
 const skillNames = new Set();

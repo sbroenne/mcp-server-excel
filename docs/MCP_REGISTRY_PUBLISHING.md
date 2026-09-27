@@ -19,7 +19,7 @@ This is the MCP registry metadata file that describes the server:
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sbroenne/mcp-server-excel",
   "title": "MCP Server for Excel",
-  "description": "Excel automation for AI - Sheets, Power Query, DAX, VBA, Tables, Ranges and more. Windows only.",
+  "description": "Real Excel automation for AI. Complete on Windows; capability-gated on Apple Silicon macOS.",
   "version": "1.0.0",
   "repository": {
     "url": "https://github.com/sbroenne/mcp-server-excel",

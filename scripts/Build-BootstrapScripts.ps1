@@ -36,7 +36,7 @@ function Get-TokenMap {
 
         $result[$pluginName] = @{
             "{{PLUGIN_NAME}}" = [string]$pluginConfig.plugin_name
-            "{{RUNTIME_EXE}}" = [string]$pluginConfig.runtime_exe
+            "{{RUNTIME_BASENAME}}" = [string]$pluginConfig.runtime_basename
             "{{ASSET_PREFIX}}" = [string]$pluginConfig.asset_prefix
             "{{RELEASE_DESCRIPTION}}" = [string]$pluginConfig.release_description
             "{{READY_MESSAGE}}" = [string]$pluginConfig.ready_message

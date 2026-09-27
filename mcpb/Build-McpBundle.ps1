@@ -53,7 +53,7 @@ else {
         SourceExecutable = "Sbroenne.ExcelMcp.McpServer"
         BundleExecutable = "excel-mcp-server"
         DisplayName = "Excel (Apple Silicon macOS)"
-        LongDescription = "Automate the real Microsoft Excel application from Claude on Apple Silicon macOS. The native Apple Events backend supports session create, open, list, and close; worksheet list, rename, and delete; range values and formulas; range clearing; and calculation. Unsupported Windows-only operations fail explicitly. Requires Excel for Mac 16.112 or later."
+        LongDescription = "Automate the real Microsoft Excel application from Claude on Apple Silicon macOS. The capability-gated backend supports session lifecycle; worksheet create, list, rename, and delete; range values, formulas, number formats, row and column sizing, clearing, and calculation; plus Power Query list and view for clean saved workbooks without a Data Model. Unavailable operations fail explicitly. Requires Excel for Mac 16.112 or later."
     }
 }
 

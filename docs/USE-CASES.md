@@ -68,7 +68,9 @@ ExcelMcp is designed for:
 
 It is not designed for:
 
-- Linux or macOS environments
+- Linux environments or Intel Macs
+- macOS workflows that require the Windows-only Power Query, Data Model, VBA,
+  PivotTable, chart, formatting, or window-management operations
 - Server-side processing without an interactive desktop and Microsoft Excel
 - High-volume, Excel-free batch processing where libraries such as ClosedXML or
   EPPlus are a better fit

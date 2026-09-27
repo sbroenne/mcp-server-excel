@@ -9,7 +9,17 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $PluginName = "excel-cli"
-$ExecutableName = "excelcli.exe"
+$IsWindowsRuntime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [Runtime.InteropServices.OSPlatform]::Windows)
+$IsMacArm64Runtime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [Runtime.InteropServices.OSPlatform]::OSX) -and
+    [Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq
+        [Runtime.InteropServices.Architecture]::Arm64
+if (-not $IsWindowsRuntime -and -not $IsMacArm64Runtime) {
+    throw "excel-cli supports Windows x64 and Apple Silicon macOS only."
+}
+$ExecutableName = if ($IsWindowsRuntime) { "excelcli.exe" } else { "excelcli" }
+$AssetPlatform = if ($IsWindowsRuntime) { "windows" } else { "macos-arm64" }
 $RepoOwner = "sbroenne"
 $RepoName = "mcp-server-excel"
 $ReleaseApiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
@@ -18,7 +28,7 @@ $ChecksumAssetName = "SHA256SUMS"
 $CacheRoot = if (-not [string]::IsNullOrWhiteSpace($env:PLUGIN_DATA)) {
     Join-Path $env:PLUGIN_DATA "runtime"
 } else {
-    Join-Path $env:USERPROFILE ".copilot\plugin-runtime\mcp-server-excel\$PluginName"
+    Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)) ".copilot/plugin-runtime/mcp-server-excel/$PluginName"
 }
 $DownloadsDir = Join-Path $CacheRoot "downloads"
 $ReleasesDir = Join-Path $CacheRoot "releases"
@@ -150,10 +160,14 @@ function Test-BinaryMatchesVersion {
 }
 
 function Get-RuntimeCacheMutex {
-    # Local\ rather than Global\ deliberately: creating a global kernel object requires
-    # SeCreateGlobalPrivilege, which standard users do not hold. The cache lives under the user
-    # profile, so a per-logon-session lock is exactly the right scope.
-    return [System.Threading.Mutex]::new($false, "Local\excelmcp-plugin-$PluginName")
+    $name = if ($IsWindowsRuntime) {
+        # Local\ rather than Global\ deliberately: creating a global kernel object requires
+        # SeCreateGlobalPrivilege, which standard users do not hold.
+        "Local\excelmcp-plugin-$PluginName"
+    } else {
+        "excelmcp-plugin-$PluginName"
+    }
+    return [System.Threading.Mutex]::new($false, $name)
 }
 
 function Test-FreshnessWindowElapsed {
@@ -300,7 +314,7 @@ function Get-LatestReleaseMetadata {
             throw $exception
         }
         $releaseVersion = $release.tag_name -replace '^v', ''
-        $assetName = "ExcelMcp-CLI-$releaseVersion-windows.zip"
+        $assetName = "ExcelMcp-CLI-$releaseVersion-$AssetPlatform.zip"
         $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
 
         if ($null -eq $asset) {
@@ -464,6 +478,18 @@ function Install-RuntimeArchive {
             throw "Downloaded package '$(Split-Path $ZipPath -Leaf)' did not contain $ExecutableName."
         }
 
+        if ($IsMacArm64Runtime) {
+            [System.IO.File]::SetUnixFileMode(
+                $binary.FullName,
+                [System.IO.UnixFileMode]::UserRead -bor
+                    [System.IO.UnixFileMode]::UserWrite -bor
+                    [System.IO.UnixFileMode]::UserExecute -bor
+                    [System.IO.UnixFileMode]::GroupRead -bor
+                    [System.IO.UnixFileMode]::GroupExecute -bor
+                    [System.IO.UnixFileMode]::OtherRead -bor
+                    [System.IO.UnixFileMode]::OtherExecute)
+        }
+
         return [pscustomobject]@{ Path = $binary.FullName; Installed = $true }
     } finally {
         if (-not [string]::IsNullOrWhiteSpace($stagingDir) -and (Test-Path $stagingDir)) {
@@ -579,10 +605,6 @@ function Ensure-LatestRuntime {
 
         $mutex.Dispose()
     }
-}
-
-if ($env:OS -ne "Windows_NT") {
-    throw "excel-cli plugin bootstrap is Windows-only."
 }
 
 $state = Get-State

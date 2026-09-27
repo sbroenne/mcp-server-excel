@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Sbroenne.ExcelMcp! This project i
 ExcelMcp aims to be the go-to command-line tool for coding agents to interact with Microsoft Excel files. We prioritize:
 
 - **Simplicity** - Clear, predictable commands
-- **Reliability** - Robust COM automation
+- **Reliability** - Robust native Excel automation
 - **Extensibility** - Easy to add new features
 - **Agent-Friendly** - Designed for AI coding assistants
 
@@ -16,10 +16,10 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 ### Development Environment
 
 1. **Prerequisites**:
-   - Windows OS (required for Excel COM)
+   - Windows x64 or Apple Silicon macOS
    - Visual Studio 2022 or VS Code
    - .NET 10 SDK
-   - Microsoft Excel installed
+   - Microsoft Excel installed for Excel-dependent tests
 
 2. **Setup**:
    ```powershell
@@ -125,16 +125,17 @@ That `dotnet nuget push --source` setting is not a restore-source override.
 
 ### Architecture
 
-ExcelMcp has **two equal entry points** — an MCP Server and a CLI — sharing one Core layer:
+ExcelMcp has **two equal entry points** and platform-specific automation
+backends:
 
 ```
-MCP Server ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
-CLI ─────────► CLI Daemon (named pipe) ─────► Core Commands ──► Excel COM
+MCP Server ──► In-process ExcelMcpService ──► Windows COM / macOS Apple Events
+CLI ─────────► CLI daemon (local IPC) ──────► Windows COM / macOS Apple Events
 ```
 
 - **`ExcelMcp.ComInterop`** - Reusable COM automation primitives (STA threading, session/batch management)
 - **`ExcelMcp.Core`** - Excel business logic (Power Query, VBA, worksheets, PivotTables, etc.)
-- **`ExcelMcp.Service`** - Excel session management and command routing
+- **`ExcelMcp.Service`** - Shared session routing and the macOS backend
 - **`ExcelMcp.CLI`** - Command-line interface (session-based: `excelcli session open`, then operate on the session, then `excelcli session close --save`)
 - **`ExcelMcp.McpServer`** - Model Context Protocol tools for AI assistants
 - **`ExcelMcp.Generators*`** - Source generators that produce CLI commands and MCP tools directly from Core interfaces — you do **not** hand-write CLI verb registration or MCP tool schemas

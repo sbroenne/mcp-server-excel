@@ -6,7 +6,8 @@ $ErrorActionPreference = "Stop"
 
 $PluginDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $WrapperPath = Join-Path $PluginDir "bin\start-mcp.ps1"
-$UserMcpConfig = Join-Path $env:USERPROFILE ".copilot\mcp-config.json"
+$UserHome = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+$UserMcpConfig = Join-Path $UserHome ".copilot/mcp-config.json"
 
 Write-Host "ExcelMcp Global Install Helper" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
@@ -17,7 +18,7 @@ if (-not (Test-Path $WrapperPath)) {
     exit 1
 }
 
-$CopilotDir = Join-Path $env:USERPROFILE ".copilot"
+$CopilotDir = Join-Path $UserHome ".copilot"
 if (-not (Test-Path $CopilotDir)) {
     Write-Host "[Install] Creating ~/.copilot directory..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $CopilotDir -Force | Out-Null
@@ -49,7 +50,7 @@ if ($config.mcpServers.PSObject.Properties.Name -contains "excel-mcp" -and -not 
 Write-Host "[Install] Adding excel-mcp to user MCP config..." -ForegroundColor Yellow
 
 $excelMcpConfig = @{
-    command = "powershell"
+    command = "pwsh"
     args = @(
         "-ExecutionPolicy",
         "Bypass",
@@ -66,6 +67,6 @@ Write-Host "✅ ExcelMcp MCP server installed globally!" -ForegroundColor Green
 Write-Host "   Config:   $UserMcpConfig" -ForegroundColor Gray
 Write-Host "   Wrapper:  $WrapperPath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "The first real MCP invocation will auto-download the newest Windows runtime." -ForegroundColor Cyan
+Write-Host "The first real MCP invocation will auto-download the matching Windows or macOS runtime." -ForegroundColor Cyan
 Write-Host "Verify installation:" -ForegroundColor Cyan
 Write-Host "   copilot mcp list" -ForegroundColor Gray
