@@ -97,6 +97,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
       - name: Restore
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
@@ -160,6 +167,14 @@ jobs:
           & scripts/check-plugin-readmes.ps1
           if ($LASTEXITCODE -ne 0) { throw "Plugin README validation failed." }
 
+      - name: npm launcher and packaging tests (MCP + CLI)
+        shell: pwsh
+        run: |
+          npm ci --prefix npm-packages/shared --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
+          npm test --prefix npm-packages/shared
+          if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
+
       # --- Excel-free build smoke checks (absorbed from the old Build CLI /
       #     Build MCP Server workflows) ---
 
@@ -175,9 +190,9 @@ jobs:
       - name: Verify MCP Server build
         shell: pwsh
         run: |
-          $exe = "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe"
+          $exe = "src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.exe"
           if (-not (Test-Path $exe)) { throw "MCP Server exe not found at $exe" }
-          if (-not (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/.mcp/server.json")) {
+          if (-not (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/.mcp/server.json")) {
             Write-Warning "MCP server.json configuration not found"
           }
           Write-Host "MCP Server build OK"
@@ -202,5 +217,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ExcelMcp-MCP-Server-${{ github.sha }}
-          path: src/ExcelMcp.McpServer/bin/Release/net10.0-windows/
+          path: src/ExcelMcp.McpServer/bin/Release/net10.0/
           if-no-files-found: error
