@@ -31,6 +31,7 @@ public sealed class MacPowerQueryRouteSelectorTests
         Assert.Equal("powerquery.update", route.HelperAction);
         Assert.Equal("Sales", route.HelperArguments!["name"]!.GetValue<string>());
         Assert.Equal("let Source = 1 in Source", route.HelperArguments["formula"]!.GetValue<string>());
+        Assert.True(route.HelperArguments["refresh"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -71,12 +72,24 @@ public sealed class MacPowerQueryRouteSelectorTests
         Assert.Equal("Revenue", route.HelperArguments["newName"]!.GetValue<string>());
     }
 
+    [Fact]
+    public void CreateUsesAtomicWorksheetDefaults()
+    {
+        var route = MacPowerQueryRouteSelector.Select(
+            "create",
+            Parse("""{"queryName":"Sales","mCode":"let Source = 1 in Source"}"""),
+            Actions("powerquery.create"));
+
+        Assert.Equal(MacPowerQueryRouteKind.Helper, route.Kind);
+        Assert.Equal("load-to-table", route.HelperArguments!["destination"]!.GetValue<string>());
+        Assert.Equal("Sales", route.HelperArguments["sheetName"]!.GetValue<string>());
+        Assert.Equal("A1", route.HelperArguments["cellAddress"]!.GetValue<string>());
+    }
+
     [Theory]
-    [InlineData(null)]
-    [InlineData("load-to-table")]
     [InlineData("load-to-data-model")]
     [InlineData("load-to-both")]
-    public void CreateWithLoadingStaysGatedUntilAtomicHelperContractExists(string? loadDestination)
+    public void CreateDataModelDestinationsRemainSeparatelyGated(string loadDestination)
     {
         var arguments = new JsonObject
         {
@@ -94,7 +107,7 @@ public sealed class MacPowerQueryRouteSelectorTests
             Actions("powerquery.create"));
 
         Assert.Equal(MacPowerQueryRouteKind.Unsupported, route.Kind);
-        Assert.Contains("atomic", route.UnavailableReason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Data Model", route.UnavailableReason, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -109,6 +122,9 @@ public sealed class MacPowerQueryRouteSelectorTests
         Assert.Equal(MacPowerQueryRouteKind.Helper, route.Kind);
         Assert.Equal("Sales", route.HelperArguments!["name"]!.GetValue<string>());
         Assert.Equal("let Source = 1 in Source", route.HelperArguments["formula"]!.GetValue<string>());
+        Assert.Equal("connection-only", route.HelperArguments["destination"]!.GetValue<string>());
+        Assert.Null(route.HelperArguments["sheetName"]);
+        Assert.Null(route.HelperArguments["cellAddress"]);
     }
 
     [Fact]
@@ -125,6 +141,33 @@ public sealed class MacPowerQueryRouteSelectorTests
         Assert.Equal("load-to-table", route.HelperArguments["destination"]!.GetValue<string>());
         Assert.Equal("Report", route.HelperArguments["sheetName"]!.GetValue<string>());
         Assert.Equal("B5", route.HelperArguments["cellAddress"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void LoadToWorksheetUsesPublicDefaults()
+    {
+        var route = MacPowerQueryRouteSelector.Select(
+            "load-to",
+            Parse("""{"queryName":"Sales","loadDestination":"worksheet"}"""),
+            Actions("powerquery.load-to"));
+
+        Assert.Equal(MacPowerQueryRouteKind.Helper, route.Kind);
+        Assert.Equal("load-to-table", route.HelperArguments!["destination"]!.GetValue<string>());
+        Assert.Equal("Sales", route.HelperArguments["sheetName"]!.GetValue<string>());
+        Assert.Equal("A1", route.HelperArguments["cellAddress"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ConnectionOnlyRejectsWorksheetCell()
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            MacPowerQueryRouteSelector.Select(
+                "load-to",
+                Parse(
+                    """{"queryName":"Sales","loadDestination":"connection-only","targetCellAddress":"B5"}"""),
+                Actions("powerquery.load-to")));
+
+        Assert.Contains("targetCellAddress", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

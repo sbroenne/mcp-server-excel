@@ -102,6 +102,7 @@ public sealed class MacPowerQueryHelperDispatcherTests
                 queryName = "Sales",
                 hasErrors = false,
                 errorMessages = Array.Empty<string>(),
+                refreshTime = "2026-09-28T00:00:00Z",
                 isConnectionOnly = false,
                 loadedToSheet = "Report"
             })));
@@ -120,6 +121,58 @@ public sealed class MacPowerQueryHelperDispatcherTests
         Assert.True(result.GetProperty("success").GetBoolean());
         Assert.Equal("Sales", result.GetProperty("queryName").GetString());
         Assert.Equal("Report", result.GetProperty("loadedToSheet").GetString());
+    }
+
+    [Fact]
+    public async Task EvaluateMapsOnlyPublicTabularResult()
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                columns = new List<string> { "Value" },
+                rows = new List<List<object>> { new() { 42 } },
+                rowCount = 1,
+                columnCount = 1,
+                temporaryQueryName = "__pq_eval_internal"
+            })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.evaluate",
+            new JsonObject { ["formula"] = "let Source = 42 in Source" });
+
+        var result = await dispatcher.DispatchAsync(
+            route,
+            "/tmp/exact.xlsx",
+            TimeSpan.FromSeconds(5),
+            "evaluate",
+            Parse("""{"mCode":"let Source = 42 in Source"}"""));
+
+        Assert.True(result.GetProperty("success").GetBoolean());
+        Assert.Equal("let Source = 42 in Source", result.GetProperty("mCode").GetString());
+        Assert.Equal(1, result.GetProperty("rowCount").GetInt32());
+        Assert.Equal(1, result.GetProperty("columnCount").GetInt32());
+        Assert.False(result.TryGetProperty("temporaryQueryName", out _));
+    }
+
+    [Fact]
+    public async Task UnloadReturnsExistingPublicAction()
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new { removedTables = 1 })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.unload",
+            new JsonObject { ["name"] = "Sales" });
+
+        var result = await dispatcher.DispatchAsync(
+            route,
+            "/tmp/exact.xlsx",
+            TimeSpan.FromSeconds(5),
+            "unload",
+            Parse("""{"queryName":"Sales"}"""));
+
+        Assert.Equal("unload", result.GetProperty("action").GetString());
+        Assert.False(result.TryGetProperty("removedTables", out _));
     }
 
     private static JsonObject Parse(string json) => JsonNode.Parse(json)!.AsObject();

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Service.Mac;
 using Xunit;
@@ -121,6 +122,53 @@ public sealed class MacPowerQueryServiceRoutingTests
     }
 
     [Fact]
+    public async Task ExactCandidateOptInDispatchesOnlySelectedAction()
+    {
+        var helperActions = new List<string>();
+        var path = TempWorkbookPath();
+        using var service = new ExcelMcpService(
+            CreateBackend([]),
+            (workbookPath, timeout) =>
+                Task.FromResult(Capabilities(
+                    false,
+                    "powerquery.create",
+                    "powerquery.delete")),
+            (workbookPath, action, arguments, timeout) =>
+            {
+                helperActions.Add(action);
+                return Task.FromResult(JsonSerializer.SerializeToElement(new { }));
+            },
+            new HashSet<string>(["powerquery.create"], StringComparer.Ordinal));
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var createResponse = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.create",
+                SessionId = sessionId,
+                Args =
+                    """{"queryName":"Sales","mCode":"let Source = 1 in Source","loadDestination":"connection-only"}"""
+            });
+            var deleteResponse = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.delete",
+                SessionId = sessionId,
+                Args = """{"queryName":"Sales"}"""
+            });
+
+            Assert.True(createResponse.Success, createResponse.ErrorMessage);
+            Assert.False(deleteResponse.Success);
+            Assert.Equal("PlatformNotSupported", deleteResponse.ErrorCategory);
+            Assert.Equal(["powerquery.create"], helperActions);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task StructuredHelperFailurePreservesPublicErrorCategory()
     {
         var path = TempWorkbookPath();
@@ -200,7 +248,8 @@ public sealed class MacPowerQueryServiceRoutingTests
         var path = TempWorkbookPath();
         using var service = new ExcelMcpService(
             CreateBackend([]),
-            (workbookPath, timeout) => Task.FromResult(Capabilities("powerquery.refresh")),
+            (workbookPath, timeout) =>
+                Task.FromResult(Capabilities(false, "powerquery.refresh")),
             (workbookPath, action, arguments, timeout) =>
             {
                 observedTimeout = timeout;
@@ -309,19 +358,41 @@ public sealed class MacPowerQueryServiceRoutingTests
         Capabilities(true, actions);
 
     private static JsonElement Capabilities(
-        bool powerQueryMutationProven,
-        params string[] actions) =>
-        JsonSerializer.SerializeToElement(new
+        bool actionsProven,
+        params string[] actions)
+    {
+        var provenMethods = new JsonObject
+        {
+            ["powerQueryList"] = actionsProven
+        };
+        foreach (var action in actions)
+        {
+            var proofProperty = action switch
+            {
+                "powerquery.create" => "powerQueryCreate",
+                "powerquery.update" => "powerQueryUpdate",
+                "powerquery.rename" => "powerQueryRename",
+                "powerquery.delete" => "powerQueryDelete",
+                "powerquery.refresh" => "powerQueryRefresh",
+                "powerquery.refresh-all" => "powerQueryRefreshAll",
+                "powerquery.load-to" => "powerQueryLoadTo",
+                "powerquery.unload" => "powerQueryUnload",
+                "powerquery.evaluate" => "powerQueryEvaluate",
+                _ => null
+            };
+            if (proofProperty is not null)
+            {
+                provenMethods[proofProperty] = actionsProven;
+            }
+        }
+        return JsonSerializer.SerializeToElement(new
         {
             helperVersion = "1.0.0",
             protocolVersion = 1,
             supportedActions = actions,
-            provenMethods = new
-            {
-                powerQueryList = true,
-                powerQueryMutation = powerQueryMutationProven
-            }
+            provenMethods
         });
+    }
 
     private static string? AutomationCommandOrNull(ProcessStartInfo start)
     {

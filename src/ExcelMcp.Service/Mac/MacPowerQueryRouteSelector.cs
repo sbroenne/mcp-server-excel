@@ -44,7 +44,8 @@ internal static class MacPowerQueryRouteSelector
                 new JsonObject
                 {
                     ["name"] = RequiredString(arguments, "queryName"),
-                    ["formula"] = RequiredString(arguments, "mCode")
+                    ["formula"] = RequiredString(arguments, "mCode"),
+                    ["refresh"] = true
                 },
                 helperActions,
                 "Power Query update with refresh requires the trusted helper refresh contract.");
@@ -80,22 +81,31 @@ internal static class MacPowerQueryRouteSelector
         {
             var destination = NormalizeDestination(
                 arguments["loadDestination"]?.GetValue<string>() ?? "load-to-table");
-            if (!string.Equals(destination, "connection-only", StringComparison.OrdinalIgnoreCase))
+            if (destination is "load-to-data-model" or "load-to-both")
             {
                 return Unsupported(
-                    "Power Query create with a load destination requires one atomic helper " +
-                    "create-and-load contract; query creation alone cannot report success.");
+                    "Power Query Data Model destinations require separate Mac engine evidence.");
             }
 
+            var queryName = RequiredString(arguments, "queryName");
+            var helperArguments = new JsonObject
+            {
+                ["name"] = queryName,
+                ["formula"] = RequiredString(arguments, "mCode"),
+                ["destination"] = destination
+            };
+            if (destination == "load-to-table")
+            {
+                helperArguments["sheetName"] =
+                    OptionalString(arguments, "targetSheet") ?? queryName;
+                helperArguments["cellAddress"] =
+                    OptionalString(arguments, "targetCellAddress") ?? "A1";
+            }
             return Helper(
                 "powerquery.create",
-                new JsonObject
-                {
-                    ["name"] = RequiredString(arguments, "queryName"),
-                    ["formula"] = RequiredString(arguments, "mCode")
-                },
+                helperArguments,
                 helperActions,
-                "Power Query create requires the trusted helper.");
+                "Power Query create requires the trusted helper atomic create-and-load contract.");
         }
 
         if (action == "refresh")
@@ -128,13 +138,25 @@ internal static class MacPowerQueryRouteSelector
                     "Power Query Data Model destinations require separate Mac engine evidence.");
             }
 
+            var queryName = RequiredString(arguments, "queryName");
+            if (destination == "connection-only"
+                && OptionalString(arguments, "targetCellAddress") is not null)
+            {
+                throw new ArgumentException(
+                    "targetCellAddress is only supported for worksheet loads.");
+            }
             var helperArguments = new JsonObject
             {
-                ["name"] = RequiredString(arguments, "queryName"),
+                ["name"] = queryName,
                 ["destination"] = destination
             };
-            CopyOptionalString(arguments, helperArguments, "targetSheet", "sheetName");
-            CopyOptionalString(arguments, helperArguments, "targetCellAddress", "cellAddress");
+            if (destination == "load-to-table")
+            {
+                helperArguments["sheetName"] =
+                    OptionalString(arguments, "targetSheet") ?? queryName;
+                helperArguments["cellAddress"] =
+                    OptionalString(arguments, "targetCellAddress") ?? "A1";
+            }
             return Helper(
                 "powerquery.load-to",
                 helperArguments,
@@ -195,18 +217,11 @@ internal static class MacPowerQueryRouteSelector
                 ? value
                 : throw new ArgumentException($"{propertyName} is required.");
 
-    private static void CopyOptionalString(
-        JsonObject source,
-        JsonObject destination,
-        string sourceProperty,
-        string destinationProperty)
-    {
-        if (source[sourceProperty]?.GetValue<string>() is { } value
-            && !string.IsNullOrWhiteSpace(value))
-        {
-            destination[destinationProperty] = value;
-        }
-    }
+    private static string? OptionalString(JsonObject arguments, string propertyName) =>
+        arguments[propertyName]?.GetValue<string>() is { } value
+            && !string.IsNullOrWhiteSpace(value)
+                ? value
+                : null;
 
     private static string NormalizeDestination(string value) =>
         value.Trim().ToLowerInvariant() switch
