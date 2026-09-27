@@ -82,10 +82,51 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.Equal("Data", Assert.Single(sheets.GetProperty("worksheets").EnumerateArray()).GetProperty("name").GetString());
             Success(await client.CallAsync("sheet", "create", mainSession,
                 new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Success(await client.CallAsync("worksheetstyle", "set-tab-color", mainSession,
+                new()
+                {
+                    ["sheet_name"] = "Created",
+                    ["red"] = 17,
+                    ["green"] = 34,
+                    ["blue"] = 51
+                }, deadline.Token));
+            var tabColor = Success(await client.CallAsync(
+                "worksheetstyle", "get-tab-color", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.True(tabColor.GetProperty("hasColor").GetBoolean());
+            Assert.Equal(17, tabColor.GetProperty("red").GetInt32());
+            Assert.Equal(34, tabColor.GetProperty("green").GetInt32());
+            Assert.Equal(51, tabColor.GetProperty("blue").GetInt32());
+            Assert.Equal("#112233", tabColor.GetProperty("hexColor").GetString());
+            Success(await client.CallAsync("worksheetstyle", "clear-tab-color", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            tabColor = Success(await client.CallAsync(
+                "worksheetstyle", "get-tab-color", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.False(tabColor.GetProperty("hasColor").GetBoolean());
+            Success(await client.CallAsync("worksheetstyle", "hide", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            var visibility = Success(await client.CallAsync(
+                "worksheetstyle", "get-visibility", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.Equal("Hidden", visibility.GetProperty("visibilityName").GetString());
+            Success(await client.CallAsync("worksheetstyle", "very-hide", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            visibility = Success(await client.CallAsync(
+                "worksheetstyle", "get-visibility", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.Equal("VeryHidden", visibility.GetProperty("visibilityName").GetString());
+            Success(await client.CallAsync("worksheetstyle", "set-visibility", mainSession,
+                new() { ["sheet_name"] = "Created", ["visibility"] = "visible" }, deadline.Token));
+            Success(await client.CallAsync("worksheetstyle", "hide", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Success(await client.CallAsync("worksheetstyle", "show", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
             sheets = Success(await client.CallAsync("sheet", "list", mainSession, new(), deadline.Token));
             Assert.Contains(
                 sheets.GetProperty("worksheets").EnumerateArray(),
-                sheet => sheet.GetProperty("name").GetString() == "Created");
+                sheet => sheet.GetProperty("name").GetString() == "Created"
+                    && sheet.GetProperty("visible").GetBoolean());
             Success(await client.CallAsync("sheet", "delete", mainSession,
                 new() { ["sheet_name"] = "Created" }, deadline.Token));
             var dirtyPowerQueryRead = await client.CallAsync(
@@ -385,6 +426,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 var mcpTool = tool switch
                 {
                     "sheet" => "worksheet",
+                    "worksheetstyle" => "worksheet_style",
                     "rangeformat" => "range_format",
                     _ => tool
                 };

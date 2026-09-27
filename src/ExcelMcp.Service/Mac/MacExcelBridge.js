@@ -45,6 +45,38 @@ function worksheetByName(workbook, sheetName) {
     throw new Error(`Worksheet '${sheetName}' does not exist.`);
 }
 
+function sheetVisibility(value) {
+    if (typeof value === "number") {
+        if (value === -1) return { appleEvent: "sheet visible", value: -1, name: "Visible" };
+        if (value === 0) return { appleEvent: "sheet hidden", value: 0, name: "Hidden" };
+        if (value === 2) return { appleEvent: "sheet very hidden", value: 2, name: "VeryHidden" };
+    }
+
+    const normalized = String(value).replace(/[\s_-]/g, "").toLocaleLowerCase();
+    if (normalized === "visible" || normalized === "sheetvisible") {
+        return { appleEvent: "sheet visible", value: -1, name: "Visible" };
+    }
+    if (normalized === "hidden" || normalized === "sheethidden") {
+        return { appleEvent: "sheet hidden", value: 0, name: "Hidden" };
+    }
+    if (normalized === "veryhidden" || normalized === "sheetveryhidden") {
+        return { appleEvent: "sheet very hidden", value: 2, name: "VeryHidden" };
+    }
+
+    throw new Error("Visibility must be visible, hidden, or veryhidden.");
+}
+
+function currentSheetVisibility(sheet) {
+    return sheetVisibility(sheet.visible());
+}
+
+function requireRgb(value) {
+    if (!Number.isInteger(value) || value < 0 || value > 255) {
+        throw new Error("RGB values must be between 0 and 255");
+    }
+    return value;
+}
+
 function normalizeMatrix(value) {
     return Array.isArray(value) ? value : [[value]];
 }
@@ -146,6 +178,80 @@ function run(argv) {
             const sheet = worksheetByName(workbook, args.oldName);
             sheet.name = args.newName;
             return json({ success: true, filePath: args.filePath, oldName: args.oldName, newName: args.newName });
+        }
+        if (command === "sheet.set-visibility"
+            || command === "sheet.get-visibility"
+            || command === "sheet.show"
+            || command === "sheet.hide"
+            || command === "sheet.very-hide"
+            || command === "sheet.set-tab-color"
+            || command === "sheet.get-tab-color"
+            || command === "sheet.clear-tab-color") {
+            const sheet = worksheetByName(workbook, args.sheetName);
+            if (command === "sheet.set-visibility") {
+                sheet.visible = sheetVisibility(args.visibility).appleEvent;
+                return json({ success: true, filePath: args.filePath });
+            }
+            if (command === "sheet.show") {
+                sheet.visible = "sheet visible";
+                return json({ success: true, filePath: args.filePath });
+            }
+            if (command === "sheet.hide") {
+                sheet.visible = "sheet hidden";
+                return json({ success: true, filePath: args.filePath });
+            }
+            if (command === "sheet.very-hide") {
+                sheet.visible = "sheet very hidden";
+                return json({ success: true, filePath: args.filePath });
+            }
+            if (command === "sheet.get-visibility") {
+                const visibility = currentSheetVisibility(sheet);
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    visibility: visibility.value,
+                    visibilityName: visibility.name
+                });
+            }
+            if (command === "sheet.set-tab-color") {
+                const red = requireRgb(args.red);
+                const green = requireRgb(args.green);
+                const blue = requireRgb(args.blue);
+                sheet.sheetTab.color = [red, green, blue];
+                return json({ success: true, filePath: args.filePath });
+            }
+            if (command === "sheet.clear-tab-color") {
+                sheet.sheetTab.colorIndex = "color index none";
+                return json({ success: true, filePath: args.filePath });
+            }
+            if (command === "sheet.get-tab-color") {
+                const tab = sheet.sheetTab;
+                const colorIndex = tab.colorIndex();
+                const noColor = typeof colorIndex === "number"
+                    ? colorIndex < 0
+                    : /none|automatic/i.test(String(colorIndex));
+                if (noColor) {
+                    return json({ success: true, filePath: args.filePath, hasColor: false });
+                }
+
+                const color = tab.color();
+                const red = color[0];
+                const green = color[1];
+                const blue = color[2];
+                const hex = [red, green, blue]
+                    .map(component => component.toString(16).padStart(2, "0"))
+                    .join("")
+                    .toLocaleUpperCase();
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    hasColor: true,
+                    red,
+                    green,
+                    blue,
+                    hexColor: `#${hex}`
+                });
+            }
         }
         if (command.startsWith("range.")) {
             const sheet = worksheetByName(workbook, args.sheetName);

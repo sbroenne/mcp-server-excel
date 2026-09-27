@@ -7,6 +7,14 @@ public sealed class MacCommandCapabilitiesTests
 {
     [Theory]
     [InlineData("sheet.create")]
+    [InlineData("sheet.set-visibility")]
+    [InlineData("sheet.get-visibility")]
+    [InlineData("sheet.show")]
+    [InlineData("sheet.hide")]
+    [InlineData("sheet.very-hide")]
+    [InlineData("sheet.set-tab-color")]
+    [InlineData("sheet.get-tab-color")]
+    [InlineData("sheet.clear-tab-color")]
     [InlineData("range.get-number-formats")]
     [InlineData("range.set-number-format")]
     [InlineData("rangeformat.set-column-width")]
@@ -17,6 +25,17 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.True(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+    }
+
+    [Theory]
+    [InlineData("sheet.copy")]
+    [InlineData("sheet.move")]
+    public void SheetReordering_RemainsGatedWithoutProvenAppleEventsParity(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
     }
 
     [Theory]
