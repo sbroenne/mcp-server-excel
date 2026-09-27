@@ -71,6 +71,107 @@ public partial class ScreenshotCommandsTests
         AssertNoChromeBands(result.ImageBase64!, "A1:A45");
     }
 
+    [Theory]
+    [InlineData(590)]
+    [InlineData(610)]
+    [InlineData(630)]
+    public void CaptureRange_NonIntegralRowPixelHeight_ContainsNoWindowChrome(int windowHeight)
+    {
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
+        batch.Execute((ctx, _) =>
+        {
+            ctx.App.WindowState = Microsoft.Office.Interop.Excel.XlWindowState.xlNormal;
+            ctx.App.Width = 900;
+            ctx.App.Height = windowHeight;
+        });
+        FillSolid(batch, "Sheet1", "A1:A45", SolidBlack);
+
+        var result = _commands.CaptureRange(batch, "Sheet1", "A1:A45", ScreenshotQuality.High);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        AssertNoChromeBands(result.ImageBase64!, $"A1:A45, window height {windowHeight}");
+    }
+
+    [Theory]
+    [InlineData(45, 3)]
+    [InlineData(200, 12)]
+    public void CaptureRange_VariedCellSizes_PreservesEveryRowAndColumn(int rowCount, int columnCount)
+    {
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
+        string address = $"A1:{(char)('A' + columnCount - 1)}{rowCount}";
+        batch.Execute((ctx, _) =>
+        {
+            ctx.App.WindowState = Microsoft.Office.Interop.Excel.XlWindowState.xlNormal;
+            ctx.App.Width = 900;
+            ctx.App.Height = 630;
+            dynamic? sheet = null;
+            dynamic? cells = null;
+            dynamic? parkingCell = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets["Sheet1"];
+                cells = sheet.Cells;
+                for (int row = 1; row <= rowCount; row++)
+                {
+                    for (int column = 1; column <= columnCount; column++)
+                    {
+                        dynamic? cell = null;
+                        dynamic? interior = null;
+                        try
+                        {
+                            cell = cells[row, column];
+                            if (column == 1) cell.RowHeight = 11.25 + row % 3 * 3.75;
+                            if (row == 1) cell.ColumnWidth = 7.5 + column % 3 * 2.25;
+                            interior = cell.Interior;
+                            interior.Color = ColorTranslator.ToOle((row + column) % 2 == 0 ? Color.Navy : Color.Maroon);
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref interior);
+                            ComUtilities.Release(ref cell);
+                        }
+                    }
+                }
+                parkingCell = cells[1, columnCount + 2];
+                parkingCell.Select();
+            }
+            finally
+            {
+                ComUtilities.Release(ref parkingCell);
+                ComUtilities.Release(ref cells);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var result = _commands.CaptureRange(batch, "Sheet1", address, ScreenshotQuality.High);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        AssertNoChromeBands(result.ImageBase64!, address);
+        using var stream = new MemoryStream(Convert.FromBase64String(result.ImageBase64!));
+        using var bitmap = new Bitmap(stream);
+        Assert.Equal(rowCount, CountColorBands(bitmap.Height, y => bitmap.GetPixel(bitmap.Width / 2, y)));
+        Assert.Equal(columnCount, CountColorBands(bitmap.Width, x => bitmap.GetPixel(x, bitmap.Height / 2)));
+    }
+
+    private static int CountColorBands(int length, Func<int, Color> getPixel)
+    {
+        int bands = 0;
+        int previous = -1;
+        for (int i = 0; i < length; i++)
+        {
+            Color color = getPixel(i);
+            int current = color.B > 100 && color.R < 20 ? 0 : color.R > 100 && color.B < 20 ? 1 : -1;
+            if (current >= 0 && current != previous)
+            {
+                bands++;
+                previous = current;
+            }
+        }
+        return bands;
+    }
+
     /// <summary>
     /// Fails when any pixel row of the capture is lighter than a solid black fill, which means the
     /// window chrome below the grid was captured instead of worksheet content.

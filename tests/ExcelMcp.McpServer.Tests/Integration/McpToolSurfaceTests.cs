@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Generated;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -25,15 +27,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 [Trait("RequiresExcel", "false")]
 public class McpToolSurfaceTests(ITestOutputHelper output)
 {
-    /// <summary>
-    /// Ground truth, verified against the live <c>tools/list</c> response of the shipped server
-    /// and enforced across every user-facing doc by scripts/check-doc-counts.ps1.
-    /// </summary>
-    private const int ExpectedToolCount = 31;
-
-    /// <summary>Sum of the <c>action</c> enum values across all registered tools.</summary>
-    private const int ExpectedOperationCount = 325;
-
     [Fact]
     public void ToolSurface_MatchesDocumentedGroundTruth()
     {
@@ -42,8 +35,21 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             output.WriteLine($"  {tool.Name}: {tool.OperationCount}");
         }
 
-        Assert.Equal(ExpectedToolCount, McpToolSurface.ToolCount);
-        Assert.Equal(ExpectedOperationCount, McpToolSurface.OperationCount);
+        var expected = _CliCategoryMetadata.ValidActionsByCommand
+            .Where(pair => pair.Key != "diag")
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Count, StringComparer.Ordinal);
+        expected.Add("file", Enum.GetValues<FileAction>().Length);
+        Assert.Equal(expected.Count, McpToolSurface.ToolCount);
+        Assert.Equal(expected.Values.Sum(), McpToolSurface.OperationCount);
+        foreach (var tool in McpToolSurface.Tools)
+        {
+            var command = tool.Name switch
+            {
+                "worksheet" => "sheet",
+                _ => tool.Name.Replace("_", "", StringComparison.Ordinal)
+            };
+            Assert.Equal(expected[command], tool.OperationCount);
+        }
     }
 
     [Fact]

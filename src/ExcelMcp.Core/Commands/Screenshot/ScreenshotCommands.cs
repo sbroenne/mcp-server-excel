@@ -274,8 +274,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
         plan = CapturePlanner.Replan(range, plan.Zoom, usable);
 
-        int[] columnOffsets = BuildPixelOffsets(plan.ColumnSegments, pixelsPerPoint, paneMaxWidth);
-        int[] rowOffsets = BuildPixelOffsets(plan.RowSegments, pixelsPerPoint, paneMaxHeight);
+        int[] columnOffsets = BuildPixelOffsets(range, false, plan.ColumnSegments, pixelsPerPoint, paneMaxWidth);
+        int[] rowOffsets = BuildPixelOffsets(range, true, plan.RowSegments, pixelsPerPoint, paneMaxHeight);
 
         int totalWidth = Math.Max(1, columnOffsets[^1]);
         int totalHeight = Math.Max(1, rowOffsets[^1]);
@@ -449,19 +449,41 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Converts segment sizes in points to cumulative pixel offsets, so adjacent tiles meet without
     /// gaps or overlaps after rounding.
     /// </summary>
-    private static int[] BuildPixelOffsets(IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint, int paneMax)
+    private static int[] BuildPixelOffsets(dynamic range, bool rows, IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint, int paneMax)
     {
         var offsets = new int[segments.Count + 1];
         int cursor = 0;
-
-        for (int i = 0; i < segments.Count; i++)
+        dynamic? items = null;
+        try
         {
-            offsets[i] = cursor;
+            items = rows ? range.Rows : range.Columns;
+            for (int i = 0; i < segments.Count; i++)
+            {
+                offsets[i] = cursor;
+                int renderedSize = 0;
+                var segment = segments[i];
+                for (int index = segment.Start; index < segment.Start + segment.Count; index++)
+                {
+                    dynamic? item = null;
+                    try
+                    {
+                        item = items[index];
+                        double extent = rows ? Convert.ToDouble(item.Height) : Convert.ToDouble(item.Width);
+                        // Excel rounds each rendered cell to whole pixels, not the summed range height.
+                        renderedSize += (int)Math.Round(extent * pixelsPerPoint, MidpointRounding.AwayFromZero);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref item);
+                    }
+                }
 
-            // Capped at the pane, and rounded per segment rather than cumulatively, so that the
-            // space reserved on the canvas is exactly the number of pixels the tile can supply.
-            // Any mismatch shows up as an unpainted hairline at the seam.
-            cursor += Math.Min((int)Math.Round(segments[i].Size * pixelsPerPoint), paneMax);
+                cursor += Math.Min(renderedSize, paneMax);
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref items);
         }
 
         offsets[segments.Count] = cursor;

@@ -2,11 +2,13 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 /// <summary>
-/// RangeCommands partial class - Number formatting operations
+/// Typed NumberFormat reads return invariant codes. Explicit NumberFormatLocal writes preserve
+/// currency literals while translating the invariant codes accepted by both entry points.
 /// </summary>
 public partial class RangeCommands
 {
@@ -40,7 +42,7 @@ public partial class RangeCommands
                 // - Single cell: returns string
                 // - Multiple cells, all same format: returns string
                 // - Multiple cells, mixed formats: returns DBNull (must read cell-by-cell)
-                object numberFormats = range.NumberFormat;
+                object numberFormats = ((Excel.Range)range).NumberFormat;
 
                 // Get dimensions
                 int rowCount = Convert.ToInt32(range.Rows.Count);
@@ -66,7 +68,7 @@ public partial class RangeCommands
                                 try
                                 {
                                     cell = cells[row, col];
-                                    var format = cell.NumberFormat?.ToString() ?? "General";
+                                    var format = ((Excel.Range)cell).NumberFormat?.ToString() ?? "General";
                                     rowList.Add(format);
                                 }
                                 finally
@@ -141,9 +143,7 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                // Translate US format codes to locale-specific codes
-                var translatedFormat = ctx.FormatTranslator.TranslateToLocale(formatCode);
-                range.NumberFormat = translatedFormat;
+                ((Excel.Range)range).NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(formatCode);
 
                 result.Success = true;
                 return result;
@@ -195,9 +195,6 @@ public partial class RangeCommands
                     }
                 }
 
-                // Translate all format codes to locale-specific codes
-                var translator = ctx.FormatTranslator;
-
                 // If single row or column, can't use 2D array - must set cell by cell
                 if (rowCount == 1 || columnCount == 1)
                 {
@@ -209,7 +206,7 @@ public partial class RangeCommands
                             try
                             {
                                 cell = range.Cells[row, col];
-                                cell.NumberFormat = translator.TranslateToLocale(resolvedFormats[row - 1][col - 1]);
+                                ((Excel.Range)cell).NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(resolvedFormats[row - 1][col - 1]);
                             }
                             finally
                             {
@@ -226,12 +223,12 @@ public partial class RangeCommands
                     {
                         for (int col = 0; col < columnCount; col++)
                         {
-                            formatArray[row, col] = translator.TranslateToLocale(resolvedFormats[row][col]);
+                            formatArray[row, col] = ctx.FormatTranslator.TranslateToLocale(resolvedFormats[row][col]);
                         }
                     }
 
                     // Set number formats via 2D array
-                    range.NumberFormat = formatArray;
+                    ((Excel.Range)range).NumberFormatLocal = formatArray;
                 }
 
                 result.Success = true;
@@ -244,6 +241,3 @@ public partial class RangeCommands
         });
     }
 }
-
-
-

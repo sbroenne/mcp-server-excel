@@ -244,6 +244,7 @@ public partial class RangeCommandsTests
         string displayedText = string.Empty;
         string storedFormat = string.Empty;
         string storedFormatLocal = string.Empty;
+        string expectedText = string.Empty;
         object rawValue = null!;
         batch.Execute((ctx, ct) =>
         {
@@ -253,6 +254,7 @@ public partial class RangeCommandsTests
             storedFormat = cell.NumberFormat?.ToString() ?? string.Empty;
             storedFormatLocal = cell.NumberFormatLocal?.ToString() ?? string.Empty;
             rawValue = cell.Value2;
+            expectedText = $"$1{ctx.FormatTranslator.ThousandsSeparator}234{ctx.FormatTranslator.DecimalSeparator}56";
         });
 
         // Diagnostics
@@ -263,12 +265,8 @@ public partial class RangeCommandsTests
         _output.WriteLine($"Displayed text: '{displayedText}'");
 
         // Assert - Verify Excel displays currency correctly
-        Assert.False(string.IsNullOrEmpty(displayedText), "Cell should display formatted text");
-        Assert.Contains("$", displayedText); // Currency symbol from LCID
-        // Formatted number includes thousands separator, so check for partial match
-        Assert.True(
-            displayedText.Contains("1234") || displayedText.Contains("1,234"),
-            $"Number portion should be present, got: {displayedText}");
+        Assert.Equal(expectedText, displayedText);
+        Assert.Equal(1234.56, Assert.IsType<double>(rawValue));
     }
 
     /// <summary>
@@ -390,7 +388,5 @@ public partial class RangeCommandsTests
             $"Decimal portion should be displayed, got: {displayedText}");
     }
 }
-
-
 
 

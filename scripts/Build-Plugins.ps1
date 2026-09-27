@@ -4,6 +4,7 @@
 
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
+       Render bootstrap scripts only in the output tree; source templates stay read-only.
     2. Strip any runtime payloads from plugin bin/ roots
     3. Update runtime-bootstrap metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
@@ -48,12 +49,6 @@ $Version = $Version.Trim()
 $BootstrapScriptPath = Join-Path $RepoRoot "scripts\Build-BootstrapScripts.ps1"
 if (-not (Test-Path $BootstrapScriptPath)) {
     throw "Bootstrap generator script not found: $BootstrapScriptPath"
-}
-
-Write-Host "Rendering canonical plugin bootstrap scripts from the shared template..." -ForegroundColor Cyan
-& $BootstrapScriptPath -OutputRoot $PluginSourceDir
-if ($LASTEXITCODE -ne 0) {
-    throw "Bootstrap script generation failed."
 }
 
 function Remove-PackagedRuntimePayload {
@@ -325,9 +320,6 @@ $SourceSkillMcp = Join-Path $SkillsDir "excel-mcp"
 $DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp"
 Copy-AgentSkill -SourceDir $SourceSkillMcp -DestinationDir $DestSkillMcp -Version $Version
 
-Assert-AgentPluginPackage -PluginName "excel-mcp" -PluginDir $OutputMcp -ExpectedVersion $Version
-Write-Host "✅ excel-mcp plugin built" -ForegroundColor Green
-
 # =============================================================================
 # Build: excel-cli Plugin
 # =============================================================================
@@ -344,6 +336,15 @@ if (-not (Test-Path $TemplateCli)) {
 
 Write-Host "  Copying canonical plugin template..." -ForegroundColor Cyan
 Copy-Item -Path $TemplateCli -Destination $OutputCli -Recurse -Force
+
+Write-Host "Rendering packaged bootstrap scripts from the shared template..." -ForegroundColor Cyan
+& $BootstrapScriptPath -OutputRoot $OutputDir
+if ($LASTEXITCODE -ne 0) {
+    throw "Bootstrap script generation failed."
+}
+
+Assert-AgentPluginPackage -PluginName "excel-mcp" -PluginDir $OutputMcp -ExpectedVersion $Version
+Write-Host "✅ excel-mcp plugin built" -ForegroundColor Green
 
 Remove-PackagedRuntimePayload -PluginName "excel-cli" -PluginDir $OutputCli
 

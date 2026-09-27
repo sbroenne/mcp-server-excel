@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
@@ -29,30 +28,7 @@ public class DisposalVerificationTest : IAsyncLifetime
         Directory.CreateDirectory(_tempDir);
     }
 
-    public Task InitializeAsync()
-    {
-        // Kill any existing Excel processes to ensure clean state
-        try
-        {
-            var existingProcesses = Process.GetProcessesByName("EXCEL");
-            if (existingProcesses.Length > 0)
-            {
-                _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
-                foreach (var p in existingProcesses)
-                {
-                    p.Kill(entireProcessTree: true);
-                    p.WaitForExit(5000);
-                    p.Dispose();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"Warning: Failed to clean Excel processes: {ex.Message}");
-        }
-
-        return Task.CompletedTask;
-    }
+    public Task InitializeAsync() => Task.CompletedTask;
 
     public Task DisposeAsync()
     {
@@ -225,7 +201,6 @@ internal sealed class TestLogger : ILogger
         _output.WriteLine($"[{logLevel}] {_categoryName}: {message}");
     }
 }
-
 
 
 

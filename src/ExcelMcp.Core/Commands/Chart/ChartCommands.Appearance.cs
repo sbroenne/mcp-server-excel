@@ -167,8 +167,8 @@ public partial class ChartCommands
                 targetAxis = axes.Item(axisType);
                 tickLabels = targetAxis.TickLabels;
 
-                // Get the number format for axis tick labels
-                return tickLabels.NumberFormat?.ToString() ?? "General";
+                // Unlike Range.NumberFormat, tick-label formats use Excel's regional codes.
+                return ctx.FormatTranslator.TranslateFromLocale(((Excel.TickLabels)tickLabels).NumberFormat ?? "General");
             }
             finally
             {
@@ -219,7 +219,7 @@ public partial class ChartCommands
                 tickLabels = targetAxis.TickLabels;
 
                 // Set the number format for axis tick labels
-                tickLabels.NumberFormat = numberFormat;
+                ((Excel.TickLabels)tickLabels).NumberFormat = ctx.FormatTranslator.TranslateToLocale(numberFormat);
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }

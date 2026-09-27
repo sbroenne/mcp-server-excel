@@ -1,3 +1,5 @@
+using System.Globalization;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -26,6 +28,47 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         _fixture = fixture;
         _output = output;
         _rangeCommands = new RangeCommands();
+    }
+
+    [Theory]
+    [InlineData("en-US")]
+    [InlineData("de-DE")]
+    public void NumberFormats_InvariantCodes_RoundTripAcrossCallerCultures(string cultureName)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+            using var batch = ExcelSession.BeginBatch(_fixture.CreateTestFile());
+            _rangeCommands.SetValues(batch, "Sheet1", "A1", [[0.125]]);
+            _rangeCommands.SetNumberFormat(batch, "Sheet1", "A1", "0.00%");
+            var result = _rangeCommands.GetNumberFormats(batch, "Sheet1", "A1");
+            Assert.Equal("0.00%", result.Formats[0][0]);
+            batch.Execute((ctx, _) =>
+            {
+                Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+                Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+                Microsoft.Office.Interop.Excel.Range? cell = null;
+                try
+                {
+                    sheets = ctx.Book.Worksheets;
+                    sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[1];
+                    cell = sheet.Range["A1"];
+                    Assert.Equal(0.125, Assert.IsType<double>(cell.Value2));
+                    Assert.Equal($"12{ctx.FormatTranslator.DecimalSeparator}50%", cell.Text);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref cell);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                }
+            });
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]
@@ -202,8 +245,10 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
             _output.WriteLine($"Currency format '$#,##0.00': '{displayedText}'");
 
             // Should contain the dollar sign and proper formatting
-            Assert.Contains("$", displayedText);
-            Assert.Contains("1,234.56", displayedText);
+            Assert.Equal(
+                $"$1{ctx.FormatTranslator.ThousandsSeparator}234{ctx.FormatTranslator.DecimalSeparator}56",
+                displayedText);
+            Assert.Equal(1234.56, Convert.ToDouble(sheet.Range["A1"].Value2));
         });
     }
 
@@ -278,7 +323,4 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         });
     }
 }
-
-
-
 

@@ -194,8 +194,12 @@ public sealed class SessionLifecycleContractTests : IDisposable
             Assert.Equal(Path.GetExtension(path), json.RootElement.GetProperty("extension").GetString());
             Assert.True(json.RootElement.TryGetProperty("size", out _));
             Assert.True(json.RootElement.TryGetProperty("lastModified", out _));
-            Assert.Equal(!expectedCanOpen, json.RootElement.TryGetProperty("isError", out var isError)
-                && isError.GetBoolean());
+            Assert.False(json.RootElement.TryGetProperty("isError", out _),
+                "File preflight is a diagnostic result, not a tool execution failure.");
+            if (!expectedCanOpen)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("message").GetString()));
+            }
         }
     }
 

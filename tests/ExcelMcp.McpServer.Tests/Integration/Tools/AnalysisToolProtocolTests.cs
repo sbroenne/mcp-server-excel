@@ -67,12 +67,14 @@ public sealed class AnalysisToolProtocolTests : McpIntegrationTestBase
         AssertFailureEnvelope(
             resultJson.RootElement,
             "analysis.goal-seek missing goal",
-            nameof(ArgumentNullException),
+            nameof(ArgumentException),
             expectedErrorCategory: "InvalidInput");
         Assert.Contains(
             "goal",
             resultJson.RootElement.GetProperty("errorMessage").GetString(),
             StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(5d, await ReadSingleValueAsync(sessionId, "A1"));
+        Assert.Equal(10d, await ReadSingleValueAsync(sessionId, "B1"));
         await CloseSessionAsync(sessionId, save: false);
     }
 

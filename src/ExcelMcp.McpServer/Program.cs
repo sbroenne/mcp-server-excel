@@ -536,9 +536,11 @@ internal static class StdinPipeMonitor
     /// (terminal, debugger, file redirection) since those cases don't need
     /// broken-pipe detection.
     /// </summary>
-    public static Timer? Start(IHostApplicationLifetime lifetime)
+    public static Timer? Start(IHostApplicationLifetime lifetime) =>
+        Start(lifetime, GetStdHandle(StdInputHandle));
+
+    internal static Timer? Start(IHostApplicationLifetime lifetime, IntPtr handle)
     {
-        var handle = GetStdHandle(StdInputHandle);
         if (handle == IntPtr.Zero || handle == new IntPtr(-1))
             return null;
 

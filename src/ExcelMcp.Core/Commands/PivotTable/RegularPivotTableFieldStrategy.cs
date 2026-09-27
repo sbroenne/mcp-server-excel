@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -468,7 +469,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 }
             }
 
-            field.NumberFormat = numberFormat;
+            ((Excel.PivotField)field!).NumberFormat = numberFormat;
 
             // NOTE: No RefreshTable() needed - NumberFormat is a visual-only property
 
@@ -476,7 +477,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             string? appliedFormat = null;
             try
             {
-                appliedFormat = field.NumberFormat?.ToString();
+                appliedFormat = ((Excel.PivotField)field).NumberFormat;
             }
             catch (System.Runtime.InteropServices.COMException)
             {
@@ -962,5 +963,3 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
 }
-
-

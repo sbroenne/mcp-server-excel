@@ -121,10 +121,7 @@ public class ExcelBatchTests : IAsyncLifetime
     public void Dispose_CleansUpComObjects_NoProcessLeak()
     {
         // Arrange
-        var startingProcesses = Process.GetProcessesByName("EXCEL");
-        int startingCount = startingProcesses.Length;
-
-        _output.WriteLine($"Excel processes before: {startingCount}");
+        using var owned = new OwnedExcelProcessScope();
 
         // Act
         var batch = ExcelSession.BeginBatch(_testFileCopy!);
@@ -138,25 +135,7 @@ public class ExcelBatchTests : IAsyncLifetime
 
         batch.Dispose();
 
-        // Wait for Excel process to fully terminate with polling
-        // Excel.Quit() signals shutdown but process termination is OS-controlled
-        // Dispose() blocks up to StaThreadJoinTimeout for COM cleanup, but process may linger briefly
-        var waitTimeout = TimeSpan.FromSeconds(15); // Allow reasonable time for process cleanup
-        var stopwatch = Stopwatch.StartNew();
-        int endingCount;
-        do
-        {
-            Thread.Sleep(500); // Poll every 500ms
-            endingCount = Process.GetProcessesByName("EXCEL").Length;
-            _output.WriteLine($"Excel processes at {stopwatch.Elapsed.TotalSeconds:F1}s: {endingCount}");
-        }
-        while (endingCount > startingCount && stopwatch.Elapsed < waitTimeout);
-
-        // Assert
-        _output.WriteLine($"Excel processes after {stopwatch.Elapsed.TotalSeconds:F1}s: {endingCount}");
-
-        Assert.True(endingCount <= startingCount,
-            $"Excel process leak in batch! Started with {startingCount}, ended with {endingCount} after {waitTimeout.TotalSeconds}s");
+        owned.AssertAllExited();
     }
 
     [Fact]
@@ -352,9 +331,7 @@ public class ExcelBatchTests : IAsyncLifetime
             testFileCopies.Add(copy);
         }
 
-        var startingProcesses = Process.GetProcessesByName("EXCEL");
-        int startingCount = startingProcesses.Length;
-        _output.WriteLine($"Excel processes before parallel batches: {startingCount}");
+        using var owned = new OwnedExcelProcessScope();
 
         try
         {
@@ -388,16 +365,7 @@ public class ExcelBatchTests : IAsyncLifetime
             Assert.Equal(batchCount, results.Length);
             _output.WriteLine($"✓ All {batchCount} parallel batches completed");
 
-            // Wait for Excel processes to terminate
-            await Task.Delay(5000);
-
-            // Assert - No process leak
-            var endingProcesses = Process.GetProcessesByName("EXCEL");
-            int endingCount = endingProcesses.Length;
-            _output.WriteLine($"Excel processes after parallel batches: {endingCount}");
-
-            Assert.True(endingCount <= startingCount + 2, // Allow some tolerance for cleanup timing
-                $"Excel process leak in parallel batches! Started with {startingCount}, ended with {endingCount}");
+            owned.AssertAllExited();
         }
         finally
         {
@@ -530,9 +498,7 @@ public class ExcelBatchTests : IAsyncLifetime
         var irmTestFile = GetConfiguredIrmTestFilePath()
             ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
-        var startingExcelPids = Process.GetProcessesByName("EXCEL")
-            .Select(process => process.Id)
-            .ToHashSet();
+        using var owned = new OwnedExcelProcessScope();
 
         var stopwatch = Stopwatch.StartNew();
         IExcelBatch? batch = null;
@@ -547,7 +513,7 @@ public class ExcelBatchTests : IAsyncLifetime
             }
             catch (TimeoutException)
             {
-                KillUnexpectedExcelProcesses(startingExcelPids);
+                owned.AssertAllExited();
                 Assert.Fail(
                     "Opening the configured IRM workbook did not complete within 20 seconds. " +
                     "This is the hang regression surface for protected-workbook startup.");
@@ -557,34 +523,6 @@ public class ExcelBatchTests : IAsyncLifetime
         finally
         {
             batch?.Dispose();
-        }
-    }
-
-    private static void KillUnexpectedExcelProcesses(HashSet<int> startingExcelPids)
-    {
-        foreach (var process in Process.GetProcessesByName("EXCEL"))
-        {
-            if (startingExcelPids.Contains(process.Id))
-            {
-                process.Dispose();
-                continue;
-            }
-
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: false);
-                    process.WaitForExit(5000);
-                }
-            }
-            catch
-            {
-            }
-            finally
-            {
-                process.Dispose();
-            }
         }
     }
 
@@ -641,7 +579,7 @@ public class ExcelBatchTests : IAsyncLifetime
         var lockedTestFile = Path.Join(Path.GetTempPath(), $"batch-test-locked-leak-{Guid.NewGuid():N}.xlsx");
         File.Copy(_staticTestFile!, lockedTestFile, overwrite: true);
 
-        var pidsBefore = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
+        using var owned = new OwnedExcelProcessScope();
 
         try
         {
@@ -658,19 +596,7 @@ public class ExcelBatchTests : IAsyncLifetime
 
             Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
 
-            // Poll until no new Excel PIDs remain (up to 15 seconds)
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
-            HashSet<int> newPids;
-            do
-            {
-                Thread.Sleep(250);
-                var pidsAfter = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
-                pidsAfter.ExceptWith(pidsBefore);
-                newPids = pidsAfter;
-            } while (newPids.Count > 0 && DateTime.UtcNow < deadline);
-
-            Assert.True(newPids.Count == 0,
-                $"Excel process leak after locked-file startup failure. New PIDs still running: {string.Join(", ", newPids)}");
+            owned.AssertAllExited(expectProcess: false);
         }
         finally
         {
@@ -698,6 +624,5 @@ public class ExcelBatchTests : IAsyncLifetime
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
-
 
 

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Collections.Concurrent;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
@@ -40,25 +39,6 @@ public class SessionManagerTests : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), $"SessionManagerTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
 
-        // Clean up any existing Excel processes to ensure clean state
-        try
-        {
-            var existingProcesses = Process.GetProcessesByName("EXCEL");
-            if (existingProcesses.Length > 0)
-            {
-                _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
-                foreach (var p in existingProcesses)
-                {
-                    p.Kill(entireProcessTree: true);
-                    p.WaitForExit(5000);
-                    p.Dispose();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"Warning: Failed to clean Excel processes: {ex.Message}");
-        }
     }
 
     public void Dispose()
@@ -478,7 +458,7 @@ public class SessionManagerTests : IDisposable
         var testFile = CreateTestFile(nameof(CreateSession_FileLockedByAnotherProcess_DoesNotLeakExcelProcess));
         using var manager = new SessionManager();
 
-        var pidsBefore = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
+        using var owned = new OwnedExcelProcessScope();
 
         using (var fileLock = new FileStream(testFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
@@ -486,19 +466,7 @@ public class SessionManagerTests : IDisposable
             Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
-        // Poll until no new Excel PIDs remain (up to 15 seconds)
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
-        HashSet<int> newPids;
-        do
-        {
-            Thread.Sleep(250);
-            var pidsAfter = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
-            pidsAfter.ExceptWith(pidsBefore);
-            newPids = pidsAfter;
-        } while (newPids.Count > 0 && DateTime.UtcNow < deadline);
-
-        Assert.True(newPids.Count == 0,
-            $"Excel process leak after SessionManager.CreateSession failed on locked file. New PIDs still running: {string.Join(", ", newPids)}");
+        owned.AssertAllExited(expectProcess: false);
         Assert.Equal(0, manager.ActiveSessionCount);
     }
 
@@ -704,6 +672,3 @@ public class SessionManagerTests : IDisposable
 
     #endregion
 }
-
-
-

@@ -27,6 +27,39 @@ public sealed class RangeFormatIssue585CliParityTests : IDisposable
     }
 
     [Fact]
+    public async Task FormatRanges_NumberFormat_RoundTripsInvariantCodeViaCli()
+    {
+        var (created, createJson) = await CliProcessHelper.RunJsonAsync(
+            ["session", "create", _testFile], timeoutMs: 60000);
+        Assert.Equal(0, created.ExitCode);
+        var sessionId = createJson.RootElement.GetProperty("sessionId").GetString()!;
+        try
+        {
+            var (formatted, formatJson) = await CliProcessHelper.RunJsonAsync(
+                ["rangeformat", "format-ranges", "--session", sessionId,
+                 "--sheet-name", "Sheet1", "--range-addresses", "A1:A2", "--number-format", "0.00%"],
+                timeoutMs: 60000);
+            Assert.True(formatted.ExitCode == 0, formatted.Stdout + formatted.Stderr);
+            Assert.True(formatJson.RootElement.GetProperty("success").GetBoolean());
+
+            var (read, readJson) = await CliProcessHelper.RunJsonAsync(
+                ["range", "get-number-formats", "--session", sessionId,
+                 "--sheet-name", "Sheet1", "--range-address", "A1:A2"],
+                timeoutMs: 60000);
+            Assert.Equal(0, read.ExitCode);
+            Assert.True(readJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.All(readJson.RootElement.GetProperty("formats").EnumerateArray(),
+                row => Assert.Equal("0.00%", row[0].GetString()));
+        }
+        finally
+        {
+            var closed = await CliProcessHelper.RunAsync(
+                ["session", "close", "--session", sessionId, "--save", "false"], timeoutMs: 60000);
+            Assert.Equal(0, closed.ExitCode);
+        }
+    }
+
+    [Fact]
     public async Task RangeFormat_FormatRange_Issue585Payload_SucceedsViaCli()
     {
         var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(

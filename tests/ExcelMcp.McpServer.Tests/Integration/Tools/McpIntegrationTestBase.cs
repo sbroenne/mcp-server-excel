@@ -1,11 +1,9 @@
-using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -15,15 +13,13 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "_cts is disposed in DisposeAsync.")]
 public abstract class McpIntegrationTestBase : IAsyncLifetime
 {
-    private static readonly TimeSpan ExcelShutdownTimeout = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan ExcelShutdownPollInterval = TimeSpan.FromMilliseconds(250);
     private readonly string _clientName;
     private readonly Pipe _clientToServerPipe = new();
     private readonly Pipe _serverToClientPipe = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly HashSet<string> _trackedSessionIds = new(StringComparer.Ordinal);
     private readonly List<string> _tempDirectories = [];
-    private readonly HashSet<int> _baselineExcelProcessIds = [];
+    private readonly McpOwnedExcelProcesses _ownedExcelProcesses = new();
     private Task? _serverTask;
     private bool _disposed;
     private bool _openedSession;
@@ -48,7 +44,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        CaptureBaselineExcelProcesses();
+        ServiceBridge.ServiceBridge.SetServiceFactoryForTests(_ownedExcelProcesses.CreateBackend);
 
         try
         {
@@ -83,25 +79,42 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         }
         finally
         {
-            await ProgramTransportTestHost.StopAsync(
-                Client,
-                _clientToServerPipe,
-                _serverToClientPipe,
-                _serverTask,
-                Output,
-                _cts);
-            Client = null;
-
-            if (!_cts.IsCancellationRequested)
+            try
             {
-                await _cts.CancelAsync();
+                await ProgramTransportTestHost.StopAsync(
+                    Client,
+                    _clientToServerPipe,
+                    _serverToClientPipe,
+                    _serverTask,
+                    Output,
+                    _cts);
             }
+            finally
+            {
+                Client = null;
+                try
+                {
+                    if (!_cts.IsCancellationRequested)
+                    {
+                        await _cts.CancelAsync();
+                    }
 
-            _cts.Dispose();
-
-            await AfterServerShutdownAsync();
-            await AssertNoLeakedExcelProcessesAsync();
-            CleanupTempDirectories();
+                    await AfterServerShutdownAsync();
+                }
+                finally
+                {
+                    _cts.Dispose();
+                    try
+                    {
+                        await AssertNoLeakedExcelProcessesAsync();
+                    }
+                    finally
+                    {
+                        _ownedExcelProcesses.Dispose();
+                        CleanupTempDirectories();
+                    }
+                }
+            }
         }
     }
 
@@ -379,72 +392,6 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         }
     }
 
-    private void CaptureBaselineExcelProcesses()
-    {
-        _baselineExcelProcessIds.Clear();
-        foreach (var processId in GetCurrentExcelProcessIds())
-        {
-            _baselineExcelProcessIds.Add(processId);
-        }
-    }
-
-    private async Task AssertNoLeakedExcelProcessesAsync()
-    {
-        if (!_openedSession)
-        {
-            return;
-        }
-
-        var deadline = DateTime.UtcNow + ExcelShutdownTimeout;
-        List<int> leakedExcelProcessIds;
-        do
-        {
-            leakedExcelProcessIds = GetCurrentExcelProcessIds()
-                .Where(processId => !_baselineExcelProcessIds.Contains(processId))
-                .ToList();
-
-            if (leakedExcelProcessIds.Count == 0)
-            {
-                return;
-            }
-
-            await Task.Delay(ExcelShutdownPollInterval);
-        }
-        while (DateTime.UtcNow < deadline);
-
-        ForceKillProcesses(leakedExcelProcessIds);
-
-        throw new XunitException(
-            $"Excel processes started during the MCP integration test did not exit after shutdown. " +
-            $"Baseline PIDs: [{string.Join(", ", _baselineExcelProcessIds.OrderBy(id => id))}]. " +
-            $"Leaked PIDs: [{string.Join(", ", leakedExcelProcessIds.OrderBy(id => id))}].");
-    }
-
-    private static int[] GetCurrentExcelProcessIds()
-    {
-        return Process.GetProcessesByName("EXCEL")
-            .Select(process => process.Id)
-            .ToArray();
-    }
-
-    private void ForceKillProcesses(IEnumerable<int> processIds)
-    {
-        foreach (var processId in processIds.Distinct())
-        {
-            try
-            {
-                using var process = Process.GetProcessById(processId);
-                Output.WriteLine($"Warning: Force-killing leaked Excel process {processId} after MCP integration test teardown.");
-                process.Kill(entireProcessTree: true);
-                process.WaitForExit((int)ExcelShutdownTimeout.TotalMilliseconds);
-            }
-            catch (ArgumentException)
-            {
-            }
-            catch (Exception ex)
-            {
-                Output.WriteLine($"Warning: Failed to force-kill leaked Excel process {processId}: {ex.Message}");
-            }
-        }
-    }
+    protected Task AssertNoLeakedExcelProcessesAsync() =>
+        _ownedExcelProcesses.AssertExitedAsync(Output, _openedSession);
 }

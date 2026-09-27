@@ -271,7 +271,7 @@ public partial class RangeCommandsTests
             {
                 sheet = ctx.Book.Worksheets[sheetName];
                 range = sheet.Range[cellAddress];
-                return (string)(range.NumberFormat ?? "General");
+                return (string)(((Microsoft.Office.Interop.Excel.Range)range).NumberFormat ?? "General");
             }
             finally
             {

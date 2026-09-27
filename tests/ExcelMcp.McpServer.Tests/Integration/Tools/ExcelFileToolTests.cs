@@ -222,7 +222,9 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             Assert.True(json.GetProperty("isIrmProtected").GetBoolean());
             Assert.True(json.GetProperty("willOpenReadOnly").GetBoolean());
             Assert.True(json.GetProperty("requiresVisibleSession").GetBoolean());
-            Assert.True(json.GetProperty("isError").GetBoolean());
+            Assert.False(json.TryGetProperty("isError", out _),
+                "IRM preflight is a diagnostic result, not a tool execution failure.");
+            Assert.Contains("interactive Excel", json.GetProperty("message").GetString(), StringComparison.Ordinal);
         }
         finally
         {

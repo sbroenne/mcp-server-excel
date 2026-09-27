@@ -276,6 +276,7 @@ public class SkillMdQualityTests
             // MCP and CLI response properties.
             "canOpen",
             "chartName",
+            "errorCategory",
             "errorMessage",
             "formulaPreview",
             "groupedFieldName",
@@ -286,6 +287,7 @@ public class SkillMdQualityTests
             "newName",
             "oldName",
             "requiresVisibleSession",
+            "safeToCreate",
             "sessionId",
             "suggestedNextActions",
             "willOpenReadOnly",

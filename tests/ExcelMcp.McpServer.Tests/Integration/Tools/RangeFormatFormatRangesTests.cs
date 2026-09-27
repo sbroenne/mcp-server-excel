@@ -62,6 +62,35 @@ public class RangeFormatFormatRangesTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task FormatRanges_NumberFormat_RoundTripsInvariantCodeViaMcpProtocol()
+    {
+        var formatJson = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "format-ranges",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_addresses"] = SharedTargetRanges,
+            ["number_format"] = "0.00%"
+        });
+        AssertSuccess(formatJson, "range_format.format-ranges number format");
+
+        foreach (var address in SharedTargetRanges)
+        {
+            var readJson = await CallToolAsync("range", new Dictionary<string, object?>
+            {
+                ["action"] = "get-number-formats",
+                ["session_id"] = _sessionId,
+                ["sheet_name"] = "Sheet1",
+                ["range_address"] = address
+            });
+            AssertSuccess(readJson, "range.get-number-formats");
+            using var read = JsonDocument.Parse(readJson);
+            Assert.All(read.RootElement.GetProperty("formats").EnumerateArray(),
+                row => Assert.Equal("0.00%", row[0].GetString()));
+        }
+    }
+
+    [Fact]
     public async Task FormatRanges_AppliesSharedFormattingToEachTargetRange_ViaMcpProtocol()
     {
         const string sheetName = "Bug4Data";

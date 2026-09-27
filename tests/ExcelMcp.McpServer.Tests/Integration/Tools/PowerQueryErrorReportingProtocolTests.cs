@@ -78,6 +78,7 @@ public sealed class PowerQueryErrorReportingProtocolTests : McpIntegrationTestBa
             "powerquery.refresh synthetic-firewall",
             expectedExceptionType: "PowerQueryCommandException",
             expectedErrorCategory: "Privacy",
+            expectedHResult: "0x800A03EC",
             allowOptionalNonEmptyInnerError: true);
 
         Assert.Contains("Formula.Firewall", doc.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);

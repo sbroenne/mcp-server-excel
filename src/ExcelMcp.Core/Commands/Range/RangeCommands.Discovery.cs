@@ -146,7 +146,7 @@ public partial class RangeCommands
                 result.Address = range.Address;
                 result.RowCount = range.Rows.Count;
                 result.ColumnCount = range.Columns.Count;
-                result.NumberFormat = range.NumberFormat?.ToString();
+                result.NumberFormat = ((Excel.Range)range).NumberFormat?.ToString();
 
                 // Cell geometry properties (position and dimensions in points)
                 result.Left = Convert.ToDouble(range.Left);
@@ -164,6 +164,5 @@ public partial class RangeCommands
         });
     }
 }
-
 
 

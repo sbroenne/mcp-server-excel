@@ -41,7 +41,8 @@ public partial class ConnectionCommandsTests
             using var batch = ExcelSession.BeginBatch(testFile);
             _commands.LoadTo(batch, connectionName, "ProductsData");
 
-            // Verify BackgroundQuery starts as true (set by ConnectionTestHelper)
+            // Loading the query table sets synchronous refresh; establish the state under test afterward.
+            _commands.SetProperties(batch, connectionName, backgroundQuery: true);
             var preBefore = _commands.GetProperties(batch, connectionName);
             Assert.True(preBefore.BackgroundQuery, "Precondition: BackgroundQuery should be true before refresh.");
 

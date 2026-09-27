@@ -35,6 +35,7 @@
     <InternalsVisibleTo Include="excelcli" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.ComInterop.Tests" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Core.Tests" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer.Tests" />
   </ItemGroup>
 
   <!-- Release Build Optimizations -->

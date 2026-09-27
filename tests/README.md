@@ -23,6 +23,34 @@ dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "(Feat
 Set a hard execution timeout for every Excel-dependent run. Run only the
 relevant project and filter, not the full integration suite during iteration.
 
+## Complete normal-suite verification
+
+For a full validation pass, run all five normal projects (Core, ComInterop, CLI,
+MCP Server, and SkillGeneration) with `RunType!=OnDemand`. This filter includes
+normal VBA tests; their prerequisites must be satisfied, not silently skipped.
+Run Core screenshots separately from other Excel tests because they use the
+interactive desktop. Research diagnostics and external-service LLM tests are
+separate from this normal suite.
+
+Retain TRX output with `--logger "trx;LogFileName=<stage>.trx"` and use
+`--list-tests` with the same filters to reconcile discovered and executed cases.
+Set a per-test hang deadline (for example `--blame-hang-timeout 3m`) and a hard
+deadline for each complete stage. A shell wait limit alone is not an execution
+deadline. Preserve intentional concurrent-workbook tests when ordering stages.
+
+Excel cleanup must use identities captured from the owning session or request,
+including both process ID and start time. Never infer ownership from all Excel
+processes started since a test began, or close existing Excel instances to
+prepare a fixture. An independently opened workbook must survive successful and
+failed teardown. Leak assertions must still fail if a confirmed owned process
+survives shutdown.
+
+Only change current-user VBA project access with explicit permission. Capture
+the original registry value's presence, value, and type outside the repository
+before changing it; restore and verify them in `finally`. Do not override managed
+policy or change other macro security settings. Coordinate with other test
+sessions before using the shared desktop or VBA setting.
+
 ## Documentation
 
 **For complete testing guidance, see:**
@@ -131,21 +159,21 @@ uv run pytest -m aitest -v
 
 ## VBA Testing
 
-### Why VBA Tests Are Excluded by Default
+### Normal-suite coverage
 
-VBA tests are excluded from normal test runs because:
-1. **Stable codebase** - VBA features are mature with minimal changes
-2. **Performance** - Excluding VBA tests makes integration tests ~25% faster (10-15 min vs 15-20 min)
-3. **Special requirements** - VBA tests require VBA trust enabled in Excel settings
-4. **Opt-in model** - Explicit testing when VBA code changes, rather than every commit
+`RunType!=OnDemand` includes normal VBA tests. VBA project operations require
+Excel's "Trust access to the VBA project object model" setting. A targeted
+non-VBA development run is not a complete normal-suite validation pass.
 
 ### When to Run VBA Tests
 
-Run VBA tests manually when:
+Run the focused VBA group when:
 - Modifying VBA-related code (ScriptCommands, VbaTrustDetection)
 - Adding new VBA features
 - Before releasing VBA-related changes
 - Troubleshooting VBA-specific issues
+
+Include these tests in every explicitly requested complete normal-suite run.
 
 ### How to Run VBA Tests
 
@@ -153,13 +181,13 @@ Run VBA tests manually when:
 # Run ONLY VBA tests
 dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 
-# Run ALL tests including VBA (takes longer)
-dotnet test --filter "Category=Integration&RunType!=OnDemand"
+# Run all normal tests, including VBA and unit tests
+dotnet test --filter "RunType!=OnDemand"
 ```
 
 ### VBA Test Files
 
-All VBA tests are tagged with `[Trait("Feature", "VBA")]`:
+VBA tests use the `VBA` or `VBATrust` feature trait:
 
 ```
 tests/ExcelMcp.Core.Tests/Integration/Commands/Vba/
@@ -174,17 +202,16 @@ tests/ExcelMcp.CLI.Tests/Integration/
 
 ### VBA Trust Setup
 
-VBA tests require VBA trust enabled in Excel:
+VBA project operations require VBA trust enabled in Excel. Inspect the setting:
 
 ```powershell
-# Enable VBA trust (required for VBA tests)
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Name "AccessVBOM" -Value 1
-
-# Verify setting
 Get-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Name "AccessVBOM"
 ```
 
-**Security Note:** Only enable VBA trust in development environments. Production systems should keep this disabled.
+An absent value is not enabled. Do not change this setting without permission.
+For an authorized temporary test run, capture its original presence, value, and
+type first, restore them in `finally`, and verify restoration. Do not change
+managed policies or other macro security settings.
 
 ## Key Principles
 

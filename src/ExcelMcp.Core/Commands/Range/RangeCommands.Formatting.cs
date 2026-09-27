@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -261,7 +262,7 @@ public partial class RangeCommands
                     verticalAlignment,
                     wrapText,
                     orientation,
-                    numberFormat);
+                    numberFormat == null ? null : ctx.FormatTranslator.TranslateToLocale(numberFormat));
 
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
@@ -399,7 +400,7 @@ public partial class RangeCommands
 
             if (formatRequest.NumberFormat != null)
             {
-                range.NumberFormat = formatRequest.NumberFormat;
+                ((Excel.Range)range).NumberFormatLocal = formatRequest.NumberFormat;
             }
         }
         finally
@@ -486,6 +487,4 @@ public partial class RangeCommands
         };
     }
 }
-
-
 
