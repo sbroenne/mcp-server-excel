@@ -31,6 +31,8 @@ calculation. Other actions return an explicit unsupported-platform error.
 - **Apple Silicon macOS** with Excel for Mac 16.112 or later
 - **Claude Desktop**
 
+Intel macOS is unsupported and no Intel MCPB is published.
+
 ## Installation
 
 1. Download the `.mcpb` matching your platform from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)

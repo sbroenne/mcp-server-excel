@@ -244,6 +244,16 @@ Security updates are published through:
 
 Subscribe to repository notifications to receive security alerts.
 
+### macOS distribution trust
+
+Release automation supports Developer ID signing and Apple notarization when
+the repository's signing credentials are configured. It always verifies the
+embedded code signature before packaging. Builds without those credentials are
+explicitly ad-hoc signed and reported as unnotarized; checksums establish
+download integrity but do not replace Apple trust validation. Never infer
+notarization from a successful build, checksum, executable mode, or Mach-O
+architecture check.
+
 ## Vulnerability Disclosure Policy
 
 ### Our Commitment

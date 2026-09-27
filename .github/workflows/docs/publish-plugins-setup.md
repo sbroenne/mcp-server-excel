@@ -7,7 +7,7 @@ ExcelMcp plugins are published to the official GitHub Copilot CLI marketplace vi
 **Architecture:**
 - **Source repo** (`sbroenne/mcp-server-excel`) — Development, releases, skills, and canonical plugin templates
 - **Published repo** (`sbroenne/mcp-server-excel-plugins`) — Official marketplace artifacts
-- **Two plugins:** `excel-mcp` and `excel-cli`, both published as wrapper/bootstrap bundles plus skills
+- **Two plugins:** `excel-mcp` and `excel-cli`, both published as npx-based manifests plus skills
 - **Auto-sync:** `.github/workflows/publish-plugins.yml` builds and validates templates after each release
 
 **Trigger:** After "Release All Components" workflow completes successfully, the publish workflow automatically syncs plugin artifacts to the marketplace.
@@ -95,9 +95,9 @@ If you've already created a GitHub App for other purposes:
 3. **Clone Repos** — Clones BOTH source and published repos
 4. **Build Plugins** — Runs `scripts/Build-Plugins.ps1` which:
      - Copies canonical plugin templates from `.github/plugins/`
-     - Strips committed `.exe`/`.dll` runtime payloads so the published repo stays wrapper/bootstrap-only
+     - Strips committed `.exe`/`.dll` runtime payloads so the published repo contains manifests, skills, and compatibility helpers only
      - Updates `plugin.json` version and `version.txt`
-     - Preserves plugin-local `bin/` wrapper/download assets and runtime-bootstrap metadata
+     - Preserves compatibility helper assets while validating npx as the primary runtime path
      - Synchronizes complete skill directories from source (`skills/excel-mcp`, `skills/excel-cli`), removing stale published files
      - Stamps the release-tag version into each packaged skill's generated `VERSION` file
      - Validates Agent Plugins 1.0 manifests, portable `mcp.json`, and Agent Skills frontmatter
@@ -308,11 +308,13 @@ TAG=$(git tag --points-at "$HEAD_SHA" --sort=-version:refname | grep -E '^v[0-9]
 - `plugin.json` version field
 - `version.txt` (release-tag metadata consumed by plugin-local bootstrap logic)
 
-### Runtime Bootstrap Packaging Rules
+### Runtime Packaging Rules
 
-- Published plugins ship **wrapper/download logic and metadata only**.
-- Self-contained Windows runtimes stay in the main repo GitHub Releases and are fetched by the plugin on first invocation.
-- Each release publishes `SHA256SUMS` in GNU-style `<hash>  <filename>` format for both Windows runtime ZIPs. Bootstrap downloads and cached archives must match the exact asset entry before extraction.
+- Published plugins ship **manifests, skills, and compatibility helpers only**.
+- The primary MCP launch path is `npx -y @sbroenne/mcp-server-excel`; CLI
+  guidance uses `npx -y @sbroenne/excelcli`.
+- npm selects self-contained Windows x64 or Darwin ARM64 runtime packages.
+  Intel macOS is unsupported and must fail closed.
 - `publish-plugins.yml` now validates that built plugin artifacts do **not** contain committed `.exe`, `.dll`, `.deps.json`, or `.runtimeconfig.json` payloads.
 - MCP configuration is portable root `mcp.json` with explicit transport type and `${PLUGIN_ROOT}` arguments; legacy `.mcp.json` is rejected.
 - Standard skills stay under `skills/`; any future Copilot-only files belong under `com.github.copilot/`.

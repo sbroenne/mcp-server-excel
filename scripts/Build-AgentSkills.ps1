@@ -51,7 +51,8 @@ function Generate-CliReference {
     )
 
     if (-not $ExcelCliPath) {
-        $ExcelCliPath = Join-Path $RepoRoot "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
+        $executableName = if ($IsWindows) { "excelcli.exe" } else { "excelcli" }
+        $ExcelCliPath = Join-Path $RepoRoot "src/ExcelMcp.CLI/bin/Release/net10.0/$executableName"
     }
     if ($env:OS -ne "Windows_NT" -and [System.IO.Path]::GetExtension($ExcelCliPath) -eq ".exe") {
         Write-Warning "Skipping CLI reference generation because the Windows executable cannot run on this host"

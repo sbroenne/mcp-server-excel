@@ -12,8 +12,11 @@ Both entry points support **Windows with Microsoft Excel 2016+** and
 operation set; macOS provides the [documented capability-gated subset](../specs/MACOS-SUPPORT.md).
 The standalone distributions do not require a .NET runtime.
 
-Windows and macOS use separate native archives; one executable file cannot be
-shared across PE/Windows and Mach-O/macOS.
+Windows and Apple Silicon macOS use separate native archives; one executable
+file cannot be shared across PE/Windows and Mach-O/macOS. Intel macOS is
+unsupported and fails closed rather than selecting the ARM64 runtime. See
+[macOS distribution readiness](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-DISTRIBUTION.md)
+for package inspection, signing, and notarization details.
 
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
 

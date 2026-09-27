@@ -54,6 +54,9 @@ The first implementation increment now exists behind runtime platform selection:
 - MCP Server and `excelcli` compile as `net10.0` hosts on macOS. Windows retains
   `net10.0-windows`, WinForms tray integration, SID-secured pipes, COM routing
   and owned-process cleanup.
+- Apple Silicon release ZIPs, VSIX, MCPB, and Darwin ARM64 npm runtime packages
+  contain self-contained executables. The npm launchers and Copilot plugins
+  resolve the Darwin ARM64 packages through `npx`; Intel macOS fails closed.
 - The shared Service selects a serialized JXA/Apple Events backend on macOS.
   CLI IPC uses a stable hashed per-user identity and current-user-only Unix
   named pipes. The Mac daemon has no tray and never force-kills shared Excel.
@@ -670,7 +673,7 @@ only when their own security and lifecycle gates are satisfied.
 | 5. VBA project-model tier | Add source CRUD only behind explicit user-managed project-model trust | Full synthetic import/view/run/update/delete lifecycle passes without trust mutation or dialog automation |
 | 6. Remaining Windows surface and distribution | Complete the action inventory, installers/bootstrap scripts, signing/notarization, and separately validated architectures | No unclassified omissions; clean-machine permission and installation UX exercised |
 | 4. Remaining Windows surface | Work through every remaining category, including tables, named ranges, charts, regular PivotTables, formatting and platform integrations | Complete action-level compatibility inventory, tested parity where possible, and no unclassified omissions |
-| 5. Distribution | Mac launch/lifetime, extension paths, installers/bootstrap scripts, `osx-arm64` and separately validated `osx-x64`, signing/notarization, shared docs and skills | Clean-machine install and permission UX exercised; priority parity gates, Mac real-Excel tests and Windows nonregression suites pass |
+| 5. Distribution | Mac launch/lifetime, extension paths, installers/bootstrap scripts, `osx-arm64`, explicit Intel rejection, signing/notarization, shared docs and skills | Clean-machine install and permission UX exercised; priority parity gates, Mac real-Excel tests and Windows nonregression suites pass |
 
 Investigate Data Model/DAX/OLAP/Power Pivot operations and Power Query
 `data-model`/`both` destinations as potential host limitations; do not infer

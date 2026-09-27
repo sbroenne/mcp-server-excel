@@ -7,9 +7,9 @@
     source-owned root overlay content, writes the canonical marketplace manifest to
     .github/plugin/marketplace.json, and removes the legacy root marketplace.json.
 
-    The published repo is wrapper/bootstrap-only. Self-contained Windows runtimes
-    remain in the main repo GitHub Releases and are acquired by plugin-local
-    bootstrap logic on first invocation.
+    The published repo contains manifests, skills, and compatibility bootstrap
+    assets. Self-contained Windows x64 and Darwin ARM64 runtimes remain in the
+    main repo's npm packages and GitHub Releases.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -197,7 +197,7 @@ $legacyManifestPath = Join-Path $PublishedRepoDir "marketplace.json"
 $canonicalManifest = [ordered]@{
     name = "mcp-server-excel-plugins"
     metadata = [ordered]@{
-        description = "Windows-only GitHub Copilot CLI plugins for Excel automation with ExcelMcp."
+        description = "GitHub Copilot CLI plugins for Excel automation on Windows x64 and Apple Silicon macOS."
         version = "1.0.0"
     }
     owner = [ordered]@{
