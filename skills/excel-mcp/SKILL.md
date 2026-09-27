@@ -36,17 +36,23 @@ Provides 326 Excel operations via Model Context Protocol. The MCP Server hosts t
 
 On macOS, use only:
 
-- `file`: create, open, list, close
-- `worksheet`: list, rename, delete
-- `range`: get/set values, get/set formulas, clear all/contents/formats
-- `calculation_mode`: calculation actions
+- `file`: create, open, list, close, test
+- `worksheet`: list, create, rename, delete
+- `range`: get/set values, get/set formulas, clear all/contents/formats,
+  get number formats, set one number format
+- `range_format`: set column width, set row height
+- `calculation_mode`: calculate
+- `powerquery`: list, view, get-load-config; update only with `refresh=false`
+  on a clean saved workbook without a Data Model
 
-Do not attempt Power Query, VBA, Data Model/DAX, PivotTables, tables, charts,
-slicers, connections, QueryTables, named ranges, formatting, screenshots,
-window management, Python, What-If analysis, XML maps, drawings, sparklines,
-or unsupported worksheet/range actions on macOS. Report the capability limit;
-do not retry, click dialogs, weaken macro security, or substitute file-format
-rewrites that could damage workbook features.
+Do not attempt Power Query refresh or destination/lifecycle actions, VBA, Data
+Model/DAX, PivotTables, tables, charts, slicers, connections, QueryTables,
+named ranges, other formatting, screenshots, window management, Python,
+What-If analysis, XML maps, drawings, sparklines, or unsupported
+worksheet/range actions on macOS. Report the capability limit; do not retry,
+click dialogs, weaken macro security, or substitute unverified package
+rewrites. Power Query package reads can be stale when the workbook is dirty,
+so save or discard first.
 
 ## Calculation Mode Workflow (Batch Performance)
 

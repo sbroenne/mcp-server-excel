@@ -135,6 +135,17 @@
   <!-- Import the Build.Tasks project to use GenerateSkillFile task -->
   <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateSkillFile"
              AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
+  <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateMacActionInventory"
+             AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
+
+  <Target Name="GenerateMacActionInventory" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"
+          Inputs="$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_MacActionInventory.g.cs;$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll"
+          Outputs="$(MSBuildProjectDirectory)\..\..\docs\generated\macos-action-inventory.json;$(MSBuildProjectDirectory)\..\..\docs\MACOS-ACTION-INVENTORY.md">
+    <GenerateMacActionInventory
+      ManifestPath="$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_MacActionInventory.g.cs"
+      JsonOutputPath="$(MSBuildProjectDirectory)\..\..\docs\generated\macos-action-inventory.json"
+      MarkdownOutputPath="$(MSBuildProjectDirectory)\..\..\docs\MACOS-ACTION-INVENTORY.md" />
+  </Target>
 
   <!-- Generate CLI Skill file from template after build -->
   <Target Name="GenerateCliSkill" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"

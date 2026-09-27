@@ -24,6 +24,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', '0%', 'yyyy-mm-dd')
 /// </summary>
 [ServiceCategory("tablecolumn", "TableColumn")]
+[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
 [McpTool("table_column", Title = "Table Column Operations", Destructive = true, Category = "data",
     Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter (criteria like >100, =Active), apply-filter-values (JSON array of exact values), clear-filters, get-filters. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}). COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use table for lifecycle and data operations.")]
 public interface ITableColumnCommands
