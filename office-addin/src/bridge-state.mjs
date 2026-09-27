@@ -27,8 +27,12 @@ export class OfficeBridgeState {
   #sessions = new Map();
   #requests = new Map();
 
-  constructor(clock = () => Date.now()) {
+  #enabledActions;
+
+  constructor(clock = () => Date.now(), enabledActions = SUPPORTED_ACTIONS) {
     this.#clock = clock;
+    this.#enabledActions = new Set(enabledActions);
+    this.#enabledActions.add("bridge.health");
   }
 
   registerSession(input) {
@@ -74,7 +78,8 @@ export class OfficeBridgeState {
       host: requireString(input.host, "host", 32),
       platform: requireString(input.platform, "platform", 32),
       officeVersion: requireString(input.officeVersion, "officeVersion", 64),
-      requirementSets: validateRequirementSets(input.requirementSets)
+      requirementSets: validateRequirementSets(input.requirementSets),
+      desktopRequirementSets: validateRequirementSets(input.desktopRequirementSets ?? [])
     };
     if (session.runtime.protocolVersion !== PROTOCOL_VERSION) {
       session.runtime = null;
@@ -91,12 +96,12 @@ export class OfficeBridgeState {
 
   createRequest(input) {
     this.expireRequests();
-    const session = this.#requireSession(input.sessionId);
+    const session = this.#requireNativeSession(input);
     if (!session.runtime) {
       throw new Error("The Office.js add-in is not active for this workbook.");
     }
     const action = requireString(input.action, "action", 128);
-    if (!SUPPORTED_ACTIONS.includes(action)) {
+    if (!this.#enabledActions.has(action)) {
       throw new Error(`Office.js action '${action}' is not enabled.`);
     }
     const timeoutMs = Number(input.timeoutMs);
@@ -113,6 +118,7 @@ export class OfficeBridgeState {
       createdAt: this.#clock(),
       deadlineAt: this.#clock() + timeoutMs,
       status: "queued",
+      dispatched: false,
       result: null
     };
     this.#requests.set(request.requestId, request);
@@ -130,6 +136,7 @@ export class OfficeBridgeState {
       const request = this.#requests.get(session.queue.shift());
       if (request?.status === "queued") {
         request.status = "active";
+        request.dispatched = true;
         session.activeRequestId = request.requestId;
         return { ...request };
       }
@@ -244,8 +251,12 @@ export class OfficeBridgeState {
       workbookUrl: session.workbookUrl,
       available: session.runtime !== null,
       runtime: session.runtime,
-      enabledActions: [...SUPPORTED_ACTIONS]
+      enabledActions: [...this.#enabledActions]
     };
+  }
+
+  get enabledActions() {
+    return [...this.#enabledActions];
   }
 
   #requireSession(sessionId) {

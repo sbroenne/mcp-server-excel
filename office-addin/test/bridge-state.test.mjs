@@ -28,12 +28,12 @@ test("negotiates runtime capability metadata without enabling feature actions", 
   assert.deepEqual(session.runtime.requirementSets, ["1.1", "1.16"]);
   assert.deepEqual(session.enabledActions, ["bridge.health"]);
   assert.throws(() => state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "table.create",
     timeoutMs: 1000
   }), /not enabled/);
   assert.throws(() => state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000,
     payload: { unexpected: true }
@@ -44,7 +44,7 @@ test("binds Office polling and results to exact workbook and instance", () => {
   const state = new OfficeBridgeState();
   activate(state);
   const request = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });
@@ -65,12 +65,12 @@ test("serializes requests per session and correlates results", () => {
   const state = new OfficeBridgeState();
   activate(state);
   const first = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });
   const second = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });
@@ -85,7 +85,7 @@ test("expires deadlines and honors cancellation", () => {
   const state = new OfficeBridgeState(() => now);
   activate(state);
   const expired = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 10
   });
@@ -98,7 +98,7 @@ test("expires deadlines and honors cancellation", () => {
   assert.equal(state.takeNext(identity), null);
 
   const cancelled = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 10
   });
@@ -113,20 +113,20 @@ test("teardown releases the workbook and removes all session requests", () => {
   const state = new OfficeBridgeState();
   activate(state);
   const completed = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });
   state.takeNext(identity);
   state.complete({ ...identity, requestId: completed.requestId, success: true });
   const outstanding = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });
 
   assert.throws(() => state.unregisterSession({
-    sessionId: identity.sessionId,
+    ...identity,
     workbookUrl: "file:///tmp/other.xlsx"
   }), /exact workbook/);
   const teardown = state.unregisterSession(identity);
@@ -147,7 +147,7 @@ test("prevents session identifiers from being rebound to another workbook", () =
   const state = new OfficeBridgeState();
   state.registerSession(identity);
   assert.throws(() => state.registerSession({
-    sessionId: identity.sessionId,
+    ...identity,
     workbookUrl: "file:///tmp/other.xlsx"
   }), /cannot be rebound/);
 });
@@ -158,7 +158,7 @@ test("acknowledges late cancelled and expired results without stopping later wor
   activate(state);
 
   const cancelled = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });
@@ -171,10 +171,11 @@ test("acknowledges late cancelled and expired results without stopping later wor
     value: { late: true }
   });
   assert.equal(lateCancelled.status, "cancelled");
+  assert.equal(lateCancelled.dispatched, true);
   assert.equal(lateCancelled.lateResultIgnored, true);
 
   const expired = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 10
   });
@@ -187,10 +188,11 @@ test("acknowledges late cancelled and expired results without stopping later wor
     value: { late: true }
   });
   assert.equal(lateExpired.status, "expired");
+  assert.equal(lateExpired.dispatched, true);
   assert.equal(lateExpired.lateResultIgnored, true);
 
   const next = state.createRequest({
-    sessionId: identity.sessionId,
+    ...identity,
     action: "bridge.health",
     timeoutMs: 1000
   });

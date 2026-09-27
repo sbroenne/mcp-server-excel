@@ -51,6 +51,7 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
 
   const created = await request(port, "POST", "/v1/requests", headers, {
     sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
     action: "bridge.health",
     timeoutMs: 1000
   });
@@ -99,6 +100,7 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
 
   const failed = await request(port, "POST", "/v1/requests", headers, {
     sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
     action: "bridge.health",
     timeoutMs: 1000
   });
@@ -131,6 +133,7 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
 
   const expiring = await request(port, "POST", "/v1/requests", headers, {
     sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
     action: "bridge.health",
     timeoutMs: 10
   });
@@ -144,6 +147,7 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
 
   const cancelling = await request(port, "POST", "/v1/requests", headers, {
     sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
     action: "bridge.health",
     timeoutMs: 1000
   });
@@ -161,6 +165,7 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
     requestId: cancelling.body.requestId
   });
   assert.equal(cancelled.body.cancelled, true);
+  assert.equal(cancelled.body.dispatched, true);
   const observedCancellation = await request(port, "POST", "/v1/requests/status", headers, {
     sessionId: "session-1",
     workbookUrl: "file:///tmp/book.xlsx",
@@ -196,6 +201,7 @@ test("HTTP protocol rejects unauthenticated traffic and correlates a health requ
 
   const afterLate = await request(port, "POST", "/v1/requests", headers, {
     sessionId: "session-1",
+    workbookUrl: "file:///tmp/book.xlsx",
     action: "bridge.health",
     timeoutMs: 1000
   });
