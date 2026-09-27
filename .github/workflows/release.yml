@@ -927,7 +927,7 @@ jobs:
             return
           }
 
-          npm publish $Tarball --access public
+          npm publish "./$Tarball" --access public
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to publish $PackageName@$env:VERSION."
           }

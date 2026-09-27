@@ -212,6 +212,7 @@ public sealed class ReleaseMetadataScriptTests
         Assert.Contains("NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
         Assert.Contains("$env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN", publish, StringComparison.Ordinal);
         Assert.DoesNotContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
+        Assert.Contains("npm publish \"./$Tarball\" --access public", publish, StringComparison.Ordinal);
 
         foreach (var packageName in new[] { "excelcli", "mcp-server-excel" })
         {
