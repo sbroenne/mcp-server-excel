@@ -112,6 +112,32 @@ public sealed class MacPowerQueryPackageTests
     }
 
     [Fact]
+    public void UpdateQuery_AmbiguousCaseInsensitiveIdentity_DoesNotModifyWorkbook()
+    {
+        var path = CreateWorkbook(
+            """
+            section Section1;
+            shared Sales = 1;
+            shared SALES = 2;
+            """);
+        var before = File.ReadAllBytes(path);
+
+        try
+        {
+            var error = Assert.Throws<InvalidDataException>(
+                () => MacPowerQueryPackage.UpdateQuery(path, "sales", "3"));
+
+            Assert.Contains("ambiguous", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(before, File.ReadAllBytes(path));
+        }
+        finally
+        {
+            File.Delete(path);
+            Directory.Delete(Path.GetDirectoryName(path)!);
+        }
+    }
+
+    [Fact]
     public void ReadWorksheetLoads_FollowsWorksheetTableAndQueryTableRelationships()
     {
         var path = CreateWorkbook("section Section1; shared Sales = 1;");

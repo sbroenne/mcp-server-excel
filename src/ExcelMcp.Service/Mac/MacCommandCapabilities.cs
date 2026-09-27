@@ -62,7 +62,10 @@ internal static class MacCommandCapabilities
 
         if (category == "powerquery")
         {
-            if (action is "list" or "view")
+            if (action is "list"
+                or "view"
+                or "get-load-config"
+                or "update")
             {
                 return new MacCommandCapability(
                     true,

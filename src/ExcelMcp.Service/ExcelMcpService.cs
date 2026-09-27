@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Analysis;
@@ -587,9 +588,9 @@ public sealed class ExcelMcpService : IDisposable
         {
             return await _macSessionManager!.ExecuteAsync(request.SessionId, async session =>
             {
-                if (category == "powerquery" && action is "list" or "view")
+                if (category == "powerquery")
                 {
-                    return await DispatchMacPowerQueryReadAsync(action, request, session);
+                    return await DispatchMacPowerQueryAsync(action, request, session);
                 }
 
                 var arguments = string.IsNullOrWhiteSpace(request.Args)
@@ -652,7 +653,7 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
-    private async Task<ServiceResponse> DispatchMacPowerQueryReadAsync(
+    private async Task<ServiceResponse> DispatchMacPowerQueryAsync(
         string action,
         ServiceRequest request,
         MacExcelSession session)
@@ -673,8 +674,15 @@ public sealed class ExcelMcpService : IDisposable
 
         PowerQueryInfo CreateInfo(MacPowerQueryDefinition query)
         {
-            var load = loads.FirstOrDefault(candidate =>
-                PowerQueryHelpers.MatchesMashupLocation(candidate.Connection, query.Name));
+            var matchingLoads = loads.Where(candidate =>
+                PowerQueryHelpers.MatchesMashupLocation(candidate.Connection, query.Name)).ToArray();
+            if (matchingLoads.Length > 1)
+            {
+                throw new InvalidDataException(
+                    $"Power Query '{query.Name}' has multiple worksheet destinations. " +
+                    "macOS cannot report or refresh this state safely.");
+            }
+            var load = matchingLoads.SingleOrDefault();
             var isConnectionOnly = load is null;
             return new PowerQueryInfo
             {
@@ -710,17 +718,84 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        var viewArguments = JsonNode.Parse(
+        var arguments = JsonNode.Parse(
                 request.Args ?? throw new ArgumentException(
-                    "Power Query view arguments are required."))
+                    $"Power Query {action} arguments are required."))
             ?.AsObject()
-            ?? throw new ArgumentException("Power Query view arguments are required.");
-        var queryName = viewArguments["queryName"]?.GetValue<string>()
+            ?? throw new ArgumentException($"Power Query {action} arguments are required.");
+
+        var queryName = arguments["queryName"]?.GetValue<string>()
             ?? throw new ArgumentException("queryName is required.");
         var query = queries.SingleOrDefault(candidate =>
                 string.Equals(candidate.Name, queryName, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException($"Query '{queryName}' not found.");
         var info = CreateInfo(query);
+
+        if (action == "get-load-config")
+        {
+            return SerializeMacResult(new PowerQueryLoadConfigResult
+            {
+                Success = true,
+                FilePath = session.FilePath,
+                QueryName = query.Name,
+                HasConnection = !info.IsConnectionOnly,
+                LoadMode = info.LoadMode,
+                TargetSheet = info.TargetSheet,
+                IsLoadedToDataModel = false
+            });
+        }
+
+        if (action == "update")
+        {
+            var mCode = ParameterTransforms.ResolveFileOrValue(
+                arguments["mCode"]?.GetValue<string>(),
+                arguments["mCodeFile"]?.GetValue<string>(),
+                "mCode");
+            if (string.IsNullOrWhiteSpace(mCode))
+            {
+                throw new ArgumentException("M code cannot be empty.");
+            }
+            if (arguments["formatMCode"]?.GetValue<bool>() == true)
+            {
+                mCode = await MCodeFormatter.FormatAsync(mCode);
+            }
+            var refresh = arguments["refresh"]?.GetValue<bool>() ?? true;
+            if (refresh)
+            {
+                throw UnsupportedMacPowerQueryVariant(
+                    "powerquery.update",
+                    "refresh was requested but exact refresh completion and error propagation " +
+                    "are not yet proven through the production Mac bridge");
+            }
+
+            await _macSessionManager!.MutatePackageAsync(
+                session,
+                workingPath =>
+                {
+                    MacPowerQueryPackage.UpdateQuery(workingPath, query.Name, mCode);
+                    var updated = MacPowerQueryPackage.ReadQueries(workingPath)
+                        .Single(candidate =>
+                            string.Equals(candidate.Name, query.Name, StringComparison.OrdinalIgnoreCase));
+                    if (!string.Equals(updated.Formula, mCode, StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException(
+                            $"Power Query '{query.Name}' did not retain the requested M code.");
+                    }
+                    _ = MacPowerQueryPackage.ReadWorksheetLoads(workingPath);
+                },
+                static () => Task.CompletedTask);
+            return SerializeMacResult(new OperationResult
+            {
+                Success = true,
+                FilePath = session.FilePath
+            });
+        }
+
+        if (action != "view")
+        {
+            throw new InvalidOperationException($"Unhandled macOS Power Query action '{action}'.");
+        }
+
         var view = new PowerQueryViewResult
         {
             Success = true,
@@ -734,12 +809,25 @@ public sealed class ExcelMcpService : IDisposable
             IsLoadedToDataModel = false,
             IsConnectionOnly = info.IsConnectionOnly
         };
-        return new ServiceResponse
+        return SerializeMacResult(view);
+    }
+
+    private static MacExcelOperationException UnsupportedMacPowerQueryVariant(
+        string command,
+        string reason) =>
+        new(
+            "PlatformNotSupported",
+            $"Command '{command}' cannot run on macOS because {reason}. " +
+            "Only saved-package inspection and package-only update with refresh=false " +
+            "are supported in this release; " +
+            "the complete action remains available on Windows.");
+
+    private static ServiceResponse SerializeMacResult(ResultBase result) =>
+        new()
         {
             Success = true,
-            Result = JsonSerializer.Serialize(view, ServiceProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
         };
-    }
 
     private static void ResolveMacFileArguments(
         string category,
