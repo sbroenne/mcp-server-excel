@@ -238,6 +238,62 @@ public sealed partial class PersistentServiceTablePreflightTests
         });
     }
 
+    [Theory]
+    [InlineData("Sales", true)]
+    [InlineData("Sales", false)]
+    [InlineData("sales", true)]
+    [InlineData("sales", false)]
+    public void Create_WithExistingDefinedName_CreatesTableAndPreservesName(string tableName, bool hasHeaders)
+    {
+        var batch = _fixture.BatchToken;
+        SetUpSourceState(hasHeaders);
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Microsoft.Office.Interop.Excel.Names? names = null;
+            Microsoft.Office.Interop.Excel.Name? name = null;
+            try
+            {
+                names = ctx.Book.Names;
+                name = names.Add("Sales", "=Data!$A$1");
+            }
+            finally
+            {
+                ComUtilities.Release(ref name);
+                ComUtilities.Release(ref names);
+            }
+        });
+        _fixture.RegisterNamedRangeForCleanup("Sales");
+
+        var before = GetSourceState();
+        var result = _tableCommands.Create(batch, "Data", tableName, "A1:B2", hasHeaders);
+        Assert.True(result.Success, result.ErrorMessage);
+        var after = GetSourceState();
+        Assert.Equal(before.WorkbookCount, after.WorkbookCount);
+        Assert.Equal(1, GetWorksheetTableCount("Data"));
+        var info = _tableCommands.Read(batch, tableName);
+        Assert.True(info.Success, info.ErrorMessage);
+        Assert.NotNull(info.Table);
+        Assert.Equal(tableName, info.Table.Name);
+        Assert.Equal(hasHeaders ? 1 : 2, info.Table.RowCount);
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Microsoft.Office.Interop.Excel.Names? names = null;
+            Microsoft.Office.Interop.Excel.Name? name = null;
+            try
+            {
+                names = ctx.Book.Names;
+                name = names.Item("Sales");
+                Assert.Equal("Sales", name.Name);
+                Assert.Equal(hasHeaders ? "=Data!$A$1" : "=Data!$A$2", name.RefersTo);
+            }
+            finally
+            {
+                ComUtilities.Release(ref name);
+                ComUtilities.Release(ref names);
+            }
+        });
+    }
+
     [Fact]
     public void ReadAndRename_WithExistingNonAsciiTableName_Succeeds()
     {
