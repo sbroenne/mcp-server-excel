@@ -17,6 +17,12 @@ public interface IAnalysisCommands
     /// Adjusts one changing cell until a formula cell reaches the requested numeric goal.
     /// </summary>
     [ServiceAction("goal-seek")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #914 commit 6a7aaec4 passed prompt-free real-Excel Goal Seek through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     GoalSeekResult GoalSeek(
         IExcelBatch batch,
         string sheetName,
@@ -28,12 +34,26 @@ public interface IAnalysisCommands
     /// Lists the scenarios defined on a worksheet, including changing cells, values, and protection metadata.
     /// </summary>
     [ServiceAction("list-scenarios")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel 16.113.1 dictionary exposes scenario metadata and get values; portable routing is not real-Excel evidence.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "native API presence is not runtime parity; exact returned metadata must pass prompt-free CLI and MCP Excel tests")]
     ScenarioListResult ListScenarios(IExcelBatch batch, string sheetName);
 
     /// <summary>
     /// Creates a worksheet scenario from a range of changing cells and one value per cell.
     /// </summary>
     [ServiceAction("create-scenario")]
+    [MacCapability(
+        MacCapabilityTier.MacroHelper,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "The version 1 helper advertises analysis.create-scenario, but provenMethods.scenarioCreateShow remains false.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; ExcelMcpDispatch protocol 1.",
+        Blocker = "helper availability is not runtime parity; exact values, defaults, limits, and workbook effects require prompt-free CLI and MCP Excel tests")]
     OperationResult CreateScenario(
         IExcelBatch batch,
         string sheetName,
@@ -48,6 +68,13 @@ public interface IAnalysisCommands
     /// Replaces the changing cells and values of an existing worksheet scenario.
     /// </summary>
     [ServiceAction("update-scenario")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel 16.113.1 dictionary exposes change scenario; portable routing is not real-Excel evidence.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "native API presence is not runtime parity; exact changed cells and values must pass prompt-free CLI and MCP Excel tests")]
     OperationResult UpdateScenario(
         IExcelBatch batch,
         string sheetName,
@@ -59,6 +86,13 @@ public interface IAnalysisCommands
     /// Applies a scenario's stored values to its changing cells.
     /// </summary>
     [ServiceAction("show-scenario")]
+    [MacCapability(
+        MacCapabilityTier.MacroHelper,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "The version 1 helper advertises analysis.show-scenario, but provenMethods.scenarioCreateShow remains false.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; ExcelMcpDispatch protocol 1.",
+        Blocker = "helper availability is not runtime parity; exact worksheet effects require prompt-free CLI and MCP Excel tests")]
     OperationResult ShowScenario(
         IExcelBatch batch,
         string sheetName,
@@ -68,6 +102,13 @@ public interface IAnalysisCommands
     /// Deletes a worksheet scenario.
     /// </summary>
     [ServiceAction("delete-scenario")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel 16.113.1 dictionary exposes scenario elements and generic delete; portable routing is not real-Excel evidence.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "native API presence is not runtime parity; exact-name deletion and worksheet effects must pass prompt-free CLI and MCP Excel tests")]
     OperationResult DeleteScenario(
         IExcelBatch batch,
         string sheetName,
@@ -77,6 +118,13 @@ public interface IAnalysisCommands
     /// Creates a standard worksheet summary or PivotTable summary for all scenarios on a worksheet.
     /// </summary>
     [ServiceAction("create-scenario-summary")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel 16.113.1 dictionary exposes create summary for scenarios with standard and PivotTable report types.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "native API presence is not runtime parity; new-sheet identity and both summary types must pass prompt-free CLI and MCP Excel tests")]
     ScenarioSummaryResult CreateScenarioSummary(
         IExcelBatch batch,
         string sheetName,
@@ -87,6 +135,12 @@ public interface IAnalysisCommands
     /// Creates a one- or two-variable Excel data table from a prepared formula and input-value range.
     /// </summary>
     [ServiceAction("create-data-table")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #914 commit 6a7aaec4 passed a prompt-free literal Data Table through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult CreateDataTable(
         IExcelBatch batch,
         string sheetName,

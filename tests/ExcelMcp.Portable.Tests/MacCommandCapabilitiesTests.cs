@@ -8,6 +8,14 @@ public sealed class MacCommandCapabilitiesTests
 {
     [Theory]
     [InlineData("sheet.create")]
+    [InlineData("sheet.set-visibility")]
+    [InlineData("sheet.get-visibility")]
+    [InlineData("sheet.show")]
+    [InlineData("sheet.hide")]
+    [InlineData("sheet.very-hide")]
+    [InlineData("sheet.set-tab-color")]
+    [InlineData("sheet.get-tab-color")]
+    [InlineData("sheet.clear-tab-color")]
     [InlineData("range.get-number-formats")]
     [InlineData("range.set-number-format")]
     [InlineData("rangeformat.set-column-width")]
@@ -18,6 +26,50 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.True(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+    }
+
+    [Theory]
+    [InlineData("analysis.goal-seek")]
+    [InlineData("analysis.create-data-table")]
+    public void VerifiedWhatIfAnalysisCommands_RecordNativeExcelEvidence(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Contains("CLI and MCP", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("16.113.1", capability.ExcelApiVersion, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("analysis.list-scenarios")]
+    [InlineData("analysis.update-scenario")]
+    [InlineData("analysis.delete-scenario")]
+    [InlineData("analysis.create-scenario-summary")]
+    public void UnverifiedNativeScenarioActions_RemainGated(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("dictionary", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void UnverifiedScenarioMutations_RecordMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("scenarioCreateShow", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -96,11 +148,11 @@ public sealed class MacCommandCapabilitiesTests
     [Fact]
     public void GatedCommand_UsesBlockerAsAReasonWithoutDuplicatedPunctuation()
     {
-        var capability = MacCommandCapabilities.Get("analysis.goal-seek");
+        var capability = MacCommandCapabilities.Get("analysis.list-scenarios");
 
         Assert.Equal(
-            "Command 'analysis.goal-seek' is unavailable on macOS: " +
-            "No verified macOS backend route exists for this action. " +
+            "Command 'analysis.list-scenarios' is unavailable on macOS: " +
+            "native API presence is not runtime parity; exact returned metadata must pass prompt-free CLI and MCP Excel tests. " +
             "It remains available on Windows.",
             capability.UnavailableMessage);
     }
