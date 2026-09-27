@@ -85,6 +85,14 @@ The first implementation increment now exists behind runtime platform selection:
   number formats, dimensions, worksheet creation, missing-sheet failure and
   recovery, save/reopen, discard, sentinel preservation, clean empty Power
   Query lists, dirty-workbook rejection, and cleanup.
+- An optional versioned Office.js foundation now provides explicit
+  install/activation/health/upgrade/removal lifecycle, authenticated loopback
+  HTTPS, exact workbook/session binding, correlated serialized requests,
+  deadlines/cancellation, and runtime negotiation of the installed Excel
+  version and `ExcelApi` requirement sets. It exposes health only. User-mediated
+  sideload activation and localhost certificate trust currently block a
+  prompt-free real-Excel smoke test, so no tables, charts, PivotTables,
+  conditional-formatting, or other feature actions are enabled.
 
 This is **not completion of the parity plan**. Worksheet creation uses the
 working nested AppleScript form after JXA returned Excel parameter errors.

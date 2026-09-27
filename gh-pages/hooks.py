@@ -78,6 +78,7 @@ SITE_PAGE_MAP = {
     "docs/INSTALLATION.md": "/installation/",
     "docs/INSTALLATION-MCP-SERVER.md": "/installation-mcp-server/",
     "docs/INSTALLATION-CLI.md": "/installation-cli/",
+    "docs/MACOS-OFFICEJS.md": "/installation-macos-officejs/",
     "docs/ARCHITECTURE.md": "/architecture/",
     "docs/USE-CASES.md": "/use-cases/",
     "docs/guides/README.md": "/guides/",
@@ -1356,6 +1357,15 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         "docs/INSTALLATION-CLI.md",
         _strip_header(
             _read("docs/INSTALLATION-CLI.md"),
+            end_on_blank=True,
+            demote_h1=True,
+        ),
+    )
+    _write(
+        "installation-macos-officejs.md",
+        "docs/MACOS-OFFICEJS.md",
+        _strip_header(
+            _read("docs/MACOS-OFFICEJS.md"),
             end_on_blank=True,
             demote_h1=True,
         ),
