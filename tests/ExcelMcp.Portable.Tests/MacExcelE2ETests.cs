@@ -123,6 +123,28 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 new() { ["procedure_name"] = "Module1.NotAvailable", ["timeout"] = 1 }, deadline.Token);
             Assert.False(unsupportedVba.GetProperty("success").GetBoolean());
             Assert.Equal("PlatformNotSupported", unsupportedVba.GetProperty("errorCategory").GetString());
+            Assert.Contains(
+                "preflight reports",
+                unsupportedVba.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(
+                "repository-owned synthetic fixture",
+                unsupportedVba.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+            var unsupportedVbaList = await client.CallAsync(
+                "vba", "list", macroSession, new(), deadline.Token);
+            Assert.False(unsupportedVbaList.GetProperty("success").GetBoolean());
+            Assert.Equal(
+                "PlatformNotSupported",
+                unsupportedVbaList.GetProperty("errorCategory").GetString());
+            Assert.Contains(
+                "project object model",
+                unsupportedVbaList.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(
+                "scripting dictionary",
+                unsupportedVbaList.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
             Success(await client.CallAsync("file", "close", macroSession, new(), deadline.Token));
 
             var sentinelSession = SessionId(await client.CallAsync("file", "open", null,
