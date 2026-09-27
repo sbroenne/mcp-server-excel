@@ -147,7 +147,10 @@ VBA
 `VBComponents`/`CodeModule` list, view, standard-module import, update, and
 delete; and the narrowly requested scenario create/show gaps. Capability output
 keeps static API availability, current trust readiness, and per-method proven
-evidence separate. All proven-method flags begin false. Signed or locked VBA
+evidence separate. All proven-method flags begin false. Bounded acceptance may
+opt in only exact advertised Power Query action names through
+`EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS`; there is no helper-wide or generic
+mutation switch, and unknown actions fail closed. Signed or locked VBA
 projects are not mutated, update/delete accept only standard modules, and no
 operation saves the target workbook implicitly. Public routing remains gated
 until each method has prompt-free real Excel CLI and MCP evidence. Power Query

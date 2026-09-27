@@ -43,6 +43,8 @@ public sealed class ExcelMcpService : IDisposable
     private readonly MacExcelSessionManager? _macSessionManager;
     private readonly MacPowerQueryHelperDispatcher? _macPowerQueryHelperDispatcher;
     private readonly Func<string, TimeSpan, Task<JsonElement>>? _getMacHelperCapabilities;
+    private readonly IReadOnlySet<string> _macPowerQueryCandidateActions =
+        new HashSet<string>(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly DaemonHost _daemonHost;
     private readonly DateTime _startTime = DateTime.UtcNow;
@@ -86,13 +88,16 @@ public sealed class ExcelMcpService : IDisposable
             _getMacHelperCapabilities = helperClient.GetCapabilitiesAsync;
             _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
                 helperClient.DispatchAsync);
+            _macPowerQueryCandidateActions =
+                MacPowerQueryHelperCapabilities.GetExplicitOptIn();
         }
     }
 
     internal ExcelMcpService(
         MacExcelBackend macBackend,
         Func<string, TimeSpan, Task<JsonElement>> getMacHelperCapabilities,
-        MacPowerQueryHelperDispatch macPowerQueryHelperDispatch)
+        MacPowerQueryHelperDispatch macPowerQueryHelperDispatch,
+        IReadOnlySet<string>? macPowerQueryCandidateActions = null)
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _macBackend = macBackend;
@@ -100,6 +105,8 @@ public sealed class ExcelMcpService : IDisposable
         _getMacHelperCapabilities = getMacHelperCapabilities;
         _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
             macPowerQueryHelperDispatch);
+        _macPowerQueryCandidateActions = macPowerQueryCandidateActions
+            ?? new HashSet<string>(StringComparer.Ordinal);
     }
 
     public DateTime StartTime => _startTime;
@@ -660,7 +667,9 @@ public sealed class ExcelMcpService : IDisposable
             route = MacPowerQueryRouteSelector.Select(
                 action,
                 arguments,
-                MacPowerQueryHelperCapabilities.Parse(capabilities));
+                MacPowerQueryHelperCapabilities.Parse(
+                    capabilities,
+                    _macPowerQueryCandidateActions));
         }
         if (route.Kind == MacPowerQueryRouteKind.Unsupported)
         {

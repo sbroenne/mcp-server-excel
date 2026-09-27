@@ -21,7 +21,8 @@ public sealed class MacPowerQueryHelperCapabilitiesTests
               ],
               "provenMethods": {
                 "powerQueryList": false,
-                "powerQueryMutation": true
+                "powerQueryRename": true,
+                "powerQueryDelete": true
               }
             }
             """);
@@ -48,7 +49,10 @@ public sealed class MacPowerQueryHelperCapabilitiesTests
               ],
               "provenMethods": {
                 "powerQueryList": false,
-                "powerQueryMutation": false
+                "powerQueryCreate": false,
+                "powerQueryUpdate": false,
+                "powerQueryRename": false,
+                "powerQueryDelete": false
               }
             }
             """);
@@ -56,12 +60,52 @@ public sealed class MacPowerQueryHelperCapabilitiesTests
         Assert.Empty(MacPowerQueryHelperCapabilities.Parse(document.RootElement));
     }
 
+    [Fact]
+    public void ParseEnablesOnlyExactExplicitCandidateAction()
+    {
+        using var document = JsonDocument.Parse(
+            """
+            {
+              "supportedActions": ["powerquery.create", "powerquery.delete"],
+              "provenMethods": {
+                "powerQueryCreate": false,
+                "powerQueryDelete": false
+              }
+            }
+            """);
+
+        var actions = MacPowerQueryHelperCapabilities.Parse(
+            document.RootElement,
+            new HashSet<string>(["powerquery.create"], StringComparer.Ordinal));
+
+        Assert.Equal(["powerquery.create"], actions);
+    }
+
+    [Theory]
+    [InlineData(null, 0)]
+    [InlineData("", 0)]
+    [InlineData("powerquery.create", 1)]
+    [InlineData(" powerquery.create, powerquery.evaluate ", 2)]
+    public void ExplicitOptInParsesExactActionNames(string? value, int expectedCount)
+    {
+        var actions = MacPowerQueryHelperCapabilities.ParseExplicitOptIn(value);
+
+        Assert.Equal(expectedCount, actions.Count);
+    }
+
+    [Fact]
+    public void ExplicitOptInRejectsUnknownAction()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            MacPowerQueryHelperCapabilities.ParseExplicitOptIn("powerquery.unknown"));
+    }
+
     [Theory]
     [InlineData("""{"helperVersion":"1.0.0","protocolVersion":1}""")]
-    [InlineData("""{"supportedActions":"powerquery.rename","provenMethods":{"powerQueryList":false,"powerQueryMutation":true}}""")]
-    [InlineData("""{"supportedActions":["powerquery.rename",1],"provenMethods":{"powerQueryList":false,"powerQueryMutation":true}}""")]
+    [InlineData("""{"supportedActions":"powerquery.rename","provenMethods":{"powerQueryRename":true}}""")]
+    [InlineData("""{"supportedActions":["powerquery.rename",1],"provenMethods":{"powerQueryRename":true}}""")]
     [InlineData("""{"supportedActions":["powerquery.rename"],"provenMethods":{"powerQueryList":false}}""")]
-    [InlineData("""{"supportedActions":["powerquery.rename"],"provenMethods":{"powerQueryList":false,"powerQueryMutation":"yes"}}""")]
+    [InlineData("""{"supportedActions":["powerquery.rename"],"provenMethods":{"powerQueryRename":"yes"}}""")]
     public void ParseRejectsInvalidSupportedActions(string json)
     {
         using var document = JsonDocument.Parse(json);

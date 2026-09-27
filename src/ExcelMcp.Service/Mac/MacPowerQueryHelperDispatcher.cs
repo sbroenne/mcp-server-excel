@@ -31,24 +31,78 @@ internal sealed class MacPowerQueryHelperDispatcher(
             route.HelperAction,
             route.HelperArguments,
             timeout);
-        var result = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
+        var helperObject = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
             ?? throw new InvalidOperationException(
                 $"Helper action '{route.HelperAction}' returned a non-object result.");
-
-        result["success"] = true;
-        result["filePath"] = workbookPath;
+        JsonObject result;
         if (publicAction == "rename")
         {
             var oldName = RequiredString(publicArguments, "oldName");
             var newName = RequiredString(publicArguments, "newName");
+            result = OperationResult(workbookPath);
             result["objectType"] = "power-query";
             result["oldName"] = oldName;
             result["newName"] = newName;
             result["normalizedOldName"] = oldName.Trim();
             result["normalizedNewName"] = newName.Trim();
         }
+        else if (publicAction == "refresh")
+        {
+            result = OperationResult(workbookPath);
+            CopyRequired(helperObject, result, "queryName");
+            CopyRequired(helperObject, result, "hasErrors");
+            CopyRequired(helperObject, result, "errorMessages");
+            CopyRequired(helperObject, result, "refreshTime");
+            CopyRequired(helperObject, result, "isConnectionOnly");
+            CopyOptional(helperObject, result, "loadedToSheet");
+        }
+        else if (publicAction == "evaluate")
+        {
+            result = OperationResult(workbookPath);
+            result["mCode"] = RequiredString(publicArguments, "mCode");
+            CopyRequired(helperObject, result, "columns");
+            CopyRequired(helperObject, result, "rows");
+            CopyRequired(helperObject, result, "rowCount");
+            CopyRequired(helperObject, result, "columnCount");
+        }
+        else
+        {
+            result = OperationResult(workbookPath);
+            if (publicAction == "unload")
+            {
+                result["action"] = "unload";
+            }
+        }
 
         return JsonSerializer.SerializeToElement(result, ServiceProtocol.JsonOptions);
+    }
+
+    private static JsonObject OperationResult(string workbookPath) =>
+        new()
+        {
+            ["success"] = true,
+            ["filePath"] = workbookPath
+        };
+
+    private static void CopyRequired(
+        JsonObject source,
+        JsonObject destination,
+        string propertyName)
+    {
+        destination[propertyName] = source[propertyName]?.DeepClone()
+            ?? throw new InvalidOperationException(
+                $"Helper result is missing required property '{propertyName}'.");
+    }
+
+    private static void CopyOptional(
+        JsonObject source,
+        JsonObject destination,
+        string propertyName)
+    {
+        if (source[propertyName] is { } value)
+        {
+            destination[propertyName] = value.DeepClone();
+        }
     }
 
     private static string RequiredString(JsonObject arguments, string propertyName) =>

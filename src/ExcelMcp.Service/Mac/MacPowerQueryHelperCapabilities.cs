@@ -4,7 +4,54 @@ namespace Sbroenne.ExcelMcp.Service.Mac;
 
 internal static class MacPowerQueryHelperCapabilities
 {
-    public static IReadOnlySet<string> Parse(JsonElement capabilities)
+    internal const string CandidateActionsEnvironmentVariable =
+        "EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS";
+
+    private static readonly Dictionary<string, string> ProofProperties =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["powerquery.list"] = "powerQueryList",
+            ["powerquery.view"] = "powerQueryList",
+            ["powerquery.create"] = "powerQueryCreate",
+            ["powerquery.update"] = "powerQueryUpdate",
+            ["powerquery.rename"] = "powerQueryRename",
+            ["powerquery.delete"] = "powerQueryDelete",
+            ["powerquery.refresh"] = "powerQueryRefresh",
+            ["powerquery.refresh-all"] = "powerQueryRefreshAll",
+            ["powerquery.load-to"] = "powerQueryLoadTo",
+            ["powerquery.unload"] = "powerQueryUnload",
+            ["powerquery.evaluate"] = "powerQueryEvaluate"
+        };
+
+    public static IReadOnlySet<string> GetExplicitOptIn() =>
+        ParseExplicitOptIn(
+            Environment.GetEnvironmentVariable(CandidateActionsEnvironmentVariable));
+
+    internal static IReadOnlySet<string> ParseExplicitOptIn(string? configuredActions)
+    {
+        if (string.IsNullOrWhiteSpace(configuredActions))
+        {
+            return new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in configuredActions.Split(
+                     ',',
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!ProofProperties.ContainsKey(item))
+            {
+                throw new InvalidOperationException(
+                    $"{CandidateActionsEnvironmentVariable} contains unsupported action '{item}'.");
+            }
+            result.Add(item);
+        }
+        return result;
+    }
+
+    public static IReadOnlySet<string> Parse(
+        JsonElement capabilities,
+        IReadOnlySet<string>? explicitlyEnabledActions = null)
     {
         if (!capabilities.TryGetProperty("supportedActions", out var supportedActions)
             || supportedActions.ValueKind != JsonValueKind.Array)
@@ -18,8 +65,7 @@ internal static class MacPowerQueryHelperCapabilities
             throw new InvalidOperationException(
                 "The configured helper returned no provenMethods object.");
         }
-        var powerQueryListProven = RequiredBoolean(provenMethods, "powerQueryList");
-        var powerQueryMutationProven = RequiredBoolean(provenMethods, "powerQueryMutation");
+        explicitlyEnabledActions ??= new HashSet<string>(StringComparer.Ordinal);
 
         var result = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in supportedActions.EnumerateArray())
@@ -30,16 +76,9 @@ internal static class MacPowerQueryHelperCapabilities
                 throw new InvalidOperationException(
                     "The configured helper returned an invalid supported action.");
             }
-            var isProven = action switch
-            {
-                "powerquery.list" or "powerquery.view" => powerQueryListProven,
-                "powerquery.create"
-                    or "powerquery.update"
-                    or "powerquery.rename"
-                    or "powerquery.delete" => powerQueryMutationProven,
-                _ => false
-            };
-            if (isProven)
+            if (ProofProperties.TryGetValue(action, out var proofProperty)
+                && (RequiredBoolean(provenMethods, proofProperty)
+                    || explicitlyEnabledActions.Contains(action)))
             {
                 result.Add(action);
             }
