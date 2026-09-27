@@ -16,54 +16,12 @@ internal sealed class Program
 
     private static async Task<int> Main(string[] args)
     {
-        CliTelemetry.Initialize();
-        try
-        {
-            return await RunAsync(args);
-        }
-        finally
-        {
-            CliTelemetry.Flush();
-        }
-    }
-
-    internal static async Task<int> RunAsync(
-        string[] args,
-        CliCommandRuntime? runtime = null)
-    {
-        if (runtime is null)
-        {
-            Console.OutputEncoding = System.Text.Encoding.UTF8;
-        }
-
-        using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
-
-        // Determine if we should show the banner:
-        // - Not when --quiet/-q flag is passed
-        // - Not when output is redirected (piped to another process or file)
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
-        var isPiped = CliCommandRuntime.Current.IsOutputRedirected;
-        var showBanner = !isQuiet && !isPiped;
-        var jsonOutputMode = isQuiet || isPiped;
-
-        // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
+        var showVersion = filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
 
-        if (filteredArgs.Length == 0)
-        {
-            if (showBanner) RenderHeader();
-            WriteDiagnosticMarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
-            return 0;
-        }
-
-        if (filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
-        {
-            return await HandleVersionAsync();
-        }
-
-        // Handle "service run" — runs the CLI daemon with tray icon (no banner)
-        // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
-        if (filteredArgs.Length >= 2
+        // The Mac daemon must redirect descriptors before Console caches duplicates.
+        if (!showVersion && filteredArgs.Length >= 2
             && string.Equals(filteredArgs[0], "service", StringComparison.OrdinalIgnoreCase)
             && string.Equals(filteredArgs[1], "run", StringComparison.OrdinalIgnoreCase))
         {
@@ -77,6 +35,23 @@ internal sealed class Program
                 }
             }
             return RunServiceDaemon(pipeNameOverride);
+        }
+
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        var isPiped = Console.IsOutputRedirected;
+        var showBanner = !isQuiet && !isPiped;
+        var jsonOutputMode = isQuiet || isPiped;
+
+        if (filteredArgs.Length == 0)
+        {
+            if (showBanner) RenderHeader();
+            WriteDiagnosticMarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
+            return 0;
+        }
+
+        if (showVersion)
+        {
+            return await HandleVersionAsync();
         }
 
         if (showBanner) RenderHeader();
@@ -265,10 +240,17 @@ internal sealed class Program
     /// </summary>
     private static int RunServiceDaemon(string? pipeNameOverride = null)
     {
+#if WINDOWS
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+#endif
 
         var pipeName = pipeNameOverride ?? Service.ServiceSecurity.GetCliPipeName();
+        using var daemonLog = OperatingSystem.IsMacOS() ? MacDaemonConsole.Redirect(pipeName) : null;
+        if (OperatingSystem.IsWindows())
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
 
         // Acquire a named OS mutex for the lifetime of this daemon process.
         // If another daemon is already running for this pipe/user, exit immediately
@@ -358,6 +340,7 @@ internal sealed class Program
         {
             service = new Service.ExcelMcpService();
 
+#if WINDOWS
             // Capture the UI synchronization context after Application starts
             SynchronizationContext? uiContext = null;
 
@@ -407,6 +390,25 @@ internal sealed class Program
                 service.Dispose();
                 service = null;
             }
+#else
+            try
+            {
+                service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10))
+                    .GetAwaiter()
+                    .GetResult();
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnosticMarkupLine($"[red]Service error:[/] {ex.Message.EscapeMarkup()}");
+                return 1;
+            }
+            finally
+            {
+                service.Dispose();
+                service = null;
+            }
+#endif
         }
         finally
         {

@@ -173,8 +173,17 @@ public class Program
                 };
 
                 // Server-wide instructions for LLMs - helps with tool selection and workflow understanding
-                options.ServerInstructions = """
-                    ExcelMCP automates Microsoft Excel via COM interop.
+                options.ServerInstructions = $"""
+                    ExcelMCP automates desktop Microsoft Excel.
+
+                    PLATFORM:
+                    - Windows uses the complete COM backend.
+                    - macOS support is experimental and capability-gated. Workbook, sheet, core range,
+                      calculation, and VBA run operations are being enabled first.
+                    - An unavailable macOS action fails explicitly; never treat it as success or silently
+                      substitute a different destination/workflow.
+                    - macOS controls the user's shared Excel application. ExcelMcp owns its workbook
+                      sessions, not the Excel process, and never force-kills shared Excel.
 
                     CRITICAL: File must be CLOSED in Excel desktop app (COM requires exclusive access).
 
@@ -541,6 +550,10 @@ internal static class StdinPipeMonitor
 
     internal static Timer? Start(IHostApplicationLifetime lifetime, IntPtr handle)
     {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        var handle = GetStdHandle(StdInputHandle);
         if (handle == IntPtr.Zero || handle == new IntPtr(-1))
             return null;
 

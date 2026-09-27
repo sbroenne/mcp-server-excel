@@ -34,7 +34,7 @@ public static partial class ExcelFileTool
     /// canOpen=false until the required interactive Excel authentication occurs.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
-    /// <param name="path">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
+    /// <param name="path">Absolute path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
     /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
@@ -97,7 +97,7 @@ public static partial class ExcelFileTool
             throw new ArgumentException("path is required for 'open' action", nameof(path));
         }
 
-        // Validate Windows path format before any file operations
+        // Validate the current platform's path format before any file operations.
         var pathError = ExcelToolsBase.ValidateWindowsPath(path);
         if (pathError != null)
         {

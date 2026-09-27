@@ -353,7 +353,7 @@ public static class ExcelToolsBase
         };
 
     /// <summary>
-    /// Validates that a path is a valid Windows absolute path.
+    /// Validates that a path is absolute on the current platform.
     /// Returns null if valid, or a JSON error response if invalid.
     /// </summary>
     /// <param name="path">The path to validate</param>
@@ -365,8 +365,6 @@ public static class ExcelToolsBase
             return null; // Let existing null checks handle this
         }
 
-        // Use .NET's built-in check for fully qualified Windows paths
-        // Returns false for Unix paths like /home/user/file.xlsx, relative paths like ./file.xlsx
         if (!Path.IsPathFullyQualified(path))
         {
             // Extract filename from the invalid path (works for both Unix and Windows separators)
@@ -380,9 +378,11 @@ public static class ExcelToolsBase
             var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             var suggestedPath = Path.Combine(documentsFolder, fileName);
 
-            var errorMessage = path.StartsWith('/')
-                ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
-                : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'";
+            var errorMessage = OperatingSystem.IsWindows()
+                ? path.StartsWith('/')
+                    ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
+                    : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'"
+                : $"Invalid path format: '{path}' is not an absolute path. Use: '{suggestedPath}'";
 
             return JsonSerializer.Serialize(new
             {

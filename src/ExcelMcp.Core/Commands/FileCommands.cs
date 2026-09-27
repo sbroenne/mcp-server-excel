@@ -12,7 +12,7 @@ public class FileCommands : IFileCommands
     /// <inheritdoc />
     public FileValidationInfo Test(string filePath)
     {
-        filePath = FilePathValidation.NormalizeAbsoluteWindowsPath(filePath);
+        filePath = FilePathValidation.NormalizeAbsolutePath(filePath);
 
         bool exists = File.Exists(filePath);
         string extension = Path.GetExtension(filePath).ToLowerInvariant();

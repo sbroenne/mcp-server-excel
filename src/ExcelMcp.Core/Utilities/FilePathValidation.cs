@@ -6,18 +6,23 @@ namespace Sbroenne.ExcelMcp.Core.Utilities;
 public static class FilePathValidation
 {
     /// <summary>
-    /// Requires and normalizes an absolute Windows file path.
+    /// Requires and normalizes an absolute file path for the current platform.
     /// </summary>
-    public static string NormalizeAbsoluteWindowsPath(string filePath)
+    public static string NormalizeAbsolutePath(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         if (!Path.IsPathFullyQualified(filePath))
         {
             throw new ArgumentException(
-                $"File path must be an absolute Windows path: '{filePath}'.",
+                $"File path must be an absolute path: '{filePath}'.",
                 nameof(filePath));
         }
 
         return Path.GetFullPath(filePath);
     }
+
+    /// <summary>
+    /// Backward-compatible alias for callers compiled against the Windows-only API name.
+    /// </summary>
+    public static string NormalizeAbsoluteWindowsPath(string filePath) => NormalizeAbsolutePath(filePath);
 }

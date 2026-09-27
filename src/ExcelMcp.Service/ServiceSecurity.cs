@@ -1,6 +1,8 @@
 using System.IO.Pipes;
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using System.Security.Principal;
+using System.Text;
 
 namespace Sbroenne.ExcelMcp.Service;
 
@@ -23,8 +25,14 @@ namespace Sbroenne.ExcelMcp.Service;
 /// </remarks>
 public static class ServiceSecurity
 {
-    private static readonly Lazy<string> LazyUserSid = new(() =>
+    private static readonly Lazy<string> LazyUserIdentity = new(() =>
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            var identity = $"{Environment.UserName}|{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}";
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..16].ToLowerInvariant();
+        }
+
         var sid = WindowsIdentity.GetCurrent().User?.Value;
         if (string.IsNullOrEmpty(sid))
         {
@@ -34,23 +42,35 @@ public static class ServiceSecurity
         return sid;
     });
 
-    private static string UserSid => LazyUserSid.Value;
+    private static string UserIdentity => LazyUserIdentity.Value;
 
     /// <summary>
     /// Gets the pipe name for the MCP Server (per-process isolation).
     /// </summary>
-    public static string GetMcpPipeName() => $"excelmcp-mcp-{UserSid}-{Environment.ProcessId}";
+    public static string GetMcpPipeName() => $"excelmcp-mcp-{UserIdentity}-{Environment.ProcessId}";
 
     /// <summary>
     /// Gets the pipe name for the CLI daemon (shared across CLI invocations for the same user).
     /// </summary>
-    public static string GetCliPipeName() => $"excelmcp-cli-{UserSid}";
+    public static string GetCliPipeName() => $"excelmcp-cli-{UserIdentity}";
 
     /// <summary>
     /// Creates a secure named pipe server with ACLs restricting access to current user only.
     /// </summary>
     public static NamedPipeServerStream CreateSecureServer(string pipeName)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return new NamedPipeServerStream(
+                pipeName,
+                PipeDirection.InOut,
+                NamedPipeServerStream.MaxAllowedServerInstances,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly,
+                inBufferSize: 4096,
+                outBufferSize: 4096);
+        }
+
         var pipeSecurity = new PipeSecurity();
 
         pipeSecurity.AddAccessRule(new PipeAccessRule(

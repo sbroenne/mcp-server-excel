@@ -1,0 +1,692 @@
+# macOS support: feasibility spike and implementation plan
+
+**Status:** Experimental findings and proposed scope, not an accepted platform
+decision or a shipped feature. Production ExcelMcp remains Windows-only.
+
+## Outcome
+
+Native Mac Excel automation is feasible for workbook/range operations through
+Apple Events. A real-Excel spike passed creation, explicit workbook targeting
+across separate processes, values, formulas, formatting, bulk calculation,
+save/reopen, discard, and owned-workbook cleanup.
+
+**A prompt-free test path is now demonstrated:** seed blank synthetic `.xlsx`
+files in an ordinary temporary directory and open them through macOS
+LaunchServices. Four runs passed, including one after a user-managed Excel
+restart, with no dialogs confirmed by the user. All editing, calculation and
+save/reopen assertions used real Excel. The same handoff now works through the
+actual CLI daemon and MCP stdio server, with both workflows passing and no
+dialogs confirmed by the user. This proves the tested existing-file workflows,
+not Excel-native workbook creation or all file-opening options.
+
+Both foreign-container approaches failed the no-prompt requirement. Access from
+Copilot prompted again after explicit one-time approval; a separately launched,
+ad-hoc-signed native app also prompted again. Successful workbook operations
+did not make those runs prompt-free. No broad privacy grants, macro-security
+changes, or UI auto-clicking were used.
+
+The product goal is **maximum parity with Windows ExcelMcp, especially Power
+Query and VBA**, not a permanently reduced workbook/range product. The basic
+spike is a feasibility milestone, not the target feature set. Backend selection
+must account for Power Query and VBA before committing to an architecture.
+Resolve permission/onboarding and shared-Excel ownership alongside those
+feasibility probes. Do not promise unverified parity or unattended arbitrary-file
+access.
+
+A later package-editing probe established a viable helper-free Power Query
+direction. Excel opened an externally patched DataMashup, `Refresh All`
+executed the replacement literal M expression, and the existing worksheet load
+changed to the expected probe value. This validates saved-package M updates
+plus real Excel execution for one existing worksheet-loaded query. It does not
+yet validate the complete Power Query contract or make the production command
+available.
+
+## Implementation status
+
+The first implementation increment now exists behind runtime platform selection:
+
+- MCP Server and `excelcli` compile as `net10.0` hosts on macOS. Windows retains
+  `net10.0-windows`, WinForms tray integration, SID-secured pipes, COM routing
+  and owned-process cleanup.
+- The shared Service selects a serialized JXA/Apple Events backend on macOS.
+  CLI IPC uses a stable hashed per-user identity and current-user-only Unix
+  named pipes. The Mac daemon has no tray and never force-kills shared Excel.
+- Logical Mac sessions track workbook paths and serialize operations per
+  workbook. Timeout handling attempts workbook cleanup without killing Excel;
+  complete invalidation and recovery guarantees still need hardening.
+- Implemented bridge actions are session create/open/close, worksheet
+  list/rename/delete, range get/set values and formulas (including existing
+  JSON/CSV file transforms), clear operations, calculation, and
+  workbook-qualified VBA `run` with up to Excel's 30 parameters.
+- Every other production Mac action, including Power Query and VBA source CRUD,
+  still returns an explicit platform-not-supported failure. It is not reported
+  as success and no unvalidated file-only rewrite is substituted. The external
+  Power Query package probe described below is feasibility evidence, not
+  production routing.
+- Existing-file open uses a non-prompting native Automation preflight, rejects
+  an already-open target, hands the exact path to LaunchServices, then attaches
+  through JXA under a shared deadline.
+- Portable regression tests cover platform-neutral path validation and errors,
+  service startup/status without Excel, stable user-scoped IPC naming, native
+  permission status/layout, handoff ordering, failures and deadlines.
+- Actual CLI/MCP tests cover inline/file-backed values, formulas/calculation,
+  missing-sheet failure and recovery, save/reopen, discard, sentinel preservation
+  and cleanup. They also check explicit unsupported Power Query errors; that
+  assertion is not Power Query parity.
+
+This is **not completion of the parity plan**. In particular, worksheet create
+was deliberately gated after the native JXA form returned Excel parameter
+errors. The Power Query package probe now proves one M update and worksheet
+refresh path, but production refresh remains gated until completion, error and
+identity semantics are implemented. VBA list/view/import/update/delete remain
+gated because Excel's installed Apple Events dictionary exposes macro execution
+but not the VB project/code-module object model. The next increment is
+constrained by the user's decision to investigate without an in-Excel helper.
+No helper workbook or add-in is authorized. Do not weaken the success contract
+to claim unimplemented operations work.
+
+## Required parity and priorities
+
+The existing Windows source contracts are the baseline. Match operation names,
+parameters, defaults, validation, results, errors, persistence and observable
+behavior wherever Mac Excel permits. MCP and CLI must remain equal entry points
+on both platforms. Implementation details may differ; a replacement workflow
+that merely produces similar cells does not establish contract parity.
+
+**Power Query and VBA are primary acceptance requirements**, ahead of expanding
+secondary features such as chart/window customization. A range-only preview may
+be useful internally, but does not satisfy the planned macOS feature scope.
+There is no accepted Power Query or VBA scope reduction in this plan.
+
+Build an action-level compatibility inventory from the current contracts,
+starting with [IPowerQueryCommands](../src/ExcelMcp.Core/Commands/PowerQuery/IPowerQueryCommands.cs)
+and [IVbaCommands](../src/ExcelMcp.Core/Commands/Vba/IVbaCommands.cs), then covering
+every other category. For each action and relevant parameter variant, record:
+Windows semantics, candidate Mac mechanism, fixture/evidence, platform/version
+requirements, and status (verified parity, partial, blocked, or not yet tested).
+Do not classify an untested action as a platform limitation. Every proposed
+exception needs evidence, its user impact, alternatives considered, and an
+explicit scope decision before release.
+
+### Power Query parity workstream
+
+Target the complete existing lifecycle, not just refreshing queries authored on
+Windows:
+
+| Contract area | Required investigation and acceptance evidence |
+| --- | --- |
+| `list`, `view`, `get-load-config` | Enumerate queries, return exact M code and actual load state; preserve compact list metadata and the bounded preview; surface inspection failures |
+| `create`, `update`, `rename`, `delete` | Author and maintain M through Mac Excel; preserve inline/file input rules, exact code by default, refresh defaults, name validation, exact query identity and no implicit save |
+| `evaluate` | Execute M through Excel's engine, return matching columns/rows and useful engine errors, and verify removal of temporary query/sheet/table/connection artifacts on success and failure |
+| `load-to`, `unload` | Exercise worksheet and connection-only destinations, target sheet/cell behavior, existing-data preservation, and destination transitions; investigate Data Model-dependent variants separately |
+| `refresh`, `refresh-all` | Observe actual refresh completion and source errors rather than just command acceptance; match caller/default timeouts, failure reporting and recovery behavior |
+
+Fixtures must include literal M tables, dependent queries, prefix/case-sensitive
+identity edge cases according to the Windows contract, syntax/runtime errors,
+typed dates/nulls, worksheet-source queries, local file sources and approved
+authenticated-source scenarios. Verify saved query definitions and load state
+after reopening, with no unrelated workbook data or connections changed.
+Keep credentials out of fixtures and logs. External M formatting remains
+opt-in, as on Windows.
+
+First investigate native Mac `Workbook.Queries`/`WorkbookQuery` access through a
+VBA bridge and the actual worksheet-loading/refresh mechanism available on Mac.
+Do not assume Windows Mashup OLE DB connection strings/providers exist on Mac.
+Query-definition access alone is not sufficient: loading, evaluation cleanup,
+refresh completion, authentication and errors must also work. Record connector
+and Excel-version limitations individually instead of disabling the category.
+
+Microsoft's [Mac Power Query documentation](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query),
+under "Author and transfer Power Query VBA code", explicitly documents Mac
+support for `Queries`, `WorkbookQuery` and `Workbook.Queries`. It also supplies
+a worksheet-loading example using the Mashup connection syntax and synchronous
+`QueryTable.Refresh`. This is a concrete candidate for the helper spike, not
+local execution evidence or proof of every Windows destination. The page also
+contains an outdated statement about editor availability; rely on its specific
+API claims as hypotheses to verify against the installed Excel version.
+
+### VBA parity workstream
+
+Target **all six current actions**: `list`, `view`, `import`, `update`, `run` and
+`delete`. Running an already-installed macro alone does not establish VBA parity.
+
+Investigate access to the Mac VBA project model, component/procedure enumeration,
+source reading, creation of standard modules, editing/deleting existing
+components, and qualified `Module.Procedure` execution with parameters. Preserve
+the existing `.xlsm` prerequisites, inline/file code inputs, timeout behavior,
+result shape and explicit save semantics. Distinguish access to project source
+from permission to execute macros; neither implies the other.
+
+Use synthetic macro-enabled fixtures to verify import/view/run/update/run/delete,
+module and procedure discovery, workbook-qualified execution with multiple
+workbooks open, save/reopen persistence, missing modules/procedures, compile and
+runtime errors, protected projects, unavailable project access, and timeout
+handling that does not terminate shared Excel. Include parameter-sensitive
+macros and observable worksheet changes so execution is verified, not inferred
+from a successful dispatch.
+
+If a helper/add-in is necessary, prove its user-approved installation, trust,
+versioning and removal, plus operation on target workbooks without injecting
+permanent helper code into them. No automatic macro-security changes or UI
+clicking to bypass trust. Document any required user-managed Mac trust settings
+and unsupported Windows-only VBA dependencies; report failures explicitly rather
+than rewriting user code or claiming it ran successfully.
+
+### Helper-free investigation and current constraint
+
+After the actual CLI/MCP integration passed, the user explicitly chose to
+investigate only approaches without an in-Excel helper. The previously proposed
+VBA bridge is therefore **not authorized for installation or execution**. This
+does not reduce the Power Query/VBA parity requirements; it leaves a backend
+feasibility blocker that must be stated rather than hidden.
+
+Read-only inspection of the installed Excel 16.112.3 scripting dictionary found:
+
+- `run VB Macro` (`smXL2620`) accepts a macro/function reference and up to 30
+  arguments. It does not accept arbitrary VBA source as a code-execution API.
+- `has vb project` is a workbook boolean, not project/component/source access.
+  No `VBProject`, `VBComponents`, `CodeModule`, or `do Visual Basic` surface was
+  declared.
+- `query table` exposes `connection`, `sql`, `destination`, `result range`,
+  `refreshing`, and background-query settings. `refresh query table`
+  (`smXLXrQT`) accepts `background query` and returns a boolean.
+- `refresh all` (`smXL1831`) targets a workbook and also refreshes non-Power-Query
+  external ranges and PivotTables. Its signature does not establish completion
+  or per-query errors.
+- No workbook `Queries` collection or `WorkbookQuery` M-formula object was
+  declared. Legacy `QueryTable.sql` is not the query's M source.
+- `evaluate` (`smXL2435`) evaluates Excel names/formulas. It is not an exposed
+  general VBA interpreter or a Power Query M evaluator.
+
+The dictionary was read using `/usr/bin/sdef '/Applications/Microsoft Excel.app'`
+and XML inspection of command/class/property declarations. No workbook was
+opened or modified, no macro executed, and no consent requested for this
+inspection. Absence from the dictionary means no declared route was found, not
+proof that every undocumented mechanism is impossible. Replacing JXA with
+Swift/ScriptingBridge or direct .NET Apple Events does not itself add missing
+Excel object-model endpoints.
+
+The action-level native inventory is below. "No declared route" is a blocker
+for the current helper-free backend, not a claim that Mac Excel lacks the
+underlying feature.
+
+| Existing action | Helper-free native candidate and evidence | Current status |
+| --- | --- | --- |
+| Power Query `list` | QueryTables can describe loaded destinations, but cannot enumerate all connection-only queries or supply the required M preview | No complete declared route |
+| Power Query `view` | No declared M-formula read API | Blocked |
+| Power Query `get-load-config` | QueryTable connection/destination inspection is a candidate for worksheet loads; complete query and Data Model identity is missing | Partial candidate, not executed |
+| Power Query `create` | No declared query-definition creation API | Blocked |
+| Power Query `update` | No declared M-formula write API | Blocked |
+| Power Query `rename` | Renaming a QueryTable is not proven equivalent to renaming the query and preserving dependencies | Blocked |
+| Power Query `delete` | Removing a destination is not equivalent to deleting the query definition and its exact destinations | Blocked |
+| Power Query `evaluate` | No declared M execution API or temporary-query lifecycle | Blocked |
+| Power Query `load-to` | QueryTable construction is a candidate only after an existing query can be identified; destination transitions and Data Model variants are unproven | Partial candidate, not executed |
+| Power Query `unload` | Destination removal must preserve the query definition and remove only exact targets | Partial candidate, not executed |
+| Power Query `refresh` | Exact connection identity plus synchronous `refresh query table` may work for an existing worksheet-loaded query | Promising candidate; requires real query success/failure fixtures |
+| Power Query `refresh-all` | Native command has broader scope; connection-only coverage, completion and errors are unproven | Gated, not parity |
+| VBA `list` | `has vb project` cannot enumerate components or procedures | Blocked |
+| VBA `view` | No declared code-module read API | Blocked |
+| VBA `import` | No declared component creation/source import API | Blocked |
+| VBA `update` | No declared code-module write API | Blocked |
+| VBA `run` | Workbook-qualified native macro execution is implemented in the bridge | Existing route; real macro fixture and error/persistence evidence still required |
+| VBA `delete` | No declared component removal API | Blocked |
+
+Other documented alternatives were checked, without installing or running them:
+
+| Alternative | Finding against the required contracts |
+| --- | --- |
+| [Office.js Query](https://learn.microsoft.com/en-us/javascript/api/excel/excel.query?view=excel-js-preview) / [QueryCollection](https://learn.microsoft.com/en-us/javascript/api/excel/excel.querycollection?view=excel-js-preview) | Metadata is available; the reviewed preview also has query deletion and collection refresh. No M source authoring or VBA project CRUD route is exposed by these query APIs. Preview deletion leaves associated tables disconnected rather than satisfying our full delete contract. An Office.js bridge would also require an in-Excel add-in, excluded by the current constraint. |
+| [Office Scripts](https://learn.microsoft.com/en-us/office/dev/scripts/resources/vba-differences) / [ExcelScript.Query](https://learn.microsoft.com/en-us/javascript/api/office-scripts/excelscript/excelscript.query) | Office Scripts do support Mac, but the reviewed query surface provides metadata getters, not M authoring or VBA source operations. Documented invocation is user-started or through Power Automate, not a local external replacement for the current native backend. |
+| [Power Automate refresh](https://learn.microsoft.com/en-us/office/dev/scripts/testing/power-automate-troubleshooting#refresh-not-fully-supported-in-power-automate) | Microsoft documents that `refreshAllDataConnections` refreshes only Power BI sources in flows and otherwise can return successfully without doing anything. This fails the required refresh success contract and is not local desktop Excel execution. |
+| Saved OOXML/VBA package editing | May enable offline inspection or editing, but does not expose unsaved live query/project state, preserve current session semantics, or establish real-Excel evaluation/refresh. Not substituted for these contracts. |
+| UI scripting or an in-process injected native library | No supported unattended object-model route established; UI automation needs additional permission and is fragile, and private injection would not be a reliable supported backend. Neither was attempted. |
+
+### Helper-free saved-package investigation
+
+The native inventory above is still accurate, but it is no longer the only
+credible helper-free route. A clean-workbook transaction can combine published
+file formats with real Excel execution:
+
+1. Require the workbook to be saved and clean; never save user changes
+   implicitly.
+2. Close that exact workbook without saving while holding its session lock.
+3. Patch a same-directory temporary copy and validate its ZIP/OPC structures.
+4. Atomically replace the original, reopen the exact path through
+   LaunchServices, and attach it to the existing logical session.
+5. Restore the original if patching or reopening fails.
+
+Dirty workbooks must fail with explicit save-or-discard guidance. The visible
+close/reopen restriction is less capable than Windows live COM, but preserves
+user data and avoids an in-Excel helper.
+
+Power Query feasibility is now demonstrated beyond parser round-tripping:
+
+- Microsoft's published `[MS-QDEFF]` specification describes the DataMashup
+  root, Package Parts OPC archive, permissions, metadata and permission
+  bindings. A repository-owned implementation can therefore be written from
+  the specification.
+- `Vladinator/excel-datamashup` successfully extracted and rewrote
+  `Formulas/Section1.m`, but is GPL-3.0 and must remain research evidence unless
+  an explicit licensing decision is made. Its code must not be copied into the
+  repository implementation.
+- An Excel-generated workbook was copied to a globally unique basename,
+  patched from its file-source query to
+  `#table(1, {{"ExcelMcp macOS parity probe"}})`, and reopened by current Mac
+  Excel without a dialog.
+- Native `Refresh All` then changed the existing worksheet-loaded table from
+  the original vehicle dataset to a `Column1` table containing exactly
+  `ExcelMcp macOS parity probe`. This proves that Excel accepted the rewritten
+  M and executed it through the real Mashup engine.
+- The probe preserved an existing query identity and load destination. It does
+  not yet prove query creation, rename/delete dependency rewrites,
+  connection-only queries, Data Model loads, temporary-query cleanup, source
+  errors, or refresh completion across all connectors.
+
+VBA package work reached a narrower result:
+
+- `[MS-OVBA]` documents the project storage format. The MIT-licensed
+  `Beakerboy/MS-OVBA` and `MS-Pcode-Assembler` projects passed all 106 tests
+  after installing the assembler dependency omitted by MS-OVBA's declared
+  dependencies.
+- A generated `vbaProject.bin` preserved the exact
+  `ParityProbe.WriteParityMarker` source when independently extracted with
+  `olevba`. Mac Excel opened the resulting `.xlsm` and reported
+  `has vb project = true`.
+- The generated procedure did not execute: the workbook-qualified
+  `run VB Macro` call returned a parameter error and left the marker unchanged.
+  A known-good VBA fixture returned `42` through the same qualified invocation,
+  so invocation syntax is not the cause. Source preservation and structural
+  recognition are therefore insufficient; executable-cache/recompilation
+  compatibility remains unresolved.
+- Excel displayed its macro warning on every open, including reopening the same
+  exact file after the user had enabled macros. Automated tests must never click
+  that dialog or change macro security. Unattended VBA execution requires a
+  separately approved user-managed trust prerequisite or another non-prompting
+  trust design.
+
+**Conclusion:** helper-free Power Query authoring is technically viable through
+transactional saved-package editing and real Excel refresh, with the complete
+contract still to implement and validate. VBA source parsing is viable, but
+source mutation is not yet executable in Excel and remains blocked on a valid
+recompilation/cache strategy plus unattended trust. No production capability
+is enabled solely from these probes.
+
+## Experiment
+
+Environment: Apple Silicon/Arm64, Excel for Mac **16.112.3**, PowerShell 7,
+AppleScript via `/usr/bin/osascript`. The repository SDK resolved to **10.0.401**
+under `global.json`'s `10.0.302` / `latestFeature` policy. This is one machine and
+one Excel version; Intel Macs and other Excel versions were not exercised.
+
+The spike is isolated in:
+
+- [PowerShell runner](../scripts/spikes/macos/Test-MacOsExcel.ps1)
+- [Ordinary-file handoff](../scripts/spikes/macos/Test-MacFileHandoff.ps1)
+- [AppleScript operations](../scripts/spikes/macos/ExcelSpike.applescript)
+
+It does not invoke the existing MCP server, CLI, Service, or COM runtime. The
+runner uses .NET `ProcessStartInfo.ArgumentList`, not shell/source interpolation.
+AppleScriptObjC/Foundation serializes structured values to JSON. Workbook paths
+are arguments and each command runs in a fresh host process.
+
+### Reproduction and consent
+
+Requires an interactive Mac desktop, PowerShell 7, licensed Excel already
+running, and previously granted Automation access for the desktop host. The
+default spike now uses ordinary temporary files and LaunchServices:
+
+```powershell
+pwsh -NoProfile -File scripts/spikes/macos/Test-MacOsExcel.ps1
+```
+
+This delegates to `Test-MacFileHandoff.ps1`. It does not read, create, inspect or
+delete anything in Excel's container. Blank OOXML files are seeded solely as
+synthetic input fixtures; all subsequent edits, calculation and persistence
+use Excel. Files are opened using `/usr/bin/open -b com.microsoft.Excel`, not
+the Excel `open workbook` command's bare text-path parameter.
+
+A bounded native Automation permission check uses
+`AEDeterminePermissionToAutomateTarget` with `askUserIfNeeded = false`; denied,
+undecided, unavailable, and unexpected statuses fail explicitly before the test
+creates fixtures. Excel-not-running was observed to fail with OSStatus -600
+without dispatching any workbook operation. Tests do not request consent or
+change privacy settings. Initial Automation onboarding on a fresh host remains
+a separate manual prerequisite.
+
+**Limits:** the evidence covers these synthetic files, this host, and this
+Excel version. It does not establish behavior for protected directories,
+untrusted downloaded files, external links, macros, a fresh host without
+Automation permission, or permission revocation during a run. A preflight
+from PowerShell is not proof of permissions for every production process.
+
+`-AllowExcelContainerAccess` retains the older container experiment only for
+explicit investigation. It is known to prompt repeatedly and must not be used
+for unattended tests. The failed container setup receipt was invalidated and
+the receipt-based initializer removed; a successful setup run is not evidence
+that future container access is authorized.
+
+### Managed versus native automation boundary
+
+Keep .NET for MCP, CLI and shared contracts; the Mac automation implementation
+is still provisional. A native language does not remove sandboxing, Automation
+consent, or missing Excel APIs.
+
+The bounded comparison can run without Excel commands or protected-directory
+access:
+
+```powershell
+pwsh -NoProfile -File scripts/spikes/macos/Test-MacAutomationBoundary.ps1
+```
+
+It compiles a disposable Swift permission probe, compares it with direct .NET
+interop and the JXA host, emits structured results, and removes its temporary
+binary. It returns nonzero when a candidate cannot establish permission. Each
+probe has a 15-second host deadline; the Swift compiler has a separate deadline.
+This is a development spike, not a shipped signed/notarized helper.
+
+On the current ARM64 Mac, .NET and Swift both returned OSStatus 0 without
+requesting consent. The managed descriptor layout matched the SDK's 12-byte
+packed `AEDesc`. The JXA probe could not complete the native check: passing the
+Foundation descriptor produced `Ref has incompatible type`, and constructing
+it through the C API produced `AECreateDesc` status -50. The report preserves
+this as `InteropUnavailable`, not an inferred permission denial or success.
+These observations do not prove JXA cannot support a different binding.
+
+**Decision so far:** native permission access works from .NET, so no evidence
+justifies rewriting the shared product in Swift. Direct .NET interop is viable
+for further native work. A production choice between native event dispatch and
+a helper still needs same-process permission enforcement, error/cancellation,
+packaging, and actual workbook evidence. The existing JXA backend remains
+experimental; a separate-process permission check does not repair its boundary.
+
+### Separately launched native app: negative result
+
+The user requested investigating a separate native app instead of an in-Excel
+VBA helper. Its reproducible source lives in
+`scripts/spikes/macos/native-helper/`, with `Build-MacPermissionHelper.ps1` and
+`Invoke-MacPermissionHelper.ps1` as the build and LaunchServices runners.
+
+The Swift/AppKit app had a stable bundle identifier, an ad-hoc development
+signature, and its own Automation permission state. It executed the bundled
+AppleScript in-process, bounded its lifetime to 120 seconds, and never quit
+Excel. Setup passed, followed by two fresh app launches that passed workbook
+assertions. **The user confirmed that "ExcelMcp Permission Probe wants to access
+data from other apps" appeared again.** Therefore the helper did not solve
+foreign-container permissions and is not the selected test architecture.
+
+Do not interpret ad-hoc signing as production signing/notarization, or assume
+a Developer ID signature would fix this without evidence. The app remains a
+development experiment, not an installed production dependency or a permission
+workaround.
+
+### Ordinary-file handoff: prompt-free result
+
+After the user approved this alternative, all four runs used fresh temporary
+directories, new file identities, and fresh host processes. The user confirmed
+no permission, file-access or repair dialogs for the first run, both repeats,
+and the run after restarting Excel.
+
+Excel also enforces workbook-name uniqueness across directories. Reusing a
+fixture basename produced a modal "can't open two workbooks with the same name"
+error and made subsequent Apple Events appear to fail. Test and production
+handoff must reject a basename already open in Excel and use globally unique
+synthetic fixture basenames; unique directories alone are insufficient. The
+dialog must never be dismissed through UI automation.
+
+| Run | Wall-clock duration | Result |
+| --- | --- | --- |
+| Initial ordinary-file trial | 9.717 seconds | All 12 checks passed; no dialogs |
+| Fresh-process repeat 1 | 9.685 seconds | All 12 checks passed; no dialogs |
+| Fresh-process repeat 2 | 9.455 seconds | All 12 checks passed; no dialogs |
+| After user-managed Excel restart | 11.158 seconds | All 12 checks passed; no dialogs |
+
+Each run verified every cell in a 1,000-by-10 matrix, formula calculation,
+1x1/2D shapes, Unicode/escaping, number format, explicit workbook targeting,
+discard, saved-state reopening, sentinel preservation and owned cleanup.
+These are single-run observations, not performance guarantees.
+
+After making handoff the default runner, a further regression run passed all
+14 checks in 12.029 seconds, including the added explicit missing-worksheet
+error and read-after-error assertions. The four user-confirmed no-dialog runs
+above remain the permission-UX evidence.
+
+The initial post-restart attempt found Excel not running and stopped in
+preflight. After the user opened Excel, the same test passed. No automatic
+launch or broader permission grant was substituted for the failed prerequisite.
+
+**Scope remains explicit:** precreating a blank OOXML fixture is not a proof
+of native `session.create`. The standalone runner does not invoke production
+MCP or CLI; their separate integration evidence follows below. Power Query/VBA
+parity remains incomplete: one external M-update/worksheet-refresh path is now
+verified, while VBA source mutation and unattended trust remain unresolved.
+Windows COM E2E was not run on this Mac.
+
+The current implementation adds permission-result/layout regression coverage.
+Successful runs close and delete only their synthetic fixtures. It never quits Excel,
+changes global calculation/alert settings, reads customer workbook contents, or
+changes macro security. A second synthetic workbook detects accidental
+active-workbook targeting and unintended closure.
+
+Each AppleScript operation has a 30-second Apple Events timeout; the host has a
+45-second deadline and the handoff suite applies a 150-second operation budget.
+A timeout stops further automation, kills only the host when
+necessary, and retains fixtures for manual recovery. It does not assume that
+stopping the host cancels Excel's outstanding action. Failed runs retain files
+and report their private location locally, not in this document.
+
+### Actual CLI/MCP integration
+
+`tests/ExcelMcp.Portable.Tests/MacExcelE2ETests.cs` runs two opt-in workflows:
+the real CLI apphost with a private daemon pipe, and the real MCP stdio server.
+Both passed in approximately 31 seconds in the user-confirmed no-dialog run.
+The standard runner subsequently passed both cases with zero skips and completed
+its private-daemon cleanup:
+
+```powershell
+pwsh -NoProfile -File scripts/Test-E2E.ps1
+```
+
+On macOS this routes to `Test-MacE2E.ps1`, checks Automation without requesting
+consent, cross-builds Release, and requires exactly two passing entry-point
+cases. `-SkipBuild` is only appropriate after a successful Release build in the
+same worktree. Fixtures live in ordinary temporary storage, never Excel's
+container. The runner stops only its private daemon, not shared Excel.
+
+Real entry-point tests exposed two host-lifetime defects that the standalone
+spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,
+and the CLI daemon inherited output pipes that prevented a captured CLI command
+from reaching EOF. The monitor is now Windows-only. Mac daemon startup uses
+separate redirected streams and binds native and managed console output to its
+per-pipe log before normal console initialization. The runner also derives
+`DOTNET_ROOT` from the installed runtime, not Homebrew's executable directory or
+PowerShell's private runtime.
+
+The Release solution cross-build passed with zero warnings. All 18 selected
+Excel-free portable tests passed, including the Mac path-error regression.
+The existing COM-leak, Core coverage/naming, MCP implementation, success-flag,
+documentation-count and dynamic-cast checks passed. These checks and the Mac
+workflows do not substitute for Windows COM E2E, which remains unrun here.
+
+### Earlier container-based measurements
+
+The completed sandbox run reported 14 checks and verified every cell of a
+1,000-row by 10-column numeric matrix. Times below are single-run wall-clock
+observations including host startup, scripting, Excel, and serialization, not
+benchmarks or performance guarantees.
+
+| Check | Observed result |
+| --- | --- |
+| Create and save `.xlsx` | Passed; two fixtures, 828 and 877 ms |
+| Explicit targeting | Main workbook read correctly while the second workbook was open |
+| Mixed 3x2 values | Strings and numbers retained their matrix shape and values |
+| Single-cell formula | `=SUM(B2:B3)` returned a 1x1 matrix containing 30 |
+| Text serialization | Quotes, backslash, newline, and a Unicode character round-tripped |
+| Number format | `0.00` survived save/reopen |
+| Missing worksheet | Explicit existence guard produced a nonzero error, code 9006 |
+| Read after validation failure | Passed without losing the workbook |
+| Bulk write/read/calculate | All 10,000 cells matched; final-column sum 5,005,000; 822 ms |
+| Discard | Unsaved change to 999 did not survive reopening |
+| Reopen saved workbook | Passed; open took 848 ms |
+| Close/cleanup | Owned fixtures closed; second workbook remained usable until its own cleanup |
+| Excel file grants | None in the successful container run, confirmed by user |
+| macOS cross-app data grants | Subsequently reported by user; not eliminated |
+
+Exploratory failures also mattered:
+
+- HFS-style save paths produced Excel parameter error `-50`; POSIX save/open
+  paths worked on this Excel build.
+- Direct collection iteration produced a parameter error; indexed workbook
+  lookup worked. Lookup compares full paths, not the active workbook.
+- A direct missing-worksheet range access did not throw in the probe. The
+  adapter must validate existence explicitly rather than treating any Apple
+  Events response as success.
+- An early bulk scalar result was not usable; after renaming the AppleScript
+  scalar variable, the full numeric assertion passed. Do not generalize this
+  single observation into a calculation-completion guarantee.
+- External-directory experimentation was interrupted by file-access dialogs.
+  A pending open and retained lock file exposed why error cleanup must not
+  assume that a workbook operation has completed.
+
+Failed/interrupted exploratory runs may retain synthetic files. Further
+cross-app inspection/cleanup was stopped on the user's permission report.
+No workbook artifacts or private filesystem paths are included in the repository.
+
+### What this does not establish
+
+The standalone spike does not establish production behavior. The later CLI/MCP
+tests add real host and daemon IPC evidence for the selected workflows, but not
+process isolation, cross-client concurrency, timeout recovery,
+denied-permission recovery, arbitrary-file
+permissions, signing/notarization, large-data scaling, or Intel compatibility.
+No coverage of Excel error-cell mapping, dates, booleans, blanks/nulls, merged
+cells, protection, locale variations, external links, general existing macros,
+Power Query beyond the single package-update/worksheet-refresh probe, charts,
+tables, or PivotTables. Those require additional fixtures and assertions before
+advertising support.
+
+The initial Release solution build was attempted and failed: Windows cleanup
+uses `powershell`, fresh-worktree assets were missing, and Windows Desktop
+projects raised `NETSDK1100`. A subsequent normal restore independently failed
+with `NETSDK1100`. Cross-compiling Windows binaries would not supply a macOS
+backend. The later portable implementation and cross-build resolved those build
+blockers, and the standard E2E runner now routes to actual Mac entry-point tests.
+Windows COM tests remain **not run**: Mac Excel is not a replacement for Windows
+COM Excel.
+
+## Architecture findings
+
+Changing target frameworks or replacing COM activation alone is insufficient.
+
+| Boundary | Current coupling / required work |
+| --- | --- |
+| `ComInterop/Session/IExcelBatch.cs` | Exposes `Excel.Workbook`, `ExcelContext`, and arbitrary COM callbacks; not a portable backend interface |
+| Core commands | Implement behavior directly against COM; e.g. range values use `Value2`, 1-based COM arrays, error mapping, merged-cell guards |
+| `[ServiceCategory]` interfaces | Reusable operation definitions, but take COM batches; extract neutral session contracts while preserving parameters/defaults/results |
+| `Service/ExcelMcpService.cs` | Owns the session manager and concrete command implementations; needs backend selection rather than AppleScript in transport handlers |
+| Both `ServiceSecurity.cs` implementations | Windows SID-based identity; server uses Windows pipe ACLs; client and server must change together |
+| CLI | `net10.0-windows`, Windows Forms tray, Windows process cleanup |
+| MCP server | Windows target and `kernel32` calls; host lifetime needs platform-specific handling |
+| ComInterop / window / screenshots | STA/OLE, COM activation/release, process guards, Win32 capture and window APIs remain Windows backend concerns |
+| Build/distribution | Windows cleanup commands, executable names, runtime packaging, extension launcher, plugin bootstraps and generated platform guidance need coordinated changes |
+
+The current [context](../CONTEXT.md) promises one owned Excel process per session,
+independent sessions, and separate MCP/CLI ownership. The spike instead targets
+the desktop Excel application and multiple workbooks inside it. Carrying the
+Windows ownership/kill model onto macOS would risk user workbooks.
+
+**Proposed intentional difference requiring a decision:** serialize macOS
+automation across participating MCP/CLI clients through a per-user broker, with
+logical workbook sessions and explicit ownership. Preserve separate public
+session namespaces; do not imply that the existing entry points already share
+sessions. Own a workbook, not the user's Excel process. Never kill shared Excel
+to cancel one session. Specify how a stuck application affects all clients.
+
+The [testing ADR](../docs/ADR-001-NO-UNIT-TESTS.md) is superseded; the current
+policy requires real Excel for Excel behavior and permits focused non-Excel
+tests for parsing/dispatch. This spike does not change that policy.
+
+## Backend options and permission policy
+
+| Option | Assessment |
+| --- | --- |
+| Native Apple Events / AppleScript | Demonstrated desktop workbook transport; evaluate together with deeper object-model access, rather than letting dictionary coverage define the product scope |
+| Transactional saved-package editing plus Apple Events | Demonstrated for an existing Power Query M update and worksheet refresh; preferred helper-free direction for clean workbooks. Full metadata mutation, rollback and VBA recompilation remain to implement |
+| VBA bridge invoked from AppleScript | Not authorized under the user's no-helper constraint; retained only as a rejected alternative |
+| Office.js add-in + local bridge | Alternative or complementary mechanism to evaluate against the full Power Query/VBA requirements; cross-platform range support alone is insufficient justification; requires add-in lifetime and per-version API checks |
+| Windows Excel behind a remote service | Could preserve more existing behavior, but not native macOS support; introduces remote data handling/security and is outside this spike |
+| File-only library without Excel execution | Does not meet the repository's real-Excel calculation/refresh requirement |
+
+The ordinary-file LaunchServices path eliminated prompts for the tested
+non-macro workflows. Macro-enabled files still displayed Excel's macro warning
+on every open, including the same exact file after a prior explicit enable.
+
+For production, distinguish two file workflows:
+
+1. **Direct user workbooks:** explicit user-mediated access and a documented
+   permission recovery path. Microsoft documents stored per-file grants and
+   `GrantAccessToMultipleFiles` for VBA; this is not blanket permission for every
+   future path, nor a verified AppleScript grant-management implementation.
+2. **Managed working copies:** an explicit, opt-in import/export workflow, if
+   its host permissions and lifecycle prove acceptable. Never silently stage a
+   workbook: relative links, query paths, identities, concurrency and save
+   semantics can change. Retain the original unless export is authorized.
+
+A signed, narrowly scoped helper may improve attribution and onboarding, but
+this spike does not demonstrate that signing removes either permission gate.
+Do not recommend disabling sandboxing, broad Full Disk Access, UI-click
+automation, or changing macro trust as a workaround.
+
+## Proposed delivery plan
+
+Each phase is gated by evidence. This spike adds no advertised Power Query or
+VBA source operations. The next design gate is turning the demonstrated
+Power Query package path into a repository-owned transactional implementation
+while continuing the VBA recompilation/trust investigation.
+
+| Phase | Work | Exit gate |
+| --- | --- | --- |
+| 0. Permission and ownership design | Choose direct-workbook versus explicit working-copy UX; test denied/revoked access and repeated launches under the intended host identity; decide broker/ownership semantics | User-approved onboarding, bounded failures, no recurring unexpected prompts for already-authorized files, no unauthorized copying or user-workbook closure |
+| 1. Power Query/VBA feasibility and backend decision | Inventory every existing action; test M authoring/evaluation/loading/refresh and VBA source CRUD/execution using the workstreams above; evaluate a native/VBA bridge and alternatives | Evidence-backed backend choice that addresses priority workflows; unresolved actions have explicit blockers and proposed remedies, not silent deferral |
+| 2. Portable contracts and native foundation | Separate neutral session/operation contracts and DTOs from COM; shared capability metadata; secure IPC/ownership; workbook/sheet/range/calculation foundation | Actual MCP and CLI pass the same supported contracts/defaults/results on Mac; Windows regression and real-Excel E2E checks remain green |
+| 3. Power Query and VBA parity delivery | Implement the complete priority action sets and supported parameter variants, including related table/connection behavior required for queries | Cross-entry-point, cross-platform fixtures verify the required workflows and persistence; any remaining platform-specific exception is evidenced and explicitly approved |
+| 4. Remaining Windows surface | Work through every remaining category, including tables, named ranges, charts, regular PivotTables, formatting and platform integrations | Complete action-level compatibility inventory, tested parity where possible, and no unclassified omissions |
+| 5. Distribution | Mac launch/lifetime, extension paths, installers/bootstrap scripts, `osx-arm64` and separately validated `osx-x64`, signing/notarization, shared docs and skills | Clean-machine install and permission UX exercised; priority parity gates, Mac real-Excel tests and Windows nonregression suites pass |
+
+Investigate Data Model/DAX/OLAP/Power Pivot operations and Power Query
+`data-model`/`both` destinations as potential host limitations; do not infer
+support from ordinary PivotTables. Until verified, keep those variants gated
+rather than advertising them or silently changing their destinations.
+Document evidence and seek a scope decision for confirmed limitations.
+Power Query exists on Mac and Microsoft's documentation describes VBA query
+authoring; its creation, refresh, authentication, connectors and destinations
+are priority investigation items, not grounds for excluding Power Query.
+
+Capability checks must be shared by the Service, MCP, CLI and generated guidance,
+not independently maintained allowlists. Decide whether unavailable actions are
+hidden or discoverable with explicit unsupported results; either way, both
+entry points must agree and must never return `Success == true` with an error.
+
+Release readiness requires both Excel-free tests for the portable host and
+real-Excel tests on an interactive Mac. GitHub-hosted runners without Excel can
+validate build/generation but cannot establish Excel behavior. Existing Windows
+COM coverage must remain green. Run matching synthetic workflows through MCP
+and CLI on both platforms, comparing public results and saved workbook behavior;
+allow only documented platform-specific differences, not broad snapshot
+normalization that hides missing functionality. Power Query and VBA acceptance
+must cover the workflows above, not just category discovery or happy-path
+dispatch. User-visible implementation will require a
+changeset; this internal spike does not change released support claims.
+
+## Sources
+
+- [Office for Mac VBA and sandboxing](https://learn.microsoft.com/en-us/office/vba/api/overview/office-mac)
+- [Request access to multiple files; grants stored with the app](https://learn.microsoft.com/en-us/office/vba/office-mac/grantaccesstomultiplefiles)
+- [Mac Power Query, including VBA query authoring](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query)
+- [Excel analytics platform differences](https://support.microsoft.com/en-us/excel/learn-to-use-power-query-and-power-pivot-in-excel)
+- [Office.js Excel API requirement sets](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/excel/excel-api-requirement-sets)
+- Installed Excel scripting dictionary, `Microsoft Excel.app/Contents/Resources/Excel.sdef`.
+
+Microsoft's Mac Power Query page contains a legacy sentence saying the editor is
+unavailable alongside newer editor instructions. Treat that as documentation
+inconsistency, not evidence that current Mac Excel lacks the editor. Public
+feature availability is also not evidence of automation parity.

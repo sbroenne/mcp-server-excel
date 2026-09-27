@@ -23,6 +23,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
+if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+    & (Join-Path $PSScriptRoot 'Test-MacE2E.ps1') -SkipBuild:$SkipBuild -PipeName $PipeName
+    return
+}
 $cliTestProject = Join-Path $rootDir 'tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj'
 $mcpTestProject = Join-Path $rootDir 'tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj'
 $staleCleanupAcceptanceFilter = 'FullyQualifiedName~PreBuildGracefulSaveAcceptanceTests.StaleLockedBuildCleanup'

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.sbroenne.ExcelMcp.MacPermissionProbe</string>
+    <key>CFBundleName</key>
+    <string>ExcelMcp Permission Probe</string>
+    <key>CFBundleDisplayName</key>
+    <string>ExcelMcp Permission Probe</string>
+    <key>CFBundleExecutable</key>
+    <string>ExcelMcpMacPermissionProbe</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>This development probe controls Excel to verify synthetic test workbooks. It never quits Excel or changes macro security.</string>
+</dict>
+</plist>
