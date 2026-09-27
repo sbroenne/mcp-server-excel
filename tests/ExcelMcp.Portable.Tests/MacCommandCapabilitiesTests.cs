@@ -97,6 +97,18 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
+    public void OfficeAddInCandidate_IsRoutableOnlyWhenExplicitlyEnabled()
+    {
+        var capability = MacCommandCapabilities.Get(
+            "table.create",
+            officeCandidateEnabled: true);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
+    }
+
+    [Fact]
     public void VbaRun_RemainsGatedWithoutRepositoryFixtureEvidence()
     {
         var capability = MacCommandCapabilities.Get(

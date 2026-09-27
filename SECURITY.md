@@ -36,6 +36,9 @@ ExcelMcp includes several security measures:
 - **Resource Cleanup**: Controlled COM cleanup on Windows and exact-workbook
   ownership on macOS
 - **No Remote Connections**: Only local Excel automation supported
+- **Optional Office.js tier**: Binds only to authenticated localhost HTTPS,
+  validates browser origin and loopback host, bounds JSON payloads, and binds
+  requests to an exact workbook/session/task-pane instance
 
 ### ExcelMcp Service Security
 
@@ -79,6 +82,13 @@ accepts only a fixed action allowlist, exact configured add-in and target
 workbook identities, correlated bounded JSON, and sanitized errors. Installing
 it is not proof that any method is safe; public actions remain independently
 gated until real CLI and MCP evidence exists.
+
+The optional macOS Office.js bridge is not required by either entry point.
+Its per-user token and copied private key are mode `0600`; protocol mismatches,
+inactive add-ins, identity mismatches, unsupported requirement sets, expired
+requests, and cancelled requests fail closed. Users or administrators must
+provide and trust the localhost certificate explicitly. Removal does not alter
+keychain trust that ExcelMcp did not create.
 
 **Security Implications:**
 
@@ -237,6 +247,9 @@ We follow responsible disclosure practices:
   reads the user-managed macro and project-model preferences; execution and
   source operations remain capability-gated until their independent evidence
   requirements are met.
+- **Office.js Capability Claims**: Requirement-set availability and installed
+  Excel version are negotiated at runtime, but features remain gated until
+  real-Excel contract tests establish support
 
 ### File System Access
 
