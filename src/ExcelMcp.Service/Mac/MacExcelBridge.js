@@ -102,6 +102,18 @@ function run(argv) {
             workbook.close({ saving: args.save ? "yes" : "no" });
             return json({ success: true, errorMessage: "" });
         }
+        if (command === "session.close-if-saved") {
+            const workbook = workbookByPath(excel, args.filePath);
+            if (!workbook.saved()) {
+                const error = new Error(
+                    "Power Query package updates on macOS require a saved workbook. " +
+                    "Save or discard the current workbook changes, then retry.");
+                error.category = "InvalidOperation";
+                throw error;
+            }
+            workbook.close({ saving: "no" });
+            return json({ success: true, errorMessage: "" });
+        }
 
         const workbook = workbookByPath(excel, args.filePath);
         if (command === "workbook.state") {
