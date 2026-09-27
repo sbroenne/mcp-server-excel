@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "excel-mcp",
   "display_name": "Excel",
-  "version": "2.0.9",
+  "version": "2.0.11",
   "description": "Automate the installed Excel desktop application on Windows x64 or Apple Silicon macOS",
   "long_description": "Excel MCP Server provides 31 specialized tools with 326 operations. Release builds stamp the exact platform, capabilities, and requirements into separate Windows x64 and Apple Silicon macOS bundles.",
   "author": {

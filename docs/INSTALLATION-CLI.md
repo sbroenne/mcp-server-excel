@@ -11,7 +11,11 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 Windows provides the complete operation set. The first macOS release is
 capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 
-> **.NET runtime is NOT required** for the standalone exe — it's fully self-contained.
+> **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
+
+The npm option also requires **Node.js 18 or later**. Install the current LTS
+with `winget install OpenJS.NodeJS.LTS`. Windows x64 and Arm64 (via x64
+emulation) are supported.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -24,11 +28,40 @@ capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 
 The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting outside the plugin. For a direct installation:
 
-1. Download and extract the standalone CLI (below)
-2. Add it to your PATH
-3. Run the quick test to validate
+Use npm (below) or download the standalone executable if you prefer not to
+install Node.js.
 
-### Standalone Executable (Primary)
+### npm (Primary)
+
+```powershell
+npx -y @sbroenne/excelcli --version
+npx -y @sbroenne/excelcli --help
+```
+
+All CLI arguments follow the package name, for example:
+
+```powershell
+npx -y @sbroenne/excelcli -q session open "C:\Data\Test.xlsx"
+npx -y @sbroenne/excelcli -q session list
+npx -y @sbroenne/excelcli -q session close --session <id>
+```
+
+For repeated use, install the command on your PATH:
+
+```powershell
+npm install --global @sbroenne/excelcli
+excelcli --version
+```
+
+The launcher installs the matching `@sbroenne/excelcli-win32-x64` runtime as an
+optional dependency. Do not use `--omit=optional`. It forwards arguments,
+standard input/output, and exit codes to the same `excelcli.exe`; session
+management and Excel behavior are unchanged.
+
+Avoid installing multiple distributions of `excelcli` on the same PATH. Use
+`where.exe excelcli` to check which installation your shell will run.
+
+### Standalone Executable (Also Primary)
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Download the archive for your platform:
@@ -87,7 +120,7 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 
 **After installation:** The plugin downloads, caches, and runs `excelcli`
 automatically. If you also need `excelcli` directly on your PATH, use the
-standalone executable above or install the secondary NuGet tool when .NET 10 is
+global npm installation or standalone executable above, or install the secondary NuGet tool when .NET 10 is
 available:
 
 ```powershell
@@ -103,7 +136,7 @@ Plugins are published automatically after each ExcelMcp release, though you may 
 
 ## Alternative: NuGet .NET Tool Installation (Secondary)
 
-**For users who prefer package managers or already have .NET installed**
+**For users who already have .NET installed or prefer .NET tools**
 
 NuGet is a secondary distribution channel. It requires the **.NET 10 Runtime or SDK** to be installed.
 
@@ -122,7 +155,7 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
 
-> **Why NuGet is secondary:** The standalone exe distribution requires no .NET runtime, making it easier to install for most users. NuGet is available as an alternative for users who prefer package managers or already have .NET installed in their workflow.
+> **Why NuGet is secondary:** npm and standalone exe distributions require no separate .NET runtime. NuGet remains available for users who prefer .NET tools.
 
 ---
 
@@ -135,6 +168,17 @@ excelcli --version
 ```
 
 ### Update to New Version
+
+**npm:**
+
+```powershell
+# One-off invocation using the latest release:
+npx -y @sbroenne/excelcli@latest --version
+# Update a global installation:
+npm install --global @sbroenne/excelcli@latest
+# Uninstall a global installation:
+npm uninstall --global @sbroenne/excelcli
+```
 
 **Standalone exe (primary):**
 
@@ -166,6 +210,18 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 ---
 
 ## Troubleshooting
+
+### npm Runtime Package Missing
+
+If the launcher cannot find `@sbroenne/excelcli-win32-x64`, reinstall with
+optional dependencies enabled:
+
+```powershell
+npm install --global @sbroenne/excelcli --include=optional
+```
+
+The npm launcher reports an error on macOS/Linux and unsupported Windows
+architectures rather than attempting to start Excel.
 
 ### Command Not Found After Installation
 

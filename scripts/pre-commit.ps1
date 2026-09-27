@@ -13,7 +13,7 @@
     5. Release solution build - generates Release binaries and skill outputs used by downstream packaging (skipped for docs-only commits)
     6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
     7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
-    8. CLI release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
+    8. CLI release packaging - validates npm + NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
     9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
     10. VS Code extension packaging - validates the VSIX release packaging path (skipped for docs/validation-only commits)
     11. MCPB bundle packaging - validates the Claude Desktop bundle artifact (skipped for docs/validation-only commits)
@@ -36,6 +36,11 @@ $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 $preCommitArtifactsDir = Join-Path $rootDir "artifacts\pre-commit"
 $version = $null
+$isWindowsHost = [System.OperatingSystem]::IsWindows()
+$localBuildArguments = @("-p:ExcelMcpSkipCleanup=true")
+if (-not $isWindowsHost) {
+    $localBuildArguments += "-p:EnableWindowsTargeting=true"
+}
 
 function Invoke-ValidationStep {
     param(
@@ -93,10 +98,11 @@ function Stop-DotNetBuildServers {
 # Determine whether this commit touches actual code (as opposed to docs/changeset-only
 # changes). The Release build, smoke tests and release packaging gates all exercise
 # compiled binaries and are slow (minutes) - they add no value for pure documentation
-# changes, including edits to the gh-pages documentation website and its star-history
-# generation workflow. These files do not affect the shipped Excel binaries. Cheap
+# changes, including edits to the gh-pages documentation website, its star-history
+# generation workflow, and the doc-counts workflow. These files do not affect the
+# shipped Excel binaries. Cheap
 # source-level guards still run for every commit.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/deploy-gh-pages\.yml$)|(^scripts/(pre-commit|check-doc-counts|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/(deploy-gh-pages|doc-counts)\.yml$)|(^scripts/(pre-commit|check-doc-counts|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
 $mergeHead = git rev-parse --verify --quiet MERGE_HEAD 2>$null
 $validationBase = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { "HEAD" }
 $stagedFiles = git diff --cached --name-only $validationBase 2>&1 | Where-Object { $_ }
@@ -280,6 +286,11 @@ Invoke-ValidationStep `
 # Pure documentation changes keep the existing fast path.
 if ($hasCodeChanges) {
 
+if (-not $isWindowsHost) {
+    Write-Host ""
+    Write-Host "Non-Windows host: enabling Windows targeting for cross-platform validation." -ForegroundColor Yellow
+}
+
 Invoke-ValidationStep `
     -Heading "Building Release solution..." `
     -FailureSummary "Release solution build failed!" `
@@ -287,11 +298,7 @@ Invoke-ValidationStep `
     -Action {
         Push-Location $rootDir
         try {
-            $buildArguments = @('build', 'Sbroenne.ExcelMcp.sln', '--configuration', 'Release', '-p:NuGetAudit=false', '--verbosity', 'minimal')
-            if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
-                $buildArguments += '-p:EnableWindowsTargeting=true'
-            }
-            dotnet @buildArguments
+            dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal $localBuildArguments
         }
         finally {
             Pop-Location
@@ -330,7 +337,7 @@ catch {
     Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
 }
 
-if ($requiresExcelE2E) {
+if ($requiresExcelE2E -and $isWindowsHost) {
     Invoke-ValidationStep `
         -Heading "Running Excel-dependent E2E tests..." `
         -FailureSummary "Excel-dependent E2E tests failed! Both the CLI workflow and MCP all-tools smoke tests must pass." `
@@ -339,6 +346,9 @@ if ($requiresExcelE2E) {
             $e2eScript = Join-Path $rootDir "scripts\Test-E2E.ps1"
             & $e2eScript -SkipBuild
         }
+} elseif ($requiresExcelE2E) {
+    Write-Host ""
+    Write-Host "Skipping Excel-dependent E2E tests (requires Windows with desktop Excel)" -ForegroundColor Yellow
 } else {
     Write-Host ""
     Write-Host "Skipping Excel-dependent E2E tests (no staged changes affect Core, CLI, or MCP runtime paths)" -ForegroundColor Yellow
@@ -355,14 +365,16 @@ if ($requiresReleasePackaging) {
 Invoke-ValidationStep `
     -Heading "Building CLI release deliverables..." `
     -FailureSummary "CLI release deliverable validation failed!" `
-    -SuccessSummary "CLI release deliverables passed - NuGet package and standalone ZIP were built locally" `
+    -SuccessSummary "CLI release deliverables passed - npm, NuGet, and standalone ZIP packages were built locally" `
     -Action {
         $cliNupkgDir = Join-Path $preCommitArtifactsDir "cli-nupkg"
+        $cliNpmDir = Join-Path $preCommitArtifactsDir "cli-npm"
         $cliPublishDir = Join-Path $preCommitArtifactsDir "cli-publish"
         $cliReleaseDir = Join-Path $preCommitArtifactsDir "cli-release"
         $cliZipPath = Join-Path $preCommitArtifactsDir "ExcelMcp-CLI-$version-windows.zip"
 
         Reset-Directory -Path $cliNupkgDir
+        Reset-Directory -Path $cliNpmDir
         Reset-Directory -Path $cliPublishDir
         Reset-Directory -Path $cliReleaseDir
 
@@ -370,13 +382,32 @@ Invoke-ValidationStep `
 
         Push-Location $rootDir
         try {
-            dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --no-restore --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false
+            dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --no-restore --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false $localBuildArguments
             if ($LASTEXITCODE -ne 0) {
                 throw "dotnet pack (CLI) failed with exit code $LASTEXITCODE."
             }
-            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir
+            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir $localBuildArguments
             if ($LASTEXITCODE -ne 0) {
                 throw "dotnet publish (CLI) failed with exit code $LASTEXITCODE."
+            }
+
+            .\scripts\Build-NpmPackages.ps1 `
+                -Component Cli `
+                -Version $version `
+                -RuntimeExecutable (Join-Path $cliPublishDir "excelcli.exe") `
+                -OutputDirectory $cliNpmDir
+            if ($isWindowsHost) {
+                .\scripts\Test-NpmPackages.ps1 `
+                    -Component Cli `
+                    -LauncherPackage (Join-Path $cliNpmDir "sbroenne-excelcli-$version.tgz") `
+                    -RuntimePackage (Join-Path $cliNpmDir "sbroenne-excelcli-win32-x64-$version.tgz")
+            }
+            else {
+                Write-Output "Skipping CLI npm runtime smoke test (requires Windows)."
+            }
+
+            if ((Get-ChildItem $cliNpmDir -Filter "*.tgz" -ErrorAction Stop).Count -ne 2) {
+                throw "CLI npm packages were not created."
             }
 
             Copy-Item (Join-Path $cliPublishDir "excelcli.exe") $cliReleaseDir
@@ -405,14 +436,16 @@ Invoke-ValidationStep `
 Invoke-ValidationStep `
     -Heading "Building MCP Server release deliverables..." `
     -FailureSummary "MCP Server release deliverable validation failed!" `
-    -SuccessSummary "MCP Server release deliverables passed - NuGet package and standalone ZIP were built locally" `
+    -SuccessSummary "MCP Server release deliverables passed - npm, NuGet, and standalone ZIP packages were built locally" `
     -Action {
         $mcpNupkgDir = Join-Path $preCommitArtifactsDir "mcp-server-nupkg"
+        $mcpNpmDir = Join-Path $preCommitArtifactsDir "mcp-server-npm"
         $mcpPublishDir = Join-Path $preCommitArtifactsDir "mcp-server-publish"
         $mcpReleaseDir = Join-Path $preCommitArtifactsDir "mcp-server-release"
         $mcpZipPath = Join-Path $preCommitArtifactsDir "ExcelMcp-MCP-Server-$version-windows.zip"
 
         Reset-Directory -Path $mcpNupkgDir
+        Reset-Directory -Path $mcpNpmDir
         Reset-Directory -Path $mcpPublishDir
         Reset-Directory -Path $mcpReleaseDir
 
@@ -420,11 +453,11 @@ Invoke-ValidationStep `
 
         Push-Location $rootDir
         try {
-            dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --no-restore --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false
+            dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --no-restore --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false $localBuildArguments
             if ($LASTEXITCODE -ne 0) {
                 throw "dotnet pack (MCP Server) failed with exit code $LASTEXITCODE."
             }
-            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir
+            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir $localBuildArguments
             if ($LASTEXITCODE -ne 0) {
                 throw "dotnet publish (MCP Server) failed with exit code $LASTEXITCODE."
             }
@@ -441,6 +474,24 @@ Invoke-ValidationStep `
 
             Rename-Item $publishedExe "mcp-excel.exe"
 
+            $npmTestDirectory = Join-Path $rootDir "npm-packages/shared"
+            npm ci --prefix $npmTestDirectory --ignore-scripts
+            if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
+            npm test --prefix $npmTestDirectory
+            if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
+            .\scripts\Build-NpmPackages.ps1 `
+                -Version $version `
+                -RuntimeExecutable $renamedExe `
+                -OutputDirectory $mcpNpmDir
+            if ($isWindowsHost) {
+                .\scripts\Test-NpmPackages.ps1 `
+                    -LauncherPackage (Join-Path $mcpNpmDir "sbroenne-mcp-server-excel-$version.tgz") `
+                    -RuntimePackage (Join-Path $mcpNpmDir "sbroenne-mcp-server-excel-win32-x64-$version.tgz")
+            }
+            else {
+                Write-Output "Skipping MCP Server npm runtime smoke test (requires Windows)."
+            }
+
             Copy-Item (Join-Path $mcpPublishDir "mcp-excel.exe") $mcpReleaseDir
             Copy-Item "README.md" $mcpReleaseDir
             Copy-Item "LICENSE" $mcpReleaseDir
@@ -453,6 +504,10 @@ Invoke-ValidationStep `
 
             if (-not (Get-ChildItem $mcpNupkgDir -Filter "*.nupkg" -ErrorAction Stop)) {
                 throw "MCP Server NuGet package was not created."
+            }
+
+            if ((Get-ChildItem $mcpNpmDir -Filter "*.tgz" -ErrorAction Stop).Count -ne 2) {
+                throw "MCP Server npm packages were not created."
             }
 
             if (-not (Test-Path $mcpZipPath)) {
@@ -474,6 +529,12 @@ Invoke-ValidationStep `
         Push-Location $extensionDir
         try {
             $npm = Get-Command npm -CommandType Application -ErrorAction Stop | Select-Object -First 1
+            & $npm.Source ci --ignore-scripts *> $packageLog
+            if ($LASTEXITCODE -ne 0) {
+                Get-Content -LiteralPath $packageLog
+                throw "npm ci failed with exit code $LASTEXITCODE"
+            }
+
             & $npm.Source run package *> $packageLog
             $packageExitCode = $LASTEXITCODE
             if ($packageExitCode -ne 0) {

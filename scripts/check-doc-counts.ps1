@@ -85,7 +85,7 @@ if (-not $SkipBuild) {
         exit 1
     }
 
-    & dotnet build (Join-Path $rootDir "src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj") --configuration Release --no-restore --no-dependencies -p:NuGetAudit=false --verbosity minimal
+    & dotnet build (Join-Path $rootDir "src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj") --configuration Release --no-restore -p:NuGetAudit=false --verbosity minimal
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: MCP Server Release build failed. Run dotnet restore, then retry this check." -ForegroundColor Red
         exit 1
