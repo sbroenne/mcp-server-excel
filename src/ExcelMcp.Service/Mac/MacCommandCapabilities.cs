@@ -59,11 +59,49 @@ internal static class MacCommandCapabilities
         "calculation.calculate"
     };
 
-    public static MacCommandCapability Get(string command, bool officeCandidateEnabled = false)
+    private static readonly HashSet<string> PendingNativeRangeCommands = new(StringComparer.Ordinal)
+    {
+        "range.copy",
+        "range.copy-values",
+        "range.copy-formulas",
+        "range.get-current-region",
+        "range.get-used-range",
+        "range.get-info",
+        "range.set-number-formats",
+        "rangeformat.auto-fit-columns",
+        "rangeformat.auto-fit-rows",
+        "rangeformat.merge-cells",
+        "rangeformat.unmerge-cells",
+        "rangeformat.get-merge-info",
+        "rangelink.set-cell-lock",
+        "rangelink.get-cell-lock"
+    };
+
+    private static readonly HashSet<string> OfficeAddInCategories = new(StringComparer.Ordinal)
+    {
+        "table",
+        "tablecolumn",
+        "chart",
+        "chartconfig",
+        "pivottable",
+        "pivottablefield",
+        "pivottablecalc",
+        "conditionalformat"
+    };
+
+    public static MacCommandCapability Get(string command)
     {
         if (NativeCommands.Contains(command))
         {
             return capability;
+        }
+
+        if (PendingNativeRangeCommands.Contains(command))
+        {
+            return Unavailable(
+                MacCapabilityTier.Unsupported,
+                command,
+                "a native Apple Events range candidate that has not completed real CLI and MCP acceptance");
         }
 
         var separator = command.IndexOf('.');

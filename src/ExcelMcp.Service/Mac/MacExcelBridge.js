@@ -230,6 +230,95 @@ function repeatMatrix(value, rowCount, columnCount) {
     return result;
 }
 
+function absoluteRangeAddress(excel, range) {
+    return String(excel.getAddress(range));
+}
+
+function rangeTopLeft(excel, range) {
+    const address = absoluteRangeAddress(excel, range).split(",")[0];
+    const match = address.match(/(?:^|!)\$?([A-Z]+)\$?(\d+)/i);
+    if (!match) {
+        throw new Error(`Excel returned an unsupported range address '${address}'.`);
+    }
+    let column = 0;
+    for (const character of match[1].toLocaleUpperCase()) {
+        column = (column * 26) + character.charCodeAt(0) - 64;
+    }
+    return { row: Number.parseInt(match[2], 10), column };
+}
+
+function columnName(column) {
+    let remaining = column;
+    let name = "";
+    while (remaining > 0) {
+        remaining--;
+        name = String.fromCharCode(65 + (remaining % 26)) + name;
+        remaining = Math.floor(remaining / 26);
+    }
+    return name;
+}
+
+function matrixRange(excel, sheet, anchor, rowCount, columnCount) {
+    const start = rangeTopLeft(excel, anchor);
+    const endRow = start.row + rowCount - 1;
+    const endColumn = start.column + columnCount - 1;
+    const address =
+        `$${columnName(start.column)}$${start.row}:$${columnName(endColumn)}$${endRow}`;
+    return sheet.ranges.byName(address);
+}
+
+function rangeValueResult(excel, filePath, sheetName, range, emptyAsNoCells) {
+    const rawValue = range.value();
+    const values = emptyAsNoCells && rawValue == null ? [] : normalizeMatrix(rawValue);
+    return {
+        success: true,
+        filePath,
+        sheetName,
+        rangeAddress: absoluteRangeAddress(excel, range),
+        values,
+        rowCount: values.length,
+        columnCount: values.length ? values[0].length : 0,
+        cellErrors: []
+    };
+}
+
+function usedRangeResult(excel, filePath, sheetName, sheet) {
+    try {
+        return rangeValueResult(excel, filePath, sheetName, sheet.usedRange(), true);
+    } catch (error) {
+        const message = String(error && error.message ? error.message : error);
+        if (!/object you are trying to access does not exist/i.test(message)) {
+            throw error;
+        }
+        return {
+            success: true,
+            filePath,
+            sheetName,
+            rangeAddress: "$A$1",
+            values: [],
+            rowCount: 0,
+            columnCount: 0,
+            cellErrors: []
+        };
+    }
+}
+
+function requireMatrixShape(matrix, rowCount, columnCount, parameterName) {
+    if (!Array.isArray(matrix) || matrix.length !== rowCount) {
+        const actualRows = Array.isArray(matrix) ? matrix.length : 0;
+        throw new Error(
+            `${parameterName} array row count (${actualRows}) doesn't match range row count (${rowCount})`);
+    }
+    for (let row = 0; row < matrix.length; row++) {
+        if (!Array.isArray(matrix[row]) || matrix[row].length !== columnCount) {
+            const actualColumns = Array.isArray(matrix[row]) ? matrix[row].length : 0;
+            throw new Error(
+                `${parameterName} array row ${row + 1} column count (${actualColumns}) ` +
+                `doesn't match range column count (${columnCount})`);
+        }
+    }
+}
+
 function requireSupported(command, supported) {
     if (!supported.includes(command)) {
         const error = new Error(
@@ -401,8 +490,41 @@ function run(argv) {
             }
         }
         if (command.startsWith("range.")) {
+            if (command === "range.copy"
+                || command === "range.copy-values"
+                || command === "range.copy-formulas") {
+                const sourceSheet = worksheetByName(workbook, args.sourceSheet);
+                const targetSheet = worksheetByName(workbook, args.targetSheet);
+                const source = sourceSheet.ranges.byName(args.sourceRange);
+                const targetAnchor = targetSheet.ranges.byName(args.targetRange);
+                const target = matrixRange(
+                    excel, targetSheet, targetAnchor, source.rows.length, source.columns.length);
+                if (command === "range.copy") {
+                    source.copyRange({ destination: target });
+                } else if (command === "range.copy-values") {
+                    target.value = normalizeMatrix(source.value());
+                } else {
+                    target.formulaR1c1 = normalizeMatrix(source.formulaR1c1());
+                }
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    action: command.substring("range.".length)
+                });
+            }
+
             const sheet = worksheetByName(workbook, args.sheetName);
-            const range = sheet.ranges.byName(args.rangeAddress);
+            if (command === "range.get-used-range") {
+                return json(usedRangeResult(excel, args.filePath, args.sheetName, sheet));
+            }
+            const requestedAddress = command === "range.get-current-region"
+                ? args.cellAddress
+                : args.rangeAddress;
+            const range = sheet.ranges.byName(requestedAddress);
+            if (command === "range.get-current-region") {
+                return json(rangeValueResult(
+                    excel, args.filePath, args.sheetName, range.currentRegion(), true));
+            }
             if (command === "range.get-values") {
                 const values = normalizeMatrix(range.value());
                 return json({
@@ -455,9 +577,25 @@ function run(argv) {
                 const rowCount = range.rows.length;
                 const columnCount = range.columns.length;
                 const rawFormats = range.numberFormat();
-                const formats = Array.isArray(rawFormats)
-                    ? normalizeMatrix(rawFormats)
-                    : repeatMatrix(rawFormats || "General", rowCount, columnCount);
+                let formats;
+                if (Array.isArray(rawFormats)) {
+                    formats = normalizeMatrix(rawFormats);
+                } else if (rawFormats == null) {
+                    formats = [];
+                    const start = rangeTopLeft(excel, range);
+                    for (let row = 0; row < rowCount; row++) {
+                        const rowFormats = [];
+                        for (let column = 0; column < columnCount; column++) {
+                            const address =
+                                `$${columnName(start.column + column)}$${start.row + row}`;
+                            const cell = sheet.ranges.byName(address);
+                            rowFormats.push(String(cell.numberFormat() || "General"));
+                        }
+                        formats.push(rowFormats);
+                    }
+                } else {
+                    formats = repeatMatrix(rawFormats || "General", rowCount, columnCount);
+                }
                 return json({
                     success: true,
                     filePath: args.filePath,
@@ -472,6 +610,44 @@ function run(argv) {
                 range.numberFormat = args.formatCode;
                 return json({ success: true, filePath: args.filePath, action: "set-number-format" });
             }
+            if (command === "range.set-number-formats") {
+                const rowCount = range.rows.length;
+                const columnCount = range.columns.length;
+                requireMatrixShape(args.formats, rowCount, columnCount, "Format");
+                const start = rangeTopLeft(excel, range);
+                for (let row = 0; row < rowCount; row++) {
+                    for (let column = 0; column < columnCount; column++) {
+                        const address =
+                            `$${columnName(start.column + column)}$${start.row + row}`;
+                        const cell = sheet.ranges.byName(address);
+                        const requestedFormat = args.formats[row][column];
+                        cell.numberFormat = requestedFormat;
+                        const storedFormat = sheet.ranges.byName(address).numberFormat();
+                        if (String(storedFormat) !== requestedFormat) {
+                            throw new Error(
+                                `Excel did not preserve number format '${requestedFormat}' for ${address}.`);
+                        }
+                    }
+                }
+                return json({ success: true, filePath: args.filePath, action: "set-number-formats" });
+            }
+            if (command === "range.get-info") {
+                const rawNumberFormat = range.numberFormat();
+                const numberFormat = firstScalar(rawNumberFormat);
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    sheetName: args.sheetName,
+                    address: absoluteRangeAddress(excel, range),
+                    rowCount: range.rows.length,
+                    columnCount: range.columns.length,
+                    numberFormat: numberFormat == null ? null : String(numberFormat),
+                    left: range.leftPosition(),
+                    top: range.top(),
+                    width: range.width(),
+                    height: range.height()
+                });
+            }
         }
 
         if (command.startsWith("rangeformat.")) {
@@ -484,6 +660,64 @@ function run(argv) {
             if (command === "rangeformat.set-row-height") {
                 range.rowHeight = args.rowHeight;
                 return json({ success: true, filePath: args.filePath, action: "set-row-height" });
+            }
+            if (command === "rangeformat.auto-fit-columns") {
+                range.columns.autofit();
+                return json({ success: true, filePath: args.filePath, action: "auto-fit-columns" });
+            }
+            if (command === "rangeformat.auto-fit-rows") {
+                range.rows.autofit();
+                return json({ success: true, filePath: args.filePath, action: "auto-fit-rows" });
+            }
+            if (command === "rangeformat.merge-cells") {
+                range.merge();
+                return json({ success: true, filePath: args.filePath, action: "merge-cells" });
+            }
+            if (command === "rangeformat.unmerge-cells") {
+                range.unmerge();
+                return json({ success: true, filePath: args.filePath, action: "unmerge-cells" });
+            }
+            if (command === "rangeformat.get-merge-info") {
+                const addresses = [];
+                const seen = new Set();
+                if (range.mergeCells() !== false) {
+                    const cells = range.cells;
+                    for (let index = 0; index < cells.length; index++) {
+                        const cell = cells[index];
+                        if (cell.mergeCells() === true) {
+                            const address = absoluteRangeAddress(excel, cell.mergeArea());
+                            if (!seen.has(address)) {
+                                seen.add(address);
+                                addresses.push(address);
+                            }
+                        }
+                    }
+                }
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    sheetName: args.sheetName,
+                    rangeAddress: args.rangeAddress,
+                    isMerged: addresses.length > 0,
+                    mergedRanges: addresses
+                });
+            }
+        }
+
+        if (command.startsWith("rangelink.")) {
+            const range = worksheetByName(workbook, args.sheetName).ranges.byName(args.rangeAddress);
+            if (command === "rangelink.set-cell-lock") {
+                range.locked = args.locked;
+                return json({ success: true, filePath: args.filePath, action: "set-cell-lock" });
+            }
+            if (command === "rangelink.get-cell-lock") {
+                return json({
+                    success: true,
+                    filePath: args.filePath,
+                    sheetName: args.sheetName,
+                    rangeAddress: args.rangeAddress,
+                    isLocked: Boolean(range.cells[0].locked())
+                });
             }
         }
 

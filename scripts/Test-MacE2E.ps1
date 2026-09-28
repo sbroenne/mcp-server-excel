@@ -9,7 +9,11 @@ Excel's container. Includes repository-authored MS-QDEFF/OOXML Power Query
 fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
 #>
 [CmdletBinding()]
-param([switch]$SkipBuild, [switch]$IncludePythonInExcel, [string]$PipeName)
+param(
+    [switch]$SkipBuild,
+    [switch]$IncludePythonInExcel,
+    [switch]$IncludeRangeExpansion,
+    [string]$PipeName)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -77,6 +81,9 @@ $environment = @{
 }
 if ($IncludePythonInExcel) {
     $environment.EXCELMCP_MAC_PYTHON_E2E = '1'
+}
+if ($IncludeRangeExpansion) {
+    $environment.EXCELMCP_MAC_RANGE_EXPANSION_E2E = '1'
 }
 try {
     $test = Invoke-MacTestCommand dotnet @(
