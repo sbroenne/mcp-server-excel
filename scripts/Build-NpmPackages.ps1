@@ -37,6 +37,8 @@ $sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
 $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
 $licensePath = Join-Path $repoRoot 'LICENSE'
 $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimeExecutable).Path
+$runtimeDirectory = Split-Path -Parent $resolvedRuntime
+$helperSource = Join-Path $runtimeDirectory 'helpers/excelmcp-screencapture'
 $resolvedOutput = [IO.Path]::GetFullPath($OutputDirectory)
 $stagingRoot = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpm-$([Guid]::NewGuid().ToString('N'))"
 $launcherStage = Join-Path $stagingRoot $packageName
@@ -138,6 +140,10 @@ if ($RuntimeIdentifier -eq 'win-x64' -and [IO.Path]::GetExtension($resolvedRunti
 if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal) -and [IO.Path]::GetExtension($resolvedRuntime) -eq '.exe') {
     throw "macOS runtime executable must not have an .exe extension: $resolvedRuntime"
 }
+if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal) -and
+    -not (Test-Path -LiteralPath $helperSource -PathType Leaf)) {
+    throw "macOS runtime package requires the ScreenCaptureKit helper: $helperSource"
+}
 
 New-Item -ItemType Directory -Path $resolvedOutput -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
@@ -153,7 +159,14 @@ try {
         -Source $runtimeSource `
         -Destination $runtimeStage `
         -Entries @('package.json', 'README.md')
-    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage "$commandName.exe")
+    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage $runtimeFileName)
+    $runtimeRequiredFiles = @($runtimeFileName, 'package.json', 'LICENSE')
+    if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal)) {
+        $helperStage = Join-Path $runtimeStage 'helpers'
+        New-Item -ItemType Directory -Path $helperStage -Force | Out-Null
+        Copy-Item -LiteralPath $helperSource -Destination $helperStage
+        $runtimeRequiredFiles += 'helpers/excelmcp-screencapture'
+    }
 
     Write-PackageManifest -Path (Join-Path $runtimeStage 'package.json') -Update {
         param($manifest)
@@ -167,7 +180,7 @@ try {
 
     $runtimeTarball = New-NpmTarball `
         -PackageDirectory $runtimeStage `
-        -RequiredFiles @("$commandName.exe", 'package.json', 'LICENSE')
+        -RequiredFiles $runtimeRequiredFiles
     $launcherTarball = New-NpmTarball `
         -PackageDirectory $launcherStage `
         -RequiredFiles @("bin/$commandName.js", 'lib/launcher.js', 'package.json', 'LICENSE')

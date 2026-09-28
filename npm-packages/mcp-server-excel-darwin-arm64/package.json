@@ -5,7 +5,8 @@
   "license": "MIT",
   "main": "mcp-excel",
   "files": [
-    "mcp-excel"
+    "mcp-excel",
+    "helpers/excelmcp-screencapture"
   ],
   "os": [
     "darwin"

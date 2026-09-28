@@ -13,6 +13,8 @@ param(
 
     [string[]]$ForbiddenExecutableRelativePath = @(),
 
+    [string]$MacHelperRelativePath,
+
     [switch]$Launch
 )
 
@@ -25,6 +27,12 @@ if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) {
 }
 
 $normalizedEntry = $ExecutableRelativePath.Replace('\', '/').TrimStart('/')
+$normalizedHelperEntry = if ([string]::IsNullOrWhiteSpace($MacHelperRelativePath)) {
+    $null
+}
+else {
+    $MacHelperRelativePath.Replace('\', '/').TrimStart('/')
+}
 $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $ArchivePath))
 try {
     $entry = $archive.GetEntry($normalizedEntry)
@@ -43,6 +51,16 @@ try {
     if ($ExpectedArchitecture.StartsWith("macos-", [StringComparison]::Ordinal) -and
         ($entry.ExternalAttributes -band 0x00400000) -eq 0) {
         throw "Packaged macOS executable '$normalizedEntry' is not marked executable."
+    }
+    if ($ExpectedArchitecture.StartsWith("macos-", [StringComparison]::Ordinal) -and
+        $null -ne $normalizedHelperEntry) {
+        $helperEntry = $archive.GetEntry($normalizedHelperEntry)
+        if ($null -eq $helperEntry -or $helperEntry.Length -eq 0) {
+            throw "Package '$ArchivePath' is missing nonempty helper '$normalizedHelperEntry'."
+        }
+        if (($helperEntry.ExternalAttributes -band 0x00400000) -eq 0) {
+            throw "Packaged macOS helper '$normalizedHelperEntry' is not marked executable."
+        }
     }
 }
 finally {
@@ -70,6 +88,19 @@ try {
         & /usr/bin/codesign --verify --strict --verbose=2 $executable
         if ($LASTEXITCODE -ne 0) {
             throw "Packaged macOS executable '$normalizedEntry' has an invalid code signature."
+        }
+
+        if ($null -ne $normalizedHelperEntry) {
+            $helper = Join-Path $extractDirectory $normalizedHelperEntry
+            & /bin/chmod +x $helper
+            $helperReported = (& /usr/bin/lipo -archs $helper 2>&1).Trim()
+            if ($LASTEXITCODE -ne 0 -or $helperReported -notmatch "(^|\s)$([regex]::Escape($architecture))(\s|$)") {
+                throw "'$normalizedHelperEntry' does not contain expected Mach-O architecture '$architecture' (reported: '$helperReported')."
+            }
+            & /usr/bin/codesign --verify --strict --verbose=2 $helper
+            if ($LASTEXITCODE -ne 0) {
+                throw "Packaged macOS helper '$normalizedHelperEntry' has an invalid code signature."
+            }
         }
     }
 

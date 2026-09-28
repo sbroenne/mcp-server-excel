@@ -355,6 +355,16 @@ jobs:
           -p:NuGetAudit=false \
           --output ./cli-publish
 
+    - name: Build and sign ScreenCaptureKit helper
+      shell: pwsh
+      run: |
+        $helper = ./scripts/Build-MacScreenCaptureHelper.ps1 `
+          -RuntimeIdentifier "${{ matrix.runtime }}" `
+          -OutputRoot "./native-helper"
+        New-Item -ItemType Directory -Path "./cli-publish/helpers" -Force | Out-Null
+        Copy-Item -LiteralPath $helper -Destination "./cli-publish/helpers/excelmcp-screencapture"
+        ./scripts/Sign-MacBinary.ps1 -Path "./cli-publish/helpers/excelmcp-screencapture"
+
     - name: Sign and verify CLI
       shell: pwsh
       run: ./scripts/Sign-MacBinary.ps1 -Path ./cli-publish/excelcli
@@ -384,6 +394,7 @@ jobs:
         version="${{ needs.version.outputs.version }}"
         mkdir -p cli-release
         cp cli-publish/excelcli cli-release/
+        cp -R cli-publish/helpers cli-release/
         cp src/ExcelMcp.CLI/README.md cli-release/README.md
         cp LICENSE cli-release/
         chmod +x cli-release/excelcli
@@ -395,6 +406,7 @@ jobs:
         ./scripts/Test-DistributionPackages.ps1 `
           -ArchivePath "./ExcelMcp-CLI-${{ needs.version.outputs.version }}-${{ matrix.slug }}.zip" `
           -ExecutableRelativePath "excelcli" `
+          -MacHelperRelativePath "helpers/excelmcp-screencapture" `
           -ExpectedArchitecture "${{ matrix.slug }}" `
           -Launch:([bool]::Parse("${{ matrix.launch }}"))
 
@@ -602,6 +614,16 @@ jobs:
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
+    - name: Build and sign ScreenCaptureKit helper
+      shell: pwsh
+      run: |
+        $helper = ./scripts/Build-MacScreenCaptureHelper.ps1 `
+          -RuntimeIdentifier "${{ matrix.runtime }}" `
+          -OutputRoot "./native-helper"
+        New-Item -ItemType Directory -Path "./mcp-server-publish/helpers" -Force | Out-Null
+        Copy-Item -LiteralPath $helper -Destination "./mcp-server-publish/helpers/excelmcp-screencapture"
+        ./scripts/Sign-MacBinary.ps1 -Path "./mcp-server-publish/helpers/excelmcp-screencapture"
+
     - name: Sign and verify MCP Server
       shell: pwsh
       run: ./scripts/Sign-MacBinary.ps1 -Path ./mcp-server-publish/Sbroenne.ExcelMcp.McpServer
@@ -629,6 +651,7 @@ jobs:
         version="${{ needs.version.outputs.version }}"
         mkdir -p mcp-server-release
         cp mcp-server-publish/Sbroenne.ExcelMcp.McpServer mcp-server-release/mcp-excel
+        cp -R mcp-server-publish/helpers mcp-server-release/
         cp src/ExcelMcp.McpServer/README.md mcp-server-release/README.md
         cp LICENSE mcp-server-release/
         chmod +x mcp-server-release/mcp-excel
@@ -640,6 +663,7 @@ jobs:
         ./scripts/Test-DistributionPackages.ps1 `
           -ArchivePath "./ExcelMcp-MCP-Server-${{ needs.version.outputs.version }}-${{ matrix.slug }}.zip" `
           -ExecutableRelativePath "mcp-excel" `
+          -MacHelperRelativePath "helpers/excelmcp-screencapture" `
           -ExpectedArchitecture "${{ matrix.slug }}" `
           -Launch:([bool]::Parse("${{ matrix.launch }}"))
 
@@ -729,24 +753,30 @@ jobs:
           -ExpectedArchitecture windows-x64 `
           -ForbiddenExecutableRelativePath @(
             "extension/bin/darwin-arm64/Sbroenne.ExcelMcp.McpServer"
+            "extension/bin/darwin-arm64/helpers/excelmcp-screencapture"
             "extension/bin/darwin-x64/Sbroenne.ExcelMcp.McpServer"
+            "extension/bin/darwin-x64/helpers/excelmcp-screencapture"
           )
         ./scripts/Test-DistributionPackages.ps1 `
           -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-darwin-arm64.vsix" `
           -ExecutableRelativePath "extension/bin/darwin-arm64/Sbroenne.ExcelMcp.McpServer" `
+          -MacHelperRelativePath "extension/bin/darwin-arm64/helpers/excelmcp-screencapture" `
           -ExpectedArchitecture macos-arm64 `
           -ForbiddenExecutableRelativePath @(
             "extension/bin/win32-x64/Sbroenne.ExcelMcp.McpServer.exe"
             "extension/bin/darwin-x64/Sbroenne.ExcelMcp.McpServer"
+            "extension/bin/darwin-x64/helpers/excelmcp-screencapture"
           ) `
           -Launch
         ./scripts/Test-DistributionPackages.ps1 `
           -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-darwin-x64.vsix" `
           -ExecutableRelativePath "extension/bin/darwin-x64/Sbroenne.ExcelMcp.McpServer" `
+          -MacHelperRelativePath "extension/bin/darwin-x64/helpers/excelmcp-screencapture" `
           -ExpectedArchitecture macos-x64 `
           -ForbiddenExecutableRelativePath @(
             "extension/bin/win32-x64/Sbroenne.ExcelMcp.McpServer.exe"
             "extension/bin/darwin-arm64/Sbroenne.ExcelMcp.McpServer"
+            "extension/bin/darwin-arm64/helpers/excelmcp-screencapture"
           )
       shell: pwsh
 
@@ -837,6 +867,7 @@ jobs:
           -ArchivePath "./mcpb/artifacts/excel-mcp-${{ env.VERSION }}-${{ matrix.slug }}.mcpb" `
           -ExecutableRelativePath $(if ("${{ matrix.runtime }}" -eq "win-x64") { "server/excel-mcp-server.exe" } else { "server/excel-mcp-server" }) `
           -ExpectedArchitecture $architecture `
+          -MacHelperRelativePath $(if ("${{ matrix.runtime }}" -eq "win-x64") { "" } else { "server/helpers/excelmcp-screencapture" }) `
           -Launch:("${{ matrix.runtime }}" -eq "osx-arm64")
 
     - name: Submit MCPB package for notarization

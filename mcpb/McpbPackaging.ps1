@@ -76,7 +76,7 @@ function New-McpbArchive {
 
         [Parameter(Mandatory)]
         [AllowEmptyString()]
-        [string]$MacExecutableRelativePath
+        [string[]]$MacExecutableRelativePath = @()
     )
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
@@ -96,7 +96,7 @@ function New-McpbArchive {
                 $relativePath,
                 [System.IO.Compression.CompressionLevel]::Optimal)
 
-            if ($relativePath -eq $MacExecutableRelativePath) {
+            if ($MacExecutableRelativePath -contains $relativePath) {
                 $unixExecutableMode = [BitConverter]::ToInt32(
                     [BitConverter]::GetBytes([Convert]::ToUInt32("81ED0000", 16)),
                     0)
