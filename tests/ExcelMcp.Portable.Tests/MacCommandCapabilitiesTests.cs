@@ -47,7 +47,7 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("analysis.update-scenario")]
     [InlineData("analysis.delete-scenario")]
     [InlineData("analysis.create-scenario-summary")]
-    public void UnverifiedNativeScenarioActions_RemainGated(string command)
+    public void DictionaryBackedScenarioCommands_RemainGatedUntilRealExcelEvidence(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
@@ -61,7 +61,21 @@ public sealed class MacCommandCapabilitiesTests
     [Theory]
     [InlineData("analysis.create-scenario")]
     [InlineData("analysis.show-scenario")]
-    public void UnverifiedScenarioMutations_RecordMacroHelperTier(string command)
+    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains("VBA helper", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("drawing.add-sparkline")]
+    [InlineData("drawing.add-shape")]
+    [InlineData("slicer.list-slicers")]
+    [InlineData("slicer.set-table-slicer-selection")]
+    public void SpecializedOfficeJsCommands_ReportAddInTier(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 

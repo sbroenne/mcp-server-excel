@@ -114,7 +114,35 @@ internal static class MacCommandCapabilities
                 : Unavailable(
                     MacCapabilityTier.VbaProjectModel,
                     command,
-                    "the optional VBA project object model tier, which requires explicit user trust");
+                    "the optional macOS VBA project-model tier; preflight reports that " +
+                    $"{MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess)}, " +
+                    "and Excel's installed scripting dictionary exposes no VBA project-model route");
+        }
+
+        if (command is "analysis.create-scenario" or "analysis.show-scenario")
+        {
+            return Unavailable(
+                MacCapabilityTier.MacroHelper,
+                command,
+                "the optional trusted VBA helper because the installed native dictionary does not expose " +
+                "exact scenario creation or Scenario.Show");
+        }
+
+        if (category is "connection" or "querytable" or "analysis" or "pythoninexcel")
+        {
+            return Unavailable(
+                MacCapabilityTier.Native,
+                command,
+                "an Apple Events route whose exact result, completion, error, and cleanup semantics " +
+                "have not yet passed a prompt-free real-Excel fixture");
+        }
+
+        if (category == "screenshot")
+        {
+            return Unavailable(
+                MacCapabilityTier.OptionalNativeHelper,
+                command,
+                "an optional native screen-capture helper with explicit Screen Recording permission");
         }
 
         if (category is "table"
@@ -125,6 +153,8 @@ internal static class MacCommandCapabilities
             or "pivottablefield"
             or "pivottablecalc"
             or "conditionalformat"
+            or "drawing"
+            or "slicer"
             or "rangeformat")
         {
             return Unavailable(
