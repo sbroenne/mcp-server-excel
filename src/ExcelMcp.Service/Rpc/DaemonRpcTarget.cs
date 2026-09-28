@@ -6,17 +6,23 @@ namespace Sbroenne.ExcelMcp.Service.Rpc;
 /// </summary>
 internal sealed class DaemonRpcTarget : IExcelDaemonRpc
 {
-    private readonly ExcelMcpService _service;
+    private readonly Func<ServiceRequest, Task<ServiceResponse>> _requestHandler;
+    private readonly Action _recordActivity;
 
-    public DaemonRpcTarget(ExcelMcpService service)
+    internal DaemonRpcTarget(
+        Func<ServiceRequest, Task<ServiceResponse>> requestHandler,
+        Action recordActivity)
     {
-        _service = service;
+        ArgumentNullException.ThrowIfNull(requestHandler);
+        ArgumentNullException.ThrowIfNull(recordActivity);
+        _requestHandler = requestHandler;
+        _recordActivity = recordActivity;
     }
 
     /// <inheritdoc />
     public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
     {
-        _service.RecordActivity();
-        return await _service.ProcessAsync(request);
+        _recordActivity();
+        return await _requestHandler(request);
     }
 }

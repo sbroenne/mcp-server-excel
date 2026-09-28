@@ -79,7 +79,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
 
         // Connect to CLI daemon service (auto-starts if not running)
-        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,
@@ -102,7 +102,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
                 return WriteOutputToFile(result, outputPath);
             }
 
-            Console.WriteLine(result);
+            CliCommandRuntime.Current.Output.WriteLine(result);
             return 0;
         }
         else
@@ -138,12 +138,13 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
                 if (doc.RootElement.TryGetProperty("mimeType", out var m)) metadata["mimeType"] = m.GetString();
                 if (doc.RootElement.TryGetProperty("sheetName", out var s)) metadata["sheetName"] = s.GetString();
                 if (doc.RootElement.TryGetProperty("rangeAddress", out var r)) metadata["rangeAddress"] = r.GetString();
-                Console.WriteLine(JsonSerializer.Serialize(metadata, ServiceProtocol.JsonOptions));
+                CliCommandRuntime.Current.Output.WriteLine(
+                    JsonSerializer.Serialize(metadata, ServiceProtocol.JsonOptions));
             }
             else
             {
                 File.WriteAllText(outputPath, result);
-                Console.WriteLine(JsonSerializer.Serialize(
+                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                     new { success = true, outputPath },
                     ServiceProtocol.JsonOptions));
             }
@@ -151,7 +152,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
         catch (Exception ex)
         {
-            Console.WriteLine(JsonSerializer.Serialize(
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                 new { success = false, error = $"Failed to write output: {ex.Message}" },
                 ServiceProtocol.JsonOptions));
             return 1;

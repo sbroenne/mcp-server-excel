@@ -88,7 +88,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         string expectedParameter,
         string expectedDetail)
     {
-        var result = await CliProcessHelper.RunAsync(arguments);
+        var result = await InProcessCliHelper.RunWithServiceAsync(arguments);
         _output.WriteLine($"stdout: {result.Stdout}");
         _output.WriteLine($"stderr: {result.Stderr}");
 
@@ -148,7 +148,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(inputPath, $"[{entryJson}]");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
         _output.WriteLine($"stdout: {result.Stdout}");
         _output.WriteLine($"stderr: {result.Stderr}");
 
@@ -173,7 +173,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             $"[{{\"command\":\"conditionalformat.clear-rules\",\"sessionId\":\"missing-session\"," +
             $"\"args\":{{\"sheetName\":{jsonValue},\"rangeAddress\":\"A1\"}}}}]");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("sheetName", result.Stdout + result.Stderr, StringComparison.Ordinal);
@@ -191,7 +191,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             [{"command":"conditionalformat.clear-rules","sessionId":"missing-session","args":{"sheetName":"","rangeAddress":"A1"}}]
             """);
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("session", result.Stdout + result.Stderr, StringComparison.OrdinalIgnoreCase);
@@ -220,7 +220,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
                 }
             }));
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         var outputLines = result.Stdout.Split(
@@ -244,7 +244,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "powerquery load-to --session missing-session --query-name Probe --load-destination WORKSHEET")]
     public async Task DirectCommand_AcceptsExactAliasIgnoringCase(string arguments)
     {
-        var result = await CliProcessHelper.RunAsync(arguments);
+        var result = await InProcessCliHelper.RunWithServiceAsync(arguments);
 
         Assert.Equal(1, result.ExitCode);
         var combinedOutput = result.Stdout + result.Stderr;
@@ -268,7 +268,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             }
         }));
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         using var output = JsonDocument.Parse(result.Stdout.Trim());
@@ -287,7 +287,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         int timeoutSeconds)
     {
         var workbookPath = Path.Join(_tempDirectory, "timeout-contract.xlsx");
-        var result = await CliProcessHelper.RunAsync(
+        var result = await InProcessCliHelper.RunWithServiceAsync(
             ["session", action, workbookPath, "--timeout", timeoutSeconds.ToString(CultureInfo.InvariantCulture)]);
 
         Assert.Equal(1, result.ExitCode);
@@ -306,7 +306,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(inputPath, $"[{request}]");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("timeout", result.Stdout + result.Stderr, StringComparison.OrdinalIgnoreCase);
@@ -320,7 +320,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             inputPath,
             """[{"command":"session.open","args":{"filePath":"missing.xlsx","unexpected":true}}]""");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("unexpected", result.Stdout + result.Stderr, StringComparison.OrdinalIgnoreCase);
@@ -334,7 +334,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             inputPath,
             """[{"command":"diag.ping","args":{},"unexpected":true}]""");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("unexpected", result.Stderr + result.Stdout, StringComparison.OrdinalIgnoreCase);
@@ -375,7 +375,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(inputPath, $"[{entryJson}]");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains(suppliedProperty, result.Stdout + result.Stderr, StringComparison.Ordinal);
@@ -389,7 +389,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             inputPath,
             """[{"Command":"diag.ping","args":{}}]""");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("Command", result.Stdout + result.Stderr, StringComparison.Ordinal);
@@ -403,7 +403,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
             inputPath,
             """[{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeout":60,"unexpected":true}}]""");
 
-        var result = await CliProcessHelper.RunAsync(["batch", "--input", inputPath]);
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("unexpected", result.Stdout, StringComparison.OrdinalIgnoreCase);

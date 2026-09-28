@@ -18,34 +18,22 @@ internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : 
     public void Dispose() => service.Dispose();
 }
 
-/// <summary>
-/// Bridge that holds the in-process ExcelMCP Service for direct method calls.
-/// No named pipe — MCP tools call the service directly (same process).
-/// </summary>
-public static class ServiceBridge
+internal sealed class ServiceBridgeLifetime : IDisposable
 {
-    private static readonly SemaphoreSlim _initLock = new(1, 1);
-    private static readonly Func<IServiceBridgeBackend> DefaultServiceFactory =
-        static () => new ExcelMcpServiceBackend(new Service.ExcelMcpService());
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private Func<IServiceBridgeBackend> _serviceFactory;
+    private ServiceInstance? _current;
+    private Exception? _lastStartupException;
+    private long _pendingOwnerToken;
 
-    private static IServiceBridgeBackend? _service;
-    private static Func<IServiceBridgeBackend> _serviceFactory = DefaultServiceFactory;
-    private static Exception? _lastStartupException;
-    private static long _pendingTestOwnerToken;
-    private static long _serviceOwnerToken;
-
-    /// <summary>
-    /// JSON serializer options for deserializing service responses.
-    /// </summary>
-    public static readonly JsonSerializerOptions JsonOptions = ServiceProtocol.JsonOptions;
-
-    /// <summary>
-    /// Ensures the in-process ExcelMCP Service is created.
-    /// Called automatically on first request.
-    /// </summary>
-    public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
+    internal ServiceBridgeLifetime(Func<IServiceBridgeBackend> serviceFactory)
     {
-        if (_service != null)
+        _serviceFactory = serviceFactory;
+    }
+
+    internal async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _current) != null)
         {
             return true;
         }
@@ -53,13 +41,15 @@ public static class ServiceBridge
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_service != null)
+            if (_current != null)
             {
                 return true;
             }
 
-            _service = _serviceFactory();
-            _serviceOwnerToken = Interlocked.Read(ref _pendingTestOwnerToken);
+            var backend = _serviceFactory();
+            Volatile.Write(
+                ref _current,
+                new ServiceInstance(backend, Interlocked.Read(ref _pendingOwnerToken)));
             _lastStartupException = null;
             return true;
         }
@@ -74,15 +64,12 @@ public static class ServiceBridge
         }
     }
 
-    /// <summary>
-    /// Sends a command to the ExcelMCP Service directly (in-process, no pipe).
-    /// </summary>
-    public static async Task<ServiceResponse> SendAsync(
+    internal async Task<ServiceResponse> SendAsync(
         string command,
-        string? sessionId = null,
-        object? args = null,
-        int? timeoutSeconds = null,
-        CancellationToken cancellationToken = default)
+        string? sessionId,
+        object? args,
+        int? timeoutSeconds,
+        CancellationToken cancellationToken)
     {
         if (!await EnsureServiceAsync(cancellationToken))
         {
@@ -101,11 +88,13 @@ public static class ServiceBridge
         {
             Command = command,
             SessionId = sessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, JsonOptions) : null
+            Args = args != null ? JsonSerializer.Serialize(args, ServiceBridge.JsonOptions) : null
         };
 
-        var service = _service!;
-        var processTask = Task.Run(async () => await service.ProcessAsync(request), CancellationToken.None);
+        var instance = Volatile.Read(ref _current)!;
+        var processTask = Task.Run(
+            async () => await instance.Backend.ProcessAsync(request),
+            CancellationToken.None);
 
         if (!timeoutSeconds.HasValue && !cancellationToken.CanBeCanceled)
         {
@@ -130,7 +119,7 @@ public static class ServiceBridge
                 return completedResponse;
             }
 
-            CleanupCancelledRequest(service, sessionId);
+            CleanupCancelledRequest(instance, sessionId);
 
             if (timeoutSeconds.HasValue && !cancellationToken.IsCancellationRequested)
             {
@@ -159,27 +148,74 @@ public static class ServiceBridge
         }
     }
 
-    private static void CleanupCancelledRequest(IServiceBridgeBackend service, string? sessionId)
+    internal void SetOwnerToken(long ownerToken)
+    {
+        Interlocked.Exchange(ref _pendingOwnerToken, ownerToken);
+    }
+
+    internal bool DisposeIfOwnedBy(long ownerToken)
+    {
+        if (ownerToken == 0)
+        {
+            return false;
+        }
+
+        var instance = Volatile.Read(ref _current);
+        if (instance == null || instance.OwnerToken != ownerToken)
+        {
+            return false;
+        }
+
+        return DisposeIfCurrent(instance);
+    }
+
+    internal void SetServiceFactory(Func<IServiceBridgeBackend> serviceFactory)
+    {
+        Dispose();
+        _serviceFactory = serviceFactory;
+    }
+
+    public void Dispose()
+    {
+        var instance = Interlocked.Exchange(ref _current, null);
+        instance?.Backend.Dispose();
+        _lastStartupException = null;
+    }
+
+    private void CleanupCancelledRequest(ServiceInstance instance, string? sessionId)
     {
         if (!string.IsNullOrWhiteSpace(sessionId))
         {
             try
             {
-                if (service.ForceCloseSession(sessionId))
+                if (instance.Backend.ForceCloseSession(sessionId))
                 {
                     return;
                 }
             }
             catch (Exception)
             {
-                // Fall back to resetting the entire service below.
+                // Fall back to resetting this backend generation below.
             }
         }
 
-        Dispose();
+        DisposeIfCurrent(instance);
     }
 
-    private static async Task<ServiceResponse?> TryGetCompletedResponseAsync(Task<ServiceResponse> processTask)
+    private bool DisposeIfCurrent(ServiceInstance instance)
+    {
+        if (Interlocked.CompareExchange(ref _current, null, instance) != instance)
+        {
+            return false;
+        }
+
+        instance.Backend.Dispose();
+        _lastStartupException = null;
+        return true;
+    }
+
+    private static async Task<ServiceResponse?> TryGetCompletedResponseAsync(
+        Task<ServiceResponse> processTask)
     {
         if (processTask.IsCompleted)
         {
@@ -190,13 +226,56 @@ public static class ServiceBridge
             processTask,
             Task.Delay(TimeSpan.FromMilliseconds(50))).ConfigureAwait(false);
 
-        if (completedTask == processTask)
+        return completedTask == processTask
+            ? await processTask.ConfigureAwait(false)
+            : null;
+    }
+
+    private static string BuildServiceStartupErrorMessage(Exception? exception)
+    {
+        if (exception == null)
         {
-            return await processTask.ConfigureAwait(false);
+            return "Failed to start ExcelMCP Service in-process.";
         }
 
-        return null;
+        return $"Failed to start ExcelMCP Service in-process: {exception.GetType().Name}: {exception.Message}";
     }
+
+    private sealed record ServiceInstance(IServiceBridgeBackend Backend, long OwnerToken);
+}
+
+/// <summary>
+/// Bridge that holds the in-process ExcelMCP Service for direct method calls.
+/// No named pipe — MCP tools call the service directly (same process).
+/// </summary>
+public static class ServiceBridge
+{
+    private static readonly Func<IServiceBridgeBackend> DefaultServiceFactory =
+        static () => new ExcelMcpServiceBackend(new Service.ExcelMcpService());
+    private static readonly ServiceBridgeLifetime Lifetime = new(DefaultServiceFactory);
+
+    /// <summary>
+    /// JSON serializer options for deserializing service responses.
+    /// </summary>
+    public static readonly JsonSerializerOptions JsonOptions = ServiceProtocol.JsonOptions;
+
+    /// <summary>
+    /// Ensures the in-process ExcelMCP Service is created.
+    /// Called automatically on first request.
+    /// </summary>
+    public static Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default) =>
+        Lifetime.EnsureServiceAsync(cancellationToken);
+
+    /// <summary>
+    /// Sends a command to the ExcelMCP Service directly (in-process, no pipe).
+    /// </summary>
+    public static Task<ServiceResponse> SendAsync(
+        string command,
+        string? sessionId = null,
+        object? args = null,
+        int? timeoutSeconds = null,
+        CancellationToken cancellationToken = default) =>
+        Lifetime.SendAsync(command, sessionId, args, timeoutSeconds, cancellationToken);
 
     /// <summary>
     /// Sends a session-scoped command to the service.
@@ -293,48 +372,28 @@ public static class ServiceBridge
     /// </summary>
     public static void Dispose()
     {
-        var service = Interlocked.Exchange(ref _service, null);
-        Interlocked.Exchange(ref _serviceOwnerToken, 0);
-        service?.Dispose();
-        _lastStartupException = null;
+        Lifetime.Dispose();
     }
 
     internal static void SetTestOwnerToken(long ownerToken)
     {
-        Interlocked.Exchange(ref _pendingTestOwnerToken, ownerToken);
+        Lifetime.SetOwnerToken(ownerToken);
     }
 
     internal static bool DisposeIfOwnedBy(long ownerToken)
     {
-        if (ownerToken == 0 || Interlocked.Read(ref _serviceOwnerToken) != ownerToken)
-        {
-            return false;
-        }
-
-        Dispose();
-        return true;
+        return Lifetime.DisposeIfOwnedBy(ownerToken);
     }
 
     internal static void SetServiceFactoryForTests(Func<IServiceBridgeBackend> serviceFactory)
     {
-        Dispose();
-        _serviceFactory = serviceFactory;
+        Lifetime.SetServiceFactory(serviceFactory);
     }
 
     internal static void ResetForTests()
     {
         Dispose();
-        Interlocked.Exchange(ref _pendingTestOwnerToken, 0);
-        _serviceFactory = DefaultServiceFactory;
-    }
-
-    private static string BuildServiceStartupErrorMessage(Exception? exception)
-    {
-        if (exception == null)
-        {
-            return "Failed to start ExcelMCP Service in-process.";
-        }
-
-        return $"Failed to start ExcelMCP Service in-process: {exception.GetType().Name}: {exception.Message}";
+        Lifetime.SetOwnerToken(0);
+        Lifetime.SetServiceFactory(DefaultServiceFactory);
     }
 }

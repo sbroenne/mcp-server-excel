@@ -58,6 +58,26 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
         Assert.True(backend.Disposed);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SendAsync_WhenForcedCloseFails_ResetsCapturedService(bool forceCloseThrows)
+    {
+        var backend = new FailedForceCloseBackend(forceCloseThrows);
+        Bridge.SetServiceFactoryForTests(() => backend);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        var response = await Bridge.SendAsync(
+            "sheet.list",
+            sessionId: "session-failed-close",
+            cancellationToken: cts.Token);
+
+        Assert.False(response.Success);
+        Assert.Equal("Cancelled", response.ErrorCategory);
+        Assert.Equal(["session-failed-close"], backend.ClosedSessions);
+        Assert.True(backend.Disposed);
+    }
+
     [Fact]
     public async Task ForwardToService_UsesAmbientCancellationToken()
     {
@@ -120,17 +140,44 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
     [Fact]
     public async Task DisposeIfOwnedBy_WithStaleOwner_DoesNotDisposeNewerService()
     {
-        var backend = new BlockingBackend(completeImmediately: true);
+        var firstBackend = new BlockingBackend(completeImmediately: true);
         Bridge.SetTestOwnerToken(1);
-        Bridge.SetServiceFactoryForTests(() => backend);
+        Bridge.SetServiceFactoryForTests(() => firstBackend);
 
-        var response = await Bridge.SendAsync("sheet.list");
+        Assert.True((await Bridge.SendAsync("sheet.list")).Success);
 
-        Assert.True(response.Success);
         Bridge.SetTestOwnerToken(2);
+        var secondBackend = new BlockingBackend(completeImmediately: true);
+        Bridge.SetServiceFactoryForTests(() => secondBackend);
+        Assert.True((await Bridge.SendAsync("sheet.list")).Success);
 
-        Assert.False(Bridge.DisposeIfOwnedBy(2_147_483_647));
-        Assert.False(backend.Disposed);
+        Assert.True(firstBackend.Disposed);
+        Assert.False(Bridge.DisposeIfOwnedBy(1));
+        Assert.False(secondBackend.Disposed);
+    }
+
+    [Fact]
+    public async Task SendAsync_LateCancellationFromOldGeneration_DoesNotResetNewGeneration()
+    {
+        var firstBackend = new DetachedBlockingBackend();
+        Bridge.SetServiceFactoryForTests(() => firstBackend);
+        using var firstCancellation = new CancellationTokenSource();
+        var firstRequest = Bridge.SendAsync(
+            "session.open",
+            cancellationToken: firstCancellation.Token);
+        await firstBackend.WaitForRequestAsync();
+
+        var secondBackend = new BlockingBackend(completeImmediately: true);
+        Bridge.SetServiceFactoryForTests(() => secondBackend);
+        Assert.True((await Bridge.SendAsync("sheet.list")).Success);
+
+        firstCancellation.Cancel();
+        var cancelledResponse = await firstRequest;
+
+        Assert.Equal("Cancelled", cancelledResponse.ErrorCategory);
+        Assert.True(firstBackend.Disposed);
+        Assert.False(secondBackend.Disposed);
+        Assert.True((await Bridge.SendAsync("sheet.list")).Success);
     }
 
     [Fact]
@@ -243,6 +290,64 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
                 Success = false,
                 ErrorMessage = "disposed"
             });
+        }
+    }
+
+    private sealed class FailedForceCloseBackend(bool forceCloseThrows)
+        : IServiceBridgeBackend
+    {
+        private readonly TaskCompletionSource<ServiceResponse> _response =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal List<string> ClosedSessions { get; } = [];
+        internal bool Disposed { get; private set; }
+
+        public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => _response.Task;
+
+        public bool ForceCloseSession(string sessionId)
+        {
+            ClosedSessions.Add(sessionId);
+            if (forceCloseThrows)
+            {
+                throw new InvalidOperationException("forced close failed");
+            }
+
+            return false;
+        }
+
+        public void Dispose()
+        {
+            Disposed = true;
+            _response.TrySetResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = "disposed"
+            });
+        }
+    }
+
+    private sealed class DetachedBlockingBackend : IServiceBridgeBackend
+    {
+        private readonly TaskCompletionSource<bool> _requestStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<ServiceResponse> _response =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal bool Disposed { get; private set; }
+
+        public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+        {
+            _requestStarted.TrySetResult(true);
+            return _response.Task;
+        }
+
+        internal Task<bool> WaitForRequestAsync() => _requestStarted.Task;
+
+        public bool ForceCloseSession(string sessionId) => false;
+
+        public void Dispose()
+        {
+            Disposed = true;
         }
     }
 }

@@ -13,15 +13,24 @@ internal sealed class Program
     private static readonly string[] VersionFlags = ["--version", "-v"];
     private static readonly string[] QuietFlags = ["--quiet", "-q"];
 
-    private static async Task<int> Main(string[] args)
+    private static Task<int> Main(string[] args) => RunAsync(args);
+
+    internal static async Task<int> RunAsync(
+        string[] args,
+        CliCommandRuntime? runtime = null)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        if (runtime is null)
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+
+        using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
 
         // Determine if we should show the banner:
         // - Not when --quiet/-q flag is passed
         // - Not when output is redirected (piped to another process or file)
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
-        var isPiped = Console.IsOutputRedirected;
+        var isPiped = CliCommandRuntime.Current.IsOutputRedirected;
         var showBanner = !isQuiet && !isPiped;
         var jsonOutputMode = isQuiet || isPiped;
 
@@ -198,7 +207,10 @@ internal sealed class Program
 
     private static IAnsiConsole CreateErrorConsole()
     {
-        return AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });
+        return AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(CliCommandRuntime.Current.Error)
+        });
     }
 
     private static string GetCurrentVersion()

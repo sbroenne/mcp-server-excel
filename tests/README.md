@@ -84,6 +84,14 @@ focused real adapter-to-Excel smokes plus intentional fresh-process, deadline,
 crash, and ownership coverage. Do not remove adapter regressions or shorten
 production waits merely to speed tests.
 
+CLI parser contracts use the production Spectre command app in-process with an
+explicit request client and captured input/output. They assert the exact
+Service request and public output envelope without starting a daemon or Excel.
+Batch validation may use a real in-process Service when validation belongs to
+that public boundary. Keep a small executable-and-pipe smoke set plus the
+distinct mutex, startup, deadline, crash, persistence, and forced-stop cases;
+do not launch a process for every argument or alias row.
+
 Use these Excel-free groups for quick adapter feedback:
 
 ```powershell

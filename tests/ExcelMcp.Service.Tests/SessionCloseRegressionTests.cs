@@ -3,28 +3,18 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
-namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
+namespace Sbroenne.ExcelMcp.Service.Tests;
 
 [Trait("Layer", "Service")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "ServiceDaemon")]
-[Collection("Sequential")]
-[Trait("RequiresExcel", "true")]
+[Trait("RequiresExcel", "false")]
 [Trait("Speed", "Medium")]
-public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFixture>
+public sealed class SessionCloseRegressionTests
 {
-    private readonly TempDirectoryFixture _fixture;
-
-    public SessionCloseRegressionTests(TempDirectoryFixture fixture)
-    {
-        _fixture = fixture;
-    }
-
     [Fact(Timeout = 60000)]
     public async Task SessionClose_WhenDisposeFails_QuarantinesSessionAndRetryDoesNotReportAlreadyClosed()
     {
@@ -69,50 +59,79 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         var sessionFailure = Assert.Single(shutdownFailure.InnerExceptions);
         Assert.Contains(sessionId, sessionFailure.Message, StringComparison.Ordinal);
         Assert.Same(batch.DisposeException, sessionFailure.InnerException);
-        var shutdownSource = GetPrivateField<CancellationTokenSource>(service, "_shutdownCts");
-        Assert.Throws<ObjectDisposedException>(() => shutdownSource.Token);
+        Assert.Throws<ObjectDisposedException>(service.RequestShutdown);
     }
 
     [Fact(Timeout = 60000)]
     public async Task SessionClose_DuringInFlightOperation_ReturnsBusyAndKeepsSessionUsable()
     {
         using var service = new ExcelMcpService();
-        var batch = new FakeBatch { WorkbookPath = CreateFakeWorkbookPath() };
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            BlockOperations = true
+        };
         const string sessionId = "in-flight-close-race";
         RegisterSession(service, sessionId, batch, addKnownSessionId: true);
 
-        var sessionManager = GetSessionManager(service);
-        sessionManager.BeginOperation(sessionId);
-
-        var closeWhileBusy = await CloseSessionAsync(service, sessionId);
-
-        Assert.False(closeWhileBusy.Success);
-        Assert.NotNull(closeWhileBusy.ErrorMessage);
-        Assert.Contains("operation(s) still running", closeWhileBusy.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Wait for all operations to complete", closeWhileBusy.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        var listWhileBusy = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-        Assert.True(listWhileBusy.Success);
-        Assert.NotNull(listWhileBusy.Result);
-        using (var listJson = JsonDocument.Parse(listWhileBusy.Result))
+        var operationTask = Task.Run(() => service.ProcessAsync(new ServiceRequest
         {
+            Command = "sheet.list",
+            SessionId = sessionId
+        }));
+        Assert.True(
+            batch.OperationEntered.Wait(TimeSpan.FromSeconds(5)),
+            "The Service operation did not enter the registered batch.");
+
+        ServiceResponse? operationResponse = null;
+        try
+        {
+            var closeWhileBusy = await CloseSessionAsync(service, sessionId);
+
+            Assert.False(closeWhileBusy.Success);
+            Assert.NotNull(closeWhileBusy.ErrorMessage);
+            Assert.Contains("operation(s) still running", closeWhileBusy.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Wait for all operations to complete", closeWhileBusy.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+            var listWhileBusy = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            Assert.True(listWhileBusy.Success);
+            Assert.NotNull(listWhileBusy.Result);
+            using var listJson = JsonDocument.Parse(listWhileBusy.Result);
             var session = listJson.RootElement.GetProperty("sessions")
                 .EnumerateArray()
                 .Single(item => item.GetProperty("sessionId").GetString() == sessionId);
             Assert.Equal(1, session.GetProperty("activeOperations").GetInt32());
             Assert.False(session.GetProperty("canClose").GetBoolean());
         }
+        finally
+        {
+            batch.ReleaseOperation.Set();
+            operationResponse = await operationTask;
+        }
 
-        sessionManager.EndOperation(sessionId);
-        Assert.Equal(0, sessionManager.GetActiveOperationCount(sessionId));
+        Assert.False(operationResponse.Success);
+        Assert.Equal(nameof(NotSupportedException), operationResponse.ExceptionType);
+        Assert.Contains("not supported", operationResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        var listAfterOperation = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        Assert.True(listAfterOperation.Success, listAfterOperation.ErrorMessage);
+        Assert.NotNull(listAfterOperation.Result);
+        using (var listJson = JsonDocument.Parse(listAfterOperation.Result))
+        {
+            var session = listJson.RootElement.GetProperty("sessions")
+                .EnumerateArray()
+                .Single(item => item.GetProperty("sessionId").GetString() == sessionId);
+            Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
+            Assert.True(session.GetProperty("canClose").GetBoolean());
+        }
 
         var finalClose = await CloseSessionAsync(service, sessionId);
         Assert.True(finalClose.Success);
     }
 
-    private string CreateFakeWorkbookPath()
+    private static string CreateFakeWorkbookPath()
     {
-        return Path.Combine(_fixture.TempDir, $"fake-batch-{Guid.NewGuid():N}.xlsx");
+        return Path.Combine(Path.GetTempPath(), $"fake-batch-{Guid.NewGuid():N}.xlsx");
     }
 
     private static Task<ServiceResponse> CloseSessionAsync(ExcelMcpService service, string sessionId)
@@ -175,6 +194,9 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         public bool IsExcelVisible => false;
         public Exception? DisposeException { get; init; }
         public int DisposeCalls { get; private set; }
+        public bool BlockOperations { get; init; }
+        public ManualResetEventSlim OperationEntered { get; } = new();
+        public ManualResetEventSlim ReleaseOperation { get; } = new();
 
         public Excel.Workbook GetWorkbook(string filePath) => throw new NotSupportedException();
 
@@ -182,11 +204,13 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
 
         public void Execute(Action<ExcelContext, CancellationToken> operation, CancellationToken cancellationToken = default)
         {
+            WaitForRelease(cancellationToken);
             throw new NotSupportedException();
         }
 
         public T Execute<T>(Func<ExcelContext, CancellationToken, T> operation, CancellationToken cancellationToken = default)
         {
+            WaitForRelease(cancellationToken);
             throw new NotSupportedException();
         }
 
@@ -199,10 +223,22 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         public void Dispose()
         {
             DisposeCalls++;
+            ReleaseOperation.Set();
             if (DisposeException != null)
             {
                 throw DisposeException;
             }
+        }
+
+        private void WaitForRelease(CancellationToken cancellationToken)
+        {
+            if (!BlockOperations)
+            {
+                return;
+            }
+
+            OperationEntered.Set();
+            ReleaseOperation.Wait(cancellationToken);
         }
     }
 }

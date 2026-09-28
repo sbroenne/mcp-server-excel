@@ -6,11 +6,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
-namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
+namespace Sbroenne.ExcelMcp.Service.Tests;
 
 /// <summary>
 /// Unit tests for ExcelMcpService error handling.
@@ -23,7 +22,6 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ExcelMcpService")]
 [Trait("Speed", "Fast")]
-[Collection("Sequential")]
 [Trait("RequiresExcel", "false")]
 public sealed class ExcelMcpServiceErrorTests
 {

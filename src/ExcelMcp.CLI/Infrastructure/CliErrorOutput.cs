@@ -9,7 +9,7 @@ internal static class CliErrorOutput
 {
     public static int WriteException(Exception ex, string? errorCategory = null)
     {
-        Console.WriteLine(Serialize(
+        CliCommandRuntime.Current.Output.WriteLine(Serialize(
             ex.Message,
             errorCategory ?? OperationFailureClassifier.Classify(ex),
             null,
@@ -24,7 +24,7 @@ internal static class CliErrorOutput
 
     public static int WriteServiceError(ServiceResponse response)
     {
-        Console.WriteLine(Serialize(
+        CliCommandRuntime.Current.Output.WriteLine(Serialize(
             response.ErrorMessage,
             response.ErrorCategory,
             response.Command,
@@ -42,7 +42,7 @@ internal static class CliErrorOutput
         string daemonState,
         bool running)
     {
-        Console.WriteLine(Serialize(
+        CliCommandRuntime.Current.Output.WriteLine(Serialize(
             response.ErrorMessage,
             response.ErrorCategory,
             response.Command,
@@ -57,7 +57,8 @@ internal static class CliErrorOutput
 
     public static int WriteError(string errorMessage, string? errorCategory = null)
     {
-        Console.WriteLine(Serialize(errorMessage, errorCategory, null, null, null, null, null, null, null));
+        CliCommandRuntime.Current.Output.WriteLine(
+            Serialize(errorMessage, errorCategory, null, null, null, null, null, null, null));
         return 1;
     }
 

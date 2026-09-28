@@ -1,118 +1,71 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 
 /// <summary>
-/// Real CLI process coverage for backward-compatible range parameter aliases.
-/// Canonical generated parameter mapping is covered by generated contract tests.
+/// Real parser coverage for backward-compatible range parameter aliases.
+/// Workbook behavior is owned by the corresponding Service range tests.
 /// </summary>
 [Collection("Service")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "CLI")]
 [Trait("Layer", "CLI")]
-[Trait("RequiresExcel", "true")]
-public sealed class ParameterAliasBackwardCompatTests(
-    CliWorkbookSessionFixture fixture,
-    ITestOutputHelper output)
-    : IClassFixture<CliWorkbookSessionFixture>
+[Trait("RequiresExcel", "false")]
+[Trait("Speed", "Fast")]
+public sealed class ParameterAliasBackwardCompatTests
 {
-    private readonly CliWorkbookSessionFixture _fixture = fixture;
-    private readonly ITestOutputHelper _output = output;
-
     [Fact]
-    public async Task RangeSetValues_ShortAliases_WorksWithoutError()
+    public async Task RangeSetValues_ShortAliases_MapToCanonicalRequest()
     {
-        var sessionId = _fixture.SessionId;
-        var sheetName = await CreateSheetAsync(sessionId);
+        var (result, requests) = await InProcessCliHelper.RunRecordingAsync(
+            "range set-values --session session-1 --sheet AliasSheet --range C7 --values \"[[\\\"BackwardCompat\\\"]]\"",
+            new ServiceResponse
+            {
+                Success = true,
+                Result = """{"success":true}"""
+            });
 
-        try
-        {
-            var result = await CliProcessHelper.RunAsync(
-                $"range set-values --session {sessionId} --sheet {sheetName} --range C7 --values \"[[\\\"BackwardCompat\\\"]]\"");
+        Assert.Equal(0, result.ExitCode);
+        var request = Assert.Single(requests);
+        Assert.Equal("range.set-values", request.Command);
+        Assert.Equal("session-1", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal("AliasSheet", args.RootElement.GetProperty("sheetName").GetString());
+        Assert.Equal("C7", args.RootElement.GetProperty("rangeAddress").GetString());
+        Assert.Equal(
+            "BackwardCompat",
+            args.RootElement.GetProperty("values")[0][0].GetString());
 
-            _output.WriteLine($"Exit code: {result.ExitCode}");
-            _output.WriteLine($"Stdout: {result.Stdout}");
-            _output.WriteLine($"Stderr: {result.Stderr}");
-            Assert.Equal(0, result.ExitCode);
-
-            using var json = JsonDocument.Parse(result.Stdout);
-            Assert.True(
-                json.RootElement.GetProperty("success").GetBoolean(),
-                "CLI should accept --sheet and --range aliases");
-
-            var (read, readJson) = await CliProcessHelper.RunJsonAsync(
-                ["range", "get-values", "--session", sessionId,
-                 "--sheet-name", sheetName, "--range-address", "C7"]);
-            Assert.Equal(0, read.ExitCode);
-            Assert.True(readJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.Equal(
-                "BackwardCompat",
-                readJson.RootElement.GetProperty("values")[0][0].GetString());
-        }
-        finally
-        {
-            await DeleteSheetAsync(sessionId, sheetName);
-        }
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
     }
 
     [Fact]
-    public async Task RangeGetValues_ShortAliases_WorksWithoutError()
+    public async Task RangeGetValues_ShortAliases_MapToCanonicalRequestAndResult()
     {
-        var sessionId = _fixture.SessionId;
-        var sheetName = await CreateSheetAsync(sessionId);
+        var (result, requests) = await InProcessCliHelper.RunRecordingAsync(
+            "range get-values --session session-1 --sheet AliasSheet --range E9",
+            new ServiceResponse
+            {
+                Success = true,
+                Result = """{"success":true,"values":[["ReadTest"]]}"""
+            });
 
-        try
-        {
-            var (setup, setupJson) = await CliProcessHelper.RunJsonAsync(
-                ["range", "set-values", "--session", sessionId,
-                 "--sheet-name", sheetName, "--range-address", "E9",
-                 "--values", "[[\"ReadTest\"]]"]);
-            Assert.Equal(0, setup.ExitCode);
-            Assert.True(setupJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(0, result.ExitCode);
+        var request = Assert.Single(requests);
+        Assert.Equal("range.get-values", request.Command);
+        Assert.Equal("session-1", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal("AliasSheet", args.RootElement.GetProperty("sheetName").GetString());
+        Assert.Equal("E9", args.RootElement.GetProperty("rangeAddress").GetString());
 
-            var result = await CliProcessHelper.RunAsync(
-                $"range get-values --session {sessionId} --sheet {sheetName} --range E9");
-
-            _output.WriteLine($"Exit code: {result.ExitCode}");
-            _output.WriteLine($"Stdout: {result.Stdout}");
-            Assert.Equal(0, result.ExitCode);
-
-            using var json = JsonDocument.Parse(result.Stdout);
-            Assert.True(
-                json.RootElement.GetProperty("success").GetBoolean(),
-                "CLI should accept --sheet and --range aliases for get-values");
-            Assert.Equal(
-                "ReadTest",
-                json.RootElement.GetProperty("values")[0][0].GetString());
-        }
-        finally
-        {
-            await DeleteSheetAsync(sessionId, sheetName);
-        }
-    }
-
-    private static async Task<string> CreateSheetAsync(string sessionId)
-    {
-        var sheetName = $"Alias_{Guid.NewGuid():N}"[..21];
-        var result = await CliProcessHelper.RunAsync(
-            ["sheet", "create", "--session", sessionId, "--sheet-name", sheetName]);
-        Assert.True(
-            result.ExitCode == 0,
-            $"CLI sheet creation failed: {result.Stdout}{result.Stderr}");
-        return sheetName;
-    }
-
-    private static async Task DeleteSheetAsync(
-        string sessionId,
-        string sheetName)
-    {
-        var result = await CliProcessHelper.RunAsync(
-            ["sheet", "delete", "--session", sessionId, "--sheet-name", sheetName]);
-        Assert.True(
-            result.ExitCode == 0,
-            $"CLI sheet cleanup failed: {result.Stdout}{result.Stderr}");
+        using var output = JsonDocument.Parse(result.Stdout);
+        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(
+            "ReadTest",
+            output.RootElement.GetProperty("values")[0][0].GetString());
     }
 }

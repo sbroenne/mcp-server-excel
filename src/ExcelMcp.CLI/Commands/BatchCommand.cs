@@ -95,7 +95,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
 
         // Connect to daemon (auto-starts if needed)
-        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
 
         string? activeSession = settings.SessionId;
         bool hasErrors = false;
@@ -164,7 +164,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 Error = response.ErrorMessage
             };
 
-            Console.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
 
             if (!response.Success)
             {
@@ -178,7 +178,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
     private static void WriteValidationError(int index, string command, string error)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new BatchResult
+        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new BatchResult
         {
             Index = index,
             Command = command,
@@ -198,7 +198,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         if (string.IsNullOrEmpty(inputFile) || inputFile == "-")
         {
             // Read from stdin
-            content = await Console.In.ReadToEndAsync(cancellationToken);
+            content = await CliCommandRuntime.Current.Input.ReadToEndAsync(cancellationToken);
         }
         else
         {
@@ -286,7 +286,8 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
     private static void WriteError(string message)
     {
-        Console.Error.WriteLine(JsonSerializer.Serialize(new { success = false, error = message }, ServiceProtocol.JsonOptions));
+        CliCommandRuntime.Current.Error.WriteLine(
+            JsonSerializer.Serialize(new { success = false, error = message }, ServiceProtocol.JsonOptions));
     }
 
     // JSON options for batch I/O — camelCase, skip nulls for clean output

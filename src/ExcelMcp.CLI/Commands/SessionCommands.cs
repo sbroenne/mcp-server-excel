@@ -35,7 +35,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
             return CliErrorOutput.WriteError(ex.Message);
         }
 
-        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.create",
@@ -49,7 +49,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
 
         if (response.Success)
         {
-            Console.WriteLine(response.Result);
+            CliCommandRuntime.Current.Output.WriteLine(response.Result);
             return 0;
         }
         else
@@ -96,7 +96,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
             return CliErrorOutput.WriteError(ex.Message);
         }
 
-        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.open",
@@ -110,7 +110,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
 
         if (response.Success)
         {
-            Console.WriteLine(response.Result);
+            CliCommandRuntime.Current.Output.WriteLine(response.Result);
             return 0;
         }
         else
@@ -144,7 +144,7 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
             return CliErrorOutput.WriteError("Session ID is required.");
         }
 
-        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.close",
@@ -154,7 +154,9 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
 
         if (response.Success)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = settings.Save ? "Session closed and saved." : "Session closed." }, ServiceProtocol.JsonOptions));
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
+                new { success = true, message = settings.Save ? "Session closed and saved." : "Session closed." },
+                ServiceProtocol.JsonOptions));
             return 0;
         }
         else
@@ -193,7 +195,7 @@ internal sealed class SessionListCommand : AsyncCommand
             var result = JsonNode.Parse(response.Result) as JsonObject
                 ?? throw new JsonException("Service returned an invalid session list response.");
             result["daemonState"] = DaemonConnectionPolicy.RunningState;
-            Console.WriteLine(result.ToJsonString(ServiceProtocol.JsonOptions));
+            CliCommandRuntime.Current.Output.WriteLine(result.ToJsonString(ServiceProtocol.JsonOptions));
             return 0;
         }
 
@@ -219,7 +221,7 @@ internal sealed class SessionListCommand : AsyncCommand
 
     private static int WriteStoppedSessionList()
     {
-        Console.WriteLine(JsonSerializer.Serialize(new
+        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
         {
             success = true,
             daemonState = DaemonConnectionPolicy.StoppedState,
@@ -239,7 +241,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
             return CliErrorOutput.WriteError("File path is required.");
         }
 
-        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.test",
@@ -264,7 +266,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
             return CliErrorOutput.WriteError("Service returned an invalid file test response.");
         }
 
-        Console.WriteLine(response.Result);
+        CliCommandRuntime.Current.Output.WriteLine(response.Result);
         return result.CanOpen ? 0 : 1;
     }
 

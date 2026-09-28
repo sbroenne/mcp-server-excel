@@ -25,6 +25,12 @@ CLI ─────────► CLI daemon (named pipe) ─────► Co
 The entry points run as separate processes, each managing its own Excel
 instance. They do not share live sessions.
 
+The Service owns command routing and workbook sessions. A separate Service
+daemon host owns named-pipe acceptance, connection limits, idle shutdown, and
+connection draining for the CLI process. The MCP Server does not use this pipe:
+its bridge owns an in-process Service generation and prevents cancellation from
+an older generation from resetting a newer one.
+
 The CLI also avoids loading the MCP tool schemas into a coding agent's context.
 In a same-task, same-model benchmark, the CLI workflow used about 59K tokens
 versus 163K for MCP—a 64% reduction. Actual usage varies by client, model, and
@@ -36,7 +42,8 @@ workflow.
    session management, COM cleanup, write guards, and OLE message filtering.
 2. **Core** (`src/ExcelMcp.Core`) implements Excel operations for Power Query,
    DAX, VBA, worksheets, ranges, charts, and other domains.
-3. **Service** (`src/ExcelMcp.Service`) manages sessions and routes commands.
+3. **Service** (`src/ExcelMcp.Service`) manages sessions and routes commands;
+   its daemon host provides the CLI's named-pipe process lifetime.
 4. **CLI** (`src/ExcelMcp.CLI`) exposes generated command categories and uses a
    persistent daemon.
 5. **MCP Server** (`src/ExcelMcp.McpServer`) exposes generated MCP tools and
