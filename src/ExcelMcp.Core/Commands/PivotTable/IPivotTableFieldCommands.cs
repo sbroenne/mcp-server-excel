@@ -108,7 +108,7 @@ public interface IPivotTableFieldCommands
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <param name="fieldName">Name of the field to remove</param>
     /// <returns>Updated layout after removal</returns>
-    [ServiceAction("remove-field")]
+    [ServiceAction("remove-field"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult RemoveField(IExcelBatch batch, string pivotTableName,
         string fieldName);
 
@@ -134,7 +134,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field</param>
     /// <param name="customName">Custom name to set</param>
     /// <returns>Applied name and field reference</returns>
-    [ServiceAction("set-field-name")]
+    [ServiceAction("set-field-name"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SetFieldName(IExcelBatch batch, string pivotTableName,
         string fieldName, string customName);
 
@@ -146,7 +146,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field</param>
     /// <param name="numberFormat">Number format string</param>
     /// <returns>Applied format with sample formatted value</returns>
-    [ServiceAction("set-field-format")]
+    [ServiceAction("set-field-format"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SetFieldFormat(IExcelBatch batch, string pivotTableName,
         string fieldName, string numberFormat);
 
@@ -160,7 +160,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field to filter</param>
     /// <param name="selectedValues">Values to show (others will be hidden)</param>
     /// <returns>Applied filter state and affected row count</returns>
-    [ServiceAction("set-field-filter")]
+    [ServiceAction("set-field-filter"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldFilterResult SetFieldFilter(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues);
 
@@ -172,7 +172,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field to sort</param>
     /// <param name="direction">Sort direction</param>
     /// <returns>Applied sort configuration and preview of changes</returns>
-    [ServiceAction("sort-field")]
+    [ServiceAction("sort-field"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, [FromString] SortDirection direction = SortDirection.Ascending);
 

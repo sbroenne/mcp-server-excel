@@ -18,6 +18,8 @@ test("source contract metadata matches every Office.js action registration", asy
     "../../src/ExcelMcp.Core/Commands/Chart/IChartCommands.cs",
     "../../src/ExcelMcp.Core/Commands/Chart/IChartConfigCommands.cs",
     "../../src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs",
+    "../../src/ExcelMcp.Core/Commands/PivotTable/IPivotTableFieldCommands.cs",
+    "../../src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCalcCommands.cs",
     "../../src/ExcelMcp.Core/Commands/Slicer/ISlicerCommands.cs"
   ];
   const contracts = new Map();
@@ -664,6 +666,217 @@ test("rejects OLAP PivotTable mutations instead of treating metadata availabilit
   assert.equal(fixture.pivot.deleted, false);
 });
 
+test("routes faithful ordinary PivotTable field and layout actions", async () => {
+  const fixture = createOrdinaryPivotFieldContext();
+  const runtime = {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  };
+
+  const filtered = await executeOfficeAction({
+    action: "pivottablefield.set-field-filter",
+    payload: {
+      pivotTableName: "SalesPivot",
+      fieldName: "Region",
+      selectedValues: ["North"]
+    }
+  }, runtime);
+  const sorted = await executeOfficeAction({
+    action: "pivottablefield.sort-field",
+    payload: {
+      pivotTableName: "SalesPivot",
+      fieldName: "Region",
+      direction: "Descending"
+    }
+  }, runtime);
+  const formatted = await executeOfficeAction({
+    action: "pivottablefield.set-field-format",
+    payload: {
+      pivotTableName: "SalesPivot",
+      fieldName: "Sales",
+      numberFormat: "$#,##0.00"
+    }
+  }, runtime);
+  const renamed = await executeOfficeAction({
+    action: "pivottablefield.set-field-name",
+    payload: {
+      pivotTableName: "SalesPivot",
+      fieldName: "Region",
+      customName: "Sales Region"
+    }
+  }, runtime);
+  const subtotals = await executeOfficeAction({
+    action: "pivottablecalc.set-subtotals",
+    payload: {
+      pivotTableName: "SalesPivot",
+      fieldName: "Region",
+      showSubtotals: false
+    }
+  }, runtime);
+  await executeOfficeAction({
+    action: "pivottablecalc.set-layout",
+    payload: { pivotTableName: "SalesPivot", rowLayout: 1 }
+  }, runtime);
+  await executeOfficeAction({
+    action: "pivottablecalc.set-grand-totals",
+    payload: {
+      pivotTableName: "SalesPivot",
+      showRowGrandTotals: false,
+      showColumnGrandTotals: true
+    }
+  }, runtime);
+
+  assert.deepEqual(fixture.regionField.appliedFilter, {
+    manualFilter: { selectedItems: ["North"] }
+  });
+  assert.equal(fixture.regionField.sortedBy, "Descending");
+  assert.equal(fixture.salesHierarchy.numberFormat, "$#,##0.00");
+  assert.equal(fixture.regionHierarchy.name, "Sales Region");
+  assert.deepEqual(fixture.regionField.subtotals, { automatic: false });
+  assert.equal(fixture.pivot.layout.layoutType, "Tabular");
+  assert.equal(fixture.pivot.layout.showRowGrandTotals, false);
+  assert.equal(fixture.pivot.layout.showColumnGrandTotals, true);
+  assert.deepEqual(filtered, {
+    success: true,
+    errorMessage: null,
+    fieldName: "Region",
+    selectedItems: ["North"],
+    availableItems: ["North", "South"],
+    visibleRowCount: 3,
+    totalRowCount: 5,
+    showAll: false
+  });
+  assert.deepEqual(sorted, {
+    success: true,
+    errorMessage: null,
+    fieldName: "Region",
+    customName: "Region",
+    area: "Row",
+    position: 1,
+    availableValues: [],
+    dataType: ""
+  });
+  assert.equal(formatted.numberFormat, "$#,##0.00");
+  assert.equal(renamed.customName, "Sales Region");
+  assert.deepEqual(subtotals, {
+    success: true,
+    errorMessage: null,
+    fieldName: "Region",
+    customName: "",
+    area: "Hidden",
+    position: 0,
+    availableValues: [],
+    dataType: "",
+    workflowHint: "Subtotals disabled for field. Only detail rows visible."
+  });
+});
+
+test("reads ordinary PivotTable data and removes placed hierarchies", async () => {
+  const fixture = createOrdinaryPivotFieldContext();
+  const runtime = {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  };
+  const data = await executeOfficeAction({
+    action: "pivottablecalc.get-data",
+    payload: { pivotTableName: "SalesPivot" }
+  }, runtime);
+  const removed = await executeOfficeAction({
+    action: "pivottablefield.remove-field",
+    payload: { pivotTableName: "SalesPivot", fieldName: "Region" }
+  }, runtime);
+
+  assert.deepEqual(data, {
+    success: true,
+    errorMessage: null,
+    pivotTableName: "SalesPivot",
+    values: [
+      ["Region", "Sum of Sales"],
+      ["North", 40],
+      ["South", 20]
+    ],
+    columnHeaders: [],
+    rowHeaders: [],
+    dataRowCount: 3,
+    dataColumnCount: 2,
+    grandTotals: {}
+  });
+  assert.deepEqual(fixture.pivot.rowHierarchies.removed, [fixture.regionHierarchy]);
+  assert.deepEqual(removed, {
+    success: true,
+    errorMessage: null,
+    fieldName: "Region",
+    customName: "",
+    area: "Hidden",
+    position: 0,
+    availableValues: [],
+    dataType: ""
+  });
+});
+
+test("ordinary PivotTable field routes fail closed on source, item, and layout mismatches", async () => {
+  const olap = createOrdinaryPivotFieldContext("Unknown");
+  await assert.rejects(
+    executeOfficeAction({
+      action: "pivottablefield.sort-field",
+      payload: {
+        pivotTableName: "SalesPivot",
+        fieldName: "Region",
+        direction: "Ascending"
+      }
+    }, {
+      requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+      async run(callback) {
+        return callback(olap.context);
+      }
+    }),
+    /OLAP and Power Pivot require the trusted VBA capability/
+  );
+
+  const fixture = createOrdinaryPivotFieldContext();
+  const runtime = {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  };
+  await assert.rejects(
+    executeOfficeAction({
+      action: "pivottablefield.set-field-filter",
+      payload: {
+        pivotTableName: "SalesPivot",
+        fieldName: "Region",
+        selectedValues: ["Missing"]
+      }
+    }, runtime),
+    /does not contain selected item/
+  );
+  await assert.rejects(
+    executeOfficeAction({
+      action: "pivottablecalc.set-layout",
+      payload: { pivotTableName: "SalesPivot", rowLayout: 3 }
+    }, runtime),
+    /rowLayout must be 0/
+  );
+});
+
+test("keeps unrepresentable PivotTable field placement and aggregation actions disabled", () => {
+  for (const action of [
+    "pivottablefield.list-fields",
+    "pivottablefield.add-row-field",
+    "pivottablefield.add-column-field",
+    "pivottablefield.add-filter-field",
+    "pivottablefield.add-value-field",
+    "pivottablefield.set-field-function"
+  ]) {
+    assert.equal(getImplementedAction(action), null, action);
+  }
+});
+
 test("creates a table slicer with exact known source identity and item captions", async () => {
   const fixture = createPivotContext();
   const result = await executeOfficeAction({
@@ -996,6 +1209,115 @@ function createPivotContext(sourceType = "LocalRange") {
     async sync() {}
   };
   return { context, pivot, addCalls };
+}
+
+function createOrdinaryPivotFieldContext(sourceType = "LocalRange") {
+  const regionField = {
+    name: "Region",
+    subtotals: { automatic: true },
+    items: {
+      items: [{ name: "North" }, { name: "South" }],
+      load() {}
+    },
+    load() {},
+    applyFilter(filter) {
+      this.appliedFilter = filter;
+    },
+    sortByLabels(direction) {
+      this.sortedBy = direction;
+    }
+  };
+  const salesField = {
+    name: "Sales",
+    items: { items: [], load() {} },
+    load() {}
+  };
+  const regionHierarchy = {
+    name: "Region",
+    position: 0,
+    fields: {
+      items: [regionField],
+      getItem() {
+        return regionField;
+      },
+      load() {}
+    },
+    load() {}
+  };
+  const salesHierarchy = {
+    name: "Sum of Sales",
+    position: 0,
+    numberFormat: "General",
+    summarizeBy: "Sum",
+    field: salesField,
+    load() {}
+  };
+  const emptyCollection = () => ({
+    items: [],
+    removed: [],
+    load() {},
+    remove(item) {
+      this.removed.push(item);
+      this.items = this.items.filter((candidate) => candidate !== item);
+    }
+  });
+  const rowHierarchies = emptyCollection();
+  rowHierarchies.items = [regionHierarchy];
+  const columnHierarchies = emptyCollection();
+  const filterHierarchies = emptyCollection();
+  const dataHierarchies = emptyCollection();
+  dataHierarchies.items = [salesHierarchy];
+  const fullRange = {
+    values: [
+      ["Region", "Sum of Sales"],
+      ["North", 40],
+      ["South", 20]
+    ],
+    rowCount: 5,
+    columnCount: 2,
+    load() {}
+  };
+  const pivot = {
+    rowHierarchies,
+    columnHierarchies,
+    filterHierarchies,
+    dataHierarchies,
+    layout: {
+      layoutType: "Compact",
+      showRowGrandTotals: true,
+      showColumnGrandTotals: true,
+      getRange() {
+        return fullRange;
+      },
+      load() {}
+    },
+    getDataSourceType() {
+      return { value: sourceType };
+    }
+  };
+  const context = {
+    workbook: {
+      pivotTables: {
+        getItem(name) {
+          assert.equal(name, "SalesPivot");
+          return pivot;
+        }
+      }
+    },
+    async sync() {
+      if (regionField.appliedFilter) {
+        fullRange.rowCount = 3;
+      }
+    }
+  };
+  return {
+    context,
+    pivot,
+    regionField,
+    salesField,
+    regionHierarchy,
+    salesHierarchy
+  };
 }
 
 function createWorksheetCollection() {

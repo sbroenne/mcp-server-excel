@@ -123,6 +123,9 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("chart.create-from-range")]
     [InlineData("chartconfig.get-plot-options")]
     [InlineData("pivottable.create-from-range")]
+    [InlineData("pivottablefield.set-field-filter")]
+    [InlineData("pivottablecalc.get-data")]
+    [InlineData("pivottablecalc.set-grand-totals")]
     [InlineData("slicer.create-table-slicer")]
     public void OfficeAddInCandidate_IsRoutableOnlyWhenExplicitlyEnabled(string command)
     {

@@ -61,6 +61,15 @@ registerPublic("chartconfig.set-trendline", "1.8", true, setChartTrendline);
 registerPublic("pivottable.create-from-range", "1.8", true, createPivotTableFromRange);
 registerPublic("pivottable.create-from-table", "1.8", true, createPivotTableFromTable);
 registerPublic("pivottable.delete", "1.15", true, deletePivotTable);
+registerPublic("pivottablefield.remove-field", "1.15", true, removePivotField);
+registerPublic("pivottablefield.set-field-name", "1.15", true, setPivotFieldName);
+registerPublic("pivottablefield.set-field-format", "1.15", true, setPivotFieldFormat);
+registerPublic("pivottablefield.set-field-filter", "1.15", true, setPivotFieldFilter);
+registerPublic("pivottablefield.sort-field", "1.15", true, sortPivotField);
+registerPublic("pivottablecalc.get-data", "1.15", false, getPivotTableData);
+registerPublic("pivottablecalc.set-layout", "1.15", true, setPivotTableLayout);
+registerPublic("pivottablecalc.set-subtotals", "1.15", true, setPivotFieldSubtotals);
+registerPublic("pivottablecalc.set-grand-totals", "1.15", true, setPivotTableGrandTotals);
 registerPublic("slicer.create-slicer", "1.15", true, createPivotSlicer);
 registerPublic("slicer.create-table-slicer", "1.10", true, createTableSlicer);
 registerInternal("screenshot.prepare-range-geometry", "1.1", true, prepareRangeGeometry);
@@ -1337,6 +1346,167 @@ async function deletePivotTable(context, payload) {
   return operation("delete", `PivotTable '${pivotTableName}' deleted.`);
 }
 
+async function removePivotField(context, payload) {
+  const state = await ordinaryPivotFieldState(context, payload);
+  state.collection.remove(state.hierarchy);
+  await context.sync();
+  return pivotFieldResult(payload.fieldName, {
+    area: "Hidden",
+    position: 0
+  });
+}
+
+async function setPivotFieldName(context, payload) {
+  const state = await ordinaryPivotFieldState(context, payload);
+  const customName = requiredString(payload.customName, "customName");
+  state.hierarchy.name = customName;
+  await context.sync();
+  return pivotFieldResult(payload.fieldName, {
+    customName,
+    area: state.area,
+    position: state.position
+  });
+}
+
+async function setPivotFieldFormat(context, payload) {
+  const state = await ordinaryPivotFieldState(context, payload);
+  if (state.area !== "Value") {
+    throw new Error(
+      `Field '${payload.fieldName}' is not in the Values area. Only value fields can have number formats.`
+    );
+  }
+  const numberFormat = requiredString(payload.numberFormat, "numberFormat");
+  state.hierarchy.numberFormat = numberFormat;
+  state.hierarchy.load("numberFormat");
+  await context.sync();
+  return pivotFieldResult(payload.fieldName, {
+    customName: state.hierarchy.name,
+    area: "Value",
+    position: state.position,
+    numberFormat: state.hierarchy.numberFormat
+  });
+}
+
+async function setPivotFieldFilter(context, payload) {
+  const state = await ordinaryPivotFieldState(context, payload);
+  if (state.area === "Value") {
+    throw new Error(`Field '${payload.fieldName}' is in the Values area and cannot accept item filters.`);
+  }
+  if (!Array.isArray(payload.selectedValues)
+      || payload.selectedValues.some((item) => typeof item !== "string")) {
+    throw new TypeError("selectedValues must be an array of strings.");
+  }
+  if (new Set(payload.selectedValues).size !== payload.selectedValues.length) {
+    throw new TypeError("selectedValues must not contain duplicates.");
+  }
+
+  state.field.items.load("items/name");
+  const beforeRange = state.pivot.layout.getRange();
+  beforeRange.load("rowCount");
+  await context.sync();
+  const totalRowCount = beforeRange.rowCount;
+  const availableItems = state.field.items.items.map((item) => item.name);
+  const unknown = payload.selectedValues.filter((item) => !availableItems.includes(item));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Field '${payload.fieldName}' does not contain selected item(s): ${unknown.join(", ")}.`
+    );
+  }
+
+  state.field.applyFilter({
+    manualFilter: { selectedItems: payload.selectedValues }
+  });
+  const afterRange = state.pivot.layout.getRange();
+  afterRange.load("rowCount");
+  await context.sync();
+  return success({
+    fieldName: requiredString(payload.fieldName, "fieldName"),
+    selectedItems: [...payload.selectedValues],
+    availableItems,
+    visibleRowCount: afterRange.rowCount,
+    totalRowCount,
+    showAll: payload.selectedValues.length === availableItems.length
+  });
+}
+
+async function sortPivotField(context, payload) {
+  const state = await ordinaryPivotFieldState(context, payload);
+  if (state.area === "Value") {
+    throw new Error(`Field '${payload.fieldName}' is in the Values area and cannot be sorted by labels.`);
+  }
+  const direction = enumValue(
+    payload.direction ?? "Ascending",
+    { ascending: "Ascending", descending: "Descending" },
+    "direction"
+  );
+  state.field.sortByLabels(direction);
+  await context.sync();
+  return pivotFieldResult(payload.fieldName, {
+    customName: state.hierarchy.name,
+    area: state.area,
+    position: state.position
+  });
+}
+
+async function getPivotTableData(context, payload) {
+  const pivotTableName = requiredString(payload.pivotTableName, "pivotTableName");
+  const pivot = context.workbook.pivotTables.getItem(pivotTableName);
+  await requireOrdinaryPivot(context, pivot);
+  const range = pivot.layout.getRange();
+  range.load("values,rowCount,columnCount");
+  await context.sync();
+  return success({
+    pivotTableName,
+    values: range.values.map((row) => [...row]),
+    columnHeaders: [],
+    rowHeaders: [],
+    dataRowCount: range.values.length,
+    dataColumnCount: range.values[0]?.length ?? 0,
+    grandTotals: {}
+  });
+}
+
+async function setPivotTableLayout(context, payload) {
+  const pivot = await getOrdinaryPivot(context, payload.pivotTableName);
+  const rowLayout = nonNegativeInteger(payload.rowLayout, "rowLayout");
+  const layoutType = ["Compact", "Tabular", "Outline"][rowLayout];
+  if (!layoutType) {
+    throw new TypeError("rowLayout must be 0 (Compact), 1 (Tabular), or 2 (Outline).");
+  }
+  pivot.layout.layoutType = layoutType;
+  await context.sync();
+  return success();
+}
+
+async function setPivotFieldSubtotals(context, payload) {
+  const state = await ordinaryPivotFieldState(context, payload);
+  if (state.area !== "Row") {
+    throw new Error(`Field '${payload.fieldName}' is not in the Row area.`);
+  }
+  const showSubtotals = requiredBoolean(payload.showSubtotals, "showSubtotals");
+  state.field.subtotals = { automatic: showSubtotals };
+  await context.sync();
+  return pivotFieldResult(payload.fieldName, {
+    workflowHint: showSubtotals
+      ? "Subtotals enabled for field. Automatic function selected based on data type."
+      : "Subtotals disabled for field. Only detail rows visible."
+  });
+}
+
+async function setPivotTableGrandTotals(context, payload) {
+  const pivot = await getOrdinaryPivot(context, payload.pivotTableName);
+  pivot.layout.showRowGrandTotals = requiredBoolean(
+    payload.showRowGrandTotals,
+    "showRowGrandTotals"
+  );
+  pivot.layout.showColumnGrandTotals = requiredBoolean(
+    payload.showColumnGrandTotals,
+    "showColumnGrandTotals"
+  );
+  await context.sync();
+  return success();
+}
+
 async function createPivotSlicer(context, payload) {
   const pivotTableName = requiredString(payload.pivotTableName, "pivotTableName");
   const pivot = context.workbook.pivotTables.getItem(pivotTableName);
@@ -1397,6 +1567,74 @@ async function requireOrdinaryPivot(context, pivot) {
       "OLAP and Power Pivot require the trusted VBA capability."
     );
   }
+}
+
+async function getOrdinaryPivot(context, value) {
+  const pivot = context.workbook.pivotTables.getItem(
+    requiredString(value, "pivotTableName")
+  );
+  await requireOrdinaryPivot(context, pivot);
+  return pivot;
+}
+
+async function ordinaryPivotFieldState(context, payload) {
+  const pivot = await getOrdinaryPivot(context, payload.pivotTableName);
+  const fieldName = requiredString(payload.fieldName, "fieldName");
+  const collections = [
+    ["Row", pivot.rowHierarchies],
+    ["Column", pivot.columnHierarchies],
+    ["Filter", pivot.filterHierarchies],
+    ["Value", pivot.dataHierarchies]
+  ];
+  for (const [, collection] of collections) {
+    collection.load("items/name,items/position");
+  }
+  await context.sync();
+
+  for (const [area, collection] of collections) {
+    for (const hierarchy of collection.items) {
+      if (area === "Value") {
+        hierarchy.field.load("name");
+      } else {
+        hierarchy.fields.load("items/name");
+      }
+    }
+  }
+  await context.sync();
+
+  for (const [area, collection] of collections) {
+    const hierarchy = collection.items.find((candidate) =>
+      candidate.name === fieldName
+      || (area === "Value"
+        ? candidate.field.name === fieldName
+        : candidate.fields.items.some((field) => field.name === fieldName)));
+    if (hierarchy) {
+      return {
+        pivot,
+        collection,
+        hierarchy,
+        field: area === "Value"
+          ? hierarchy.field
+          : hierarchy.fields.items.find((field) => field.name === fieldName)
+            ?? hierarchy.fields.items[0],
+        area,
+        position: hierarchy.position + 1
+      };
+    }
+  }
+  throw new Error(`Field '${fieldName}' is not currently placed in any area.`);
+}
+
+function pivotFieldResult(fieldNameValue, values = {}) {
+  return success({
+    fieldName: requiredString(fieldNameValue, "fieldName"),
+    customName: "",
+    area: "Hidden",
+    position: 0,
+    availableValues: [],
+    dataType: "",
+    ...values
+  });
 }
 
 async function findChart(context, value) {

@@ -7,14 +7,21 @@ only `bridge.health`. Candidate handlers for tables and table columns,
 conditional formatting, same-workbook worksheet copy/move, regular charts and
 chart configuration, ordinary local PivotTable creation/deletion, and
 source-identifiable slicer creation remain unavailable to CLI and MCP callers
-until their existing ExcelMcp contracts pass real-Excel parity tests.
+until their existing ExcelMcp contracts pass real-Excel parity tests. The
+disabled ordinary-local PivotTable candidate also implements exact placed-field
+removal, naming, value formatting, item filtering, label sorting, data reads,
+row layout, row-field subtotals, and row/column grand totals.
 
 The Office.js candidate deliberately excludes linked PivotChart creation,
 OLAP/Data Model PivotTables, PivotCache configuration, PivotTable grouping,
 calculated fields and members, and slicer operations whose source identity
-cannot be proved. These operations require the trusted VBA capability or
-remain unsupported; a chart over PivotTable output is not substituted for a
-genuine linked PivotChart.
+cannot be proved. Field listing, row/column/filter/value placement, and
+aggregation changes also remain excluded. Their shared results and validation
+require the source field's exact data type and unique values; Office.js does not
+expose a trustworthy source data type and cannot distinguish dates from numeric
+Excel serials without guessing from number formats. These operations require
+the trusted VBA capability or remain unsupported; a chart over PivotTable
+output is not substituted for a genuine linked PivotChart.
 
 The generated `enabledActions` allowlist is the shared Service/broker release
 gate. Installation and upgrade reset it to `bridge.health`; development
@@ -63,8 +70,10 @@ origin and scale. The actions must remain disabled until that evidence exists.
 
 - Apple Silicon macOS with the supported Excel for Mac version.
 - Node.js 22 or newer for this development-stage package.
-- A localhost certificate and private key for `localhost`, with trust granted
-  by the user. Excel for Mac requires HTTPS for sideloaded add-ins.
+- A currently valid PEM X.509 development leaf with `CA:false` and
+  `subjectAltName=DNS:localhost`, plus its matching unencrypted PEM private
+  key. `serverAuth` extended key usage is recommended. Trust must be granted by
+  the user because Excel for Mac requires HTTPS for sideloaded add-ins.
 
 ExcelMcp does not create a trusted root, add a certificate to the keychain,
 click a trust dialog, or change Excel macro/VBA trust. Create and trust the
@@ -123,6 +132,43 @@ invalidates the task-pane binding, terminalizes and removes outstanding
 requests, removes completed results, and releases the workbook reservation.
 The CLI health probe fails with actionable guidance after a fixed five-second
 deadline instead of waiting indefinitely.
+
+## Guarded candidate acceptance
+
+Source implementation and mock protocol tests do not establish Excel parity.
+After the coordinator grants the serialized desktop slot and the user completes
+the certificate trust, install, bridge start, and exact-workbook task-pane
+activation above, run the separate public-entry-point acceptance workflow:
+
+```bash
+pwsh ./scripts/Test-MacOfficeJsAcceptance.ps1 \
+  -WorkbookPath /absolute/path/OfficeJsAcceptance.xlsx \
+  -CliPivotTable CliPivot \
+  -CliRemovalPivotTable CliRemovalPivot \
+  -McpPivotTable McpPivot \
+  -McpRemovalPivotTable McpRemovalPivot \
+  -RowField Region \
+  -ValueField Sales \
+  -SelectedItem North \
+  -UserSetupConfirmed \
+  -CandidateAllowlistConfirmed \
+  -ExcelSlotConfirmed
+```
+
+Use a dedicated saved workbook. `CliPivot` and `McpPivot` must be ordinary
+local-range or local-table PivotTables with the named row and value fields
+already placed. `CliRemovalPivot` and `McpRemovalPivot` are sacrificial copies
+with the row field placed, because faithful placement is intentionally not an
+Office.js candidate. The script uses only the public `excelcli` and MCP
+entry points and emits a machine-readable receipt.
+
+The runner never installs or trusts certificates, changes Excel security,
+sideloads or launches Excel, edits `bridge.json`, or enables candidates. Before
+running, deliberately add the nine actions reported by
+`-ValidateOnly` to the local `enabledActions` allowlist. Restore the generated
+health-only configuration after acceptance. A timeout after a dispatched
+mutation is an uncertain outcome: stop, inspect the dedicated workbook, and do
+not retry through another backend.
 
 ## Upgrade
 

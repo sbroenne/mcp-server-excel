@@ -37,7 +37,7 @@ public interface IPivotTableCalcCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <returns>Values with headers, row/column labels, formatted numbers</returns>
-    [ServiceAction("get-data")]
+    [ServiceAction("get-data"), OfficeAddInAction("1.15", mutation: false)]
     PivotTableDataResult GetData(IExcelBatch batch, string pivotTableName);
 
     /// <summary>
@@ -165,7 +165,7 @@ public interface IPivotTableCalcCommands
     ///
     /// Supported by both regular and OLAP PivotTables.
     /// </remarks>
-    [ServiceAction("set-layout")]
+    [ServiceAction("set-layout"), OfficeAddInAction("1.15", mutation: true)]
     OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout);
 
     /// <summary>
@@ -183,7 +183,7 @@ public interface IPivotTableCalcCommands
     ///
     /// OLAP PivotTables only support Automatic subtotals.
     /// </remarks>
-    [ServiceAction("set-subtotals")]
+    [ServiceAction("set-subtotals"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName,
         string fieldName, bool showSubtotals);
 
@@ -205,7 +205,7 @@ public interface IPivotTableCalcCommands
     /// - Regular PivotTables: Full support
     /// - OLAP PivotTables: Full support
     /// </remarks>
-    [ServiceAction("set-grand-totals")]
+    [ServiceAction("set-grand-totals"), OfficeAddInAction("1.15", mutation: true)]
     OperationResult SetGrandTotals(IExcelBatch batch, string pivotTableName,
         bool showRowGrandTotals, bool showColumnGrandTotals);
 }
