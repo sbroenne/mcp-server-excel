@@ -60,7 +60,7 @@ public sealed class MacVbaHelperClientTests : IDisposable
             actions.Add(request.Action);
             var result = request.Action == "helper.capabilities"
                 ? """
-                  {"helperVersion":"1.0.1","protocolVersion":1,"supportedActions":["vba.view"],"staticAvailability":{},"engineCapabilities":{},"trustReadiness":{},"provenMethods":{}}
+                  {"helperVersion":"1.1.0","protocolVersion":1,"supportedActions":["vba.view"],"staticAvailability":{},"engineCapabilities":{},"trustReadiness":{},"provenMethods":{}}
                   """
                 : """{"moduleName":"Module1","source":"Option Explicit"}""";
             var response = $$"""
@@ -134,7 +134,7 @@ public sealed class MacVbaHelperClientTests : IDisposable
             var request = MacVbaHelperProtocol.ParseRequest(
                 envelope.RootElement.GetProperty("requestJson").GetString()!);
             const string result =
-                """{"helperVersion":"1.0.1","protocolVersion":1,"supportedActions":["vba.view"],"staticAvailability":{},"engineCapabilities":{},"trustReadiness":{},"provenMethods":{}}""";
+                """{"helperVersion":"1.1.0","protocolVersion":1,"supportedActions":["vba.view"],"staticAvailability":{},"engineCapabilities":{},"trustReadiness":{},"provenMethods":{}}""";
             var response = $$"""
                 {"version":1,"requestId":"{{request.RequestId}}","success":true,"result":{{result}},"error":null}
                 """;
@@ -169,7 +169,7 @@ public sealed class MacVbaHelperClientTests : IDisposable
             var request = MacVbaHelperProtocol.ParseRequest(
                 envelope.RootElement.GetProperty("requestJson").GetString()!);
             var result = request.Action == "helper.capabilities"
-                ? """{"helperVersion":"1.0.1","protocolVersion":1,"supportedActions":["vba.view"],"staticAvailability":{},"engineCapabilities":{},"trustReadiness":{},"provenMethods":{}}"""
+                ? """{"helperVersion":"1.1.0","protocolVersion":1,"supportedActions":["vba.view"],"staticAvailability":{},"engineCapabilities":{},"trustReadiness":{},"provenMethods":{}}"""
                 : """{"moduleName":"Module1","source":"Option Explicit"}""";
             var response = $$"""
                 {"version":1,"requestId":"{{request.RequestId}}","success":true,"result":{{result}},"error":null}
