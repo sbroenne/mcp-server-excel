@@ -1,7 +1,7 @@
 Attribute VB_Name = "ExcelMcpHelper"
 Option Explicit
 
-Private Const HELPER_VERSION As String = "1.0.0"
+Private Const HELPER_VERSION As String = "1.0.1"
 Private Const PROTOCOL_VERSION As Long = 1
 Private Const MAX_PAYLOAD_BYTES As Long = 262144
 Private Const STANDARD_MODULE_TYPE As Long = 1
