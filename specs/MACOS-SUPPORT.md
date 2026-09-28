@@ -567,6 +567,33 @@ be authored and saved by Excel from repository-owned source; validation-only
 mode does not launch Excel and a successful source/portable check is not
 desktop evidence.
 
+Power Query lifecycle has its own guarded public acceptance workflow:
+
+```powershell
+pwsh ./scripts/Test-MacPowerQueryPublicAcceptance.ps1 `
+  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
+  -WorkbookPath '/absolute/path/ExcelMcpPowerQueryAcceptance.xlsx' `
+  -HelperInstalledTrustedConfirmed `
+  -ExcelAuthoredWorkbookConfirmed `
+  -DedicatedWorkbookConfirmed `
+  -ExcelSlotConfirmed
+```
+
+The supplied workbook must be an Excel-authored dedicated workbook with no
+existing Power Queries. The runner creates separate working copies for CLI and
+MCP, scopes `EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS` to the nine exact helper
+candidates only in its child processes, and invokes the public `powerquery`
+surface rather than `helper.dispatch`. It exercises create/list/view/update/
+rename/get-load-config/load-to/refresh/unload/delete/refresh-all/evaluate with
+literal `#table` M that has no external source or credentials. Package reads are
+checked after explicit saved checkpoints in the disposable working copy.
+Data Model and combined destinations must still fail with
+`PlatformNotSupported`. A passing receipt records
+`acceptanceScope=public-powerquery-lifecycle-cli-mcp` and
+`publicCommandAcceptance=true`; `-ValidateOnly` is non-proof. A timeout or
+unconfirmed exact close preserves the working copy and fails with manual
+reconciliation guidance instead of deleting uncertain state.
+
 Scenario helper acceptance is independently gated by
 `EXCELMCP_MAC_SCENARIO_E2E=1`; the broader macOS E2E switch does not enable it.
 

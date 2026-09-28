@@ -18,3 +18,10 @@ adapters for VBA source lifecycle and exact workbook-qualified
 `Module.Procedure` execution with bounded string parameters. Installing the
 helper does not enable unproven actions; every new method remains individually
 gated by prompt-free CLI and MCP evidence.
+
+Add a guarded public Power Query lifecycle acceptance runner for helper 1.3.0.
+It requires explicit user confirmations, a dedicated Excel-authored workbook,
+and an exclusive desktop slot; scopes the exact candidate actions to child CLI
+and MCP processes; uses only literal credential-free M; verifies supported
+worksheet/connection-only behavior and gated Data Model variants; and emits
+validation-only receipts that cannot be mistaken for runtime proof.

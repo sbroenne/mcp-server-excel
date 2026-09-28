@@ -89,12 +89,26 @@ unknown/duplicate properties, and mismatched correlation must be rejected
 before any mutation, followed by one read-only capability request through both
 CLI and MCP.
 
-Maintainers running bounded candidate acceptance may set
-`EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS` to a comma-separated list of exact
-actions such as `powerquery.create,powerquery.delete`. This opt-in enables only
-listed actions that the matching helper version also advertises; unknown names
-are rejected, and it never enables another Power Query method implicitly.
-Remove the variable after the acceptance run.
+After direct helper-engine validation, run the separately guarded public Power
+Query lifecycle workflow only with an exclusive desktop Excel slot:
+
+```powershell
+pwsh ./scripts/Test-MacPowerQueryPublicAcceptance.ps1 `
+  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
+  -WorkbookPath '/absolute/path/ExcelMcpPowerQueryAcceptance.xlsx' `
+  -HelperInstalledTrustedConfirmed `
+  -ExcelAuthoredWorkbookConfirmed `
+  -DedicatedWorkbookConfirmed `
+  -ExcelSlotConfirmed
+```
+
+The workbook must be an Excel-authored dedicated workbook with no existing
+Power Queries. The workflow uses only public CLI and MCP commands, literal
+credential-free `#table` M, separate disposable working copies, and an exact
+per-action candidate allowlist scoped to child processes. It verifies supported
+worksheet and connection-only lifecycle behavior plus continued rejection of
+Data Model and combined destinations. `-ValidateOnly` checks the plan and emits
+a non-proof receipt; it does not launch Excel or prove a public method.
 
 Macro execution and VBA project access are separate settings. Do not enable all
 macros globally to install the helper. Enable only the trust your reviewed
