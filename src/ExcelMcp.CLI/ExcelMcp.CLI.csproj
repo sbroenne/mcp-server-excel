@@ -42,6 +42,9 @@
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
+
+    <!-- Application Insights Connection String - embedded at build time from environment variable -->
+    <AppInsightsConnectionString Condition="'$(AppInsightsConnectionString)' == ''">$(APPINSIGHTS_CONNECTION_STRING)</AppInsightsConnectionString>
   </PropertyGroup>
 
   <!-- Release Build Optimizations -->
@@ -72,12 +75,44 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
+    <PackageReference Include="Microsoft.ApplicationInsights" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+
+  <!-- Inline task: Write text to file (semicolons safe, unlike WriteLinesToFile) -->
+  <UsingTask TaskName="WriteCliTelemetryConfig" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <FilePath ParameterType="System.String" Required="true" />
+      <Content ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        System.IO.File.WriteAllText(FilePath, Content);
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="GenerateTelemetryConfig" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <TelemetryConfigFile>$(IntermediateOutputPath)TelemetryConfig.g.cs</TelemetryConfigFile>
+      <TelemetryConfigContent>// Auto-generated at build time - do not edit
+namespace Sbroenne.ExcelMcp.CLI.Telemetry%3B
+
+internal static class TelemetryConfig
+{
+    public const string ConnectionString = "$(AppInsightsConnectionString)"%3B
+}
+</TelemetryConfigContent>
+    </PropertyGroup>
+    <WriteCliTelemetryConfig FilePath="$(TelemetryConfigFile)" Content="$(TelemetryConfigContent)" />
+    <ItemGroup>
+      <Compile Include="$(TelemetryConfigFile)" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <None Include="..\..\LICENSE" Pack="true" PackagePath="" />

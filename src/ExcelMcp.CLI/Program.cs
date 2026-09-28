@@ -2,6 +2,7 @@ using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -13,7 +14,18 @@ internal sealed class Program
     private static readonly string[] VersionFlags = ["--version", "-v"];
     private static readonly string[] QuietFlags = ["--quiet", "-q"];
 
-    private static Task<int> Main(string[] args) => RunAsync(args);
+    private static async Task<int> Main(string[] args)
+    {
+        CliTelemetry.Initialize();
+        try
+        {
+            return await RunAsync(args);
+        }
+        finally
+        {
+            CliTelemetry.Flush();
+        }
+    }
 
     internal static async Task<int> RunAsync(
         string[] args,
@@ -130,7 +142,7 @@ internal sealed class Program
 
         try
         {
-            return app.Run(filteredArgs);
+            return CliTelemetry.TrackCliInvocation(filteredArgs, () => app.Run(filteredArgs));
         }
         catch (CommandRuntimeException ex)
         {

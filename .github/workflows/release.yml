@@ -200,6 +200,8 @@ jobs:
 
     - name: Build CLI
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}.0 -p:FileVersion=${{ env.VERSION }}.0
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
     - name: Pack CLI NuGet (secondary distribution)
       run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./cli-nupkg -p:Version=${{ env.VERSION }}
@@ -220,6 +222,8 @@ jobs:
           -p:NuGetAudit=false `
           --output ./cli-publish
       shell: pwsh
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
     - name: Build and Test CLI npm Packages
       run: |

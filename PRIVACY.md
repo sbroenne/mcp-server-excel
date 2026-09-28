@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** August 28, 2026
+**Last Updated:** September 20, 2026
 
 ## Overview
 
@@ -8,29 +8,31 @@ MCP Server for Excel ("ExcelMcp") is an open-source tool that enables AI assista
 
 ## Data Collection Summary
 
-**Telemetry applies to the MCP Server only.** The CLI (`excelcli`) and its background daemon send no telemetry of any kind — the code paths described below exist solely in `ExcelMcp.McpServer`.
-
-ExcelMcp's MCP Server collects **limited, anonymous telemetry** to improve the
-software. The statements below describe telemetry collection, not the workbook
-data that a tool returns to your chosen AI assistant.
+ExcelMcp's MCP Server and CLI collect **limited, anonymous telemetry** to improve
+the software. The CLI background daemon does not send telemetry independently;
+the short-lived `excelcli` command process records operations requested through
+it. The statements below describe telemetry collection, not the workbook data
+that a tool returns to your chosen AI assistant.
 
 ### What We DO Collect (Anonymous Telemetry)
 
-- **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values")
+- **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values").
+  Only known ExcelMcp commands are reported; anything else is reported as "other/other"
+- **Entry point** - Whether the operation was requested through the CLI or MCP Server
 - **Performance metrics** - How long operations take (duration in milliseconds)
 - **Invocation outcome** - Whether an operation succeeded, returned an expected
   negative diagnostic result, or failed
 - **Failure class** - A fixed privacy-safe label for input or state, an external
   dependency, timeout or cancellation, Excel runtime, an internal product fault,
   or an unclassified failure
-- **Session information** - A random session ID generated each time the server starts
+- **Session information** - A random telemetry session ID generated each time the CLI or server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
 - **Session alias compatibility** - Whether a session-bound MCP request used the
   fixed `sessionId` compatibility alias. Its custom properties contain only the
   tool, declared action, alias name, and application version. Like other MCP
   telemetry, the standard context also includes the anonymous user ID and the
-  random MCP server process telemetry session ID described above.
+  random MCP Server process telemetry session ID described above.
 - **Unhandled exceptions** - Error type, approved source, and project-owned failure site only
   (never exception messages or stack traces)
 
@@ -45,10 +47,10 @@ data that a tool returns to your chosen AI assistant.
 - ❌ **User accounts** - No registration or sign-in required
 - ❌ **Error details** - Error messages, response content, exception names, and
   stack traces are not included in invocation outcome telemetry
-- ❌ **Workbook session IDs or tool arguments** - Compatibility telemetry never
-  includes the Excel workbook `session_id`/`sessionId` value, workbook path,
-  request arguments, or user content. The random MCP server process telemetry
-  session ID listed above is separate from workbook identity.
+- ❌ **Workbook session IDs or tool arguments** - Telemetry never includes the
+  Excel workbook `session_id`/`sessionId` value, workbook path, request
+  arguments, or user content. The random process telemetry session ID listed
+  above is separate from workbook identity.
 
 ### Purpose of Telemetry
 
@@ -83,9 +85,8 @@ ExcelMcp drives the Excel application on your local machine:
    it handles that data
 4. **Optional Network Features** - Remote M/DAX formatting and Python in Excel
    use external services only when you request those features
-5. **Telemetry** - Release builds of the MCP Server can send the anonymous usage
-   metrics listed above to Azure Application Insights; the CLI sends no
-   telemetry
+5. **Telemetry** - Release builds of the MCP Server and CLI can send the
+   anonymous usage metrics listed above to Azure Application Insights
 
 ## Data Flow
 
@@ -95,7 +96,7 @@ When you use ExcelMcp with an AI assistant (like Claude):
 2. The AI assistant calls ExcelMcp tools on your local machine
 3. ExcelMcp performs the requested Excel operations locally
 4. Requested results are returned to the AI assistant through your MCP client
-5. The MCP Server can send anonymous usage telemetry to Azure Application Insights
+5. The MCP Server or CLI can send anonymous usage telemetry to Azure Application Insights
 
 Some operations have additional data flows:
 
@@ -157,6 +158,6 @@ For questions about this privacy policy or the ExcelMcp project:
 **Summary:** ExcelMcp drives local Excel and reads or writes workbook files on
 your machine. Requested tool results can be returned to your chosen AI
 assistant. Remote code formatting and Python in Excel use external services only
-when requested. The MCP Server can send anonymous usage telemetry, but that
-telemetry excludes workbook contents, file names, paths, and personal
-information. The CLI sends no telemetry.
+when requested. The MCP Server and CLI can send anonymous usage telemetry, but
+that telemetry excludes workbook contents, file names, paths, arguments, and
+personal information.
