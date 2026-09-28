@@ -111,6 +111,9 @@ through public range reads after saved reopen checkpoints, plus continued
 rejection of Data Model and combined destinations. `-ValidateOnly` checks the
 plan and emits a non-proof receipt; it does not launch Excel or prove a public
 method.
+The CLI working copy uses a short unique daemon pipe. Cleanup invokes bounded
+`service stop` on that same pipe, verifies its result, and never targets shared
+Excel or another client's daemon.
 
 Macro execution and VBA project access are separate settings. Do not enable all
 macros globally to install the helper. Enable only the trust your reviewed

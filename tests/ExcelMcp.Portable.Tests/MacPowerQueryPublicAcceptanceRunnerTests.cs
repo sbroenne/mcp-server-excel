@@ -130,15 +130,34 @@ public sealed class MacPowerQueryPublicAcceptanceRunnerTests
             StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Runner_ShutsDownOnlyItsPrivateCliPipe()
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    public async Task Runner_ShutsDownOnlyItsPrivateCliPipe(int exitCode, bool success)
     {
         var script = ReadRunner();
 
-        Assert.Contains("Stop-ExcelMcpProcesses.ps1", script, StringComparison.Ordinal);
-        Assert.Contains("-PipeName $environment.EXCELMCP_CLI_PIPE", script, StringComparison.Ordinal);
         Assert.DoesNotContain("Stop-Process", script, StringComparison.Ordinal);
         Assert.DoesNotContain("Get-Process", script, StringComparison.Ordinal);
+        Assert.Contains("$start.Environment[$entry.Key] = $entry.Value", script, StringComparison.Ordinal);
+        using var fixture = new RunnerFixture();
+        var result = await fixture.RunCleanupAsync(exitCode, success);
+        Assert.Equal(0, result.ExitCode);
+        using var document = JsonDocument.Parse(result.StandardOutput);
+        var receipt = document.RootElement;
+        Assert.Equal(1, receipt.GetProperty("calls").GetInt32());
+        Assert.Equal(
+            ["fixture-cli.dll", "-q", "service", "stop"],
+            receipt.GetProperty("arguments").EnumerateArray().Select(item => Assert.IsType<string>(item.GetString())).ToArray());
+        var pipe = Assert.IsType<string>(receipt.GetProperty("pipe").GetString());
+        var macSocketPath = "/var/folders/aa/" + new string('a', 30) + "/T/CoreFxPipe_" + pipe;
+        Assert.InRange(System.Text.Encoding.UTF8.GetByteCount(macSocketPath), 1, 104);
+        Assert.Equal(exitCode != 0 || !success, receipt.GetProperty("failed").GetBoolean());
+        if (exitCode != 0 || !success)
+        {
+            Assert.Contains("Private CLI daemon cleanup", receipt.GetProperty("error").GetString(), StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -220,6 +239,83 @@ public sealed class MacPowerQueryPublicAcceptanceRunnerTests
 
         public string HelperPath { get; }
         public string WorkbookPath { get; }
+
+        public async Task<ProcessResult> RunCleanupAsync(int exitCode, bool success)
+        {
+            var start = new ProcessStartInfo("pwsh")
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = _directory
+            };
+            start.Environment["RUNNER_SCRIPT_PATH"] = Path.Combine(
+                FindRepository(), "scripts", "Test-MacPowerQueryPublicAcceptance.ps1");
+            start.Environment["FIXTURE_EXIT_CODE"] = exitCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            start.Environment["FIXTURE_SUCCESS"] = success ? "true" : "false";
+            start.ArgumentList.Add("-NoProfile");
+            start.ArgumentList.Add("-Command");
+            start.ArgumentList.Add("""
+                $ErrorActionPreference = 'Stop'
+                $names = @('Stop-PrivateCliDaemon', 'Invoke-Cli', 'Invoke-CliRaw', 'ConvertFrom-StrictJson')
+                $ast = [Management.Automation.Language.Parser]::ParseFile($env:RUNNER_SCRIPT_PATH, [ref]$null, [ref]$null)
+                $functions = $ast.FindAll({
+                    param($node)
+                    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $names -contains $node.Name
+                }, $true)
+                foreach ($function in $functions) { . ([scriptblock]::Create($function.Extent.Text)) }
+                $helperPath = 'fixture-helper.xlam'
+                $candidateActions = 'powerquery.create'
+                $environmentAssignment = $ast.Find({
+                    param($node)
+                    $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+                    $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and
+                    $node.Left.VariablePath.UserPath -ceq 'environment'
+                }, $true)
+                . ([scriptblock]::Create($environmentAssignment.Extent.Text))
+                $cliAssembly = 'fixture-cli.dll'
+                $script:calls = 0
+                $script:observedArguments = @()
+                function Join-Path { throw 'Windows-only cleanup must not be invoked.' }
+                function Invoke-BoundedProcess {
+                    param([string]$FileName, [string[]]$Arguments)
+                    if ($FileName -cne 'dotnet') { throw 'Unexpected process.' }
+                    $script:calls++
+                    $script:observedArguments = $Arguments
+                    return @{
+                        exitCode = [int]$env:FIXTURE_EXIT_CODE
+                        stdout = '{"success":' + $env:FIXTURE_SUCCESS + '}'
+                        stderr = 'fixture stderr'
+                    }
+                }
+                $failed = $false
+                $message = ''
+                try { Stop-PrivateCliDaemon } catch { $failed = $true; $message = $_.Exception.Message }
+                @{
+                    calls = $script:calls
+                    arguments = $script:observedArguments
+                    pipe = $environment.EXCELMCP_CLI_PIPE
+                    failed = $failed
+                    error = $message
+                } | ConvertTo-Json -Compress
+                """);
+            using var process = Process.Start(start)
+                ?? throw new InvalidOperationException("PowerShell did not start.");
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+                throw;
+            }
+            return new ProcessResult(process.ExitCode, await stdout, await stderr);
+        }
 
         public async Task<ProcessResult> RunAsync(params string[] confirmations)
         {

@@ -37,3 +37,8 @@ Reject queued operations and avoid automatic close on unconfirmed reopens.
 Preserve the full Power Query view and load-configuration results in the shared
 Mac response serializer, including M code, query identity and load destination,
 instead of returning only the base success and file-path fields.
+
+Fix daemon startup when invoking `dotnet excelcli.dll`: the child process now
+receives the CLI assembly path instead of attempting to execute `dotnet service`.
+Use a macOS-compatible private pipe name and bounded native CLI shutdown in the
+Power Query acceptance runner rather than Windows-only cleanup discovery.

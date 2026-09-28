@@ -147,7 +147,7 @@ foreach ($assembly in @($cliAssembly, $mcpAssembly)) {
 }
 
 $environment = @{
-    EXCELMCP_CLI_PIPE = "em-pq-public-$([Guid]::NewGuid().ToString('N'))"
+    EXCELMCP_CLI_PIPE = "em-$([Guid]::NewGuid().ToString('N'))"
     EXCELMCP_MAC_VBA_HELPER_PATH = $helperPath
     EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS = $candidateActions
 }
@@ -847,11 +847,7 @@ function Invoke-McpAcceptance {
 }
 
 function Stop-PrivateCliDaemon {
-    & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') `
-        -PipeName $environment.EXCELMCP_CLI_PIPE
-    if ($LASTEXITCODE -ne 0) {
-        throw "Private CLI daemon cleanup failed with exit code $LASTEXITCODE."
-    }
+    $null = Invoke-Cli @('service', 'stop') 'Private CLI daemon cleanup'
 }
 
 try {

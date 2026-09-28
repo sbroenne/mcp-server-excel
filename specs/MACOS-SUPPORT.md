@@ -512,8 +512,12 @@ despite owning a QueryTable relationship. Generation and the package audit now
 enforce that relationship/type agreement, with four failing-first checks.
 The official Open XML schema validator reports no errors for either generated
 variant, but did not detect the semantic mismatch before the fix.
-The corrected worksheet-loaded variant still requires a fresh no-repair
-desktop run after the pending alert is rejected and the exact open reconciled.
+After a read-only empty inventory and non-modal stack confirmed that Excel was
+responsive again, one bounded CLI retry of the corrected worksheet-loaded
+variant still failed to attach, leaving an alert. The table-type correction is
+therefore not the complete solution. Further opens are paused; a user-provided
+repair report from the disposable fixture is needed to identify the remaining
+defect. A repaired workbook would be diagnostic only, never acceptance proof.
 Connection-only MCP acceptance and synchronous refresh are also unproven.
 Both generated variants remain opt-in acceptance candidates, and every
 refresh-dependent action stays gated.
@@ -643,6 +647,12 @@ Data Model and combined destinations must still fail with
 `publicCommandAcceptance=true`; `-ValidateOnly` is non-proof. A timeout or
 unconfirmed exact close preserves the working copy and fails with manual
 reconciliation guidance instead of deleting uncertain state.
+The runner uses a short unique pipe name that fits the macOS Unix-socket path
+limit and stops only its private daemon through the same bounded public CLI
+transport in `finally`. It does not rely on Windows executable discovery.
+Framework-dependent `dotnet excelcli.dll` invocation now passes the CLI assembly
+to its daemon child; an actual no-workbook start/status/stop regression verifies
+that route independently of helper or Excel desktop acceptance.
 
 Scenario helper acceptance is independently gated by
 `EXCELMCP_MAC_SCENARIO_E2E=1`; the broader macOS E2E switch does not enable it.
