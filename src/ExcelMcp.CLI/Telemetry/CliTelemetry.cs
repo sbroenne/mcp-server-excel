@@ -202,6 +202,7 @@ internal static class CliTelemetry
         var stopwatch = Stopwatch.StartNew();
         var exitCode = 1;
         string? failureCategory = null;
+        var operationThrew = false;
         try
         {
             exitCode = operation();
@@ -209,6 +210,7 @@ internal static class CliTelemetry
         }
         catch (Exception ex)
         {
+            operationThrew = true;
             failureCategory = OperationFailureClassifier.Classify(ex);
             throw;
         }
@@ -216,14 +218,17 @@ internal static class CliTelemetry
         {
             stopwatch.Stop();
             CurrentInvocationTelemetry.Value = previousInvocationTelemetry;
-            if (!isBatch || !invocationTelemetry.RequestTracked)
+            var unhandledBatchFailure = isBatch && operationThrew;
+            if (!isBatch || !invocationTelemetry.RequestTracked || unhandledBatchFailure)
             {
                 var expectedNegative = invocationTelemetry.ExpectedNegative;
                 trackInvocation(
                     ResolveCliCommand(args),
                     stopwatch.ElapsedMilliseconds,
                     exitCode == 0 || expectedNegative,
-                    invocationTelemetry.FailureCategory ?? failureCategory,
+                    unhandledBatchFailure
+                        ? failureCategory
+                        : invocationTelemetry.FailureCategory ?? failureCategory,
                     expectedNegative);
             }
         }

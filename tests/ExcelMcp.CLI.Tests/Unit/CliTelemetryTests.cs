@@ -344,6 +344,35 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public void TrackCliInvocation_TracksBatchFailureAfterLocallyRejectedItem()
+    {
+        var trackedInvocations = new List<(string Command, bool Succeeded, string? ErrorCategory)>();
+
+        Assert.Throws<IOException>(() =>
+            CliTelemetry.TrackCliInvocation(
+                ["batch", "--input", "commands.json"],
+                () =>
+                {
+                    CliTelemetry.TrackLocalFailure(
+                        "range.set-values",
+                        5,
+                        "InvalidInput",
+                        (command, _, succeeded, errorCategory, _) =>
+                            trackedInvocations.Add((command, succeeded, errorCategory)));
+                    throw new IOException("Connection failed.");
+                },
+                (command, _, succeeded, errorCategory, _) =>
+                    trackedInvocations.Add((command, succeeded, errorCategory))));
+
+        Assert.Equal(
+            [
+                ("range.set-values", false, "InvalidInput"),
+                ("batch.run", false, (string?)null)
+            ],
+            trackedInvocations);
+    }
+
+    [Fact]
     public void TrackCliInvocation_TracksBatchWhenNoItemsAreTracked()
     {
         var trackedInvocations = new List<(string Command, bool Succeeded)>();
