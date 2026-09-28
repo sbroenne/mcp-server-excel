@@ -18,6 +18,47 @@ public sealed class MacVbaHelperClientTests : IDisposable
         Path.GetTempPath(),
         $"excelmcp-helper-client-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void ScenarioHelperRouting_IsRestrictedToExplicitAcceptance(
+        string command)
+    {
+        var installed = new MacVbaHelperInstallation(
+            IsConfigured: true,
+            SourceExists: true,
+            HelperPath: "/exact/ExcelMcpHelper.xlam",
+            Status: "installed");
+
+        Assert.True(ExcelMcpService.CanUseScenarioForAcceptance(command, "1", installed));
+        Assert.False(ExcelMcpService.CanUseScenarioForAcceptance(command, null, installed));
+        Assert.False(ExcelMcpService.CanUseScenarioForAcceptance(
+            command,
+            "1",
+            installed with { SourceExists = false }));
+        Assert.False(ExcelMcpService.CanUseScenarioForAcceptance(
+            "analysis.list-scenarios",
+            null,
+            installed));
+    }
+
+    [Theory]
+    [InlineData("analysis.list-scenarios")]
+    [InlineData("analysis.update-scenario")]
+    [InlineData("analysis.delete-scenario")]
+    [InlineData("analysis.create-scenario-summary")]
+    public void NativeScenarioRouting_IsRestrictedToExplicitAcceptance(string command)
+    {
+        var missingHelper = new MacVbaHelperInstallation(
+            IsConfigured: false,
+            SourceExists: false,
+            HelperPath: null,
+            Status: "missing");
+
+        Assert.True(ExcelMcpService.CanUseScenarioForAcceptance(command, "1", missingHelper));
+        Assert.False(ExcelMcpService.CanUseScenarioForAcceptance(command, null, missingHelper));
+    }
+
     [Fact]
     public void Installation_RequiresExactConfiguredHelperFile()
     {

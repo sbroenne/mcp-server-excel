@@ -33,18 +33,28 @@ public sealed class MacCommandCapabilitiesTests
 
     [Theory]
     [InlineData("analysis.list-scenarios")]
-    [InlineData("analysis.create-scenario")]
     [InlineData("analysis.update-scenario")]
-    [InlineData("analysis.show-scenario")]
     [InlineData("analysis.delete-scenario")]
     [InlineData("analysis.create-scenario-summary")]
-    public void UnprovenScenarioCommands_RemainExplicitlyGated(string command)
+    public void DictionaryBackedScenarioCommands_RemainGatedUntilRealExcelEvidence(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
         Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains("VBA helper", capability.UnavailableMessage, StringComparison.Ordinal);
     }
 
     [Theory]
