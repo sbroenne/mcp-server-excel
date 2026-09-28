@@ -50,17 +50,34 @@ $moduleSource = "Option Explicit`n`nPublic Function ExcelMcpFixtureValue() As St
 $updatedModuleSource = "Option Explicit`n`nPublic Function ExcelMcpFixtureValue() As String`n    ExcelMcpFixtureValue = `"updated`"`nEnd Function"
 $requiredActions = @(
     'helper.capabilities',
+    'helper.inspect-engines',
     'powerquery.list',
     'powerquery.view',
     'powerquery.create',
     'powerquery.update',
     'powerquery.rename',
     'powerquery.delete',
+    'powerquery.refresh',
+    'powerquery.refresh-all',
+    'powerquery.load-to',
+    'powerquery.unload',
+    'powerquery.evaluate',
+    'analysis.create-scenario',
+    'analysis.show-scenario',
     'vba.list',
     'vba.view',
     'vba.import',
     'vba.update',
     'vba.delete'
+)
+$engineStatuses = @('accessible', 'unavailable', 'error', 'unknown')
+$engineReasonCodes = @(
+    'api_access_only',
+    'no_collection_object',
+    'no_model_object_observed',
+    'no_model_objects_observed',
+    'api_not_exposed',
+    'probe_failed'
 )
 $requiredProvenMethods = @(
     'powerQueryList',
@@ -135,7 +152,7 @@ $validationReceipt = [ordered]@{
     helperSourcePath = [IO.Path]::GetFullPath($helperSourcePath)
     helperSourceExists = [IO.File]::Exists($helperSourcePath)
     entryPoints = @('cli', 'mcp')
-    phases = @('helper.capabilities', 'powerquery', 'vba')
+    phases = @('helper.capabilities', 'helper.inspect-engines', 'powerquery', 'vba')
 }
 if ($ValidateOnly) {
     $validationReceipt | ConvertTo-Json -Depth 8
@@ -321,13 +338,13 @@ function Invoke-HelperAction {
 
 function Assert-Capabilities {
     param([string]$EntryPoint, [hashtable]$Capabilities)
-    if ($Capabilities.helperVersion -cne '1.0.1' -or $Capabilities.protocolVersion -ne 1) {
-        throw "$EntryPoint helper version does not match protocol 1 / helper 1.0.1."
+    if ($Capabilities.helperVersion -cne '1.2.0' -or $Capabilities.protocolVersion -ne 1) {
+        throw "$EntryPoint helper version does not match protocol 1 / helper 1.2.0."
     }
-    foreach ($action in $requiredActions) {
-        if ($Capabilities.supportedActions -cnotcontains $action) {
-            throw "$EntryPoint helper does not advertise '$action'."
-        }
+    $supportedActions = @($Capabilities.supportedActions)
+    if ($supportedActions.Count -ne $requiredActions.Count -or
+        (Compare-Object $requiredActions $supportedActions -CaseSensitive).Count -ne 0) {
+        throw "$EntryPoint helper supportedActions does not match the exact 1.2.0 contract."
     }
     if ($Capabilities.trustReadiness.powerQueryReadable -ne $true) {
         throw "$EntryPoint helper reports Power Query live access is not ready."
@@ -345,6 +362,37 @@ function Assert-Capabilities {
         if (-not $Capabilities.provenMethods.ContainsKey($method) -or
             $Capabilities.provenMethods[$method] -ne $false) {
             throw "$EntryPoint helper method '$method' must remain unproven before this direct-engine run."
+        }
+    }
+}
+
+function Assert-EngineInspection {
+    param([string]$EntryPoint, [hashtable]$Inspection)
+    $inspectionKeys = @($Inspection.Keys)
+    if ($inspectionKeys.Count -ne 2 -or
+        -not $Inspection.ContainsKey('xmlMaps') -or
+        -not $Inspection.ContainsKey('workbookModel')) {
+        throw "$EntryPoint helper engine inspection does not have the exact xmlMaps/workbookModel shape."
+    }
+    foreach ($engineName in @('xmlMaps', 'workbookModel')) {
+        $engine = $Inspection[$engineName]
+        $keys = @($engine.Keys)
+        if ($keys.Count -ne 4 -or
+            -not $engine.ContainsKey('status') -or
+            -not $engine.ContainsKey('apiAccessible') -or
+            -not $engine.ContainsKey('objectCount') -or
+            -not $engine.ContainsKey('reasonCode')) {
+            throw "$EntryPoint helper engine '$engineName' has an invalid result shape."
+        }
+        if ($engineStatuses -cnotcontains [string]$engine.status -or
+            $engineReasonCodes -cnotcontains [string]$engine.reasonCode -or
+            $engine.apiAccessible -isnot [bool] -or
+            ($null -ne $engine.objectCount -and $engine.objectCount -isnot [long])) {
+            throw "$EntryPoint helper engine '$engineName' returned an invalid observation."
+        }
+        if (($engine.status -ceq 'unknown' -and $engine.apiAccessible -ne $true) -or
+            ($engine.status -in @('unavailable', 'error') -and $engine.apiAccessible -ne $false)) {
+            throw "$EntryPoint helper engine '$engineName' returned inconsistent status/accessibility."
         }
     }
 }
@@ -367,6 +415,9 @@ function Invoke-PowerQueryLifecycle {
     $null = Invoke-HelperAction $EntryPoint 'powerquery.create' @{
         name = $queryName
         formula = $queryFormula
+        destination = 'connection-only'
+        sheetName = $null
+        cellAddress = $null
     }
     $script:queryCreated = $true
     $list = Invoke-HelperAction $EntryPoint 'powerquery.list' @{}
@@ -380,6 +431,7 @@ function Invoke-PowerQueryLifecycle {
     $null = Invoke-HelperAction $EntryPoint 'powerquery.update' @{
         name = $queryName
         formula = $updatedQueryFormula
+        refresh = $false
     }
     $null = Invoke-HelperAction $EntryPoint 'powerquery.rename' @{
         name = $queryName
@@ -532,6 +584,8 @@ try {
     foreach ($entryPoint in @('cli', 'mcp')) {
         $capabilities = Invoke-HelperAction $entryPoint 'helper.capabilities' @{}
         Assert-Capabilities $entryPoint $capabilities
+        $engineInspection = Invoke-HelperAction $entryPoint 'helper.inspect-engines' @{}
+        Assert-EngineInspection $entryPoint $engineInspection
         Assert-FixtureNamesAbsent $entryPoint
         Invoke-PowerQueryLifecycle $entryPoint
         Invoke-VbaLifecycle $entryPoint
@@ -540,6 +594,7 @@ try {
             preflight = 'passed'
             capabilitySchemaAccepted = $true
             reportedProvenMethods = $capabilities.provenMethods
+            engineInspection = $engineInspection
             powerQueryConnectionOnly = 'passed'
             vbaStandardModuleSource = 'passed'
             directEngineAccepted = $true

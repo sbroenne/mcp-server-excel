@@ -67,8 +67,12 @@ public sealed class MacHelperFixtureContractTests
         var create = MacHelperFixtureContract.PowerQueryLifecycle[0].Arguments;
         Assert.Equal(MacHelperFixtureContract.QueryName, create["name"]);
         Assert.Equal(MacHelperFixtureContract.QueryFormula, create["formula"]);
+        Assert.Equal("connection-only", create["destination"]);
+        Assert.Null(create["sheetName"]);
+        Assert.Null(create["cellAddress"]);
         var update = MacHelperFixtureContract.PowerQueryLifecycle[3].Arguments;
         Assert.Equal(MacHelperFixtureContract.UpdatedQueryFormula, update["formula"]);
+        Assert.Equal(false, update["refresh"]);
         var rename = MacHelperFixtureContract.PowerQueryLifecycle[4].Arguments;
         Assert.Equal(MacHelperFixtureContract.RenamedQueryName, rename["newName"]);
         var delete = MacHelperFixtureContract.PowerQueryLifecycle[6].Arguments;
@@ -110,7 +114,7 @@ public sealed class MacHelperFixtureContractTests
                 "requestId": "{{RequestId}}",
                 "success": true,
                 "result": {
-                  "helperVersion": "1.0.1",
+                  "helperVersion": "1.2.0",
                   "protocolVersion": 1,
                   "staticAvailability": {
                     "queriesApi": true,
@@ -127,12 +131,18 @@ public sealed class MacHelperFixtureContractTests
                   },
                   "supportedActions": [
                     "helper.capabilities",
+                    "helper.inspect-engines",
                     "powerquery.list",
                     "powerquery.view",
                     "powerquery.create",
                     "powerquery.update",
                     "powerquery.rename",
                     "powerquery.delete",
+                    "powerquery.refresh",
+                    "powerquery.refresh-all",
+                    "powerquery.load-to",
+                    "powerquery.unload",
+                    "powerquery.evaluate",
                     "analysis.create-scenario",
                     "analysis.show-scenario",
                     "vba.list",
@@ -182,6 +192,38 @@ public sealed class MacHelperFixtureContractTests
         Assert.All(
             result.GetProperty("provenMethods").EnumerateObject(),
             method => Assert.False(method.Value.GetBoolean()));
+    }
+
+    [Fact]
+    public void EngineInspectionResult_UsesExactReadOnlyObservationShape()
+    {
+        var result = SuccessResult(
+            """
+            {
+              "xmlMaps": {
+                "status": "accessible",
+                "apiAccessible": true,
+                "objectCount": 0,
+                "reasonCode": "api_access_only"
+              },
+              "workbookModel": {
+                "status": "unknown",
+                "apiAccessible": true,
+                "objectCount": null,
+                "reasonCode": "no_model_object_observed"
+              }
+            }
+            """);
+
+        Assert.Equal(["xmlMaps", "workbookModel"], result.EnumerateObject().Select(property => property.Name));
+        Assert.Equal("accessible", result.GetProperty("xmlMaps").GetProperty("status").GetString());
+        Assert.Equal(0, result.GetProperty("xmlMaps").GetProperty("objectCount").GetInt32());
+        Assert.Equal("unknown", result.GetProperty("workbookModel").GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("workbookModel").GetProperty("objectCount").ValueKind);
+        Assert.True(result.GetProperty("workbookModel").GetProperty("apiAccessible").GetBoolean());
+        Assert.Equal(
+            "no_model_object_observed",
+            result.GetProperty("workbookModel").GetProperty("reasonCode").GetString());
     }
 
     [Fact]
