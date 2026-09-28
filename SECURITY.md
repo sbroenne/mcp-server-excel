@@ -81,7 +81,10 @@ user workbooks, change trust, or dynamically select VBA to execute. The helper
 accepts only a fixed action allowlist, exact configured add-in and target
 workbook identities, correlated bounded JSON, and sanitized errors. Installing
 it is not proof that any method is safe; public actions remain independently
-gated until real CLI and MCP evidence exists.
+gated until real CLI and MCP evidence exists. Its optional engine inspection
+reads only late-bound XML Maps and workbook-model object availability/counts;
+it never returns XML, schema, XPath, model source, credentials, or workbook
+values, and an empty model is reported as unknown rather than unavailable.
 
 **Security Implications:**
 
