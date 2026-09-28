@@ -316,9 +316,10 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(3));
         await using var client = await EntryPointClient.CreateAsync(root, entryPoint, output, deadline.Token);
         var completed = false;
+        string? sessionId = null;
         try
         {
-            var sessionId = SessionId(await client.CallAsync("file", "open", null,
+            sessionId = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = workbookPath }, deadline.Token));
             Success(await client.CallAsync("range", "set-values", sessionId,
                 RangeArgs("F1", ("values", new object?[][] { [2] })), deadline.Token));
@@ -358,12 +359,110 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.Equal([1d, 4d, 9d], dataTable.GetProperty("values").EnumerateArray()
                 .Select(row => row[0].GetDouble()).ToArray());
 
+            Success(await client.CallAsync("range", "set-values", sessionId,
+                RangeArgs("K1:K2", ("values", new object?[][] { [1], [2] })), deadline.Token));
+            Success(await client.CallAsync("range", "set-formulas", sessionId,
+                RangeArgs("L1", ("formulas", new object?[][] { ["=SUM(K1:K2)"] })), deadline.Token));
+            Success(await client.CallAsync("analysis", "create-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Best Case",
+                    ["changing_cells"] = "K1:K2",
+                    ["values"] = new object?[] { 10, 20 },
+                    ["comment"] = "Mac scenario fixture",
+                    ["locked"] = false,
+                    ["hidden"] = true
+                }, deadline.Token));
+            Success(await client.CallAsync("analysis", "create-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Alternate",
+                    ["changing_cells"] = "K1:K2",
+                    ["values"] = new object?[] { 5, 6 }
+                }, deadline.Token));
+
+            var scenarios = Success(await client.CallAsync(
+                "analysis", "list-scenarios", sessionId,
+                new() { ["sheet_name"] = "Data" }, deadline.Token));
+            var listed = scenarios.GetProperty("scenarios").EnumerateArray().ToArray();
+            Assert.Equal(2, listed.Length);
+            var bestCase = Assert.Single(
+                listed,
+                scenario => scenario.GetProperty("name").GetString() == "Best Case");
+            Assert.Equal("$K$1:$K$2", bestCase.GetProperty("changingCells").GetString());
+            Assert.Equal([10d, 20d], bestCase.GetProperty("values").EnumerateArray()
+                .Select(value => value.GetDouble()).ToArray());
+            Assert.Contains("Mac scenario fixture", bestCase.GetProperty("comment").GetString());
+            Assert.False(bestCase.GetProperty("locked").GetBoolean());
+            Assert.True(bestCase.GetProperty("hidden").GetBoolean());
+
+            Success(await client.CallAsync("analysis", "update-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Best Case",
+                    ["changing_cells"] = "K1:K2",
+                    ["values"] = new object?[] { 30, 40 }
+                }, deadline.Token));
+            Success(await client.CallAsync("analysis", "show-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Best Case"
+                }, deadline.Token));
+            var shownValues = Success(await client.CallAsync("range", "get-values", sessionId,
+                RangeArgs("K1:K2"), deadline.Token));
+            Assert.Equal([30d, 40d], shownValues.GetProperty("values").EnumerateArray()
+                .Select(row => row[0].GetDouble()).ToArray());
+
+            foreach (var reportType in new[] { "summary", "pivot-table" })
+            {
+                var summary = Success(await client.CallAsync(
+                    "analysis", "create-scenario-summary", sessionId,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["report_type"] = reportType,
+                        ["result_cells"] = "L1"
+                    }, deadline.Token));
+                Assert.Equal(reportType, summary.GetProperty("reportType").GetString());
+                Assert.False(string.IsNullOrWhiteSpace(summary.GetProperty("reportSheetName").GetString()));
+            }
+
+            Success(await client.CallAsync("analysis", "delete-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Alternate"
+                }, deadline.Token));
+            scenarios = Success(await client.CallAsync(
+                "analysis", "list-scenarios", sessionId,
+                new() { ["sheet_name"] = "Data" }, deadline.Token));
+            Assert.Single(scenarios.GetProperty("scenarios").EnumerateArray());
+
             Success(await client.CallAsync("file", "close", sessionId, new(), deadline.Token));
             completed = true;
-            output.WriteLine($"{entryPoint}: real Goal Seek and data-table round trip passed.");
+            output.WriteLine($"{entryPoint}: real Goal Seek, data-table, and scenario round trip passed.");
         }
         finally
         {
+            if (!completed && sessionId is not null)
+            {
+                using var cleanupDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                try
+                {
+                    Success(await client.CallAsync(
+                        "file", "close", sessionId, new() { ["save"] = false }, cleanupDeadline.Token));
+                    output.WriteLine($"Closed failed-run fixture without saving: {workbookPath}");
+                }
+                catch (Exception cleanupError)
+                {
+                    output.WriteLine(
+                        $"Could not close failed-run fixture '{workbookPath}' without saving: {cleanupError.Message}");
+                }
+            }
             if (completed)
             {
                 File.Delete(workbookPath);

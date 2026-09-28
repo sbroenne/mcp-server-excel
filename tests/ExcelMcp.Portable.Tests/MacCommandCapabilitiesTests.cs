@@ -85,6 +85,18 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains("helper", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
     [InlineData("drawing.add-sparkline")]
     [InlineData("drawing.add-shape")]
     [InlineData("slicer.list-slicers")]

@@ -41,6 +41,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
+    private readonly MacVbaHelperClient? _macVbaHelperClient;
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Task, byte> _activeConnectionTasks = new();
     private readonly CancellationTokenSource _shutdownCts = new();
@@ -82,6 +83,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
+            _macVbaHelperClient = new MacVbaHelperClient(_macBackend);
         }
     }
 
@@ -585,7 +587,11 @@ public sealed class ExcelMcpService : IDisposable
         var capability = MacCommandCapabilities.Get(
             command,
             officeCandidateEnabled: officeCandidateEnabled);
-        if (!capability.IsAvailable)
+        var scenarioAcceptance = CanUseScenarioForAcceptance(
+            command,
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E"),
+            MacVbaHelperClient.GetInstallation());
+        if (!capability.IsAvailable && !scenarioAcceptance)
         {
             return new ServiceResponse
             {
@@ -637,6 +643,23 @@ public sealed class ExcelMcpService : IDisposable
                 if (category == "powerquery")
                 {
                     return await DispatchMacPowerQueryAsync(action, request, session);
+                }
+
+                if (IsScenarioHelperCommand(command))
+                {
+                    var helperResult = await _macVbaHelperClient!.DispatchAsync(
+                        session.FilePath,
+                        command,
+                        arguments,
+                        session.OperationTimeout);
+                    var helperResponse = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
+                        ?? new JsonObject();
+                    helperResponse["success"] = true;
+                    return new ServiceResponse
+                    {
+                        Success = true,
+                        Result = helperResponse.ToJsonString(ServiceProtocol.JsonOptions)
+                    };
                 }
 
                 arguments["filePath"] = session.FilePath;
@@ -719,6 +742,16 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             };
         }
+        catch (MacVbaHelperException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.Category,
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
         catch (Exception ex)
         {
             return CreateErrorResponse(ex);
@@ -741,6 +774,29 @@ public sealed class ExcelMcpService : IDisposable
             // The optional add-in must not prevent native session close.
         }
     }
+
+    internal static bool CanUseScenarioForAcceptance(
+        string command,
+        string? e2eMode,
+        MacVbaHelperInstallation installation)
+    {
+        if (!string.Equals(e2eMode, "1", StringComparison.Ordinal))
+        {
+            return false;
+        }
+        return IsNativeScenarioCommand(command)
+            || IsScenarioHelperCommand(command)
+                && installation is { IsConfigured: true, SourceExists: true };
+    }
+
+    private static bool IsNativeScenarioCommand(string command) =>
+        command is "analysis.list-scenarios"
+            or "analysis.update-scenario"
+            or "analysis.delete-scenario"
+            or "analysis.create-scenario-summary";
+
+    private static bool IsScenarioHelperCommand(string command) =>
+        command is "analysis.create-scenario" or "analysis.show-scenario";
 
     private async Task<ServiceResponse> DispatchMacPowerQueryAsync(
         string action,

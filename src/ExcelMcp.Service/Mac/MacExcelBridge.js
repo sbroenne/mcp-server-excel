@@ -77,8 +77,96 @@ function requireRgb(value) {
     return value;
 }
 
+function excelProcessId() {
+    const applications = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
+        "com.microsoft.Excel");
+    if (applications.count !== 1) {
+        throw new Error("Expected exactly one running Microsoft Excel application process.");
+    }
+    return Number(applications.objectAtIndex(0).processIdentifier);
+}
+
+function workbookWindowIdentity(workbook, windowNumber) {
+    if (!Number.isInteger(windowNumber) || windowNumber <= 0) {
+        throw new Error("windowNumber must be a positive integer.");
+    }
+    const windows = workbook.windows;
+    for (let index = 0; index < windows.length; index++) {
+        if (Number(windows[index].windowNumber()) === windowNumber) {
+            const windowId = Number(windows[index].id());
+            if (!Number.isInteger(windowId) || windowId <= 0) {
+                throw new Error("Excel returned an invalid native window identifier.");
+            }
+            return { processId: excelProcessId(), windowId, windowNumber };
+        }
+    }
+    throw new Error(`Workbook window number ${windowNumber} does not exist.`);
+}
+
+function scenarioByName(sheet, scenarioName) {
+    const scenarios = sheet.scenarios;
+    for (let index = 0; index < scenarios.length; index++) {
+        if (scenarios[index].name() === scenarioName) {
+            return scenarios[index];
+        }
+    }
+    throw new Error(`Scenario '${scenarioName}' does not exist on worksheet '${sheet.name()}'.`);
+}
+
+function worksheetNames(workbook) {
+    const names = [];
+    const sheets = workbook.worksheets;
+    for (let index = 0; index < sheets.length; index++) {
+        names.push(sheets[index].name());
+    }
+    return names;
+}
+
+function findAddedWorksheetName(workbook, previousNames) {
+    const currentNames = worksheetNames(workbook);
+    let addedName = null;
+    for (let index = 0; index < currentNames.length; index++) {
+        if (!previousNames.includes(currentNames[index])) {
+            if (addedName !== null) {
+                throw new Error("Excel created more than one scenario summary worksheet.");
+            }
+            addedName = currentNames[index];
+        }
+    }
+    if (addedName === null) {
+        throw new Error("Excel did not create a scenario summary worksheet.");
+    }
+    return addedName;
+}
+
+function validateScenarioValues(changingRange, values) {
+    if (!Array.isArray(values) || values.length === 0) {
+        throw new Error("At least one scenario value is required.");
+    }
+    const changingCellCount = Number(changingRange.countLarge());
+    if (changingCellCount > 32) {
+        throw new Error("A scenario cannot contain more than 32 changing cells.");
+    }
+    if (changingCellCount !== values.length) {
+        throw new Error(
+            `Scenario values count (${values.length}) must match changing cells count (${changingCellCount}).`);
+    }
+}
+
 function normalizeMatrix(value) {
     return Array.isArray(value) ? value : [[value]];
+}
+
+function flattenValues(value) {
+    const matrix = normalizeMatrix(value);
+    const result = [];
+    for (let row = 0; row < matrix.length; row++) {
+        const values = Array.isArray(matrix[row]) ? matrix[row] : [matrix[row]];
+        for (let column = 0; column < values.length; column++) {
+            result.push(values[column]);
+        }
+    }
+    return result;
 }
 
 function repeatMatrix(value, rowCount, columnCount) {
@@ -160,6 +248,16 @@ function run(argv) {
                 success: true,
                 filePath: args.filePath,
                 saved: workbook.saved()
+            });
+        }
+        if (command === "screenshot.window-identity") {
+            const identity = workbookWindowIdentity(workbook, args.windowNumber);
+            return json({
+                success: true,
+                filePath: args.filePath,
+                processId: identity.processId,
+                windowId: identity.windowId,
+                windowNumber: identity.windowNumber
             });
         }
         if (command === "sheet.list") {
@@ -370,6 +468,86 @@ function run(argv) {
                 message: converged
                     ? `Goal Seek reached ${args.goal} in '${args.formulaCell}'.`
                     : `Goal Seek completed without converging on ${args.goal} in '${args.formulaCell}'.`
+            });
+        }
+
+        if (command === "analysis.list-scenarios") {
+            if (!args.sheetName) throw new Error("sheetName is required.");
+
+            const sheet = worksheetByName(workbook, args.sheetName);
+            const scenarios = sheet.scenarios;
+            const result = [];
+            for (let index = 0; index < scenarios.length; index++) {
+                const scenario = scenarios[index];
+                result.push({
+                    name: scenario.name(),
+                    changingCells: scenario.changingCells().address(),
+                    values: flattenValues(scenario.getValues()),
+                    comment: scenario.excelComment() || "",
+                    locked: !!scenario.locked(),
+                    hidden: !!scenario.hidden()
+                });
+            }
+            return json({
+                success: true,
+                sheetName: args.sheetName,
+                scenarios: result,
+                message: `Found ${result.length} scenario(s) on '${args.sheetName}'.`
+            });
+        }
+
+        if (command === "analysis.update-scenario") {
+            if (!args.sheetName) throw new Error("sheetName is required.");
+            if (!args.scenarioName) throw new Error("scenarioName is required.");
+            if (!args.changingCells) throw new Error("changingCells is required.");
+
+            const sheet = worksheetByName(workbook, args.sheetName);
+            const changingRange = sheet.ranges.byName(args.changingCells);
+            validateScenarioValues(changingRange, args.values);
+            scenarioByName(sheet, args.scenarioName).changeScenario({
+                changingCells: changingRange,
+                values: args.values
+            });
+            return json({
+                success: true,
+                message: `Scenario '${args.scenarioName}' updated on '${args.sheetName}'.`
+            });
+        }
+
+        if (command === "analysis.delete-scenario") {
+            if (!args.sheetName) throw new Error("sheetName is required.");
+            if (!args.scenarioName) throw new Error("scenarioName is required.");
+
+            const sheet = worksheetByName(workbook, args.sheetName);
+            scenarioByName(sheet, args.scenarioName).delete();
+            return json({
+                success: true,
+                message: `Scenario '${args.scenarioName}' deleted on '${args.sheetName}'.`
+            });
+        }
+
+        if (command === "analysis.create-scenario-summary") {
+            if (!args.sheetName) throw new Error("sheetName is required.");
+            const reportType = args.reportType || "summary";
+            if (reportType !== "summary" && reportType !== "pivot-table") {
+                throw new Error("reportType must be 'summary' or 'pivot-table'.");
+            }
+
+            const sheet = worksheetByName(workbook, args.sheetName);
+            const existingSheetNames = worksheetNames(workbook);
+            const parameters = {
+                reportType: reportType === "summary" ? "standard summary" : "summary pivot table"
+            };
+            if (args.resultCells) {
+                parameters.resultCells = sheet.ranges.byName(args.resultCells);
+            }
+            sheet.createSummaryForScenarios(parameters);
+            const reportSheetName = findAddedWorksheetName(workbook, existingSheetNames);
+            return json({
+                success: true,
+                reportSheetName,
+                reportType,
+                message: `Scenario ${reportType} report created.`
             });
         }
 
