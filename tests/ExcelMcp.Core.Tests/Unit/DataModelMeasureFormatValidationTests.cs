@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "DataModel")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public class DataModelMeasureFormatValidationTests
 {
     private readonly DataModelCommands _commands = new();

@@ -1,0 +1,46 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Sbroenne.ExcelMcp.Core.Utilities;
+using Xunit;
+
+namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
+
+[Collection("DataModel")]
+[Trait("Layer", "Core")]
+[Trait("Category", "Integration")]
+[Trait("RequiresExcel", "true")]
+[Trait("Feature", "DataModel")]
+[Trait("Speed", "Slow")]
+public sealed class DataModelEvaluateComErrorTests(
+    DataModelPivotTableFixture fixture)
+{
+    [Fact]
+    public void Evaluate_InvalidDax_PreservesComExceptionTopology()
+    {
+        using var batch = ExcelSession.BeginBatch(fixture.TestFilePath);
+        var commands = new DataModelCommands();
+
+        var exception = Assert.ThrowsAny<Exception>(() =>
+            commands.Evaluate(batch, "EVALUATE INVALID_FUNCTION()"));
+
+        Assert.Equal(
+            "ComInterop",
+            OperationFailureClassifier.Classify(exception));
+        Assert.Contains(
+            "DAX evaluation failed",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "INVALID_FUNCTION",
+            exception.Message,
+            StringComparison.Ordinal);
+        var cause =
+            Assert.IsType<System.Runtime.InteropServices.COMException>(
+                exception.InnerException);
+        Assert.Contains(
+            cause.Message,
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+}

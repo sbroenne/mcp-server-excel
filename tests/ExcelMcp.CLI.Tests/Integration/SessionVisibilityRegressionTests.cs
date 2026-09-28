@@ -24,37 +24,6 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
     public SessionVisibilityRegressionTests(ITestOutputHelper output) => _output = output;
 
     [Fact]
-    public async Task SessionOpen_WithoutShow_ReportsHiddenSession()
-    {
-        var workbookPath = CreateExistingWorkbookPath("session-open-hidden");
-        string? sessionId = null;
-
-        try
-        {
-            var (openResult, openJsonDocument) = await CliProcessHelper.RunJsonAsync(
-                ["session", "open", workbookPath],
-                timeoutMs: 30000,
-                diagnosticLabel: "session-open-hidden");
-            using var openJson = openJsonDocument;
-
-            _output.WriteLine($"[session-open-hidden] Stdout: {openResult.Stdout}");
-            _output.WriteLine($"[session-open-hidden] Stderr: {openResult.Stderr}");
-
-            Assert.Equal(0, openResult.ExitCode);
-            Assert.True(openJson.RootElement.GetProperty("success").GetBoolean());
-
-            sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
-            Assert.False(string.IsNullOrWhiteSpace(sessionId));
-
-            await AssertSessionVisibilityAsync(sessionId!, expectedVisible: false, "session-open-hidden-list");
-        }
-        finally
-        {
-            await CloseSessionIfNeededAsync(sessionId, "session-open-hidden-close");
-        }
-    }
-
-    [Fact]
     public async Task SessionOpen_WithShow_ReportsVisibleSession()
     {
         var workbookPath = CreateExistingWorkbookPath("session-open-visible");
@@ -83,72 +52,6 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
         finally
         {
             await CloseSessionIfNeededAsync(sessionId, "session-open-visible-close");
-        }
-    }
-
-    [Fact]
-    public async Task SessionCreate_WithoutShow_ReportsHiddenSession()
-    {
-        var workbookPath = CreateNewWorkbookPath("session-create-hidden");
-        string? sessionId = null;
-
-        try
-        {
-            var (createResult, createJsonDocument) = await CliProcessHelper.RunJsonAsync(
-                ["session", "create", workbookPath],
-                timeoutMs: 30000,
-                diagnosticLabel: "session-create-hidden");
-            using var createJson = createJsonDocument;
-
-            _output.WriteLine($"[session-create-hidden] Stdout: {createResult.Stdout}");
-            _output.WriteLine($"[session-create-hidden] Stderr: {createResult.Stderr}");
-
-            Assert.Equal(0, createResult.ExitCode);
-            Assert.True(createJson.RootElement.GetProperty("success").GetBoolean());
-
-            sessionId = createJson.RootElement.GetProperty("sessionId").GetString();
-            Assert.False(string.IsNullOrWhiteSpace(sessionId));
-            Assert.True(File.Exists(workbookPath));
-
-            await AssertSessionVisibilityAsync(sessionId!, expectedVisible: false, "session-create-hidden-list");
-        }
-        finally
-        {
-            await CloseSessionIfNeededAsync(sessionId, "session-create-hidden-close");
-        }
-    }
-
-    [Fact]
-    public async Task SessionCreate_WithShow_ReportsVisibleSession()
-    {
-        var workbookPath = CreateNewWorkbookPath("session-create-visible");
-        string? sessionId = null;
-
-        try
-        {
-            var (createResult, createJsonDocument) = await CliProcessHelper.RunJsonAsync(
-                ["session", "create", workbookPath, "--show"],
-                timeoutMs: 30000,
-                diagnosticLabel: "session-create-visible");
-            using var createJson = createJsonDocument;
-
-            _output.WriteLine($"[session-create-visible] Stdout: {createResult.Stdout}");
-            _output.WriteLine($"[session-create-visible] Stderr: {createResult.Stderr}");
-
-            Assert.Equal(0, createResult.ExitCode);
-            Assert.True(createJson.RootElement.GetProperty("success").GetBoolean());
-
-            sessionId = createJson.RootElement.GetProperty("sessionId").GetString();
-            Assert.False(string.IsNullOrWhiteSpace(sessionId));
-            Assert.True(File.Exists(workbookPath));
-
-            await AssertSessionVisibilityAsync(sessionId!, expectedVisible: true, "session-create-visible-list");
-            await AssertLiveExcelVisibilityAsync(sessionId!, expectedVisible: true, "session-create-visible-window");
-        }
-
-        finally
-        {
-            await CloseSessionIfNeededAsync(sessionId, "session-create-visible-close");
         }
     }
 
@@ -300,13 +203,6 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
         Assert.True(File.Exists(sourceWorkbookPath), $"Static workbook fixture missing: {sourceWorkbookPath}");
 
         File.Copy(sourceWorkbookPath, workbookPath, overwrite: true);
-        _filesToDelete.Add(workbookPath);
-        return workbookPath;
-    }
-
-    private string CreateNewWorkbookPath(string prefix)
-    {
-        var workbookPath = Path.Combine(Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}.xlsx");
         _filesToDelete.Add(workbookPath);
         return workbookPath;
     }

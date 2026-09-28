@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO.Pipes;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Service.Rpc;
@@ -15,6 +14,7 @@ public sealed class ServiceClient : IDisposable
     private readonly string _pipeName;
     private readonly TimeSpan _connectTimeout;
     private readonly TimeSpan _requestTimeout;
+    private readonly TimeProvider _timeProvider;
     private bool _disposed;
 
     public static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(5);
@@ -22,10 +22,25 @@ public sealed class ServiceClient : IDisposable
         TimeSpan.FromSeconds(ParameterTransforms.MaximumTimeoutSeconds + 60);
 
     public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
+        : this(
+            pipeName,
+            connectTimeout,
+            requestTimeout,
+            TimeProvider.System)
     {
+    }
+
+    internal ServiceClient(
+        string pipeName,
+        TimeSpan? connectTimeout,
+        TimeSpan? requestTimeout,
+        TimeProvider timeProvider)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
         _pipeName = pipeName;
         _connectTimeout = connectTimeout ?? DefaultConnectTimeout;
         _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -55,29 +70,51 @@ public sealed class ServiceClient : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var startedAt = Stopwatch.GetTimestamp();
+        var startedAt = _timeProvider.GetTimestamp();
         using var pipe = ServiceSecurity.CreateClient(_pipeName);
-        var connectTimeout = GetStepTimeout(_connectTimeout, totalTimeout, startedAt);
-        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        connectCts.CancelAfter(connectTimeout);
+        var connectTimeout = GetStepTimeout(
+            _connectTimeout,
+            totalTimeout,
+            startedAt,
+            _timeProvider);
         var connected = false;
 
         try
         {
-            await pipe.ConnectAsync(ToTimeoutMilliseconds(connectTimeout), connectCts.Token);
+            using (var connectTimeoutCts = new CancellationTokenSource(
+                connectTimeout,
+                _timeProvider))
+            using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                connectTimeoutCts.Token))
+            {
+                await pipe.ConnectAsync(ToTimeoutMilliseconds(connectTimeout), connectCts.Token);
+            }
+
             connected = true;
 
             // Use StreamJsonRpc typed proxy for the RPC call
             var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
             try
             {
-                var requestTimeout = GetStepTimeout(_requestTimeout, totalTimeout, startedAt);
-                using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                var requestTimeout = GetStepTimeout(
+                    _requestTimeout,
+                    totalTimeout,
+                    startedAt,
+                    _timeProvider);
+                using var requestTimeoutCts = new CancellationTokenSource(
+                    requestTimeout,
+                    _timeProvider);
+                using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    requestTimeoutCts.Token);
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
-                requestCts.CancelAfter(requestTimeout);
 
                 var callTask = proxy.ProcessCommandAsync(request);
-                var disconnectTask = WaitForPipeDisconnectAsync(pipe, disconnectMonitorCts.Token);
+                var disconnectTask = WaitForPipeDisconnectAsync(
+                    pipe,
+                    _timeProvider,
+                    disconnectMonitorCts.Token);
                 var completed = await Task.WhenAny(callTask, disconnectTask);
                 if (completed == disconnectTask
                     && disconnectTask.IsCompletedSuccessfully
@@ -122,17 +159,18 @@ public sealed class ServiceClient : IDisposable
         }
     }
 
-    private static TimeSpan GetStepTimeout(
+    internal static TimeSpan GetStepTimeout(
         TimeSpan configuredTimeout,
         TimeSpan? totalTimeout,
-        long startedAt)
+        long startedAt,
+        TimeProvider timeProvider)
     {
         if (totalTimeout is null)
         {
             return configuredTimeout;
         }
 
-        var remaining = totalTimeout.Value - Stopwatch.GetElapsedTime(startedAt);
+        var remaining = totalTimeout.Value - timeProvider.GetElapsedTime(startedAt);
         if (remaining <= TimeSpan.Zero)
         {
             throw new TimeoutException();
@@ -162,7 +200,10 @@ public sealed class ServiceClient : IDisposable
         };
     }
 
-    private static async Task<bool> WaitForPipeDisconnectAsync(Stream pipe, CancellationToken cancellationToken)
+    private static async Task<bool> WaitForPipeDisconnectAsync(
+        Stream pipe,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -173,7 +214,10 @@ public sealed class ServiceClient : IDisposable
                     return true;
                 }
 
-                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(250),
+                    timeProvider,
+                    cancellationToken);
             }
         }
         catch (OperationCanceledException)

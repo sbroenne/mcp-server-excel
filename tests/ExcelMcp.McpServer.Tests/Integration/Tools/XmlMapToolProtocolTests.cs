@@ -1,32 +1,24 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-/// <summary>
-/// End-to-end XML map tool coverage through the MCP protocol.
-/// </summary>
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "XmlMap")]
-[Trait("RequiresExcel", "true")]
-public sealed class XmlMapToolProtocolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class XmlMapToolProtocolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    private readonly string _tempDir;
-
-    public XmlMapToolProtocolTests(ITestOutputHelper output)
-        : base(output, "XmlMapToolProtocolClient")
-    {
-        _tempDir = CreateTempDirectory("XmlMapToolProtocolTests");
-    }
+    private const string SessionId = "recording-session";
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task ListTools_XmlMapSchema_ExposesCompleteActionAndParameterContract()
     {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var tools = await _fixture.ListToolsAsync();
         var tool = Assert.Single(tools, candidate => candidate.Name == "xmlmap");
         var properties = tool.JsonSchema.GetProperty("properties");
 
@@ -59,51 +51,101 @@ public sealed class XmlMapToolProtocolTests : McpIntegrationTestBase
               <customer><name>Grace</name><score>99</score></customer>
             </customers>
             """;
-        var workbookPath = Path.Join(_tempDir, $"XmlMap_{Guid.NewGuid():N}.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
+        const string mapName = "CustomersMap";
 
-        var importJson = await CallToolAsync("xmlmap", new Dictionary<string, object?>
+        var importJson = await CallAsync(
+            new()
+            {
+                ["action"] = "import-xml",
+                ["session_id"] = SessionId,
+                ["xml_data"] = xmlData,
+                ["sheet_name"] = "Sheet1",
+                ["start_cell"] = "B2"
+            },
+            "xmlmap.import-xml",
+            $$"""{"xmlData":{{JsonSerializer.Serialize(xmlData)}},"sheetName":"Sheet1","startCell":"B2"}""",
+            $$"""{"success":true,"mapName":"{{mapName}}"}""",
+            args =>
+            {
+                Assert.Equal(xmlData, args.GetProperty("xmlData").GetString());
+                Assert.Equal("Sheet1", args.GetProperty("sheetName").GetString());
+                Assert.Equal("B2", args.GetProperty("startCell").GetString());
+            });
+        using (var import = JsonDocument.Parse(importJson))
         {
-            ["action"] = "import-xml",
-            ["session_id"] = sessionId,
-            ["xml_data"] = xmlData,
-            ["sheet_name"] = "Sheet1",
-            ["start_cell"] = "B2"
-        }, TimeSpan.FromSeconds(30));
-        AssertSuccess(importJson, "xmlmap import-xml");
-        using var importDocument = JsonDocument.Parse(importJson);
-        var mapName = importDocument.RootElement.GetProperty("mapName").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(mapName));
+            Assert.Equal(
+                mapName,
+                import.RootElement.GetProperty("mapName").GetString());
+        }
 
-        var exportJson = await CallToolAsync("xmlmap", new Dictionary<string, object?>
+        var exportJson = await CallAsync(
+            new()
+            {
+                ["action"] = "export-xml",
+                ["session_id"] = SessionId,
+                ["map_name"] = mapName
+            },
+            "xmlmap.export-xml",
+            """{"mapName":"CustomersMap"}""",
+            $$"""{"success":true,"xmlData":{{JsonSerializer.Serialize(xmlData)}}}""",
+            args => Assert.Equal(
+                mapName,
+                args.GetProperty("mapName").GetString()));
+        using (var export = JsonDocument.Parse(exportJson))
         {
-            ["action"] = "export-xml",
-            ["session_id"] = sessionId,
-            ["map_name"] = mapName
-        }, TimeSpan.FromSeconds(30));
-        AssertSuccess(exportJson, "xmlmap export-xml");
-        using var exportDocument = JsonDocument.Parse(exportJson);
-        var exportedXml = exportDocument.RootElement.GetProperty("xmlData").GetString();
-        Assert.Contains("Ada", exportedXml, StringComparison.Ordinal);
-        Assert.Contains("Grace", exportedXml, StringComparison.Ordinal);
+            var exportedXml = export.RootElement.GetProperty("xmlData").GetString();
+            Assert.Contains("Ada", exportedXml, StringComparison.Ordinal);
+            Assert.Contains("Grace", exportedXml, StringComparison.Ordinal);
+        }
 
-        var deleteJson = await CallToolAsync("xmlmap", new Dictionary<string, object?>
+        await CallAsync(
+            new()
+            {
+                ["action"] = "delete",
+                ["session_id"] = SessionId,
+                ["map_name"] = mapName
+            },
+            "xmlmap.delete",
+            """{"mapName":"CustomersMap"}""",
+            """{"success":true}""",
+            args => Assert.Equal(
+                mapName,
+                args.GetProperty("mapName").GetString()));
+
+        var listJson = await CallAsync(
+            new()
+            {
+                ["action"] = "list",
+                ["session_id"] = SessionId
+            },
+            "xmlmap.list",
+            null,
+            """{"success":true,"maps":[]}""");
+        using var list = JsonDocument.Parse(listJson);
+        Assert.Empty(list.RootElement.GetProperty("maps").EnumerateArray());
+    }
+
+    private async Task<string> CallAsync(
+        Dictionary<string, object?> arguments,
+        string command,
+        string? expectedArgsJson,
+        string responseJson,
+        Action<JsonElement>? assertArgs = null)
+    {
+        var call = await _fixture.CallToolAsync(
+            "xmlmap",
+            arguments,
+            RecordingToolTest.Success(responseJson),
+            command,
+            expectedArgsJson);
+        Assert.Equal(command, call.Request.Command);
+        Assert.Equal(SessionId, call.Request.SessionId);
+        if (assertArgs is not null)
         {
-            ["action"] = "delete",
-            ["session_id"] = sessionId,
-            ["map_name"] = mapName
-        }, TimeSpan.FromSeconds(30));
-        AssertSuccess(deleteJson, "xmlmap delete");
-
-        var listJson = await CallToolAsync("xmlmap", new Dictionary<string, object?>
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        }, TimeSpan.FromSeconds(30));
-        AssertSuccess(listJson, "xmlmap list");
-        using var listDocument = JsonDocument.Parse(listJson);
-        Assert.Empty(listDocument.RootElement.GetProperty("maps").EnumerateArray());
-
-        await CloseSessionAsync(sessionId, save: false);
+            Assert.NotNull(call.Request.Args);
+            using var args = JsonDocument.Parse(call.Request.Args);
+            assertArgs(args.RootElement);
+        }
+        return call.JsonResult;
     }
 }

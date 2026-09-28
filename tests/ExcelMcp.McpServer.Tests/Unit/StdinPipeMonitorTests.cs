@@ -8,6 +8,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "StdinPipeMonitor")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class StdinPipeMonitorTests
 {
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -22,19 +24,42 @@ public sealed class StdinPipeMonitorTests
     [Fact]
     public void Start_WhenStdinIsPipe_ReturnsTimer()
     {
-        // dotnet test spawns the test process with piped stdin,
-        // so Start() should detect the pipe and return a timer.
+        Assert.True(CreatePipe(out var readHandle, out var writeHandle, IntPtr.Zero, 0));
         var lifetime = new FakeHostApplicationLifetime();
-
-        var timer = StdinPipeMonitor.Start(lifetime);
-
         try
         {
+            using var timer = StdinPipeMonitor.Start(lifetime, readHandle);
             Assert.NotNull(timer);
         }
         finally
         {
-            timer?.Dispose();
+            CloseHandle(readHandle);
+            CloseHandle(writeHandle);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Start_WithInvalidHandle_ReturnsNull(int handle)
+    {
+        using var timer = StdinPipeMonitor.Start(new FakeHostApplicationLifetime(), new IntPtr(handle));
+        Assert.Null(timer);
+    }
+
+    [Fact]
+    public void Start_WithFileHandle_ReturnsNull()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            using var file = File.OpenRead(path);
+            using var timer = StdinPipeMonitor.Start(new FakeHostApplicationLifetime(), file.SafeFileHandle.DangerousGetHandle());
+            Assert.Null(timer);
+        }
+        finally
+        {
+            File.Delete(path);
         }
     }
 

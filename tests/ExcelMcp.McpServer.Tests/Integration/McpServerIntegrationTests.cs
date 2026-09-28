@@ -31,6 +31,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "McpProtocol")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetime, IAsyncDisposable
 {
     private readonly Pipe _clientToServerPipe = new();
@@ -398,4 +400,3 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         output.WriteLine("\n✓ Server capabilities correctly exposed");
     }
 }
-

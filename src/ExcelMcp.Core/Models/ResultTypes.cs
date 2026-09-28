@@ -352,14 +352,6 @@ public class PowerQueryInfo
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Full M code retained for source and binary compatibility.
-    /// Use the Power Query view action for new code.
-    /// </summary>
-    [Obsolete("Use the Power Query view action to retrieve full M code. This compatibility property is not serialized.")]
-    [JsonIgnore]
-    public string Formula { get; set; } = string.Empty;
-
-    /// <summary>
     /// Bounded preview of the formula (at most 80 characters).
     /// Use Power Query view to retrieve the full M code.
     /// </summary>

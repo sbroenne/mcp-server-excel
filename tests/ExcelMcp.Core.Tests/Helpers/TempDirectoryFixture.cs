@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -40,10 +40,7 @@ public class TempDirectoryFixture : IDisposable
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(TempDir, fileName);
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
-        manager.CloseSession(sessionId, save: true);
-        return filePath;
+        return SavedWorkbookTemplates.CopyBlankTo(filePath);
     }
 
     private bool _disposed;
@@ -80,7 +77,5 @@ public class TempDirectoryFixture : IDisposable
         GC.SuppressFinalize(this);
     }
 }
-
-
 
 

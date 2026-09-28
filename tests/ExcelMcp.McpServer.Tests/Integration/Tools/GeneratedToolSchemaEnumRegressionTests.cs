@@ -13,6 +13,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "McpProtocol")]
+[Trait("RequiresExcel", "false")]
 public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestBase
 {
     public GeneratedToolSchemaEnumRegressionTests(ITestOutputHelper output)

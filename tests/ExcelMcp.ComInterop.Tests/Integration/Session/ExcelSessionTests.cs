@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -23,6 +22,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "ExcelSession")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
+[Trait("RequiresExcel", "true")]
 public class ExcelSessionTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
@@ -30,18 +30,6 @@ public class ExcelSessionTests : IDisposable
     public ExcelSessionTests(ITestOutputHelper output)
     {
         _output = output;
-
-        // Kill any existing Excel processes to ensure clean state
-        var existingProcesses = Process.GetProcessesByName("EXCEL");
-        if (existingProcesses.Length > 0)
-        {
-            _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
-            foreach (var p in existingProcesses)
-            {
-                p.Kill(); p.WaitForExit(2000);
-            }
-            _output.WriteLine("Excel processes cleaned up");
-        }
 
     }
 
@@ -223,7 +211,5 @@ public class ExcelSessionTests : IDisposable
         File.Copy(TemplateFilePath, filePath);
     }
 }
-
-
 
 

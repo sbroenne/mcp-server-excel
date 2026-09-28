@@ -7,8 +7,8 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 
 /// <summary>
 /// Integration tests for the batch CLI command.
-/// Tests the full CLI pipeline: process launch → batch parsing → daemon dispatch → NDJSON output.
-/// Uses diag commands (ping, echo) to validate batch infrastructure without requiring Excel.
+/// Tests real CLI parsing, Service dispatch, and NDJSON output without Excel.
+/// One smoke case retains the full executable and daemon pipeline.
 /// </summary>
 [Collection("Service")]
 [Trait("Layer", "CLI")]
@@ -47,7 +47,9 @@ public sealed class BatchCommandTests : IDisposable
             ]
             """);
 
-        var results = await RunBatchAsync($"batch --input \"{inputFile}\"");
+        var results = await RunBatchAsync(
+            $"batch --input \"{inputFile}\"",
+            useProcess: true);
 
         Assert.Single(results);
         Assert.Equal(0, results[0].GetProperty("index").GetInt32());
@@ -141,7 +143,7 @@ public sealed class BatchCommandTests : IDisposable
     {
         var inputFile = WriteBatchFile("[]");
 
-        var result = await CliProcessHelper.RunAsync($"batch --input \"{inputFile}\"");
+        var result = await InProcessCliHelper.RunWithServiceAsync($"batch --input \"{inputFile}\"");
         _output.WriteLine($"Exit: {result.ExitCode}, Stderr: {result.Stderr}");
 
         Assert.Equal(1, result.ExitCode);
@@ -156,7 +158,7 @@ public sealed class BatchCommandTests : IDisposable
             ]
             """);
 
-        var result = await CliProcessHelper.RunAsync($"batch --input \"{inputFile}\"");
+        var result = await InProcessCliHelper.RunWithServiceAsync($"batch --input \"{inputFile}\"");
         _output.WriteLine($"Exit: {result.ExitCode}, Stdout: {result.Stdout}");
 
         Assert.Equal(1, result.ExitCode);
@@ -165,7 +167,7 @@ public sealed class BatchCommandTests : IDisposable
     [Fact]
     public async Task Batch_FileNotFound_ReturnsError()
     {
-        var result = await CliProcessHelper.RunAsync("batch --input \"nonexistent.json\"");
+        var result = await InProcessCliHelper.RunWithServiceAsync("batch --input \"nonexistent.json\"");
         _output.WriteLine($"Exit: {result.ExitCode}, Stderr: {result.Stderr}");
 
         Assert.Equal(1, result.ExitCode);
@@ -185,7 +187,7 @@ public sealed class BatchCommandTests : IDisposable
             ]
             """);
 
-        var result = await CliProcessHelper.RunAsync($"batch --input \"{inputFile}\"");
+        var result = await InProcessCliHelper.RunWithServiceAsync($"batch --input \"{inputFile}\"");
         _output.WriteLine(result.Stdout);
 
         Assert.Equal(0, result.ExitCode);
@@ -271,7 +273,7 @@ public sealed class BatchCommandTests : IDisposable
             ]
             """);
 
-        var result = await CliProcessHelper.RunAsync($"batch --input \"{inputFile}\"");
+        var result = await InProcessCliHelper.RunWithServiceAsync($"batch --input \"{inputFile}\"");
         Assert.Equal(0, result.ExitCode);
     }
 
@@ -285,7 +287,7 @@ public sealed class BatchCommandTests : IDisposable
             ]
             """);
 
-        var result = await CliProcessHelper.RunAsync($"batch --input \"{inputFile}\"");
+        var result = await InProcessCliHelper.RunWithServiceAsync($"batch --input \"{inputFile}\"");
         Assert.Equal(1, result.ExitCode);
     }
 
@@ -303,9 +305,13 @@ public sealed class BatchCommandTests : IDisposable
     /// <summary>
     /// Runs a batch command and parses the NDJSON output into a list of JsonElements.
     /// </summary>
-    private async Task<List<JsonElement>> RunBatchAsync(string args, int timeoutMs = 30000)
+    private async Task<List<JsonElement>> RunBatchAsync(
+        string args,
+        bool useProcess = false)
     {
-        var result = await CliProcessHelper.RunAsync(args, timeoutMs);
+        var result = useProcess
+            ? await CliProcessHelper.RunAsync(args)
+            : await InProcessCliHelper.RunWithServiceAsync(args);
         _output.WriteLine($"Exit: {result.ExitCode}");
         _output.WriteLine($"Stdout: {result.Stdout}");
         if (!string.IsNullOrEmpty(result.Stderr))

@@ -104,7 +104,7 @@ public interface IChartConfigCommands
     OperationResult SetTitle(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
-        [RequiredParameter] string title);
+        [RequiredParameter, AllowEmptyString] string title);
 
     /// <summary>
     /// Sets axis title.

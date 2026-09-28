@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
@@ -225,15 +227,15 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
                 // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
-                // so we access this property late-bound: ((dynamic)(object)) erases the static Excel type
-                // and forces pure IDispatch binding, exchanging a plain int with Excel. No office type is
-                // touched, so no office.dll reference is needed at compile or run time.
-                // NOTE: The Excel PIA itself is embedded (EmbedInteropTypes via Directory.Build.targets),
-                // so the assembly carries no runtime dependency on office.dll. This late-bound access is
-                // kept solely because the Office.Core enum type is not referenced anywhere in the build.
+                // so dispatch a plain integer without loading an Office.Core type.
                 bool opensMacroEnabledWorkbook = _isMacroEnabled ||
                     _allWorkbookPaths.Any(path => string.Equals(Path.GetExtension(path), ".xlsm", StringComparison.OrdinalIgnoreCase));
-                ((dynamic)(object)tempExcel).AutomationSecurity = opensMacroEnabledWorkbook ? 1 : 3;
+                // Reflection dispatch avoids the dynamic binder's retained ITypeInfo RCW,
+                // which can block STA termination after Excel.Quit has already returned.
+                tempExcel.GetType().InvokeMember(
+                    "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
+                    target: tempExcel, args: [opensMacroEnabledWorkbook ? 1 : 3],
+                    culture: CultureInfo.InvariantCulture);
 
                 // Open or create workbooks in the same Excel instance
                 var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);
@@ -255,7 +257,16 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                             throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
                         }
 
-                        wb = (Excel.Workbook)tempExcel.Workbooks.Add();
+                        Excel.Workbooks? workbooks = null;
+                        try
+                        {
+                            workbooks = tempExcel.Workbooks;
+                            wb = workbooks.Add();
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref workbooks);
+                        }
 
                         // SaveAs with appropriate format
                         if (_isMacroEnabled)
@@ -944,6 +955,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         }
 
         // Wait for STA thread to finish cleanup (with timeout)
+        var staExitedWithoutForce = false;
         if (_staThread != null && _staThread.IsAlive)
         {
             // Use shorter timeout if operation timed out (Excel is likely hung / already killed above)
@@ -1024,9 +1036,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                         callingThread);
                 }
             }
+            else
+            {
+                staExitedWithoutForce = true;
+            }
         }
         else
         {
+            staExitedWithoutForce = true;
             _logger.LogDebug("[Thread {CallingThread}] STA thread was null or not alive for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         }
 
@@ -1044,13 +1061,15 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     $"[DIAG-DISPOSE-PROCESS-WAIT] [Thread {callingThread}] Waiting for Excel process {lingeringIdentity.ProcessId} to exit for {Path.GetFileName(_workbookPath)}");
 
                 var lingeringProcessTerminated = false;
+                var normalShutdown = staExitedWithoutForce && !_operationTimedOut;
                 FinalizeOwnedProcessTeardown(
                     lingeringIdentity,
                     identity => OwnedProcessGuard.TryTerminate(
                         identity,
-                        TimeSpan.FromSeconds(5),
-                        ProcessTerminationPolicy.ProcessExitTimeout,
-                        out lingeringProcessTerminated));
+                        normalShutdown ? ProcessTerminationPolicy.NormalGraceTimeout : TimeSpan.FromSeconds(5),
+                        normalShutdown ? ProcessTerminationPolicy.NormalForcedExitTimeout : ProcessTerminationPolicy.ProcessExitTimeout,
+                        out lingeringProcessTerminated,
+                        overallTimeout: normalShutdown ? ProcessTerminationPolicy.NormalShutdownBudget : null));
 
                 if (lingeringProcessTerminated)
                 {

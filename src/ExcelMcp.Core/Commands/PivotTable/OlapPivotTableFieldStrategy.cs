@@ -763,7 +763,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // Get the first (and typically only) PivotField and set its NumberFormat
             pivotField = pivotFields.Item(1);
-            pivotField.NumberFormat = numberFormat;
+            ((Excel.PivotField)pivotField).NumberFormat = numberFormat;
 
             // NOTE: No RefreshTable() needed - NumberFormat is a visual-only property
             // RefreshTable() would re-query the Data Model which is very slow for OLAP PivotTables
@@ -772,7 +772,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             string? appliedFormat = null;
             try
             {
-                appliedFormat = pivotField.NumberFormat?.ToString();
+                appliedFormat = ((Excel.PivotField)pivotField).NumberFormat;
             }
             catch (System.Runtime.InteropServices.COMException)
             {
@@ -1572,4 +1572,3 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     #endregion
 }
-

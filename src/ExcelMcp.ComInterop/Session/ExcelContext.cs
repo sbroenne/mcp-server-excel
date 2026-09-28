@@ -77,15 +77,15 @@ public sealed class ExcelContext
     /// <remarks>
     /// <para>
     /// Use this to translate format strings like "m/d/yyyy" or "$#,##0.00" to locale-specific codes
-    /// (e.g., "M/T/JJJJ" and "$#.##0,00" on German Excel) before setting <c>Range.NumberFormat</c>.
+    /// (e.g., "M/T/JJJJ" and "$#.##0,00" on German Excel) before setting <c>Range.NumberFormatLocal</c>.
+    /// Typed <c>Range.NumberFormat</c> accepts invariant codes without translation.
     /// </para>
     /// <example>
     /// <code>
     /// string localeFormat = ctx.FormatTranslator.TranslateToLocale("m/d/yyyy");
-    /// range.NumberFormat = localeFormat;
+    /// range.NumberFormatLocal = localeFormat;
     /// </code>
     /// </example>
     /// </remarks>
     public NumberFormatTranslator FormatTranslator { get; }
 }
-

@@ -313,12 +313,9 @@ public partial class PivotTableCommands
 
             try
             {
-                // Translate US format codes to locale-specific codes
-                var translatedFormat = ctx.FormatTranslator.TranslateToLocale(numberFormat);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetFieldFormat(pivot, fieldName, translatedFormat, batch.WorkbookPath);
+                return strategy.SetFieldFormat(pivot, fieldName, numberFormat, batch.WorkbookPath);
             }
             finally
             {
@@ -327,6 +324,5 @@ public partial class PivotTableCommands
         });
     }
 }
-
 
 

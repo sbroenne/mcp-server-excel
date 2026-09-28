@@ -9,6 +9,8 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// <summary>
 /// Integration tests for release metadata synchronization and workflow wiring.
 /// </summary>
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class ReleaseMetadataScriptTests
 {
     private static readonly string RepoRoot = FindRepoRoot();

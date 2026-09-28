@@ -7,6 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 [Trait("Category", "Integration")]
 [Trait("Feature", "DataModel")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public sealed class DataModelErrorMessagesTests
 {
     [Fact]

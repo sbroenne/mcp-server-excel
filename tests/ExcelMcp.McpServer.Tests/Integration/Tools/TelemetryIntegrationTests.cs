@@ -16,6 +16,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Telemetry")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public class TelemetryIntegrationTests(ITestOutputHelper output)
 {
     [Fact]
@@ -120,7 +122,6 @@ public class TelemetryIntegrationTests(ITestOutputHelper output)
         Assert.Contains("success", result.ToLowerInvariant());
     }
 }
-
 
 
 

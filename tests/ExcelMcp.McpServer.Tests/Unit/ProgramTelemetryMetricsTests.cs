@@ -20,6 +20,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "Telemetry")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class ProgramTelemetryMetricsTests
 {
     [Fact]

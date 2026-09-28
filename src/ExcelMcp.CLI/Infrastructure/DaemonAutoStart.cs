@@ -29,23 +29,42 @@ internal static class DaemonAutoStart
     /// Ensures the CLI daemon is running and returns a connected ServiceClient.
     /// If the daemon is not running, starts it and waits for it to be ready.
     /// </summary>
-    public static async Task<ServiceClient> EnsureAndConnectAsync(CancellationToken cancellationToken = default)
+    public static Task<ServiceClient> EnsureAndConnectAsync(CancellationToken cancellationToken = default)
     {
         var pipeName = GetPipeName();
-        var startupDeadline = OperationDeadline.Start(StartupReadyTimeout);
-        using var startupCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        startupCts.CancelAfter(StartupReadyTimeout);
+        return EnsureAndConnectAsync(
+            pipeName,
+            CreateRuntime(pipeName),
+            TimeProvider.System,
+            cancellationToken);
+    }
+
+    internal static async Task<ServiceClient> EnsureAndConnectAsync(
+        string pipeName,
+        Runtime runtime,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        var startupDeadline = OperationDeadline.Start(StartupReadyTimeout, timeProvider);
+        using var startupTimeoutCts = new CancellationTokenSource(
+            StartupReadyTimeout,
+            timeProvider);
+        using var startupCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            startupTimeoutCts.Token);
 
         try
         {
             return await EnsureAndConnectCoreAsync(
                 pipeName,
                 startupDeadline,
-                CreateRuntime(pipeName),
+                runtime,
                 startupCts.Token);
         }
         catch (OperationCanceledException) when (
-            startupCts.IsCancellationRequested
+            startupTimeoutCts.IsCancellationRequested
             && !cancellationToken.IsCancellationRequested)
         {
             throw new TimeoutException(
@@ -75,7 +94,8 @@ internal static class DaemonAutoStart
                 runtime.IsStartupInProgress);
             var responsivenessDeadline = startupInProgress
                 ? startupDeadline
-                : OperationDeadline.Start(startupDeadline.Cap(BusyDaemonWaitTimeout));
+                : startupDeadline.Restart(
+                    startupDeadline.Cap(BusyDaemonWaitTimeout));
             while (true)
             {
                 if (!startupInProgress && runtime.IsStartupInProgress())
@@ -89,7 +109,7 @@ internal static class DaemonAutoStart
                     break;
                 }
 
-                await Task.Delay(
+                await runtime.DelayAsync(
                     responsivenessDeadline.Cap(BusyDaemonRetryInterval),
                     cancellationToken);
 
@@ -182,14 +202,17 @@ internal static class DaemonAutoStart
             (deadline, cancellationToken) =>
                 TryStartDaemonWithStartupLockAsync(pipeName, deadline, cancellationToken),
             (deadline, cancellationToken) =>
-                WaitForResponsiveDaemonAsync(pipeName, deadline, cancellationToken));
+                WaitForResponsiveDaemonAsync(pipeName, deadline, cancellationToken),
+            static (delay, cancellationToken) =>
+                Task.Delay(delay, cancellationToken));
 
     internal sealed record Runtime(
         Func<TimeSpan, CancellationToken, Task<bool>> PingAsync,
         Func<bool> IsDaemonMutexHeld,
         Func<bool> IsStartupInProgress,
         Func<OperationDeadline, CancellationToken, Task<StartOutcome>> TryStartDaemonAsync,
-        Func<OperationDeadline, CancellationToken, Task<bool>> WaitForResponsiveDaemonAsync);
+        Func<OperationDeadline, CancellationToken, Task<bool>> WaitForResponsiveDaemonAsync,
+        Func<TimeSpan, CancellationToken, Task> DelayAsync);
 
     internal enum StartOutcome
     {

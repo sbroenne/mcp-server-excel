@@ -13,6 +13,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Worksheets")]
+[Trait("RequiresExcel", "false")]
 public sealed class WorksheetToolSchemaTests : McpIntegrationTestBase
 {
     public WorksheetToolSchemaTests(ITestOutputHelper output)

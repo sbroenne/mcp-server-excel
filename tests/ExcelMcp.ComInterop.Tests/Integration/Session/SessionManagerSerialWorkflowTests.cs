@@ -35,6 +35,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "SessionManager")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")]
+[Trait("RequiresExcel", "true")]
 public class SessionManagerSerialWorkflowTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
@@ -158,6 +159,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
                 "Expected < 1s. Session is poisoned but not failing fast.");
         }
 
+        Assert.True(manager.CloseSession(sessionId, save: false, force: true));
         _output.WriteLine("✓ GetSession after timeout test passed");
     }
 

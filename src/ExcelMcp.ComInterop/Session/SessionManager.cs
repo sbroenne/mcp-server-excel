@@ -1151,6 +1151,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>CRITICAL:</b> Sessions are disposed SEQUENTIALLY to avoid COM threading issues.</para>
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
+    /// <exception cref="AggregateException">One or more sessions could not be saved or shut down.</exception>
     public void Dispose()
     {
         if (_disposed)
@@ -1162,12 +1163,13 @@ public sealed class SessionManager : IDisposable
 
         // Close all active sessions SEQUENTIALLY to avoid COM threading issues
         // Excel COM objects must be disposed on their STA threads, parallel disposal causes deadlocks
-        var sessions = _activeSessions.Values.ToList();
+        var sessions = _activeSessions.ToArray();
+        var failures = new List<Exception>();
         _activeSessions.Clear();
         _activeFilePaths.Clear();
         _sessionFilePaths.Clear();
 
-        foreach (var session in sessions)
+        foreach (var (sessionId, session) in sessions)
         {
             // Auto-save before disposal to prevent silent data loss.
             // This protects against the common scenario where the MCP client disconnects
@@ -1182,6 +1184,9 @@ public sealed class SessionManager : IDisposable
                 }
                 catch (Exception ex)
                 {
+                    failures.Add(new InvalidOperationException(
+                        $"Failed to auto-save session '{sessionId}': {ex.Message}",
+                        ex));
                     _logger.LogWarning(ex, "Failed to auto-save session for {Path} before shutdown (changes may be lost)", session.WorkbookPath);
                 }
             }
@@ -1192,10 +1197,18 @@ public sealed class SessionManager : IDisposable
                 // via ExcelShutdownService with proper timeouts and retry logic
                 session.Dispose();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Best-effort cleanup — continue with remaining sessions
+                var failure = new InvalidOperationException(
+                    $"Failed to dispose session '{sessionId}': {ex.Message}", ex);
+                failures.Add(failure);
+                _logger.LogError(ex, "Failed to dispose session {SessionId}", sessionId);
             }
+        }
+
+        if (failures.Count > 0)
+        {
+            throw new AggregateException("One or more Excel sessions failed to shut down.", failures);
         }
     }
 }

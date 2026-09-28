@@ -17,6 +17,8 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// source instead of creating one. These tests fail if either regresses, and they are agnostic to how
 /// many skills a plugin ships so a future third skill is covered automatically.
 /// </remarks>
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class PluginSkillVersionTests
 {
     private const string TestVersion = "9.9.9-skillversion";
@@ -30,6 +32,10 @@ public sealed class PluginSkillVersionTests
     [Trait("Feature", "PluginSkillVersion")]
     public async Task BuildPlugins_StampsVersionFileIntoEverySkillDirectory()
     {
+        using var mcpSource = File.Open(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "bin", "download.ps1"),
+            FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var cliSource = File.Open(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "download.ps1"),
+            FileMode.Open, FileAccess.Read, FileShare.Read);
         var sandbox = CreateSandbox("plugin-skill-version");
         try
         {
@@ -183,14 +189,20 @@ public sealed class PluginSkillVersionTests
     [Trait("Feature", "PluginSkillVersion")]
     public async Task CopyVscodeSkills_CleansOutputAndStampsExtensionVersion()
     {
-        var outputDir = Path.Combine(RepoRoot, "vscode-extension", "skills", "excel-mcp");
+        var sandbox = CreateSandbox("vscode-skills-version");
+        var outputDir = Path.Combine(sandbox, "vscode-extension", "skills", "excel-mcp");
         try
         {
-            DeleteDirectoryIfExists(outputDir);
+            Directory.CreateDirectory(Path.Combine(sandbox, "scripts"));
+            Directory.CreateDirectory(Path.Combine(sandbox, "skills"));
+            CopyDirectory(Path.Combine(RepoRoot, "skills", "excel-mcp"), Path.Combine(sandbox, "skills", "excel-mcp"));
+            File.Copy(CopyVscodeSkillsScript, Path.Combine(sandbox, "scripts", "Copy-VscodeSkills.ps1"));
             Directory.CreateDirectory(outputDir);
+            File.Copy(Path.Combine(RepoRoot, "vscode-extension", "package.json"),
+                Path.Combine(sandbox, "vscode-extension", "package.json"));
             File.WriteAllText(Path.Combine(outputDir, "stale.txt"), "stale");
 
-            var result = await RunPowerShellFileAsync(CopyVscodeSkillsScript, []);
+            var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Copy-VscodeSkills.ps1"), []);
 
             Assert.True(
                 result.ExitCode == 0,
@@ -206,7 +218,20 @@ public sealed class PluginSkillVersionTests
         }
         finally
         {
-            DeleteDirectoryIfExists(outputDir);
+            DeleteDirectoryIfExists(sandbox);
+        }
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.GetFiles(source))
+        {
+            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
+        }
+        foreach (var directory in Directory.GetDirectories(source))
+        {
+            CopyDirectory(directory, Path.Combine(destination, Path.GetFileName(directory)));
         }
     }
 

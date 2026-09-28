@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
-using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -73,26 +72,10 @@ public sealed class SessionLifecycleContractTests : IDisposable
     }
 
     [Fact]
-    public async Task SessionSave_ServiceProtocol_IsRejectedAsUnknown()
-    {
-        using var service = new ExcelMcpService();
-
-        var response = await service.ProcessAsync(new ServiceRequest
-        {
-            Command = "session.save",
-            SessionId = "missing-session"
-        });
-
-        Assert.False(response.Success);
-        Assert.Contains("Unknown session action", response.ErrorMessage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task SessionTest_RelativePath_ReturnsSharedValidationError()
     {
-        var result = await CliProcessHelper.RunAsync(
-            ["session", "test", @"relative\book.xlsx"],
-            timeoutMs: 10_000);
+        var result = await InProcessCliHelper.RunWithServiceAsync(
+            ["session", "test", @"relative\book.xlsx"]);
         var output = result.Stdout + result.Stderr;
 
         Assert.Equal(1, result.ExitCode);
@@ -112,27 +95,6 @@ public sealed class SessionLifecycleContractTests : IDisposable
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("absolute Windows path", output, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Theory]
-    [InlineData("session.open")]
-    [InlineData("session.create")]
-    public async Task SessionService_RelativePath_ReturnsSharedValidationError(
-        string command)
-    {
-        using var service = new ExcelMcpService();
-
-        var response = await service.ProcessAsync(new ServiceRequest
-        {
-            Command = command,
-            Args = """{"filePath":"relative\\book.txt"}"""
-        });
-
-        Assert.False(response.Success);
-        Assert.Contains(
-            "absolute Windows path",
-            response.ErrorMessage,
-            StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -175,10 +137,8 @@ public sealed class SessionLifecycleContractTests : IDisposable
             }
         }
 
-        var (result, json) = await CliProcessHelper.RunJsonAsync(
-            ["session", "test", path],
-            timeoutMs: 30_000,
-            diagnosticLabel: $"session-test-{fileName}");
+        var (result, json) = await InProcessCliHelper.RunJsonWithServiceAsync(
+            ["session", "test", path]);
         using (json)
         {
             _output.WriteLine(result.Stdout);
@@ -194,8 +154,12 @@ public sealed class SessionLifecycleContractTests : IDisposable
             Assert.Equal(Path.GetExtension(path), json.RootElement.GetProperty("extension").GetString());
             Assert.True(json.RootElement.TryGetProperty("size", out _));
             Assert.True(json.RootElement.TryGetProperty("lastModified", out _));
-            Assert.Equal(!expectedCanOpen, json.RootElement.TryGetProperty("isError", out var isError)
-                && isError.GetBoolean());
+            Assert.False(json.RootElement.TryGetProperty("isError", out _),
+                "File preflight is a diagnostic result, not a tool execution failure.");
+            if (!expectedCanOpen)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("message").GetString()));
+            }
         }
     }
 

@@ -3,6 +3,8 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class PreCommitScriptTests
 {
     private static readonly string RepoRoot = FindRepoRoot();

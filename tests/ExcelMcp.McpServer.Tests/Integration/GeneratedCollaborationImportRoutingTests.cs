@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 [Trait("Category", "Integration")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "CollaborationImport")]
+[Trait("RequiresExcel", "false")]
 public sealed class GeneratedCollaborationImportRoutingTests
 {
     [Fact]

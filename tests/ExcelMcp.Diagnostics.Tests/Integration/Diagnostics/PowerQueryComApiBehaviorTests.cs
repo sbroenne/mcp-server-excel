@@ -21,6 +21,7 @@ namespace Sbroenne.ExcelMcp.Diagnostics.Tests.Integration.Diagnostics;
 [Trait("Speed", "Slow")]
 [Trait("Layer", "Diagnostics")]
 [Trait("Feature", "PowerQuery")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("RunType", "OnDemand")]
 public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>, IDisposable

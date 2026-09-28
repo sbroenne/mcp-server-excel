@@ -3,7 +3,7 @@
 // </copyright>
 
 using System.Runtime.CompilerServices;
-using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -30,11 +30,7 @@ public class WindowTestsFixture : IAsyncLifetime
         var fileName = $"{testName}_{Guid.NewGuid():N}.xlsx";
         var filePath = Path.Combine(_tempDir, fileName);
 
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
-        manager.CloseSession(sessionId, save: true);
-
-        return filePath;
+        return SavedWorkbookTemplates.CopyBlankTo(filePath);
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

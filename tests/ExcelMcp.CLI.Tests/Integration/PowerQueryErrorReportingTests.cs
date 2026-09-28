@@ -74,7 +74,7 @@ public sealed class PowerQueryErrorReportingTests : IDisposable
             Assert.Equal(
                 refreshJson.RootElement.GetProperty("error").GetString(),
                 refreshJson.RootElement.GetProperty("errorMessage").GetString());
-            Assert.False(refreshJson.RootElement.TryGetProperty("hresult", out _));
+            Assert.Equal("0x800A03EC", refreshJson.RootElement.GetProperty("hresult").GetString());
             AssertOptionalNonEmptyStringProperty(refreshJson.RootElement, "innerError");
             Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
         }

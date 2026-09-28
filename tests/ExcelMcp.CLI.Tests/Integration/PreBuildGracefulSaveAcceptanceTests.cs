@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Layer", "CLI")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "ServiceDaemon")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Slow")]
 public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDirectoryFixture>
@@ -98,6 +99,7 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
                         "ExcelMcp.CLI",
                         "ExcelMcp.CLI.csproj"),
                     "--configuration", "Release",
+                    "--disable-build-servers",
                     "-p:NuGetAudit=false",
                     "-maxcpucount:1",
                     "-nodeReuse:false",

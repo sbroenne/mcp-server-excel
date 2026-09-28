@@ -1,68 +1,93 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Worksheets")]
-[Trait("RequiresExcel", "true")]
-public sealed class WorksheetCommentToolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class WorksheetCommentToolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    public WorksheetCommentToolTests(ITestOutputHelper output)
-        : base(output, "WorksheetCommentClient")
-    {
-    }
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task WorksheetStyle_SetAndClearComment_RoundsTripThroughMcp()
     {
-        var tempDir = CreateTempDirectory("WorksheetComments");
-        var workbookPath = Path.Combine(tempDir, "comments.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await CreateWorksheetAsync(sessionId, "CommentSheet");
-
-        var setCommentJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        const string sessionId = "recording-session";
+        var setCall = await CallAsync(
+            "set-comment",
+            sessionId,
+            new()
+            {
+                ["text"] = "Quarterly update"
+            },
+            """{"success":true}""",
+            "sheet.set-comment",
+            """{"sheetName":"CommentSheet","cellAddress":"A1","text":"Quarterly update"}""");
+        using (var args = RecordingToolTest.ParseArgs(
+            setCall.Request,
+            "sheet.set-comment",
+            sessionId))
         {
-            ["action"] = "set-comment",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "CommentSheet",
-            ["cell_address"] = "A1",
-            ["text"] = "Quarterly update"
-        });
-        AssertSuccess(setCommentJson, "worksheet_style.set-comment");
+            Assert.Equal("CommentSheet", args.RootElement.GetProperty("sheetName").GetString());
+            Assert.Equal("A1", args.RootElement.GetProperty("cellAddress").GetString());
+            Assert.Equal("Quarterly update", args.RootElement.GetProperty("text").GetString());
+        }
 
-        using var setCommentDoc = JsonDocument.Parse(setCommentJson);
-        Assert.True(setCommentDoc.RootElement.GetProperty("success").GetBoolean());
-
-        var getCommentJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        var getCall = await CallAsync(
+            "get-comment",
+            sessionId,
+            [],
+            """{"success":true,"hasComment":true,"text":"Quarterly update"}""",
+            "sheet.get-comment",
+            """{"sheetName":"CommentSheet","cellAddress":"A1"}""");
+        using (var result = JsonDocument.Parse(getCall.JsonResult))
         {
-            ["action"] = "get-comment",
+            Assert.True(result.RootElement.GetProperty("hasComment").GetBoolean());
+            Assert.Equal(
+                "Quarterly update",
+                result.RootElement.GetProperty("text").GetString());
+        }
+
+        var clearCall = await CallAsync(
+            "clear-comment",
+            sessionId,
+            [],
+            """{"success":true}""",
+            "sheet.clear-comment",
+            """{"sheetName":"CommentSheet","cellAddress":"A1"}""");
+        Assert.Equal("sheet.clear-comment", clearCall.Request.Command);
+    }
+
+    private Task<RecordingProgramTransportFixture.CapturedToolCall> CallAsync(
+        string action,
+        string sessionId,
+        Dictionary<string, object?> extraArguments,
+        string result,
+        string expectedCommand,
+        string expectedArgsJson)
+    {
+        var arguments = new Dictionary<string, object?>
+        {
+            ["action"] = action,
             ["session_id"] = sessionId,
             ["sheet_name"] = "CommentSheet",
             ["cell_address"] = "A1"
-        });
-        AssertSuccess(getCommentJson, "worksheet_style.get-comment");
-
-        using var getCommentDoc = JsonDocument.Parse(getCommentJson);
-        Assert.True(getCommentDoc.RootElement.GetProperty("hasComment").GetBoolean());
-        Assert.Equal("Quarterly update", getCommentDoc.RootElement.GetProperty("text").GetString());
-
-        var clearCommentJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        };
+        foreach (var (key, value) in extraArguments)
         {
-            ["action"] = "clear-comment",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "CommentSheet",
-            ["cell_address"] = "A1"
-        });
-        AssertSuccess(clearCommentJson, "worksheet_style.clear-comment");
+            arguments.Add(key, value);
+        }
 
-        using var clearCommentDoc = JsonDocument.Parse(clearCommentJson);
-        Assert.True(clearCommentDoc.RootElement.GetProperty("success").GetBoolean());
-
-        await TryCloseSessionAsync(sessionId, save: true);
+        return _fixture.CallToolAsync(
+            "worksheet_style",
+            arguments,
+            RecordingToolTest.Success(result),
+            expectedCommand,
+            expectedArgsJson);
     }
 }

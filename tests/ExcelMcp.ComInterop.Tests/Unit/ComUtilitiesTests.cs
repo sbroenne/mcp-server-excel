@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Speed", "Fast")]
 [Trait("Layer", "ComInterop")]
+[Trait("RequiresExcel", "false")]
 public class ComUtilitiesTests
 {
     [Fact]
@@ -49,7 +50,6 @@ public class ComUtilitiesTests
         Assert.Null(obj);
     }
 }
-
 
 
 

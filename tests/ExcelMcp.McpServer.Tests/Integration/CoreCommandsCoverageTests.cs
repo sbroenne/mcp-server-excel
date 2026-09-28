@@ -27,6 +27,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 ///
 /// DO NOT disable or skip these tests without fixing the underlying coverage gap!
 /// </summary>
+[Trait("RequiresExcel", "false")]
 public class CoreCommandsCoverageTests
 {
     /// <summary>

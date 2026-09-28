@@ -211,6 +211,14 @@ public partial class PivotTableCommands
                         ErrorMessage = $"Calculated member '{memberName}' not found in PivotTable '{pivotTableName}'. Use list-calculated-members to see available members."
                     };
                 }
+                catch (ArgumentException)
+                {
+                    return new OperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Calculated member '{memberName}' not found in PivotTable '{pivotTableName}'. Use list-calculated-members to see available members."
+                    };
+                }
 
                 member.Delete();
 
@@ -242,5 +250,3 @@ public partial class PivotTableCommands
         };
     }
 }
-
-

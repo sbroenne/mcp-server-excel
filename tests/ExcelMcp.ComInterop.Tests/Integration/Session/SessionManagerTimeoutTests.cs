@@ -24,6 +24,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "SessionManager")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")]
+[Trait("RequiresExcel", "true")]
 public class SessionManagerTimeoutTests : IDisposable
 {
     private readonly ITestOutputHelper _output;

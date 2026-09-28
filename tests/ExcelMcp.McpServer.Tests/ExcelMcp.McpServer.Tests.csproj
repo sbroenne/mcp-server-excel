@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <NoWarn>$(NoWarn);CS1591;CA1707</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA1707;CA1716</NoWarn>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -40,6 +40,9 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Helpers\ConfiguredIrmFactAttribute.cs" />
+    <Compile Include="..\Shared\TestRunExcelLifetime.cs" Link="Helpers\TestRunExcelLifetime.cs" />
+    <Compile Include="..\Shared\ExcelLifetimeTestFramework.cs" Link="Helpers\ExcelLifetimeTestFramework.cs" />
+    <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

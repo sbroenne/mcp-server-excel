@@ -28,6 +28,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "ExcelBatch")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")]
+[Trait("RequiresExcel", "true")]
 public class ExcelBatchTimeoutTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
@@ -218,9 +219,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Execute_AfterTimeout_ExcelProcessIsCleaned()
     {
         // Arrange
-        var startingProcesses = Process.GetProcessesByName("EXCEL");
-        int startingCount = startingProcesses.Length;
-        _output.WriteLine($"Excel processes before: {startingCount}");
+        using var owned = new OwnedExcelProcessScope();
 
         var batch = ExcelSession.BeginBatch(
             show: false,
@@ -271,11 +270,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
             _output.WriteLine($"✓ Excel process {excelPid.Value} was cleaned up after timeout");
         }
 
-        // Also check total count hasn't leaked
-        int endingCount = Process.GetProcessesByName("EXCEL").Length;
-        _output.WriteLine($"Excel processes after: {endingCount}");
-        Assert.True(endingCount <= startingCount,
-            $"Excel process leak! Started with {startingCount}, ended with {endingCount}");
+        owned.AssertAllExited();
     }
 
     /// <summary>

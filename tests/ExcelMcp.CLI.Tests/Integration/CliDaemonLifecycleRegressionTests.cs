@@ -13,6 +13,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Layer", "CLI")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "ServiceDaemon")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Slow")]
 public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFixture<TempDirectoryFixture>

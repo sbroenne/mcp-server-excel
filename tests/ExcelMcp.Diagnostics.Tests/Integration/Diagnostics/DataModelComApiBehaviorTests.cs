@@ -26,6 +26,7 @@ namespace Sbroenne.ExcelMcp.Diagnostics.Tests.Integration.Diagnostics;
 [Trait("Speed", "Slow")]
 [Trait("Layer", "Diagnostics")]
 [Trait("Feature", "DataModel")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("RunType", "OnDemand")]
 public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>, IDisposable

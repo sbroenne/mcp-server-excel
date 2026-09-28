@@ -13,15 +13,24 @@ internal sealed class Program
     private static readonly string[] VersionFlags = ["--version", "-v"];
     private static readonly string[] QuietFlags = ["--quiet", "-q"];
 
-    private static async Task<int> Main(string[] args)
+    private static Task<int> Main(string[] args) => RunAsync(args);
+
+    internal static async Task<int> RunAsync(
+        string[] args,
+        CliCommandRuntime? runtime = null)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        if (runtime is null)
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+
+        using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
 
         // Determine if we should show the banner:
         // - Not when --quiet/-q flag is passed
         // - Not when output is redirected (piped to another process or file)
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
-        var isPiped = Console.IsOutputRedirected;
+        var isPiped = CliCommandRuntime.Current.IsOutputRedirected;
         var showBanner = !isQuiet && !isPiped;
         var jsonOutputMode = isQuiet || isPiped;
 
@@ -64,6 +73,7 @@ internal sealed class Program
 
         app.Configure(config =>
         {
+            config.ConfigureConsole(CreateOutputConsole());
             config.SetApplicationName("excelcli");
             config.SetApplicationVersion(GetCurrentVersion());
             config.Settings.StrictParsing = true;
@@ -166,7 +176,7 @@ internal sealed class Program
     private static async Task<int> HandleVersionAsync()
     {
         var currentVersion = GetCurrentVersion();
-        var latestVersion = await NuGetVersionChecker.GetLatestVersionAsync();
+        var latestVersion = await CliCommandRuntime.Current.LatestVersionProvider();
         var updateAvailable = latestVersion != null && CompareVersions(currentVersion, latestVersion) < 0;
 
         // Always show banner for version output
@@ -175,17 +185,20 @@ internal sealed class Program
         // Show friendly update message if available
         if (updateAvailable)
         {
-            AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
-            AnsiConsole.MarkupLine($"[cyan]Download:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
+            var output = CreateOutputConsole();
+            output.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
+            output.MarkupLine($"[cyan]Download:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
         }
         else if (latestVersion != null)
         {
-            AnsiConsole.MarkupLine($"[green]✓ You're running the latest version:[/] [white]{currentVersion}[/]");
+            CreateOutputConsole().MarkupLine(
+                $"[green]✓ You're running the latest version:[/] [white]{currentVersion}[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine($"[yellow]⚠ Could not check for updates[/]");
-            AnsiConsole.MarkupLine($"[dim]Current version: {currentVersion}[/]");
+            var output = CreateOutputConsole();
+            output.MarkupLine("[yellow]⚠ Could not check for updates[/]");
+            output.MarkupLine($"[dim]Current version: {currentVersion}[/]");
         }
 
         return 0;
@@ -198,7 +211,18 @@ internal sealed class Program
 
     private static IAnsiConsole CreateErrorConsole()
     {
-        return AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });
+        return AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(CliCommandRuntime.Current.Error)
+        });
+    }
+
+    private static IAnsiConsole CreateOutputConsole()
+    {
+        return AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(CliCommandRuntime.Current.Output)
+        });
     }
 
     private static string GetCurrentVersion()

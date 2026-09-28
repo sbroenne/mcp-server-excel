@@ -6,6 +6,8 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// <summary>
 /// Integration tests for MCPB packaging script behavior.
 /// </summary>
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class McpbPackagingScriptTests
 {
     private static readonly string RepoRoot = FindRepoRoot();

@@ -21,6 +21,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Configuration")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public class ConfigurationReloadTests
 {
     /// <summary>

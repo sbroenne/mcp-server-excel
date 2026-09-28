@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "Range")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public class RangeHelpersExceptionTests
 {
     [Fact]

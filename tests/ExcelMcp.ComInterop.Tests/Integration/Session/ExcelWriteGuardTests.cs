@@ -21,6 +21,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "ExcelWriteGuard")]
 [Collection("Sequential")]
+[Trait("RequiresExcel", "true")]
 public class ExcelWriteGuardTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;

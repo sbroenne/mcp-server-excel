@@ -1,235 +1,319 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-/// <summary>
-/// End-to-end MCP coverage for advanced PivotTable and chart operations.
-/// </summary>
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "PivotTables")]
 [Trait("Feature", "Charts")]
-[Trait("RequiresExcel", "true")]
-public sealed class PivotChartAdvancedToolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class PivotChartAdvancedToolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    private static readonly string[] GroupedRegions = ["North", "South"];
-    private readonly string _tempDir;
-
-    public PivotChartAdvancedToolTests(ITestOutputHelper output)
-        : base(output, "PivotChartAdvancedToolClient")
-    {
-        _tempDir = CreateTempDirectory("PivotChartAdvancedToolTests");
-    }
+    private const string SessionId = "recording-session";
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task PivotTableAdvancedActions_ExecuteThroughMcpProtocol()
     {
-        var workbookPath = Path.Join(_tempDir, $"AdvancedPivot_{Guid.NewGuid():N}.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await SeedPivotDataAsync(sessionId);
-
-        AssertSuccess(await CallToolAsync("pivottable", new Dictionary<string, object?>
+        await AssertSuccessAsync("pivottable", new()
         {
             ["action"] = "create-from-range",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["source_sheet"] = "Sheet1",
             ["source_range"] = "A1:D7",
             ["destination_sheet"] = "Sheet1",
             ["destination_cell"] = "F1",
             ["pivot_table_name"] = "AdvancedPivot"
-        }), "Create advanced PivotTable");
-
-        AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        }, "pivottable.create-from-range",
+        """{"sourceSheet":"Sheet1","sourceRange":"A1:D7","destinationSheet":"Sheet1","destinationCell":"F1","pivotTableName":"AdvancedPivot"}""", args =>
+        {
+            Assert.Equal("A1:D7", args.GetProperty("sourceRange").GetString());
+            Assert.Equal("F1", args.GetProperty("destinationCell").GetString());
+            Assert.Equal("AdvancedPivot", args.GetProperty("pivotTableName").GetString());
+        });
+        await AssertSuccessAsync("pivottable_field", new()
         {
             ["action"] = "add-row-field",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["field_name"] = "Region"
-        }), "Add PivotTable row field");
-
-        AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        }, "pivottablefield.add-row-field",
+        """{"pivotTableName":"AdvancedPivot","fieldName":"Region"}""");
+        await AssertSuccessAsync("pivottable_field", new()
         {
             ["action"] = "add-value-field",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["field_name"] = "Sales",
             ["aggregation_function"] = "Sum"
-        }), "Add PivotTable value field");
-
-        AssertSuccess(await CallToolAsync("pivottable", new Dictionary<string, object?>
+        }, "pivottablefield.add-value-field",
+        """{"pivotTableName":"AdvancedPivot","fieldName":"Sales","aggregationFunction":"Sum"}""", args =>
+            Assert.Equal(
+                "Sum",
+                args.GetProperty("aggregationFunction").GetString()));
+        await AssertSuccessAsync("pivottable", new()
         {
             ["action"] = "set-cache-options",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["refresh_on_file_open"] = true,
             ["missing_items_limit"] = "None",
             ["save_source_data"] = false
-        }), "Set PivotCache options");
-
-        var cacheOptions = await CallToolAsync("pivottable", new Dictionary<string, object?>
+        }, "pivottable.set-cache-options",
+        """{"pivotTableName":"AdvancedPivot","refreshOnFileOpen":true,"missingItemsLimit":"None","saveSourceData":false}""", args =>
         {
-            ["action"] = "get-cache-options",
-            ["session_id"] = sessionId,
-            ["pivot_table_name"] = "AdvancedPivot"
+            Assert.True(args.GetProperty("refreshOnFileOpen").GetBoolean());
+            Assert.Equal("None", args.GetProperty("missingItemsLimit").GetString());
+            Assert.False(args.GetProperty("saveSourceData").GetBoolean());
         });
-        AssertSuccess(cacheOptions, "Get PivotCache options");
-        using (var cacheJson = JsonDocument.Parse(cacheOptions))
+
+        var cacheJson = await CallAsync(
+            "pivottable",
+            new()
+            {
+                ["action"] = "get-cache-options",
+                ["session_id"] = SessionId,
+                ["pivot_table_name"] = "AdvancedPivot"
+            },
+            "pivottable.get-cache-options",
+            """{"pivotTableName":"AdvancedPivot"}""",
+            """{"success":true,"refreshOnFileOpen":true,"missingItemsLimit":"None","saveSourceData":false}""");
+        using (var cache = JsonDocument.Parse(cacheJson))
         {
-            Assert.True(cacheJson.RootElement.GetProperty("refreshOnFileOpen").GetBoolean());
-            Assert.Equal("None", cacheJson.RootElement.GetProperty("missingItemsLimit").GetString());
-            Assert.False(cacheJson.RootElement.GetProperty("saveSourceData").GetBoolean());
+            Assert.True(cache.RootElement.GetProperty("refreshOnFileOpen").GetBoolean());
+            Assert.Equal(
+                "None",
+                cache.RootElement.GetProperty("missingItemsLimit").GetString());
+            Assert.False(cache.RootElement.GetProperty("saveSourceData").GetBoolean());
         }
 
-        var groupResult = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        var groupJson = await CallAsync(
+            "pivottable_field",
+            new()
+            {
+                ["action"] = "group-items",
+                ["session_id"] = SessionId,
+                ["pivot_table_name"] = "AdvancedPivot",
+                ["field_name"] = "Region",
+                ["item_names"] = """["North","South"]""",
+                ["group_name"] = "Core Regions"
+            },
+            "pivottablefield.group-items",
+            """{"pivotTableName":"AdvancedPivot","fieldName":"Region","itemNames":["North","South"],"groupName":"Core Regions"}""",
+            """{"success":true,"groupedFieldName":"Region2"}""",
+            args =>
+            {
+                Assert.Equal(
+                    ["North", "South"],
+                    args.GetProperty("itemNames")
+                        .EnumerateArray()
+                        .Select(item => item.GetString()!)
+                        .ToArray());
+                Assert.Equal(
+                    "Core Regions",
+                    args.GetProperty("groupName").GetString());
+            });
+        using (var group = JsonDocument.Parse(groupJson))
         {
-            ["action"] = "group-items",
-            ["session_id"] = sessionId,
-            ["pivot_table_name"] = "AdvancedPivot",
-            ["field_name"] = "Region",
-            ["item_names"] = JsonSerializer.Serialize(GroupedRegions),
-            ["group_name"] = "Core Regions"
-        });
-        AssertSuccess(groupResult, "Group PivotTable items");
-
-        string groupedFieldName;
-        using (var groupJson = JsonDocument.Parse(groupResult))
-        {
-            groupedFieldName = groupJson.RootElement.GetProperty("groupedFieldName").GetString()!;
-            Assert.False(string.IsNullOrWhiteSpace(groupedFieldName));
+            Assert.Equal(
+                "Region2",
+                group.RootElement.GetProperty("groupedFieldName").GetString());
         }
 
-        AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        await AssertSuccessAsync("pivottable_field", new()
         {
             ["action"] = "ungroup-field",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
-            ["grouped_field_name"] = groupedFieldName
-        }), "Ungroup PivotTable field");
+            ["grouped_field_name"] = "Region2"
+        }, "pivottablefield.ungroup-field",
+        """{"pivotTableName":"AdvancedPivot","groupedFieldName":"Region2"}""", args =>
+            Assert.Equal(
+                "Region2",
+                args.GetProperty("groupedFieldName").GetString()));
 
-        var drillResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
-        {
-            ["action"] = "drill-through",
-            ["session_id"] = sessionId,
-            ["pivot_table_name"] = "AdvancedPivot",
-            ["cell_address"] = "G2"
-        });
-        AssertSuccess(drillResult, "Drill through PivotTable value cell");
-        using (var drillJson = JsonDocument.Parse(drillResult))
-        {
-            Assert.True(drillJson.RootElement.GetProperty("detailRowCount").GetInt32() > 1);
-        }
-
-        await CloseSessionAsync(sessionId, save: false);
+        var drillJson = await CallAsync(
+            "pivottable",
+            new()
+            {
+                ["action"] = "drill-through",
+                ["session_id"] = SessionId,
+                ["pivot_table_name"] = "AdvancedPivot",
+                ["cell_address"] = "G2"
+            },
+            "pivottable.drill-through",
+            """{"pivotTableName":"AdvancedPivot","cellAddress":"G2"}""",
+            """{"success":true,"detailRowCount":3}""",
+            args => Assert.Equal(
+                "G2",
+                args.GetProperty("cellAddress").GetString()));
+        using var drill = JsonDocument.Parse(drillJson);
+        Assert.True(drill.RootElement.GetProperty("detailRowCount").GetInt32() > 1);
     }
 
     [Fact]
     public async Task ChartAdvancedActions_ExecuteThroughMcpProtocol()
     {
-        var workbookPath = Path.Join(_tempDir, $"AdvancedChart_{Guid.NewGuid():N}.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await SeedPivotDataAsync(sessionId);
-
-        AssertSuccess(await CallToolAsync("chart", new Dictionary<string, object?>
+        await AssertSuccessAsync("chart", new()
         {
             ["action"] = "create-from-range",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["sheet_name"] = "Sheet1",
             ["source_range_address"] = "A1:C7",
             ["chart_type"] = "ColumnClustered",
             ["chart_name"] = "AdvancedChart"
-        }), "Create advanced chart");
-
-        AssertSuccess(await CallToolAsync("chart_config", new Dictionary<string, object?>
+        }, "chart.create-from-range",
+        """{"sheetName":"Sheet1","sourceRangeAddress":"A1:C7","chartType":"ColumnClustered","chartName":"AdvancedChart"}""", args =>
+        {
+            Assert.Equal(
+                "A1:C7",
+                args.GetProperty("sourceRangeAddress").GetString());
+            Assert.Equal(
+                "ColumnClustered",
+                args.GetProperty("chartType").GetString());
+        });
+        await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-series-chart-type",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["series_index"] = 2,
             ["chart_type"] = "LineMarkers"
-        }), "Set chart series type");
-
-        AssertSuccess(await CallToolAsync("chart_config", new Dictionary<string, object?>
+        }, "chartconfig.set-series-chart-type",
+        """{"chartName":"AdvancedChart","seriesIndex":2,"chartType":"LineMarkers"}""", args =>
+        {
+            Assert.Equal(2, args.GetProperty("seriesIndex").GetInt32());
+            Assert.Equal("LineMarkers", args.GetProperty("chartType").GetString());
+        });
+        await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-plot-options",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["plot_by"] = "Rows",
             ["display_blanks_as"] = "Zero",
             ["plot_visible_only"] = false
-        }), "Set chart plot options");
-
-        var plotOptions = await CallToolAsync("chart_config", new Dictionary<string, object?>
+        }, "chartconfig.set-plot-options",
+        """{"chartName":"AdvancedChart","plotBy":"Rows","displayBlanksAs":"Zero","plotVisibleOnly":false}""", args =>
         {
-            ["action"] = "get-plot-options",
-            ["session_id"] = sessionId,
-            ["chart_name"] = "AdvancedChart"
+            Assert.Equal("Rows", args.GetProperty("plotBy").GetString());
+            Assert.Equal("Zero", args.GetProperty("displayBlanksAs").GetString());
+            Assert.False(args.GetProperty("plotVisibleOnly").GetBoolean());
         });
-        AssertSuccess(plotOptions, "Get chart plot options");
-        Assert.Contains("\"plotBy\":\"Rows\"", plotOptions, StringComparison.Ordinal);
-        Assert.Contains("\"displayBlanksAs\":\"Zero\"", plotOptions, StringComparison.Ordinal);
 
-        AssertSuccess(await CallToolAsync("chart_config", new Dictionary<string, object?>
+        var plotJson = await CallAsync(
+            "chart_config",
+            new()
+            {
+                ["action"] = "get-plot-options",
+                ["session_id"] = SessionId,
+                ["chart_name"] = "AdvancedChart"
+            },
+            "chartconfig.get-plot-options",
+            """{"chartName":"AdvancedChart"}""",
+            """{"success":true,"plotBy":"Rows","displayBlanksAs":"Zero"}""");
+        using (var plot = JsonDocument.Parse(plotJson))
+        {
+            Assert.Equal("Rows", plot.RootElement.GetProperty("plotBy").GetString());
+            Assert.Equal(
+                "Zero",
+                plot.RootElement.GetProperty("displayBlanksAs").GetString());
+        }
+
+        await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-placement",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["placement"] = 2,
             ["print_object"] = false,
             ["locked"] = false,
             ["rounded_corners"] = true
-        }), "Set embedded chart object properties");
-
-        AssertSuccess(await CallToolAsync("chart_config", new Dictionary<string, object?>
+        }, "chartconfig.set-placement",
+        """{"chartName":"AdvancedChart","placement":2,"printObject":false,"locked":false,"roundedCorners":true}""", args =>
+        {
+            Assert.Equal(2, args.GetProperty("placement").GetInt32());
+            Assert.False(args.GetProperty("printObject").GetBoolean());
+            Assert.False(args.GetProperty("locked").GetBoolean());
+            Assert.True(args.GetProperty("roundedCorners").GetBoolean());
+        });
+        await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-area-format",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["area"] = "Chart",
             ["fill_color"] = "#FF0000",
             ["fill_transparency"] = 0.25,
             ["line_color"] = "#0000FF",
             ["line_weight"] = 2.5
-        }), "Format chart area");
-
-        AssertSuccess(await CallToolAsync("chart_config", new Dictionary<string, object?>
+        }, "chartconfig.set-area-format",
+        """{"chartName":"AdvancedChart","area":"Chart","fillColor":"#FF0000","fillTransparency":0.25,"lineColor":"#0000FF","lineWeight":2.5}""", args =>
+        {
+            Assert.Equal("#FF0000", args.GetProperty("fillColor").GetString());
+            Assert.Equal(0.25, args.GetProperty("fillTransparency").GetDouble());
+            Assert.Equal(2.5, args.GetProperty("lineWeight").GetDouble());
+        });
+        await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-series-format",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["series_index"] = 1,
             ["fill_color"] = "#00FF00",
             ["fill_transparency"] = 0.4,
             ["line_color"] = "#FF00FF",
             ["line_weight"] = 3
-        }), "Format chart series material");
-
-        await CloseSessionAsync(sessionId, save: false);
+        }, "chartconfig.set-series-format",
+        """{"chartName":"AdvancedChart","seriesIndex":1,"fillColor":"#00FF00","fillTransparency":0.4,"lineColor":"#FF00FF","lineWeight":3}""", args =>
+        {
+            Assert.Equal(1, args.GetProperty("seriesIndex").GetInt32());
+            Assert.Equal("#00FF00", args.GetProperty("fillColor").GetString());
+            Assert.Equal("#FF00FF", args.GetProperty("lineColor").GetString());
+        });
     }
 
-    private async Task SeedPivotDataAsync(string sessionId)
+    private async Task AssertSuccessAsync(
+        string tool,
+        Dictionary<string, object?> arguments,
+        string command,
+        string? expectedArgsJson,
+        Action<JsonElement>? assertArgs = null)
     {
-        var values = new object?[][]
-        {
-            ["Region", "Sales", "Profit", "Product"],
-            ["North", 100, 30, "Widget"],
-            ["North", 150, 45, "Gadget"],
-            ["South", 200, 60, "Widget"],
-            ["South", 125, 35, "Gadget"],
-            ["West", 175, 55, "Widget"],
-            ["West", 225, 70, "Gadget"]
-        };
+        var json = await CallAsync(
+            tool,
+            arguments,
+            command,
+            expectedArgsJson,
+            """{"success":true}""",
+            assertArgs);
+        using var result = JsonDocument.Parse(json);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+    }
 
-        AssertSuccess(await CallToolAsync("range", new Dictionary<string, object?>
-        {
-            ["action"] = "set-values",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Sheet1",
-            ["range_address"] = "A1:D7",
-            ["values"] = values
-        }), "Seed PivotTable and chart data");
+    private async Task<string> CallAsync(
+        string tool,
+        Dictionary<string, object?> arguments,
+        string command,
+        string? expectedArgsJson,
+        string responseJson,
+        Action<JsonElement>? assertArgs = null)
+    {
+        var call = await _fixture.CallToolAsync(
+            tool,
+            arguments,
+            RecordingToolTest.Success(responseJson),
+            command,
+            expectedArgsJson);
+        using var args = RecordingToolTest.ParseArgs(
+            call.Request,
+            command,
+            SessionId);
+        assertArgs?.Invoke(args.RootElement);
+        return call.JsonResult;
     }
 }

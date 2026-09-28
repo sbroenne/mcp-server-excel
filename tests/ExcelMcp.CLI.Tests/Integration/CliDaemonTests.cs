@@ -19,6 +19,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Category", "Integration")]
 [Trait("Feature", "ServiceDaemon")]
 [Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
 [Trait("Speed", "Medium")]
 public sealed class CliDaemonTests : IAsyncLifetime
 {

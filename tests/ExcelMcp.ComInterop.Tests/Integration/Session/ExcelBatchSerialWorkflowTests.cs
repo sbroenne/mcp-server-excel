@@ -35,6 +35,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "ExcelBatch")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")]
+[Trait("RequiresExcel", "true")]
 public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
@@ -210,12 +211,13 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
     {
         int? sessionAPid = null;
         int? sessionBPid = null;
+        using var owned = new OwnedExcelProcessScope();
 
         try
         {
             // Session A: Timeout
             _output.WriteLine("Session A: Opening workbook (will timeout)");
-            var sessionA = ExcelSession.BeginBatch(
+            using var sessionA = ExcelSession.BeginBatch(
                 show: false,
                 operationTimeout: TimeSpan.FromSeconds(3),
                 _testFileCopy!);
@@ -249,7 +251,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
             // Session B: Reopen same file
             _output.WriteLine("Session B: Reopening SAME workbook immediately");
             var sessionBSw = Stopwatch.StartNew();
-            var sessionB = ExcelSession.BeginBatch(
+            using var sessionB = ExcelSession.BeginBatch(
                 show: false,
                 operationTimeout: TimeSpan.FromSeconds(30),
                 _testFileCopy!);
@@ -280,21 +282,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
         }
         finally
         {
-            // Cleanup: kill any lingering Excel processes from this test
-            foreach (var pid in new[] { sessionAPid, sessionBPid }.Where(p => p.HasValue))
-            {
-                try
-                {
-                    using var process = Process.GetProcessById(pid!.Value);
-                    if (!process.HasExited)
-                    {
-                        _output.WriteLine($"WARNING: Excel process {pid} still alive at test end, killing...");
-                        process.Kill();
-                        process.WaitForExit(5000);
-                    }
-                }
-                catch (Exception) { /* best effort */ }
-            }
+            owned.AssertAllExited();
         }
     }
 

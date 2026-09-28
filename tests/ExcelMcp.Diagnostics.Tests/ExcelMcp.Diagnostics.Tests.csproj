@@ -38,6 +38,12 @@
   <ItemGroup>
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\CoreTestHelper.cs" Link="Helpers\CoreTestHelper.cs" />
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\TempDirectoryFixture.cs" Link="Helpers\TempDirectoryFixture.cs" />
+    <Compile Include="..\Shared\SavedWorkbookTemplate.cs" Link="Helpers\SavedWorkbookTemplate.cs" />
+    <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -203,7 +203,8 @@ public sealed class DaemonStateObservationTests
                 waitedForStartup = true;
                 Assert.False(deadline.IsExpired);
                 return Task.FromResult(true);
-            });
+            },
+            DelayAsync: (_, _) => Task.CompletedTask);
 
         using var client = await DaemonAutoStart.EnsureAndConnectCoreAsync(
             $"race-test-{Guid.NewGuid():N}",
@@ -219,37 +220,41 @@ public sealed class DaemonStateObservationTests
     [Fact]
     public async Task EnsureAndConnectCoreAsync_SpawnedDaemonReadinessUsesOriginalDeadline()
     {
+        var clock = new AdvancingTimeProvider();
         TimeSpan? remainingBeforeLaunch = null;
         TimeSpan? remainingAfterLaunch = null;
         var runtime = new DaemonAutoStart.Runtime(
-            PingAsync: async (_, cancellationToken) =>
+            PingAsync: (_, _) =>
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
-                return false;
+                clock.Advance(TimeSpan.FromMilliseconds(200));
+                return Task.FromResult(false);
             },
             IsDaemonMutexHeld: () => false,
             IsStartupInProgress: () => throw new InvalidOperationException("No daemon was observed."),
-            TryStartDaemonAsync: async (deadline, cancellationToken) =>
+            TryStartDaemonAsync: (deadline, _) =>
             {
                 remainingBeforeLaunch = deadline.Remaining;
-                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
-                return DaemonAutoStart.StartOutcome.ObserveReadiness;
+                clock.Advance(TimeSpan.FromMilliseconds(250));
+                return Task.FromResult(DaemonAutoStart.StartOutcome.ObserveReadiness);
             },
             WaitForResponsiveDaemonAsync: (deadline, _) =>
             {
                 remainingAfterLaunch = deadline.Remaining;
                 return Task.FromResult(false);
-            });
+            },
+            DelayAsync: (_, _) => Task.CompletedTask);
 
         await Assert.ThrowsAsync<TimeoutException>(() =>
             DaemonAutoStart.EnsureAndConnectCoreAsync(
                 $"deadline-test-{Guid.NewGuid():N}",
-                OperationDeadline.Start(TimeSpan.FromMilliseconds(700)),
+                OperationDeadline.Start(TimeSpan.FromMilliseconds(700), clock),
                 runtime,
                 CancellationToken.None));
 
         Assert.NotNull(remainingBeforeLaunch);
         Assert.NotNull(remainingAfterLaunch);
+        Assert.Equal(TimeSpan.FromMilliseconds(500), remainingBeforeLaunch.Value);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), remainingAfterLaunch.Value);
         Assert.True(remainingAfterLaunch.Value < remainingBeforeLaunch.Value);
         Assert.InRange(
             remainingAfterLaunch.Value,
@@ -266,7 +271,8 @@ public sealed class DaemonStateObservationTests
             IsStartupInProgress: () => throw new InvalidOperationException("No daemon was observed."),
             TryStartDaemonAsync: (_, _) => Task.FromResult(DaemonAutoStart.StartOutcome.Ready),
             WaitForResponsiveDaemonAsync: (_, _) =>
-                throw new InvalidOperationException("A ready daemon must not be probed again."));
+                throw new InvalidOperationException("A ready daemon must not be probed again."),
+            DelayAsync: (_, _) => Task.CompletedTask);
 
         using var client = await DaemonAutoStart.EnsureAndConnectCoreAsync(
             $"ready-test-{Guid.NewGuid():N}",
@@ -294,6 +300,145 @@ public sealed class DaemonStateObservationTests
                 }));
 
         Assert.False(launchAttempted);
+    }
+
+    [Fact]
+    public async Task EnsureAndConnectCoreAsync_BusyDaemonUsesControlledClockAndSingleBudget()
+    {
+        var clock = new AdvancingTimeProvider();
+        var observedPingTimeouts = new List<TimeSpan>();
+        var delays = new List<TimeSpan>();
+        var runtime = new DaemonAutoStart.Runtime(
+            PingAsync: (timeout, _) =>
+            {
+                observedPingTimeouts.Add(timeout);
+                return Task.FromResult(false);
+            },
+            IsDaemonMutexHeld: () => true,
+            IsStartupInProgress: () => false,
+            TryStartDaemonAsync: (_, _) =>
+                throw new InvalidOperationException("A busy daemon must not start another daemon."),
+            WaitForResponsiveDaemonAsync: (_, _) => Task.FromResult(false),
+            DelayAsync: (delay, _) =>
+            {
+                delays.Add(delay);
+                clock.Advance(delay);
+                return Task.CompletedTask;
+            });
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            DaemonAutoStart.EnsureAndConnectCoreAsync(
+                $"busy-clock-{Guid.NewGuid():N}",
+                OperationDeadline.Start(TimeSpan.FromSeconds(3), clock),
+                runtime,
+                CancellationToken.None));
+
+        Assert.NotEmpty(delays);
+        Assert.Equal(TimeSpan.FromSeconds(3), delays.Aggregate(TimeSpan.Zero, (sum, delay) => sum + delay));
+        Assert.All(observedPingTimeouts, timeout =>
+            Assert.InRange(timeout, TimeSpan.Zero, DaemonAutoStart.BusyDaemonConnectTimeout));
+    }
+
+    [Fact]
+    public async Task EnsureAndConnectAsync_StartupTimerUsesControlledClock()
+    {
+        var clock = new SingleTimerTimeProvider();
+        var runtime = new DaemonAutoStart.Runtime(
+            PingAsync: static async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return false;
+            },
+            IsDaemonMutexHeld: () => false,
+            IsStartupInProgress: () => false,
+            TryStartDaemonAsync: (_, _) => throw new InvalidOperationException(),
+            WaitForResponsiveDaemonAsync: (_, _) => throw new InvalidOperationException(),
+            DelayAsync: (_, _) => throw new InvalidOperationException());
+
+        var connectTask = DaemonAutoStart.EnsureAndConnectAsync(
+            $"startup-clock-{Guid.NewGuid():N}",
+            runtime,
+            clock,
+            CancellationToken.None);
+        await clock.WaitForTimerAsync();
+
+        clock.Advance(DaemonAutoStart.StartupReadyTimeout);
+
+        var exception = await Assert.ThrowsAsync<TimeoutException>(
+            () => connectTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Contains("did not become ready", exception.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class AdvancingTimeProvider : TimeProvider
+    {
+        private long _timestamp;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => _timestamp;
+
+        internal void Advance(TimeSpan elapsed) => _timestamp += elapsed.Ticks;
+    }
+
+    private sealed class SingleTimerTimeProvider : TimeProvider
+    {
+        private readonly TaskCompletionSource<SingleTimer> _timer =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private long _timestamp;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => _timestamp;
+
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period)
+        {
+            var timer = new SingleTimer(callback, state, _timestamp + dueTime.Ticks);
+            _timer.TrySetResult(timer);
+            return timer;
+        }
+
+        internal Task<SingleTimer> WaitForTimerAsync() =>
+            _timer.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        internal void Advance(TimeSpan elapsed)
+        {
+            _timestamp += elapsed.Ticks;
+            if (_timer.Task.IsCompletedSuccessfully)
+            {
+                _timer.Task.Result.FireIfDue(_timestamp);
+            }
+        }
+
+        internal sealed class SingleTimer(
+            TimerCallback callback,
+            object? state,
+            long dueAt) : ITimer
+        {
+            private bool _disposed;
+
+            internal void FireIfDue(long timestamp)
+            {
+                if (!_disposed && timestamp >= dueAt)
+                {
+                    _disposed = true;
+                    callback(state);
+                }
+            }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period) => false;
+
+            public void Dispose() => _disposed = true;
+
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
+        }
     }
 
     private static bool DequeueObservation(

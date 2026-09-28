@@ -17,6 +17,8 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// These exercise the real PowerShell build/sync scripts against canonical source templates
 /// and isolated output repositories without touching real user state.
 /// </summary>
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class PluginBootstrapBuildTests
 {
     private const string AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";

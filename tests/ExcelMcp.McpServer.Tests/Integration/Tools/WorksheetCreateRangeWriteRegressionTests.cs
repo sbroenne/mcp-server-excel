@@ -1,7 +1,6 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Diagnostics;
 using System.Text.Json;
 using Xunit;
 using Xunit.Abstractions;
@@ -36,10 +35,6 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
     [Fact]
     public async Task CreateWorksheet_ThenSetValues_ToNonA1Range_SucceedsViaMcpProtocol()
     {
-        var baselineExcelProcessIds = Process.GetProcessesByName("EXCEL")
-            .Select(process => process.Id)
-            .ToHashSet();
-
         var sheetName = "Bug2Data";
         var values = new List<List<object?>>
         {
@@ -107,24 +102,6 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
         await CloseSessionAsync(_sessionId, save: false);
         _sessionId = null;
 
-        var waitDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
-        List<int> leakedExcelProcessIds;
-        do
-        {
-            leakedExcelProcessIds = Process.GetProcessesByName("EXCEL")
-                .Select(process => process.Id)
-                .Where(processId => !baselineExcelProcessIds.Contains(processId))
-                .ToList();
-
-            if (leakedExcelProcessIds.Count == 0)
-            {
-                break;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(250));
-        }
-        while (DateTime.UtcNow < waitDeadline);
-
-        Assert.Empty(leakedExcelProcessIds);
+        await AssertNoLeakedExcelProcessesAsync();
     }
 }

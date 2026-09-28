@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
+[Trait("RequiresExcel", "false")]
 public class PowerQueryIdentityParsingTests
 {
     [Theory]

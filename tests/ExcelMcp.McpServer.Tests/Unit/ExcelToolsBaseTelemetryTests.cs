@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Telemetry")]
+[Trait("RequiresExcel", "false")]
 public sealed class ExcelToolsBaseTelemetryTests
 {
     [Theory]

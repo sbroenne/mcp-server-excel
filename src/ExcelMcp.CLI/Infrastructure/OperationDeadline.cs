@@ -1,25 +1,33 @@
-using System.Diagnostics;
-
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
 internal readonly struct OperationDeadline
 {
     private readonly long _startedAt;
     private readonly TimeSpan _timeout;
+    private readonly TimeProvider _timeProvider;
 
-    private OperationDeadline(TimeSpan timeout)
+    private OperationDeadline(TimeSpan timeout, TimeProvider timeProvider)
     {
-        _startedAt = Stopwatch.GetTimestamp();
+        ArgumentNullException.ThrowIfNull(timeProvider);
+        _timeProvider = timeProvider;
+        _startedAt = timeProvider.GetTimestamp();
         _timeout = timeout;
     }
 
-    internal static OperationDeadline Start(TimeSpan timeout) => new(timeout);
+    internal static OperationDeadline Start(TimeSpan timeout) => new(timeout, TimeProvider.System);
+
+    internal static OperationDeadline Start(TimeSpan timeout, TimeProvider timeProvider) => new(timeout, timeProvider);
+
+    internal OperationDeadline Restart(TimeSpan timeout) => new(timeout, _timeProvider);
 
     internal TimeSpan Remaining
     {
         get
         {
-            var remaining = _timeout - Stopwatch.GetElapsedTime(_startedAt);
+            if (_timeout <= TimeSpan.Zero)
+                return TimeSpan.Zero;
+
+            var remaining = _timeout - _timeProvider.GetElapsedTime(_startedAt);
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
     }

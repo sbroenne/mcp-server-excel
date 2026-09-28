@@ -27,15 +27,7 @@ public partial class PowerQueryCommands
             throw new ArgumentException(validationError, nameof(queryName));
         }
 
-        if (timeout <= TimeSpan.Zero)
-        {
-            timeout = ComInteropConstants.DataOperationTimeout;
-        }
-        else if (timeout.TotalMilliseconds > uint.MaxValue - 1)
-        {
-            // TimeSpan.Parse("1800") = 1800 days — too large for CancellationTokenSource (~49.7 day max)
-            timeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
-        }
+        timeout = NormalizeRefreshTimeout(timeout);
 
         using var timeoutCts = new CancellationTokenSource(timeout);
         string? queryFormula = null;
@@ -106,15 +98,7 @@ public partial class PowerQueryCommands
     /// <exception cref="InvalidOperationException">Thrown when refresh fails</exception>
     public OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null)
     {
-        if (timeout <= TimeSpan.Zero)
-        {
-            timeout = ComInteropConstants.DataOperationTimeout;
-        }
-        else if (timeout.TotalMilliseconds > uint.MaxValue - 1)
-        {
-            // TimeSpan.Parse("1800") = 1800 days — too large for CancellationTokenSource (~49.7 day max)
-            timeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
-        }
+        timeout = NormalizeRefreshTimeout(timeout);
 
         using var timeoutCts = new CancellationTokenSource(timeout);
 
@@ -182,6 +166,17 @@ public partial class PowerQueryCommands
                 ComUtilities.Release(ref queries!);
             }
         }, timeoutCts.Token);
+    }
+
+    internal static TimeSpan NormalizeRefreshTimeout(TimeSpan timeout)
+    {
+        if (timeout <= TimeSpan.Zero)
+        {
+            return ComInteropConstants.DataOperationTimeout;
+        }
+
+        TimeSpan maximum = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+        return timeout > maximum ? maximum : timeout;
     }
 
 }

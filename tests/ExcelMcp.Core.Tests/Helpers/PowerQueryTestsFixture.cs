@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -20,6 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class PowerQueryTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
+    private readonly SavedWorkbookTemplateStore _populatedTemplates;
 
     /// <summary>
     /// Temp directory for all test files (auto-cleaned on disposal)
@@ -40,6 +42,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     {
         _tempDir = Path.Join(Path.GetTempPath(), $"PowerQueryTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
+        _populatedTemplates = SavedWorkbookTemplates.CreateStore(CreatePopulatedTemplate);
     }
 
     /// <summary>
@@ -56,37 +59,10 @@ public class PowerQueryTestsFixture : IAsyncLifetime
 
         try
         {
-            using (var manager = new SessionManager())
-            {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
-                manager.CloseSession(sessionId, save: true);
-            }
-
+            _populatedTemplates.CopyTo(TestFilePath, "power-query-populated");
             CreationResult.FileCreated = true;
-
-            using var batch = ExcelSession.BeginBatch(TestFilePath);
-
-            var mCodeFiles = new string[3];
-            mCodeFiles[0] = CreateMCodeFile("BasicQuery", CreateBasicMCode());
-            mCodeFiles[1] = CreateMCodeFile("DataQuery", CreateDataQueryMCode());
-            mCodeFiles[2] = CreateMCodeFile("RefreshableQuery", CreateRefreshableQueryMCode());
             CreationResult.MCodeFilesCreated = 3;
-
-            var dataModelCommands = new DataModelCommands();
-            var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-
-            // Create throws on error, so reaching here means success
-            powerQueryCommands.Create(batch, "BasicQuery", File.ReadAllText(mCodeFiles[0]), PowerQueryLoadMode.ConnectionOnly);
-            powerQueryCommands.Create(batch, "DataQuery", File.ReadAllText(mCodeFiles[1]), PowerQueryLoadMode.ConnectionOnly);
-            powerQueryCommands.Create(batch, "RefreshableQuery", File.ReadAllText(mCodeFiles[2]), PowerQueryLoadMode.ConnectionOnly);
-
             CreationResult.QueriesImported = 3;
-
-            // ═══════════════════════════════════════════════════════
-            // TEST 4: Persistence (Save)
-            // ═══════════════════════════════════════════════════════
-            batch.Save();
-
             sw.Stop();
             CreationResult.Success = true;
             CreationResult.CreationTimeSeconds = sw.Elapsed.TotalSeconds;
@@ -134,10 +110,27 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     {
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"PQ_{testName}_{guid}.xlsx");
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(testFile, show: false);
-        manager.CloseSession(sessionId, save: true);
-        return testFile;
+        return SavedWorkbookTemplates.CopyBlankTo(testFile);
+    }
+
+    private void CreatePopulatedTemplate(string templatePath)
+    {
+        var mCodeFiles = new[]
+        {
+            CreateMCodeFile("BasicQuery", CreateBasicMCode()),
+            CreateMCodeFile("DataQuery", CreateDataQueryMCode()),
+            CreateMCodeFile("RefreshableQuery", CreateRefreshableQueryMCode())
+        };
+
+        using var batch = ExcelBatch.CreateNewWorkbook(templatePath, isMacroEnabled: false);
+        var powerQueryCommands = new PowerQueryCommands(new DataModelCommands());
+        powerQueryCommands.Create(
+            batch, "BasicQuery", File.ReadAllText(mCodeFiles[0]), PowerQueryLoadMode.ConnectionOnly);
+        powerQueryCommands.Create(
+            batch, "DataQuery", File.ReadAllText(mCodeFiles[1]), PowerQueryLoadMode.ConnectionOnly);
+        powerQueryCommands.Create(
+            batch, "RefreshableQuery", File.ReadAllText(mCodeFiles[2]), PowerQueryLoadMode.ConnectionOnly);
+        batch.Save();
     }
 
     /// <summary>
@@ -225,7 +218,5 @@ public class PowerQueryCreationResult
     /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }
-
-
 
 
