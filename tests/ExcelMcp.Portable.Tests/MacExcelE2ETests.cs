@@ -47,6 +47,12 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     private static readonly int[][] SentinelValues = [[9876]];
     private static readonly int[][] UnsavedValues = [[999]];
     private static readonly string[][] SumFormula = [["=SUM(B2:B3)"]];
+    private static readonly string[][] RangeExpansionFormula = [["=D5*2"]];
+    private static readonly string[][] RangeExpansionFormats =
+    [
+        ["0", "0.00"],
+        ["@", "#,##0"]
+    ];
     private static readonly string[] InitialSheetNames = ["Data", "Spare"];
 
     [MacExcelTheory]
@@ -79,6 +85,32 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         {
             var mainSession = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = main }, deadline.Token));
+            if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1")
+            {
+                Success(await client.CallAsync("pythoninexcel", "set-formula", mainSession,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["range_address"] = "Z1",
+                        ["code"] = "\"ExcelMcp\" + \" Python\"",
+                        ["return_type"] = 0
+                    }, deadline.Token));
+                var pythonResult = Success(await client.CallAsync(
+                    "pythoninexcel", "get-result", mainSession,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["range_address"] = "Z1",
+                        ["max_wait_seconds"] = 30
+                    }, deadline.Token));
+                Assert.Contains("Z1", pythonResult.GetProperty("rangeAddress").GetString(), StringComparison.Ordinal);
+                var pythonFormula = pythonResult.GetProperty("formula").GetString();
+                Assert.StartsWith("=PY(", pythonFormula, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("\"\"ExcelMcp\"\"", pythonFormula, StringComparison.Ordinal);
+                Assert.Equal("ExcelMcp Python", pythonResult.GetProperty("value").GetString());
+                Assert.False(pythonResult.GetProperty("isPythonObject").GetBoolean());
+                Assert.False(pythonResult.GetProperty("isPythonError").GetBoolean());
+            }
             var duplicateName = await client.CallAsync("file", "open", null,
                 new() { ["path"] = duplicate }, deadline.Token);
             Assert.False(duplicateName.GetProperty("success").GetBoolean());
@@ -226,6 +258,150 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 RangeArgs("C1", ("formulas", SumFormula)), deadline.Token));
             Success(await client.CallAsync("calculation_mode", "calculate", mainSession,
                 RangeArgs("C1", ("scope", "range")), deadline.Token));
+
+            if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_RANGE_EXPANSION_E2E") == "1")
+            {
+                Success(await client.CallAsync("sheet", "create", mainSession,
+                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+                var emptyUsedRange = Success(await client.CallAsync(
+                    "range", "get-used-range", mainSession,
+                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+                Assert.Equal("$A$1", emptyUsedRange.GetProperty("rangeAddress").GetString());
+                Assert.Equal(0, emptyUsedRange.GetProperty("rowCount").GetInt32());
+                Assert.Equal(0, emptyUsedRange.GetProperty("columnCount").GetInt32());
+                Assert.Empty(emptyUsedRange.GetProperty("values").EnumerateArray());
+                Success(await client.CallAsync("sheet", "delete", mainSession,
+                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+
+                Success(await client.CallAsync("range", "set-values", mainSession,
+                    RangeArgs("D5:E6", ("values", new object?[][]
+                    {
+                        [4, null],
+                        ["A deliberately long value for native auto-fit", 7]
+                    })), deadline.Token));
+                Success(await client.CallAsync("range", "set-formulas", mainSession,
+                    RangeArgs("E5", ("formulas", RangeExpansionFormula)), deadline.Token));
+                Success(await client.CallAsync("range", "set-number-formats", mainSession,
+                    RangeArgs("D5:E6", ("formats", RangeExpansionFormats)), deadline.Token));
+                var matrixFormats = Success(await client.CallAsync(
+                    "range", "get-number-formats", mainSession, RangeArgs("D5:E6"), deadline.Token));
+                Assert.Equal("0", matrixFormats.GetProperty("formats")[0][0].GetString());
+                Assert.Equal("0.00", matrixFormats.GetProperty("formats")[0][1].GetString());
+                Assert.Equal("@", matrixFormats.GetProperty("formats")[1][0].GetString());
+                Assert.Equal("#,##0", matrixFormats.GetProperty("formats")[1][1].GetString());
+
+                var info = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("D5:E6"), deadline.Token));
+                Assert.Equal("$D$5:$E$6", info.GetProperty("address").GetString());
+                Assert.Equal(2, info.GetProperty("rowCount").GetInt32());
+                Assert.Equal(2, info.GetProperty("columnCount").GetInt32());
+                Assert.True(info.GetProperty("width").GetDouble() > 0);
+                Assert.True(info.GetProperty("height").GetDouble() > 0);
+
+                Success(await client.CallAsync("range", "copy", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "G5"
+                    }, deadline.Token));
+                var copiedFormula = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("H5"), deadline.Token));
+                Assert.Equal("=G5*2", copiedFormula.GetProperty("formulas")[0][0].GetString());
+                var copiedFormats = Success(await client.CallAsync(
+                    "range", "get-number-formats", mainSession, RangeArgs("G5:H6"), deadline.Token));
+                Assert.Equal("0.00", copiedFormats.GetProperty("formats")[0][1].GetString());
+
+                Success(await client.CallAsync("range", "copy-values", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "J5"
+                    }, deadline.Token));
+                var copiedValues = Success(await client.CallAsync(
+                    "range", "get-values", mainSession, RangeArgs("J5:K6"), deadline.Token));
+                Assert.Equal(8, copiedValues.GetProperty("values")[0][1].GetDouble());
+                Assert.Equal(7, copiedValues.GetProperty("values")[1][1].GetDouble());
+
+                Success(await client.CallAsync("range", "copy-formulas", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "M5"
+                    }, deadline.Token));
+                var formulasOnly = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("N5"), deadline.Token));
+                Assert.Equal("=M5*2", formulasOnly.GetProperty("formulas")[0][0].GetString());
+                var formulasOnlyFormats = Success(await client.CallAsync(
+                    "range", "get-number-formats", mainSession, RangeArgs("M5:N6"), deadline.Token));
+                Assert.All(
+                    formulasOnlyFormats.GetProperty("formats").EnumerateArray()
+                        .SelectMany(row => row.EnumerateArray()),
+                    format => Assert.Equal("General", format.GetString()));
+
+                var usedRange = Success(await client.CallAsync(
+                    "range", "get-used-range", mainSession,
+                    new() { ["sheet_name"] = "Data" }, deadline.Token));
+                Assert.Equal("$A$1:$N$6", usedRange.GetProperty("rangeAddress").GetString());
+                Assert.Equal(6, usedRange.GetProperty("rowCount").GetInt32());
+                Assert.Equal(14, usedRange.GetProperty("columnCount").GetInt32());
+
+                Success(await client.CallAsync("rangeformat", "set-column-width", mainSession,
+                    RangeArgs("D:E", ("column_width", 5)), deadline.Token));
+                var narrowColumns = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("D:E"), deadline.Token));
+                Success(await client.CallAsync("rangeformat", "auto-fit-columns", mainSession,
+                    RangeArgs("D:E"), deadline.Token));
+                var fittedColumns = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("D:E"), deadline.Token));
+                Assert.True(
+                    fittedColumns.GetProperty("width").GetDouble()
+                    > narrowColumns.GetProperty("width").GetDouble());
+
+                Success(await client.CallAsync("rangeformat", "set-row-height", mainSession,
+                    RangeArgs("6:6", ("row_height", 5)), deadline.Token));
+                var shortRow = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("6:6"), deadline.Token));
+                Success(await client.CallAsync("rangeformat", "auto-fit-rows", mainSession,
+                    RangeArgs("6:6"), deadline.Token));
+                var fittedRow = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("6:6"), deadline.Token));
+                Assert.True(
+                    fittedRow.GetProperty("height").GetDouble()
+                    > shortRow.GetProperty("height").GetDouble());
+
+                Success(await client.CallAsync("rangeformat", "merge-cells", mainSession,
+                    RangeArgs("P5:Q5"), deadline.Token));
+                var mergeInfo = Success(await client.CallAsync(
+                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token));
+                Assert.True(mergeInfo.GetProperty("isMerged").GetBoolean());
+                Assert.Equal(
+                    ["$P$5:$Q$5"],
+                    mergeInfo.GetProperty("mergedRanges").EnumerateArray()
+                        .Select(item => item.GetString()!).ToArray());
+                Success(await client.CallAsync("rangeformat", "unmerge-cells", mainSession,
+                    RangeArgs("P5:Q5"), deadline.Token));
+                mergeInfo = Success(await client.CallAsync(
+                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token));
+                Assert.False(mergeInfo.GetProperty("isMerged").GetBoolean());
+                Assert.Empty(mergeInfo.GetProperty("mergedRanges").EnumerateArray());
+
+                Success(await client.CallAsync("rangelink", "set-cell-lock", mainSession,
+                    RangeArgs("R5:S5", ("locked", false)), deadline.Token));
+                var lockInfo = Success(await client.CallAsync(
+                    "rangelink", "get-cell-lock", mainSession, RangeArgs("R5:S5"), deadline.Token));
+                Assert.False(lockInfo.GetProperty("isLocked").GetBoolean());
+                Success(await client.CallAsync("rangelink", "set-cell-lock", mainSession,
+                    RangeArgs("R5:S5", ("locked", true)), deadline.Token));
+                lockInfo = Success(await client.CallAsync(
+                    "rangelink", "get-cell-lock", mainSession, RangeArgs("R5:S5"), deadline.Token));
+                Assert.True(lockInfo.GetProperty("isLocked").GetBoolean());
+            }
 
             var values = Success(await client.CallAsync("range", "get-values", mainSession,
                 RangeArgs("A1:B3"), deadline.Token));
@@ -839,7 +1015,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             {
                 args["action"] = action;
                 if (sessionId is not null) { args["session_id"] = sessionId; }
-                if (tool == "file" && action == "open") { args["timeout_seconds"] = 15; }
+                if (tool == "file" && action == "open")
+                {
+                    args["timeout_seconds"] =
+                        UsesExtendedOpenTimeout() ? 60 : 15;
+                }
                 var mcpTool = tool switch
                 {
                     "sheet" => "worksheet",
@@ -870,9 +1050,16 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     });
                     command.Add(value is string text ? text : JsonSerializer.Serialize(value));
                 }
-                if (tool == "file" && action == "open") { command.AddRange(["--timeout", "15"]); }
+                if (tool == "file" && action == "open")
+                {
+                    command.AddRange([
+                        "--timeout",
+                        UsesExtendedOpenTimeout() ? "60" : "15"
+                    ]);
+                }
                 json = await RunCliAsync(command, cancellationToken);
             }
+
             using var document = JsonDocument.Parse(json);
             return document.RootElement.Clone();
         }
@@ -896,6 +1083,10 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     exception.Message);
             }
         }
+
+        private static bool UsesExtendedOpenTimeout() =>
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1"
+            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_RANGE_EXPANSION_E2E") == "1";
 
         private static ProcessStartInfo CreateStart(string executable)
         {

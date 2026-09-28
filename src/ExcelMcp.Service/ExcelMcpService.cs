@@ -662,11 +662,16 @@ public sealed class ExcelMcpService : IDisposable
                     };
                 }
 
+                if (category == "pythoninexcel")
+                {
+                    MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
+                }
                 arguments["filePath"] = session.FilePath;
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
-                    session.OperationTimeout);
+                    session.OperationTimeout,
+                    allowFailureResult: category == "pythoninexcel");
                 return new ServiceResponse
                 {
                     Success = true,
@@ -996,24 +1001,7 @@ public sealed class ExcelMcpService : IDisposable
             return;
         }
 
-        if (action == "set-values")
-        {
-            var values = arguments["values"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
-            var valuesFile = arguments["valuesFile"]?.GetValue<string>();
-            arguments["values"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveValuesOrFile(values, valuesFile),
-                ServiceProtocol.JsonOptions);
-            arguments.Remove("valuesFile");
-        }
-        else if (action == "set-formulas")
-        {
-            var formulas = arguments["formulas"]?.Deserialize<List<List<string>>>(ServiceProtocol.JsonOptions);
-            var formulasFile = arguments["formulasFile"]?.GetValue<string>();
-            arguments["formulas"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile),
-                ServiceProtocol.JsonOptions);
-            arguments.Remove("formulasFile");
-        }
+        MacRangeArguments.Prepare(category, action, arguments);
     }
 
     private static void ValidateMacRangeFormatArguments(

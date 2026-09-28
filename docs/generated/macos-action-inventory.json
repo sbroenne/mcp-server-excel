@@ -2577,12 +2577,12 @@
       "targetSheet: string; required; Target worksheet name for copy operations",
       "targetRange: string; required; Target range address - can be single cell for paste destination (e.g., 'A1')"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
+    "evidence": "Native range copy source is present; complete cross-entry-point behavior is unverified.",
     "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.copy-formulas",
@@ -2593,12 +2593,12 @@
       "targetSheet: string; required; Target worksheet name for copy operations",
       "targetRange: string; required; Target range address - can be single cell for paste destination (e.g., 'A1')"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
+    "evidence": "Native formulas-only copy source is present; complete cross-entry-point behavior is unverified.",
     "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.copy-values",
@@ -2609,12 +2609,12 @@
       "targetSheet: string; required; Target worksheet name for copy operations",
       "targetRange: string; required; Target range address - can be single cell for paste destination (e.g., 'A1')"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
+    "evidence": "Native values-only copy source is present; complete cross-entry-point behavior is unverified.",
     "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.get-current-region",
@@ -2623,12 +2623,12 @@
       "sheetName: string; required; Name of the worksheet",
       "cellAddress: string; required; Single cell address (e.g., 'B5') - expands to contiguous data region around this cell"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "evidence": "Native CurrentRegion probes returned a missing object through JXA and parameter error -50 through typed AppleScript.",
+    "excelApiVersion": "Excel for Mac 16.113.1.",
+    "blocker": "the native current-region candidate has no verified route and has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.get-formulas",
@@ -2651,12 +2651,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Cell range address (e.g., 'A1:D10')"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
+    "evidence": "Native range-information source is present; complete cross-entry-point behavior is unverified.",
     "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.get-number-formats",
@@ -2678,12 +2678,12 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
+    "evidence": "Native used-range source is present; complete cross-entry-point behavior is unverified.",
     "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.get-values",
@@ -2739,12 +2739,12 @@
       "formats: System.Collections.Generic.List<global::System.Collections.Generic.List<string>>?; optional; default null; 2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']]). Optional if formatsFile is provided.",
       "formatsFile: string?; optional; default null; Path to a JSON file containing 2D array of format codes. Alternative to inline formats parameter."
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
+    "evidence": "Native per-cell format source and file-argument validation are present; desktop acceptance is incomplete.",
     "excelApiVersion": "Unverified.",
-    "blocker": "a capability that is not supported by the macOS Excel backend"
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "range.set-values",
@@ -2920,12 +2920,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Column range to auto-fit (e.g., 'A:D' or 'A1:D100')"
     ],
-    "tier": "OfficeAddIn",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
-    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
-    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
+    "evidence": "Native column auto-fit source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangeformat.auto-fit-rows",
@@ -2934,12 +2934,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Row range to auto-fit (e.g., '1:10' or 'A1:D100')"
     ],
-    "tier": "OfficeAddIn",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
-    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
-    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
+    "evidence": "Native row auto-fit source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangeformat.format-range",
@@ -3005,12 +3005,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Cell range to check for merged cells (e.g., 'A1:D10')"
     ],
-    "tier": "OfficeAddIn",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
-    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
-    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
+    "evidence": "Native merged-cell inspection source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangeformat.get-style",
@@ -3047,12 +3047,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Cell range to merge into a single cell (e.g., 'A1:D1')"
     ],
-    "tier": "OfficeAddIn",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
-    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
-    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
+    "evidence": "Native cell-merge source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangeformat.remove-validation",
@@ -3120,12 +3120,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Cell range to unmerge (e.g., 'A1:D1')"
     ],
-    "tier": "OfficeAddIn",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
-    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
-    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
+    "evidence": "Native cell-unmerge source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangeformat.validate-range",
@@ -3223,12 +3223,12 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Cell range address (e.g., 'A1:D10')"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native cell-lock inspection source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangelink.get-hyperlink",
@@ -3293,12 +3293,12 @@
       "rangeAddress: string; required; Cell range address (e.g., 'A1:D10')",
       "locked: bool; required; Lock status: true = locked (protected when sheet protection enabled), false = unlocked (editable)"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native cell-lock mutation source is present; complete cross-entry-point behavior is unverified.",
+    "excelApiVersion": "Unverified.",
+    "blocker": "the native range candidate has not completed real CLI and MCP acceptance"
   },
   {
     "command": "rangelink.update-hyperlink",

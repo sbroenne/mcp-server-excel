@@ -12,7 +12,9 @@ fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
 param(
     [switch]$SkipBuild,
     [string]$PipeName,
-    [switch]$IncludePowerQueryFixtures
+    [switch]$IncludePowerQueryFixtures,
+    [switch]$IncludePythonInExcel,
+    [switch]$IncludeRangeExpansion
 )
 
 Set-StrictMode -Version Latest
@@ -81,6 +83,12 @@ $environment = @{
 }
 if ($IncludePowerQueryFixtures) {
     $environment.EXCELMCP_MAC_PQ_FIXTURE_E2E = '1'
+}
+if ($IncludePythonInExcel) {
+    $environment.EXCELMCP_MAC_PYTHON_E2E = '1'
+}
+if ($IncludeRangeExpansion) {
+    $environment.EXCELMCP_MAC_RANGE_EXPANSION_E2E = '1'
 }
 try {
     $test = Invoke-MacTestCommand dotnet @(

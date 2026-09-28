@@ -29,6 +29,17 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("pythoninexcel.set-formula")]
+    [InlineData("pythoninexcel.get-result")]
+    public void PythonInExcel_RemainsGatedWithoutPersistentFormula2RoundTrip(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+    }
+
+    [Theory]
     [InlineData("sheet.copy")]
     [InlineData("sheet.move")]
     public void SheetReordering_RemainsGatedWithoutProvenAppleEventsParity(string command)
@@ -37,6 +48,31 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+    }
+
+    [Theory]
+    [InlineData("range.copy")]
+    [InlineData("range.copy-values")]
+    [InlineData("range.copy-formulas")]
+    [InlineData("range.get-current-region")]
+    [InlineData("range.get-used-range")]
+    [InlineData("range.get-info")]
+    [InlineData("range.set-number-formats")]
+    [InlineData("rangeformat.auto-fit-columns")]
+    [InlineData("rangeformat.auto-fit-rows")]
+    [InlineData("rangeformat.merge-cells")]
+    [InlineData("rangeformat.unmerge-cells")]
+    [InlineData("rangeformat.get-merge-info")]
+    [InlineData("rangelink.set-cell-lock")]
+    [InlineData("rangelink.get-cell-lock")]
+    public void RangeExpansion_RemainsGatedUntilBothEntryPointsPass(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("not completed real CLI and MCP acceptance", capability.UnavailableMessage);
     }
 
     [Theory]

@@ -155,6 +155,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native range copy source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("copy")]
     OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -167,6 +170,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native values-only copy source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("copy-values")]
     OperationResult CopyValues(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -179,6 +185,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native formulas-only copy source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("copy-formulas")]
     OperationResult CopyFormulas(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -218,6 +227,9 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address matching formats dimensions</param>
     /// <param name="formats">2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']]). Optional if formatsFile is provided.</param>
     /// <param name="formatsFile">Path to a JSON file containing 2D array of format codes. Alternative to inline formats parameter.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native per-cell format source and file-argument validation are present; desktop acceptance is incomplete.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("set-number-formats")]
     OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formats = null, string? formatsFile = null);
 
@@ -229,6 +241,9 @@ public interface IRangeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native used-range source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-used-range")]
     RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
@@ -239,6 +254,10 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'B5') - expands to contiguous data region around this cell</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native CurrentRegion probes returned a missing object through JXA and parameter error -50 through typed AppleScript.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.",
+        Blocker = "the native current-region candidate has no verified route and has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-current-region")]
     RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
@@ -249,6 +268,9 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native range-information source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-info")]
     RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }
@@ -318,4 +340,3 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
-

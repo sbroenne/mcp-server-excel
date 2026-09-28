@@ -7,6 +7,41 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 public sealed class MacExcelBackendTests
 {
     [Fact]
+    public async Task StructuredCommandFailure_CanRemainAResultDto()
+    {
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+            Task.FromResult(new MacProcessResult(
+                0,
+                """{"success":false,"filePath":"/tmp/test.xlsx","isPythonError":true,"errorMessage":"#PYTHON! - Python code raised an error"}""",
+                "")));
+
+        var result = await backend.InvokeAsync(
+            "pythoninexcel.get-result",
+            new { filePath = "/tmp/test.xlsx" },
+            TimeSpan.FromSeconds(5),
+            allowFailureResult: true);
+
+        Assert.False(result.GetProperty("success").GetBoolean());
+        Assert.True(result.GetProperty("isPythonError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task AutomationFailure_IsNotMistakenForStructuredCommandFailure()
+    {
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+            Task.FromResult(new MacProcessResult(
+                0,
+                """{"success":false,"errorCategory":"ComInterop","errorMessage":"Worksheet does not exist."}""",
+                "")));
+
+        await Assert.ThrowsAsync<MacExcelOperationException>(() => backend.InvokeAsync(
+            "pythoninexcel.get-result",
+            new { filePath = "/tmp/test.xlsx" },
+            TimeSpan.FromSeconds(5),
+            allowFailureResult: true));
+    }
+
+    [Fact]
     public async Task Open_HandsOffExactPathBeforeAttachingWorkbook()
     {
         var calls = new List<ProcessStartInfo>();

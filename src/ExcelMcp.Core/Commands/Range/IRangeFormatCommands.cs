@@ -222,6 +222,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to auto-fit (e.g., 'A:D' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native column auto-fit source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("auto-fit-columns")]
     OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -231,6 +234,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to auto-fit (e.g., '1:10' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native row auto-fit source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("auto-fit-rows")]
     OperationResult AutoFitRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -242,6 +248,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to merge into a single cell (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native cell-merge source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("merge-cells")]
     OperationResult MergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -251,6 +260,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to unmerge (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native cell-unmerge source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("unmerge-cells")]
     OperationResult UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -260,6 +272,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to check for merged cells (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native merged-cell inspection source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-merge-info")]
     RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 

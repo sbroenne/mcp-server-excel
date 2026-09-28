@@ -70,6 +70,11 @@ The first implementation increment now exists behind runtime platform selection:
   range get/set values and formulas (including existing JSON/CSV file
   transforms), number-format read/write, explicit row/column sizing, clear
   operations, calculation, Goal Seek, and one- or two-variable Data Tables.
+- A native Python in Excel `Range.Formula2` candidate and its portable
+  validation/polling regressions are staged, but both public actions remain
+  capability-gated. Microsoft documents Python in Excel on qualifying Business
+  and Enterprise subscriptions beginning with Excel for Mac 16.96, but declared
+  API presence and product availability did not establish automation parity.
 - Power Query `list`, `view`, and `get-load-config` are implemented for clean,
   saved workbooks using package inspection. Package-only `update` requires
   `refresh=false`; the contract default remains `refresh=true`, so Mac callers
@@ -293,6 +298,16 @@ dictionary and synthetic real-Excel workbooks:
 | Worksheet style `set-tab-color`, `get-tab-color`, `clear-tab-color` | Worksheet `sheet tab` exposes read/write `color` and `color index`; `XlColorIndex` declares `none` | CLI and MCP round-tripped RGB `#112233`, cleared it, and observed `HasColor=false` | Implemented |
 | Worksheet `copy` | `copy worksheet` declares optional before/after sheet parameters | JXA renamed the existing destination rather than adding a sheet; typed AppleScript returned parameter errors or introduced an untitled workbook outside the owned session | Blocked; declared terminology did not prove contract parity |
 | Worksheet `move` | No move-worksheet command is declared | Not executed because no declared route exists and copy/delete is not an equivalent atomic move | Blocked |
+| Python in Excel `set-formula`, `get-result` | Range `formula2` is declared read/write; Microsoft documents qualifying Mac availability from 16.96 | The first quoted-literal CLI/MCP run exposed incorrect use of a nonexistent range-address property. After switching to the declared `get address` command, both entry points resolved `$Z$1`, but the PY formula remained empty. A bounded transport comparison on Excel 16.113.1 proved JXA Formula2 persisted `=1+2` and value `3` across fresh processes; typed AppleScript returned `-50`; the same quoted PY literal immediately read back with empty `formula2`, `formula`, and value in both the setter and a fresh JXA process | Blocked; actions remain capability-gated because ordinary Formula2 works but PY cannot be invoked truthfully in the tested environment |
+| Range `copy`, `copy-values`, `copy-formulas` | `copy range` accepts a destination range without clipboard use; range `value` and `formula r1c1` are read/write | Source candidate uses native copy for complete content, direct matrices for values, and R1C1 matrices so relative references adjust at the destination | Pending real CLI/MCP acceptance; capability-gated |
+| Range `get-used-range`, `get-info` | Worksheet `used range`, `get address`, row/column collections, number format, and geometry properties are declared | Source candidate preserves absolute addresses and treats Excel's missing-object response for a genuinely empty sheet as a zero-dimensional `$A$1` used range | Pending real CLI/MCP acceptance; capability-gated |
+| Range `get-current-region` | Range `current region` is declared read-only | On a populated `D5:E6` block, JXA returned “The object you are trying to access does not exist” and typed AppleScript returned Excel parameter error `-50` | Blocked; remains capability-gated rather than reconstructing Excel's region semantics |
+| Range `set-number-formats` | Range `number format` is read/write | Source candidate resolves inline/file input through the shared transform, validates the exact 2D shape, and writes each cell to cover single-row and single-column matrices | Pending real CLI/MCP acceptance; capability-gated |
+| Range format `auto-fit-columns`, `auto-fit-rows` | `autofit` accepts a range; range `rows` and `columns` expose the complete selected dimensions | Source candidate targets the selected range's full row/column collections | Pending real CLI/MCP acceptance; capability-gated |
+| Range format `merge-cells`, `unmerge-cells`, `get-merge-info` | `merge`, `unmerge`, read/write `merge cells`, and read-only `merge area` are declared | Source candidate de-duplicates every merged area intersecting the requested range rather than reporting only its first cell | Pending real CLI/MCP acceptance; capability-gated |
+| Range link `set-cell-lock`, `get-cell-lock` | Range `locked` is read/write | Source candidate writes the complete range and reads the first cell, matching the Windows contract | Pending real CLI/MCP acceptance; capability-gated |
+| Calculation `set-mode`, `get-mode` | Application `calculation` is read/write | The declared property is application-global in shared Excel, so changing it cannot preserve exact workbook ownership when unrelated workbooks are open | Blocked for the native shared-Excel tier |
+| Named range lifecycle | Workbook `named item` elements expose name, references, reference range, value, and visibility | The object model appears sufficient, but hidden/internal-name filtering, bounded previews, create/delete dispatch, and exact reference normalization still require a separate evidence slice | Deferred until the range batch is accepted |
 
 The failed copy probes did not authorize closing the untitled workbook or
 terminating shared Excel. Exact-path AppleScript lookup now skips workbooks
@@ -766,6 +781,15 @@ consent, cross-builds Release, and requires exactly two passing entry-point
 cases. `-SkipBuild` is only appropriate after a successful Release build in the
 same worktree. Fixtures live in ordinary temporary storage, never Excel's
 container. The runner stops only its private daemon, not shared Excel.
+`-IncludePythonInExcel` opts those same two workflows into the literal `PY()`
+acceptance sequence; when selected, unavailable capability, licensing, cloud
+connection, policy, serialization, or result failures fail the run rather than
+being converted to a skip. It is intentionally not part of the default baseline
+while Python actions remain capability-gated.
+`-IncludeRangeExpansion` similarly opts both entry points into the pending native
+range-expansion acceptance sequence. Until that sequence passes against desktop
+Excel, the new range routes remain capability-gated and the switch is not part
+of the default baseline.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,
@@ -1104,6 +1128,8 @@ future parity additions require their own user-visible changesets.
 - [Request access to multiple files; grants stored with the app](https://learn.microsoft.com/en-us/office/vba/office-mac/grantaccesstomultiplefiles)
 - [Mac Power Query, including VBA query authoring](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query)
 - [Excel analytics platform differences](https://support.microsoft.com/en-us/excel/learn-to-use-power-query-and-power-pivot-in-excel)
+- [Python in Excel availability, including qualifying Mac subscriptions and versions](https://support.microsoft.com/en-gb/excel/python/python-in-excel-availability)
+- [Range.Formula2 behavior](https://learn.microsoft.com/en-us/office/vba/api/excel.range.formula2)
 - [Office.js Excel API requirement sets](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/excel/excel-api-requirement-sets)
 - Installed Excel scripting dictionary, `Microsoft Excel.app/Contents/Resources/Excel.sdef`.
 
