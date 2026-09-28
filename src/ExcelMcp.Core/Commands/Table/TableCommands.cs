@@ -10,6 +10,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 public partial class TableCommands : ITableCommands, ITableColumnCommands
 {
+    private const int ExcelOutOfMemoryHResult = unchecked((int)0x8007000E);
+
     #region Helper Methods
 
     private static void ValidateRequiredTableName(string tableName)
@@ -92,7 +94,8 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
             ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE or
             ResiliencePipelines.RPC_E_DISCONNECTED or
             ResiliencePipelines.CO_E_SERVER_EXEC_FAILURE or
-            ResiliencePipelines.DATA_MODEL_BUSY;
+            ResiliencePipelines.DATA_MODEL_BUSY or
+            ExcelOutOfMemoryHResult;
 
     /// <summary>
     /// Finds a table by name in the workbook, throwing if not found.

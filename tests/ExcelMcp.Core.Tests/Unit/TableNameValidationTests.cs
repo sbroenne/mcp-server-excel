@@ -39,6 +39,7 @@ public class TableNameValidationTests
     [InlineData(ResiliencePipelines.RPC_E_CALL_FAILED)]
     [InlineData(ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE)]
     [InlineData(ResiliencePipelines.RPC_E_DISCONNECTED)]
+    [InlineData(unchecked((int)0x8007000E))]
     public void TryAssignTableNameForValidation_WhenExcelSessionFails_Propagates(int hResult)
     {
         var table = new ComFailureTable(hResult);
