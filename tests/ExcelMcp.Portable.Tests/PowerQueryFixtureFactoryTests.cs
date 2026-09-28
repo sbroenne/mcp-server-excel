@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Text.Json;
+using System.Xml.Linq;
 using Sbroenne.ExcelMcp.Service.Mac;
 using Xunit;
 
@@ -75,6 +77,49 @@ public sealed class PowerQueryFixtureFactoryTests
         Assert.Equal(
             File.ReadAllBytes(first.WorkbookPath),
             File.ReadAllBytes(second.WorkbookPath));
+    }
+
+    [Theory]
+    [InlineData(PowerQueryFixtureKind.ConnectionOnly)]
+    [InlineData(PowerQueryFixtureKind.WorksheetLoaded)]
+    public void Create_EmitsThreeStylesInEachThemeMatrixList(PowerQueryFixtureKind kind)
+    {
+        using var directory = new TemporaryDirectory("excelmcp-pq-fixture-");
+        var fixture = PowerQueryFixtureFactory.Create(directory.Path, kind);
+        using var archive = ZipFile.OpenRead(fixture.WorkbookPath);
+        using var stream = archive.GetEntry("xl/theme/theme1.xml")!.Open();
+        var theme = XDocument.Load(stream);
+        XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        var matrix = Assert.Single(theme.Descendants(drawing + "fmtScheme"));
+        Assert.Equal(4, matrix.Elements().Count());
+        Assert.All(matrix.Elements(), list => Assert.Equal(3, list.Elements().Count()));
+    }
+
+    [Fact]
+    public void Audit_RejectsIncompleteThemeMatrixInsteadOfClaimingPackageValidity()
+    {
+        using var directory = new TemporaryDirectory("excelmcp-pq-fixture-");
+        var fixture = PowerQueryFixtureFactory.Create(directory.Path, PowerQueryFixtureKind.ConnectionOnly);
+        using (var archive = ZipFile.Open(fixture.WorkbookPath, ZipArchiveMode.Update))
+        {
+            var entry = archive.GetEntry("xl/theme/theme1.xml")!;
+            XDocument theme;
+            using (var stream = entry.Open()) theme = XDocument.Load(stream);
+            XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            foreach (var list in theme.Descendants(drawing + "fmtScheme").Elements())
+            {
+                list.Elements().Skip(1).Remove();
+            }
+            entry.Delete();
+            using var output = archive.CreateEntry("xl/theme/theme1.xml").Open();
+            theme.Save(output);
+        }
+
+        var audit = PowerQueryFixtureFactory.Audit(fixture.WorkbookPath, PowerQueryFixtureKind.ConnectionOnly);
+        foreach (var name in new[] { "fillStyleLst", "lnStyleLst", "effectStyleLst", "bgFillStyleLst" })
+        {
+            Assert.Contains(audit.Errors, error => error.Contains(name, StringComparison.Ordinal));
+        }
     }
 
     private sealed class TemporaryDirectory : IDisposable

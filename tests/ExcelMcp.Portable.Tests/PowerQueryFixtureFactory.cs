@@ -156,6 +156,7 @@ internal static class PowerQueryFixtureFactory
         }
 
         AuditContentTypes(archive, kind, errors);
+        AuditTheme(archive, errors);
         AuditRelationships(archive, kind, errors);
         AuditDataMashup(archive, errors);
         AuditLoadGraph(archive, kind, errors);
@@ -438,6 +439,21 @@ internal static class PowerQueryFixtureFactory
         }
     }
 
+    private static void AuditTheme(ZipArchive archive, List<string> errors)
+    {
+        var theme = LoadXml(archive, "xl/theme/theme1.xml", errors);
+        if (theme is null) return;
+        XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        var matrix = theme.Root?.Element(drawing + "themeElements")?.Element(drawing + "fmtScheme");
+        foreach (var name in new[] { "fillStyleLst", "lnStyleLst", "effectStyleLst", "bgFillStyleLst" })
+        {
+            if ((matrix?.Element(drawing + name)?.Elements().Count() ?? 0) < 3)
+            {
+                errors.Add($"Theme style list '{name}' requires at least three entries.");
+            }
+        }
+    }
+
     private static void AuditRelationships(
         ZipArchive archive,
         PowerQueryFixtureKind kind,
@@ -627,10 +643,26 @@ internal static class PowerQueryFixtureFactory
               <a:minorFont><a:latin typeface="Aptos"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>
             </a:fontScheme>
             <a:fmtScheme name="Repository Fixture">
-              <a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>
-              <a:lnStyleLst><a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst>
-              <a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>
-              <a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>
+              <a:fillStyleLst>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+              </a:fillStyleLst>
+              <a:lnStyleLst>
+                <a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+                <a:ln w="12700" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+                <a:ln w="19050" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+              </a:lnStyleLst>
+              <a:effectStyleLst>
+                <a:effectStyle><a:effectLst/></a:effectStyle>
+                <a:effectStyle><a:effectLst/></a:effectStyle>
+                <a:effectStyle><a:effectLst/></a:effectStyle>
+              </a:effectStyleLst>
+              <a:bgFillStyleLst>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+                <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+              </a:bgFillStyleLst>
             </a:fmtScheme>
           </a:themeElements>
         </a:theme>

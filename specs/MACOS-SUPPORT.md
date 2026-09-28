@@ -49,12 +49,15 @@ fixtures that can prove completion, errors, and cleanup.
 
 ## Implementation status
 
-The initial verified operations and the next guarded implementation increment
-are combined in the coordinator branch. Excel is responsive again, and the
-combined default desktop baseline passes through both CLI and MCP: workbook
-lifecycle/range operations and Goal Seek/data tables. No shared Excel termination
-or security-setting change was required. Source integration and baseline success
-do not establish acceptance of the remaining guarded feature candidates.
+The initial verified operations and the next implementation increment are
+combined in the coordinator branch. The combined production desktop workflow
+passed through both CLI and MCP with the eleven-action range expansion and six
+named-range operations selected, alongside workbook lifecycle and Goal Seek/data
+tables. A subsequent Power Query fixture attempt and an ordinary-workbook control
+both timed out opening files through LaunchServices; further desktop acceptance
+is blocked until Excel accepts opens again. No shared Excel termination or
+security-setting change was performed. Earlier success does not establish
+acceptance of the remaining guarded feature candidates.
 
 The combined source includes helper 1.3.0 for Power Query lifecycle and VBA source
 operations, Office.js dispatch for selected tables/charts/ordinary PivotTables
@@ -456,15 +459,19 @@ values, MS-QDEFF DataMashup streams, connections, and (for the worksheet
 variant) table/QueryTable relationships. Each temporary workbook receives a
 JSON provenance manifest with its SHA-256 hash. Package-audit tests reject
 missing content types, required parts, relationship edges, external
-relationships, invalid DataMashup content, and mismatched load graphs. No
-generated workbook binary is committed.
+relationships, invalid DataMashup content, mismatched load graphs, and incomplete
+DrawingML theme style matrices. Each theme matrix list now contains the required
+three styles; focused failing-first tests cover generation and audit rejection.
+No generated workbook binary is committed.
 
 Real-Excel acceptance is **not established** for these new packages. On
-2026-09-27, the opt-in exact-path run through both CLI and MCP timed out while
+2026-09-27 and again on 2026-09-28, the opt-in exact-path run through both CLI and MCP timed out while
 attaching the connection-only fixture after LaunchServices handoff. Independent
 blank-workbook baseline opens failed through the same host-wide LaunchServices
-path, so this result does not establish that either candidate package is
-malformed. The run did not click or dismiss UI, terminate Excel, change
+path. The later attempt followed a successful combined native/named-range run,
+and correcting the independently discovered incomplete theme matrices did not
+remove the opening failure. The timeout therefore does not establish its root
+cause or validate either candidate package. The runs did not click or dismiss UI, terminate Excel, change
 trust/security, or access an Excel container. The worksheet-loaded fixture,
 save/reopen normalization, and synchronous refresh could therefore not be
 proven. Both generated variants remain test candidates, not accepted fixtures,
