@@ -43,8 +43,6 @@ public sealed class MacVbaHelperProtocolTests
     [InlineData("unknown.action")]
     [InlineData("vba.run")]
     [InlineData("helper.eval")]
-    [InlineData("powerquery.refresh")]
-    [InlineData("powerquery.evaluate")]
     public void Request_RejectsActionsOutsideFixedAllowlist(string action)
     {
         var error = Assert.Throws<ArgumentException>(() => MacVbaHelperProtocol.CreateRequest(
@@ -54,6 +52,23 @@ public sealed class MacVbaHelperProtocolTests
             new { }));
 
         Assert.Contains("not allowed", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("powerquery.refresh")]
+    [InlineData("powerquery.refresh-all")]
+    [InlineData("powerquery.load-to")]
+    [InlineData("powerquery.unload")]
+    [InlineData("powerquery.evaluate")]
+    public void Request_AllowsImplementedPowerQueryLifecycleActions(string action)
+    {
+        var request = MacVbaHelperProtocol.CreateRequest(
+            "0123456789abcdef0123456789abcdef",
+            "/tmp/exact workbook.xlsx",
+            action,
+            new { });
+
+        Assert.Equal(action, MacVbaHelperProtocol.ParseRequest(request).Action);
     }
 
     [Fact]
@@ -110,12 +125,12 @@ public sealed class MacVbaHelperProtocolTests
         const string requestId = "0123456789abcdef0123456789abcdef";
         var result = MacVbaHelperProtocol.ParseResponse(
             """
-            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.0.1"},"error":null}
+            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.1.0"},"error":null}
             """,
             requestId);
 
         Assert.True(result.Success);
-        Assert.Equal("1.0.1", result.Result!.Value.GetProperty("helperVersion").GetString());
+        Assert.Equal("1.1.0", result.Result!.Value.GetProperty("helperVersion").GetString());
 
         Assert.Throws<InvalidOperationException>(() => MacVbaHelperProtocol.ParseResponse(
             """
@@ -155,20 +170,40 @@ public sealed class MacVbaHelperProtocolTests
         using var reader = new StreamReader(stream!);
         var source = reader.ReadToEnd();
 
+        Assert.Contains("Private Const HELPER_VERSION As String = \"1.1.0\"", source);
         Assert.Contains("Public Function ExcelMcpDispatch(ByVal requestJson As String) As String", source);
         Assert.Contains("candidate.FullName", source);
         Assert.Contains("VBProject.VBComponents", source);
         Assert.Contains("CodeModule.AddFromString", source);
         Assert.Contains("Queries.Add", source);
         Assert.Contains("QueryTable.WorkbookConnection", source);
+        Assert.Contains("queryTable.Refresh", source);
+        Assert.Contains("If Not CBool(queryTable.Refresh(False)) Then", source);
+        Assert.Contains("Connections.Add2", source);
+        Assert.Contains("powerquery.evaluate", source);
+        Assert.Contains(
+            "ValidateArgumentKeys argumentsJson, \"name,destination,sheetName,cellAddress\"",
+            source);
+        Assert.Contains("ValidateArgumentKeys argumentsJson, \"formula\"", source);
+        Assert.Contains("destinationRange.Cells.CountLarge <> 1", source);
+        Assert.Contains("rollback_failed", source);
         Assert.Contains("scenarios.Add", source);
         Assert.Contains("scenario.Show", source);
         Assert.Contains("scenarioCreateShow", source);
         Assert.Contains("powerQueryCreate", source);
         Assert.Contains("powerQueryEvaluate", source);
         Assert.DoesNotContain("powerQueryMutation", source, StringComparison.Ordinal);
+        Assert.Contains("\"\"\"powerQueryRefresh\"\":false", source);
+        Assert.Contains("\"\"\"powerQueryRefreshAll\"\":false", source);
+        Assert.Contains("\"\"\"powerQueryLoadTo\"\":false", source);
+        Assert.Contains("\"\"\"powerQueryUnload\"\":false", source);
+        Assert.Contains("\"\"\"powerQueryEvaluate\"\":false", source);
         Assert.Contains("engineCapabilities", source);
         Assert.Contains("helper_target_forbidden", source);
+        Assert.Contains("TryGetMashupLocation", source);
+        Assert.Contains("ConnectionMatchesQuery", source);
+        Assert.Contains("ignoredResult = PowerQueryRefresh(target, CStr(query.Name))", source);
+        Assert.Contains("mSafeErrorDetail = failureDetails", source);
         Assert.Contains("If cleanupNumber <> 0 Then", source);
         Assert.Contains("If rollbackNumber <> 0 Then", source);
         Assert.Contains(@"""rollback_failed""", source);

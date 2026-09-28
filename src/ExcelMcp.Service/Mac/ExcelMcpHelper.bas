@@ -1,13 +1,22 @@
 Attribute VB_Name = "ExcelMcpHelper"
 Option Explicit
 
-Private Const HELPER_VERSION As String = "1.0.1"
+Private Const HELPER_VERSION As String = "1.1.0"
 Private Const PROTOCOL_VERSION As Long = 1
 Private Const MAX_PAYLOAD_BYTES As Long = 262144
+Private Const MAX_SAFE_ERROR_DETAIL_CHARS As Long = 512
 Private Const STANDARD_MODULE_TYPE As Long = 1
 Private Const PROJECT_LOCKED As Long = 1
+Private mSafeErrorDetail As String
+
+Private Type QueryLoadSnapshot
+    HasWorksheetLoad As Boolean
+    SheetName As String
+    CellAddress As String
+End Type
 
 Public Function ExcelMcpDispatch(ByVal requestJson As String) As String
+    mSafeErrorDetail = vbNullString
     Dim requestId As String
     On Error GoTo DispatchError
 
@@ -55,15 +64,19 @@ Public Function ExcelMcpDispatch(ByVal requestJson As String) As String
             ValidateArgumentKeys argumentsJson, "name"
             resultJson = PowerQueryView(target, JsonRequiredString(argumentsJson, "name"))
         Case "powerquery.create"
-            ValidateArgumentKeys argumentsJson, "name,formula"
+            ValidateArgumentKeys argumentsJson, "name,formula,destination,sheetName,cellAddress"
             resultJson = PowerQueryCreate(target, _
                 JsonRequiredString(argumentsJson, "name"), _
-                JsonRequiredString(argumentsJson, "formula"))
+                JsonRequiredString(argumentsJson, "formula"), _
+                JsonRequiredString(argumentsJson, "destination"), _
+                JsonOptionalString(argumentsJson, "sheetName"), _
+                JsonOptionalString(argumentsJson, "cellAddress"))
         Case "powerquery.update"
-            ValidateArgumentKeys argumentsJson, "name,formula"
+            ValidateArgumentKeys argumentsJson, "name,formula,refresh"
             resultJson = PowerQueryUpdate(target, _
                 JsonRequiredString(argumentsJson, "name"), _
-                JsonRequiredString(argumentsJson, "formula"))
+                JsonRequiredString(argumentsJson, "formula"), _
+                JsonRequiredBoolean(argumentsJson, "refresh"))
         Case "powerquery.rename"
             ValidateArgumentKeys argumentsJson, "name,newName"
             resultJson = PowerQueryRename(target, _
@@ -74,6 +87,26 @@ Public Function ExcelMcpDispatch(ByVal requestJson As String) As String
             resultJson = PowerQueryDelete(target, _
                 JsonRequiredString(argumentsJson, "name"), _
                 JsonRequiredBoolean(argumentsJson, "deleteConnection"))
+        Case "powerquery.refresh"
+            ValidateArgumentKeys argumentsJson, "name"
+            resultJson = PowerQueryRefresh(target, JsonRequiredString(argumentsJson, "name"))
+        Case "powerquery.refresh-all"
+            ValidateArgumentKeys argumentsJson, ""
+            resultJson = PowerQueryRefreshAll(target)
+        Case "powerquery.load-to"
+            ValidateArgumentKeys argumentsJson, "name,destination,sheetName,cellAddress"
+            resultJson = PowerQueryLoadTo(target, _
+                JsonRequiredString(argumentsJson, "name"), _
+                JsonRequiredString(argumentsJson, "destination"), _
+                JsonOptionalString(argumentsJson, "sheetName"), _
+                JsonOptionalString(argumentsJson, "cellAddress"))
+        Case "powerquery.unload"
+            ValidateArgumentKeys argumentsJson, "name"
+            resultJson = PowerQueryUnload(target, JsonRequiredString(argumentsJson, "name"))
+        Case "powerquery.evaluate"
+            ValidateArgumentKeys argumentsJson, "formula"
+            resultJson = PowerQueryEvaluate(target, _
+                JsonRequiredString(argumentsJson, "formula"), requestId)
         Case "analysis.create-scenario"
             ValidateArgumentKeys argumentsJson, _
                 "sheetName,scenarioName,changingCells,values,comment,locked,hidden"
@@ -161,6 +194,8 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """helper.capabilities""," & _
             """powerquery.list"",""powerquery.view"",""powerquery.create""," & _
             """powerquery.update"",""powerquery.rename"",""powerquery.delete""," & _
+            """powerquery.refresh"",""powerquery.refresh-all""," & _
+            """powerquery.load-to"",""powerquery.unload"",""powerquery.evaluate""," & _
             """analysis.create-scenario"",""analysis.show-scenario""," & _
             """vba.list"",""vba.view"",""vba.import"",""vba.update"",""vba.delete""],"
     output = output & """trustReadiness"":{" & _
@@ -206,7 +241,10 @@ End Function
 Private Function PowerQueryCreate( _
     ByVal target As Workbook, _
     ByVal queryName As String, _
-    ByVal mCode As String) As String
+    ByVal mCode As String, _
+    ByVal destination As String, _
+    ByVal sheetName As Variant, _
+    ByVal cellAddress As Variant) As String
     queryName = Trim$(queryName)
     If Len(queryName) = 0 Then
         Err.Raise vbObjectError + 7015, "ExcelMcpHelper", "invalid_query_name"
@@ -214,18 +252,88 @@ Private Function PowerQueryCreate( _
     If QueryExists(target, queryName) Then
         Err.Raise vbObjectError + 7010, "ExcelMcpHelper", "query_conflict"
     End If
-    target.Queries.Add Name:=queryName, Formula:=mCode
+    destination = NormalizeQueryDestination(destination)
+
+    Dim query As Object
+    Dim queryCreated As Boolean
+    On Error GoTo CreateFailed
+    Set query = target.Queries.Add(Name:=queryName, Formula:=mCode)
+    queryCreated = True
+    Dim canonicalName As String
+    canonicalName = CStr(query.Name)
+    If destination = "load-to-table" Then
+        Dim resolvedSheet As String
+        Dim resolvedCell As String
+        resolvedSheet = OptionalTextOrDefault(sheetName, queryName)
+        resolvedCell = OptionalTextOrDefault(cellAddress, "A1")
+        LoadQueryToWorksheet target, canonicalName, resolvedSheet, resolvedCell
+    End If
     PowerQueryCreate = "{}"
+    Exit Function
+
+CreateFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    Dim cleanupNumber As Long
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    If failureDescription = "rollback_failed" Then
+        Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+    End If
+    On Error Resume Next
+    Err.Clear
+    If queryCreated Then
+        DeleteExactQueryLoads target, canonicalName
+        If Err.Number <> 0 Then cleanupNumber = Err.Number
+        Err.Clear
+        If Not query Is Nothing Then query.Delete
+        If Err.Number <> 0 And cleanupNumber = 0 Then cleanupNumber = Err.Number
+    End If
+    On Error GoTo 0
+    If cleanupNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
 End Function
 
 Private Function PowerQueryUpdate( _
     ByVal target As Workbook, _
     ByVal queryName As String, _
-    ByVal mCode As String) As String
+    ByVal mCode As String, _
+    ByVal refresh As Boolean) As String
     Dim query As Object
     Set query = QueryByExactName(target, queryName)
+    Dim previousFormula As String
+    previousFormula = CStr(query.Formula)
+    On Error GoTo UpdateFailed
     query.Formula = mCode
+    If refresh Then
+        Dim ignoredResult As String
+        ignoredResult = PowerQueryRefresh(target, CStr(query.Name))
+    End If
     PowerQueryUpdate = "{}"
+    Exit Function
+
+UpdateFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    On Error Resume Next
+    Err.Clear
+    query.Formula = previousFormula
+    Dim rollbackNumber As Long
+    rollbackNumber = Err.Number
+    Err.Clear
+    If rollbackNumber = 0 And refresh Then
+        ignoredResult = PowerQueryRefresh(target, CStr(query.Name))
+        rollbackNumber = Err.Number
+    End If
+    On Error GoTo 0
+    If rollbackNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
 End Function
 
 Private Function PowerQueryRename( _
@@ -256,23 +364,320 @@ Private Function PowerQueryDelete( _
     ByVal deleteConnection As Boolean) As String
     Dim query As Object
     Set query = QueryByExactName(target, queryName)
-    If deleteConnection Then DeleteExactQueryLoads target, CStr(query.Name)
+    Dim canonicalName As String
+    canonicalName = CStr(query.Name)
+    Dim previousFormula As String
+    previousFormula = CStr(query.Formula)
+    Dim previousLoad As QueryLoadSnapshot
+    If deleteConnection Then CaptureQueryLoad target, canonicalName, previousLoad
+    On Error GoTo DeleteFailed
+    If deleteConnection Then DeleteExactQueryLoads target, canonicalName
     query.Delete
     PowerQueryDelete = "{}"
+    Exit Function
+
+DeleteFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    Dim rollbackNumber As Long
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    On Error Resume Next
+    Err.Clear
+    If Not QueryExists(target, canonicalName) Then
+        Set query = target.Queries.Add(Name:=canonicalName, Formula:=previousFormula)
+        If Err.Number <> 0 Then rollbackNumber = Err.Number
+    End If
+    Err.Clear
+    If deleteConnection And previousLoad.HasWorksheetLoad Then
+        DeleteExactQueryLoads target, canonicalName
+        Err.Clear
+        LoadQueryToWorksheet target, canonicalName, _
+            previousLoad.SheetName, previousLoad.CellAddress
+        If Err.Number <> 0 And rollbackNumber = 0 Then rollbackNumber = Err.Number
+    End If
+    On Error GoTo 0
+    If rollbackNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+End Function
+
+Private Function PowerQueryRefresh(ByVal target As Workbook, ByVal queryName As String) As String
+    Dim query As Object
+    Set query = QueryByExactName(target, queryName)
+    Dim loadedSheet As String
+    Dim queryTable As Object
+    Set queryTable = ExactQueryTable(target, CStr(query.Name), loadedSheet)
+    If queryTable Is Nothing Then
+        If ExactQueryConnectionExists(target, CStr(query.Name)) Then
+            Err.Raise vbObjectError + 7016, "ExcelMcpHelper", "query_destination_unsupported"
+        End If
+        Err.Raise vbObjectError + 7012, "ExcelMcpHelper", "query_load_not_found"
+    End If
+
+    On Error GoTo RefreshFailed
+    If Not CBool(queryTable.Refresh(False)) Then
+        Err.Raise vbObjectError + 7013, "ExcelMcpHelper", "query_refresh_failed"
+    End If
+    PowerQueryRefresh = "{""queryName"":" & JsonQuote(CStr(query.Name)) & _
+        ",""hasErrors"":false,""errorMessages"":[]," & _
+        """refreshTime"":" & JsonQuote(IsoTimestamp(Now)) & _
+        ",""isConnectionOnly"":false,""loadedToSheet"":" & JsonQuote(loadedSheet) & "}"
+    Exit Function
+
+RefreshFailed:
+    Err.Raise vbObjectError + 7013, "ExcelMcpHelper", "query_refresh_failed"
+End Function
+
+Private Function PowerQueryRefreshAll(ByVal target As Workbook) As String
+    Dim failureCount As Long
+    Dim failureDetails As String
+    Dim index As Long
+    For index = 1 To target.Queries.Count
+        On Error Resume Next
+        Dim ignoredResult As String
+        Dim currentName As String
+        currentName = CStr(target.Queries(index).Name)
+        ignoredResult = PowerQueryRefresh(target, currentName)
+        If Err.Number <> 0 Then
+            failureCount = failureCount + 1
+            AppendRefreshFailure failureDetails, currentName, Err.Description
+        End If
+        Err.Clear
+        On Error GoTo 0
+    Next index
+    If failureCount > 0 Then
+        mSafeErrorDetail = failureDetails
+        Err.Raise vbObjectError + 7017, "ExcelMcpHelper", "query_refresh_all_failed"
+    End If
+    PowerQueryRefreshAll = "{}"
+End Function
+
+Private Function PowerQueryLoadTo( _
+    ByVal target As Workbook, _
+    ByVal queryName As String, _
+    ByVal destination As String, _
+    ByVal sheetName As Variant, _
+    ByVal cellAddress As Variant) As String
+    Dim query As Object
+    Set query = QueryByExactName(target, queryName)
+    destination = NormalizeQueryDestination(destination)
+
+    Dim previousLoad As QueryLoadSnapshot
+    CaptureQueryLoad target, CStr(query.Name), previousLoad
+    On Error GoTo TransitionFailed
+    DeleteExactQueryLoads target, CStr(query.Name)
+    If destination = "load-to-table" Then
+        LoadQueryToWorksheet target, CStr(query.Name), _
+            OptionalTextOrDefault(sheetName, CStr(query.Name)), _
+            OptionalTextOrDefault(cellAddress, "A1")
+    End If
+    PowerQueryLoadTo = "{}"
+    Exit Function
+
+TransitionFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    Dim rollbackNumber As Long
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    If failureDescription = "rollback_failed" Then
+        Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+    End If
+    On Error Resume Next
+    Err.Clear
+    DeleteExactQueryLoads target, CStr(query.Name)
+    If Err.Number <> 0 Then rollbackNumber = Err.Number
+    Err.Clear
+    If previousLoad.HasWorksheetLoad Then
+        LoadQueryToWorksheet target, CStr(query.Name), previousLoad.SheetName, previousLoad.CellAddress
+        If Err.Number <> 0 And rollbackNumber = 0 Then rollbackNumber = Err.Number
+    End If
+    On Error GoTo 0
+    If rollbackNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+End Function
+
+Private Function PowerQueryUnload(ByVal target As Workbook, ByVal queryName As String) As String
+    Dim query As Object
+    Set query = QueryByExactName(target, queryName)
+    Dim previousLoad As QueryLoadSnapshot
+    CaptureQueryLoad target, CStr(query.Name), previousLoad
+    On Error GoTo UnloadFailed
+    DeleteExactQueryLoads target, CStr(query.Name)
+    If ExactQueryTableCount(target, CStr(query.Name)) <> 0 Or _
+       ExactQueryConnectionExists(target, CStr(query.Name)) Then
+        Err.Raise vbObjectError + 7018, "ExcelMcpHelper", "query_unload_incomplete"
+    End If
+    PowerQueryUnload = "{}"
+    Exit Function
+
+UnloadFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    Dim rollbackNumber As Long
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    On Error Resume Next
+    Err.Clear
+    If previousLoad.HasWorksheetLoad Then
+        DeleteExactQueryLoads target, CStr(query.Name)
+        Err.Clear
+        LoadQueryToWorksheet target, CStr(query.Name), previousLoad.SheetName, previousLoad.CellAddress
+        rollbackNumber = Err.Number
+    End If
+    On Error GoTo 0
+    If rollbackNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+End Function
+
+Private Function PowerQueryEvaluate( _
+    ByVal target As Workbook, _
+    ByVal mCode As String, _
+    ByVal requestId As String) As String
+    If Len(Trim$(mCode)) = 0 Then
+        Err.Raise vbObjectError + 7036, "ExcelMcpHelper", "invalid_query_formula"
+    End If
+    Dim tempName As String
+    tempName = "__excelmcp_eval_" & Left$(requestId, 8)
+    Dim existingSheet As Worksheet
+    Set existingSheet = WorksheetByName(target, tempName)
+    If QueryExists(target, tempName) Or Not existingSheet Is Nothing Or _
+       ExactQueryConnectionExists(target, tempName) Or _
+       ExactQueryTableCount(target, tempName) <> 0 Then
+        Err.Raise vbObjectError + 7037, "ExcelMcpHelper", "temporary_name_conflict"
+    End If
+
+    Dim query As Object
+    Dim queryCreated As Boolean
+    Dim resultJson As String
+    On Error GoTo EvaluateFailed
+    Set query = target.Queries.Add(Name:=tempName, Formula:=mCode)
+    queryCreated = True
+    LoadQueryToWorksheet target, tempName, tempName, "A1"
+    resultJson = QueryTableValuesJson(target, tempName)
+    CleanupTemporaryQuery target, tempName, query
+    PowerQueryEvaluate = resultJson
+    Exit Function
+
+EvaluateFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    Dim cleanupNumber As Long
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    If failureDescription = "rollback_failed" Then
+        Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+    End If
+    On Error Resume Next
+    Err.Clear
+    If queryCreated Then
+        CleanupTemporaryQuery target, tempName, query
+        cleanupNumber = Err.Number
+    End If
+    On Error GoTo 0
+    If cleanupNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+End Function
+
+Private Function QueryTableValuesJson(ByVal target As Workbook, ByVal queryName As String) As String
+    Dim loadedSheet As String
+    Dim queryTable As Object
+    Set queryTable = ExactQueryTable(target, queryName, loadedSheet)
+    If queryTable Is Nothing Then
+        Err.Raise vbObjectError + 7012, "ExcelMcpHelper", "query_load_not_found"
+    End If
+    Dim listObject As ListObject
+    Set listObject = queryTable.ResultRange.ListObject
+    Dim columnCount As Long
+    columnCount = CLng(listObject.ListColumns.Count)
+    Dim output As String
+    output = "{""columns"":["
+    Dim columnIndex As Long
+    For columnIndex = 1 To columnCount
+        If columnIndex > 1 Then output = output & ","
+        output = output & JsonQuote(CStr(listObject.ListColumns(columnIndex).Name))
+    Next columnIndex
+    output = output & "],""rows"":["
+
+    Dim rowCount As Long
+    Dim dataBodyRange As Range
+    Set dataBodyRange = listObject.DataBodyRange
+    If Not dataBodyRange Is Nothing Then
+        rowCount = CLng(dataBodyRange.Rows.Count)
+        Dim rowIndex As Long
+        For rowIndex = 1 To rowCount
+            If rowIndex > 1 Then output = output & ","
+            output = output & "["
+            For columnIndex = 1 To columnCount
+                If columnIndex > 1 Then output = output & ","
+                output = output & JsonCellValue( _
+                    dataBodyRange.Cells(rowIndex, columnIndex).Value2)
+            Next columnIndex
+            output = output & "]"
+        Next rowIndex
+    End If
+    QueryTableValuesJson = output & "],""rowCount"":" & CStr(rowCount) & _
+        ",""columnCount"":" & CStr(columnCount) & "}"
+End Function
+
+Private Sub CleanupTemporaryQuery( _
+    ByVal target As Workbook, _
+    ByVal tempName As String, _
+    ByVal query As Object)
+    Dim cleanupNumber As Long
+    On Error Resume Next
+    Err.Clear
+    DeleteExactQueryLoads target, tempName
+    If Err.Number <> 0 Then cleanupNumber = Err.Number
+    Err.Clear
+    Dim sheet As Worksheet
+    Set sheet = WorksheetByName(target, tempName)
+    If Not sheet Is Nothing Then DeleteWorksheetWithoutPrompt sheet
+    If Err.Number <> 0 And cleanupNumber = 0 Then cleanupNumber = Err.Number
+    Err.Clear
+    If Not query Is Nothing Then query.Delete
+    If Err.Number <> 0 And cleanupNumber = 0 Then cleanupNumber = Err.Number
+    On Error GoTo 0
+    If cleanupNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+End Sub
+
+Private Function JsonCellValue(ByVal value As Variant) As String
+    If IsError(value) Or IsEmpty(value) Or IsNull(value) Then
+        JsonCellValue = "null"
+    ElseIf VarType(value) = vbBoolean Then
+        JsonCellValue = JsonBoolean(CBool(value))
+    Else
+        Select Case VarType(value)
+            Case vbByte, vbInteger, vbLong, vbSingle, vbDouble, vbCurrency, vbDecimal
+                JsonCellValue = Trim$(Str$(CDbl(value)))
+            Case vbDate
+                JsonCellValue = JsonQuote(Format$(CDate(value), "yyyy-mm-dd\Thh:nn:ss"))
+            Case Else
+                JsonCellValue = JsonQuote(CStr(value))
+        End Select
+    End If
 End Function
 
 Private Sub DeleteExactQueryLoads(ByVal target As Workbook, ByVal queryName As String)
-    Dim expectedConnectionName As String
-    expectedConnectionName = "Query - " & queryName
     Dim sheet As Worksheet
     For Each sheet In target.Worksheets
         Dim index As Long
         For index = sheet.ListObjects.Count To 1 Step -1
             On Error Resume Next
-            Dim connectionName As String
-            connectionName = CStr(sheet.ListObjects(index).QueryTable.WorkbookConnection.Name)
-            If Err.Number = 0 And _
-               StrComp(connectionName, expectedConnectionName, vbTextCompare) = 0 Then
+            Dim matchesQuery As Boolean
+            matchesQuery = ConnectionMatchesQuery( _
+                sheet.ListObjects(index).QueryTable.WorkbookConnection, queryName)
+            If Err.Number = 0 And matchesQuery Then
                 Err.Clear
                 sheet.ListObjects(index).Delete
                 If Err.Number <> 0 Then
@@ -286,11 +691,349 @@ Private Sub DeleteExactQueryLoads(ByVal target As Workbook, ByVal queryName As S
     Next sheet
 
     For index = target.Connections.Count To 1 Step -1
-        If StrComp(CStr(target.Connections(index).Name), expectedConnectionName, vbTextCompare) = 0 Then
+        If ConnectionMatchesQuery(target.Connections(index), queryName) Then
             target.Connections(index).Delete
         End If
     Next index
 End Sub
+
+Private Sub LoadQueryToWorksheet( _
+    ByVal target As Workbook, _
+    ByVal queryName As String, _
+    ByVal sheetName As String, _
+    ByVal cellAddress As String)
+    sheetName = Trim$(sheetName)
+    cellAddress = Trim$(cellAddress)
+    If Len(sheetName) = 0 Or Len(cellAddress) = 0 Then
+        Err.Raise vbObjectError + 7034, "ExcelMcpHelper", "invalid_load_target"
+    End If
+    If ExactQueryTableCount(target, queryName) <> 0 Or _
+       ExactQueryConnectionExists(target, queryName) Then
+        Err.Raise vbObjectError + 7035, "ExcelMcpHelper", "query_destination_conflict"
+    End If
+
+    On Error GoTo LoadFailed
+    Dim sheet As Worksheet
+    Dim createdSheet As Boolean
+    Set sheet = WorksheetByName(target, sheetName)
+    If sheet Is Nothing Then
+        Set sheet = target.Worksheets.Add
+        createdSheet = True
+        sheet.Name = sheetName
+    End If
+
+    Dim destinationRange As Range
+    Set destinationRange = sheet.Range(cellAddress)
+    If destinationRange.Cells.CountLarge <> 1 Then
+        Err.Raise vbObjectError + 7034, "ExcelMcpHelper", "invalid_load_target"
+    End If
+    If Not IsEmpty(destinationRange.Value2) Then
+        Err.Raise vbObjectError + 7035, "ExcelMcpHelper", "query_destination_conflict"
+    End If
+    Dim existingTable As ListObject
+    For Each existingTable In sheet.ListObjects
+        Dim overlap As Range
+        Set overlap = Application.Intersect(destinationRange, existingTable.Range)
+        If Not overlap Is Nothing Then
+            Err.Raise vbObjectError + 7035, "ExcelMcpHelper", "query_destination_conflict"
+        End If
+    Next existingTable
+
+    Dim connectionName As String
+    connectionName = "Query - " & queryName
+    Dim connectionString As String
+    connectionString = "OLEDB;Provider=Microsoft.Mashup.OleDb.1;" & _
+        "Data Source=$Workbook$;Location=" & queryName
+    Dim commandText As String
+    commandText = "SELECT * FROM [" & queryName & "]"
+
+    Dim connection As WorkbookConnection
+    Set connection = target.Connections.Add2( _
+        Name:=connectionName, _
+        Description:="Connection to the '" & queryName & "' query in the workbook.", _
+        ConnectionString:=connectionString, _
+        CommandText:=commandText, _
+        lCmdtype:=2, _
+        CreateModelConnection:=False, _
+        ImportRelationships:=False)
+    Dim listObject As ListObject
+    Dim loadStarted As Boolean
+    Set listObject = sheet.ListObjects.Add( _
+        SourceType:=0, _
+        Source:=connection, _
+        XlListObjectHasHeaders:=1, _
+        Destination:=destinationRange)
+    loadStarted = True
+    Dim queryTable As QueryTable
+    Set queryTable = listObject.QueryTable
+    queryTable.CommandType = 2
+    queryTable.CommandText = commandText
+    queryTable.AdjustColumnWidth = True
+    queryTable.PreserveFormatting = True
+    queryTable.BackgroundQuery = False
+    queryTable.RefreshStyle = 1
+    queryTable.PreserveColumnInfo = False
+    If Not ConnectionMatchesQuery(queryTable.WorkbookConnection, queryName) Then
+        Err.Raise vbObjectError + 7035, "ExcelMcpHelper", "query_destination_conflict"
+    End If
+    If Not CBool(queryTable.Refresh(False)) Then
+        Err.Raise vbObjectError + 7013, "ExcelMcpHelper", "query_refresh_failed"
+    End If
+    Exit Sub
+
+LoadFailed:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    Dim cleanupNumber As Long
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    On Error Resume Next
+    Err.Clear
+    DeleteExactQueryLoads target, queryName
+    If Err.Number <> 0 Then cleanupNumber = Err.Number
+    Err.Clear
+    If createdSheet Then DeleteWorksheetWithoutPrompt sheet
+    If Err.Number <> 0 And cleanupNumber = 0 Then cleanupNumber = Err.Number
+    If loadStarted And Not createdSheet And cleanupNumber = 0 Then
+        cleanupNumber = vbObjectError + 7025
+    End If
+    On Error GoTo 0
+    If cleanupNumber <> 0 Then
+        Err.Raise vbObjectError + 7025, "ExcelMcpHelper", "rollback_failed"
+    End If
+    Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+End Sub
+
+Private Sub CaptureQueryLoad( _
+    ByVal target As Workbook, _
+    ByVal queryName As String, _
+    ByRef snapshot As QueryLoadSnapshot)
+    Dim loadCount As Long
+    loadCount = ExactQueryTableCount(target, queryName)
+    If loadCount > 1 Then
+        Err.Raise vbObjectError + 7016, "ExcelMcpHelper", "query_destination_unsupported"
+    End If
+    If loadCount = 0 Then
+        If ExactQueryConnectionExists(target, queryName) Then
+            Err.Raise vbObjectError + 7016, "ExcelMcpHelper", "query_destination_unsupported"
+        End If
+        Exit Sub
+    End If
+
+    Dim loadedSheet As String
+    Dim queryTable As Object
+    Set queryTable = ExactQueryTable(target, queryName, loadedSheet)
+    snapshot.HasWorksheetLoad = True
+    snapshot.SheetName = loadedSheet
+    snapshot.CellAddress = CStr(queryTable.ResultRange.Cells(1, 1).Address(False, False))
+End Sub
+
+Private Function ExactQueryTable( _
+    ByVal target As Workbook, _
+    ByVal queryName As String, _
+    ByRef loadedSheet As String) As Object
+    Dim found As Boolean
+    Dim sheet As Worksheet
+    For Each sheet In target.Worksheets
+        Dim listObject As ListObject
+        For Each listObject In sheet.ListObjects
+            On Error Resume Next
+            Dim readSucceeded As Boolean
+            Dim matchesQuery As Boolean
+            matchesQuery = ConnectionMatchesQuery( _
+                listObject.QueryTable.WorkbookConnection, queryName)
+            readSucceeded = (Err.Number = 0)
+            Err.Clear
+            On Error GoTo 0
+            If readSucceeded And matchesQuery Then
+                If found Then
+                    Err.Raise vbObjectError + 7016, _
+                        "ExcelMcpHelper", "query_destination_unsupported"
+                End If
+                Set ExactQueryTable = listObject.QueryTable
+                loadedSheet = CStr(sheet.Name)
+                found = True
+            End If
+        Next listObject
+    Next sheet
+End Function
+
+Private Function ExactQueryTableCount(ByVal target As Workbook, ByVal queryName As String) As Long
+    Dim sheet As Worksheet
+    For Each sheet In target.Worksheets
+        Dim listObject As ListObject
+        For Each listObject In sheet.ListObjects
+            On Error Resume Next
+            Dim matchesQuery As Boolean
+            matchesQuery = ConnectionMatchesQuery( _
+                listObject.QueryTable.WorkbookConnection, queryName)
+            If Err.Number = 0 And matchesQuery Then
+                ExactQueryTableCount = ExactQueryTableCount + 1
+            End If
+            Err.Clear
+            On Error GoTo 0
+        Next listObject
+    Next sheet
+End Function
+
+Private Function ExactQueryConnectionExists( _
+    ByVal target As Workbook, _
+    ByVal queryName As String) As Boolean
+    Dim index As Long
+    For index = 1 To target.Connections.Count
+        If ConnectionMatchesQuery(target.Connections(index), queryName) Then
+            ExactQueryConnectionExists = True
+            Exit Function
+        End If
+    Next index
+End Function
+
+Private Function ConnectionMatchesQuery( _
+    ByVal connection As WorkbookConnection, _
+    ByVal queryName As String) As Boolean
+    Dim location As String
+    If TryGetMashupLocation(connection, location) Then
+        ConnectionMatchesQuery = _
+            (StrComp(location, queryName, vbTextCompare) = 0)
+    End If
+End Function
+
+Private Function TryGetMashupLocation( _
+    ByVal connection As WorkbookConnection, _
+    ByRef location As String) As Boolean
+    On Error GoTo NotMashup
+    Dim connectionString As String
+    connectionString = CStr(connection.OLEDBConnection.Connection)
+    Dim provider As String
+    If Not TryGetConnectionProperty(connectionString, "Provider", provider) Then Exit Function
+    If StrComp(provider, "Microsoft.Mashup.OleDb.1", vbTextCompare) <> 0 Then Exit Function
+    If Not TryGetConnectionProperty(connectionString, "Location", location) Then Exit Function
+    TryGetMashupLocation = (Len(location) > 0)
+    Exit Function
+
+NotMashup:
+    Err.Clear
+End Function
+
+Private Function TryGetConnectionProperty( _
+    ByVal connectionString As String, _
+    ByVal propertyName As String, _
+    ByRef propertyValue As String) As Boolean
+    Dim segmentStart As Long
+    segmentStart = 1
+    Dim quoteCharacter As String
+    Dim index As Long
+    index = 1
+    Do While index <= Len(connectionString) + 1
+        Dim atEnd As Boolean
+        atEnd = (index > Len(connectionString))
+        Dim character As String
+        If atEnd Then
+            character = ";"
+        Else
+            character = Mid$(connectionString, index, 1)
+        End If
+
+        If Len(quoteCharacter) > 0 Then
+            If character = quoteCharacter Then
+                If index < Len(connectionString) And _
+                   Mid$(connectionString, index + 1, 1) = quoteCharacter Then
+                    index = index + 1
+                Else
+                    quoteCharacter = vbNullString
+                End If
+            End If
+        ElseIf character = """" Or character = "'" Then
+            quoteCharacter = character
+        ElseIf character = ";" Then
+            Dim segment As String
+            segment = Mid$(connectionString, segmentStart, index - segmentStart)
+            Dim equalsIndex As Long
+            equalsIndex = InStr(1, segment, "=", vbBinaryCompare)
+            If equalsIndex > 0 Then
+                Dim key As String
+                key = Trim$(Left$(segment, equalsIndex - 1))
+                If StrComp(key, propertyName, vbTextCompare) = 0 Then
+                    Dim rawValue As String
+                    rawValue = Trim$(Mid$(segment, equalsIndex + 1))
+                    propertyValue = DecodeConnectionPropertyValue(rawValue)
+                    TryGetConnectionProperty = True
+                    Exit Function
+                End If
+            End If
+            segmentStart = index + 1
+        End If
+        index = index + 1
+    Loop
+End Function
+
+Private Function DecodeConnectionPropertyValue(ByVal rawValue As String) As String
+    If Len(rawValue) >= 2 Then
+        Dim quoteCharacter As String
+        quoteCharacter = Left$(rawValue, 1)
+        If (quoteCharacter = """" Or quoteCharacter = "'") And _
+           Right$(rawValue, 1) = quoteCharacter Then
+            Dim innerValue As String
+            innerValue = Mid$(rawValue, 2, Len(rawValue) - 2)
+            DecodeConnectionPropertyValue = _
+                Replace(innerValue, quoteCharacter & quoteCharacter, quoteCharacter)
+            Exit Function
+        End If
+    End If
+    DecodeConnectionPropertyValue = rawValue
+End Function
+
+Private Function WorksheetByName(ByVal target As Workbook, ByVal sheetName As String) As Worksheet
+    Dim sheet As Worksheet
+    For Each sheet In target.Worksheets
+        If StrComp(CStr(sheet.Name), sheetName, vbTextCompare) = 0 Then
+            Set WorksheetByName = sheet
+            Exit Function
+        End If
+    Next sheet
+End Function
+
+Private Sub DeleteWorksheetWithoutPrompt(ByVal sheet As Worksheet)
+    Dim previousAlerts As Boolean
+    previousAlerts = Application.DisplayAlerts
+    On Error GoTo RestoreAlerts
+    Application.DisplayAlerts = False
+    sheet.Delete
+RestoreAlerts:
+    Dim failureNumber As Long
+    Dim failureDescription As String
+    failureNumber = Err.Number
+    failureDescription = Err.Description
+    Application.DisplayAlerts = previousAlerts
+    If failureNumber <> 0 Then
+        Err.Raise failureNumber, "ExcelMcpHelper", failureDescription
+    End If
+End Sub
+
+Private Function NormalizeQueryDestination(ByVal destination As String) As String
+    destination = LCase$(Trim$(destination))
+    Select Case destination
+        Case "load-to-table", "connection-only"
+            NormalizeQueryDestination = destination
+        Case Else
+            Err.Raise vbObjectError + 7016, _
+                "ExcelMcpHelper", "query_destination_unsupported"
+    End Select
+End Function
+
+Private Function OptionalTextOrDefault( _
+    ByVal value As Variant, _
+    ByVal defaultValue As String) As String
+    If IsEmpty(value) Or Len(Trim$(CStr(value))) = 0 Then
+        OptionalTextOrDefault = defaultValue
+    Else
+        OptionalTextOrDefault = Trim$(CStr(value))
+    End If
+End Function
+
+Private Function IsoTimestamp(ByVal value As Date) As String
+    IsoTimestamp = Format$(value, "yyyy-mm-dd\THH:nn:ss")
+End Function
 
 Private Function AnalysisCreateScenario( _
     ByVal target As Workbook, _
@@ -1005,17 +1748,24 @@ Private Sub ClassifyError( _
         Case "workbook_not_found", "query_not_found", "module_not_found", "query_load_not_found", _
              "worksheet_not_found", "scenario_not_found"
             category = "NotFound"
-        Case "query_conflict", "module_conflict", "scenario_conflict"
+        Case "query_conflict", "module_conflict", "scenario_conflict", _
+             "query_destination_conflict", "temporary_name_conflict"
             category = "Conflict"
         Case "signed_project", "locked_project", "helper_target_forbidden"
             category = "Permissions"
         Case "rollback_failed"
             category = "RecoveryRequired"
+        Case "query_destination_unsupported"
+            category = "PlatformNotSupported"
         Case "component_type", "invalid_request_id", "unsupported_version", _
              "unsupported_action", "invalid_properties", "duplicate_property", _
              "missing_property", "scenario_cell_count", "scenario_value_count", _
-             "invalid_module_name", "invalid_query_name"
+             "invalid_module_name", "invalid_query_name", "invalid_load_target", _
+             "invalid_query_formula"
             category = "InvalidInput"
+        Case "query_refresh_failed", "query_refresh_all_failed", _
+             "query_unload_incomplete", "query_load_delete_failed"
+            category = "ComInterop"
         Case Else
             category = "ComInterop"
             code = "helper_failure"
@@ -1031,6 +1781,19 @@ Private Function SafeErrorMessage(ByVal code As String) As String
         Case "scenario_not_found": SafeErrorMessage = "The exact scenario was not found."
         Case "query_load_not_found": SafeErrorMessage = "No exact worksheet load was found for the Power Query."
         Case "query_conflict": SafeErrorMessage = "A Power Query with that exact name already exists."
+        Case "query_destination_conflict": SafeErrorMessage = "The exact Power Query load destination is already occupied."
+        Case "query_destination_unsupported": SafeErrorMessage = "That Power Query destination is not supported by the verified helper tier."
+        Case "query_refresh_failed": SafeErrorMessage = "Excel could not complete the synchronous Power Query refresh."
+        Case "query_refresh_all_failed"
+            SafeErrorMessage = "One or more Power Queries did not complete synchronous refresh."
+            If Len(mSafeErrorDetail) > 0 Then
+                SafeErrorMessage = SafeErrorMessage & " Failures: " & mSafeErrorDetail
+            End If
+        Case "query_unload_incomplete": SafeErrorMessage = "Excel did not remove every exact Power Query worksheet load."
+        Case "query_load_delete_failed": SafeErrorMessage = "Excel could not remove an exact Power Query load artifact."
+        Case "invalid_load_target": SafeErrorMessage = "The Power Query worksheet destination is invalid."
+        Case "invalid_query_formula": SafeErrorMessage = "Power Query M code is required."
+        Case "temporary_name_conflict": SafeErrorMessage = "A temporary Power Query evaluation name is already in use."
         Case "module_conflict": SafeErrorMessage = "A VBA component with that exact name already exists."
         Case "scenario_conflict": SafeErrorMessage = "A scenario with that name already exists."
         Case "scenario_cell_count": SafeErrorMessage = "Scenario changing cells must contain between 1 and 32 cells."
@@ -1039,7 +1802,7 @@ Private Function SafeErrorMessage(ByVal code As String) As String
         Case "invalid_query_name": SafeErrorMessage = "The Power Query name must not be empty."
         Case "invalid_json": SafeErrorMessage = "The helper request contains invalid JSON."
         Case "helper_target_forbidden": SafeErrorMessage = "The helper add-in cannot be used as an operation target."
-        Case "rollback_failed": SafeErrorMessage = "The VBA project could not be restored after a failed mutation; close without saving."
+        Case "rollback_failed": SafeErrorMessage = "Workbook state could not be restored after a failed mutation; close without saving."
         Case "signed_project": SafeErrorMessage = "The VBA project is signed and was not modified."
         Case "locked_project": SafeErrorMessage = "The VBA project is protected and was not modified."
         Case "component_type": SafeErrorMessage = "Only standard VBA modules can be updated or deleted."
@@ -1048,6 +1811,26 @@ Private Function SafeErrorMessage(ByVal code As String) As String
         Case Else: SafeErrorMessage = "The helper rejected the request or Excel could not complete it."
     End Select
 End Function
+
+Private Sub AppendRefreshFailure( _
+    ByRef details As String, _
+    ByVal queryName As String, _
+    ByVal failureCode As String)
+    Select Case failureCode
+        Case "query_load_not_found", "query_destination_unsupported", "query_refresh_failed"
+        Case Else
+            failureCode = "helper_failure"
+    End Select
+
+    Dim entry As String
+    entry = queryName & ":" & failureCode
+    If Len(details) > 0 Then entry = ", " & entry
+    Dim remaining As Long
+    remaining = MAX_SAFE_ERROR_DETAIL_CHARS - Len(details)
+    If remaining <= 0 Then Exit Sub
+    If Len(entry) > remaining Then entry = Left$(entry, remaining)
+    details = details & entry
+End Sub
 
 Private Function IsCanonicalRequestId(ByVal value As String) As Boolean
     If Len(value) <> 32 Then Exit Function

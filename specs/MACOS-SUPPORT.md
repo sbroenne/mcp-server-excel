@@ -137,17 +137,23 @@ response limit. Its envelope is exactly
 hexadecimal characters. Unknown, duplicate, missing, malformed, over-depth, or
 oversized data fails before dispatch. The helper resolves targets only by exact
 `Workbook.FullName`; it has no caller-selected macro entry point, expression
-evaluation, or general code-execution action.
+evaluation outside its fixed Power Query M actions, or general VBA/AppleScript
+code-execution action.
 
-The source contains fixed implementations for Power Query `Workbook.Queries`
-and exact worksheet `ListObject.QueryTable` access; VBA
+Helper version `1.1.0` contains fixed implementations for Power Query
+`Workbook.Queries`, exact worksheet `ListObject.QueryTable` access, synchronous
+refresh, worksheet-table load transitions, and temporary-query evaluation;
+VBA
 `VBComponents`/`CodeModule` list, view, standard-module import, update, and
 delete; and the narrowly requested scenario create/show gaps. Capability output
 keeps static API availability, current trust readiness, and per-method proven
 evidence separate. All proven-method flags begin false. Signed or locked VBA
 projects are not mutated, update/delete accept only standard modules, and no
 operation saves the target workbook implicitly. Public routing remains gated
-until each method has prompt-free real Excel CLI and MCP evidence.
+until each method has prompt-free real Excel CLI and MCP evidence. Power Query
+Data Model and multiple-load destinations are rejected rather than rewritten,
+and timeout or rollback failure leaves the caller in an explicit uncertain
+state without retry.
 
 `vba.run` also remains gated. The installed dictionary's `run VB Macro` command
 is a candidate workbook-qualified execution route, but no independently

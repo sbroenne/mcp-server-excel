@@ -14,9 +14,9 @@ only meaningful to Excel's VBA host.
     error. Macro execution remains gated until a repository-owned `.xlsm`
     fixture proves unattended workbook-qualified execution through both CLI and
     MCP. The Mac distribution includes reviewable source for an optional,
-    versioned helper add-in, but source list/view/import/update/delete remain
-    gated until that helper passes real CLI and MCP evidence with user-managed
-    project-model trust.
+    versioned helper add-in. Its fixed Power Query lifecycle and VBA
+    project-model implementations remain gated until each method passes real
+    CLI and MCP evidence with the required user-managed trust.
 
 ## Optional macOS helper setup (preview)
 
@@ -40,8 +40,17 @@ The configured file name, open add-in `FullName`, helper version, protocol
 version, request correlation, target workbook `FullName`, action, and argument
 shape are all checked before a helper operation. Requests and responses are
 bounded to 262,144 UTF-8 bytes and the dispatcher has no arbitrary evaluation
-action. Installation alone does not enable a command: production actions stay
-gated until their individual methods have real-Excel evidence.
+of VBA, AppleScript, or caller-selected macros. The gated Power Query actions
+do accept M source for query authoring and temporary evaluation. Installation
+alone does not enable a command: production actions stay gated until their
+individual methods have real-Excel evidence.
+
+Helper version `1.1.0` adds fixed Power Query create/update/refresh/refresh-all,
+load-to/unload, and temporary-query evaluation candidates. They support only
+connection-only or one exact worksheet-table destination; Data Model and
+multi-destination variants fail explicitly. The source implements rollback and
+temporary-artifact cleanup, but every corresponding proof flag remains false
+until prompt-free real-Excel CLI and MCP acceptance succeeds.
 
 The first installed-helper validation must also exercise the VBA parser itself,
 not only the host DTOs: a protocol version such as `1.4`, malformed JSON,
