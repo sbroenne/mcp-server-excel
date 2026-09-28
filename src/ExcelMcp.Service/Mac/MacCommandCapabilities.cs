@@ -40,8 +40,7 @@ internal static class MacCommandCapabilities
     public static MacCommandCapability Get(
         string command,
         MacVbaPreflightResult? vbaPreflight = null,
-        bool officeCandidateEnabled = false,
-        bool rangeCandidateAcceptanceEnabled = false)
+        bool officeCandidateEnabled = false)
     {
         "sheet.list",
         "sheet.create",
@@ -95,17 +94,6 @@ internal static class MacCommandCapabilities
     {
         if (NativeCommands.Contains(command))
         {
-            if (rangeCandidateAcceptanceEnabled
-                && MacRangeAcceptanceCatalog.Contains(command)
-                && !capability.IsAvailable
-                && capability.RequiredTier == MacCapabilityTier.Native)
-            {
-                return capability with
-                {
-                    IsAvailable = true,
-                    UnavailableMessage = string.Empty
-                };
-            }
             if (officeCandidateEnabled && MacOfficeActionCatalog.TryGet(command, out _))
             {
                 return capability with

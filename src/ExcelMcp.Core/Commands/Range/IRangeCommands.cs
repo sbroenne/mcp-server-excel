@@ -159,6 +159,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP copied complete range content through the declared destination range command.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("copy")]
     OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -171,6 +174,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP copied values without formulas or formatting through direct value matrices.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("copy-values")]
     OperationResult CopyValues(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -183,6 +189,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP copied formulas without formatting through R1C1 matrices and preserved relative-reference adjustment.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("copy-formulas")]
     OperationResult CopyFormulas(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -222,6 +231,9 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address matching formats dimensions</param>
     /// <param name="formats">2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']]). Optional if formatsFile is provided.</param>
     /// <param name="formatsFile">Path to a JSON file containing 2D array of format codes. Alternative to inline formats parameter.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP applied and independently read back mixed two-dimensional number-format matrices.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("set-number-formats")]
     OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formats = null, string? formatsFile = null);
 
@@ -233,6 +245,10 @@ public interface IRangeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+        Evidence = "On populated sheets, CLI and MCP both received the empty-sheet $A$1 fallback because JXA used range returned a missing object. JXA special cells also returned a missing object and typed AppleScript returned parameter error -50.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.",
+        Blocker = "the native routes cannot return a populated live used range without approximating Worksheet.UsedRange semantics")]
     [ServiceAction("get-used-range")]
     RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
@@ -243,6 +259,10 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'B5') - expands to contiguous data region around this cell</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+        Evidence = "Native CurrentRegion probes returned a missing object through JXA and parameter error -50 through typed AppleScript.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.",
+        Blocker = "the native current-region candidate has no verified route and has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-current-region")]
     RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
@@ -253,6 +273,9 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP returned absolute address, dimensions, number format, and positive range geometry.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("get-info")]
     RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }

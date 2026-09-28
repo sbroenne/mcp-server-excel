@@ -85,78 +85,63 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("range.copy")]
     [InlineData("range.copy-values")]
     [InlineData("range.copy-formulas")]
-    [InlineData("range.get-current-region")]
-    [InlineData("range.get-used-range")]
     [InlineData("range.get-info")]
     [InlineData("range.set-number-formats")]
     [InlineData("rangeformat.auto-fit-columns")]
     [InlineData("rangeformat.auto-fit-rows")]
     [InlineData("rangeformat.merge-cells")]
     [InlineData("rangeformat.unmerge-cells")]
-    [InlineData("rangeformat.get-merge-info")]
     [InlineData("rangelink.set-cell-lock")]
     [InlineData("rangelink.get-cell-lock")]
-    public void RangeExpansion_RemainsGatedUntilBothEntryPointsPass(string command)
+    public void RangeExpansion_ProvenCommandsAreNative(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
-        Assert.Contains("not completed real CLI and MCP acceptance", capability.UnavailableMessage);
-    }
-
-    [Theory]
-    [InlineData("range.copy")]
-    [InlineData("range.copy-values")]
-    [InlineData("range.copy-formulas")]
-    [InlineData("range.get-used-range")]
-    [InlineData("range.get-info")]
-    [InlineData("range.set-number-formats")]
-    [InlineData("rangeformat.auto-fit-columns")]
-    [InlineData("rangeformat.auto-fit-rows")]
-    [InlineData("rangeformat.merge-cells")]
-    [InlineData("rangeformat.unmerge-cells")]
-    [InlineData("rangeformat.get-merge-info")]
-    [InlineData("rangelink.set-cell-lock")]
-    [InlineData("rangelink.get-cell-lock")]
-    public void RangeAcceptanceOverride_EnablesOnlyExplicitCandidates(string command)
-    {
-        var capability = MacCommandCapabilities.Get(
-            command,
-            rangeCandidateAcceptanceEnabled: true);
-
         Assert.True(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Contains("CLI and MCP", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("16.113.1", capability.ExcelApiVersion, StringComparison.Ordinal);
         Assert.Empty(capability.UnavailableMessage);
     }
 
     [Theory]
     [InlineData("range.get-current-region")]
-    [InlineData("pythoninexcel.set-formula")]
-    [InlineData("analysis.list-scenarios")]
-    public void RangeAcceptanceOverride_DoesNotBypassOtherGates(string command)
+    [InlineData("range.get-used-range")]
+    [InlineData("rangeformat.get-merge-info")]
+    public void DisprovenRangeDiscoveryCommandsRemainGated(string command)
     {
-        var capability = MacCommandCapabilities.Get(
-            command,
-            rangeCandidateAcceptanceEnabled: true);
+        var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
     }
 
-    [Theory]
-    [InlineData("range.copy", "1", true)]
-    [InlineData("range.copy", null, false)]
-    [InlineData("range.copy", "true", false)]
-    [InlineData("range.get-current-region", "1", false)]
-    [InlineData("pythoninexcel.set-formula", "1", false)]
-    public void RangeAcceptanceCatalog_RequiresExactOptInAndExplicitMembership(
-        string command,
-        string? environmentValue,
-        bool expected)
+    [Fact]
+    public void UsedRange_RemainsBlockedAfterPopulatedSheetRoundTripFailure()
     {
-        Assert.Equal(
-            expected,
-            MacRangeAcceptanceCatalog.IsAcceptanceEnabled(command, environmentValue));
+        var capability = MacCommandCapabilities.Get("range.get-used-range");
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Contains("populated", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("missing object", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("-50", capability.Evidence, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MergeInfo_RemainsBlockedWithoutMergeAreaReadback()
+    {
+        var capability = MacCommandCapabilities.Get("rangeformat.get-merge-info");
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Contains("merge area", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("missing object", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("-50", capability.Evidence, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -261,17 +261,13 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
             if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_RANGE_EXPANSION_E2E") == "1")
             {
-                Success(await client.CallAsync("sheet", "create", mainSession,
-                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
-                var emptyUsedRange = Success(await client.CallAsync(
+                var unavailableUsedRange = await client.CallAsync(
                     "range", "get-used-range", mainSession,
-                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
-                Assert.Equal("$A$1", emptyUsedRange.GetProperty("rangeAddress").GetString());
-                Assert.Equal(0, emptyUsedRange.GetProperty("rowCount").GetInt32());
-                Assert.Equal(0, emptyUsedRange.GetProperty("columnCount").GetInt32());
-                Assert.Empty(emptyUsedRange.GetProperty("values").EnumerateArray());
-                Success(await client.CallAsync("sheet", "delete", mainSession,
-                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+                    new() { ["sheet_name"] = "Data" }, deadline.Token);
+                Assert.False(unavailableUsedRange.GetProperty("success").GetBoolean());
+                Assert.Equal(
+                    "PlatformNotSupported",
+                    unavailableUsedRange.GetProperty("errorCategory").GetString());
 
                 Success(await client.CallAsync("range", "set-values", mainSession,
                     RangeArgs("D5:E6", ("values", new object?[][]
@@ -344,13 +340,6 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                         .SelectMany(row => row.EnumerateArray()),
                     format => Assert.Equal("General", format.GetString()));
 
-                var usedRange = Success(await client.CallAsync(
-                    "range", "get-used-range", mainSession,
-                    new() { ["sheet_name"] = "Data" }, deadline.Token));
-                Assert.Equal("$A$1:$N$6", usedRange.GetProperty("rangeAddress").GetString());
-                Assert.Equal(6, usedRange.GetProperty("rowCount").GetInt32());
-                Assert.Equal(14, usedRange.GetProperty("columnCount").GetInt32());
-
                 Success(await client.CallAsync("rangeformat", "set-column-width", mainSession,
                     RangeArgs("D:E", ("column_width", 5)), deadline.Token));
                 var narrowColumns = Success(await client.CallAsync(
@@ -377,19 +366,14 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
                 Success(await client.CallAsync("rangeformat", "merge-cells", mainSession,
                     RangeArgs("P5:Q5"), deadline.Token));
-                var mergeInfo = Success(await client.CallAsync(
-                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token));
-                Assert.True(mergeInfo.GetProperty("isMerged").GetBoolean());
+                var unavailableMergeInfo = await client.CallAsync(
+                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token);
+                Assert.False(unavailableMergeInfo.GetProperty("success").GetBoolean());
                 Assert.Equal(
-                    ["$P$5:$Q$5"],
-                    mergeInfo.GetProperty("mergedRanges").EnumerateArray()
-                        .Select(item => item.GetString()!).ToArray());
+                    "PlatformNotSupported",
+                    unavailableMergeInfo.GetProperty("errorCategory").GetString());
                 Success(await client.CallAsync("rangeformat", "unmerge-cells", mainSession,
                     RangeArgs("P5:Q5"), deadline.Token));
-                mergeInfo = Success(await client.CallAsync(
-                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token));
-                Assert.False(mergeInfo.GetProperty("isMerged").GetBoolean());
-                Assert.Empty(mergeInfo.GetProperty("mergedRanges").EnumerateArray());
 
                 Success(await client.CallAsync("rangelink", "set-cell-lock", mainSession,
                     RangeArgs("R5:S5", ("locked", false)), deadline.Token));
@@ -984,6 +968,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     "sheet" => "worksheet",
                     "worksheetstyle" => "worksheet_style",
                     "rangeformat" => "range_format",
+                    "rangelink" => "range_link",
                     _ => tool
                 };
                 var result = await _mcp.CallToolAsync(mcpTool, args, cancellationToken: cancellationToken);

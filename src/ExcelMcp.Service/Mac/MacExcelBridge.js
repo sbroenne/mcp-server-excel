@@ -320,6 +320,26 @@ function requireMatrixShape(matrix, rowCount, columnCount, parameterName) {
     }
 }
 
+function autofitColumns(excel, sheet, range) {
+    for (let index = 0; index < range.columns.length; index++) {
+        const column = range.columns[index];
+        excel.autofit(column);
+        const address = absoluteRangeAddress(excel, column);
+        const fittedWidth = Number(column.columnWidth());
+        sheet.ranges.byName(address).columnWidth = fittedWidth;
+    }
+}
+
+function autofitRows(excel, sheet, range) {
+    for (let index = 0; index < range.rows.length; index++) {
+        const row = range.rows[index];
+        excel.autofit(row);
+        const address = absoluteRangeAddress(excel, row);
+        const fittedHeight = Number(row.rowHeight());
+        sheet.ranges.byName(address).rowHeight = fittedHeight;
+    }
+}
+
 function requireSupported(command, supported) {
     if (!supported.includes(command)) {
         const error = new Error(
@@ -785,19 +805,25 @@ function run(argv) {
                 return json({ success: true, filePath: args.filePath, action: "set-row-height" });
             }
             if (command === "rangeformat.auto-fit-columns") {
-                range.columns.autofit();
+                autofitColumns(excel, sheet, range);
                 return json({ success: true, filePath: args.filePath, action: "auto-fit-columns" });
             }
             if (command === "rangeformat.auto-fit-rows") {
-                range.rows.autofit();
+                autofitRows(excel, sheet, range);
                 return json({ success: true, filePath: args.filePath, action: "auto-fit-rows" });
             }
             if (command === "rangeformat.merge-cells") {
-                range.merge();
+                excel.merge(range);
+                if (sheet.ranges.byName(args.rangeAddress).mergeCells() !== true) {
+                    throw new Error(`Excel did not preserve merged cells for '${args.rangeAddress}'.`);
+                }
                 return json({ success: true, filePath: args.filePath, action: "merge-cells" });
             }
             if (command === "rangeformat.unmerge-cells") {
-                range.unmerge();
+                excel.unmerge(range);
+                if (sheet.ranges.byName(args.rangeAddress).mergeCells() !== false) {
+                    throw new Error(`Excel did not preserve unmerged cells for '${args.rangeAddress}'.`);
+                }
                 return json({ success: true, filePath: args.filePath, action: "unmerge-cells" });
             }
             if (command === "rangeformat.get-merge-info") {
