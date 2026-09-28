@@ -58,9 +58,9 @@ do not establish acceptance of the remaining guarded feature candidates.
 
 The combined source includes helper 1.3.0 for Power Query lifecycle and VBA source
 operations, Office.js dispatch for selected tables/charts/ordinary PivotTables
-and slicers, fourteen native range candidates, six named-range candidates,
+and slicers, fourteen native range candidates, six verified named-range operations,
 Python in Excel, scenarios, and
-exact-window screenshots. New features remain disabled by default. Explicit
+exact-window screenshots. Unverified features remain disabled by default. Explicit
 candidate opt-ins exist only for bounded acceptance, not as evidence of support.
 Developer ID/notarization, physical Intel Excel, and Windows COM regression
 validation remain separate requirements.
@@ -356,7 +356,7 @@ dictionary and synthetic real-Excel workbooks:
 | Range format `merge-cells`, `unmerge-cells`, `get-merge-info` | `merge`, `unmerge`, read/write `merge cells`, and read-only `merge area` are declared | Source candidate de-duplicates every merged area intersecting the requested range rather than reporting only its first cell | Pending real CLI/MCP acceptance; capability-gated |
 | Range link `set-cell-lock`, `get-cell-lock` | Range `locked` is read/write | Source candidate writes the complete range and reads the first cell, matching the Windows contract | Pending real CLI/MCP acceptance; capability-gated |
 | Calculation `set-mode`, `get-mode` | Application `calculation` is read/write | The declared property is application-global in shared Excel, so changing it cannot preserve exact workbook ownership when unrelated workbooks are open | Blocked for the native shared-Excel tier |
-| Named range lifecycle | Workbook `named item` elements expose name, references, reference range, value, and visibility | The object model appears sufficient, but hidden/internal-name filtering, bounded previews, create/delete dispatch, and exact reference normalization still require a separate evidence slice | Deferred until the range batch is accepted |
+| Named range lifecycle | Typed creation/deletion and exact live reference binding; numeric `value2` for date parity | Six public CLI/MCP operations pass scalar/array, scope, preview-limit and persistence acceptance. Worksheet-scoped creation, local-name creation collisions and shadowed dynamic references are explicitly unavailable before mutation | Production-enabled for the verified variants |
 
 The failed copy probes did not authorize closing the untitled workbook or
 terminating shared Excel. Exact-path AppleScript lookup now skips workbooks
@@ -865,11 +865,22 @@ operation fails that selected workflow; the established Goal Seek/data-table
 baseline does not require helper setup. Optional switches are set explicitly
 for each run rather than inherited from the invoking shell.
 `-IncludeNamedRanges` adds two dedicated CLI/MCP cases for native named-item
-create/read/write/update/delete/list. They check scalar types, arrays, duplicate
+create/read/write/update/delete/list. They check scalar types, numeric date values, arrays, duplicate
 and missing-name failures, hidden/internal-name filtering before value access,
-the 10,000-cell list-preview limit, multi-area omission, save/reopen, and isolation
-from a second open workbook. These commands remain disabled by default until
-the explicit acceptance sequence passes.
+the exact 10,000-cell list-preview limit, multi-area omission, save/reopen, and
+isolation from a second open workbook. The same tests cover bulk
+`range.get-values`/`set-values` using an empty sheet name and a named range
+address. The six operations are production-enabled after real CLI/MCP acceptance;
+the switch only selects tests and does not bypass production capability checks.
+Date-formatted values use Excel's numeric `value2` property in both named-range
+reads and ordinary range value/formula results, matching the Windows contract.
+Workbook-scoped names and existing worksheet-scoped names, including quoted
+worksheet names and global/local shadowing, use their exact live references.
+Unambiguous dynamic references are supported. Native creation of worksheet-scoped
+names, creation colliding with an existing local name, and shadowed dynamic
+references fail explicitly before mutation because Excel's native name lookup
+does not safely disambiguate those cases. List still includes such dynamic
+names with an explicit omitted-preview reason.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,

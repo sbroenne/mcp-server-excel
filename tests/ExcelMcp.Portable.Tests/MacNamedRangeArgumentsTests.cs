@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.Service.Mac;
+using Sbroenne.ExcelMcp.Generated;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
@@ -14,25 +15,27 @@ public sealed class MacNamedRangeArgumentsTests
     [InlineData("write")]
     [InlineData("update")]
     [InlineData("delete")]
-    public void Acceptance_RequiresExactOptInAndProductionRemainsGated(string action)
+    public void ProvenActions_AreProductionEnabledWithoutAcceptanceOverride(string action)
     {
         var command = $"namedrange.{action}";
         var capability = MacCommandCapabilities.Get(command);
-        Assert.False(capability.IsAvailable);
+        Assert.True(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
-        Assert.True(MacNamedRangeArguments.CanUseForAcceptance(command, "1"));
-        Assert.False(MacNamedRangeArguments.CanUseForAcceptance(command, null));
-        Assert.False(MacNamedRangeArguments.CanUseForAcceptance(command, "true"));
-        Assert.False(MacNamedRangeArguments.CanUseForAcceptance(command, " 1"));
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Contains("Real CLI/MCP acceptance", capability.Evidence, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("namedrange.unknown")]
     [InlineData("namedrange.CREATE")]
-    [InlineData("range.get-current-region")]
-    [InlineData("vba.run")]
-    public void Acceptance_DoesNotBroadenToUnknownOrOtherCommands(string command) =>
-        Assert.False(MacNamedRangeArguments.CanUseForAcceptance(command, "1"));
+    [InlineData("namedrange.Read")]
+    [InlineData("namedrange.create-extra")]
+    public void UnknownActions_RemainUnavailableAndFailPreparation(string command)
+    {
+        Assert.False(MacCommandCapabilities.Get(command).IsAvailable);
+        Assert.Throws<ArgumentException>(() =>
+            MacNamedRangeArguments.Prepare(command["namedrange.".Length..], new JsonObject()));
+    }
 
     [Theory]
     [InlineData("create", "Data!$A$1")]
@@ -87,5 +90,50 @@ public sealed class MacNamedRangeArgumentsTests
             MacNamedRangeArguments.Prepare("write", new JsonObject { ["name"] = "Input", ["value"] = 7 }));
         Assert.Throws<ArgumentException>(() =>
             MacNamedRangeArguments.Prepare("unknown", new JsonObject()));
+    }
+
+    [Theory]
+    [InlineData("get-values")]
+    [InlineData("set-values")]
+    public void BulkRangeBinding_RequiresCorrespondingCapabilityAndUsesRequestedName(string action)
+    {
+        var args = new JsonObject { ["sheetName"] = "", ["rangeAddress"] = "Input" };
+        Assert.Throws<PlatformNotSupportedException>(() =>
+            MacNamedRangeArguments.PrepareRangeBinding(action, args, enabled: false));
+        MacNamedRangeArguments.PrepareRangeBinding(action, args, enabled: true);
+        Assert.Equal("Input", args["namedRangeName"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void BulkRangeBinding_DoesNotTrustCallerSuppliedInternalName()
+    {
+        var args = new JsonObject
+        {
+            ["sheetName"] = "Data",
+            ["rangeAddress"] = "A1",
+            ["namedRangeName"] = "UnrequestedName"
+        };
+        MacNamedRangeArguments.PrepareRangeBinding("set-values", args, enabled: false);
+        Assert.False(args.ContainsKey("namedRangeName"));
+        args["sheetName"] = "";
+        args["rangeAddress"] = " ";
+        Assert.Throws<ArgumentException>(() =>
+            MacNamedRangeArguments.PrepareRangeBinding("set-values", args, enabled: true));
+    }
+
+    [Theory]
+    [InlineData("get-values")]
+    [InlineData("set-values")]
+    public void SharedRangeContract_AllowsExplicitEmptySheetButStillRequiresAString(string action)
+    {
+        var args = new JsonObject { ["sheetName"] = "", ["rangeAddress"] = "Input" };
+        if (action == "set-values") args["values"] = JsonNode.Parse("[[17]]");
+        ServiceRegistry.Range.ValidateActionArguments(action, args.ToJsonString());
+        args.Remove("sheetName");
+        Assert.Throws<ArgumentException>(() => ServiceRegistry.Range.ValidateActionArguments(action, args.ToJsonString()));
+        args["sheetName"] = null;
+        Assert.Throws<ArgumentException>(() => ServiceRegistry.Range.ValidateActionArguments(action, args.ToJsonString()));
+        args["sheetName"] = 1;
+        Assert.Throws<ArgumentException>(() => ServiceRegistry.Range.ValidateActionArguments(action, args.ToJsonString()));
     }
 }

@@ -481,14 +481,10 @@ public sealed class ExcelMcpService : IDisposable
             && ServiceRegistry.PowerQuery.TryParseAction(action, out _);
         var vbaRouteSelection = category == "vba"
             && ServiceRegistry.Vba.TryParseAction(action, out _);
-        var namedRangeAcceptance = MacNamedRangeArguments.CanUseForAcceptance(
-            command,
-            Environment.GetEnvironmentVariable("EXCELMCP_MAC_NAMED_RANGE_E2E"));
         if (!capability.IsAvailable
             && !scenarioAcceptance
             && !powerQueryRouteSelection
-            && !vbaRouteSelection
-            && !namedRangeAcceptance)
+            && !vbaRouteSelection)
         {
             return new ServiceResponse
             {
@@ -556,6 +552,14 @@ public sealed class ExcelMcpService : IDisposable
                 if (category == "namedrange")
                 {
                     MacNamedRangeArguments.Prepare(action, arguments);
+                }
+                if (category == "range")
+                {
+                    var nameCommand = action == "set-values" ? "namedrange.write" : "namedrange.read";
+                    MacNamedRangeArguments.PrepareRangeBinding(
+                        action,
+                        arguments,
+                        MacCommandCapabilities.Get(nameCommand).IsAvailable);
                 }
                 arguments["filePath"] = session.FilePath;
                 MacRangeArguments.Prepare(category, action, arguments);

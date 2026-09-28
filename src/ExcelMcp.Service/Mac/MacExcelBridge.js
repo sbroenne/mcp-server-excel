@@ -340,8 +340,44 @@ function findNamedItem(workbook, name) {
     return null;
 }
 
+function requiredNamedItem(workbook, name) {
+    const item = findNamedItem(workbook, name);
+    if (!item) {
+        throw Object.assign(new Error(`Named range '${name}' not found.`), { category: "InvalidOperation" });
+    }
+    return item;
+}
+
+function namedItemRange(workbook, item) {
+    const name = item.name();
+    const reference = item.references();
+    const direct = reference.match(
+        /^=(?:'((?:[^']|'')+)'|([^'!\[\],()]+))!(\$?[A-Z]{1,3}\$?[1-9]\d*(?::\$?[A-Z]{1,3}\$?[1-9]\d*)?|\$?[A-Z]{1,3}:\$?[A-Z]{1,3}|\$?[1-9]\d*:\$?[1-9]\d*)$/i);
+    if (direct) {
+        const sheetName = direct[1] ? direct[1].replace(/''/g, "'") : direct[2];
+        return worksheetByName(workbook, sheetName).ranges.byName(direct[3]);
+    }
+    const leaf = name.substring(name.lastIndexOf("!") + 1).toLowerCase();
+    const names = workbook.namedItems;
+    for (let index = 0; index < names.length; index++) {
+        const other = names[index].name();
+        if (other !== name && other.substring(other.lastIndexOf("!") + 1).toLowerCase() === leaf) {
+            throw Object.assign(
+                new Error("A dynamic named range shadowed in another scope cannot be resolved safely through native Excel automation."),
+                { category: "PlatformNotSupported" });
+        }
+    }
+    const separator = name.lastIndexOf("!");
+    if (separator >= 0) {
+        const scope = name.substring(0, separator).replace(/^'|'$/g, "").replace(/''/g, "'");
+        return worksheetByName(workbook, scope).ranges.byName(name.substring(separator + 1));
+    }
+    const workbookName = workbook.name().replace(/'/g, "''");
+    return workbook.worksheets[0].ranges.byName(`'${workbookName}'!${name}`);
+}
+
 function namedRangeValue(range) {
-    const raw = range.value();
+    const raw = range.value2();
     const count = Number(range.rows.length) * Number(range.columns.length);
     const value = count === 1 ? firstScalar(raw) : normalizeMatrix(raw);
     let valueType = "null";
@@ -366,7 +402,7 @@ function namedRangeList(workbook, filePath) {
         if (localName.startsWith("_xlnm.") || localName === "_filterdatabase") continue;
         const info = { name, refersTo: item.references(), valueType: "Unavailable" };
         try {
-            const range = item.referenceRange();
+            const range = namedItemRange(workbook, item);
             if (range.areas().length > 1) {
                 info.valueType = "MultiAreaRange";
                 info.valueOmittedReason = "Named range resolves to multiple areas; list omits multi-area value previews.";
@@ -385,7 +421,8 @@ function namedRangeList(workbook, filePath) {
                 }
             }
         } catch (error) {
-            if (![-1728, -1700, -1004].includes(Number(error.errorNumber))) throw error;
+            if (error.category !== "PlatformNotSupported"
+                && ![-1728, -1700, -1004].includes(Number(error.errorNumber))) throw error;
             info.valueOmittedReason = error.message || String(error);
         }
         result.push(info);
@@ -393,30 +430,19 @@ function namedRangeList(workbook, filePath) {
     return { success: true, filePath, namedRanges: result };
 }
 
-function dispatchNamedRange(excel, workbook, command, args) {
+function dispatchNamedRange(workbook, command, args) {
     if (command === "namedrange.list") {
         return namedRangeList(workbook, args.filePath);
     }
-    const item = findNamedItem(workbook, args.name);
-    if (command === "namedrange.create") {
-        if (item) {
-            throw Object.assign(new Error(`Named range '${args.name}' already exists.`), { category: "InvalidOperation" });
-        }
-        workbook.namedItems.push(excel.NamedItem({ name: args.name, references: args.reference }));
+    const item = requiredNamedItem(workbook, args.name);
+    if (command === "namedrange.update") item.references = args.reference;
+    else if (command === "namedrange.write") namedItemRange(workbook, item).value2 = args.parsedValue;
+    else if (command === "namedrange.read") {
+        return Object.assign(
+            { name: args.name, refersTo: item.references() },
+            namedRangeValue(namedItemRange(workbook, item)));
     } else {
-        if (!item) {
-            throw Object.assign(new Error(`Named range '${args.name}' not found.`), { category: "InvalidOperation" });
-        }
-        if (command === "namedrange.update") item.references = args.reference;
-        else if (command === "namedrange.delete") item.delete();
-        else if (command === "namedrange.write") item.referenceRange().value = args.parsedValue;
-        else if (command === "namedrange.read") {
-            return Object.assign(
-                { name: args.name, refersTo: item.references() },
-                namedRangeValue(item.referenceRange()));
-        } else {
-            requireSupported(command, []);
-        }
+        requireSupported(command, []);
     }
     return { success: true, filePath: args.filePath };
 }
@@ -449,9 +475,6 @@ function run(argv) {
         }
         if (command === "session.close") {
             const workbook = workbookByPath(excel, args.filePath);
-            if (command.startsWith("namedrange.")) {
-                return json(dispatchNamedRange(excel, workbook, command, args));
-            }
             workbook.close({ saving: args.save ? "yes" : "no" });
             return json({ success: true, errorMessage: "" });
         }
@@ -476,6 +499,9 @@ function run(argv) {
         }
 
         const workbook = workbookByPath(excel, args.filePath);
+        if (command.startsWith("namedrange.")) {
+            return json(dispatchNamedRange(workbook, command, args));
+        }
         if (command === "workbook.state") {
             return json({
                 success: true,
@@ -608,20 +634,22 @@ function run(argv) {
                 });
             }
 
-            const sheet = worksheetByName(workbook, args.sheetName);
+            const sheet = args.namedRangeName ? null : worksheetByName(workbook, args.sheetName);
             if (command === "range.get-used-range") {
                 return json(usedRangeResult(excel, args.filePath, args.sheetName, sheet));
             }
             const requestedAddress = command === "range.get-current-region"
                 ? args.cellAddress
                 : args.rangeAddress;
-            const range = sheet.ranges.byName(requestedAddress);
+            const range = args.namedRangeName
+                ? namedItemRange(workbook, requiredNamedItem(workbook, args.namedRangeName))
+                : sheet.ranges.byName(requestedAddress);
             if (command === "range.get-current-region") {
                 return json(rangeValueResult(
                     excel, args.filePath, args.sheetName, range.currentRegion(), true));
             }
             if (command === "range.get-values") {
-                const values = normalizeMatrix(range.value());
+                const values = normalizeMatrix(range.value2());
                 return json({
                     success: true,
                     filePath: args.filePath,
@@ -634,12 +662,12 @@ function run(argv) {
                 });
             }
             if (command === "range.set-values") {
-                range.value = args.values;
+                range.value2 = args.values;
                 return json({ success: true, filePath: args.filePath, action: "set-values" });
             }
             if (command === "range.get-formulas") {
                 const formulas = normalizeMatrix(range.formula());
-                const values = normalizeMatrix(range.value());
+                const values = normalizeMatrix(range.value2());
                 return json({
                     success: true,
                     filePath: args.filePath,

@@ -1600,11 +1600,11 @@
       "reference: string; required; Cell reference (e.g., Sheet1!$A$1:$B$10)"
     ],
     "tier": "Native",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
-    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
-    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "Real CLI/MCP acceptance verifies workbook-scoped creation and duplicate rejection. Worksheet-scoped creation and local-name collisions are rejected before mutation.",
+    "excelApiVersion": "Excel 16.113.1 typed Apple Events.",
+    "blocker": ""
   },
   {
     "command": "namedrange.delete",
@@ -1613,11 +1613,11 @@
       "name: string; required; Name of the named range to delete"
     ],
     "tier": "Native",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
-    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
-    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "Real CLI/MCP acceptance verifies workbook and quoted worksheet-scope deletion, missing-name failure and unrelated workbook isolation.",
+    "excelApiVersion": "Excel 16.113.1 typed Apple Events.",
+    "blocker": ""
   },
   {
     "command": "namedrange.list",
@@ -1625,11 +1625,11 @@
     "windowsVariants": [
     ],
     "tier": "Native",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
-    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
-    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "Real CLI/MCP acceptance verifies hidden-name filtering, exact 10000/10001-cell preview bounds and explicit omission for multi-area, constant and ambiguous dynamic names.",
+    "excelApiVersion": "Excel 16.113.1 Apple Events.",
+    "blocker": ""
   },
   {
     "command": "namedrange.read",
@@ -1638,11 +1638,11 @@
       "name: string; required; Name of the named range"
     ],
     "tier": "Native",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
-    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
-    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "Real CLI/MCP acceptance verifies scalar and array values, numeric dates, scoped references, unambiguous dynamic names and persistence.",
+    "excelApiVersion": "Excel 16.113.1 Apple Events.",
+    "blocker": ""
   },
   {
     "command": "namedrange.update",
@@ -1652,11 +1652,11 @@
       "reference: string; required; New cell reference (e.g., Sheet1!$A$1:$B$10)"
     ],
     "tier": "Native",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
-    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
-    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "Real CLI/MCP acceptance verifies normalized references, scalar-to-array updates, quoted worksheet scope and save/reopen.",
+    "excelApiVersion": "Excel 16.113.1 Apple Events.",
+    "blocker": ""
   },
   {
     "command": "namedrange.write",
@@ -1666,11 +1666,11 @@
       "value: string; required; Value to set"
     ],
     "tier": "Native",
-    "isAvailable": false,
-    "implementationStatus": "NotTested",
-    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
-    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
-    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
+    "isAvailable": true,
+    "implementationStatus": "Implemented",
+    "evidence": "Real CLI/MCP acceptance verifies scalar types, numeric dates, scoped references and bulk aliases. Shadowed dynamic references are rejected before mutation.",
+    "excelApiVersion": "Excel 16.113.1 Apple Events.",
+    "blocker": ""
   },
   {
     "command": "pivottable.create-from-datamodel",

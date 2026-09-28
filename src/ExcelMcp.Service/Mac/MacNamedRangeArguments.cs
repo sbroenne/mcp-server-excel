@@ -4,14 +4,9 @@ namespace Sbroenne.ExcelMcp.Service.Mac;
 
 internal static class MacNamedRangeArguments
 {
-    public static bool CanUseForAcceptance(string command, string? optIn) =>
-        optIn == "1" && command is
-            "namedrange.list" or "namedrange.create" or "namedrange.read"
-            or "namedrange.write" or "namedrange.update" or "namedrange.delete";
-
     public static void Prepare(string action, JsonObject arguments)
     {
-        if (!CanUseForAcceptance($"namedrange.{action}", "1"))
+        if (action is not ("list" or "create" or "read" or "write" or "update" or "delete"))
         {
             throw new ArgumentException($"Unknown named range action '{action}'.", nameof(action));
         }
@@ -52,6 +47,25 @@ internal static class MacNamedRangeArguments
                 arguments["parsedValue"] = value;
             }
         }
+    }
+
+    public static void PrepareRangeBinding(string action, JsonObject arguments, bool enabled)
+    {
+        // Internal bindings must come from validated public arguments, not caller-supplied keys.
+        arguments.Remove("namedRangeName");
+        if (action is not ("get-values" or "set-values")
+            || arguments["sheetName"]?.GetValue<string>() != string.Empty)
+        {
+            return;
+        }
+        if (!enabled)
+        {
+            throw new PlatformNotSupportedException(
+                "Native named-range bulk addresses require the corresponding named-range read or write capability.");
+        }
+        var name = RequiredText(arguments, "rangeAddress");
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        arguments["namedRangeName"] = name;
     }
 
     private static string RequiredText(JsonObject arguments, string name)
