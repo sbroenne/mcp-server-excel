@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
 
@@ -30,6 +31,22 @@ public class TableNameValidationTests
 
         Assert.Throws<InvalidOperationException>(() =>
             TableCommands.TryAssignTableNameForValidation(table, "Table1"));
+    }
+
+    [Theory]
+    [InlineData(ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER)]
+    [InlineData(ResiliencePipelines.RPC_E_CALL_REJECTED)]
+    [InlineData(ResiliencePipelines.RPC_E_CALL_FAILED)]
+    [InlineData(ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE)]
+    [InlineData(ResiliencePipelines.RPC_E_DISCONNECTED)]
+    public void TryAssignTableNameForValidation_WhenExcelSessionFails_Propagates(int hResult)
+    {
+        var table = new ComFailureTable(hResult);
+
+        var exception = Assert.Throws<COMException>(() =>
+            TableCommands.TryAssignTableNameForValidation(table, "Table1"));
+
+        Assert.Equal(hResult, exception.HResult);
     }
 
     // Service calls cannot verify that Core validates the name before using the batch.
@@ -65,6 +82,14 @@ public class TableNameValidationTests
         public string Name
         {
             set => throw new InvalidOperationException("The session failed.");
+        }
+    }
+
+    public sealed class ComFailureTable(int hResult)
+    {
+        public string Name
+        {
+            set => throw new COMException("The Excel session failed.", hResult);
         }
     }
 }

@@ -74,11 +74,25 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
             table.Name = tableName;
             return true;
         }
-        catch (Exception ex) when (ex is ArgumentException or COMException)
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (COMException ex) when (!IsExcelSessionFailure(ex.HResult))
         {
             return false;
         }
     }
+
+    private static bool IsExcelSessionFailure(int hResult)
+        => hResult is
+            ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER or
+            ResiliencePipelines.RPC_E_CALL_REJECTED or
+            ResiliencePipelines.RPC_E_CALL_FAILED or
+            ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE or
+            ResiliencePipelines.RPC_E_DISCONNECTED or
+            ResiliencePipelines.CO_E_SERVER_EXEC_FAILURE or
+            ResiliencePipelines.DATA_MODEL_BUSY;
 
     /// <summary>
     /// Finds a table by name in the workbook, throwing if not found.
