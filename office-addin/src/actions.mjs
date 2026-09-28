@@ -36,6 +36,33 @@ registerPublic("conditionalformat.list-rules", "1.6", false, listConditionalRule
 registerPublic("conditionalformat.list-worksheet-rules", "1.6", false, listWorksheetConditionalRules);
 registerPublic("sheet.copy", "1.7", true, copyWorksheet);
 registerPublic("sheet.move", "1.1", true, moveWorksheet);
+registerPublic("chart.create-from-range", "1.1", true, createChartFromRange);
+registerPublic("chart.create-from-table", "1.1", true, createChartFromTable);
+registerPublic("chart.delete", "1.1", true, deleteChart);
+registerPublic("chart.move", "1.1", true, moveChart);
+registerPublic("chart.fit-to-range", "1.1", true, fitChartToRange);
+registerPublic("chartconfig.set-chart-type", "1.7", true, setChartType);
+registerPublic("chartconfig.set-title", "1.1", true, setChartTitle);
+registerPublic("chartconfig.set-axis-title", "1.7", true, setChartAxisTitle);
+registerPublic("chartconfig.get-axis-number-format", "1.8", false, getChartAxisNumberFormat);
+registerPublic("chartconfig.set-axis-number-format", "1.8", true, setChartAxisNumberFormat);
+registerPublic("chartconfig.show-legend", "1.1", true, showChartLegend);
+registerPublic("chartconfig.set-style", "1.8", true, setChartStyle);
+registerPublic("chartconfig.set-data-labels", "1.8", true, setChartDataLabels);
+registerPublic("chartconfig.set-axis-scale", "1.7", true, setChartAxisScale);
+registerPublic("chartconfig.get-gridlines", "1.7", false, getChartGridlines);
+registerPublic("chartconfig.set-gridlines", "1.7", true, setChartGridlines);
+registerPublic("chartconfig.set-series-chart-type", "1.7", true, setSeriesChartType);
+registerPublic("chartconfig.get-plot-options", "1.8", false, getChartPlotOptions);
+registerPublic("chartconfig.set-plot-options", "1.8", true, setChartPlotOptions);
+registerPublic("chartconfig.add-trendline", "1.8", true, addChartTrendline);
+registerPublic("chartconfig.delete-trendline", "1.7", true, deleteChartTrendline);
+registerPublic("chartconfig.set-trendline", "1.8", true, setChartTrendline);
+registerPublic("pivottable.create-from-range", "1.8", true, createPivotTableFromRange);
+registerPublic("pivottable.create-from-table", "1.8", true, createPivotTableFromTable);
+registerPublic("pivottable.delete", "1.15", true, deletePivotTable);
+registerPublic("slicer.create-slicer", "1.15", true, createPivotSlicer);
+registerPublic("slicer.create-table-slicer", "1.10", true, createTableSlicer);
 registerInternal("screenshot.prepare-range-geometry", "1.1", true, prepareRangeGeometry);
 registerInternal("screenshot.prepare-sheet-geometry", "1.1", true, prepareSheetGeometry);
 registerInternal("screenshot.restore-view", "1.1", true, restoreCaptureView);
@@ -922,6 +949,577 @@ function applyConditionalFormat(format, payload) {
   }
 }
 
+async function createChartFromRange(context, payload) {
+  const sheet = getWorksheet(context, payload.sheetName);
+  const source = sheet.getRange(requiredString(payload.sourceRangeAddress, "sourceRangeAddress"));
+  return createChart(context, sheet, source, payload);
+}
+
+async function createChartFromTable(context, payload) {
+  const sheet = getWorksheet(context, payload.sheetName);
+  const source = getTable(context, payload.tableName).getRange();
+  return createChart(context, sheet, source, payload);
+}
+
+async function createChart(context, sheet, source, payload) {
+  const chartType = officeChartType(payload.chartType);
+  const charts = sheet.charts;
+  const chart = charts.add(chartType, source, "Auto");
+  if (payload.chartName != null) {
+    chart.name = requiredString(payload.chartName, "chartName");
+  }
+  chart.load("name");
+  const usedRange = sheet.getUsedRange();
+  usedRange.load("address,left,top,width,height");
+  charts.load("items/name,items/left,items/top,items/width,items/height");
+  await context.sync();
+
+  if (payload.targetRange) {
+    const target = sheet.getRange(requiredString(payload.targetRange, "targetRange"));
+    chart.setPosition(target.getCell(0, 0), target.getLastCell());
+  } else if (Number(payload.left) !== 0 || Number(payload.top) !== 0) {
+    chart.left = optionalFiniteNumber(payload.left, 0, "left");
+    chart.top = optionalFiniteNumber(payload.top, 0, "top");
+    chart.width = optionalPositiveNumber(payload.width, 400, "width");
+    chart.height = optionalPositiveNumber(payload.height, 300, "height");
+  } else {
+    const otherChartBottom = charts.items
+      .filter((candidate) => candidate.name !== chart.name)
+      .reduce((bottom, candidate) => Math.max(bottom, candidate.top + candidate.height), 0);
+    chart.left = 10;
+    chart.top = Math.max(usedRange.top + usedRange.height, otherChartBottom) + 10;
+    chart.width = optionalPositiveNumber(payload.width, 400, "width");
+    chart.height = optionalPositiveNumber(payload.height, 300, "height");
+  }
+
+  chart.load("name,chartType,left,top,width,height");
+  sheet.load("name");
+  await context.sync();
+  const warnings = chartCollisionWarnings(chart, usedRange, charts.items);
+  return success({
+    action: "create",
+    message: chartPositionMessage(warnings, charts.items.length),
+    chartName: chart.name,
+    sheetName: sheet.name,
+    chartType: chartTypeName(chart.chartType),
+    isPivotChart: false,
+    linkedPivotTable: null,
+    left: chart.left,
+    top: chart.top,
+    width: chart.width,
+    height: chart.height
+  });
+}
+
+async function deleteChart(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const name = requiredString(payload.chartName, "chartName");
+  chart.delete();
+  await context.sync();
+  return operation("delete", `Chart '${name}' deleted.`);
+}
+
+async function moveChart(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  if (payload.left != null) chart.left = finiteNumber(payload.left, "left");
+  if (payload.top != null) chart.top = finiteNumber(payload.top, "top");
+  if (payload.width != null) chart.width = positiveNumber(payload.width, "width");
+  if (payload.height != null) chart.height = positiveNumber(payload.height, "height");
+  await context.sync();
+  return operation("move", `Chart '${payload.chartName}' moved.`);
+}
+
+async function fitChartToRange(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const sheet = getWorksheet(context, payload.sheetName);
+  const target = sheet.getRange(requiredString(payload.rangeAddress, "rangeAddress"));
+  chart.setPosition(target.getCell(0, 0), target.getLastCell());
+  await context.sync();
+  return operation("fit-to-range", `Chart '${payload.chartName}' fitted to '${payload.rangeAddress}'.`);
+}
+
+async function setChartType(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  chart.chartType = officeChartType(payload.chartType);
+  await context.sync();
+  return operation("set-chart-type", `Chart type set for '${payload.chartName}'.`);
+}
+
+async function setChartTitle(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const title = typeof payload.title === "string"
+    ? payload.title
+    : throwType("title must be a string.");
+  chart.title.text = title;
+  chart.title.visible = title.length > 0;
+  await context.sync();
+  return operation("set-title", `Chart title updated for '${payload.chartName}'.`);
+}
+
+async function setChartAxisTitle(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const axis = chartAxis(chart, payload.axis);
+  const title = typeof payload.title === "string"
+    ? payload.title
+    : throwType("title must be a string.");
+  axis.title.text = title;
+  axis.title.visible = title.length > 0;
+  await context.sync();
+  return operation("set-axis-title", `Axis title updated for '${payload.chartName}'.`);
+}
+
+async function getChartAxisNumberFormat(context, payload) {
+  const axis = chartAxis(await findChart(context, payload.chartName), payload.axis);
+  axis.load("numberFormat");
+  await context.sync();
+  return axis.numberFormat;
+}
+
+async function setChartAxisNumberFormat(context, payload) {
+  const axis = chartAxis(await findChart(context, payload.chartName), payload.axis);
+  axis.numberFormat = requiredString(payload.numberFormat, "numberFormat");
+  await context.sync();
+  return operation("set-axis-number-format", `Axis number format updated for '${payload.chartName}'.`);
+}
+
+async function showChartLegend(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  chart.legend.visible = requiredBoolean(payload.visible, "visible");
+  if (payload.legendPosition != null) {
+    chart.legend.position = enumValue(payload.legendPosition, {
+      bottom: "Bottom",
+      corner: "Corner",
+      custom: "Custom",
+      left: "Left",
+      right: "Right",
+      top: "Top"
+    }, "legendPosition");
+  }
+  await context.sync();
+  return operation("show-legend", `Chart legend updated for '${payload.chartName}'.`);
+}
+
+async function setChartStyle(context, payload) {
+  const styleId = requiredPositiveInteger(payload.styleId, "styleId");
+  if (styleId > 48) {
+    throw new TypeError("styleId must be between 1 and 48.");
+  }
+  const chart = await findChart(context, payload.chartName);
+  chart.style = styleId;
+  await context.sync();
+  return operation("set-style", `Chart style updated for '${payload.chartName}'.`);
+}
+
+async function setChartDataLabels(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const index = payload.seriesIndex == null ? 0 : nonNegativeInteger(payload.seriesIndex, "seriesIndex");
+  const labels = index === 0
+    ? chart.dataLabels
+    : chart.series.getItemAt(index - 1).dataLabels;
+  for (const property of [
+    "showValue", "showPercentage", "showSeriesName", "showCategoryName", "showBubbleSize"
+  ]) {
+    if (payload[property] != null) {
+      labels[property] = requiredBoolean(payload[property], property);
+    }
+  }
+  if (payload.separator != null) {
+    labels.separator = typeof payload.separator === "string"
+      ? payload.separator
+      : throwType("separator must be a string.");
+  }
+  if (payload.labelPosition != null) {
+    labels.position = enumValue(payload.labelPosition, {
+      bestfit: "BestFit",
+      center: "Center",
+      above: "Top",
+      below: "Bottom",
+      left: "Left",
+      right: "Right",
+      insidebase: "InsideBase",
+      insideend: "InsideEnd",
+      outsideend: "OutsideEnd"
+    }, "labelPosition");
+  }
+  await context.sync();
+  return operation("set-data-labels", `Data labels updated for '${payload.chartName}'.`);
+}
+
+async function setChartAxisScale(context, payload) {
+  const axis = chartAxis(await findChart(context, payload.chartName), payload.axis);
+  axis.minimum = payload.minimumScale == null ? "" : finiteNumber(payload.minimumScale, "minimumScale");
+  axis.maximum = payload.maximumScale == null ? "" : finiteNumber(payload.maximumScale, "maximumScale");
+  axis.majorUnit = payload.majorUnit == null ? "" : positiveNumber(payload.majorUnit, "majorUnit");
+  axis.minorUnit = payload.minorUnit == null ? "" : positiveNumber(payload.minorUnit, "minorUnit");
+  await context.sync();
+  return operation("set-axis-scale", `Axis scale updated for '${payload.chartName}'.`);
+}
+
+async function getChartGridlines(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const valueAxis = chart.axes.getItem("Value", "Primary");
+  const categoryAxis = chart.axes.getItem("Category", "Primary");
+  valueAxis.majorGridlines.load("visible");
+  valueAxis.minorGridlines.load("visible");
+  categoryAxis.majorGridlines.load("visible");
+  categoryAxis.minorGridlines.load("visible");
+  await context.sync();
+  return success({
+    action: "get-gridlines",
+    message: `Gridlines read for '${payload.chartName}'.`,
+    chartName: requiredString(payload.chartName, "chartName"),
+    gridlines: {
+      hasValueMajorGridlines: valueAxis.majorGridlines.visible,
+      hasValueMinorGridlines: valueAxis.minorGridlines.visible,
+      hasCategoryMajorGridlines: categoryAxis.majorGridlines.visible,
+      hasCategoryMinorGridlines: categoryAxis.minorGridlines.visible
+    }
+  });
+}
+
+async function setChartGridlines(context, payload) {
+  const axis = chartAxis(await findChart(context, payload.chartName), payload.axis);
+  if (payload.showMajor != null) {
+    axis.majorGridlines.visible = requiredBoolean(payload.showMajor, "showMajor");
+  }
+  if (payload.showMinor != null) {
+    axis.minorGridlines.visible = requiredBoolean(payload.showMinor, "showMinor");
+  }
+  await context.sync();
+  return operation("set-gridlines", `Gridlines updated for '${payload.chartName}'.`);
+}
+
+async function setSeriesChartType(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const index = requiredPositiveInteger(payload.seriesIndex, "seriesIndex");
+  chart.series.getItemAt(index - 1).chartType = officeChartType(payload.chartType);
+  await context.sync();
+  return operation("set-series-chart-type", `Series ${index} type updated for '${payload.chartName}'.`);
+}
+
+async function getChartPlotOptions(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  chart.load("plotBy,displayBlanksAs,plotVisibleOnly");
+  await context.sync();
+  const displayBlanksAs = {
+    NotPlotted: "Gaps",
+    Zero: "Zero",
+    Interplotted: "Interpolated"
+  }[chart.displayBlanksAs];
+  if (!displayBlanksAs) {
+    throw new Error(`Office.js returned unsupported blank-cell plotting mode '${chart.displayBlanksAs}'.`);
+  }
+  return success({
+    chartName: requiredString(payload.chartName, "chartName"),
+    plotBy: chart.plotBy === "Rows" ? "Rows" : "Columns",
+    displayBlanksAs,
+    plotVisibleOnly: chart.plotVisibleOnly
+  });
+}
+
+async function setChartPlotOptions(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  if (payload.plotBy != null) {
+    chart.plotBy = enumValue(payload.plotBy, { rows: "Rows", columns: "Columns" }, "plotBy");
+  }
+  if (payload.displayBlanksAs != null) {
+    chart.displayBlanksAs = enumValue(payload.displayBlanksAs, {
+      gaps: "NotPlotted",
+      zero: "Zero",
+      interpolated: "Interplotted"
+    }, "displayBlanksAs");
+  }
+  if (payload.plotVisibleOnly != null) {
+    chart.plotVisibleOnly = requiredBoolean(payload.plotVisibleOnly, "plotVisibleOnly");
+  }
+  await context.sync();
+  return operation("set-plot-options", `Plot options updated for '${payload.chartName}'.`);
+}
+
+async function addChartTrendline(context, payload) {
+  const chart = await findChart(context, payload.chartName);
+  const seriesIndex = requiredPositiveInteger(payload.seriesIndex, "seriesIndex");
+  const series = chart.series.getItemAt(seriesIndex - 1);
+  const trendlines = series.trendlines;
+  const type = trendlineType(payload.trendlineType);
+  const trendline = trendlines.add(type);
+  applyTrendlineProperties(trendline, payload, true);
+  trendline.load("name,type");
+  const count = trendlines.getCount();
+  await context.sync();
+  return success({
+    action: "add-trendline",
+    message: `Trendline added to series ${seriesIndex} of '${payload.chartName}'.`,
+    chartName: requiredString(payload.chartName, "chartName"),
+    seriesIndex,
+    trendlineIndex: count.value,
+    type: chartTrendlineTypeName(trendline.type),
+    name: trendline.name || null
+  });
+}
+
+async function deleteChartTrendline(context, payload) {
+  const seriesIndex = requiredPositiveInteger(payload.seriesIndex, "seriesIndex");
+  const trendlineIndex = requiredPositiveInteger(payload.trendlineIndex, "trendlineIndex");
+  const chart = await findChart(context, payload.chartName);
+  chart.series.getItemAt(seriesIndex - 1).trendlines.getItem(trendlineIndex - 1).delete();
+  await context.sync();
+  return operation("delete-trendline", `Trendline ${trendlineIndex} deleted from '${payload.chartName}'.`);
+}
+
+async function setChartTrendline(context, payload) {
+  const seriesIndex = requiredPositiveInteger(payload.seriesIndex, "seriesIndex");
+  const trendlineIndex = requiredPositiveInteger(payload.trendlineIndex, "trendlineIndex");
+  const chart = await findChart(context, payload.chartName);
+  const trendline = chart.series.getItemAt(seriesIndex - 1).trendlines.getItem(trendlineIndex - 1);
+  applyTrendlineProperties(trendline, payload, false);
+  await context.sync();
+  return operation("set-trendline", `Trendline ${trendlineIndex} updated for '${payload.chartName}'.`);
+}
+
+function applyTrendlineProperties(trendline, payload, creating) {
+  if (payload.order != null) {
+    const order = requiredPositiveInteger(payload.order, "order");
+    if (order < 2 || order > 6) throw new TypeError("order must be between 2 and 6.");
+    trendline.polynomialOrder = order;
+  }
+  if (payload.period != null) trendline.movingAveragePeriod = requiredPositiveInteger(payload.period, "period");
+  if (payload.forward != null) trendline.forwardPeriod = nonNegativeNumber(payload.forward, "forward");
+  if (payload.backward != null) trendline.backwardPeriod = nonNegativeNumber(payload.backward, "backward");
+  if (payload.intercept != null) trendline.intercept = finiteNumber(payload.intercept, "intercept");
+  if (creating || payload.displayEquation != null) {
+    trendline.showEquation = requiredBoolean(payload.displayEquation ?? false, "displayEquation");
+  }
+  if (creating || payload.displayRSquared != null) {
+    trendline.showRSquared = requiredBoolean(payload.displayRSquared ?? false, "displayRSquared");
+  }
+  if (payload.name != null) trendline.name = requiredString(payload.name, "name");
+}
+
+async function createPivotTableFromRange(context, payload) {
+  const sourceSheet = getWorksheet(context, payload.sourceSheet);
+  const source = sourceSheet.getRange(requiredString(payload.sourceRange, "sourceRange"));
+  return createPivotTable(context, source, payload);
+}
+
+async function createPivotTableFromTable(context, payload) {
+  const source = getTable(context, payload.tableName);
+  return createPivotTable(context, source, payload);
+}
+
+async function createPivotTable(context, source, payload) {
+  const destinationSheet = getWorksheet(context, payload.destinationSheet);
+  const destination = destinationSheet.getRange(requiredString(payload.destinationCell, "destinationCell"));
+  const sourceRange = source.getRange ? source.getRange() : source;
+  sourceRange.load("address,rowCount,values");
+  const pivotTableName = requiredString(payload.pivotTableName, "pivotTableName");
+  const pivot = context.workbook.pivotTables.add(pivotTableName, source, destination);
+  const pivotRange = pivot.layout.getRange();
+  pivotRange.load("address");
+  destinationSheet.load("name");
+  await context.sync();
+  return success({
+    pivotTableName,
+    sheetName: destinationSheet.name,
+    range: pivotRange.address,
+    sourceData: sourceRange.address,
+    sourceRowCount: Math.max(0, sourceRange.rowCount - 1),
+    availableFields: (sourceRange.values[0] ?? []).map(String)
+  });
+}
+
+async function deletePivotTable(context, payload) {
+  const pivotTableName = requiredString(payload.pivotTableName, "pivotTableName");
+  const pivot = context.workbook.pivotTables.getItem(pivotTableName);
+  await requireOrdinaryPivot(context, pivot);
+  pivot.delete();
+  await context.sync();
+  return operation("delete", `PivotTable '${pivotTableName}' deleted.`);
+}
+
+async function createPivotSlicer(context, payload) {
+  const pivotTableName = requiredString(payload.pivotTableName, "pivotTableName");
+  const pivot = context.workbook.pivotTables.getItem(pivotTableName);
+  await requireOrdinaryPivot(context, pivot);
+  return createSlicer(context, pivot, payload.fieldName, payload, {
+    connectedPivotTables: [pivotTableName],
+    sourceType: "PivotTable"
+  });
+}
+
+async function createTableSlicer(context, payload) {
+  const tableName = requiredString(payload.tableName, "tableName");
+  return createSlicer(context, getTable(context, tableName), payload.columnName, payload, {
+    connectedPivotTables: [],
+    connectedTable: tableName,
+    sourceType: "Table"
+  });
+}
+
+async function createSlicer(context, source, fieldNameValue, payload, sourceResult) {
+  const fieldName = requiredString(fieldNameValue, "fieldName");
+  const sheet = getWorksheet(context, payload.destinationSheet);
+  const position = sheet.getRange(requiredString(payload.position, "position"));
+  position.load("left,top,address");
+  const slicer = context.workbook.slicers.add(source, fieldName, sheet);
+  slicer.name = requiredString(payload.slicerName, "slicerName");
+  slicer.caption = slicer.name;
+  slicer.load("name,caption");
+  await context.sync();
+  slicer.left = position.left;
+  slicer.top = position.top;
+  const selected = slicer.getSelectedItems();
+  slicer.slicerItems.load("items/key,items/name");
+  sheet.load("name");
+  await context.sync();
+  const itemByKey = new Map(slicer.slicerItems.items.map((item) => [item.key, item.name]));
+  return success({
+    name: slicer.name,
+    caption: slicer.caption,
+    fieldName,
+    sheetName: sheet.name,
+    position: localAddress(position.address),
+    selectedItems: selected.value.map((key) => itemByKey.get(key) ?? key),
+    availableItems: slicer.slicerItems.items.map((item) => item.name),
+    ...sourceResult,
+    workflowHint: sourceResult.sourceType === "Table"
+      ? `Slicer '${slicer.name}' created for column '${fieldName}' in table '${sourceResult.connectedTable}'. Use SetTableSlicerSelection to filter data.`
+      : `Slicer '${slicer.name}' created for field '${fieldName}'. Use SetSlicerSelection to filter data, or connect additional PivotTables to this slicer.`
+  });
+}
+
+async function requireOrdinaryPivot(context, pivot) {
+  const sourceType = pivot.getDataSourceType();
+  await context.sync();
+  if (sourceType.value !== "LocalRange" && sourceType.value !== "LocalTable") {
+    throw new Error(
+      "This Office.js route supports only ordinary PivotTables backed by a local range or table. " +
+      "OLAP and Power Pivot require the trusted VBA capability."
+    );
+  }
+}
+
+async function findChart(context, value) {
+  const chartName = requiredString(value, "chartName");
+  const worksheets = context.workbook.worksheets;
+  worksheets.load("items/name");
+  await context.sync();
+  const candidates = worksheets.items.map((sheet) => {
+    const chart = sheet.charts.getItemOrNullObject(chartName);
+    chart.load("isNullObject");
+    return chart;
+  });
+  await context.sync();
+  const chart = candidates.find((candidate) => !candidate.isNullObject);
+  if (!chart) throw new Error(`Chart '${chartName}' was not found.`);
+  return chart;
+}
+
+function chartAxis(chart, value) {
+  const axis = requiredString(value, "axis").toLowerCase();
+  const mapping = {
+    primary: ["Category", "Primary"],
+    secondary: ["Value", "Primary"],
+    category: ["Category", "Primary"],
+    value: ["Value", "Primary"],
+    categorysecondary: ["Category", "Secondary"],
+    valuesecondary: ["Value", "Secondary"]
+  };
+  if (!mapping[axis]) throw new TypeError(`Unsupported axis '${value}'.`);
+  return chart.axes.getItem(...mapping[axis]);
+}
+
+function officeChartType(value) {
+  const name = requiredString(value, "chartType");
+  const mapping = {
+    Column3DClustered: "3DColumnClustered",
+    Column3DStacked: "3DColumnStacked",
+    Column3DStacked100: "3DColumnStacked100",
+    Column3D: "3DColumn",
+    Bar3DClustered: "3DBarClustered",
+    Bar3DStacked: "3DBarStacked",
+    Bar3DStacked100: "3DBarStacked100",
+    Line3D: "3DLine",
+    Pie3D: "3DPie",
+    PieExploded3D: "3DPieExploded",
+    Area3D: "3DArea",
+    Area3DStacked: "3DAreaStacked",
+    Area3DStacked100: "3DAreaStacked100",
+    BoxWhisker: "Boxwhisker"
+  };
+  if (name === "ColumnLineCombo") {
+    throw new TypeError(
+      "ColumnLineCombo is not a native Office.js chart type; create a regular chart and set individual series types."
+    );
+  }
+  return mapping[name] ?? name;
+}
+
+function chartTypeName(value) {
+  const mapping = {
+    "3DColumnClustered": "Column3DClustered",
+    "3DColumnStacked": "Column3DStacked",
+    "3DColumnStacked100": "Column3DStacked100",
+    "3DColumn": "Column3D",
+    "3DBarClustered": "Bar3DClustered",
+    "3DBarStacked": "Bar3DStacked",
+    "3DBarStacked100": "Bar3DStacked100",
+    "3DLine": "Line3D",
+    "3DPie": "Pie3D",
+    "3DPieExploded": "PieExploded3D",
+    "3DArea": "Area3D",
+    "3DAreaStacked": "Area3DStacked",
+    "3DAreaStacked100": "Area3DStacked100",
+    Boxwhisker: "BoxWhisker"
+  };
+  return mapping[value] ?? value;
+}
+
+function trendlineType(value) {
+  return enumValue(value, {
+    linear: "Linear",
+    exponential: "Exponential",
+    logarithmic: "Logarithmic",
+    polynomial: "Polynomial",
+    power: "Power",
+    movingaverage: "MovingAverage"
+  }, "trendlineType");
+}
+
+function chartTrendlineTypeName(value) {
+  return String(value);
+}
+
+function chartCollisionWarnings(chart, usedRange, charts) {
+  const warnings = [];
+  if (rectanglesOverlap(chart, usedRange)) {
+    warnings.push(`Chart overlaps data area ${usedRange.address}`);
+  }
+  for (const existing of charts) {
+    if (existing.name !== chart.name && rectanglesOverlap(chart, existing)) {
+      warnings.push(`Chart overlaps existing chart '${existing.name}'`);
+    }
+  }
+  return warnings;
+}
+
+function rectanglesOverlap(left, right) {
+  return left.left < right.left + right.width
+    && left.left + left.width > right.left
+    && left.top < right.top + right.height
+    && left.top + left.height > right.top;
+}
+
+function chartPositionMessage(warnings, chartCount) {
+  if (warnings.length > 0) {
+    return `OVERLAP WARNING: ${warnings.join("; ")}. Use chart move or fit-to-range to reposition, then screenshot(capture-sheet) to verify layout.`;
+  }
+  if (chartCount >= 2) {
+    return `IMPORTANT: ${chartCount} charts now on this sheet. You MUST take a screenshot(capture-sheet) to verify no charts overlap each other or the data.`;
+  }
+  return "IMPORTANT: You MUST take a screenshot(capture-sheet) to verify the chart does not overlap the data.";
+}
+
 function getTable(context, name) {
   return context.workbook.tables.getItem(requiredString(name, "tableName"));
 }
@@ -1317,6 +1915,48 @@ function requiredPositiveInteger(value, name) {
     throw new TypeError(`${name} must be a positive integer.`);
   }
   return value;
+}
+
+function nonNegativeInteger(value, name) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new TypeError(`${name} must be a non-negative integer.`);
+  }
+  return value;
+}
+
+function finiteNumber(value, name) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new TypeError(`${name} must be a finite number.`);
+  }
+  return value;
+}
+
+function positiveNumber(value, name) {
+  const result = finiteNumber(value, name);
+  if (result <= 0) {
+    throw new TypeError(`${name} must be greater than zero.`);
+  }
+  return result;
+}
+
+function nonNegativeNumber(value, name) {
+  const result = finiteNumber(value, name);
+  if (result < 0) {
+    throw new TypeError(`${name} must be non-negative.`);
+  }
+  return result;
+}
+
+function optionalFiniteNumber(value, fallback, name) {
+  return value == null ? fallback : finiteNumber(value, name);
+}
+
+function optionalPositiveNumber(value, fallback, name) {
+  return value == null ? fallback : positiveNumber(value, name);
+}
+
+function throwType(message) {
+  throw new TypeError(message);
 }
 
 function success(value = {}) {

@@ -4,9 +4,17 @@ The Office.js bridge is a versioned, optional capability tier. ExcelMcp's base
 Apple Events features continue to work when it is not installed, not running,
 or not active in a workbook. The installed configuration currently enables
 only `bridge.health`. Candidate handlers for tables and table columns,
-conditional formatting, and same-workbook worksheet copy/move remain
-unavailable to CLI and MCP callers until their existing ExcelMcp contracts
-pass real-Excel parity tests.
+conditional formatting, same-workbook worksheet copy/move, regular charts and
+chart configuration, ordinary local PivotTable creation/deletion, and
+source-identifiable slicer creation remain unavailable to CLI and MCP callers
+until their existing ExcelMcp contracts pass real-Excel parity tests.
+
+The Office.js candidate deliberately excludes linked PivotChart creation,
+OLAP/Data Model PivotTables, PivotCache configuration, PivotTable grouping,
+calculated fields and members, and slicer operations whose source identity
+cannot be proved. These operations require the trusted VBA capability or
+remain unsupported; a chart over PivotTable output is not substituted for a
+genuine linked PivotChart.
 
 The generated `enabledActions` allowlist is the shared Service/broker release
 gate. Installation and upgrade reset it to `bridge.health`; development
