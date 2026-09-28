@@ -86,7 +86,7 @@ internal static class CliTelemetry
             stopwatch.Stop();
             var invocationTelemetry = CurrentInvocationTelemetry.Value;
             var trackedFailureCategory = response?.ErrorCategory ?? failureCategory;
-            if (invocationTelemetry != null && response?.Success == false)
+            if (invocationTelemetry != null && response?.Success != true)
             {
                 invocationTelemetry.FailureCategory ??= trackedFailureCategory;
             }

@@ -192,6 +192,34 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public void TrackCliInvocation_PreservesCaughtRequestExceptionCategory()
+    {
+        string? trackedCategory = null;
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["service", "stop"],
+            () =>
+            {
+                try
+                {
+                    _ = CliTelemetry.TrackCommandAsync(
+                        new ServiceRequest { Command = "service.shutdown" },
+                        () => Task.FromException<ServiceResponse>(new OperationCanceledException()),
+                        (_, _, _, errorCategory) => trackedCategory = errorCategory).GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
+                return 1;
+            },
+            (_, _, _, errorCategory) => trackedCategory = errorCategory);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal("Cancelled", trackedCategory);
+    }
+
+    [Fact]
     public void TrackCliInvocation_PreservesPerItemBatchTelemetry()
     {
         var trackedInvocations = new List<(string Command, bool Succeeded)>();
