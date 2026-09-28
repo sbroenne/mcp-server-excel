@@ -13,7 +13,7 @@ const icon = Buffer.from(
 );
 
 export async function startServer(config) {
-  const state = new OfficeBridgeState();
+  const state = new OfficeBridgeState(undefined, config.enabledActions);
   const [key, cert] = await Promise.all([
     readFile(config.privateKeyPath),
     readFile(config.certificatePath)
@@ -44,6 +44,9 @@ async function route(request, response, config, state) {
     if (request.method === "GET" && url.pathname === "/constants.mjs") {
       return send(response, 200, await readFile(path.join(directory, "constants.mjs"), "utf8"), "text/javascript");
     }
+    if (request.method === "GET" && url.pathname === "/actions.mjs") {
+      return send(response, 200, await readFile(path.join(directory, "actions.mjs"), "utf8"), "text/javascript");
+    }
     if (request.method === "GET" && url.pathname.startsWith("/icon-")) {
       return send(response, 200, icon, "image/png");
     }
@@ -53,7 +56,7 @@ async function route(request, response, config, state) {
       return json(response, 200, {
         status: "running",
         protocolVersion: PROTOCOL_VERSION,
-        enabledActions: ["bridge.health"]
+        enabledActions: state.enabledActions
       });
     }
 
@@ -77,7 +80,11 @@ async function route(request, response, config, state) {
       return json(response, 200, state.complete(body));
     }
     if (request.method === "POST" && url.pathname === "/v1/requests/cancel") {
-      return json(response, 200, { cancelled: state.cancel(body) });
+      const current = state.getRequest(body);
+      return json(response, 200, {
+        cancelled: state.cancel(body),
+        dispatched: current.dispatched
+      });
     }
     if (request.method === "POST" && url.pathname === "/v1/sessions/close") {
       return json(response, 200, state.unregisterSession(body));

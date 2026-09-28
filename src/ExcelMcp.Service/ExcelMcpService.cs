@@ -445,7 +445,8 @@ public sealed class ExcelMcpService : IDisposable
                 filePath = session.FilePath,
                 isExcelVisible = session.IsVisible,
                 activeOperations = Volatile.Read(ref session.ActiveOperations),
-                canClose = session.PendingOperations == 0 && !session.IsClosing
+                canClose = session.PendingOperations == 0 && !session.IsClosing,
+                unsafeReason = session.UnsafeReason
             }).ToList();
             return new ServiceResponse
             {
@@ -474,9 +475,15 @@ public sealed class ExcelMcpService : IDisposable
             }
 
             var closeArgs = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
+            var session = _macSessionManager!.Sessions.FirstOrDefault(
+                candidate => candidate.SessionId == request.SessionId);
             var closed = await _macSessionManager!.CloseAsync(request.SessionId, closeArgs?.Save ?? false);
             if (closed)
             {
+                if (session is not null)
+                {
+                    await TryUnregisterOfficeSessionAsync(session);
+                }
                 return new ServiceResponse { Success = true };
             }
             if (_knownSessionIds.ContainsKey(request.SessionId))
@@ -573,7 +580,11 @@ public sealed class ExcelMcpService : IDisposable
         }
 
         var command = $"{category}.{action}";
-        var capability = MacCommandCapabilities.Get(command);
+        var officeCandidateEnabled = MacOfficeActionCatalog.TryGet(command, out _)
+            && MacOfficeBridgeConfiguration.IsActionEnabled(command);
+        var capability = MacCommandCapabilities.Get(
+            command,
+            officeCandidateEnabled: officeCandidateEnabled);
         if (!capability.IsAvailable)
         {
             return new ServiceResponse
@@ -588,16 +599,47 @@ public sealed class ExcelMcpService : IDisposable
         {
             return await _macSessionManager!.ExecuteAsync(request.SessionId, async session =>
             {
+                var arguments = string.IsNullOrWhiteSpace(request.Args)
+                    ? new JsonObject()
+                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                ResolveMacFileArguments(category, action, arguments);
+
+                if (capability.RequiredTier == MacCapabilityTier.OfficeAddIn)
+                {
+                    if (!MacOfficeActionCatalog.TryGet(command, out var officeAction))
+                    {
+                        throw new InvalidOperationException(
+                            $"Office.js metadata is missing for '{command}'.");
+                    }
+                    try
+                    {
+                        using var officeClient = MacOfficeBridgeClient.CreateDefault();
+                        var officeResult = await officeClient.InvokeAsync(
+                            session.SessionId,
+                            session.FilePath,
+                            command,
+                            arguments,
+                            session.OperationTimeout,
+                            officeAction.Mutation);
+                        return new ServiceResponse
+                        {
+                            Success = true,
+                            Result = officeResult.GetRawText()
+                        };
+                    }
+                    catch (MacOfficeMutationUncertainException ex)
+                    {
+                        session.MarkUnsafe(ex.Message);
+                        throw;
+                    }
+                }
+
                 if (category == "powerquery")
                 {
                     return await DispatchMacPowerQueryAsync(action, request, session);
                 }
 
-                var arguments = string.IsNullOrWhiteSpace(request.Args)
-                    ? new JsonObject()
-                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
                 arguments["filePath"] = session.FilePath;
-                ResolveMacFileArguments(category, action, arguments);
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
@@ -615,6 +657,26 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "SessionNotFound",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeMutationUncertainException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "MutationOutcomeUncertain",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeBridgeTimeoutException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
                 ErrorMessage = ex.Message,
                 ExceptionType = ex.GetType().Name
             };
@@ -637,6 +699,16 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             };
         }
+        catch (MacOfficeBridgeException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.ErrorCategory,
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
         catch (MacExcelOperationException ex)
         {
             return new ServiceResponse
@@ -650,6 +722,23 @@ public sealed class ExcelMcpService : IDisposable
         catch (Exception ex)
         {
             return CreateErrorResponse(ex);
+        }
+    }
+
+    private static async Task TryUnregisterOfficeSessionAsync(MacExcelSession session)
+    {
+        try
+        {
+            using var officeClient = MacOfficeBridgeClient.CreateDefault();
+            await officeClient.TryUnregisterAsync(session.SessionId, session.FilePath);
+        }
+        catch (Exception ex) when (ex is MacOfficeBridgeException
+                                   or IOException
+                                   or JsonException
+                                   or InvalidOperationException
+                                   or UriFormatException)
+        {
+            // The optional add-in must not prevent native session close.
         }
     }
 
@@ -834,6 +923,17 @@ public sealed class ExcelMcpService : IDisposable
         string action,
         JsonObject arguments)
     {
+        if (category == "table" && action == "append")
+        {
+            var rows = arguments["rows"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
+            var rowsFile = arguments["rowsFile"]?.GetValue<string>();
+            arguments["rows"] = JsonSerializer.SerializeToNode(
+                ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows"),
+                ServiceProtocol.JsonOptions);
+            arguments.Remove("rowsFile");
+            return;
+        }
+
         if (category != "range")
         {
             ValidateMacRangeFormatArguments(category, action, arguments);

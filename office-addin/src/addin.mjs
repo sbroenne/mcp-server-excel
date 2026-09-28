@@ -1,4 +1,5 @@
-import { PROTOCOL_VERSION, REQUIREMENT_SETS } from "./constants.mjs";
+import { executeOfficeAction, negotiateRequirementSets } from "./actions.mjs";
+import { PROTOCOL_VERSION } from "./constants.mjs";
 
 const status = document.querySelector("#status");
 const token = new URLSearchParams(location.hash.slice(1)).get("token");
@@ -11,42 +12,78 @@ Office.onReady(async (info) => {
       throw new Error("The bridge activation token is missing.");
     }
     const workbookUrl = await getDocumentUrl();
-    const requirementSets = REQUIREMENT_SETS.filter((version) =>
-      Office.context.requirements.isSetSupported("ExcelApi", version));
+    const requirementSets = negotiateRequirementSets(Office.context.requirements);
     const diagnostics = Office.context.diagnostics;
-    const session = await call("/v1/office/activate", {
+    const activation = {
       protocolVersion: PROTOCOL_VERSION,
       workbookUrl,
       instanceId,
       host: String(info.host),
       platform: String(info.platform),
       officeVersion: diagnostics.version,
-      requirementSets
-    });
-    status.textContent = `Connected to ExcelMcp (ExcelApi ${requirementSets.at(-1) ?? "unavailable"}).`;
-    await poll(session.sessionId, workbookUrl);
+      requirementSets: requirementSets.excelApi,
+      desktopRequirementSets: requirementSets.excelApiDesktop
+    };
+    const session = await activateWhenRegistered(activation);
+    status.textContent =
+      `Connected to ExcelMcp (ExcelApi ${requirementSets.excelApi.at(-1) ?? "unavailable"}, ` +
+      `ExcelApiDesktop ${requirementSets.excelApiDesktop.at(-1) ?? "unavailable"}).`;
+    await poll(session.sessionId, workbookUrl, requirementSets, session.enabledActions);
   } catch (error) {
     status.textContent = `ExcelMcp bridge unavailable: ${error.message}`;
   }
 });
 
-async function poll(sessionId, workbookUrl) {
+async function activateWhenRegistered(activation) {
+  while (true) {
+    try {
+      return await call("/v1/office/activate", activation);
+    } catch (error) {
+      if (error.message !== "No ExcelMcp session is registered for this exact workbook.") {
+        throw error;
+      }
+      status.textContent = "Waiting for ExcelMcp to open this exact workbook.";
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+}
+
+async function poll(sessionId, workbookUrl, requirementSets, enabledActions) {
   while (true) {
     const request = await call("/v1/office/next", { sessionId, workbookUrl, instanceId });
     if (request) {
+      let result;
+      try {
+        result = {
+          success: true,
+          value: request.action === "bridge.health"
+            ? {
+                success: true,
+                errorMessage: null,
+                officeVersion: Office.context.diagnostics.version,
+                requirementSets,
+                enabledActions
+              }
+            : await executeOfficeAction(request, {
+                requirementSets,
+                run: Excel.run
+              })
+        };
+      } catch (error) {
+        result = {
+          success: false,
+          errorMessage: error.message
+        };
+      }
       await call("/v1/office/results", {
         sessionId,
         workbookUrl,
         instanceId,
         requestId: request.requestId,
-        success: true,
-        value: {
-          officeVersion: Office.context.diagnostics.version,
-          requirementSets: REQUIREMENT_SETS.filter((version) =>
-            Office.context.requirements.isSetSupported("ExcelApi", version))
-        }
+        ...result
       });
     }
+
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 }

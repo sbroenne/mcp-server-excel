@@ -87,7 +87,7 @@ public interface IConditionalFormattingCommands
     /// <param name="datePeriod">timePeriod period: today, yesterday, tomorrow, last7Days, thisWeek, lastWeek, nextWeek, thisMonth, lastMonth, nextMonth</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     /// <exception cref="ArgumentException">Invalid rule type, operator, color, or format value</exception>
-    [ServiceAction("add-rule")]
+    [ServiceAction("add-rule"), OfficeAddInAction("1.6", mutation: true)]
     OperationResult AddRule(
         IExcelBatch batch,
         [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
@@ -145,7 +145,7 @@ public interface IConditionalFormattingCommands
     /// <param name="sheetName">Target worksheet name (empty for active sheet)</param>
     /// <param name="rangeAddress">Range address to clear rules from (e.g., A1:D10)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
-    [ServiceAction("clear-rules")]
+    [ServiceAction("clear-rules"), OfficeAddInAction("1.6", mutation: true)]
     OperationResult ClearRules(
         IExcelBatch batch,
         [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
@@ -165,7 +165,7 @@ public interface IConditionalFormattingCommands
     /// <param name="sheetName">Sheet name (empty for active sheet)</param>
     /// <param name="rangeAddress">Range address to read rules from (e.g., A1:G41)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
-    [ServiceAction("list-rules")]
+    [ServiceAction("list-rules"), OfficeAddInAction("1.6", mutation: false)]
     ConditionalFormatListResult ListRules(
         IExcelBatch batch,
         [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
@@ -180,7 +180,7 @@ public interface IConditionalFormattingCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Sheet name (empty for active sheet)</param>
     /// <exception cref="InvalidOperationException">Sheet not found</exception>
-    [ServiceAction("list-worksheet-rules")]
+    [ServiceAction("list-worksheet-rules"), OfficeAddInAction("1.6", mutation: false)]
     ConditionalFormatListResult ListWorksheetRules(
         IExcelBatch batch,
         [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName);

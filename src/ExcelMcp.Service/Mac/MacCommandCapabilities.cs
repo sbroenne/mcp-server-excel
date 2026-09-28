@@ -39,10 +39,20 @@ internal static class MacCommandCapabilities
 
     public static MacCommandCapability Get(
         string command,
-        MacVbaPreflightResult? vbaPreflight = null)
+        MacVbaPreflightResult? vbaPreflight = null,
+        bool officeCandidateEnabled = false)
     {
         if (ByCommand.TryGetValue(command, out var capability))
         {
+            if (officeCandidateEnabled && MacOfficeActionCatalog.TryGet(command, out _))
+            {
+                return capability with
+                {
+                    IsAvailable = true,
+                    RequiredTier = MacCapabilityTier.OfficeAddIn,
+                    UnavailableMessage = string.Empty
+                };
+            }
             if (!capability.IsAvailable && command.StartsWith("vba.", StringComparison.Ordinal))
             {
                 vbaPreflight ??= MacVbaPreflight.Check();

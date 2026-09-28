@@ -60,7 +60,7 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sourceName">Name of the source worksheet</param>
     /// <param name="targetName">Name for the copied worksheet</param>
-    [ServiceAction("copy")]
+    [ServiceAction("copy"), OfficeAddInAction("1.7", mutation: true)]
     OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter] string targetName);
 
     /// <summary>
@@ -83,7 +83,7 @@ public interface ISheetCommands
     /// <param name="sheetName">Name of the sheet to move</param>
     /// <param name="beforeSheet">Optional: Name of sheet to position before</param>
     /// <param name="afterSheet">Optional: Name of sheet to position after</param>
-    [ServiceAction("move")]
+    [ServiceAction("move"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult Move(IExcelBatch batch, [RequiredParameter] string sheetName, string? beforeSheet = null, string? afterSheet = null);
 
     // === ATOMIC CROSS-FILE OPERATIONS ===
