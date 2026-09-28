@@ -110,7 +110,7 @@ public sealed class MacHelperFixtureContractTests
                 "requestId": "{{RequestId}}",
                 "success": true,
                 "result": {
-                  "helperVersion": "1.0.0",
+                  "helperVersion": "1.0.1",
                   "protocolVersion": 1,
                   "staticAvailability": {
                     "queriesApi": true,
@@ -118,6 +118,12 @@ public sealed class MacHelperFixtureContractTests
                     "scenarioApi": true,
                     "vbProjectApi": true,
                     "codeModuleApi": true
+                  },
+                  "engineCapabilities": {
+                    "xmlMapsApi": null,
+                    "rangeXPathApi": null,
+                    "workbookModelApi": null,
+                    "dataModelConnectionApi": null
                   },
                   "supportedActions": [
                     "helper.capabilities",
@@ -127,8 +133,6 @@ public sealed class MacHelperFixtureContractTests
                     "powerquery.update",
                     "powerquery.rename",
                     "powerquery.delete",
-                    "powerquery.refresh",
-                    "powerquery.refresh-all",
                     "analysis.create-scenario",
                     "analysis.show-scenario",
                     "vba.list",
@@ -143,8 +147,17 @@ public sealed class MacHelperFixtureContractTests
                   },
                   "provenMethods": {
                     "powerQueryList": false,
-                    "powerQueryMutation": false,
-                    "queryTableRefresh": false,
+                    "powerQueryCreate": false,
+                    "powerQueryUpdate": false,
+                    "powerQueryRename": false,
+                    "powerQueryDelete": false,
+                    "powerQueryRefresh": false,
+                    "powerQueryRefreshAll": false,
+                    "powerQueryLoadTo": false,
+                    "powerQueryUnload": false,
+                    "powerQueryEvaluate": false,
+                    "xmlXPathRead": false,
+                    "dataModelRead": false,
                     "scenarioCreateShow": false,
                     "vbaListView": false,
                     "vbaMutation": false
@@ -162,6 +175,9 @@ public sealed class MacHelperFixtureContractTests
             result.GetProperty("supportedActions").EnumerateArray()
                 .Select(action => action.GetString()!).ToArray());
         Assert.True(result.GetProperty("staticAvailability").GetProperty("queriesApi").GetBoolean());
+        Assert.Equal(
+            JsonValueKind.Null,
+            result.GetProperty("engineCapabilities").GetProperty("workbookModelApi").ValueKind);
         Assert.True(result.GetProperty("trustReadiness").GetProperty("vbaProjectReadable").GetBoolean());
         Assert.All(
             result.GetProperty("provenMethods").EnumerateObject(),

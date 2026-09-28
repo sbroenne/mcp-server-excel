@@ -383,6 +383,36 @@ trust readiness, and `supportedActions` are not proof: each corresponding
 lifecycle passes. Connection-only helper coverage must not be reported as
 worksheet load or public create/load-to-table parity.
 
+The opt-in direct-engine runner is
+`scripts/Test-MacHelperAcceptance.ps1`. It requires an already installed and
+open exact `ExcelMcpHelper.xlam`, prior user-managed macro approval, prior
+user-managed VBA project-model trust, and a dedicated blank `.xlsm` created and
+saved by Excel. It requires helper version `1.0.1` and rejects the broken
+`1.0.0` artifact. It never installs the helper, changes security preferences,
+synthesizes `vbaProject.bin`, or opens the Power Query package candidates:
+
+```powershell
+pwsh ./scripts/Test-MacHelperAcceptance.ps1 `
+  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
+  -WorkbookPath '/absolute/path/ExcelMcpHelperAcceptance.xlsm' `
+  -MacroApprovalConfirmed `
+  -VbaProjectTrustConfirmed `
+  -ExcelAuthoredWorkbookConfirmed
+```
+
+The runner opens the exact test workbook through the public CLI session path,
+then exercises the fixed `helper.dispatch` backend in both built CLI and MCP
+entry points. It reports `acceptanceScope=direct-helper-engine` and
+`publicCommandAcceptance=false`: a passing run is helper engine evidence, not
+proof that currently gated public commands are implemented. Determinate runs
+delete only the reserved literal query and standard-module names and close the
+test workbook without saving. A transport timeout or helper
+`RecoveryRequired/rollback_failed` result stops further mutation, closes only
+the exact test-owned workbook without saving when that remains possible,
+attempts to invalidate the private runner session, preserves the exact workbook
+path in the receipt, and requires manual reconciliation rather than guessing
+whether VBA completed.
+
 **Conclusion:** transactional updates to an existing Excel-authored Power Query
 package remain viable, but independently creating an Excel-accepted package is
 not yet proven. VBA source parsing is viable, but source mutation is not yet
