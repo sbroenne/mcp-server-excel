@@ -5,7 +5,8 @@
   "license": "MIT",
   "main": "excelcli",
   "files": [
-    "excelcli"
+    "excelcli",
+    "helpers/excelmcp-screencapture"
   ],
   "os": [
     "darwin"

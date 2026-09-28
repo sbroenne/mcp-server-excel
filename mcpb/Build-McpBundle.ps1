@@ -118,6 +118,24 @@ Move-Item (Join-Path $PublishDir $Target.SourceExecutable) $FinalExecutable -For
 Remove-Item -LiteralPath $PublishDir -Recurse -Force
 
 if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal) -and -not $IsWindows) {
+    $HelperBuildRoot = Join-Path $StagingDir "native"
+    $HelperSource = & (Join-Path $RootDir "scripts/Build-MacScreenCaptureHelper.ps1") `
+        -RuntimeIdentifier $RuntimeIdentifier `
+        -OutputRoot $HelperBuildRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not build the macOS ScreenCaptureKit helper."
+    }
+    $HelperDirectory = Join-Path $ServerDir "helpers"
+    New-Item -ItemType Directory -Path $HelperDirectory -Force | Out-Null
+    $FinalHelper = Join-Path $HelperDirectory "excelmcp-screencapture"
+    Copy-Item -LiteralPath $HelperSource -Destination $FinalHelper
+    Remove-Item -LiteralPath $HelperBuildRoot -Recurse -Force
+    & /bin/chmod +x $FinalHelper
+    & (Join-Path $RootDir "scripts/Sign-MacBinary.ps1") -Path $FinalHelper
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not sign the macOS ScreenCaptureKit helper."
+    }
+
     & /bin/chmod +x $FinalExecutable
     if ($LASTEXITCODE -ne 0) {
         throw "Could not mark the macOS MCP Server executable."
@@ -163,7 +181,7 @@ Copy-Item (Join-Path $RootDir "CHANGELOG.md") (Join-Path $StagingDir "CHANGELOG.
 $McpbFileName = "excel-mcp-$Version-$($Target.Slug).mcpb"
 $McpbPath = Join-Path $OutputDir $McpbFileName
 $MacExecutableRelativePath = if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal)) {
-    "server/excel-mcp-server"
+    @("server/excel-mcp-server", "server/helpers/excelmcp-screencapture")
 }
 else {
     ""
@@ -183,6 +201,12 @@ try {
     if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal) -and
         ($ExecutableEntry.ExternalAttributes -band 0x00400000) -eq 0) {
         throw "macOS MCPB executable does not have an executable mode."
+    }
+    if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal)) {
+        $HelperEntry = $Archive.GetEntry("server/helpers/excelmcp-screencapture")
+        if ($null -eq $HelperEntry -or ($HelperEntry.ExternalAttributes -band 0x00400000) -eq 0) {
+            throw "macOS MCPB helper is missing or does not have an executable mode."
+        }
     }
 }
 finally {

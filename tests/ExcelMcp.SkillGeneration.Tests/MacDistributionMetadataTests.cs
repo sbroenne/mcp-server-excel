@@ -55,6 +55,27 @@ public sealed class MacDistributionMetadataTests
 
     [Fact]
     [Trait("Feature", "Distribution")]
+    public void MacPackages_IncludeSignedArchitectureMatchedScreenCaptureHelper()
+    {
+        var release = Read(".github/workflows/release.yml");
+        var helperBuild = Read("scripts/Build-MacScreenCaptureHelper.ps1");
+        var npmBuild = Read("scripts/Build-NpmPackages.ps1");
+        var extensionBuild = Read("vscode-extension/scripts/build-mcp-runtimes.mjs");
+        var mcpbBuild = Read("mcpb/Build-McpBundle.ps1");
+
+        Assert.Contains("-target \"$architecture-apple-macos14.0\"", helperBuild, StringComparison.Ordinal);
+        Assert.Contains("$RuntimeIdentifier/helpers", helperBuild, StringComparison.Ordinal);
+        Assert.Contains("helpers/excelmcp-screencapture", release, StringComparison.Ordinal);
+        Assert.Contains("Sign-MacBinary.ps1", release, StringComparison.Ordinal);
+        Assert.Contains("macOS runtime package requires the ScreenCaptureKit helper", npmBuild, StringComparison.Ordinal);
+        Assert.Contains("Build-MacScreenCaptureHelper.ps1", extensionBuild, StringComparison.Ordinal);
+        Assert.Contains("Sign-MacBinary.ps1", extensionBuild, StringComparison.Ordinal);
+        Assert.Contains("Build-MacScreenCaptureHelper.ps1", mcpbBuild, StringComparison.Ordinal);
+        Assert.Contains("server/helpers/excelmcp-screencapture", mcpbBuild, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Feature", "Distribution")]
     public void AgentSkillsBuild_UsesTheNativeCliForReferenceGeneration()
     {
         var buildScript = Read("scripts/Build-AgentSkills.ps1");

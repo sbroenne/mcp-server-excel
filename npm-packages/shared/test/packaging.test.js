@@ -21,11 +21,16 @@ for (const [component, packageName, commandName] of [
   test(`${component} ${runtimeIdentifier} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
     const executable = join(sandbox, executableName);
+    const helper = join(sandbox, 'helpers', 'excelmcp-screencapture');
     const payload = Buffer.from('package fixture, not an executable');
     const sourceManifest = join(repoRoot, 'npm-packages', packageName, 'package.json');
     const originalManifest = readFileSync(sourceManifest, 'utf8');
     try {
       writeFileSync(executable, payload);
+      if (runtimeIdentifier.startsWith('osx-')) {
+        mkdirSync(join(sandbox, 'helpers'));
+        writeFileSync(helper, payload);
+      }
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version,
@@ -58,6 +63,11 @@ for (const [component, packageName, commandName] of [
           assert.deepEqual(manifest.os, expectedOs);
           assert.deepEqual(manifest.cpu, expectedCpu);
           assert.deepEqual(readFileSync(join(root, manifest.main)), payload);
+          if (runtimeIdentifier.startsWith('osx-')) {
+            assert.deepEqual(readFileSync(join(root, 'helpers', 'excelmcp-screencapture')), payload);
+          } else {
+            assert.throws(() => readFileSync(join(root, 'helpers', 'excelmcp-screencapture')));
+          }
         } else {
           assert.deepEqual(manifest.optionalDependencies, {
             [`@sbroenne/${packageName}-win32-x64`]: version,
