@@ -44,7 +44,8 @@ internal sealed class CliCommandRuntime
         TextWriter error,
         bool isOutputRedirected,
         ICliDaemonConnection? daemonConnection = null,
-        Func<Task<string?>>? latestVersionProvider = null)
+        Func<Task<string?>>? latestVersionProvider = null,
+        Action<string, long, bool, string?, bool>? telemetryObserver = null)
     {
         ArgumentNullException.ThrowIfNull(clientFactory);
         ArgumentNullException.ThrowIfNull(input);
@@ -58,6 +59,7 @@ internal sealed class CliCommandRuntime
         DaemonConnection = daemonConnection ?? ProductionDaemonConnection;
         LatestVersionProvider = latestVersionProvider
             ?? (() => NuGetVersionChecker.GetLatestVersionAsync());
+        TelemetryObserver = telemetryObserver;
     }
 
     internal static CliCommandRuntime Current =>
@@ -75,6 +77,7 @@ internal sealed class CliCommandRuntime
     internal bool IsOutputRedirected { get; }
     internal ICliDaemonConnection DaemonConnection { get; }
     internal Func<Task<string?>> LatestVersionProvider { get; }
+    internal Action<string, long, bool, string?, bool>? TelemetryObserver { get; }
 
     internal static IDisposable Push(CliCommandRuntime runtime)
     {

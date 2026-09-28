@@ -234,13 +234,89 @@ public sealed class InProcessCliCommandTests
         }
     }
 
+    [Fact]
+    public async Task SessionTest_CanOpenFalse_TracksExpectedNegative()
+    {
+        var telemetry = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+        var runtime = CreateRuntime(
+            new RecordingClientFactory(new ServiceResponse
+            {
+                Success = true,
+                Result = """{"canOpen":false}"""
+            }),
+            new StringWriter(),
+            new StringWriter(),
+            telemetryObserver: (command, _, succeeded, errorCategory, expectedNegative) =>
+                telemetry.Add((command, succeeded, errorCategory, expectedNegative)));
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "test", @"C:\workbooks\missing.xlsx"],
+            runtime);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(
+            [("session.test", true, null, true)],
+            telemetry);
+    }
+
+    [Fact]
+    public async Task SessionTest_MalformedSuccessResponse_TracksInvalidResponse()
+    {
+        var telemetry = new List<(string Command, bool Succeeded, string? ErrorCategory)>();
+        var runtime = CreateRuntime(
+            new RecordingClientFactory(new ServiceResponse
+            {
+                Success = true,
+                Result = "{"
+            }),
+            new StringWriter(),
+            new StringWriter(),
+            telemetryObserver: (command, _, succeeded, errorCategory, _) =>
+                telemetry.Add((command, succeeded, errorCategory)));
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "test", @"C:\workbooks\book.xlsx"],
+            runtime);
+
+        Assert.NotEqual(0, exitCode);
+        Assert.Equal(
+            [("session.test", false, "InvalidResponse")],
+            telemetry);
+    }
+
+    [Fact]
+    public async Task SessionList_NullSuccessResponse_TracksInvalidResponse()
+    {
+        var telemetry = new List<(string Command, bool Succeeded, string? ErrorCategory)>();
+        var daemonConnection = new RecordingDaemonConnection(
+            new ServiceResponse { Success = true },
+            new DaemonConnectionPolicy.DaemonFailureState("running", true));
+        var runtime = CreateRuntime(
+            new RecordingClientFactory(),
+            new StringWriter(),
+            new StringWriter(),
+            daemonConnection: daemonConnection,
+            telemetryObserver: (command, _, succeeded, errorCategory, _) =>
+                telemetry.Add((command, succeeded, errorCategory)));
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "list"],
+            runtime);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(
+            [("session.list", false, "InvalidResponse")],
+            telemetry);
+    }
+
     private static CliCommandRuntime CreateRuntime(
         RecordingClientFactory factory,
         StringWriter output,
         StringWriter error,
         string input = "",
         ICliDaemonConnection? daemonConnection = null,
-        Func<Task<string?>>? latestVersionProvider = null) =>
+        Func<Task<string?>>? latestVersionProvider = null,
+        Action<string, long, bool, string?, bool>? telemetryObserver = null) =>
         new(
             factory,
             new StringReader(input),
@@ -248,7 +324,8 @@ public sealed class InProcessCliCommandTests
             error,
             isOutputRedirected: true,
             daemonConnection,
-            latestVersionProvider);
+            latestVersionProvider,
+            telemetryObserver);
 
     private sealed class RecordingDaemonConnection(
         ServiceResponse response,
