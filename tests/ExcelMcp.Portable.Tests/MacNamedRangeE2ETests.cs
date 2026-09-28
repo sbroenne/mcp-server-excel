@@ -82,7 +82,16 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             Assert.Equal(4, array.GetProperty("value")[1][1].GetDouble());
             var names = Success(await Call("list", new())).GetProperty("namedRanges").EnumerateArray().ToArray();
             Assert.DoesNotContain(names, item => item.GetProperty("name").GetString() == "HiddenInternal");
-            Assert.DoesNotContain(names, item => item.GetProperty("name").GetString() == "_FilterDatabase");
+            Assert.DoesNotContain(names, item => item.GetProperty("name").GetString()!
+                .EndsWith("_FilterDatabase", StringComparison.OrdinalIgnoreCase));
+            var boundary = Assert.Single(names, item => item.GetProperty("name").GetString() == "PreviewBoundary");
+            Assert.Equal(10_000, boundary.GetProperty("cellCount").GetInt64());
+            Assert.Equal("Array", boundary.GetProperty("valueType").GetString());
+            Assert.True(boundary.TryGetProperty("value", out _));
+            var overBoundary = Assert.Single(names, item => item.GetProperty("name").GetString() == "PreviewOverBoundary");
+            Assert.Equal(10_001, overBoundary.GetProperty("cellCount").GetInt64());
+            Assert.Equal("RangeTooLarge", overBoundary.GetProperty("valueType").GetString());
+            Assert.False(overBoundary.TryGetProperty("value", out _));
             var large = Assert.Single(names, item => item.GetProperty("name").GetString() == "LargePreview");
             Assert.Equal("RangeTooLarge", large.GetProperty("valueType").GetString());
             Assert.Equal(1_048_576, large.GetProperty("cellCount").GetInt64());
@@ -138,7 +147,10 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
         XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         document.Root!.Add(new XElement(ns + "definedNames",
             new XElement(ns + "definedName", new XAttribute("name", "HiddenInternal"), new XAttribute("hidden", "1"), "#REF!"),
-            new XElement(ns + "definedName", new XAttribute("name", "_FilterDatabase"), "Data!$A$1"),
+            new XElement(ns + "definedName", new XAttribute("name", "_xlnm._FilterDatabase"),
+                new XAttribute("localSheetId", "0"), new XAttribute("hidden", "1"), "Data!$A$1"),
+            new XElement(ns + "definedName", new XAttribute("name", "PreviewBoundary"), "Data!$A$1:$A$10000"),
+            new XElement(ns + "definedName", new XAttribute("name", "PreviewOverBoundary"), "Data!$A$1:$A$10001"),
             new XElement(ns + "definedName", new XAttribute("name", "LargePreview"), "Data!$A:$A"),
             new XElement(ns + "definedName", new XAttribute("name", "MultipleAreas"), "Data!$A$1,Data!$B$2"),
             new XElement(ns + "definedName", new XAttribute("name", "ConstantOnly"), "42")));
