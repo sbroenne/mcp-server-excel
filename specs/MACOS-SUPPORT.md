@@ -230,6 +230,15 @@ dictionary and synthetic real-Excel workbooks:
 | Worksheet `copy` | `copy worksheet` declares optional before/after sheet parameters | JXA renamed the existing destination rather than adding a sheet; typed AppleScript returned parameter errors or introduced an untitled workbook outside the owned session | Blocked; declared terminology did not prove contract parity |
 | Worksheet `move` | No move-worksheet command is declared | Not executed because no declared route exists and copy/delete is not an equivalent atomic move | Blocked |
 | Python in Excel `set-formula`, `get-result` | Range `formula2` is declared read/write; Microsoft documents qualifying Mac availability from 16.96 | The first quoted-literal CLI/MCP run exposed incorrect use of a nonexistent range-address property. After switching to the declared `get address` command, both entry points resolved `$Z$1`, but the PY formula remained empty. A bounded transport comparison on Excel 16.113.1 proved JXA Formula2 persisted `=1+2` and value `3` across fresh processes; typed AppleScript returned `-50`; the same quoted PY literal immediately read back with empty `formula2`, `formula`, and value in both the setter and a fresh JXA process | Blocked; actions remain capability-gated because ordinary Formula2 works but PY cannot be invoked truthfully in the tested environment |
+| Range `copy`, `copy-values`, `copy-formulas` | `copy range` accepts a destination range without clipboard use; range `value` and `formula r1c1` are read/write | Source candidate uses native copy for complete content, direct matrices for values, and R1C1 matrices so relative references adjust at the destination | Pending real CLI/MCP acceptance; capability-gated |
+| Range `get-used-range`, `get-info` | Worksheet `used range`, `get address`, row/column collections, number format, and geometry properties are declared | Source candidate preserves absolute addresses and treats Excel's missing-object response for a genuinely empty sheet as a zero-dimensional `$A$1` used range | Pending real CLI/MCP acceptance; capability-gated |
+| Range `get-current-region` | Range `current region` is declared read-only | On a populated `D5:E6` block, JXA returned “The object you are trying to access does not exist” and typed AppleScript returned Excel parameter error `-50` | Blocked; remains capability-gated rather than reconstructing Excel's region semantics |
+| Range `set-number-formats` | Range `number format` is read/write | Source candidate resolves inline/file input through the shared transform, validates the exact 2D shape, and writes each cell to cover single-row and single-column matrices | Pending real CLI/MCP acceptance; capability-gated |
+| Range format `auto-fit-columns`, `auto-fit-rows` | `autofit` accepts a range; range `rows` and `columns` expose the complete selected dimensions | Source candidate targets the selected range's full row/column collections | Pending real CLI/MCP acceptance; capability-gated |
+| Range format `merge-cells`, `unmerge-cells`, `get-merge-info` | `merge`, `unmerge`, read/write `merge cells`, and read-only `merge area` are declared | Source candidate de-duplicates every merged area intersecting the requested range rather than reporting only its first cell | Pending real CLI/MCP acceptance; capability-gated |
+| Range link `set-cell-lock`, `get-cell-lock` | Range `locked` is read/write | Source candidate writes the complete range and reads the first cell, matching the Windows contract | Pending real CLI/MCP acceptance; capability-gated |
+| Calculation `set-mode`, `get-mode` | Application `calculation` is read/write | The declared property is application-global in shared Excel, so changing it cannot preserve exact workbook ownership when unrelated workbooks are open | Blocked for the native shared-Excel tier |
+| Named range lifecycle | Workbook `named item` elements expose name, references, reference range, value, and visibility | The object model appears sufficient, but hidden/internal-name filtering, bounded previews, create/delete dispatch, and exact reference normalization still require a separate evidence slice | Deferred until the range batch is accepted |
 
 The failed copy probes did not authorize closing the untitled workbook or
 terminating shared Excel. Exact-path AppleScript lookup now skips workbooks
@@ -534,6 +543,10 @@ acceptance sequence; when selected, unavailable capability, licensing, cloud
 connection, policy, serialization, or result failures fail the run rather than
 being converted to a skip. It is intentionally not part of the default baseline
 while Python actions remain capability-gated.
+`-IncludeRangeExpansion` similarly opts both entry points into the pending native
+range-expansion acceptance sequence. Until that sequence passes against desktop
+Excel, the new range routes remain capability-gated and the switch is not part
+of the default baseline.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,

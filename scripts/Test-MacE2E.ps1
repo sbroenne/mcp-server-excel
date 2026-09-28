@@ -8,7 +8,11 @@ temporary fixtures and LaunchServices; never requests permission or accesses
 Excel's container. Does not establish native create, Power Query or VBA parity.
 #>
 [CmdletBinding()]
-param([switch]$SkipBuild, [switch]$IncludePythonInExcel, [string]$PipeName)
+param(
+    [switch]$SkipBuild,
+    [switch]$IncludePythonInExcel,
+    [switch]$IncludeRangeExpansion,
+    [string]$PipeName)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -76,6 +80,9 @@ $environment = @{
 }
 if ($IncludePythonInExcel) {
     $environment.EXCELMCP_MAC_PYTHON_E2E = '1'
+}
+if ($IncludeRangeExpansion) {
+    $environment.EXCELMCP_MAC_RANGE_EXPANSION_E2E = '1'
 }
 try {
     $test = Invoke-MacTestCommand dotnet @(

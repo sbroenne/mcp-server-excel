@@ -601,7 +601,8 @@ public sealed class ExcelMcpService : IDisposable
                     MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
                 }
                 arguments["filePath"] = session.FilePath;
-                ResolveMacFileArguments(category, action, arguments);
+                MacRangeArguments.Prepare(category, action, arguments);
+                ValidateMacRangeFormatArguments(category, action, arguments);
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
@@ -833,37 +834,6 @@ public sealed class ExcelMcpService : IDisposable
             Success = true,
             Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
         };
-
-    private static void ResolveMacFileArguments(
-        string category,
-        string action,
-        JsonObject arguments)
-    {
-        if (category != "range")
-        {
-            ValidateMacRangeFormatArguments(category, action, arguments);
-            return;
-        }
-
-        if (action == "set-values")
-        {
-            var values = arguments["values"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
-            var valuesFile = arguments["valuesFile"]?.GetValue<string>();
-            arguments["values"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveValuesOrFile(values, valuesFile),
-                ServiceProtocol.JsonOptions);
-            arguments.Remove("valuesFile");
-        }
-        else if (action == "set-formulas")
-        {
-            var formulas = arguments["formulas"]?.Deserialize<List<List<string>>>(ServiceProtocol.JsonOptions);
-            var formulasFile = arguments["formulasFile"]?.GetValue<string>();
-            arguments["formulas"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile),
-                ServiceProtocol.JsonOptions);
-            arguments.Remove("formulasFile");
-        }
-    }
 
     private static void ValidateMacRangeFormatArguments(
         string category,
