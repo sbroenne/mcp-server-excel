@@ -40,17 +40,40 @@ The configured file name, open add-in `FullName`, helper version, protocol
 version, request correlation, target workbook `FullName`, action, and argument
 shape are all checked before a helper operation. Requests and responses are
 bounded to 262,144 UTF-8 bytes and the dispatcher has no arbitrary evaluation
-of VBA, AppleScript, or caller-selected macros. The gated Power Query actions
-do accept M source for query authoring and temporary evaluation. Installation
+of VBA or AppleScript. Its run action accepts only a validated
+`Module.Procedure` identity in the exact target workbook and at most 30 string
+parameters. The gated Power Query actions do accept M source for query
+authoring and temporary evaluation. Installation
 alone does not enable a command: production actions stay gated until their
 individual methods have real-Excel evidence.
 
-Helper version `1.2.0` adds fixed Power Query create/update/refresh/refresh-all,
+Helper version `1.3.0` adds fixed Power Query create/update/refresh/refresh-all,
 load-to/unload, and temporary-query evaluation candidates. They support only
 connection-only or one exact worksheet-table destination; Data Model and
 multi-destination variants fail explicitly. The source implements rollback and
 temporary-artifact cleanup, but every corresponding proof flag remains false
 until prompt-free real-Excel CLI and MCP acceptance succeeds.
+
+Helper 1.3.0 also has source-complete candidate routes for VBA `list`, `view`,
+`import`, `update`, and `delete`, plus exact workbook-qualified `run`. They
+remain unavailable by default. Maintainers may enable only named actions with
+`EXCELMCP_MAC_VBA_CANDIDATE_ACTIONS` while running the guarded public
+acceptance workflow. This opt-in collects evidence; helper presence and
+permissive trust settings never enable actions on their own.
+
+The guarded workflow is `scripts/Test-MacVbaPublicAcceptance.ps1`. It requires
+an existing Excel-authored `.xlsm` containing a repository-owned marker
+procedure that writes its one string argument to a dedicated cell. It performs
+source lifecycle, marker execution, and public range verification through both
+CLI and MCP, then closes without saving. Do not treat `-ValidateOnly` as Excel
+evidence.
+
+Maintainers running bounded candidate acceptance may set
+`EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS` to a comma-separated list of exact
+actions such as `powerquery.create,powerquery.delete`. This opt-in enables only
+listed actions that the matching helper version also advertises; unknown names
+are rejected, and it never enables another Power Query method implicitly.
+Remove the variable after the acceptance run.
 
 The same version adds a read-only `helper.inspect-engines` probe for the
 late-bound `Workbook.XmlMaps` and `Workbook.Model` object paths. It reports only

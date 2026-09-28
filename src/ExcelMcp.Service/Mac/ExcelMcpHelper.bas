@@ -1,7 +1,7 @@
 Attribute VB_Name = "ExcelMcpHelper"
 Option Explicit
 
-Private Const HELPER_VERSION As String = "1.2.0"
+Private Const HELPER_VERSION As String = "1.3.0"
 Private Const PROTOCOL_VERSION As Long = 1
 Private Const MAX_PAYLOAD_BYTES As Long = 262144
 Private Const MAX_SAFE_ERROR_DETAIL_CHARS As Long = 512
@@ -145,6 +145,11 @@ Public Function ExcelMcpDispatch(ByVal requestJson As String) As String
         Case "vba.delete"
             ValidateArgumentKeys argumentsJson, "moduleName"
             resultJson = VbaDelete(target, JsonRequiredString(argumentsJson, "moduleName"))
+        Case "vba.run"
+            ValidateArgumentKeys argumentsJson, "procedureName,parameters"
+            resultJson = VbaRun(target, _
+                JsonRequiredString(argumentsJson, "procedureName"), _
+                JsonRequiredArrayValues(argumentsJson, "parameters"))
         Case Else
             Err.Raise vbObjectError + 7002, "ExcelMcpHelper", "unsupported_action"
     End Select
@@ -200,7 +205,7 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """powerquery.refresh"",""powerquery.refresh-all""," & _
             """powerquery.load-to"",""powerquery.unload"",""powerquery.evaluate""," & _
             """analysis.create-scenario"",""analysis.show-scenario""," & _
-            """vba.list"",""vba.view"",""vba.import"",""vba.update"",""vba.delete""],"
+            """vba.list"",""vba.view"",""vba.import"",""vba.update"",""vba.delete"",""vba.run""],"
     output = output & """trustReadiness"":{" & _
             """powerQueryReadable"":" & JsonBoolean(queryReady) & "," & _
             """vbaProjectReadable"":" & JsonBoolean(projectReady) & "},"
@@ -219,7 +224,8 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """dataModelRead"":false," & _
             """scenarioCreateShow"":false," & _
             """vbaListView"":false," & _
-            """vbaMutation"":false}}"
+            """vbaMutation"":false," & _
+            """vbaRun"":false}}"
     HelperCapabilities = output
 End Function
 
@@ -1231,7 +1237,8 @@ Private Function VbaList(ByVal target As Workbook) As String
         If index > 1 Then output = output & ","
         output = output & "{""name"":" & JsonQuote(CStr(component.Name)) & _
             ",""type"":" & CStr(CLng(component.Type)) & _
-            ",""lineCount"":" & CStr(CLng(component.CodeModule.CountOfLines)) & "}"
+            ",""lineCount"":" & CStr(CLng(component.CodeModule.CountOfLines)) & _
+            ",""procedures"":" & VbaProceduresJson(component.CodeModule) & "}"
     Next index
     VbaList = output & "]}"
 End Function
@@ -1246,7 +1253,8 @@ Private Function VbaView(ByVal target As Workbook, ByVal moduleName As String) A
     VbaView = "{""moduleName"":" & JsonQuote(CStr(component.Name)) & _
         ",""moduleType"":" & CStr(CLng(component.Type)) & _
         ",""lineCount"":" & CStr(count) & _
-        ",""source"":" & JsonQuote(source) & "}"
+        ",""source"":" & JsonQuote(source) & _
+        ",""procedures"":" & VbaProceduresJson(component.CodeModule) & "}"
 End Function
 
 Private Function VbaImport( _
@@ -1331,6 +1339,157 @@ Private Function VbaDelete(ByVal target As Workbook, ByVal moduleName As String)
     EnsureStandardModule component
     target.VBProject.VBComponents.Remove component
     VbaDelete = "{}"
+End Function
+
+Private Function VbaRun( _
+    ByVal target As Workbook, _
+    ByVal procedureName As String, _
+    ByVal parameters As Variant) As String
+    Dim separator As Long
+    separator = InStr(1, procedureName, ".", vbBinaryCompare)
+    If separator < 2 Or separator <> InStrRev(procedureName, ".", -1, vbBinaryCompare) Or _
+            separator = Len(procedureName) Then
+        Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "invalid_procedure_name"
+    End If
+    If InStr(1, procedureName, " ", vbBinaryCompare) > 0 Or _
+            InStr(1, procedureName, vbTab, vbBinaryCompare) > 0 Then
+        Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "invalid_procedure_name"
+    End If
+    EnsureValidProcedureIdentity _
+        Left$(procedureName, separator - 1), _
+        Mid$(procedureName, separator + 1)
+
+    Dim count As Long
+    count = ArrayLength(parameters)
+    If count > 30 Then
+        Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "too_many_parameters"
+    End If
+    Dim index As Long
+    For index = 0 To count - 1
+        If VarType(parameters(index)) <> vbString Then
+            Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "invalid_parameter"
+        End If
+    Next index
+
+    Dim qualifiedName As String
+    qualifiedName = "'" & Replace$(target.Name, "'", "''") & "'!" & procedureName
+    RunVbaProcedure qualifiedName, parameters, count
+    VbaRun = "{}"
+End Function
+
+Private Sub EnsureValidProcedureIdentity( _
+    ByVal moduleName As String, _
+    ByVal memberName As String)
+    EnsureValidModuleName moduleName
+    If Len(memberName) < 1 Or Len(memberName) > 255 Then
+        Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "invalid_procedure_name"
+    End If
+    Dim index As Long
+    For index = 1 To Len(memberName)
+        Dim character As String
+        character = Mid$(memberName, index, 1)
+        If index = 1 Then
+            If Not ((character >= "A" And character <= "Z") Or _
+                    (character >= "a" And character <= "z")) Then
+                Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "invalid_procedure_name"
+            End If
+        ElseIf Not ((character >= "A" And character <= "Z") Or _
+                (character >= "a" And character <= "z") Or _
+                (character >= "0" And character <= "9") Or character = "_") Then
+            Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "invalid_procedure_name"
+        End If
+    Next index
+End Sub
+
+Private Sub RunVbaProcedure( _
+    ByVal qualifiedName As String, _
+    ByVal parameters As Variant, _
+    ByVal count As Long)
+    Select Case count
+        Case 0: Application.Run qualifiedName
+        Case 1: Application.Run qualifiedName, parameters(0)
+        Case 2: Application.Run qualifiedName, parameters(0), parameters(1)
+        Case 3: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2)
+        Case 4: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3)
+        Case 5: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4)
+        Case 6: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5)
+        Case 7: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6)
+        Case 8: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7)
+        Case 9: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8)
+        Case 10: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9)
+        Case 11: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10)
+        Case 12: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11)
+        Case 13: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12)
+        Case 14: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13)
+        Case 15: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14)
+        Case 16: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15)
+        Case 17: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16)
+        Case 18: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17)
+        Case 19: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18)
+        Case 20: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19)
+        Case 21: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20)
+        Case 22: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21)
+        Case 23: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22)
+        Case 24: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23)
+        Case 25: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23), parameters(24)
+        Case 26: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23), parameters(24), parameters(25)
+        Case 27: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23), parameters(24), parameters(25), parameters(26)
+        Case 28: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23), parameters(24), parameters(25), parameters(26), parameters(27)
+        Case 29: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23), parameters(24), parameters(25), parameters(26), parameters(27), parameters(28)
+        Case 30: Application.Run qualifiedName, parameters(0), parameters(1), parameters(2), parameters(3), parameters(4), parameters(5), parameters(6), parameters(7), parameters(8), parameters(9), parameters(10), parameters(11), parameters(12), parameters(13), parameters(14), parameters(15), parameters(16), parameters(17), parameters(18), parameters(19), parameters(20), parameters(21), parameters(22), parameters(23), parameters(24), parameters(25), parameters(26), parameters(27), parameters(28), parameters(29)
+        Case Else
+            Err.Raise vbObjectError + 7024, "ExcelMcpHelper", "too_many_parameters"
+    End Select
+End Sub
+
+Private Function VbaProceduresJson(ByVal codeModule As Object) As String
+    Dim output As String
+    output = "["
+    Dim emitted As Long
+    Dim lineNumber As Long
+    For lineNumber = 1 To CLng(codeModule.CountOfLines)
+        Dim procedureName As String
+        procedureName = VbaProcedureName(CStr(codeModule.Lines(lineNumber, 1)))
+        If Len(procedureName) > 0 Then
+            If emitted > 0 Then output = output & ","
+            output = output & JsonQuote(procedureName)
+            emitted = emitted + 1
+        End If
+    Next lineNumber
+    VbaProceduresJson = output & "]"
+End Function
+
+Private Function VbaProcedureName(ByVal codeLine As String) As String
+    Dim value As String
+    value = LTrim$(codeLine)
+    Dim prefixes As Variant
+    prefixes = Array( _
+        "Public Function ", _
+        "Public Sub ", _
+        "Private Function ", _
+        "Private Sub ", _
+        "Function ", _
+        "Sub ")
+    Dim index As Long
+    For index = LBound(prefixes) To UBound(prefixes)
+        Dim prefix As String
+        prefix = CStr(prefixes(index))
+        If StrComp(Left$(value, Len(prefix)), prefix, vbBinaryCompare) = 0 Then
+            value = Mid$(value, Len(prefix) + 1)
+            Dim parenthesis As Long
+            Dim whitespace As Long
+            parenthesis = InStr(1, value, "(", vbBinaryCompare)
+            whitespace = InStr(1, value, " ", vbBinaryCompare)
+            If parenthesis > 0 And (whitespace = 0 Or parenthesis < whitespace) Then
+                VbaProcedureName = Left$(value, parenthesis - 1)
+            ElseIf whitespace > 0 Then
+                VbaProcedureName = Left$(value, whitespace - 1)
+            Else
+                VbaProcedureName = value
+            End If
+            Exit Function
+        End If
+    Next index
 End Function
 
 Private Sub EnsureMutableProject(ByVal target As Workbook)

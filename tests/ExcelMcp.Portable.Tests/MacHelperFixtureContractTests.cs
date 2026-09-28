@@ -114,7 +114,7 @@ public sealed class MacHelperFixtureContractTests
                 "requestId": "{{RequestId}}",
                 "success": true,
                 "result": {
-                  "helperVersion": "1.2.0",
+                  "helperVersion": "1.3.0",
                   "protocolVersion": 1,
                   "staticAvailability": {
                     "queriesApi": true,
@@ -149,7 +149,8 @@ public sealed class MacHelperFixtureContractTests
                     "vba.view",
                     "vba.import",
                     "vba.update",
-                    "vba.delete"
+                    "vba.delete",
+                    "vba.run"
                   ],
                   "trustReadiness": {
                     "powerQueryReadable": true,
@@ -170,7 +171,8 @@ public sealed class MacHelperFixtureContractTests
                     "dataModelRead": false,
                     "scenarioCreateShow": false,
                     "vbaListView": false,
-                    "vbaMutation": false
+                    "vbaMutation": false,
+                    "vbaRun": false
                   }
                 },
                 "error": null

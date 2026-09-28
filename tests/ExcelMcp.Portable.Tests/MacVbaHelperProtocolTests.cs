@@ -7,6 +7,8 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 
 public sealed class MacVbaHelperProtocolTests
 {
+    private static readonly string[] MarkerParameters = ["accepted"];
+
     [Fact]
     public void Request_RoundTripsVersionIdentityPathActionAndArguments()
     {
@@ -41,7 +43,6 @@ public sealed class MacVbaHelperProtocolTests
 
     [Theory]
     [InlineData("unknown.action")]
-    [InlineData("vba.run")]
     [InlineData("helper.eval")]
     public void Request_RejectsActionsOutsideFixedAllowlist(string action)
     {
@@ -52,6 +53,22 @@ public sealed class MacVbaHelperProtocolTests
             new { }));
 
         Assert.Contains("not allowed", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Request_AllowsBoundedWorkbookQualifiedVbaRun()
+    {
+        var request = MacVbaHelperProtocol.CreateRequest(
+            "0123456789abcdef0123456789abcdef",
+            "/tmp/workbook.xlsm",
+            "vba.run",
+            new
+            {
+                procedureName = "FixtureModule.WriteMarker",
+                parameters = MarkerParameters
+            });
+
+        Assert.Equal("vba.run", MacVbaHelperProtocol.ParseRequest(request).Action);
     }
 
     [Theory]
@@ -139,12 +156,12 @@ public sealed class MacVbaHelperProtocolTests
         const string requestId = "0123456789abcdef0123456789abcdef";
         var result = MacVbaHelperProtocol.ParseResponse(
             """
-            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.2.0"},"error":null}
+            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.3.0"},"error":null}
             """,
             requestId);
 
         Assert.True(result.Success);
-        Assert.Equal("1.2.0", result.Result!.Value.GetProperty("helperVersion").GetString());
+        Assert.Equal("1.3.0", result.Result!.Value.GetProperty("helperVersion").GetString());
 
         Assert.Throws<InvalidOperationException>(() => MacVbaHelperProtocol.ParseResponse(
             """
@@ -184,11 +201,15 @@ public sealed class MacVbaHelperProtocolTests
         using var reader = new StreamReader(stream!);
         var source = reader.ReadToEnd();
 
-        Assert.Contains("Private Const HELPER_VERSION As String = \"1.2.0\"", source);
+        Assert.Contains("Private Const HELPER_VERSION As String = \"1.3.0\"", source);
         Assert.Contains("Public Function ExcelMcpDispatch(ByVal requestJson As String) As String", source);
         Assert.Contains("candidate.FullName", source);
         Assert.Contains("VBProject.VBComponents", source);
         Assert.Contains("CodeModule.AddFromString", source);
+        Assert.Contains("VbaProceduresJson(component.CodeModule)", source);
+        Assert.Contains("qualifiedName = \"'\" & Replace$(target.Name, \"'\", \"''\")", source);
+        Assert.Contains("Application.Run qualifiedName", source);
+        Assert.Contains("\"\"\"vbaRun\"\":false", source);
         Assert.Contains("Queries.Add", source);
         Assert.Contains("QueryTable.WorkbookConnection", source);
         Assert.Contains("queryTable.Refresh", source);

@@ -49,7 +49,21 @@ fixtures that can prove completion, errors, and cleanup.
 
 ## Implementation status
 
-The first implementation increment now exists behind runtime platform selection:
+The initial verified operations and the next guarded implementation increment
+are combined in the coordinator branch. Source integration does not establish
+desktop acceptance: Excel became unresponsive during native range acceptance,
+and further desktop work is paused pending user-managed recovery. No shared
+Excel termination or security-setting change is part of that recovery.
+
+The combined source includes helper 1.3.0 for Power Query lifecycle and VBA source
+operations, Office.js dispatch for selected tables/charts/ordinary PivotTables
+and slicers, fourteen native range candidates, Python in Excel, scenarios, and
+exact-window screenshots. New features remain disabled by default. Explicit
+candidate opt-ins exist only for bounded acceptance, not as evidence of support.
+Developer ID/notarization, physical Intel Excel, and Windows COM regression
+validation remain separate requirements.
+
+Runtime platform selection preserves the initial behavior:
 
 - MCP Server and `excelcli` compile as `net10.0` hosts on macOS. Windows retains
   `net10.0-windows`, WinForms tray integration, SID-secured pipes, COM routing
@@ -140,7 +154,7 @@ oversized data fails before dispatch. The helper resolves targets only by exact
 evaluation outside its fixed Power Query M actions, or general VBA/AppleScript
 code-execution action.
 
-Helper version `1.2.0` contains fixed implementations for Power Query
+Helper version `1.3.0` contains fixed implementations for Power Query
 `Workbook.Queries`, exact worksheet `ListObject.QueryTable` access, synchronous
 refresh, worksheet-table load transitions, and temporary-query evaluation;
 VBA
@@ -492,7 +506,9 @@ allowlisted actions, typed arguments, structured success/error responses, and
 a 262144-byte UTF-8 request/result limit. It must add/read/update/delete the
 harmless `ExcelMcpFixtureModule` in that test-owned workbook and prove exact
 source through both CLI and MCP. It does not synthesize, download, or copy a
-`vbaProject.bin`, and helper v1 does not use arbitrary evaluation or `vba.run`.
+`vbaProject.bin`. Helper 1.3.0 adds only fixed, workbook-qualified
+`Module.Procedure` execution with bounded string parameters; it does not use
+arbitrary evaluation and remains unproven until the marker acceptance below.
 Existing MS-OVBA research proves source preservation and project recognition
 but not an executable project cache; committing that output as a VBA fixture
 would falsely imply runnable coverage.
@@ -509,7 +525,7 @@ The opt-in direct-engine runner is
 `scripts/Test-MacHelperAcceptance.ps1`. It requires an already installed and
 open exact `ExcelMcpHelper.xlam`, prior user-managed macro approval, prior
 user-managed VBA project-model trust, and a dedicated blank `.xlsm` created and
-saved by Excel. It requires helper version `1.2.0` and rejects older helper
+saved by Excel. It requires helper version `1.3.0` and rejects older helper
 artifacts. It never installs the helper, changes security preferences,
 synthesizes `vbaProject.bin`, or opens the Power Query package candidates:
 
@@ -536,6 +552,19 @@ the exact test-owned workbook without saving when that remains possible,
 attempts to invalidate the private runner session, preserves the exact workbook
 path in the receipt, and requires manual reconciliation rather than guessing
 whether VBA completed.
+
+After helper-engine acceptance, the separately guarded
+`scripts/Test-MacVbaPublicAcceptance.ps1` workflow enables only the six exact
+VBA candidate actions for its child processes. It runs public source lifecycle
+and an existing harmless marker procedure through both CLI and MCP, verifies
+the marker through each entry point's public range API, deletes only its
+reserved standard module, and closes without saving. The marker workbook must
+be authored and saved by Excel from repository-owned source; validation-only
+mode does not launch Excel and a successful source/portable check is not
+desktop evidence.
+
+Scenario helper acceptance is independently gated by
+`EXCELMCP_MAC_SCENARIO_E2E=1`; the broader macOS E2E switch does not enable it.
 
 **Conclusion:** transactional updates to an existing Excel-authored Power Query
 package remain viable, but independently creating an Excel-accepted package is

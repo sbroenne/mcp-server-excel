@@ -7,6 +7,25 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 public sealed class MacHelperAcceptanceRunnerTests
 {
     [Fact]
+    public void PublicVbaRunner_UsesOnlyGuardedCliAndMcpAcceptance()
+    {
+        var script = File.ReadAllText(
+            Path.Combine(
+                FindRepository(),
+                "scripts",
+                "Test-MacVbaPublicAcceptance.ps1"));
+
+        Assert.Contains("EXCELMCP_MAC_VBA_CANDIDATE_ACTIONS", script, StringComparison.Ordinal);
+        Assert.Contains("'vba.list,vba.view,vba.import,vba.update,vba.delete,vba.run'", script, StringComparison.Ordinal);
+        Assert.Contains("method = 'tools/call'", script, StringComparison.Ordinal);
+        Assert.Contains("procedure_name = $MarkerProcedure", script, StringComparison.Ordinal);
+        Assert.Contains("action = 'get-values'", script, StringComparison.Ordinal);
+        Assert.Contains("save = $false", script, StringComparison.Ordinal);
+        Assert.Contains("publicCommandAcceptance = $true", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("vbaProject.bin", script, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ValidateOnly_RequiresExplicitSecurityAndProvenanceConfirmations()
     {
         using var fixture = new RunnerFixture();
@@ -90,7 +109,7 @@ public sealed class MacHelperAcceptanceRunnerTests
         Assert.Contains("Sbroenne.ExcelMcp.McpServer.dll", script, StringComparison.Ordinal);
         Assert.Contains("--excelmcp-mac-automation", script, StringComparison.Ordinal);
         Assert.Contains("helper.dispatch", script, StringComparison.Ordinal);
-        Assert.Contains("helper version does not match protocol 1 / helper 1.2.0", script, StringComparison.Ordinal);
+        Assert.Contains("helper version does not match protocol 1 / helper 1.3.0", script, StringComparison.Ordinal);
         Assert.Contains("helper.inspect-engines", script, StringComparison.Ordinal);
         Assert.Contains("Assert-EngineInspection", script, StringComparison.Ordinal);
         Assert.DoesNotContain("helper 1.1.0", script, StringComparison.Ordinal);
