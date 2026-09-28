@@ -1,7 +1,7 @@
 Attribute VB_Name = "ExcelMcpHelper"
 Option Explicit
 
-Private Const HELPER_VERSION As String = "1.1.0"
+Private Const HELPER_VERSION As String = "1.2.0"
 Private Const PROTOCOL_VERSION As Long = 1
 Private Const MAX_PAYLOAD_BYTES As Long = 262144
 Private Const MAX_SAFE_ERROR_DETAIL_CHARS As Long = 512
@@ -57,6 +57,9 @@ Public Function ExcelMcpDispatch(ByVal requestJson As String) As String
         Case "helper.capabilities"
             ValidateArgumentKeys argumentsJson, ""
             resultJson = HelperCapabilities(target)
+        Case "helper.inspect-engines"
+            ValidateArgumentKeys argumentsJson, ""
+            resultJson = InspectOptionalEngines(target)
         Case "powerquery.list"
             ValidateArgumentKeys argumentsJson, ""
             resultJson = PowerQueryList(target)
@@ -191,7 +194,7 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """workbookModelApi"":null," & _
             """dataModelConnectionApi"":null},"
     output = output & """supportedActions"":[" & _
-            """helper.capabilities""," & _
+            """helper.capabilities"",""helper.inspect-engines""," & _
             """powerquery.list"",""powerquery.view"",""powerquery.create""," & _
             """powerquery.update"",""powerquery.rename"",""powerquery.delete""," & _
             """powerquery.refresh"",""powerquery.refresh-all""," & _
@@ -218,6 +221,96 @@ Private Function HelperCapabilities(ByVal target As Workbook) As String
             """vbaListView"":false," & _
             """vbaMutation"":false}}"
     HelperCapabilities = output
+End Function
+
+Private Function InspectOptionalEngines(ByVal target As Workbook) As String
+    InspectOptionalEngines = "{""xmlMaps"":" & InspectXmlMaps(target) & _
+        ",""workbookModel"":" & InspectWorkbookModel(target) & "}"
+End Function
+
+Private Function InspectXmlMaps(ByVal target As Workbook) As String
+    On Error GoTo ProbeFailed
+    Dim xmlMaps As Object
+    Set xmlMaps = CallByName(target, "XmlMaps", VbGet)
+    If xmlMaps Is Nothing Then
+        InspectXmlMaps = EngineObservationJson( _
+            "unknown", True, Null, "no_collection_object")
+        Exit Function
+    End If
+    Dim mapCount As Long
+    mapCount = CLng(CallByName(xmlMaps, "Count", VbGet))
+    InspectXmlMaps = EngineObservationJson( _
+        "accessible", True, mapCount, "api_access_only")
+    Exit Function
+
+ProbeFailed:
+    Dim failureNumber As Long
+    failureNumber = Err.Number
+    Err.Clear
+    If failureNumber = 438 Then
+        InspectXmlMaps = EngineObservationJson( _
+            "unavailable", False, Null, "api_not_exposed")
+    Else
+        InspectXmlMaps = EngineObservationJson( _
+            "error", False, Null, "probe_failed")
+    End If
+End Function
+
+Private Function InspectWorkbookModel(ByVal target As Workbook) As String
+    On Error GoTo ProbeFailed
+    Dim model As Object
+    Set model = CallByName(target, "Model", VbGet)
+    If model Is Nothing Then
+        InspectWorkbookModel = EngineObservationJson( _
+            "unknown", True, Null, "no_model_object_observed")
+        Exit Function
+    End If
+    Dim modelTables As Object
+    Set modelTables = CallByName(model, "ModelTables", VbGet)
+    If modelTables Is Nothing Then
+        InspectWorkbookModel = EngineObservationJson( _
+            "unknown", True, Null, "no_model_objects_observed")
+        Exit Function
+    End If
+    Dim tableCount As Long
+    tableCount = CLng(CallByName(modelTables, "Count", VbGet))
+    If tableCount = 0 Then
+        InspectWorkbookModel = EngineObservationJson( _
+            "unknown", True, tableCount, "no_model_objects_observed")
+    Else
+        InspectWorkbookModel = EngineObservationJson( _
+            "accessible", True, tableCount, "api_access_only")
+    End If
+    Exit Function
+
+ProbeFailed:
+    Dim failureNumber As Long
+    failureNumber = Err.Number
+    Err.Clear
+    If failureNumber = 438 Then
+        InspectWorkbookModel = EngineObservationJson( _
+            "unavailable", False, Null, "api_not_exposed")
+    Else
+        InspectWorkbookModel = EngineObservationJson( _
+            "error", False, Null, "probe_failed")
+    End If
+End Function
+
+Private Function EngineObservationJson( _
+    ByVal status As String, _
+    ByVal apiAccessible As Boolean, _
+    ByVal objectCount As Variant, _
+    ByVal reasonCode As String) As String
+    Dim countJson As String
+    If IsNull(objectCount) Then
+        countJson = "null"
+    Else
+        countJson = CStr(CLng(objectCount))
+    End If
+    EngineObservationJson = "{""status"":" & JsonQuote(status) & _
+        ",""apiAccessible"":" & JsonBoolean(apiAccessible) & _
+        ",""objectCount"":" & countJson & _
+        ",""reasonCode"":" & JsonQuote(reasonCode) & "}"
 End Function
 
 Private Function PowerQueryList(ByVal target As Workbook) As String

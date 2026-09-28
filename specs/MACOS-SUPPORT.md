@@ -121,7 +121,7 @@ oversized data fails before dispatch. The helper resolves targets only by exact
 evaluation outside its fixed Power Query M actions, or general VBA/AppleScript
 code-execution action.
 
-Helper version `1.1.0` contains fixed implementations for Power Query
+Helper version `1.2.0` contains fixed implementations for Power Query
 `Workbook.Queries`, exact worksheet `ListObject.QueryTable` access, synchronous
 refresh, worksheet-table load transitions, and temporary-query evaluation;
 VBA
@@ -135,6 +135,30 @@ until each method has prompt-free real Excel CLI and MCP evidence. Power Query
 Data Model and multiple-load destinations are rejected rather than rewritten,
 and timeout or rollback failure leaves the caller in an explicit uncertain
 state without retry.
+
+The fixed `helper.inspect-engines` action takes an empty argument object and
+reads only the exact target workbook. It probes `XmlMaps` and `Model` late-bound
+so an optional object absent from the installed Mac type surface does not make
+the helper fail to compile. Each observation is
+`{status,apiAccessible,objectCount,reasonCode}`. Status is one of
+`accessible`, `unavailable`, `error`, or `unknown`; reason codes are fixed and
+sanitized. A zero-count XML Maps collection establishes API access only. A
+workbook with no observed model tables reports `unknown`, because an empty
+fixture cannot establish that the engine is unavailable. These observations do
+not change any `provenMethods` flag.
+
+The repository-owned XML Maps acceptance fixture must be reproducible from
+reviewable UTF-8 XML and XSD sources plus a provenance manifest. Its namespace
+is `urn:excelmcp:fixture:xmlmap:v1`, with document root
+`/xm:inventory` and repeating row XPath `/xm:inventory/xm:item`; mapped fields
+are `xm:id` (required string), `xm:quantity` (required non-negative integer),
+and `xm:observedOn` (required ISO date). The fixture must map those exact fields
+to a dedicated worksheet table, exercise import and export without network or
+external entity resolution, and verify the exact namespace-qualified XPath and
+round-trip values after reopen. A `CustomXmlPart` is not an acceptable
+substitute for an Excel XML Map. If a fixture also contains a workbook model,
+the repository must include the original model source/data and provenance;
+model presence may not be inferred from an opaque workbook binary.
 
 `vba.run` also remains gated. The installed dictionary's `run VB Macro` command
 is a candidate workbook-qualified execution route, but no independently

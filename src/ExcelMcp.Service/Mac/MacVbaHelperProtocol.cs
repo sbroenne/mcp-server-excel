@@ -27,7 +27,7 @@ internal static class MacVbaHelperProtocol
 {
     public const int Version = 1;
     public const int MaxPayloadBytes = 262_144;
-    public const string HelperVersion = "1.1.0";
+    public const string HelperVersion = "1.2.0";
 
     private static readonly JsonSerializerOptions RequestJsonOptions =
         new(ServiceProtocol.JsonOptions)
@@ -38,6 +38,7 @@ internal static class MacVbaHelperProtocol
     private static readonly HashSet<string> AllowedActions = new(StringComparer.Ordinal)
     {
         "helper.capabilities",
+        "helper.inspect-engines",
         "powerquery.list",
         "powerquery.view",
         "powerquery.create",
