@@ -107,7 +107,12 @@ public partial class TableCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
-                ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName);
+                if (!ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName))
+                {
+                    throw new ArgumentException(
+                        $"Excel rejects table name '{tableName}'.",
+                        nameof(tableName));
+                }
 
                 // Check if workbook has Data Model and get first table name
                 // CreateModelWorkbookConnection requires a ModelTable name to create the connection

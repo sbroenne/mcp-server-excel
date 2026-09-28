@@ -15,7 +15,7 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     private static void ValidateRequiredTableName(string tableName)
         => ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
 
-    private static void ValidateTableNameWithExcel(Excel.Application application, Excel.Workbook sourceWorkbook, string tableName)
+    private static bool ValidateTableNameWithExcel(Excel.Application application, Excel.Workbook sourceWorkbook, string tableName)
     {
         Excel.Workbooks? workbooks = null;
         Excel.Workbook? scratchWorkbook = null;
@@ -36,7 +36,7 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
             tables = sheet.ListObjects;
             table = tables.Add(Excel.XlListObjectSourceType.xlSrcRange, range,
                 Type.Missing, Excel.XlYesNoGuess.xlYes);
-            table.Name = tableName;
+            return TryAssignTableNameForValidation(table, tableName);
         }
         finally
         {
@@ -49,16 +49,34 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
             {
                 if (scratchWorkbook != null)
                 {
-                    ExcelShutdownService.CloseAndQuit(scratchWorkbook, null, save: false);
-                    scratchWorkbook = null;
+                    try
+                    {
+                        ExcelShutdownService.CloseWorkbookOrThrow(scratchWorkbook, save: false);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref scratchWorkbook);
+                    }
                 }
             }
             finally
             {
-                ComUtilities.Release(ref scratchWorkbook);
                 ComUtilities.Release(ref workbooks);
                 sourceWorkbook.Activate();
             }
+        }
+    }
+
+    internal static bool TryAssignTableNameForValidation(dynamic table, string tableName)
+    {
+        try
+        {
+            table.Name = tableName;
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or COMException)
+        {
+            return false;
         }
     }
 

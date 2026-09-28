@@ -169,7 +169,12 @@ public partial class TableCommands
 
                 listObjects = sheet.ListObjects;
 
-                ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName);
+                if (!ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName))
+                {
+                    throw new ArgumentException(
+                        $"Excel rejects table name '{tableName}'.",
+                        nameof(tableName));
+                }
 
                 // Create table using numeric constant (xlSrcRange = 1)
                 // XlListObjectSourceType.xlSrcRange causes enum assembly loading issues

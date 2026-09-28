@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -49,11 +48,7 @@ public partial class TableCommands
                     rangeAddress,
                     hasHeaders,
                     ct);
-                try
-                {
-                    ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName);
-                }
-                catch (Exception ex) when (ex is ArgumentException or COMException)
+                if (!ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName))
                 {
                     result.Findings.Add(new TablePreflightFinding
                     {
