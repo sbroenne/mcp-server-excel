@@ -169,16 +169,24 @@ public static class RangeHelpers
 
     private static bool NameMatches(string workbookName, string requestedName)
     {
-        if (string.Equals(workbookName, requestedName, StringComparison.OrdinalIgnoreCase))
+        int workbookBangIndex = workbookName.LastIndexOf('!');
+        int requestedBangIndex = requestedName.LastIndexOf('!');
+        if (workbookBangIndex < 0 || requestedBangIndex < 0)
         {
-            return true;
+            return workbookBangIndex == requestedBangIndex
+                && string.Equals(
+                    workbookName,
+                    requestedName,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
-        int bangIndex = workbookName.LastIndexOf('!');
-        return bangIndex >= 0
+        return string.Equals(
+                workbookName[..workbookBangIndex].Trim('\''),
+                requestedName[..requestedBangIndex].Trim('\''),
+                StringComparison.OrdinalIgnoreCase)
             && string.Equals(
-                workbookName[(bangIndex + 1)..].Trim('\''),
-                requestedName,
+                workbookName[(workbookBangIndex + 1)..],
+                requestedName[(requestedBangIndex + 1)..],
                 StringComparison.OrdinalIgnoreCase);
     }
 

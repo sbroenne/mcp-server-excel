@@ -47,6 +47,24 @@ public class RangeHelpersExceptionTests
     }
 
     [Fact]
+    public void ResolveRange_WhenOnlyWorksheetScopedNameMatches_ThrowsCategorizedNotFound()
+    {
+#pragma warning disable CA2201 // Synthetic COM exception exercises pure classification behavior.
+        var comError = new COMException("Unknown name", unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+
+        var actual = Assert.Throws<OperationFailureException>(() =>
+            RangeHelpers.ResolveRange(
+                new Workbook(new NamesWithLocalCollision(comError)),
+                string.Empty,
+                "MissingRange",
+                out _));
+
+        Assert.Equal(OperationFailureCategory.NotFound, actual.ErrorCategory);
+        Assert.Same(comError, actual.InnerException);
+    }
+
+    [Fact]
     public void ResolveRange_WhenNamedRangeCannotResolveToRange_PropagatesError()
     {
 #pragma warning disable CA2201 // Synthetic COM exception exercises pure classification behavior.
@@ -147,6 +165,34 @@ public class RangeHelpersExceptionTests
         }
     }
 
+    private sealed class NamesWithLocalCollision(COMException exception) : DynamicObject
+    {
+        private readonly NamedItem _name = new("Sheet1!MissingRange");
+
+        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        {
+            result = binder.Name == "Count" ? 1 : null;
+            return binder.Name == "Count";
+        }
+
+        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
+        {
+            if (binder.Name == "Item" && args is [string])
+            {
+                throw exception;
+            }
+
+            if (binder.Name == "Item" && args is [int])
+            {
+                result = _name;
+                return true;
+            }
+
+            result = null;
+            return false;
+        }
+    }
+
     private sealed class NamesWithFailingEnumeration(COMException lookupException, COMException enumerationException) : DynamicObject
     {
         public override bool TryGetMember(GetMemberBinder binder, out object? result)
@@ -189,6 +235,15 @@ public class RangeHelpersExceptionTests
 
             result = null;
             return false;
+        }
+    }
+
+    private sealed class NamedItem(string name) : DynamicObject
+    {
+        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        {
+            result = binder.Name == "Name" ? name : null;
+            return binder.Name == "Name";
         }
     }
 }
