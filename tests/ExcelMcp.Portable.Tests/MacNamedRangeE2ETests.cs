@@ -59,8 +59,9 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             async Task<JsonElement> Call(string action, Dictionary<string, object?> args) =>
                 await client.CallAsync("namedrange", action, session, args, deadline.Token);
             Success(await Call("create", new() { ["name"] = "Input", ["reference"] = "Data!$A$1" }));
-            Assert.False((await Call("create", new() { ["name"] = "input", ["reference"] = "Data!$B$2" }))
-                .GetProperty("success").GetBoolean());
+            var duplicate = await Call("create", new() { ["name"] = "input", ["reference"] = "Data!$B$2" });
+            Assert.False(duplicate.GetProperty("success").GetBoolean());
+            Assert.Equal("InvalidOperation", duplicate.GetProperty("errorCategory").GetString());
             Success(await Call("write", new() { ["name"] = "Input", ["value"] = "17" }));
             var number = await Call("read", new() { ["name"] = "Input" });
             Assert.Equal(17, number.GetProperty("value").GetDouble());
@@ -99,6 +100,7 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             Success(await Call("delete", new() { ["name"] = "Input" }));
             var missing = await Call("read", new() { ["name"] = "Input" });
             Assert.False(missing.GetProperty("success").GetBoolean());
+            Assert.Equal("InvalidOperation", missing.GetProperty("errorCategory").GetString());
             Assert.Contains("not found", missing.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
             var unchanged = Success(await client.CallAsync("range", "get-values", sentinel,
                 new() { ["sheet_name"] = "Data", ["range_address"] = "A1" }, deadline.Token));

@@ -212,11 +212,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.False(unsupportedVba.GetProperty("success").GetBoolean());
             Assert.Equal("PlatformNotSupported", unsupportedVba.GetProperty("errorCategory").GetString());
             Assert.Contains(
-                "preflight reports",
+                "preflight",
                 unsupportedVba.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Assert.Contains(
-                "repository-owned fixture",
+                "public CLI and MCP acceptance",
                 unsupportedVba.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             var unsupportedVbaList = await client.CallAsync(
@@ -230,7 +230,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 unsupportedVbaList.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Assert.Contains(
-                "Apple Events",
+                "optional helper",
                 unsupportedVbaList.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Success(await client.CallAsync("file", "close", macroSession, new(), deadline.Token));

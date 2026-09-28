@@ -399,10 +399,14 @@ function dispatchNamedRange(excel, workbook, command, args) {
     }
     const item = findNamedItem(workbook, args.name);
     if (command === "namedrange.create") {
-        if (item) throw new Error(`Named range '${args.name}' already exists.`);
+        if (item) {
+            throw Object.assign(new Error(`Named range '${args.name}' already exists.`), { category: "InvalidOperation" });
+        }
         workbook.namedItems.push(excel.NamedItem({ name: args.name, references: args.reference }));
     } else {
-        if (!item) throw new Error(`Named range '${args.name}' not found.`);
+        if (!item) {
+            throw Object.assign(new Error(`Named range '${args.name}' not found.`), { category: "InvalidOperation" });
+        }
         if (command === "namedrange.update") item.references = args.reference;
         else if (command === "namedrange.delete") item.delete();
         else if (command === "namedrange.write") item.referenceRange().value = args.parsedValue;
