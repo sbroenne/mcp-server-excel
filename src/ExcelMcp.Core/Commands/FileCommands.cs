@@ -53,12 +53,6 @@ public class FileCommands : IFileCommands
                 else
                 {
                     FileAccessValidator.ValidateFileNotLocked(filePath);
-                    isValid = FileAccessValidator.HasValidWorkbookContainer(filePath);
-                    canOpen = isValid;
-                    if (!isValid)
-                    {
-                        message = $"File is not a valid Excel workbook container: {filePath}";
-                    }
                 }
             }
             catch (InvalidOperationException ex)

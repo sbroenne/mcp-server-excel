@@ -22,13 +22,14 @@ public static partial class ExcelFileTool
     /// IMPORTANT: Before closing, check 'list' action - wait for canClose=true (no active operations).
     /// If show=true was used, confirm with user before closing visible Excel windows.
     ///
-    /// TIMEOUT: Open/create default to 120 seconds. Use timeout_seconds to customize
-    /// slow workbook startup or prompt-heavy files. Operations timing out trigger
+    /// TIMEOUT: Open/create/test default to 120 seconds. Use timeout_seconds to customize
+    /// slow workbook startup, validation, or prompt-heavy files. Operations timing out trigger
     /// aggressive cleanup and may leave Excel in inconsistent state.
     ///
     /// IRM/AIP FILES: Files protected with Azure Information Protection are detected automatically.
     /// They are opened as read-only with Excel forced visible for credential authentication.
-    /// Use 'test' first to inspect canOpen, isIrmProtected, willOpenReadOnly, and
+    /// Use 'test' first to validate ordinary workbooks through a temporary read-only
+    /// Excel open and inspect canOpen, isIrmProtected, willOpenReadOnly, and
     /// requiresVisibleSession before attempting to open. IRM/AIP files report
     /// canOpen=false until the required interactive Excel authentication occurs.
     /// </summary>
@@ -37,7 +38,7 @@ public static partial class ExcelFileTool
     /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    /// <param name="timeout_seconds">Maximum time in seconds for opening/creating the session and for operations in this session. Default: 120. Range: 10-3600. Used for: open, create</param>
+    /// <param name="timeout_seconds">Maximum time in seconds for opening, creating, or testing and for operations in this session. Default: 120. Range: 10-3600. Used for: open, create, test</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -79,7 +80,7 @@ public static partial class ExcelFileTool
                     FileAction.Open => OpenSessionAsync(path!, show, timeout),
                     FileAction.Close => CloseSessionAsync(session_id!, save),
                     FileAction.Create => CreateSessionAsync(path!, show, timeout),
-                    FileAction.Test => TestFileAsync(path!),
+                    FileAction.Test => TestFileAsync(path!, timeout_seconds),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -333,18 +334,21 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Tests file existence, validity, openability, and IRM/AIP read-only requirements
-    /// without opening it via Excel COM.
+    /// Tests file existence, validity, openability, and IRM/AIP read-only requirements.
+    /// Ordinary workbooks are opened read-only in a temporary Excel COM session.
     /// LLM Pattern: Use this for discovery/connectivity testing before running operations.
     /// </summary>
-    private static string TestFileAsync(string path)
+    private static string TestFileAsync(string path, int timeoutSeconds)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
             throw new ArgumentException("path is required for 'test' action", nameof(path));
         }
 
-        var response = ServiceBridge.ServiceBridge.TestFileAsync(path).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge
+            .TestFileAsync(path, timeoutSeconds)
+            .GetAwaiter()
+            .GetResult();
         if (!response.Success)
         {
             var errorMessage = response.ErrorMessage ?? "Failed to test file";

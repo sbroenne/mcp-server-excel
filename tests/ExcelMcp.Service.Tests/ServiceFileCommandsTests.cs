@@ -21,10 +21,11 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// - ❌ DO NOT test infrastructure (paths, directories, OS validation)
 /// </summary>
 [Trait("Layer", "Service")]
-[Trait("Category", "Unit")]
-[Trait("Speed", "Fast")]
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
-[Trait("RequiresExcel", "false")]
+[Trait("RequiresExcel", "true")]
+[Collection("Sequential")]
 public sealed partial class ServiceFileCommandsTests :
     IClassFixture<ServiceFileTestFixture>
 {
@@ -52,6 +53,7 @@ public sealed class ServiceFileTestFixture : IDisposable
 
     internal ServiceFileCommands Commands { get; }
     internal string TempDir => _tempDir;
+    internal int SessionCount => _service.SessionCount;
 
     internal string CreateTestFile()
     {
@@ -78,14 +80,7 @@ internal sealed class ServiceFileCommands(ExcelMcpService service)
 {
     internal FileValidationInfo Test(string filePath)
     {
-        var response = service.ProcessAsync(new ServiceRequest
-        {
-            Command = "session.test",
-            Args = JsonSerializer.Serialize(
-                new { filePath },
-                ServiceProtocol.JsonOptions),
-            Source = "service-file-tests"
-        }).GetAwaiter().GetResult();
+        var response = TestRaw(filePath);
 
         Assert.True(response.Success, response.ErrorMessage);
         Assert.True(string.IsNullOrEmpty(response.ErrorMessage));
@@ -95,5 +90,17 @@ internal sealed class ServiceFileCommands(ExcelMcpService service)
                 ServiceProtocol.JsonOptions)
             ?? throw new InvalidOperationException(
                 "session.test returned no file validation result.");
+    }
+
+    internal ServiceResponse TestRaw(string filePath)
+    {
+        return service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.test",
+            Args = JsonSerializer.Serialize(
+                new { filePath },
+                ServiceProtocol.JsonOptions),
+            Source = "service-file-tests"
+        }).GetAwaiter().GetResult();
     }
 }

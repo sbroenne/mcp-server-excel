@@ -32,6 +32,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private string _workbookPath; // Primary workbook path
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly bool _showExcel; // Whether to show Excel window
+    private readonly bool _openReadOnly; // Whether existing workbooks are opened read-only
     private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
     private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
     private readonly TimeSpan _operationTimeout; // Timeout for individual operations
@@ -77,8 +78,21 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
     /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
     /// <param name="operationTimeout">Timeout for startup and individual operations. Default: 120 seconds.</param>
-    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
-        : this(workbookPaths, logger, show, createNewFile: false, isMacroEnabled: false, operationTimeout: operationTimeout)
+    /// <param name="openReadOnly">Whether existing workbooks are opened read-only.</param>
+    public ExcelBatch(
+        string[] workbookPaths,
+        ILogger<ExcelBatch>? logger = null,
+        bool show = false,
+        TimeSpan? operationTimeout = null,
+        bool openReadOnly = false)
+        : this(
+            workbookPaths,
+            logger,
+            show,
+            openReadOnly,
+            createNewFile: false,
+            isMacroEnabled: false,
+            operationTimeout: operationTimeout)
     {
     }
 
@@ -94,13 +108,27 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// <returns>ExcelBatch instance with the new workbook open.</returns>
     internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
     {
-        return new ExcelBatch([filePath], logger, show, createNewFile: true, isMacroEnabled: isMacroEnabled, operationTimeout: operationTimeout);
+        return new ExcelBatch(
+            [filePath],
+            logger,
+            show,
+            openReadOnly: false,
+            createNewFile: true,
+            isMacroEnabled: isMacroEnabled,
+            operationTimeout: operationTimeout);
     }
 
     /// <summary>
     /// Private constructor that handles both opening existing files and creating new ones.
     /// </summary>
-    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool show, bool createNewFile, bool isMacroEnabled, TimeSpan? operationTimeout = null)
+    private ExcelBatch(
+        string[] workbookPaths,
+        ILogger<ExcelBatch>? logger,
+        bool show,
+        bool openReadOnly,
+        bool createNewFile,
+        bool isMacroEnabled,
+        TimeSpan? operationTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -108,6 +136,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         _allWorkbookPaths = workbookPaths;
         _workbookPath = workbookPaths[0]; // Primary workbook
         _showExcel = show;
+        _openReadOnly = openReadOnly;
         _createNewFile = createNewFile;
         _isMacroEnabled = isMacroEnabled;
         _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
@@ -220,21 +249,23 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
                 // Workbook macro execution must remain available for explicit VBA operations on
                 // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
-                // later in the same batch. Keep non-macro workbooks on ForceDisable, but allow
-                // macro-enabled workbook opens to use Low.
+                // later in the same batch. Validation opens are different: they inspect untrusted
+                // workbooks and must always disable macros, even for .xlsm files.
                 // msoAutomationSecurityLow = 1
                 // msoAutomationSecurityForceDisable = 3
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
                 // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
                 // so dispatch a plain integer without loading an Office.Core type.
-                bool opensMacroEnabledWorkbook = _isMacroEnabled ||
-                    _allWorkbookPaths.Any(path => string.Equals(Path.GetExtension(path), ".xlsm", StringComparison.OrdinalIgnoreCase));
+                int automationSecurity = SelectAutomationSecurity(
+                    _isMacroEnabled,
+                    _openReadOnly,
+                    _allWorkbookPaths);
                 // Reflection dispatch avoids the dynamic binder's retained ITypeInfo RCW,
                 // which can block STA termination after Excel.Quit has already returned.
                 tempExcel.GetType().InvokeMember(
                     "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
-                    target: tempExcel, args: [opensMacroEnabledWorkbook ? 1 : 3],
+                    target: tempExcel, args: [automationSecurity],
                     culture: CultureInfo.InvariantCulture);
 
                 // Open or create workbooks in the same Excel instance
@@ -314,13 +345,19 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                             // IDispatch preserves the workbook's native definitions.
                             workbooks = tempExcel.Workbooks;
                             dynamic workbooksDispatch = (dynamic)(object)workbooks;
-                            wb = isIrm
-                                // ReadOnly=true prevents "exclusive access required" errors on IRM-encrypted files
-                                ? (Excel.Workbook)workbooksDispatch.Open(normalizedPath, UpdateLinks: 0, ReadOnly: true, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false)
-                                // Explicitly suppress link/update/read-only prompts so rapid reopen cycles fail fast instead of blocking hidden Excel.
-                                : (Excel.Workbook)workbooksDispatch.Open(normalizedPath, UpdateLinks: 0, ReadOnly: false, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
+                            // ReadOnly=true prevents "exclusive access required" errors on
+                            // IRM-encrypted files and prevents validation opens from modifying files.
+                            wb = (Excel.Workbook)workbooksDispatch.Open(
+                                normalizedPath,
+                                UpdateLinks: 0,
+                                ReadOnly: isIrm || _openReadOnly,
+                                IgnoreReadOnlyRecommended: true,
+                                Notify: false,
+                                AddToMru: false);
                         }
-                        catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                        catch (COMException ex) when (
+                            !_openReadOnly &&
+                            ex.HResult == unchecked((int)0x800A03EC))
                         {
                             // Excel Error 1004 - File is already open or locked
                             throw FileAccessValidator.CreateFileLockedError(path, ex);
@@ -616,6 +653,25 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
             "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
             $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
+    }
+
+    internal static int SelectAutomationSecurity(
+        bool createsMacroEnabledWorkbook,
+        bool openReadOnly,
+        IReadOnlyCollection<string> workbookPaths)
+    {
+        if (openReadOnly)
+        {
+            return 3;
+        }
+
+        bool opensMacroEnabledWorkbook = createsMacroEnabledWorkbook ||
+            workbookPaths.Any(path =>
+                string.Equals(
+                    Path.GetExtension(path),
+                    ".xlsm",
+                    StringComparison.OrdinalIgnoreCase));
+        return opensMacroEnabledWorkbook ? 1 : 3;
     }
 
     private static string CreateIrmRequiresVisibleSessionMessage(string workbookPath)

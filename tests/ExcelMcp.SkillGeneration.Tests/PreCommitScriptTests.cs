@@ -190,7 +190,8 @@ public sealed class PreCommitScriptTests
             {
                 "Stop-ExcelMcpProcesses", "check-com-leaks", "audit-core-coverage",
                 "check-mcp-core-implementations", "check-success-flag", "Build-BootstrapScripts",
-                "Test-E2E", "check-plugin-readmes", "check-dynamic-casts"
+                "Test-E2E", "check-plugin-readmes", "check-dynamic-casts",
+                "check-workbook-package-access"
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"), "$global:LASTEXITCODE = 0");

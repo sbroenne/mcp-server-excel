@@ -15,7 +15,7 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **Open:** Open workbook and create session (returns session ID for all subsequent operations). IRM/AIP-protected files are automatically detected and opened read-only with Excel visible for credential authentication — no extra parameters needed.
 - **Close:** Close session with optional save
 - **Create Empty:** Create new .xlsx or .xlsm workbook
-- **Test:** Report existence, extension validity, openability, and IRM/AIP requirements through `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
+- **Test:** Report existence, extension validity, openability, and IRM/AIP requirements through `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`. Ordinary workbooks are opened read-only in a temporary Excel session and closed without saving.
 
 ---
 

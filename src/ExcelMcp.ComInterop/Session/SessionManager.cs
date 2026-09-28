@@ -412,6 +412,44 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
+    /// Validates that Excel can open a workbook without creating a public session.
+    /// The workbook is opened read-only and closed without saving.
+    /// </summary>
+    public void ValidateWorkbookOpen(string filePath, TimeSpan? operationTimeout = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var normalizedPath = Path.GetFullPath(filePath);
+        var reservationId = $"validation-{Guid.NewGuid():N}";
+        if (!TryClaimFilePath(normalizedPath, reservationId))
+        {
+            throw new InvalidOperationException(
+                $"File '{filePath}' is already open in another session or reserved for one.");
+        }
+
+        IExcelBatch? batch = null;
+        try
+        {
+            FileAccessValidator.ValidateFileNotLocked(normalizedPath);
+            batch = _sessionCreationPipeline.Execute(
+                () => ExcelSession.BeginReadOnlyValidation(
+                    normalizedPath,
+                    operationTimeout));
+        }
+        finally
+        {
+            try
+            {
+                batch?.Dispose();
+            }
+            finally
+            {
+                ReleaseFilePathClaim(normalizedPath, reservationId);
+            }
+        }
+    }
+
+    /// <summary>
     /// Creates a new Excel file and opens a session for it in one operation.
     /// This is the preferred method for creating new workbooks with sessions.
     /// </summary>

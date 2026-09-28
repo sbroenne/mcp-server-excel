@@ -944,14 +944,14 @@ public class FileValidationInfo
     public DateTime LastModified { get; set; }
 
     /// <summary>
-    /// Whether a standard OOXML file has a supported extension and valid package.
+    /// Whether Excel successfully opened the workbook during validation.
     /// IRM/AIP containers require interactive Excel validation and report false.
     /// </summary>
     public bool IsValid { get; set; }
 
     /// <summary>
-    /// Whether a standard OOXML workbook passes package validation and can be
-    /// accessed using ExcelMcp's required open mode. IRM/AIP openability requires
+    /// Whether Excel opened the workbook using ExcelMcp's required validation
+    /// mode. IRM/AIP openability requires
     /// interactive authentication and reports false during preflight.
     /// </summary>
     public bool CanOpen { get; set; }

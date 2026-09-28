@@ -31,6 +31,9 @@ separately because they use desktop/clipboard resources.
 - Raw COM is acceptable for required setup or concrete verification, but the
   operation under test must still cross its intended Service boundary. Pure
   parsing, mapping, serialization, and generator tests need no Excel.
+- Tests may construct or inspect ZIP/OOXML workbook parts for fixtures and
+  concrete verification. Never move that package access into production code or
+  use it as a substitute for exercising Excel COM behavior.
 - Use a unique workbook per isolated test or per reviewed persistent Service
   class. Do not combine `IClassFixture<T>` with a collection fixture on the same
   class: it can create competing Excel sessions.

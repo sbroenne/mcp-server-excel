@@ -126,7 +126,10 @@ where.exe excelcli
 ### IRM / AIP Protected Workbooks
 
 ```powershell
-# Inspect deterministic open and protection requirements without launching Excel
+# Validate an ordinary workbook through a temporary read-only Excel open
+excelcli -q session test "D:\Docs\Workbook.xlsx" --timeout 120
+
+# Inspect deterministic protection requirements before an interactive open
 excelcli -q session test "D:\Docs\Protected.xlsx"
 
 # Keep Excel visible so authentication or policy prompts can surface
@@ -137,7 +140,8 @@ excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
 `requiresVisibleSession` using the same result model as MCP `file test`. Protected
 files report `canOpen:false` until interactive Excel authentication occurs. Use
 `--show` whenever hidden automation would block on a sign-in, consent, or
-information-protection prompt.
+information-protection prompt. Ordinary files are opened read-only in a temporary
+Excel session and closed without saving.
 
 ### Daemon Status and Session Discovery
 

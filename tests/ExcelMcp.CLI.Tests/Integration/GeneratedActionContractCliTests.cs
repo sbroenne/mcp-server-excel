@@ -282,6 +282,8 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     [InlineData("create", 3601)]
     [InlineData("open", 9)]
     [InlineData("open", 3601)]
+    [InlineData("test", 9)]
+    [InlineData("test", 3601)]
     public async Task ManualSessionCommand_RejectsTimeoutOutsideDocumentedRange(
         string action,
         int timeoutSeconds)
@@ -300,6 +302,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     [Theory]
     [InlineData("""{"command":"session.open","args":{"filePath":"missing.xlsx","timeoutSeconds":9}}""")]
     [InlineData("""{"command":"session.create","args":{"filePath":"missing.xlsx","timeoutSeconds":3601}}""")]
+    [InlineData("""{"command":"session.test","args":{"filePath":"missing.xlsx","timeoutSeconds":9}}""")]
     [InlineData("""{"command":"session.open","args":{"filePath":"missing.xlsx","timeoutSeconds":"120"}}""")]
     public async Task RawBatchSessionCommand_RejectsNonCanonicalTimeout(string request)
     {

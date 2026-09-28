@@ -13,6 +13,10 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Core `[ServiceCategory]` interfaces drive generated Service, CLI, and MCP
   routing. Change contracts/generators, not emitted code. Follow a changed
   contract through both entry points, tests, and shared guidance.
+- Production code must access workbook contents through Excel COM. Never open
+  an Excel file as a ZIP/OOXML package or parse/modify its internal XML outside
+  tests. Pre-open binary container detection may read only IRM/AIP protection
+  metadata; it must not parse workbook content.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - `Success == true` requires an empty or null `ErrorMessage`.
@@ -41,6 +45,7 @@ Run applicable existing checks, not replacement audits:
 & .\scripts\check-success-flag.ps1
 & .\scripts\check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts
 & .\scripts\check-dynamic-casts.ps1
+& .\scripts\check-workbook-package-access.ps1
 ```
 
 `-SkipBuild` requires a successful Release solution build in this worktree.
