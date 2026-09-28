@@ -122,6 +122,8 @@ public sealed class ServiceWorkbookLifecycleTests
                 }
             })).ToArray();
 
+            Exception? workflowFailure = null;
+            WorkflowResult[]? results = null;
             try
             {
                 var readiness = await Task.WhenAny(allOpened.Task, startupFailure.Task)
@@ -145,12 +147,31 @@ public sealed class ServiceWorkbookLifecycleTests
                     Assert.All(sessions.Keys, sessionId => Assert.Contains(sessionId, openSessionIds));
                 }
             }
+            catch (Exception ex)
+            {
+                workflowFailure = ex;
+            }
             finally
             {
                 releaseWorkflows.TrySetResult(true);
+                try
+                {
+                    results = await Task.WhenAll(workflows);
+                }
+                catch (Exception ex)
+                {
+                    workflowFailure = PersistentServiceCleanupFailures.Combine(
+                        workflowFailure,
+                        ex);
+                }
             }
 
-            var results = await Task.WhenAll(workflows);
+            if (workflowFailure is not null)
+            {
+                throw workflowFailure;
+            }
+
+            Assert.NotNull(results);
             Assert.Equal(workflowCount, results.Length);
             Assert.Equal(
                 workflowCount,

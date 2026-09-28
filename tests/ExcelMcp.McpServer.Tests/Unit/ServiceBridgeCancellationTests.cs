@@ -284,6 +284,36 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
         Assert.Equal(2, factoryCalls);
     }
 
+    [Fact]
+    public async Task SetServiceFactory_DuringInitializationPublishesOnlyNewFactoryBackend()
+    {
+        using var factoryEntered = new ManualResetEventSlim();
+        using var releaseFactory = new ManualResetEventSlim();
+        var staleBackend = new BlockingBackend(completeImmediately: true);
+        var currentBackend = new BlockingBackend(completeImmediately: true);
+        using var lifetime = new ServiceBridgeLifetime(() =>
+        {
+            factoryEntered.Set();
+            releaseFactory.Wait();
+            return staleBackend;
+        });
+
+        var sendTask = Task.Run(() => lifetime.SendAsync(
+            "sheet.list",
+            sessionId: null,
+            args: null,
+            timeoutSeconds: null,
+            CancellationToken.None));
+        Assert.True(factoryEntered.Wait(TimeSpan.FromSeconds(5)));
+
+        lifetime.SetServiceFactory(() => currentBackend);
+        releaseFactory.Set();
+
+        Assert.True((await sendTask.WaitAsync(TimeSpan.FromSeconds(5))).Success);
+        Assert.True(staleBackend.Disposed);
+        Assert.False(currentBackend.Disposed);
+    }
+
     private sealed class BlockingBackend : IServiceBridgeBackend
     {
         public List<string> ClosedSessions { get; } = [];

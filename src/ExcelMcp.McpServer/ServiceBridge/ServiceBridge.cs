@@ -21,6 +21,7 @@ internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : 
 internal sealed class ServiceBridgeLifetime : IDisposable
 {
     private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly object _stateLock = new();
     private Func<IServiceBridgeBackend> _serviceFactory;
     private ServiceInstance? _current;
     private Exception? _lastStartupException;
@@ -40,10 +41,12 @@ internal sealed class ServiceBridgeLifetime : IDisposable
     private async Task<ServiceInstance?> AcquireServiceAsync(
         CancellationToken cancellationToken)
     {
-        var current = Volatile.Read(ref _current);
-        if (current != null)
+        lock (_stateLock)
         {
-            return current;
+            if (_current != null)
+            {
+                return _current;
+            }
         }
 
         await _initLock.WaitAsync(cancellationToken);
@@ -51,14 +54,19 @@ internal sealed class ServiceBridgeLifetime : IDisposable
         {
             while (true)
             {
-                current = Volatile.Read(ref _current);
-                if (current != null)
+                long generation;
+                Func<IServiceBridgeBackend> serviceFactory;
+                lock (_stateLock)
                 {
-                    return current;
+                    if (_current != null)
+                    {
+                        return _current;
+                    }
+
+                    generation = _configurationGeneration;
+                    serviceFactory = _serviceFactory;
                 }
 
-                var generation = Interlocked.Read(ref _configurationGeneration);
-                var serviceFactory = Volatile.Read(ref _serviceFactory);
                 IServiceBridgeBackend backend;
                 try
                 {
@@ -66,27 +74,46 @@ internal sealed class ServiceBridgeLifetime : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    if (generation != Interlocked.Read(ref _configurationGeneration))
+                    lock (_stateLock)
                     {
-                        continue;
-                    }
+                        if (generation != _configurationGeneration)
+                        {
+                            continue;
+                        }
 
-                    _lastStartupException = ex;
-                    return null;
+                        _lastStartupException = ex;
+                        return null;
+                    }
                 }
 
-                if (generation != Interlocked.Read(ref _configurationGeneration))
+                ServiceInstance? published = null;
+                var disposeBackend = true;
+                lock (_stateLock)
+                {
+                    if (generation == _configurationGeneration)
+                    {
+                        published = _current;
+                        if (published == null)
+                        {
+                            published = new ServiceInstance(
+                                backend,
+                                Interlocked.Read(ref _pendingOwnerToken));
+                            _current = published;
+                            _lastStartupException = null;
+                            disposeBackend = false;
+                        }
+                    }
+                }
+
+                if (disposeBackend)
                 {
                     backend.Dispose();
-                    continue;
                 }
 
-                current = new ServiceInstance(
-                    backend,
-                    Interlocked.Read(ref _pendingOwnerToken));
-                Volatile.Write(ref _current, current);
-                _lastStartupException = null;
-                return current;
+                if (published != null)
+                {
+                    return published;
+                }
             }
         }
         finally
@@ -204,10 +231,14 @@ internal sealed class ServiceBridgeLifetime : IDisposable
             return false;
         }
 
-        var instance = Volatile.Read(ref _current);
-        if (instance == null || instance.OwnerToken != ownerToken)
+        ServiceInstance? instance;
+        lock (_stateLock)
         {
-            return false;
+            instance = _current;
+            if (instance == null || instance.OwnerToken != ownerToken)
+            {
+                return false;
+            }
         }
 
         return DisposeIfCurrent(instance);
@@ -216,16 +247,31 @@ internal sealed class ServiceBridgeLifetime : IDisposable
     internal void SetServiceFactory(Func<IServiceBridgeBackend> serviceFactory)
     {
         ArgumentNullException.ThrowIfNull(serviceFactory);
-        Volatile.Write(ref _serviceFactory, serviceFactory);
-        Dispose();
+        ServiceInstance? instance;
+        lock (_stateLock)
+        {
+            _serviceFactory = serviceFactory;
+            _configurationGeneration++;
+            instance = _current;
+            _current = null;
+            _lastStartupException = null;
+        }
+
+        instance?.RequestDispose();
     }
 
     public void Dispose()
     {
-        Interlocked.Increment(ref _configurationGeneration);
-        var instance = Interlocked.Exchange(ref _current, null);
+        ServiceInstance? instance;
+        lock (_stateLock)
+        {
+            _configurationGeneration++;
+            instance = _current;
+            _current = null;
+            _lastStartupException = null;
+        }
+
         instance?.RequestDispose();
-        _lastStartupException = null;
     }
 
     private void CleanupCancelledRequest(ServiceInstance instance, string? sessionId)
@@ -250,13 +296,19 @@ internal sealed class ServiceBridgeLifetime : IDisposable
 
     private bool DisposeIfCurrent(ServiceInstance instance)
     {
-        if (Interlocked.CompareExchange(ref _current, null, instance) != instance)
+        lock (_stateLock)
         {
-            return false;
+            if (!ReferenceEquals(_current, instance))
+            {
+                return false;
+            }
+
+            _configurationGeneration++;
+            _current = null;
+            _lastStartupException = null;
         }
 
         instance.RequestDispose();
-        _lastStartupException = null;
         return true;
     }
 
