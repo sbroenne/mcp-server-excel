@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -628,13 +630,20 @@ public sealed class ExcelMcpService : IDisposable
             action,
             arguments,
             new HashSet<string>(StringComparer.Ordinal));
+        TimeSpan? helperTimeout = null;
+        long helperStartedAt = 0;
         if (route.Kind == MacPowerQueryRouteKind.Unsupported
             && _macPowerQueryHelperDispatcher is not null
             && _getMacHelperCapabilities is not null)
         {
+            helperTimeout = GetMacPowerQueryTimeout(
+                action,
+                arguments,
+                session.OperationTimeout);
+            helperStartedAt = Stopwatch.GetTimestamp();
             var capabilities = await _getMacHelperCapabilities(
                 session.FilePath,
-                session.OperationTimeout);
+                helperTimeout.Value);
             route = MacPowerQueryRouteSelector.Select(
                 action,
                 arguments,
@@ -654,7 +663,13 @@ public sealed class ExcelMcpService : IDisposable
             var result = await _macPowerQueryHelperDispatcher!.DispatchAsync(
                 route,
                 session.FilePath,
-                GetMacPowerQueryTimeout(action, arguments, session.OperationTimeout),
+                RemainingMacPowerQueryTimeout(
+                    helperStartedAt,
+                    helperTimeout
+                        ?? GetMacPowerQueryTimeout(
+                            action,
+                            arguments,
+                            session.OperationTimeout)),
                 action,
                 arguments);
             return new ServiceResponse
@@ -860,6 +875,25 @@ public sealed class ExcelMcpService : IDisposable
         return action is "create" or "load-to" or "evaluate"
             ? ComInteropConstants.DataOperationTimeout
             : sessionTimeout;
+    }
+
+    private static TimeSpan RemainingMacPowerQueryTimeout(
+        long startedAt,
+        TimeSpan timeout)
+    {
+        if (timeout == Timeout.InfiniteTimeSpan)
+        {
+            return timeout;
+        }
+
+        var remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
+        if (remaining <= TimeSpan.Zero)
+        {
+            throw new TimeoutException(
+                "The macOS Power Query helper operation exceeded its shared " +
+                "capability-and-dispatch deadline. The workbook session is no longer safe to use.");
+        }
+        return remaining;
     }
 
     private static MacExcelOperationException UnsupportedMacPowerQueryVariant(
