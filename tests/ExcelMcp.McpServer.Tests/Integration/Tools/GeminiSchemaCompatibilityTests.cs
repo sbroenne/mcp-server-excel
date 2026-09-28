@@ -26,6 +26,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "McpProtocol")]
+[Trait("RequiresExcel", "false")]
 public sealed class GeminiSchemaCompatibilityTests : McpIntegrationTestBase
 {
     public GeminiSchemaCompatibilityTests(ITestOutputHelper output)

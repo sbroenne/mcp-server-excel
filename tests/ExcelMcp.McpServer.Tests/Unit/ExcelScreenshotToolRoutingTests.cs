@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Screenshot")]
+[Trait("RequiresExcel", "false")]
 public sealed class ExcelScreenshotToolRoutingTests
 {
     [Fact]

@@ -1,50 +1,59 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Worksheets")]
-[Trait("RequiresExcel", "true")]
-public sealed class WorksheetShapeToolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class WorksheetShapeToolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    public WorksheetShapeToolTests(ITestOutputHelper output)
-        : base(output, "WorksheetShapeClient")
-    {
-    }
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task WorksheetStyle_AddShapeAndCountShapes_RoundsTripThroughMcp()
     {
-        var tempDir = CreateTempDirectory("WorksheetShapes");
-        var workbookPath = Path.Combine(tempDir, "shapes.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await CreateWorksheetAsync(sessionId, "ShapeSheet");
+        const string sessionId = "recording-session";
+        var addCall = await _fixture.CallToolAsync(
+            "worksheet_style",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "add-shape",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "ShapeSheet",
+                ["cell_address"] = "A1"
+            },
+            RecordingToolTest.Success("""{"success":true}"""),
+            "sheet.add-shape",
+            """{"sheetName":"ShapeSheet","cellAddress":"A1"}""");
 
-        var addShapeJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        using (var args = RecordingToolTest.ParseArgs(
+            addCall.Request,
+            "sheet.add-shape",
+            sessionId))
         {
-            ["action"] = "add-shape",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ShapeSheet",
-            ["cell_address"] = "A1"
-        });
-        AssertSuccess(addShapeJson, "worksheet_style.add-shape");
+            Assert.Equal("ShapeSheet", args.RootElement.GetProperty("sheetName").GetString());
+            Assert.Equal("A1", args.RootElement.GetProperty("cellAddress").GetString());
+        }
 
-        var getShapeCountJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
-        {
-            ["action"] = "get-shape-count",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ShapeSheet"
-        });
-        AssertSuccess(getShapeCountJson, "worksheet_style.get-shape-count");
+        var countCall = await _fixture.CallToolAsync(
+            "worksheet_style",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-shape-count",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "ShapeSheet"
+            },
+            RecordingToolTest.Success("""{"success":true,"shapeCount":1}"""),
+            "sheet.get-shape-count",
+            """{"sheetName":"ShapeSheet"}""");
 
-        using var getShapeCountDoc = JsonDocument.Parse(getShapeCountJson);
-        Assert.True(getShapeCountDoc.RootElement.GetProperty("shapeCount").GetInt32() > 0);
-
-        await TryCloseSessionAsync(sessionId, save: true);
+        Assert.Equal("sheet.get-shape-count", countCall.Request.Command);
+        using var result = JsonDocument.Parse(countCall.JsonResult);
+        Assert.Equal(1, result.RootElement.GetProperty("shapeCount").GetInt32());
     }
 }

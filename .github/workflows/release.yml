@@ -1,8 +1,8 @@
 name: Release All Components
 
 # Unified release workflow for all ExcelMcp components:
-# - MCP Server (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
-# - CLI (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
+# - MCP Server (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
+# - CLI (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
 # - Agent Skills (ZIP package)
@@ -14,6 +14,7 @@ name: Release All Components
 #
 # Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+# - NPM_TOKEN: Granular npm publish token used to bootstrap new packages; trusted publishing takes precedence once configured
 # - VSCE_TOKEN: VS Code Marketplace PAT
 # - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
 #
@@ -59,10 +60,18 @@ jobs:
 
       - name: Calculate version
         id: calculate_version
+        env:
+          CUSTOM_VERSION: ${{ inputs.custom_version }}
+          VERSION_BUMP: ${{ inputs.version_bump }}
         run: |
           # If custom version is provided, use it
-          if [ -n "${{ inputs.custom_version }}" ]; then
-            VERSION="${{ inputs.custom_version }}"
+          if [[ -n "$CUSTOM_VERSION" ]]; then
+            if ! [[ "$CUSTOM_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              echo "::error::Custom version must be three numeric parts without leading zeroes (for example, 1.2.3)."
+              exit 1
+            fi
+
+            VERSION="$CUSTOM_VERSION"
             echo "Using custom version: ${VERSION}"
           else
             # Get the latest tag
@@ -77,7 +86,7 @@ jobs:
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
             # Increment based on bump type
-            case "${{ inputs.version_bump }}" in
+            case "$VERSION_BUMP" in
               major)
                 MAJOR=$((MAJOR + 1))
                 MINOR=0
@@ -89,6 +98,10 @@ jobs:
                 ;;
               patch)
                 PATCH=$((PATCH + 1))
+                ;;
+              *)
+                echo "::error::Unsupported version bump type."
+                exit 1
                 ;;
             esac
 
@@ -126,7 +139,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Setup Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ env.NODE_VERSION }}
 
@@ -143,7 +156,7 @@ jobs:
         ./scripts/Build-Changelog.ps1 -Version "${{ needs.version.outputs.version }}" -Date $releaseDate
 
     - name: Upload Prepared Release Metadata
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
       with:
         name: release-metadata
         path: |
@@ -163,6 +176,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
+        package-manager-cache: false
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -200,6 +220,26 @@ jobs:
           -p:NuGetAudit=false `
           --output ./cli-publish
       shell: pwsh
+
+    - name: Build and Test CLI npm Packages
+      run: |
+        .\scripts\Build-NpmPackages.ps1 `
+          -Component Cli `
+          -Version $env:VERSION `
+          -RuntimeExecutable "cli-publish\excelcli.exe" `
+          -OutputDirectory "cli-npm-artifacts"
+
+        .\scripts\Test-NpmPackages.ps1 `
+          -Component Cli `
+          -LauncherPackage "cli-npm-artifacts\sbroenne-excelcli-$env:VERSION.tgz" `
+          -RuntimePackage "cli-npm-artifacts\sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
+      shell: pwsh
+
+    - name: Upload CLI npm Artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+      with:
+        name: cli-npm
+        path: cli-npm-artifacts/*.tgz
 
     - name: Create CLI ZIP
       run: |
@@ -247,6 +287,13 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
+        package-manager-cache: false
+
     - name: Set Version
       run: |
         $version = "${{ needs.version.outputs.version }}"
@@ -272,7 +319,7 @@ jobs:
     - name: Pack NuGet (secondary distribution)
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg -p:Version=${{ env.VERSION }}
 
-    - name: Publish MCP Server (standalone exe — primary distribution)
+    - name: Publish MCP Server (standalone exe)
       run: |
         dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
           --configuration Release `
@@ -314,6 +361,26 @@ jobs:
         Compress-Archive -Path "mcp-server-release/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
 
+    - name: Test npm Launchers and Packaging
+      run: |
+        npm ci --prefix npm-packages/shared --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
+        npm test --prefix npm-packages/shared
+        if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
+      shell: pwsh
+
+    - name: Build and Test npm Packages
+      run: |
+        .\scripts\Build-NpmPackages.ps1 `
+          -Version $env:VERSION `
+          -RuntimeExecutable "mcp-server-publish\mcp-excel.exe" `
+          -OutputDirectory "npm-artifacts"
+
+        .\scripts\Test-NpmPackages.ps1 `
+          -LauncherPackage "npm-artifacts\sbroenne-mcp-server-excel-$env:VERSION.tgz" `
+          -RuntimePackage "npm-artifacts\sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
+      shell: pwsh
+
     - name: Upload ZIP Artifact
       uses: actions/upload-artifact@v7
       with:
@@ -325,6 +392,12 @@ jobs:
       with:
         name: mcp-server-nupkg
         path: nupkg/*.nupkg
+
+    - name: Upload npm Artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+      with:
+        name: mcp-server-npm
+        path: npm-artifacts/*.tgz
 
   # =============================================================================
   # Job 3: Build and Publish VS Code Extension
@@ -340,7 +413,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
       with:
         name: release-metadata
         path: prepared-release
@@ -414,7 +487,7 @@ jobs:
     - uses: actions/checkout@v7
 
     - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
       with:
         name: release-metadata
         path: prepared-release
@@ -488,11 +561,11 @@ jobs:
         path: artifacts/skills/excel-skills-*.zip
 
   # =============================================================================
-  # Job 6: Wait for NuGet Propagation + MCP Registry
+  # Job 6: Wait for Package Propagation + MCP Registry
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
-    needs: [version, create-tag, build-mcp-server]
+    needs: [version, publish]
     runs-on: windows-latest
     permissions:
       id-token: write
@@ -513,31 +586,65 @@ jobs:
           -Version $env:VERSION
       shell: pwsh
 
-    - name: Wait for NuGet Propagation
+    - name: Wait for NuGet and npm Propagation
       run: |
         $version = $env:VERSION
-        $packageId = "sbroenne.excelmcp.mcpserver"
-        $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
+        $nugetPackageId = "sbroenne.excelmcp.mcpserver"
+        $nugetReadmeUrl = "https://api.nuget.org/v3-flatcontainer/$nugetPackageId/$version/readme"
+        $npmLauncherPackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
+        $npmRuntimePackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-x64/$version"
 
-        Write-Output "Waiting for NuGet CDN propagation..."
+        Write-Output "Waiting for NuGet and npm propagation..."
         $maxAttempts = 3
         $pollInterval = 600  # 10 minutes
 
-        # First check immediately; subsequent checks wait pollInterval seconds
         for ($i = 1; $i -le $maxAttempts; $i++) {
           Write-Output "Attempt $i of $maxAttempts..."
+          $nugetReady = $false
+          $npmLauncherReady = $false
+          $npmRuntimeReady = $false
+
           try {
-            $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction Stop
-            if ($response.StatusCode -eq 200) {
-              $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
-              if ($content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
-                Write-Output "README propagated successfully"
-                break
-              }
-            }
+            $response = Invoke-WebRequest -Uri $nugetReadmeUrl -UseBasicParsing -ErrorAction Stop
+            $content = $response.Content
+            $nugetReady = $response.StatusCode -eq 200 -and
+              $content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel"
           } catch {
-            Write-Output "README not yet available"
+            Write-Output "NuGet README not yet available"
           }
+
+          try {
+            $npmLauncherPackage = Invoke-RestMethod -Uri $npmLauncherPackageUrl -ErrorAction Stop
+            $npmLauncherReady = $npmLauncherPackage.mcpName -eq "io.github.sbroenne/mcp-server-excel"
+          } catch {
+            Write-Output "npm launcher package not yet available"
+          }
+
+          try {
+            $npmRuntimePackage = Invoke-RestMethod -Uri $npmRuntimePackageUrl -ErrorAction Stop
+            $npmRuntimeReady = $npmRuntimePackage.name -eq "@sbroenne/mcp-server-excel-win32-x64" -and
+              $npmRuntimePackage.version -eq $version
+          } catch {
+            Write-Output "npm runtime package not yet available"
+          }
+
+          if ($nugetReady -and $npmLauncherReady -and $npmRuntimeReady) {
+            Write-Output "NuGet and npm metadata propagated successfully"
+            break
+          }
+
+          if ($i -eq $maxAttempts) {
+            if (-not $nugetReady) {
+              throw "NuGet package metadata did not propagate after $maxAttempts attempts."
+            }
+            if (-not $npmLauncherReady) {
+              throw "npm launcher package metadata did not propagate after $maxAttempts attempts."
+            }
+            if (-not $npmRuntimeReady) {
+              throw "npm runtime package metadata did not propagate after $maxAttempts attempts."
+            }
+          }
+
           if ($i -lt $maxAttempts) {
             Write-Output "Waiting $pollInterval seconds before retry..."
             Start-Sleep -Seconds $pollInterval
@@ -706,7 +813,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-      id-token: write  # Required for NuGet OIDC
+      id-token: write  # Required for NuGet and npm OIDC
 
     steps:
     - uses: actions/checkout@v7
@@ -716,10 +823,29 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
+    - name: Detect npm authentication mode
+      id: npm-auth
+      shell: pwsh
+      env:
+        NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        $mode = if ([string]::IsNullOrEmpty($env:NPM_BOOTSTRAP_TOKEN)) { "oidc" } else { "token" }
+        "mode=$mode" >> $env:GITHUB_OUTPUT
+
+    - name: Setup Node.js with bootstrap token
+      if: steps.npm-auth.outputs.mode == 'token'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
+        package-manager-cache: false
+
+    - name: Setup Node.js with trusted publishing
+      if: steps.npm-auth.outputs.mode == 'oidc'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        package-manager-cache: false
 
     - name: Set Version
       run: |
@@ -738,6 +864,18 @@ jobs:
       with:
         name: cli-nupkg
         path: cli-nupkg
+
+    - name: Download npm Packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      with:
+        name: mcp-server-npm
+        path: npm-packages
+
+    - name: Download CLI npm Packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      with:
+        name: cli-npm
+        path: npm-packages
 
     - name: Download VS Code VSIX
       uses: actions/download-artifact@v8
@@ -767,8 +905,52 @@ jobs:
         Write-Output "Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
       shell: pwsh
 
+    - name: Publish to npm
+      run: |
+        if ([string]::IsNullOrEmpty($env:NPM_BOOTSTRAP_TOKEN)) {
+          Remove-Item Env:NODE_AUTH_TOKEN -ErrorAction SilentlyContinue
+        } else {
+          $env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN
+        }
+
+        npm install --global npm@11
+
+        function Publish-NpmPackage {
+          param(
+            [string]$PackageName,
+            [string]$Tarball
+          )
+
+          npm view "$PackageName@$env:VERSION" version --json 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "$PackageName@$env:VERSION is already published; skipping."
+            return
+          }
+
+          npm publish "./$Tarball" --access public
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to publish $PackageName@$env:VERSION."
+          }
+        }
+
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/mcp-server-excel-win32-x64" `
+          -Tarball "npm-packages/sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/mcp-server-excel" `
+          -Tarball "npm-packages/sbroenne-mcp-server-excel-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/excelcli-win32-x64" `
+          -Tarball "npm-packages/sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/excelcli" `
+          -Tarball "npm-packages/sbroenne-excelcli-$env:VERSION.tgz"
+      shell: pwsh
+      env:
+        NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
+
     - name: Publish to VS Code Marketplace
-      uses: HaaLeo/publish-vscode-extension@v2
+      uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
       with:
         pat: ${{ secrets.VSCE_TOKEN }}
         registryUrl: https://marketplace.visualstudio.com

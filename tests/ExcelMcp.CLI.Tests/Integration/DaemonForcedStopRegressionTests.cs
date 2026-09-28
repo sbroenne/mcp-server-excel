@@ -16,6 +16,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "CLI")]
 [Trait("Layer", "CLI")]
 [Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
 public sealed class DaemonForcedStopRegressionTests
 {
     public static TheoryData<string> AdversarialPipeNames
@@ -422,6 +423,7 @@ public sealed class DaemonForcedStopRegressionTests
                         "ExcelMcp.CLI.csproj"),
                     "--configuration",
                     "Release",
+                    "--disable-build-servers",
                     "-p:NuGetAudit=false",
                     "-maxcpucount:1",
                     "-nodeReuse:false",
@@ -1310,8 +1312,9 @@ public sealed class DaemonForcedStopRegressionTests
         return Process.Start(new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = "-NoProfile -Command \"Start-Sleep -Seconds 60\"",
+            Arguments = "-NoProfile -Command \"[Console]::ReadLine() | Out-Null\"",
             UseShellExecute = false,
+            RedirectStandardInput = true,
             CreateNoWindow = true
         })!;
     }

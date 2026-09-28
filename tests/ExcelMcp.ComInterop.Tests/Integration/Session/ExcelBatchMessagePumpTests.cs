@@ -36,6 +36,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "ExcelBatch")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
+[Trait("RequiresExcel", "true")]
 public class ExcelBatchMessagePumpTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;

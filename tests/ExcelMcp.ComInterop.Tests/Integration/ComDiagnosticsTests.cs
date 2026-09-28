@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 [Trait("Category", "Integration")]
 [Trait("Feature", "Diagnostics")]
 [Trait("Layer", "ComInterop")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 public sealed class ComDiagnosticsTests
 {

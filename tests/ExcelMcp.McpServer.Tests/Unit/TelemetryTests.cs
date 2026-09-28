@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Telemetry")]
 [Collection("ProgramTransport")]
+[Trait("RequiresExcel", "false")]
 public class TelemetryTests
 {
     #region ExcelMcpTelemetry Tests

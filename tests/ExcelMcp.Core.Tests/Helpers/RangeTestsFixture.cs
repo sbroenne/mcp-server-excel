@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -87,10 +88,7 @@ public class RangeTestsFixture : IAsyncLifetime
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Join(_tempDir, fileName);
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
-        manager.CloseSession(sessionId, save: true);
-        return filePath;
+        return SavedWorkbookTemplates.CopyBlankTo(filePath);
     }
 
     /// <summary>
@@ -106,11 +104,7 @@ public class RangeTestsFixture : IAsyncLifetime
 
         try
         {
-            using (var manager = new SessionManager())
-            {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
-                manager.CloseSession(sessionId, save: true);
-            }
+            SavedWorkbookTemplates.CopyBlankTo(TestFilePath);
             CreationResult.FileCreated = true;
 
             sw.Stop();
@@ -165,7 +159,5 @@ public class FixtureCreationResult
     /// <summary>Error message if creation failed</summary>
     public string? ErrorMessage { get; set; }
 }
-
-
 
 

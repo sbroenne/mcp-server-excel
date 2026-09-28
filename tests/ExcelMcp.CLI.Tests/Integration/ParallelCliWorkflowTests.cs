@@ -14,6 +14,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Category", "Integration")]
 [Trait("Feature", "CLI")]
 [Trait("Layer", "CLI")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Slow")]
 public sealed class ParallelCliWorkflowTests : IAsyncLifetime, IClassFixture<TempDirectoryFixture>

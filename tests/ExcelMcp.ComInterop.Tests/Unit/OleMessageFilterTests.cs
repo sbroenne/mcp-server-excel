@@ -12,6 +12,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Speed", "Fast")]
 [Trait("Layer", "ComInterop")]
+[Trait("RequiresExcel", "false")]
 public class OleMessageFilterTests
 {
     [Fact]
@@ -321,7 +322,6 @@ public class OleMessageFilterTests
         Assert.Equal(100, returnValue);
     }
 }
-
 
 
 

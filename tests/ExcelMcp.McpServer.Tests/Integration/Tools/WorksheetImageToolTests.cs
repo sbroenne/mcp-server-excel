@@ -1,54 +1,62 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Worksheets")]
-[Trait("RequiresExcel", "true")]
-public sealed class WorksheetImageToolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class WorksheetImageToolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    public WorksheetImageToolTests(ITestOutputHelper output)
-        : base(output, "WorksheetImageClient")
-    {
-    }
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task WorksheetStyle_AddImageAndCountImages_RoundsTripThroughMcp()
     {
-        var tempDir = CreateTempDirectory("WorksheetImages");
-        var workbookPath = Path.Combine(tempDir, "images.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await CreateWorksheetAsync(sessionId, "ImageSheet");
+        const string sessionId = "recording-session";
+        const string imagePath = @"C:\adapter-tests\sample.png";
+        var addCall = await _fixture.CallToolAsync(
+            "worksheet_style",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "add-image",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "ImageSheet",
+                ["image_path"] = imagePath,
+                ["cell_address"] = "A1"
+            },
+            RecordingToolTest.Success("""{"success":true}"""),
+            "sheet.add-image",
+            """{"sheetName":"ImageSheet","imagePath":"C:\\adapter-tests\\sample.png","cellAddress":"A1"}""");
 
-        var imagePath = Path.Combine(tempDir, "sample.png");
-        File.WriteAllBytes(imagePath, Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAIAAeIhvAAAAAElFTkSuQmCC"));
-
-        var addImageJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        using (var args = RecordingToolTest.ParseArgs(
+            addCall.Request,
+            "sheet.add-image",
+            sessionId))
         {
-            ["action"] = "add-image",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ImageSheet",
-            ["image_path"] = imagePath,
-            ["cell_address"] = "A1"
-        });
-        AssertSuccess(addImageJson, "worksheet_style.add-image");
+            Assert.Equal("ImageSheet", args.RootElement.GetProperty("sheetName").GetString());
+            Assert.Equal(imagePath, args.RootElement.GetProperty("imagePath").GetString());
+            Assert.Equal("A1", args.RootElement.GetProperty("cellAddress").GetString());
+        }
 
-        var getImageCountJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
-        {
-            ["action"] = "get-image-count",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ImageSheet"
-        });
-        AssertSuccess(getImageCountJson, "worksheet_style.get-image-count");
+        var countCall = await _fixture.CallToolAsync(
+            "worksheet_style",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-image-count",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "ImageSheet"
+            },
+            RecordingToolTest.Success("""{"success":true,"imageCount":1}"""),
+            "sheet.get-image-count",
+            """{"sheetName":"ImageSheet"}""");
 
-        using var getImageCountDoc = JsonDocument.Parse(getImageCountJson);
-        Assert.True(getImageCountDoc.RootElement.GetProperty("imageCount").GetInt32() > 0);
-
-        await TryCloseSessionAsync(sessionId, save: true);
+        Assert.Equal("sheet.get-image-count", countCall.Request.Command);
+        using var result = JsonDocument.Parse(countCall.JsonResult);
+        Assert.Equal(1, result.RootElement.GetProperty("imageCount").GetInt32());
     }
 }

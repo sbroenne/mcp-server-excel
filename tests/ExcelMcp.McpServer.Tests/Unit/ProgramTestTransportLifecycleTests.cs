@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ProgramTransport")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public sealed class ProgramTestTransportLifecycleTests : IDisposable
 {
     public void Dispose()

@@ -15,6 +15,31 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class SessionManagerTeardownFailureTests
 {
     [Fact]
+    public void Dispose_TeardownFailures_AreReportedAfterEverySessionIsAttempted()
+    {
+        using var manager = new SessionManager();
+        var firstBatch = new OneShotFailingBatch();
+        var secondBatch = new OneShotFailingBatch();
+        RegisterSession(manager, "first-session", Path.GetFullPath("first-session.xlsx"), firstBatch);
+        RegisterSession(manager, "second-session", Path.GetFullPath("second-session.xlsx"), secondBatch);
+
+        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
+
+        Assert.Equal(1, firstBatch.DisposeCallCount);
+        Assert.Equal(1, secondBatch.DisposeCallCount);
+        Assert.Equal(2, failure.InnerExceptions.Count);
+        Assert.All(failure.InnerExceptions, exception =>
+        {
+            Assert.IsType<InvalidOperationException>(exception);
+            Assert.Contains("synthetic teardown failure", exception.Message, StringComparison.Ordinal);
+        });
+        Assert.Contains(failure.InnerExceptions,
+            exception => exception.Message.Contains("first-session", StringComparison.Ordinal));
+        Assert.Contains(failure.InnerExceptions,
+            exception => exception.Message.Contains("second-session", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void CloseSession_OneShotDisposeFailure_RemainsQuarantinedUntilCleanupConfirmed()
     {
         using var manager = new SessionManager();

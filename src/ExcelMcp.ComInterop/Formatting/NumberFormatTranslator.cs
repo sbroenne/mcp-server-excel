@@ -79,6 +79,8 @@ public sealed class NumberFormatTranslator
     /// <summary>True if locale uses same number separators as US English (. for decimal, , for thousands)</summary>
     public bool IsEnglishNumberLocale { get; }
 
+    internal string GeneralFormatName { get; }
+
     /// <summary>
     /// Creates a new NumberFormatTranslator by reading locale codes from the Excel Application.
     /// </summary>
@@ -98,6 +100,8 @@ public sealed class NumberFormatTranslator
         // Read number separators
         DecimalSeparator = GetInternationalValue(excelApp, XlDecimalSeparator) ?? ".";
         ThousandsSeparator = GetInternationalValue(excelApp, XlThousandsSeparator) ?? ",";
+        GeneralFormatName = GetInternationalValue(excelApp, (int)Excel.XlApplicationInternational.xlGeneralFormatName)
+            ?? throw new InvalidOperationException("Excel did not provide its General number-format name.");
 
         // Check if this is already English locale for dates (no translation needed)
         IsEnglishDateLocale = DayCode.Equals("d", StringComparison.OrdinalIgnoreCase) &&
@@ -108,7 +112,7 @@ public sealed class NumberFormatTranslator
         IsEnglishNumberLocale = DecimalSeparator == "." && ThousandsSeparator == ",";
     }
 
-    internal NumberFormatTranslator(string decimalSeparator, string thousandsSeparator)
+    internal NumberFormatTranslator(string decimalSeparator, string thousandsSeparator, string generalFormatName = "General")
     {
         DayCode = "d";
         MonthCode = MinuteCode = "m";
@@ -119,6 +123,7 @@ public sealed class NumberFormatTranslator
         TimeSeparator = ":";
         DecimalSeparator = decimalSeparator;
         ThousandsSeparator = thousandsSeparator;
+        GeneralFormatName = generalFormatName;
         IsEnglishDateLocale = true;
         IsEnglishNumberLocale = decimalSeparator == "." && thousandsSeparator == ",";
     }
@@ -162,10 +167,17 @@ public sealed class NumberFormatTranslator
     }
 
     /// <summary>Converts a localized format returned by chart axes to invariant format codes.</summary>
-    public string TranslateFromLocale(string localFormat) =>
-        string.IsNullOrEmpty(localFormat) || (IsEnglishDateLocale && IsEnglishNumberLocale)
+    public string TranslateFromLocale(string localFormat)
+    {
+        if (string.Equals(localFormat, GeneralFormatName, StringComparison.OrdinalIgnoreCase))
+            return "General";
+
+        return string.IsNullOrEmpty(localFormat) ||
+            (IsEnglishDateLocale && IsEnglishNumberLocale &&
+             GeneralFormatName.Equals("General", StringComparison.OrdinalIgnoreCase))
             ? localFormat
             : TranslateFormatString(localFormat, toInvariant: true);
+    }
 
     /// <summary>
     /// Checks if the format string already contains locale-specific date codes.
@@ -203,13 +215,28 @@ public sealed class NumberFormatTranslator
         {
             char c = format[i];
 
-            // Skip content in square brackets (locale prefixes, colors, conditions)
+            // Comparison constants use local decimals; colour and locale metadata stay unchanged.
             if (c == '[')
             {
                 int bracketEnd = format.IndexOf(']', i);
                 if (bracketEnd > i)
                 {
-                    result.Append(format.AsSpan(i, bracketEnd - i + 1));
+                    if (format[i + 1] is '<' or '>' or '=')
+                    {
+                        result.Append('[');
+                        for (int index = i + 1; index < bracketEnd; index++)
+                        {
+                            if (format[index] == sourceDecimal)
+                                result.Append(toInvariant ? "." : DecimalSeparator);
+                            else
+                                result.Append(format[index]);
+                        }
+                        result.Append(']');
+                    }
+                    else
+                    {
+                        result.Append(format.AsSpan(i, bracketEnd - i + 1));
+                    }
                     i = bracketEnd + 1;
                     continue;
                 }
@@ -232,6 +259,14 @@ public sealed class NumberFormatTranslator
             {
                 result.Append(format.AsSpan(i, 2));
                 i += 2;
+                continue;
+            }
+
+            if (toInvariant && GeneralFormatName.Length > 0 &&
+                format.AsSpan(i).StartsWith(GeneralFormatName, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Append("General");
+                i += GeneralFormatName.Length;
                 continue;
             }
 

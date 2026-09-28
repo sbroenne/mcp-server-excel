@@ -219,21 +219,22 @@ public sealed class DaemonStateObservationTests
     [Fact]
     public async Task EnsureAndConnectCoreAsync_SpawnedDaemonReadinessUsesOriginalDeadline()
     {
+        var clock = new AdvancingTimeProvider();
         TimeSpan? remainingBeforeLaunch = null;
         TimeSpan? remainingAfterLaunch = null;
         var runtime = new DaemonAutoStart.Runtime(
-            PingAsync: async (_, cancellationToken) =>
+            PingAsync: (_, _) =>
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
-                return false;
+                clock.Advance(TimeSpan.FromMilliseconds(200));
+                return Task.FromResult(false);
             },
             IsDaemonMutexHeld: () => false,
             IsStartupInProgress: () => throw new InvalidOperationException("No daemon was observed."),
-            TryStartDaemonAsync: async (deadline, cancellationToken) =>
+            TryStartDaemonAsync: (deadline, _) =>
             {
                 remainingBeforeLaunch = deadline.Remaining;
-                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
-                return DaemonAutoStart.StartOutcome.ObserveReadiness;
+                clock.Advance(TimeSpan.FromMilliseconds(250));
+                return Task.FromResult(DaemonAutoStart.StartOutcome.ObserveReadiness);
             },
             WaitForResponsiveDaemonAsync: (deadline, _) =>
             {
@@ -244,12 +245,14 @@ public sealed class DaemonStateObservationTests
         await Assert.ThrowsAsync<TimeoutException>(() =>
             DaemonAutoStart.EnsureAndConnectCoreAsync(
                 $"deadline-test-{Guid.NewGuid():N}",
-                OperationDeadline.Start(TimeSpan.FromMilliseconds(700)),
+                OperationDeadline.Start(TimeSpan.FromMilliseconds(700), clock),
                 runtime,
                 CancellationToken.None));
 
         Assert.NotNull(remainingBeforeLaunch);
         Assert.NotNull(remainingAfterLaunch);
+        Assert.Equal(TimeSpan.FromMilliseconds(500), remainingBeforeLaunch.Value);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), remainingAfterLaunch.Value);
         Assert.True(remainingAfterLaunch.Value < remainingBeforeLaunch.Value);
         Assert.InRange(
             remainingAfterLaunch.Value,
@@ -294,6 +297,17 @@ public sealed class DaemonStateObservationTests
                 }));
 
         Assert.False(launchAttempted);
+    }
+
+    private sealed class AdvancingTimeProvider : TimeProvider
+    {
+        private long _timestamp;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => _timestamp;
+
+        internal void Advance(TimeSpan elapsed) => _timestamp += elapsed.Ticks;
     }
 
     private static bool DequeueObservation(

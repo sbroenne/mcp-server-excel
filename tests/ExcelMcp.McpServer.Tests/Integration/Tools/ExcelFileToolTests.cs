@@ -17,6 +17,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "File")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
     [Fact]
@@ -93,78 +95,6 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Create_ValidPath_ReturnsSuccessWithSessionId()
-    {
-        // Arrange - use temp directory
-        var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileToolTest_{Guid.NewGuid():N}.xlsx");
-        string? sessionId = null;
-
-        try
-        {
-            // Act
-            var result = ExcelFileTool.ExcelFile(
-                FileAction.Create,
-                path: tempPath,
-                session_id: null,
-                save: false,
-                show: false,
-                timeout_seconds: 300);
-
-            output.WriteLine($"Result: {result}");
-
-            // Assert
-            Assert.NotNull(result);
-            var json = JsonDocument.Parse(result).RootElement;
-            Assert.True(json.GetProperty("success").GetBoolean());
-            Assert.True(File.Exists(tempPath), "File should have been created");
-            Assert.True(json.TryGetProperty("session_id", out var sessionIdElement));
-            sessionId = sessionIdElement.GetString();
-            Assert.NotNull(sessionId);
-        }
-        finally
-        {
-            // Cleanup - close session first
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                ExcelFileTool.ExcelFile(
-                    FileAction.Close,
-                    path: null,
-                    session_id: sessionId,
-                    save: false,
-                    show: false,
-                    timeout_seconds: 300);
-            }
-
-            if (File.Exists(tempPath))
-            {
-                try
-                {
-                    for (int i = 0; i < 10; i++)
-                    {
-                        try
-                        {
-                            File.Delete(tempPath);
-                            break;
-                        }
-                        catch (IOException) when (i < 9)
-                        {
-                            Thread.Sleep(500);
-                        }
-                        catch (UnauthorizedAccessException) when (i < 9)
-                        {
-                            Thread.Sleep(500);
-                        }
-                    }
-                }
-                catch
-                {
-                    // Best-effort cleanup for a unique temp file created by this test.
-                }
-            }
-        }
-    }
-
-    [Fact]
     public void Test_NonExistentFile_ReturnsNotFound()
     {
         // Arrange
@@ -228,6 +158,63 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         }
         finally
         {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+}
+
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
+[Trait("Layer", "McpServer")]
+[Trait("Feature", "File")]
+[Collection("ProgramTransport")]
+[Trait("RequiresExcel", "true")]
+public sealed class ExcelFileToolExcelTests(ITestOutputHelper output)
+{
+    [Fact]
+    public void Create_ValidPath_ReturnsSuccessWithSessionId()
+    {
+        var tempPath = Path.Join(
+            Path.GetTempPath(),
+            $"ExcelFileToolTest_{Guid.NewGuid():N}.xlsx");
+        string? sessionId = null;
+
+        try
+        {
+            var result = ExcelFileTool.ExcelFile(
+                FileAction.Create,
+                path: tempPath,
+                session_id: null,
+                save: false,
+                show: false,
+                timeout_seconds: 300);
+
+            output.WriteLine($"Result: {result}");
+
+            Assert.NotNull(result);
+            var json = JsonDocument.Parse(result).RootElement;
+            Assert.True(json.GetProperty("success").GetBoolean());
+            Assert.True(File.Exists(tempPath), "File should have been created");
+            Assert.True(json.TryGetProperty("session_id", out var sessionIdElement));
+            sessionId = sessionIdElement.GetString();
+            Assert.NotNull(sessionId);
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                ExcelFileTool.ExcelFile(
+                    FileAction.Close,
+                    path: null,
+                    session_id: sessionId,
+                    save: false,
+                    show: false,
+                    timeout_seconds: 300);
+            }
+
             if (File.Exists(tempPath))
             {
                 File.Delete(tempPath);

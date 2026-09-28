@@ -14,13 +14,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// - Instead of once per test class (6 classes × ~1.5 min = ~9 min setup)
 /// - Saves ~7.5 minutes of test execution time
 /// </summary>
-[CollectionDefinition("DataModel")]
+[CollectionDefinition("DataModel", DisableParallelization = true)]
 public class DataModelTestsDefinition : ICollectionFixture<DataModelPivotTableFixture>
 {
     // This class has no code - it's just a marker for xUnit
     // to associate the collection name with the fixture type
 }
-
 
 
 

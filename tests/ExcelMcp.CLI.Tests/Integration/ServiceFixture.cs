@@ -57,5 +57,5 @@ public sealed class ServiceFixture : IAsyncLifetime, IDisposable
 /// Collection definition for tests that require the ExcelMCP service.
 /// Apply [Collection("Service")] to test classes that call excelcli commands.
 /// </summary>
-[CollectionDefinition("Service")]
+[CollectionDefinition("Service", DisableParallelization = true)]
 public sealed class ServiceTestGroup : ICollectionFixture<ServiceFixture>;

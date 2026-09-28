@@ -1,365 +1,128 @@
-using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
-using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 
+/// <summary>
+/// Real CLI argument, output, and exit-code coverage for range formatting.
+/// Formatting behavior and persistence are covered by Service tests.
+/// </summary>
 [Collection("Service")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "CLI")]
 [Trait("Layer", "CLI")]
 [Trait("RequiresExcel", "true")]
-public sealed class RangeFormatIssue585CliParityTests : IDisposable
+public sealed class RangeFormatIssue585CliParityTests(
+    CliWorkbookSessionFixture fixture,
+    ITestOutputHelper output)
+    : IClassFixture<CliWorkbookSessionFixture>
 {
-    private const int IssueFillColor = 7949855;
-    private const int WhiteFontColor = 16777215;
-
-    private readonly ITestOutputHelper _output;
-    private readonly string _testFile;
-
-    public RangeFormatIssue585CliParityTests(ITestOutputHelper output)
-    {
-        _output = output;
-        _testFile = Path.Combine(Path.GetTempPath(), $"RangeFormatIssue585Cli_{Guid.NewGuid():N}.xlsx");
-    }
+    private readonly CliWorkbookSessionFixture _fixture = fixture;
+    private readonly ITestOutputHelper _output = output;
 
     [Fact]
     public async Task FormatRanges_NumberFormat_RoundTripsInvariantCodeViaCli()
     {
-        var (created, createJson) = await CliProcessHelper.RunJsonAsync(
-            ["session", "create", _testFile], timeoutMs: 60000);
-        Assert.Equal(0, created.ExitCode);
-        var sessionId = createJson.RootElement.GetProperty("sessionId").GetString()!;
+        var sessionId = _fixture.SessionId;
+        var sheetName = await CreateSheetAsync(sessionId);
+
         try
         {
             var (formatted, formatJson) = await CliProcessHelper.RunJsonAsync(
                 ["rangeformat", "format-ranges", "--session", sessionId,
-                 "--sheet-name", "Sheet1", "--range-addresses", "A1:A2", "--number-format", "0.00%"],
+                 "--sheet-name", sheetName, "--range-addresses", "A1:A2",
+                 "--number-format", "0.00%"],
                 timeoutMs: 60000);
-            Assert.True(formatted.ExitCode == 0, formatted.Stdout + formatted.Stderr);
+            Assert.True(
+                formatted.ExitCode == 0,
+                formatted.Stdout + formatted.Stderr);
             Assert.True(formatJson.RootElement.GetProperty("success").GetBoolean());
 
             var (read, readJson) = await CliProcessHelper.RunJsonAsync(
                 ["range", "get-number-formats", "--session", sessionId,
-                 "--sheet-name", "Sheet1", "--range-address", "A1:A2"],
+                 "--sheet-name", sheetName, "--range-address", "A1:A2"],
                 timeoutMs: 60000);
             Assert.Equal(0, read.ExitCode);
             Assert.True(readJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.All(readJson.RootElement.GetProperty("formats").EnumerateArray(),
-                row => Assert.Equal("0.00%", row[0].GetString()));
+            var formats = readJson.RootElement.GetProperty("formats");
+            Assert.Equal(2, formats.GetArrayLength());
+            foreach (var row in formats.EnumerateArray())
+            {
+                Assert.Equal(1, row.GetArrayLength());
+                Assert.Equal("0.00%", row[0].GetString());
+            }
         }
         finally
         {
-            var closed = await CliProcessHelper.RunAsync(
-                ["session", "close", "--session", sessionId, "--save", "false"], timeoutMs: 60000);
-            Assert.Equal(0, closed.ExitCode);
+            await DeleteSheetAsync(sessionId, sheetName);
         }
     }
 
     [Fact]
-    public async Task RangeFormat_FormatRange_Issue585Payload_SucceedsViaCli()
+    public async Task FormatRange_InvalidColor_ReturnsTransparentFailureEnvelopeViaCli()
     {
-        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
-            $"session create \"{_testFile}\"",
-            timeoutMs: 60000,
-            diagnosticLabel: "session create for rangeformat parity");
-        Assert.Equal(0, openResult.ExitCode);
-
-        var sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+        var sessionId = _fixture.SessionId;
+        var sheetName = await CreateSheetAsync(sessionId);
 
         try
         {
-            var createSheetResult = await CliProcessHelper.RunAsync(
-                $"sheet create --session {sessionId} --sheet-name \"Toutes les transactions\"",
-                timeoutMs: 60000,
-                diagnosticLabel: "sheet create for rangeformat parity");
-            Assert.Equal(0, createSheetResult.ExitCode);
+            var (result, json) = await CliProcessHelper.RunJsonAsync(
+                ["rangeformat", "format-range", "--session", sessionId,
+                 "--sheet-name", sheetName, "--range-address", "A1:J1",
+                 "--fill-color", "not-a-color"],
+                timeoutMs: 60000);
 
-            var formatResult = await CliProcessHelper.RunAsync(
-                $"rangeformat format-range --session {sessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --bold true --fill-color \"#1F4E79\" --font-color \"#FFFFFF\"",
-                timeoutMs: 60000,
-                diagnosticLabel: "rangeformat format-range issue585 payload");
+            _output.WriteLine($"CLI stdout: {result.Stdout}");
+            _output.WriteLine($"CLI stderr: {result.Stderr}");
+            Assert.Equal(1, result.ExitCode);
 
-            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
-            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
-
-            Assert.Equal(0, formatResult.ExitCode);
-
-            using var formatJson = JsonDocument.Parse(formatResult.Stdout);
-            Assert.True(formatJson.RootElement.GetProperty("success").GetBoolean(), "CLI rangeformat should succeed for the issue #585 payload.");
+            var root = json.RootElement;
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.Equal(
+                "ArgumentException",
+                root.GetProperty("exceptionType").GetString());
+            Assert.Equal(
+                "InvalidInput",
+                root.GetProperty("errorCategory").GetString());
+            Assert.Equal(
+                "rangeformat.format-range",
+                root.GetProperty("command").GetString());
+            Assert.Equal(
+                sessionId,
+                root.GetProperty("sessionId").GetString());
+            Assert.Contains(
+                "Invalid color format: not-a-color",
+                root.GetProperty("errorMessage").GetString(),
+                StringComparison.Ordinal);
         }
         finally
         {
-            await CliProcessHelper.RunAsync(
-                $"session close --session {sessionId} --save true",
-                timeoutMs: 60000,
-                diagnosticLabel: "session close for rangeformat parity");
-        }
-
-        using var batch = ExcelSession.BeginBatch(_testFile);
-        var a1 = ReadCellFormatting(batch, "Toutes les transactions", "A1");
-        var j1 = ReadCellFormatting(batch, "Toutes les transactions", "J1");
-
-        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), a1);
-        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), j1);
-    }
-
-    [Fact]
-    public async Task RangeFormat_FormatRange_Issue585Payload_SucceedsViaCli_AfterReopeningWorkbook()
-    {
-        var (createResult, createJson) = await CliProcessHelper.RunJsonAsync(
-            $"session create \"{_testFile}\"",
-            timeoutMs: 60000,
-            diagnosticLabel: "session create for reopened rangeformat parity");
-        Assert.Equal(0, createResult.ExitCode);
-
-        var initialSessionId = createJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(initialSessionId));
-
-        try
-        {
-            var createSheetResult = await CliProcessHelper.RunAsync(
-                $"sheet create --session {initialSessionId} --sheet-name \"Toutes les transactions\"",
-                timeoutMs: 60000,
-                diagnosticLabel: "sheet create before reopened rangeformat parity");
-            Assert.Equal(0, createSheetResult.ExitCode);
-        }
-        finally
-        {
-            await CliProcessHelper.RunAsync(
-                $"session close --session {initialSessionId} --save true",
-                timeoutMs: 60000,
-                diagnosticLabel: "session close before reopened rangeformat parity");
-        }
-
-        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
-            $"session open \"{_testFile}\"",
-            timeoutMs: 60000,
-            diagnosticLabel: "session open for reopened rangeformat parity");
-        Assert.Equal(0, openResult.ExitCode);
-
-        var reopenedSessionId = openJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(reopenedSessionId));
-
-        try
-        {
-            var formatResult = await CliProcessHelper.RunAsync(
-                $"rangeformat format-range --session {reopenedSessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --bold true --fill-color \"#1F4E79\" --font-color \"#FFFFFF\"",
-                timeoutMs: 60000,
-                diagnosticLabel: "reopened rangeformat format-range issue585 payload");
-
-            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
-            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
-
-            Assert.Equal(0, formatResult.ExitCode);
-
-            using var formatJson = JsonDocument.Parse(formatResult.Stdout);
-            Assert.True(formatJson.RootElement.GetProperty("success").GetBoolean(), "CLI rangeformat should succeed for the issue #585 payload after reopening.");
-        }
-        finally
-        {
-            await CliProcessHelper.RunAsync(
-                $"session close --session {reopenedSessionId} --save true",
-                timeoutMs: 60000,
-                diagnosticLabel: "session close after reopened rangeformat parity");
-        }
-
-        using var batch = ExcelSession.BeginBatch(_testFile);
-        var a1 = ReadCellFormatting(batch, "Toutes les transactions", "A1");
-        var j1 = ReadCellFormatting(batch, "Toutes les transactions", "J1");
-
-        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), a1);
-        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), j1);
-    }
-
-    [Fact]
-    public async Task RangeFormat_FormatRange_InvalidColor_ReturnsTransparentFailureEnvelopeViaCli()
-    {
-        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
-            $"session create \"{_testFile}\"",
-            timeoutMs: 60000,
-            diagnosticLabel: "session create for rangeformat diagnostics");
-        Assert.Equal(0, openResult.ExitCode);
-
-        var sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(sessionId));
-
-        try
-        {
-            var createSheetResult = await CliProcessHelper.RunAsync(
-                $"sheet create --session {sessionId} --sheet-name \"Toutes les transactions\"",
-                timeoutMs: 60000,
-                diagnosticLabel: "sheet create for rangeformat diagnostics");
-            Assert.Equal(0, createSheetResult.ExitCode);
-
-            var (formatResult, formatJson) = await CliProcessHelper.RunJsonAsync(
-                $"rangeformat format-range --session {sessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --fill-color not-a-color",
-                timeoutMs: 60000,
-                diagnosticLabel: "rangeformat invalid-color diagnostics");
-
-            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
-            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
-
-            Assert.Equal(1, formatResult.ExitCode);
-            AssertFailureEnvelope(
-                formatJson.RootElement,
-                "CLI rangeformat invalid-color",
-                expectedExceptionType: "ArgumentException",
-                expectedErrorCategory: "InvalidInput",
-                expectedCommand: "rangeformat.format-range",
-                expectedSessionId: sessionId);
-
-            var errorMessage = formatJson.RootElement.GetProperty("errorMessage").GetString();
-            Assert.Contains("Invalid color format: not-a-color", errorMessage, StringComparison.Ordinal);
-        }
-        finally
-        {
-            await CliProcessHelper.RunAsync(
-                $"session close --session {sessionId} --save false",
-                timeoutMs: 60000,
-                diagnosticLabel: "session close for rangeformat diagnostics");
+            await DeleteSheetAsync(sessionId, sheetName);
         }
     }
 
-    [Fact]
-    public async Task RangeFormat_FormatRange_Issue585Payload_OnMissingSheet_ReturnsTransparentFailure()
+    private static async Task<string> CreateSheetAsync(string sessionId)
     {
-        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
-            $"session create \"{_testFile}\"",
-            timeoutMs: 60000,
-            diagnosticLabel: "session create for rangeformat failure parity");
-        Assert.Equal(0, openResult.ExitCode);
-
-        var sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(sessionId));
-
-        try
-        {
-            var formatResult = await CliProcessHelper.RunAsync(
-                $"rangeformat format-range --session {sessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --bold true --fill-color \"#1F4E79\" --font-color \"#FFFFFF\"",
-                timeoutMs: 60000,
-                diagnosticLabel: "rangeformat format-range issue585 failure payload");
-
-            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
-            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
-
-            Assert.Equal(1, formatResult.ExitCode);
-
-            using var formatJson = JsonDocument.Parse(formatResult.Stdout);
-            AssertFailureEnvelope(
-                formatJson.RootElement,
-                "CLI rangeformat missing-sheet",
-                expectedExceptionType: "COMException",
-                expectedErrorCategory: "ComInterop",
-                expectedCommand: "rangeformat.format-range",
-                expectedSessionId: sessionId);
-
-            Assert.True(formatJson.RootElement.TryGetProperty("hresult", out var hresult));
-            Assert.False(string.IsNullOrWhiteSpace(hresult.GetString()));
-
-            var errorMessage = formatJson.RootElement.GetProperty("errorMessage").GetString();
-            Assert.NotNull(errorMessage);
-            Assert.Contains("COMException", errorMessage, StringComparison.Ordinal);
-            Assert.Contains("Invalid index", errorMessage, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            await CliProcessHelper.RunAsync(
-                $"session close --session {sessionId} --save false",
-                timeoutMs: 60000,
-                diagnosticLabel: "session close for rangeformat failure parity");
-        }
+        var sheetName = $"CliFmt_{Guid.NewGuid():N}"[..22];
+        var result = await CliProcessHelper.RunAsync(
+            ["sheet", "create", "--session", sessionId, "--sheet-name", sheetName],
+            timeoutMs: 60000);
+        Assert.True(
+            result.ExitCode == 0,
+            $"CLI sheet creation failed: {result.Stdout}{result.Stderr}");
+        return sheetName;
     }
 
-    public void Dispose()
+    private static async Task DeleteSheetAsync(
+        string sessionId,
+        string sheetName)
     {
-        if (File.Exists(_testFile))
-        {
-            try
-            {
-                File.Delete(_testFile);
-            }
-            catch
-            {
-            }
-        }
-
-        GC.SuppressFinalize(this);
-    }
-
-    private static CellFormattingState ReadCellFormatting(IExcelBatch batch, string sheetName, string cellAddress)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? font = null;
-            dynamic? interior = null;
-
-            try
-            {
-                sheet = ctx.Book.Worksheets[sheetName];
-                range = sheet.Range[cellAddress];
-                font = range.Font;
-                interior = range.Interior;
-
-                return new CellFormattingState(
-                    Bold: Convert.ToBoolean(font.Bold),
-                    FillColor: interior.Color == null ? null : Convert.ToInt32(interior.Color),
-                    FontColor: font.Color == null ? null : Convert.ToInt32(font.Color));
-            }
-            finally
-            {
-                ComUtilities.Release(ref interior!);
-                ComUtilities.Release(ref font!);
-                ComUtilities.Release(ref range!);
-                ComUtilities.Release(ref sheet!);
-            }
-        });
-    }
-
-    private sealed record CellFormattingState(bool Bold, int? FillColor, int? FontColor);
-
-    private static void AssertFailureEnvelope(
-        JsonElement root,
-        string operationName,
-        string expectedExceptionType,
-        string? expectedErrorCategory = null,
-        string? expectedCommand = null,
-        string? expectedSessionId = null)
-    {
-        Assert.False(root.GetProperty("success").GetBoolean(), $"{operationName} unexpectedly succeeded.");
-        Assert.True(root.GetProperty("isError").GetBoolean(), $"{operationName} should return isError=true.");
-        Assert.Equal(expectedExceptionType, root.GetProperty("exceptionType").GetString());
-
-        var error = root.GetProperty("error").GetString();
-        var errorMessage = root.GetProperty("errorMessage").GetString();
-
-        Assert.False(string.IsNullOrWhiteSpace(errorMessage), $"{operationName} should return errorMessage.");
-        Assert.Equal(errorMessage, error);
-        Assert.False(root.TryGetProperty("innerError", out _), $"{operationName} should not include innerError for these failures.");
-        AssertOptionalStringProperty(root, "errorCategory", expectedErrorCategory, operationName);
-        AssertOptionalStringProperty(root, "command", expectedCommand, operationName);
-        AssertOptionalStringProperty(root, "sessionId", expectedSessionId, operationName);
-    }
-
-    private static void AssertOptionalStringProperty(
-        JsonElement root,
-        string propertyName,
-        string? expectedValue,
-        string operationName)
-    {
-        if (expectedValue == null)
-        {
-            Assert.False(root.TryGetProperty(propertyName, out _), $"{operationName} should not include {propertyName}.");
-            return;
-        }
-
-        Assert.True(root.TryGetProperty(propertyName, out var property), $"{operationName} should include {propertyName}.");
-        Assert.Equal(expectedValue, property.GetString());
+        var result = await CliProcessHelper.RunAsync(
+            ["sheet", "delete", "--session", sessionId, "--sheet-name", sheetName],
+            timeoutMs: 60000);
+        Assert.True(
+            result.ExitCode == 0,
+            $"CLI sheet cleanup failed: {result.Stdout}{result.Stderr}");
     }
 }

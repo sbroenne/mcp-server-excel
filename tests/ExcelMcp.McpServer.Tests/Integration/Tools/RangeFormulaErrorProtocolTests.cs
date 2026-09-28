@@ -1,68 +1,75 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Range")]
-[Trait("RequiresExcel", "true")]
-public sealed class RangeFormulaErrorProtocolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class RangeFormulaErrorProtocolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    private static readonly string[][] ReferenceErrorFormula = [["=INDIRECT(\"A0\")"]];
-
-    private readonly string _testExcelFile;
-    private string? _sessionId;
-
-    public RangeFormulaErrorProtocolTests(ITestOutputHelper output)
-        : base(output, "RangeFormulaErrorClient")
-    {
-        _testExcelFile = Path.Join(
-            CreateTempDirectory("RangeFormulaErrorProtocol"),
-            "RangeFormulaError.xlsx");
-    }
-
-    protected override async Task InitializeTestAsync()
-    {
-        _sessionId = await CreateWorkbookSessionAsync(_testExcelFile);
-    }
+    private const string SessionId = "recording-session";
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task RangeReads_ReturnCanonicalFormulaErrorThroughMcp()
     {
-        var setJson = await CallToolAsync("range", new Dictionary<string, object?>
-        {
-            ["action"] = "set-formulas",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "Sheet1",
-            ["range_address"] = "A1",
-            ["formulas"] = ReferenceErrorFormula
-        });
-        AssertSetupSuccess(setJson, "range.set-formulas");
+        const string responseJson = """
+            {
+              "success": true,
+              "values": [["#REF!"]],
+              "cellErrors": [{
+                "cellAddress": "A1",
+                "errorName": "#REF!",
+                "formula": "=INDIRECT(\"A0\")",
+                "errorCode": -2146826265,
+                "currentValue": -2146826265
+              }]
+            }
+            """;
 
-        var valuesJson = await CallToolAsync("range", new Dictionary<string, object?>
+        var valuesCall = await _fixture.CallToolAsync(
+            "range",
+            RangeReadArguments("get-values"),
+            RecordingToolTest.Success(responseJson),
+            "range.get-values",
+            """{"sheetName":"Sheet1","rangeAddress":"A1"}""");
+        AssertReadRequest(valuesCall.Request, "range.get-values");
+        AssertCanonicalReferenceError(valuesCall.JsonResult);
+
+        var formulasCall = await _fixture.CallToolAsync(
+            "range",
+            RangeReadArguments("get-formulas"),
+            RecordingToolTest.Success(responseJson),
+            "range.get-formulas",
+            """{"sheetName":"Sheet1","rangeAddress":"A1"}""");
+        AssertReadRequest(formulasCall.Request, "range.get-formulas");
+        AssertCanonicalReferenceError(formulasCall.JsonResult);
+    }
+
+    private static Dictionary<string, object?> RangeReadArguments(
+        string action) => new()
         {
-            ["action"] = "get-values",
-            ["session_id"] = _sessionId,
+            ["action"] = action,
+            ["session_id"] = SessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
-        });
-        var formulasJson = await CallToolAsync("range", new Dictionary<string, object?>
-        {
-            ["action"] = "get-formulas",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "Sheet1",
-            ["range_address"] = "A1"
-        });
+        };
 
-        AssertCanonicalReferenceError(valuesJson);
-        AssertCanonicalReferenceError(formulasJson);
-
-        await CloseSessionAsync(_sessionId, save: false);
-        _sessionId = null;
+    private static void AssertReadRequest(
+        Sbroenne.ExcelMcp.Service.ServiceRequest request,
+        string command)
+    {
+        using var args = RecordingToolTest.ParseArgs(
+            request,
+            command,
+            SessionId);
+        Assert.Equal("Sheet1", args.RootElement.GetProperty("sheetName").GetString());
+        Assert.Equal("A1", args.RootElement.GetProperty("rangeAddress").GetString());
     }
 
     private static void AssertCanonicalReferenceError(string json)

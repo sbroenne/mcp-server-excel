@@ -12,6 +12,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Speed", "Fast")]
 [Trait("Layer", "ComInterop")]
+[Trait("RequiresExcel", "false")]
 public class ExcelContextTests
 {
     [Fact]
@@ -101,7 +102,6 @@ public class ExcelContextTests
             new ExcelContext(null!, null!, null!));
     }
 }
-
 
 
 

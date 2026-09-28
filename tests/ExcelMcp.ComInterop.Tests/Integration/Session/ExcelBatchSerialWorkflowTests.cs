@@ -35,6 +35,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "ExcelBatch")]
 [Trait("RunType", "OnDemand")]
 [Collection("Sequential")]
+[Trait("RequiresExcel", "true")]
 public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;

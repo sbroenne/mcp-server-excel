@@ -15,6 +15,8 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "StreamJsonRpc")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class StreamJsonRpcTests : IDisposable
 {
     private readonly ExcelMcpService _service = new();

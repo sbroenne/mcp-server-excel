@@ -12,6 +12,8 @@ bld/
 [Bb]in/
 !.github/plugins/**/bin/
 !.github/plugins/**/bin/**
+!npm-packages/*/bin/
+!npm-packages/*/bin/**
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/

@@ -8,6 +8,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "StdinPipeMonitor")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class StdinPipeMonitorTests
 {
     [DllImport("kernel32.dll", SetLastError = true)]

@@ -19,6 +19,7 @@ namespace Sbroenne.ExcelMcp.Diagnostics.Tests.Diagnostics;
 [Trait("Category", "Integration")]
 [Trait("Layer", "Diagnostics")]
 [Trait("Speed", "Slow")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("RunType", "OnDemand")]
 public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture>, IDisposable

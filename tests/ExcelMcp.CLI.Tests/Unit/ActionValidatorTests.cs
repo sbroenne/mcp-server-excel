@@ -12,6 +12,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Feature", "ActionValidation")]
 [Trait("Speed", "Fast")]
 [Collection("ConsoleOutput")]
+[Trait("RequiresExcel", "false")]
 public sealed class ActionValidatorTests
 {
     public static IEnumerable<object[]> ActionEnumTypes =>

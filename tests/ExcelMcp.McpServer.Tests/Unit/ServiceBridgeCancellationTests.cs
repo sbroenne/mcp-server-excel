@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ServiceBridge")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public sealed class ServiceBridgeCancellationTests : IDisposable
 {
     public void Dispose()

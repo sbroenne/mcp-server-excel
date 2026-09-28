@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>$(NoWarn);CS1591;CA1707;CA1716</NoWarn>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Sbroenne.ExcelMcp.Service.Tests</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Service.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExcelMcp.Service\ExcelMcp.Service.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\TestRunExcelLifetime.cs" Link="Infrastructure\TestRunExcelLifetime.cs" />
+    <Compile Include="..\Shared\ExcelLifetimeTestFramework.cs" Link="Infrastructure\ExcelLifetimeTestFramework.cs" />
+    <Compile Include="..\Shared\SavedWorkbookTemplate.cs" Link="Infrastructure\SavedWorkbookTemplate.cs" />
+    <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Infrastructure\OleDataSpaceTestFile.cs" />
+    <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Infrastructure\ConfiguredIrmFactAttribute.cs" />
+    <Compile Include="..\ExcelMcp.Core.Tests\Helpers\AceOleDbTestHelper.cs" Link="Infrastructure\AceOleDbTestHelper.cs" />
+    <Compile Include="..\ExcelMcp.Core.Tests\Helpers\DataModelPivotTableFixture.cs" Link="Infrastructure\DataModelPivotTableFixture.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\ExcelMcp.ComInterop.Tests\Integration\Session\TestFiles\batch-test-static.xlsx"
+          Link="TestFiles\batch-test-static.xlsx"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

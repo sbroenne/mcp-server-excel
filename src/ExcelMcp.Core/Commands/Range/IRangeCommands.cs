@@ -17,6 +17,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// DATA FORMAT: values and formulas are 2D JSON arrays representing rows and columns.
 /// Example: [[row1col1, row1col2], [row2col1, row2col2]]
 /// Single cell returns [[value]] (always 2D).
+/// Strict ISO dates such as "2025-01-15" are stored as native Excel dates.
+/// Prefix the value with an apostrophe when an ISO-looking value must remain text.
 ///
 /// REQUIRED PARAMETERS:
 /// - sheetName + rangeAddress for cell operations (e.g., sheetName='Sheet1', rangeAddress='A1:D10')
@@ -28,7 +30,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
@@ -44,7 +46,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
     [ServiceAction("get-values")]
-    RangeValueResult GetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    RangeValueResult GetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Sets values in a range from 2D array or file.
@@ -53,14 +55,16 @@ public interface IRangeCommands
     /// CSV file: rows become array rows, comma-separated values become columns.
     /// Every row must be rectangular and match the target range column count.
     /// Writes that intersect merged cells fail unless the target is only the merged range's top-left cell.
+    /// Strict ISO dates such as "2025-01-15" are stored as native Excel dates.
+    /// Prefix an ISO-looking value with an apostrophe to preserve it as text.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address matching data dimensions (e.g., 'A1' for [[value]], 'A1:B2' for [[v1,v2],[v3,v4]])</param>
-    /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Optional if valuesFile is provided.</param>
+    /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Strict ISO dates such as "2025-01-15" become native Excel dates. Optional if valuesFile is provided.</param>
     /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
     [ServiceAction("set-values")]
-    OperationResult SetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null);
+    OperationResult SetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null);
 
     // === FORMULA OPERATIONS ===
 
@@ -75,7 +79,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name</param>
     [ServiceAction("get-formulas")]
-    RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    RangeFormulaResult GetFormulas(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Sets formulas in a range from 2D array or file.
@@ -124,7 +128,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
     [ServiceAction("clear-contents")]
-    OperationResult ClearContents(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    OperationResult ClearContents(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Clears only formatting (preserves values and formulas).
@@ -308,5 +312,3 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
-
-

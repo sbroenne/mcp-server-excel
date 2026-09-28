@@ -1,212 +1,201 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-/// <summary>
-/// Black-box MCP coverage for local collaboration, QueryTable import, and refresh-control actions.
-/// </summary>
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "CollaborationImport")]
-[Trait("RequiresExcel", "true")]
-public sealed class CollaborationImportToolTests(ITestOutputHelper output)
-    : McpIntegrationTestBase(output, "CollaborationImportClient")
+[Trait("RequiresExcel", "false")]
+public sealed class CollaborationImportToolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    private static readonly TimeSpan ToolTimeout = TimeSpan.FromSeconds(90);
+    private const string SessionId = "recording-session";
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task ThreadedComments_AllActionsMetadataValidationAndCleanup_ViaMcp()
     {
-        var tempDirectory = CreateTempDirectory("McpThreadedComments");
-        var workbookPath = Path.Join(tempDirectory, "ThreadedComments.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await CreateWorksheetAsync(sessionId, "Review");
+        await AssertSuccessAsync("range_link", CommentArgs(
+            "add-threaded-comment",
+            "Review this value"), "rangelink.add-threaded-comment",
+            """{"sheetName":"Review","cellAddress":"B2","text":"Review this value"}""");
 
-        var addJson = await CallToolAsync("range_link", new Dictionary<string, object?>
-        {
-            ["action"] = "add-threaded-comment",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Review",
-            ["cell_address"] = "B2",
-            ["text"] = "Review this value"
-        }, ToolTimeout);
-        AssertSuccess(addJson, "range_link.add-threaded-comment");
+        var duplicate = await _fixture.CallToolAsync(
+            "range_link",
+            CommentArgs("add-threaded-comment", "Duplicate"),
+            Failure(
+                "rangelink.add-threaded-comment",
+                "A threaded comment already exists at B2."),
+            "rangelink.add-threaded-comment",
+            """{"sheetName":"Review","cellAddress":"B2","text":"Duplicate"}""");
+        AssertRequest(duplicate.Request, "rangelink.add-threaded-comment");
+        AssertFailure(duplicate.JsonResult);
 
-        var duplicateJson = await CallToolAsync("range_link", new Dictionary<string, object?>
-        {
-            ["action"] = "add-threaded-comment",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Review",
-            ["cell_address"] = "B2",
-            ["text"] = "Duplicate"
-        }, ToolTimeout);
-        AssertFailure(duplicateJson, "range_link.add-threaded-comment duplicate");
+        await AssertSuccessAsync("range_link", CommentArgs(
+            "add-threaded-comment-reply",
+            "Reviewed"), "rangelink.add-threaded-comment-reply",
+            """{"sheetName":"Review","cellAddress":"B2","text":"Reviewed"}""");
 
-        var replyJson = await CallToolAsync("range_link", new Dictionary<string, object?>
+        var listJson = await CallAsync(
+            "range_link",
+            new()
+            {
+                ["action"] = "list-threaded-comments",
+                ["session_id"] = SessionId,
+                ["sheet_name"] = "Review",
+                ["cell_address"] = "B2"
+            },
+            "rangelink.list-threaded-comments",
+            """{"sheetName":"Review","cellAddress":"B2"}""",
+            """
+            {
+              "success": true,
+              "comments": [{
+                "cellAddress": "B2",
+                "text": "Review this value",
+                "authorName": "Test Author",
+                "replies": [{"text":"Reviewed","authorName":"Test Author"}]
+              }]
+            }
+            """);
+        using (var list = JsonDocument.Parse(listJson))
         {
-            ["action"] = "add-threaded-comment-reply",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Review",
-            ["cell_address"] = "B2",
-            ["text"] = "Reviewed"
-        }, ToolTimeout);
-        AssertSuccess(replyJson, "range_link.add-threaded-comment-reply");
-
-        var listJson = await CallToolAsync("range_link", new Dictionary<string, object?>
-        {
-            ["action"] = "list-threaded-comments",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Review",
-            ["cell_address"] = "B2"
-        }, ToolTimeout);
-        AssertSuccess(listJson, "range_link.list-threaded-comments");
-        using (var listDocument = JsonDocument.Parse(listJson))
-        {
-            var comment = Assert.Single(listDocument.RootElement.GetProperty("comments").EnumerateArray());
+            var comment = Assert.Single(
+                list.RootElement.GetProperty("comments").EnumerateArray());
             Assert.Equal("B2", comment.GetProperty("cellAddress").GetString());
-            Assert.Equal("Review this value", comment.GetProperty("text").GetString());
-            Assert.False(string.IsNullOrWhiteSpace(comment.GetProperty("authorName").GetString()));
-            var reply = Assert.Single(comment.GetProperty("replies").EnumerateArray());
+            Assert.Equal(
+                "Review this value",
+                comment.GetProperty("text").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(
+                comment.GetProperty("authorName").GetString()));
+            var reply = Assert.Single(
+                comment.GetProperty("replies").EnumerateArray());
             Assert.Equal("Reviewed", reply.GetProperty("text").GetString());
-            Assert.False(string.IsNullOrWhiteSpace(reply.GetProperty("authorName").GetString()));
         }
 
-        var deleteJson = await CallToolAsync("range_link", new Dictionary<string, object?>
+        await AssertSuccessAsync("range_link", new()
         {
             ["action"] = "delete-threaded-comment",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["sheet_name"] = "Review",
             ["cell_address"] = "B2"
-        }, ToolTimeout);
-        AssertSuccess(deleteJson, "range_link.delete-threaded-comment");
-
-        var finalListJson = await CallToolAsync("range_link", new Dictionary<string, object?>
-        {
-            ["action"] = "list-threaded-comments",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Review",
-            ["cell_address"] = "B2"
-        }, ToolTimeout);
-        AssertSuccess(finalListJson, "range_link.list-threaded-comments after delete");
-        using var finalListDocument = JsonDocument.Parse(finalListJson);
-        Assert.Empty(finalListDocument.RootElement.GetProperty("comments").EnumerateArray());
+        }, "rangelink.delete-threaded-comment",
+        """{"sheetName":"Review","cellAddress":"B2"}""");
     }
 
     [Fact]
     public async Task QueryTable_AllActionsLifecycleMetadataValidationAndCleanup_ViaMcp()
     {
-        var tempDirectory = CreateTempDirectory("McpQueryTable");
-        var workbookPath = Path.Join(tempDirectory, "QueryTables.xlsx");
-        var csvPath = Path.Join(
-            tempDirectory,
-            "orders;User ID=review-user-id;Password={review-secret;credential-tail};UID=review-uid;PWD=review-pwd.csv");
-        var htmlPath = Path.Join(tempDirectory, "rates.html");
-        await File.WriteAllTextAsync(csvPath, "Name,Value\nCafé,10\nBeta,20\n");
-        await File.WriteAllTextAsync(
-            htmlPath,
-            "<html><body><table><tr><th>Name</th><th>Value</th></tr><tr><td>Alpha</td><td>10</td></tr></table></body></html>");
+        const string sourcePath = @"C:\adapter\orders.csv";
+        var invalid = await _fixture.CallToolAsync(
+            "querytable",
+            QueryTableCreateTextArgs(sourcePath, ",,"),
+            Failure(
+                "querytable.create-text",
+                "delimiter must be a single character."),
+            "querytable.create-text",
+            """{"queryTableName":"CsvImport","sourcePath":"C:\\adapter\\orders.csv","sheetName":"Imports","destinationAddress":"B2","delimiter":",,","textQualifier":"double-quote","encoding":65001,"hasHeaders":true}""");
+        AssertRequest(invalid.Request, "querytable.create-text");
+        AssertFailure(invalid.JsonResult);
 
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await CreateWorksheetAsync(sessionId, "Imports");
+        await AssertSuccessAsync(
+            "querytable",
+            QueryTableCreateTextArgs(sourcePath, ","),
+            "querytable.create-text",
+            """{"queryTableName":"CsvImport","sourcePath":"C:\\adapter\\orders.csv","sheetName":"Imports","destinationAddress":"B2","delimiter":",","textQualifier":"double-quote","encoding":65001,"hasHeaders":true}""",
+            args =>
+            {
+                Assert.Equal(sourcePath, args.GetProperty("sourcePath").GetString());
+                Assert.Equal(",", args.GetProperty("delimiter").GetString());
+                Assert.Equal(
+                    "double-quote",
+                    args.GetProperty("textQualifier").GetString());
+                Assert.Equal(65001, args.GetProperty("encoding").GetInt32());
+                Assert.True(args.GetProperty("hasHeaders").GetBoolean());
+            });
 
-        var invalidCreateJson = await CallToolAsync("querytable", new Dictionary<string, object?>
+        var listJson = await CallAsync(
+            "querytable",
+            new()
+            {
+                ["action"] = "list",
+                ["session_id"] = SessionId
+            },
+            "querytable.list",
+            null,
+            """
+            {
+              "success": true,
+              "queryTables": [{
+                "name": "CsvImport",
+                "sheetName": "Imports",
+                "destination": "B2",
+                "sourceType": "text"
+              }]
+            }
+            """);
+        using (var list = JsonDocument.Parse(listJson))
         {
-            ["action"] = "create-text",
-            ["session_id"] = sessionId,
-            ["query_table_name"] = "InvalidImport",
-            ["source_path"] = csvPath,
-            ["sheet_name"] = "Imports",
-            ["destination_address"] = "A1",
-            ["delimiter"] = ",,"
-        }, ToolTimeout);
-        AssertFailure(invalidCreateJson, "querytable.create-text invalid delimiter");
-
-        var createTextJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "create-text",
-            ["session_id"] = sessionId,
-            ["query_table_name"] = "CsvImport",
-            ["source_path"] = csvPath,
-            ["sheet_name"] = "Imports",
-            ["destination_address"] = "B2",
-            ["delimiter"] = ",",
-            ["text_qualifier"] = "double-quote",
-            ["encoding"] = 65001,
-            ["has_headers"] = true
-        }, ToolTimeout);
-        AssertSuccess(createTextJson, "querytable.create-text");
-
-        var listJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        }, ToolTimeout);
-        AssertSuccess(listJson, "querytable.list");
-        using (var listDocument = JsonDocument.Parse(listJson))
-        {
-            var item = Assert.Single(listDocument.RootElement.GetProperty("queryTables").EnumerateArray());
+            var item = Assert.Single(
+                list.RootElement.GetProperty("queryTables").EnumerateArray());
             Assert.Equal("CsvImport", item.GetProperty("name").GetString());
             Assert.Equal("Imports", item.GetProperty("sheetName").GetString());
             Assert.Equal("B2", item.GetProperty("destination").GetString());
             Assert.Equal("text", item.GetProperty("sourceType").GetString());
         }
 
-        var viewJson = await CallToolAsync("querytable", new Dictionary<string, object?>
+        var viewJson = await CallAsync(
+            "querytable",
+            QueryTableIdentityArgs("view", "CsvImport"),
+            "querytable.view",
+            """{"sheetName":"Imports","queryTableName":"CsvImport"}""",
+            """
+            {
+              "success": true,
+              "delimiter": ",",
+              "encoding": 65001,
+              "sourceType": "text",
+              "connection": "TEXT;(redacted)"
+            }
+            """);
+        using (var view = JsonDocument.Parse(viewJson))
         {
-            ["action"] = "view",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "CsvImport"
-        }, ToolTimeout);
-        AssertSuccess(viewJson, "querytable.view text");
-        using (var viewDocument = JsonDocument.Parse(viewJson))
-        {
-            var root = viewDocument.RootElement;
+            var root = view.RootElement;
             Assert.Equal(",", root.GetProperty("delimiter").GetString());
-            Assert.True(root.GetProperty("encoding").GetInt32() > 0);
+            Assert.Equal(65001, root.GetProperty("encoding").GetInt32());
             Assert.Equal("text", root.GetProperty("sourceType").GetString());
-            var connection = root.GetProperty("connection").GetString();
-            Assert.DoesNotContain("review-user-id", connection, StringComparison.Ordinal);
-            Assert.DoesNotContain("review-secret", connection, StringComparison.Ordinal);
-            Assert.DoesNotContain("credential-tail", connection, StringComparison.Ordinal);
-            Assert.DoesNotContain("review-uid", connection, StringComparison.Ordinal);
-            Assert.DoesNotContain("review-pwd", connection, StringComparison.Ordinal);
-            Assert.Contains("(redacted)", connection, StringComparison.Ordinal);
+            Assert.Contains(
+                "(redacted)",
+                root.GetProperty("connection").GetString(),
+                StringComparison.Ordinal);
         }
 
-        var importedValuesJson = await CallToolAsync("range", new Dictionary<string, object?>
-        {
-            ["action"] = "get-values",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["range_address"] = "B3"
-        }, ToolTimeout);
-        AssertSuccess(importedValuesJson, "range.get-values imported UTF-8 text");
-        using (var importedValuesDocument = JsonDocument.Parse(importedValuesJson))
-        {
-            Assert.Equal(
-                "Café",
-                importedValuesDocument.RootElement.GetProperty("values")[0][0].GetString());
-        }
+        var invalidProperties = await _fixture.CallToolAsync(
+            "querytable",
+            new()
+            {
+                ["action"] = "set-properties",
+                ["session_id"] = SessionId,
+                ["sheet_name"] = "Imports",
+                ["query_table_name"] = "CsvImport",
+                ["refresh_period"] = -1
+            },
+            Failure(
+                "querytable.set-properties",
+                "refresh_period must be non-negative."),
+            "querytable.set-properties",
+            """{"sheetName":"Imports","queryTableName":"CsvImport","refreshPeriod":-1}""");
+        AssertRequest(invalidProperties.Request, "querytable.set-properties");
+        AssertFailure(invalidProperties.JsonResult);
 
-        var invalidPropertiesJson = await CallToolAsync("querytable", new Dictionary<string, object?>
+        await AssertSuccessAsync("querytable", new()
         {
             ["action"] = "set-properties",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "CsvImport",
-            ["refresh_period"] = -1
-        }, ToolTimeout);
-        AssertFailure(invalidPropertiesJson, "querytable.set-properties invalid refresh period");
-
-        var setPropertiesJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "set-properties",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["sheet_name"] = "Imports",
             ["query_table_name"] = "CsvImport",
             ["background_query"] = false,
@@ -214,207 +203,292 @@ public sealed class CollaborationImportToolTests(ITestOutputHelper output)
             ["refresh_period"] = 15,
             ["adjust_column_width"] = false,
             ["preserve_formatting"] = true
-        }, ToolTimeout);
-        AssertSuccess(setPropertiesJson, "querytable.set-properties");
+        }, "querytable.set-properties",
+        """{"sheetName":"Imports","queryTableName":"CsvImport","backgroundQuery":false,"refreshOnFileOpen":true,"refreshPeriod":15,"adjustColumnWidth":false,"preserveFormatting":true}""", args =>
+        {
+            Assert.False(args.GetProperty("backgroundQuery").GetBoolean());
+            Assert.True(args.GetProperty("refreshOnFileOpen").GetBoolean());
+            Assert.Equal(15, args.GetProperty("refreshPeriod").GetInt32());
+            Assert.False(args.GetProperty("adjustColumnWidth").GetBoolean());
+            Assert.True(args.GetProperty("preserveFormatting").GetBoolean());
+        });
+        await AssertSuccessAsync(
+            "querytable",
+            QueryTableIdentityArgs("refresh", "CsvImport"),
+            "querytable.refresh",
+            """{"sheetName":"Imports","queryTableName":"CsvImport"}""");
 
-        var refreshJson = await CallToolAsync("querytable", new Dictionary<string, object?>
+        var statusJson = await CallAsync(
+            "querytable",
+            QueryTableIdentityArgs("get-refresh-status", "CsvImport"),
+            "querytable.get-refresh-status",
+            """{"sheetName":"Imports","queryTableName":"CsvImport"}""",
+            """{"success":true,"supportsRefreshStatus":true,"isRefreshing":false}""");
+        using (var status = JsonDocument.Parse(statusJson))
         {
-            ["action"] = "refresh",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "CsvImport"
-        }, ToolTimeout);
-        AssertSuccess(refreshJson, "querytable.refresh");
-
-        var statusJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "get-refresh-status",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "CsvImport"
-        }, ToolTimeout);
-        AssertSuccess(statusJson, "querytable.get-refresh-status");
-        using (var statusDocument = JsonDocument.Parse(statusJson))
-        {
-            Assert.True(statusDocument.RootElement.GetProperty("supportsRefreshStatus").GetBoolean());
-            Assert.False(statusDocument.RootElement.GetProperty("isRefreshing").GetBoolean());
+            Assert.True(status.RootElement
+                .GetProperty("supportsRefreshStatus")
+                .GetBoolean());
+            Assert.False(status.RootElement
+                .GetProperty("isRefreshing")
+                .GetBoolean());
         }
 
-        var cancelJson = await CallToolAsync("querytable", new Dictionary<string, object?>
+        var cancelJson = await CallAsync(
+            "querytable",
+            QueryTableIdentityArgs("cancel-refresh", "CsvImport"),
+            "querytable.cancel-refresh",
+            """{"sheetName":"Imports","queryTableName":"CsvImport"}""",
+            """{"success":true,"supportsCancellation":true,"wasRefreshing":false,"cancelled":false}""");
+        using (var cancel = JsonDocument.Parse(cancelJson))
         {
-            ["action"] = "cancel-refresh",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "CsvImport"
-        }, ToolTimeout);
-        AssertSuccess(cancelJson, "querytable.cancel-refresh");
-        using (var cancelDocument = JsonDocument.Parse(cancelJson))
-        {
-            Assert.True(cancelDocument.RootElement.GetProperty("supportsCancellation").GetBoolean());
-            Assert.False(cancelDocument.RootElement.GetProperty("wasRefreshing").GetBoolean());
-            Assert.False(cancelDocument.RootElement.GetProperty("cancelled").GetBoolean());
+            Assert.True(cancel.RootElement
+                .GetProperty("supportsCancellation")
+                .GetBoolean());
+            Assert.False(cancel.RootElement.GetProperty("wasRefreshing").GetBoolean());
+            Assert.False(cancel.RootElement.GetProperty("cancelled").GetBoolean());
         }
 
-        var deleteTextJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "delete",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "CsvImport"
-        }, ToolTimeout);
-        AssertSuccess(deleteTextJson, "querytable.delete text");
-
-        var createWebJson = await CallToolAsync("querytable", new Dictionary<string, object?>
+        await AssertSuccessAsync(
+            "querytable",
+            QueryTableIdentityArgs("delete", "CsvImport"),
+            "querytable.delete",
+            """{"sheetName":"Imports","queryTableName":"CsvImport"}""");
+        await AssertSuccessAsync("querytable", new()
         {
             ["action"] = "create-web",
-            ["session_id"] = sessionId,
+            ["session_id"] = SessionId,
             ["query_table_name"] = "HtmlImport",
-            ["url"] = new Uri(htmlPath).AbsoluteUri,
+            ["url"] = "file:///C:/adapter/rates.html",
             ["sheet_name"] = "Imports",
             ["destination_address"] = "A1",
             ["selection_type"] = "specified-tables",
             ["web_tables"] = "1",
             ["formatting"] = "none"
-        }, ToolTimeout);
-        AssertSuccess(createWebJson, "querytable.create-web");
+        }, "querytable.create-web",
+        """{"queryTableName":"HtmlImport","url":"file:///C:/adapter/rates.html","sheetName":"Imports","destinationAddress":"A1","selectionType":"specified-tables","webTables":"1","formatting":"none"}""", args =>
+        {
+            Assert.Equal(
+                "specified-tables",
+                args.GetProperty("selectionType").GetString());
+            Assert.Equal("1", args.GetProperty("webTables").GetString());
+            Assert.Equal("none", args.GetProperty("formatting").GetString());
+        });
 
-        var viewWebJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "view",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "HtmlImport"
-        }, ToolTimeout);
-        AssertSuccess(viewWebJson, "querytable.view web");
-        using (var viewWebDocument = JsonDocument.Parse(viewWebJson))
-        {
-            var root = viewWebDocument.RootElement;
-            Assert.Equal("web", root.GetProperty("sourceType").GetString());
-            Assert.Equal("specified-tables", root.GetProperty("webSelectionType").GetString());
-            Assert.Equal("none", root.GetProperty("webFormatting").GetString());
-            Assert.Contains("1", root.GetProperty("webTables").GetString(), StringComparison.Ordinal);
-        }
-
-        var deleteWebJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "delete",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Imports",
-            ["query_table_name"] = "HtmlImport"
-        }, ToolTimeout);
-        AssertSuccess(deleteWebJson, "querytable.delete web");
-
-        var finalListJson = await CallToolAsync("querytable", new Dictionary<string, object?>
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        }, ToolTimeout);
-        AssertSuccess(finalListJson, "querytable.list after cleanup");
-        using var finalListDocument = JsonDocument.Parse(finalListJson);
-        Assert.Empty(finalListDocument.RootElement.GetProperty("queryTables").EnumerateArray());
+        var webViewJson = await CallAsync(
+            "querytable",
+            QueryTableIdentityArgs("view", "HtmlImport"),
+            "querytable.view",
+            """{"sheetName":"Imports","queryTableName":"HtmlImport"}""",
+            """
+            {
+              "success": true,
+              "sourceType": "web",
+              "webSelectionType": "specified-tables",
+              "webFormatting": "none",
+              "webTables": "1"
+            }
+            """);
+        using var webView = JsonDocument.Parse(webViewJson);
+        Assert.Equal(
+            "web",
+            webView.RootElement.GetProperty("sourceType").GetString());
+        Assert.Equal(
+            "specified-tables",
+            webView.RootElement.GetProperty("webSelectionType").GetString());
+        Assert.Equal(
+            "none",
+            webView.RootElement.GetProperty("webFormatting").GetString());
+        Assert.Equal(
+            "1",
+            webView.RootElement.GetProperty("webTables").GetString());
     }
 
     [Fact]
     public async Task ConnectionRefreshControl_AllActionsMetadataValidationAndCleanup_ViaMcp()
     {
-        var tempDirectory = CreateTempDirectory("McpConnectionRefresh");
-        var sourceWorkbookPath = Path.Join(tempDirectory, "Source.xlsx");
-        var targetWorkbookPath = Path.Join(tempDirectory, "Target.xlsx");
-
-        var sourceSessionId = await CreateWorkbookSessionAsync(sourceWorkbookPath);
-        var sourceSheetListJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "list",
-            ["session_id"] = sourceSessionId
-        }, ToolTimeout);
-        AssertSuccess(sourceSheetListJson, "worksheet.list source");
-        using var sourceSheetDocument = JsonDocument.Parse(sourceSheetListJson);
-        var sourceSheetName = sourceSheetDocument.RootElement
-            .GetProperty("worksheets")[0]
-            .GetProperty("name")
-            .GetString();
-        Assert.False(string.IsNullOrWhiteSpace(sourceSheetName));
-
-        var writeSourceJson = await CallToolAsync("range", new Dictionary<string, object?>
-        {
-            ["action"] = "set-values",
-            ["session_id"] = sourceSessionId,
-            ["sheet_name"] = sourceSheetName,
-            ["range_address"] = "A1:B3",
-            ["values"] = new object?[][]
-            {
-                ["Product", "Price"],
-                ["Widget", 19.99],
-                ["Gadget", 29.99]
-            }
-        }, ToolTimeout);
-        AssertSuccess(writeSourceJson, "range.set-values source");
-        await CloseSessionAsync(sourceSessionId, save: true);
-
-        var targetSessionId = await CreateWorkbookSessionAsync(targetWorkbookPath);
         const string connectionName = "ProductsConnection";
-        var connectionString =
-            $"OLEDB;Provider=Microsoft.ACE.OLEDB.16.0;Data Source={sourceWorkbookPath};Extended Properties=\"Excel 12.0 Xml;HDR=YES\"";
-        var createConnectionJson = await CallToolAsync("connection", new Dictionary<string, object?>
+        const string connectionString =
+            "OLEDB;Provider=Microsoft.ACE.OLEDB.16.0;Data Source=C:\\adapter\\Source.xlsx";
+        await AssertSuccessAsync("connection", new()
         {
             ["action"] = "create",
-            ["session_id"] = targetSessionId,
+            ["session_id"] = SessionId,
             ["connection_name"] = connectionName,
             ["connection_string"] = connectionString,
-            ["command_text"] = $"SELECT * FROM [{sourceSheetName}$]"
-        }, ToolTimeout);
-        AssertSuccess(createConnectionJson, "connection.create");
+            ["command_text"] = "SELECT * FROM [Sheet1$]"
+        }, "connection.create",
+        """{"connectionName":"ProductsConnection","connectionString":"OLEDB;Provider=Microsoft.ACE.OLEDB.16.0;Data Source=C:\\adapter\\Source.xlsx","commandText":"SELECT * FROM [Sheet1$]"}""", args =>
+        {
+            Assert.Equal(
+                connectionName,
+                args.GetProperty("connectionName").GetString());
+            Assert.Equal(
+                connectionString,
+                args.GetProperty("connectionString").GetString());
+            Assert.Equal(
+                "SELECT * FROM [Sheet1$]",
+                args.GetProperty("commandText").GetString());
+        });
 
-        var statusJson = await CallToolAsync("connection", new Dictionary<string, object?>
+        var statusJson = await CallAsync(
+            "connection",
+            ConnectionArgs("get-refresh-status", connectionName),
+            "connection.get-refresh-status",
+            """{"connectionName":"ProductsConnection"}""",
+            """{"success":true,"supportsRefreshStatus":true,"isRefreshing":false}""");
+        using (var status = JsonDocument.Parse(statusJson))
         {
-            ["action"] = "get-refresh-status",
-            ["session_id"] = targetSessionId,
-            ["connection_name"] = connectionName
-        }, ToolTimeout);
-        AssertSuccess(statusJson, "connection.get-refresh-status");
-        using (var statusDocument = JsonDocument.Parse(statusJson))
-        {
-            Assert.True(statusDocument.RootElement.GetProperty("supportsRefreshStatus").GetBoolean());
-            Assert.False(statusDocument.RootElement.GetProperty("isRefreshing").GetBoolean());
+            Assert.True(status.RootElement
+                .GetProperty("supportsRefreshStatus")
+                .GetBoolean());
+            Assert.False(status.RootElement
+                .GetProperty("isRefreshing")
+                .GetBoolean());
         }
 
-        var cancelJson = await CallToolAsync("connection", new Dictionary<string, object?>
+        var cancelJson = await CallAsync(
+            "connection",
+            ConnectionArgs("cancel-refresh", connectionName),
+            "connection.cancel-refresh",
+            """{"connectionName":"ProductsConnection"}""",
+            """{"success":true,"supportsCancellation":true,"wasRefreshing":false,"cancelled":false}""");
+        using (var cancel = JsonDocument.Parse(cancelJson))
         {
-            ["action"] = "cancel-refresh",
-            ["session_id"] = targetSessionId,
-            ["connection_name"] = connectionName
-        }, ToolTimeout);
-        AssertSuccess(cancelJson, "connection.cancel-refresh");
-        using (var cancelDocument = JsonDocument.Parse(cancelJson))
-        {
-            Assert.True(cancelDocument.RootElement.GetProperty("supportsCancellation").GetBoolean());
-            Assert.False(cancelDocument.RootElement.GetProperty("wasRefreshing").GetBoolean());
-            Assert.False(cancelDocument.RootElement.GetProperty("cancelled").GetBoolean());
+            Assert.True(cancel.RootElement
+                .GetProperty("supportsCancellation")
+                .GetBoolean());
+            Assert.False(cancel.RootElement.GetProperty("wasRefreshing").GetBoolean());
+            Assert.False(cancel.RootElement.GetProperty("cancelled").GetBoolean());
         }
 
-        var missingStatusJson = await CallToolAsync("connection", new Dictionary<string, object?>
-        {
-            ["action"] = "get-refresh-status",
-            ["session_id"] = targetSessionId,
-            ["connection_name"] = "MissingConnection"
-        }, ToolTimeout);
-        AssertFailure(missingStatusJson, "connection.get-refresh-status missing connection");
+        var missing = await _fixture.CallToolAsync(
+            "connection",
+            ConnectionArgs("get-refresh-status", "MissingConnection"),
+            Failure(
+                "connection.get-refresh-status",
+                "Connection 'MissingConnection' was not found."),
+            "connection.get-refresh-status",
+            """{"connectionName":"MissingConnection"}""");
+        AssertRequest(missing.Request, "connection.get-refresh-status");
+        AssertFailure(missing.JsonResult);
 
-        var deleteConnectionJson = await CallToolAsync("connection", new Dictionary<string, object?>
-        {
-            ["action"] = "delete",
-            ["session_id"] = targetSessionId,
-            ["connection_name"] = connectionName
-        }, ToolTimeout);
-        AssertSuccess(deleteConnectionJson, "connection.delete cleanup");
+        await AssertSuccessAsync(
+            "connection",
+            ConnectionArgs("delete", connectionName),
+            "connection.delete",
+            """{"connectionName":"ProductsConnection"}""");
     }
 
-    private static void AssertFailure(string json, string operation)
+    private static Dictionary<string, object?> CommentArgs(
+        string action,
+        string text) => new()
+        {
+            ["action"] = action,
+            ["session_id"] = SessionId,
+            ["sheet_name"] = "Review",
+            ["cell_address"] = "B2",
+            ["text"] = text
+        };
+
+    private static Dictionary<string, object?> QueryTableCreateTextArgs(
+        string sourcePath,
+        string delimiter) => new()
+        {
+            ["action"] = "create-text",
+            ["session_id"] = SessionId,
+            ["query_table_name"] = "CsvImport",
+            ["source_path"] = sourcePath,
+            ["sheet_name"] = "Imports",
+            ["destination_address"] = "B2",
+            ["delimiter"] = delimiter,
+            ["text_qualifier"] = "double-quote",
+            ["encoding"] = 65001,
+            ["has_headers"] = true
+        };
+
+    private static Dictionary<string, object?> QueryTableIdentityArgs(
+        string action,
+        string name) => new()
+        {
+            ["action"] = action,
+            ["session_id"] = SessionId,
+            ["sheet_name"] = "Imports",
+            ["query_table_name"] = name
+        };
+
+    private static Dictionary<string, object?> ConnectionArgs(
+        string action,
+        string name) => new()
+        {
+            ["action"] = action,
+            ["session_id"] = SessionId,
+            ["connection_name"] = name
+        };
+
+    private static ServiceResponse Failure(string command, string message) =>
+        new()
+        {
+            Success = false,
+            Command = command,
+            SessionId = SessionId,
+            ErrorMessage = message,
+            ExceptionType = nameof(ArgumentException)
+        };
+
+    private static void AssertFailure(string json)
     {
         using var document = JsonDocument.Parse(json);
-        Assert.False(document.RootElement.GetProperty("success").GetBoolean(), $"{operation} unexpectedly succeeded: {json}");
-        Assert.False(
-            string.IsNullOrWhiteSpace(document.RootElement.GetProperty("errorMessage").GetString()),
-            $"{operation} should return an actionable error: {json}");
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.False(string.IsNullOrWhiteSpace(
+            document.RootElement.GetProperty("errorMessage").GetString()));
+    }
+
+    private static void AssertRequest(ServiceRequest request, string command)
+    {
+        Assert.Equal(command, request.Command);
+        Assert.Equal(SessionId, request.SessionId);
+    }
+
+    private async Task AssertSuccessAsync(
+        string tool,
+        Dictionary<string, object?> arguments,
+        string command,
+        string? expectedArgsJson,
+        Action<JsonElement>? assertArgs = null)
+    {
+        var json = await CallAsync(
+            tool,
+            arguments,
+            command,
+            expectedArgsJson,
+            """{"success":true}""",
+            assertArgs);
+        using var result = JsonDocument.Parse(json);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    private async Task<string> CallAsync(
+        string tool,
+        Dictionary<string, object?> arguments,
+        string command,
+        string? expectedArgsJson,
+        string responseJson,
+        Action<JsonElement>? assertArgs = null)
+    {
+        var call = await _fixture.CallToolAsync(
+            tool,
+            arguments,
+            RecordingToolTest.Success(responseJson),
+            command,
+            expectedArgsJson);
+        if (assertArgs is not null)
+        {
+            Assert.NotNull(call.Request.Args);
+            using var args = JsonDocument.Parse(call.Request.Args);
+            assertArgs(args.RootElement);
+        }
+
+        return call.JsonResult;
     }
 }

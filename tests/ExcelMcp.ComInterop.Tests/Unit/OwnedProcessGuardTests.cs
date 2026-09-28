@@ -73,4 +73,52 @@ public sealed class OwnedProcessGuardTests
             TimeSpan.FromSeconds(10),
             ProcessTerminationPolicy.ProcessExitTimeout);
     }
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(2, 3)]
+    [InlineData(6, 0)]
+    public async Task NormalShutdown_RequestTimeReducesFinalWaitWithinOriginalBudget(
+        int requestSeconds, int expectedFinalWaitSeconds)
+    {
+        var clock = new ControlledClock();
+        var waits = new List<TimeSpan>();
+        Assert.Equal(TimeSpan.FromSeconds(10), ProcessTerminationPolicy.NormalGraceTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(5), ProcessTerminationPolicy.NormalForcedExitTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(15), ProcessTerminationPolicy.NormalShutdownBudget);
+        Assert.Equal(ProcessTerminationPolicy.NormalShutdownBudget,
+            ProcessTerminationPolicy.NormalGraceTimeout + ProcessTerminationPolicy.NormalForcedExitTimeout);
+
+        var result = await ProcessTerminationPolicy.TryCompleteAsync(
+            ProcessTerminationPolicy.NormalGraceTimeout,
+            ProcessTerminationPolicy.NormalForcedExitTimeout,
+            (timeout, _) =>
+            {
+                waits.Add(timeout);
+                clock.Advance(timeout);
+                return Task.FromResult(ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut);
+            },
+            () =>
+            {
+                clock.Advance(TimeSpan.FromSeconds(requestSeconds));
+                return ProcessTerminationPolicy.ProcessTerminationOutcome.Requested;
+            },
+            CancellationToken.None,
+            _ => { },
+            overallTimeout: ProcessTerminationPolicy.NormalShutdownBudget,
+            timeProvider: clock);
+
+        Assert.False(result);
+        Assert.Equal(TimeSpan.FromSeconds(10), waits[0]);
+        Assert.Equal(TimeSpan.FromSeconds(expectedFinalWaitSeconds), waits[1]);
+        Assert.Equal(TimeSpan.FromSeconds(Math.Max(15, 10 + requestSeconds)), clock.Elapsed);
+    }
+
+    private sealed class ControlledClock : TimeProvider
+    {
+        internal TimeSpan Elapsed { get; private set; }
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => Elapsed.Ticks;
+        internal void Advance(TimeSpan duration) => Elapsed += duration;
+    }
 }

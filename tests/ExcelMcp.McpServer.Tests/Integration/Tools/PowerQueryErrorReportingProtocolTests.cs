@@ -1,86 +1,77 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "PowerQuery")]
-[Trait("RequiresExcel", "true")]
-public sealed class PowerQueryErrorReportingProtocolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class PowerQueryErrorReportingProtocolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    private readonly string _testExcelFile;
-    private string? _sessionId;
-
-    public PowerQueryErrorReportingProtocolTests(ITestOutputHelper output)
-        : base(output, "PowerQueryErrorReportingProtocolClient")
-    {
-        _testExcelFile = Path.Join(CreateTempDirectory("PowerQueryErrorReporting"), "PowerQueryErrorReporting.xlsx");
-    }
-
-    protected override async Task InitializeTestAsync()
-    {
-        _sessionId = await CreateWorkbookSessionAsync(_testExcelFile);
-    }
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task Refresh_SyntheticFirewallError_ReturnsStructuredDiagnosticsViaMcpProtocol()
     {
+        const string sessionId = "recording-session";
         const string queryName = "SyntheticFirewallQuery";
-        const string validMCode = """
-            let
-                Source = #table({"X"}, {{1}})
-            in
-                Source
-            """;
-        const string firewallMCode = """
-            let
-                Root = error Error.Record(
-                    "Formula.Firewall",
-                    "Query 'ConfigData' (step 'Root') references other queries or steps, so it may not directly access a data source.",
-                    null)
-            in
-                Root
-            """;
+        var call = await _fixture.CallToolAsync(
+            "powerquery",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "refresh",
+                ["session_id"] = sessionId,
+                ["query_name"] = queryName,
+                ["timeout_seconds"] = 60
+            },
+            new ServiceResponse
+            {
+                Success = false,
+                Command = "powerquery.refresh",
+                SessionId = sessionId,
+                ErrorMessage =
+                    "Formula.Firewall: Query 'ConfigData' references other queries.",
+                ExceptionType = "PowerQueryCommandException",
+                ErrorCategory = "Privacy",
+                HResult = "0x800A03EC",
+                InnerError = "Formula.Firewall"
+            },
+            "powerquery.refresh",
+            """{"queryName":"SyntheticFirewallQuery","timeout":60}""");
 
-        var createQueryJson = await CallToolAsync("powerquery", new Dictionary<string, object?>
+        using (var args = RecordingToolTest.ParseArgs(
+            call.Request,
+            "powerquery.refresh",
+            sessionId))
         {
-            ["action"] = "create",
-            ["session_id"] = _sessionId,
-            ["query_name"] = queryName,
-            ["m_code"] = validMCode
-        });
-        AssertSuccess(createQueryJson, "powerquery.create");
+            Assert.Equal(
+                queryName,
+                args.RootElement.GetProperty("queryName").GetString());
+            Assert.Equal(
+                60,
+                args.RootElement.GetProperty("timeout").GetInt32());
+        }
 
-        var updateQueryJson = await CallToolAsync("powerquery", new Dictionary<string, object?>
+        using var document = JsonDocument.Parse(call.JsonResult);
+        var root = document.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal(
+            "PowerQueryCommandException",
+            root.GetProperty("exceptionType").GetString());
+        Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
+        Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
+        if (root.TryGetProperty("innerError", out var innerError))
         {
-            ["action"] = "update",
-            ["session_id"] = _sessionId,
-            ["query_name"] = queryName,
-            ["m_code"] = firewallMCode,
-            ["refresh"] = false
-        });
-        AssertSuccess(updateQueryJson, "powerquery.update");
-
-        var refreshJson = await CallToolAsync("powerquery", new Dictionary<string, object?>
-        {
-            ["action"] = "refresh",
-            ["session_id"] = _sessionId,
-            ["query_name"] = queryName,
-            ["timeout"] = 60
-        });
-
-        using var doc = ParseJsonResult(refreshJson, "powerquery.refresh synthetic-firewall");
-        AssertFailureEnvelope(
-            doc.RootElement,
-            "powerquery.refresh synthetic-firewall",
-            expectedExceptionType: "PowerQueryCommandException",
-            expectedErrorCategory: "Privacy",
-            expectedHResult: "0x800A03EC",
-            allowOptionalNonEmptyInnerError: true);
-
-        Assert.Contains("Formula.Firewall", doc.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(innerError.GetString()));
+        }
+        Assert.Contains(
+            "Formula.Firewall",
+            root.GetProperty("errorMessage").GetString(),
+            StringComparison.OrdinalIgnoreCase);
     }
 }

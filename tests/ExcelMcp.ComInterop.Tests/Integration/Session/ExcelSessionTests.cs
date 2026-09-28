@@ -22,6 +22,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "ExcelSession")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
+[Trait("RequiresExcel", "true")]
 public class ExcelSessionTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
@@ -210,6 +211,5 @@ public class ExcelSessionTests : IDisposable
         File.Copy(TemplateFilePath, filePath);
     }
 }
-
 
 

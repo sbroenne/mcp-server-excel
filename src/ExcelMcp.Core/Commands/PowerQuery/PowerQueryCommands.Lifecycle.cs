@@ -41,9 +41,6 @@ public partial class PowerQueryCommands
                         result.Queries.Add(new PowerQueryInfo
                         {
                             Name = name,
-#pragma warning disable CS0618
-                            Formula = formula,
-#pragma warning restore CS0618
                             FormulaPreview = preview,
                             CharacterCount = formula.Length,
                             LoadMode = loadState.LoadMode,

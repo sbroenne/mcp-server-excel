@@ -11,6 +11,26 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.10] - 2026-09-27
+
+### Minor Changes
+
+- [#812](https://github.com/sbroenne/mcp-server-excel/pull/812) [`c342820`](https://github.com/sbroenne/mcp-server-excel/commit/c34282078ba060e1e4422abfdc267f5d37558ca6) Thanks [@sbroenne](https://github.com/sbroenne)! - **Install the MCP Server and CLI with npm**: Run `npx -y @sbroenne/mcp-server-excel` or `npx -y @sbroenne/excelcli --help` to use the self-contained Windows tools without installing .NET or downloading executables manually.
+
+## [2.0.9] - 2026-09-27
+
+### Patch Changes
+
+- [#882](https://github.com/sbroenne/mcp-server-excel/pull/882) [`9f0b0a6`](https://github.com/sbroenne/mcp-server-excel/commit/9f0b0a6a043f1c13d07321f59ec6ddb80e1ac8e2) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **Localized Excel Table formats survive save**: Opening and saving a workbook no
+  longer rewrites locale-specific number formats on Excel Table columns. Japanese
+  (ja-JP) built-in date and negative-number formats now stay exactly as they were.
+
+- [#877](https://github.com/sbroenne/mcp-server-excel/pull/877) [`953b108`](https://github.com/sbroenne/mcp-server-excel/commit/953b10815829f3a86f7b30cbe42f0f75ceaec47d) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **Working Power BI Desktop and MCP Registry links**: The MSOLAP prerequisite
+  guidance shown by the MCP Server and CLI (and the matching pages on
+  excelmcpserver.dev) pointed at a Power BI Desktop download URL that no longer
+  resolves. It now links to the current download page, and the MCP Registry and
+  .NET COM interop links in the docs were refreshed the same way.
+
 ## [2.0.8] - 2026-09-12
 
 ### Patch Changes

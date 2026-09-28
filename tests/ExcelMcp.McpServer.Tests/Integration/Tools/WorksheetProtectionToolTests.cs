@@ -1,65 +1,81 @@
 using System.Text.Json;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
-[Collection("ProgramTransport")]
+[Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
+[Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Worksheets")]
-[Trait("RequiresExcel", "true")]
-public sealed class WorksheetProtectionToolTests : McpIntegrationTestBase
+[Trait("RequiresExcel", "false")]
+public sealed class WorksheetProtectionToolTests(
+    RecordingProgramTransportFixture fixture)
 {
-    public WorksheetProtectionToolTests(ITestOutputHelper output)
-        : base(output, "WorksheetProtectionClient")
-    {
-    }
+    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
-    public async Task WorksheetStyle_SetProtection_RoundsTripThroughMcp()
+    public async Task WorksheetStyle_SetProtection_RoundsTripsThroughMcp()
     {
-        var tempDir = CreateTempDirectory("WorksheetProtection");
-        var workbookPath = Path.Combine(tempDir, "protection.xlsx");
-        var sessionId = await CreateWorkbookSessionAsync(workbookPath);
-        await CreateWorksheetAsync(sessionId, "ProtectedSheet");
-
-        var protectJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        const string sessionId = "recording-session";
+        var protectCall = await CallSetAsync(sessionId, true);
+        using (var args = RecordingToolTest.ParseArgs(
+            protectCall.Request,
+            "sheet.set-protection",
+            sessionId))
         {
-            ["action"] = "set-protection",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ProtectedSheet",
-            ["is_protected"] = true
-        });
-        AssertSuccess(protectJson, "worksheet_style.set-protection");
+            Assert.Equal("ProtectedSheet", args.RootElement.GetProperty("sheetName").GetString());
+            Assert.True(args.RootElement.GetProperty("isProtected").GetBoolean());
+        }
 
-        using var protectDoc = JsonDocument.Parse(protectJson);
-        Assert.True(protectDoc.RootElement.GetProperty("success").GetBoolean());
+        var getCall = await _fixture.CallToolAsync(
+            "worksheet_style",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-protection",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "ProtectedSheet"
+            },
+            RecordingToolTest.Success(
+                """{"success":true,"isProtected":true}"""),
+            "sheet.get-protection",
+            """{"sheetName":"ProtectedSheet"}""");
 
-        var getProtectionJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        using (var args = RecordingToolTest.ParseArgs(
+            getCall.Request,
+            "sheet.get-protection",
+            sessionId))
         {
-            ["action"] = "get-protection",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ProtectedSheet"
-        });
-        AssertSuccess(getProtectionJson, "worksheet_style.get-protection");
-
-        using var getProtectionDoc = JsonDocument.Parse(getProtectionJson);
-        Assert.True(getProtectionDoc.RootElement.GetProperty("isProtected").GetBoolean());
-
-        var unprotectJson = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+            Assert.Equal("ProtectedSheet", args.RootElement.GetProperty("sheetName").GetString());
+        }
+        using (var result = JsonDocument.Parse(getCall.JsonResult))
         {
-            ["action"] = "set-protection",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "ProtectedSheet",
-            ["is_protected"] = false
-        });
-        AssertSuccess(unprotectJson, "worksheet_style.set-protection(false)");
+            Assert.True(result.RootElement.GetProperty("isProtected").GetBoolean());
+        }
 
-        using var unprotectDoc = JsonDocument.Parse(unprotectJson);
-        Assert.True(unprotectDoc.RootElement.GetProperty("success").GetBoolean());
-
-        await TryCloseSessionAsync(sessionId, save: true);
+        var unprotectCall = await CallSetAsync(sessionId, false);
+        using var unprotectArgs = RecordingToolTest.ParseArgs(
+            unprotectCall.Request,
+            "sheet.set-protection",
+            sessionId);
+        Assert.False(unprotectArgs.RootElement.GetProperty("isProtected").GetBoolean());
     }
+
+    private Task<RecordingProgramTransportFixture.CapturedToolCall> CallSetAsync(
+        string sessionId,
+        bool isProtected) =>
+        _fixture.CallToolAsync(
+            "worksheet_style",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "set-protection",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "ProtectedSheet",
+                ["is_protected"] = isProtected
+            },
+            RecordingToolTest.Success("""{"success":true}"""),
+            "sheet.set-protection",
+            isProtected
+                ? """{"sheetName":"ProtectedSheet","isProtected":true}"""
+                : """{"sheetName":"ProtectedSheet","isProtected":false}""");
 }

@@ -13,6 +13,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Layer", "Service")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "ServiceDaemon")]
+[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFixture>
@@ -63,6 +64,13 @@ public sealed class SessionCloseRegressionTests : IClassFixture<TempDirectoryFix
         Assert.False(secondClose.Success);
         var secondCloseText = (secondClose.ErrorMessage ?? string.Empty) + (secondClose.Result ?? string.Empty);
         Assert.DoesNotContain("already closed", secondCloseText, StringComparison.OrdinalIgnoreCase);
+
+        var shutdownFailure = Assert.Throws<AggregateException>(service.Dispose);
+        var sessionFailure = Assert.Single(shutdownFailure.InnerExceptions);
+        Assert.Contains(sessionId, sessionFailure.Message, StringComparison.Ordinal);
+        Assert.Same(batch.DisposeException, sessionFailure.InnerException);
+        var shutdownSource = GetPrivateField<CancellationTokenSource>(service, "_shutdownCts");
+        Assert.Throws<ObjectDisposedException>(() => shutdownSource.Token);
     }
 
     [Fact(Timeout = 60000)]

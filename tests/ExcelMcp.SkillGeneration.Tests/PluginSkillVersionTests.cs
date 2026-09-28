@@ -17,6 +17,8 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// source instead of creating one. These tests fail if either regresses, and they are agnostic to how
 /// many skills a plugin ships so a future third skill is covered automatically.
 /// </remarks>
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class PluginSkillVersionTests
 {
     private const string TestVersion = "9.9.9-skillversion";

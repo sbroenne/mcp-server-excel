@@ -7,6 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "Tables")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public class TableFormulaReferenceTests
 {
     [Fact]

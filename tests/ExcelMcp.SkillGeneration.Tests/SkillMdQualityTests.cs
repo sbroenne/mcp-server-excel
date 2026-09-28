@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// These tests catch issues like empty parameter descriptions that
 /// make skills less useful for LLMs.
 /// </summary>
+[Trait("RequiresExcel", "false")]
 public class SkillMdQualityTests
 {
     private static readonly string SkillsFolder = Path.Combine(

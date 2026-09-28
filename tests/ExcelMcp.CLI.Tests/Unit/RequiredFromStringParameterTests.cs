@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ActionValidation")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public sealed class RequiredFromStringParameterTests
 {
     [Theory]

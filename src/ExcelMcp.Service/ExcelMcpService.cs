@@ -1228,8 +1228,14 @@ public sealed class ExcelMcpService : IDisposable
         _disposed = true;
 
         _shutdownCts.Cancel();
-        _sessionManager.Dispose();
-        _shutdownCts.Dispose();
+        try
+        {
+            _sessionManager.Dispose();
+        }
+        finally
+        {
+            _shutdownCts.Dispose();
+        }
     }
 }
 

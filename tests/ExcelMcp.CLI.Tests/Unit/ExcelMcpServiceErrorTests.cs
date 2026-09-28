@@ -23,6 +23,8 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ExcelMcpService")]
 [Trait("Speed", "Fast")]
+[Collection("Sequential")]
+[Trait("RequiresExcel", "false")]
 public sealed class ExcelMcpServiceErrorTests
 {
     [Theory]

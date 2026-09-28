@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -46,8 +47,10 @@ internal static class OwnedProcessGuard
         ExcelProcessIdentity identity,
         TimeSpan waitBeforeTermination,
         TimeSpan waitAfterTermination,
-        out bool terminated)
+        out bool terminated,
+        TimeSpan? overallTimeout = null)
     {
+        var started = Stopwatch.GetTimestamp();
         terminated = false;
         var probe = ProbeMatchingProcess(
             identity,
@@ -71,6 +74,12 @@ internal static class OwnedProcessGuard
         using (handle)
         {
             var terminationRequested = false;
+            TimeSpan? remainingBudget = null;
+            if (overallTimeout is { } budget)
+            {
+                var remaining = budget - Stopwatch.GetElapsedTime(started);
+                remainingBudget = remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+            }
             var result = ProcessTerminationPolicy.TryCompleteAsync(
                     waitBeforeTermination,
                     waitAfterTermination,
@@ -80,7 +89,8 @@ internal static class OwnedProcessGuard
                             ToWaitMilliseconds(timeout)))),
                     () => RequestTermination(identity),
                     CancellationToken.None,
-                    value => terminationRequested = value)
+                    value => terminationRequested = value,
+                    overallTimeout: remainingBudget)
                 .GetAwaiter()
                 .GetResult();
             terminated = terminationRequested;

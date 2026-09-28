@@ -14,11 +14,34 @@ public sealed class NumberFormatTranslatorTests
     [InlineData(",", ".", "$#,##0.00,,\"M\"", "$#.##0,00..\"M\"")]
     [InlineData(",", ".", "0.0E+0", "0,0E+0")]
     [InlineData(",", ".", "\"1,000.00\" #,##0.00", "\"1,000.00\" #.##0,00")]
+    [InlineData(",", ".", "[>=1.5]0.00;[Red]0.00", "[>=1,5]0,00;[Red]0,00")]
+    [InlineData(",", ".", "[$-409]0.00", "[$-409]0,00")]
     public void TranslateToLocale_PreservesPrecisionScalingAndLiterals(
         string decimalSeparator, string thousandsSeparator, string format, string expected)
     {
         var translator = new NumberFormatTranslator(decimalSeparator, thousandsSeparator);
         Assert.Equal(expected, translator.TranslateToLocale(format));
         Assert.Equal(format, translator.TranslateFromLocale(expected));
+    }
+
+    [Theory]
+    [InlineData("General")]
+    [InlineData("Standard")]
+    public void TranslateFromLocale_LocalGeneralName_ReturnsInvariantKeyword(string generalFormatName)
+    {
+        var translator = new NumberFormatTranslator(",", ".", generalFormatName);
+
+        Assert.Equal("General", translator.TranslateFromLocale(generalFormatName));
+    }
+
+    [Theory]
+    [InlineData("[Red]Standard", "[Red]General")]
+    [InlineData("[>=1,5]Standard;Standard", "[>=1.5]General;General")]
+    [InlineData("\"Standard\"0,00", "\"Standard\"0.00")]
+    public void TranslateFromLocale_LocalGeneralKeyword_HandlesSectionsAndLiterals(string format, string expected)
+    {
+        var translator = new NumberFormatTranslator(",", ".", "Standard");
+
+        Assert.Equal(expected, translator.TranslateFromLocale(format));
     }
 }

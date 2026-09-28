@@ -4,6 +4,7 @@
 
 using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -43,9 +44,7 @@ public class SheetTestsFixture : IAsyncLifetime
     public Task InitializeAsync()
     {
         TestFilePath = Path.Combine(_tempDir, "SheetTests_Shared.xlsx");
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
-        manager.CloseSession(sessionId, save: true);
+        SavedWorkbookTemplates.CopyBlankTo(TestFilePath);
         return Task.CompletedTask;
     }
 
@@ -115,13 +114,8 @@ public class SheetTestsFixture : IAsyncLifetime
         }
 
         var filePath = Path.Combine(_tempDir, fileName);
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
-        manager.CloseSession(sessionId, save: true);
-        return filePath;
+        return SavedWorkbookTemplates.CopyBlankTo(filePath);
     }
 }
-
-
 
 
