@@ -169,13 +169,6 @@ public partial class TableCommands
 
                 listObjects = sheet.ListObjects;
 
-                if (!ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName))
-                {
-                    throw new ArgumentException(
-                        $"Excel rejects table name '{tableName}'.",
-                        nameof(tableName));
-                }
-
                 // Create table using numeric constant (xlSrcRange = 1)
                 // XlListObjectSourceType.xlSrcRange causes enum assembly loading issues
                 int xlSrcRange = 1;
@@ -184,7 +177,7 @@ public partial class TableCommands
                 int headerOption = hasHeaders ? xlYes : xlGuess;
 
                 newTable = listObjects.Add(xlSrcRange, rangeObj, null, headerOption);
-                SetCreatedTableNameOrRollback(newTable, tableName, preserveSourceRange: true);
+                newTable.Name = tableName;
 
                 // Apply table style if specified
                 if (!string.IsNullOrWhiteSpace(tableStyle))

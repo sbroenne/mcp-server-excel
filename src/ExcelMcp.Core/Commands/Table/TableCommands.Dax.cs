@@ -107,13 +107,6 @@ public partial class TableCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
-                if (!ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName))
-                {
-                    throw new ArgumentException(
-                        $"Excel rejects table name '{tableName}'.",
-                        nameof(tableName));
-                }
-
                 // Check if workbook has Data Model and get first table name
                 // CreateModelWorkbookConnection requires a ModelTable name to create the connection
                 model = ctx.Book.Model;
@@ -183,7 +176,7 @@ public partial class TableCommands
                 );
 
                 // Set the table name
-                SetCreatedTableNameOrRollback(listObject, tableName, modelWbConn);
+                listObject.Name = tableName;
 
                 OleMessageFilter.SetPendingCancellationToken(ct);
                 try

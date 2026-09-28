@@ -39,7 +39,7 @@ public partial class TableCommands
                     ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 effectiveRange = ResolveEffectiveRange(sheet, rangeAddress);
 
-                var result = AnalyzePreflight(
+                return AnalyzePreflight(
                     ctx.Book,
                     effectiveRange,
                     batch.WorkbookPath,
@@ -48,19 +48,6 @@ public partial class TableCommands
                     rangeAddress,
                     hasHeaders,
                     ct);
-                if (!ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName))
-                {
-                    result.Findings.Add(new TablePreflightFinding
-                    {
-                        Kind = TablePreflightFindingKind.TableNameInvalid,
-                        Severity = TablePreflightSeverity.Blocker,
-                        Message = $"Excel rejects table name '{tableName}'.",
-                        Remediation = "Choose a table name accepted by Excel."
-                    });
-                    result.SafeToCreate = false;
-                }
-
-                return result;
             }
             finally
             {

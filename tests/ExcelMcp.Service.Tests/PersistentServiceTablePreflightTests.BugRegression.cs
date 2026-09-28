@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -111,64 +110,6 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.NotNull(info.Table);
         Assert.Equal(tableName, info.Table.Name);
         Assert.Equal("Data", info.Table.SheetName);
-    }
-
-    [Fact]
-    public void Create_WithExcelInvalidTableName_DoesNotLeaveDefaultTable()
-    {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "Data");
-        _rangeCommands.SetValues(
-            batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
-        var beforeCount = GetWorksheetTableCount("Data");
-
-        Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", true, "TableStyleLight1"));
-
-        Assert.Equal(beforeCount, GetWorksheetTableCount("Data"));
-        var values = GetRangeValues("Data", "A1:B2");
-        Assert.Equal("Name", values[1, 1]);
-        Assert.Equal("Value", values[1, 2]);
-        Assert.Equal("North", values[2, 1]);
-        Assert.Equal(100d, Convert.ToDouble(values[2, 2], CultureInfo.InvariantCulture));
-    }
-
-    [Fact]
-    public void Preflight_WithExcelInvalidTableName_ReturnsBlocker()
-    {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "Data");
-        _rangeCommands.SetValues(
-            batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
-
-        var result = _tableCommands.Preflight(
-            batch, "Data", new string('A', 256), "A1:B2");
-
-        Assert.True(result.Success, result.ErrorMessage);
-        Assert.False(result.SafeToCreate);
-        var finding = Assert.Single(
-            result.Findings,
-            item => item.Kind == TablePreflightFindingKind.TableNameInvalid);
-        Assert.Equal(TablePreflightSeverity.Blocker, finding.Severity);
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void Create_RejectedName_PreservesFormulasAndFormatting(bool hasHeaders)
-    {
-        var batch = _fixture.BatchToken;
-        SetUpSourceState(hasHeaders);
-
-        var before = GetSourceState();
-        Assert.Throws<ArgumentException>(() =>
-            _tableCommands.Create(batch, "Data", new string('A', 256), "A1:B2", hasHeaders));
-        var after = GetSourceState();
-
-        Assert.Equal(0, GetWorksheetTableCount("Data"));
-        Assert.Equal(before.WorkbookCount, after.WorkbookCount);
-        Assert.Equal(before.Formulas.Cast<object>(), after.Formulas.Cast<object>());
-        Assert.Equal(before.Formats, after.Formats);
     }
 
     private void SetUpSourceState(bool hasHeaders)

@@ -41,10 +41,5 @@ public enum TablePreflightFindingKind
     /// <summary>
     /// The requested table name already exists.
     /// </summary>
-    TableNameExists,
-
-    /// <summary>
-    /// Excel rejects the requested table name.
-    /// </summary>
-    TableNameInvalid
+    TableNameExists
 }
