@@ -38,6 +38,12 @@ public interface ISheetStyleCommands
     /// <param name="green">Green color component (0-255)</param>
     /// <param name="blue">Blue color component (0-255)</param>
     [ServiceAction("set-tab-color")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free tab-color set/get/clear through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult SetTabColor(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
@@ -52,6 +58,12 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("get-tab-color")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free tab-color set/get/clear through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     TabColorResult GetTabColor(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
@@ -61,6 +73,12 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("clear-tab-color")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free tab-color set/get/clear through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult ClearTabColor(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     // === PROTECTION OPERATIONS ===
@@ -213,6 +231,12 @@ public interface ISheetStyleCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="visibility">Visibility level: 'visible', 'hidden', or 'veryhidden'</param>
     [ServiceAction("set-visibility")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult SetVisibility(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
@@ -225,6 +249,12 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("get-visibility")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     SheetVisibilityResult GetVisibility(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
@@ -235,6 +265,12 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("show")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult Show(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
@@ -245,6 +281,12 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("hide")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult Hide(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
@@ -255,6 +297,12 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("very-hide")]
+    [MacCapability(
+        MacCapabilityTier.Native,
+        MacImplementationStatus.Implemented,
+        true,
+        Evidence = "PR #913 commit 6adc31cf passed prompt-free visibility set/get/show/hide/very-hide through CLI and MCP.",
+        ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events/JXA.")]
     OperationResult VeryHide(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>

@@ -270,11 +270,31 @@ jobs:
         path: cli-publish/
 
   build-cli-macos:
-    name: CLI (macOS ARM64)
+    name: CLI (${{ matrix.label }})
     needs: [version]
     runs-on: macos-14
+    strategy:
+      matrix:
+        include:
+          - runtime: osx-arm64
+            slug: macos-arm64
+            npm-suffix: darwin-arm64
+            label: macOS ARM64
+            launch: true
+          - runtime: osx-x64
+            slug: macos-x64
+            npm-suffix: darwin-x64
+            label: macOS x64
+            launch: false
     permissions:
       contents: read
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      MACOS_NOTARY_API_KEY_P8: ${{ secrets.MACOS_NOTARY_API_KEY_P8 }}
+      MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+      MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
     steps:
     - uses: actions/checkout@v7
@@ -284,12 +304,22 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        package-manager-cache: false
+
+    - name: Initialize macOS signing
+      shell: pwsh
+      run: ./scripts/Initialize-MacSigning.ps1
+
     - name: Publish CLI
       run: |
         dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj \
           --configuration Release \
           --framework net10.0 \
-          --runtime osx-arm64 \
+          --runtime ${{ matrix.runtime }} \
           --self-contained true \
           -p:PublishSingleFile=true \
           -p:IncludeNativeLibrariesForSelfExtract=true \
@@ -301,6 +331,30 @@ jobs:
           -p:NuGetAudit=false \
           --output ./cli-publish
 
+    - name: Sign and verify CLI
+      shell: pwsh
+      run: ./scripts/Sign-MacBinary.ps1 -Path ./cli-publish/excelcli
+
+    - name: Build and test CLI Darwin npm packages
+      shell: pwsh
+      run: |
+        ./scripts/Build-NpmPackages.ps1 `
+          -Component Cli `
+          -Version "${{ needs.version.outputs.version }}" `
+          -RuntimeIdentifier "${{ matrix.runtime }}" `
+          -RuntimeExecutable "./cli-publish/excelcli" `
+          -OutputDirectory "cli-npm-macos"
+        ./scripts/Test-NpmPackages.ps1 `
+          -Component Cli `
+          -LauncherPackage "./cli-npm-macos/sbroenne-excelcli-${{ needs.version.outputs.version }}.tgz" `
+          -RuntimePackage "./cli-npm-macos/sbroenne-excelcli-${{ matrix.npm-suffix }}-${{ needs.version.outputs.version }}.tgz"
+
+    - name: Upload CLI Darwin npm artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+      with:
+        name: cli-npm-${{ matrix.slug }}
+        path: cli-npm-macos/*.tgz
+
     - name: Create CLI ZIP
       run: |
         version="${{ needs.version.outputs.version }}"
@@ -309,13 +363,26 @@ jobs:
         cp src/ExcelMcp.CLI/README.md cli-release/README.md
         cp LICENSE cli-release/
         chmod +x cli-release/excelcli
-        (cd cli-release && /usr/bin/zip -r "../ExcelMcp-CLI-$version-macos-arm64.zip" .)
+        (cd cli-release && /usr/bin/zip -r "../ExcelMcp-CLI-$version-${{ matrix.slug }}.zip" .)
+
+    - name: Verify CLI package
+      shell: pwsh
+      run: |
+        ./scripts/Test-DistributionPackages.ps1 `
+          -ArchivePath "./ExcelMcp-CLI-${{ needs.version.outputs.version }}-${{ matrix.slug }}.zip" `
+          -ExecutableRelativePath "excelcli" `
+          -ExpectedArchitecture "${{ matrix.slug }}" `
+          -Launch:([bool]::Parse("${{ matrix.launch }}"))
+
+    - name: Submit CLI package for notarization
+      shell: pwsh
+      run: ./scripts/Submit-MacNotarization.ps1 -ArchivePath "./ExcelMcp-CLI-${{ needs.version.outputs.version }}-${{ matrix.slug }}.zip"
 
     - name: Upload CLI ZIP Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: cli-zip-macos-arm64
-        path: ExcelMcp-CLI-*-macos-arm64.zip
+        name: cli-zip-${{ matrix.slug }}
+        path: ExcelMcp-CLI-*-${{ matrix.slug }}.zip
 
   # =============================================================================
   # Job 2: Build MCP Server (standalone exe — primary + NuGet pack — secondary)
@@ -448,11 +515,31 @@ jobs:
         path: npm-artifacts/*.tgz
 
   build-mcp-server-macos:
-    name: MCP Server (macOS ARM64)
+    name: MCP Server (${{ matrix.label }})
     needs: [version]
     runs-on: macos-14
+    strategy:
+      matrix:
+        include:
+          - runtime: osx-arm64
+            slug: macos-arm64
+            npm-suffix: darwin-arm64
+            label: macOS ARM64
+            launch: true
+          - runtime: osx-x64
+            slug: macos-x64
+            npm-suffix: darwin-x64
+            label: macOS x64
+            launch: false
     permissions:
       contents: read
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      MACOS_NOTARY_API_KEY_P8: ${{ secrets.MACOS_NOTARY_API_KEY_P8 }}
+      MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+      MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
     steps:
     - uses: actions/checkout@v7
@@ -462,12 +549,22 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        package-manager-cache: false
+
+    - name: Initialize macOS signing
+      shell: pwsh
+      run: ./scripts/Initialize-MacSigning.ps1
+
     - name: Publish MCP Server
       run: |
         dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj \
           --configuration Release \
           --framework net10.0 \
-          --runtime osx-arm64 \
+          --runtime ${{ matrix.runtime }} \
           --self-contained true \
           -p:PublishSingleFile=true \
           -p:IncludeNativeLibrariesForSelfExtract=true \
@@ -481,6 +578,28 @@ jobs:
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
+    - name: Sign and verify MCP Server
+      shell: pwsh
+      run: ./scripts/Sign-MacBinary.ps1 -Path ./mcp-server-publish/Sbroenne.ExcelMcp.McpServer
+
+    - name: Build and test MCP Server Darwin npm packages
+      shell: pwsh
+      run: |
+        ./scripts/Build-NpmPackages.ps1 `
+          -Version "${{ needs.version.outputs.version }}" `
+          -RuntimeIdentifier "${{ matrix.runtime }}" `
+          -RuntimeExecutable "./mcp-server-publish/Sbroenne.ExcelMcp.McpServer" `
+          -OutputDirectory "mcp-npm-macos"
+        ./scripts/Test-NpmPackages.ps1 `
+          -LauncherPackage "./mcp-npm-macos/sbroenne-mcp-server-excel-${{ needs.version.outputs.version }}.tgz" `
+          -RuntimePackage "./mcp-npm-macos/sbroenne-mcp-server-excel-${{ matrix.npm-suffix }}-${{ needs.version.outputs.version }}.tgz"
+
+    - name: Upload MCP Server Darwin npm artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+      with:
+        name: mcp-server-npm-${{ matrix.slug }}
+        path: mcp-npm-macos/*.tgz
+
     - name: Create MCP Server ZIP
       run: |
         version="${{ needs.version.outputs.version }}"
@@ -489,13 +608,26 @@ jobs:
         cp src/ExcelMcp.McpServer/README.md mcp-server-release/README.md
         cp LICENSE mcp-server-release/
         chmod +x mcp-server-release/mcp-excel
-        (cd mcp-server-release && /usr/bin/zip -r "../ExcelMcp-MCP-Server-$version-macos-arm64.zip" .)
+        (cd mcp-server-release && /usr/bin/zip -r "../ExcelMcp-MCP-Server-$version-${{ matrix.slug }}.zip" .)
+
+    - name: Verify MCP Server package
+      shell: pwsh
+      run: |
+        ./scripts/Test-DistributionPackages.ps1 `
+          -ArchivePath "./ExcelMcp-MCP-Server-${{ needs.version.outputs.version }}-${{ matrix.slug }}.zip" `
+          -ExecutableRelativePath "mcp-excel" `
+          -ExpectedArchitecture "${{ matrix.slug }}" `
+          -Launch:([bool]::Parse("${{ matrix.launch }}"))
+
+    - name: Submit MCP Server package for notarization
+      shell: pwsh
+      run: ./scripts/Submit-MacNotarization.ps1 -ArchivePath "./ExcelMcp-MCP-Server-${{ needs.version.outputs.version }}-${{ matrix.slug }}.zip"
 
     - name: Upload MCP Server ZIP Artifact
       uses: actions/upload-artifact@v7
       with:
-        name: mcp-server-zip-macos-arm64
-        path: ExcelMcp-MCP-Server-*-macos-arm64.zip
+        name: mcp-server-zip-${{ matrix.slug }}
+        path: ExcelMcp-MCP-Server-*-${{ matrix.slug }}.zip
 
   # =============================================================================
   # Job 3: Build and Publish VS Code Extension
@@ -503,9 +635,16 @@ jobs:
   build-vscode:
     name: VS Code Extension
     needs: [version, prepare-release]
-    runs-on: windows-latest
+    runs-on: macos-14
     permissions:
       contents: read
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      MACOS_NOTARY_API_KEY_P8: ${{ secrets.MACOS_NOTARY_API_KEY_P8 }}
+      MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+      MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
     steps:
     - uses: actions/checkout@v7
@@ -525,6 +664,10 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Initialize macOS signing
+      shell: pwsh
+      run: ./scripts/Initialize-MacSigning.ps1
 
     - name: Set Version
       run: |
@@ -554,16 +697,40 @@ jobs:
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
-    - name: Rename VSIX
+    - name: Verify platform-targeted VSIX packages
       run: |
-        $version = $env:VERSION
-        cd vscode-extension
-        $vsix = Get-ChildItem -Filter "*.vsix" | Select-Object -First 1
-        $targetName = "excelmcp-$version.vsix"
-        if ($vsix.Name -ne $targetName) {
-          Rename-Item $vsix.FullName -NewName $targetName
-        }
+        ./scripts/Test-DistributionPackages.ps1 `
+          -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-win32-x64.vsix" `
+          -ExecutableRelativePath "extension/bin/win32-x64/Sbroenne.ExcelMcp.McpServer.exe" `
+          -ExpectedArchitecture windows-x64 `
+          -ForbiddenExecutableRelativePath @(
+            "extension/bin/darwin-arm64/Sbroenne.ExcelMcp.McpServer"
+            "extension/bin/darwin-x64/Sbroenne.ExcelMcp.McpServer"
+          )
+        ./scripts/Test-DistributionPackages.ps1 `
+          -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-darwin-arm64.vsix" `
+          -ExecutableRelativePath "extension/bin/darwin-arm64/Sbroenne.ExcelMcp.McpServer" `
+          -ExpectedArchitecture macos-arm64 `
+          -ForbiddenExecutableRelativePath @(
+            "extension/bin/win32-x64/Sbroenne.ExcelMcp.McpServer.exe"
+            "extension/bin/darwin-x64/Sbroenne.ExcelMcp.McpServer"
+          ) `
+          -Launch
+        ./scripts/Test-DistributionPackages.ps1 `
+          -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-darwin-x64.vsix" `
+          -ExecutableRelativePath "extension/bin/darwin-x64/Sbroenne.ExcelMcp.McpServer" `
+          -ExpectedArchitecture macos-x64 `
+          -ForbiddenExecutableRelativePath @(
+            "extension/bin/win32-x64/Sbroenne.ExcelMcp.McpServer.exe"
+            "extension/bin/darwin-arm64/Sbroenne.ExcelMcp.McpServer"
+          )
       shell: pwsh
+
+    - name: Notarize Darwin VSIX payloads
+      shell: pwsh
+      run: |
+        ./scripts/Submit-MacNotarization.ps1 -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-darwin-arm64.vsix"
+        ./scripts/Submit-MacNotarization.ps1 -ArchivePath "./vscode-extension/excelmcp-$env:VERSION-darwin-x64.vsix"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v7
@@ -586,9 +753,19 @@ jobs:
           - runner: macos-14
             runtime: osx-arm64
             slug: macos-arm64
+          - runner: macos-14
+            runtime: osx-x64
+            slug: macos-x64
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      MACOS_NOTARY_API_KEY_P8: ${{ secrets.MACOS_NOTARY_API_KEY_P8 }}
+      MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+      MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
     steps:
     - uses: actions/checkout@v7
@@ -603,6 +780,11 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Initialize macOS signing
+      if: startsWith(matrix.runtime, 'osx-')
+      shell: pwsh
+      run: ./scripts/Initialize-MacSigning.ps1
 
     - name: Set Version
       run: |
@@ -622,6 +804,21 @@ jobs:
       shell: pwsh
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+
+    - name: Verify MCPB package
+      shell: pwsh
+      run: |
+        $architecture = if ("${{ matrix.runtime }}" -eq "win-x64") { "windows-x64" } else { "${{ matrix.slug }}" }
+        ./scripts/Test-DistributionPackages.ps1 `
+          -ArchivePath "./mcpb/artifacts/excel-mcp-${{ env.VERSION }}-${{ matrix.slug }}.mcpb" `
+          -ExecutableRelativePath $(if ("${{ matrix.runtime }}" -eq "win-x64") { "server/excel-mcp-server.exe" } else { "server/excel-mcp-server" }) `
+          -ExpectedArchitecture $architecture `
+          -Launch:("${{ matrix.runtime }}" -eq "osx-arm64")
+
+    - name: Submit MCPB package for notarization
+      if: startsWith(matrix.runtime, 'osx-')
+      shell: pwsh
+      run: ./scripts/Submit-MacNotarization.ps1 -ArchivePath "./mcpb/artifacts/excel-mcp-${{ env.VERSION }}-${{ matrix.slug }}.mcpb"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v7
@@ -985,6 +1182,30 @@ jobs:
         name: cli-npm
         path: npm-packages
 
+    - name: Download Darwin ARM64 npm Packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      with:
+        name: mcp-server-npm-macos-arm64
+        path: npm-packages
+
+    - name: Download CLI Darwin ARM64 npm Packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      with:
+        name: cli-npm-macos-arm64
+        path: npm-packages
+
+    - name: Download Darwin x64 npm Packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      with:
+        name: mcp-server-npm-macos-x64
+        path: npm-packages
+
+    - name: Download CLI Darwin x64 npm Packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+      with:
+        name: cli-npm-macos-x64
+        path: npm-packages
+
     - name: Download VS Code VSIX
       uses: actions/download-artifact@v8
       with:
@@ -1045,11 +1266,23 @@ jobs:
           -PackageName "@sbroenne/mcp-server-excel-win32-x64" `
           -Tarball "npm-packages/sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
         Publish-NpmPackage `
+          -PackageName "@sbroenne/mcp-server-excel-darwin-arm64" `
+          -Tarball "npm-packages/sbroenne-mcp-server-excel-darwin-arm64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/mcp-server-excel-darwin-x64" `
+          -Tarball "npm-packages/sbroenne-mcp-server-excel-darwin-x64-$env:VERSION.tgz"
+        Publish-NpmPackage `
           -PackageName "@sbroenne/mcp-server-excel" `
           -Tarball "npm-packages/sbroenne-mcp-server-excel-$env:VERSION.tgz"
         Publish-NpmPackage `
           -PackageName "@sbroenne/excelcli-win32-x64" `
           -Tarball "npm-packages/sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/excelcli-darwin-arm64" `
+          -Tarball "npm-packages/sbroenne-excelcli-darwin-arm64-$env:VERSION.tgz"
+        Publish-NpmPackage `
+          -PackageName "@sbroenne/excelcli-darwin-x64" `
+          -Tarball "npm-packages/sbroenne-excelcli-darwin-x64-$env:VERSION.tgz"
         Publish-NpmPackage `
           -PackageName "@sbroenne/excelcli" `
           -Tarball "npm-packages/sbroenne-excelcli-$env:VERSION.tgz"
@@ -1057,12 +1290,18 @@ jobs:
       env:
         NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-    - name: Publish to VS Code Marketplace
-      uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
-      with:
-        pat: ${{ secrets.VSCE_TOKEN }}
-        registryUrl: https://marketplace.visualstudio.com
-        extensionFile: vscode-vsix/excelmcp-${{ env.VERSION }}.vsix
+    - name: Publish platform VSIX packages to VS Code Marketplace
+      shell: pwsh
+      run: |
+        npm install --global @vscode/vsce@3.9.2
+        foreach ($target in @("win32-x64", "darwin-arm64", "darwin-x64")) {
+          vsce publish `
+            --packagePath "vscode-vsix/excelmcp-$env:VERSION-$target.vsix" `
+            --pat "${{ secrets.VSCE_TOKEN }}"
+          if ($LASTEXITCODE -ne 0) {
+            throw "VS Code Marketplace publish failed for $target."
+          }
+        }
       continue-on-error: true
 
   # =============================================================================
@@ -1091,6 +1330,7 @@ jobs:
       run: |
         echo "Downloaded artifacts:"
         find artifacts -type f -name "*" | head -20
+        echo "Intel macOS artifacts are build-verified; physical Intel Excel execution remains unverified." >> "$GITHUB_STEP_SUMMARY"
 
     - name: Render Release Notes
       shell: pwsh
@@ -1108,12 +1348,16 @@ jobs:
           "ExcelMcp-CLI-${{ env.VERSION }}-windows.zip"
           "ExcelMcp-MCP-Server-${{ env.VERSION }}-macos-arm64.zip"
           "ExcelMcp-CLI-${{ env.VERSION }}-macos-arm64.zip"
+          "ExcelMcp-MCP-Server-${{ env.VERSION }}-macos-x64.zip"
+          "ExcelMcp-CLI-${{ env.VERSION }}-macos-x64.zip"
         )
         $archivePaths = @(
           Get-ChildItem -Path artifacts/mcp-server-zip -Filter *.zip -File
           Get-ChildItem -Path artifacts/cli-zip -Filter *.zip -File
           Get-ChildItem -Path artifacts/mcp-server-zip-macos-arm64 -Filter *.zip -File
           Get-ChildItem -Path artifacts/cli-zip-macos-arm64 -Filter *.zip -File
+          Get-ChildItem -Path artifacts/mcp-server-zip-macos-x64 -Filter *.zip -File
+          Get-ChildItem -Path artifacts/cli-zip-macos-x64 -Filter *.zip -File
         )
 
         $actualNames = @($archivePaths | ForEach-Object Name)
@@ -1146,6 +1390,8 @@ jobs:
         for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcp-server-zip-macos-arm64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/cli-zip-macos-arm64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/mcp-server-zip-macos-x64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/cli-zip-macos-x64/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle-*/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done

@@ -8,7 +8,8 @@ const repositoryRoot = resolve(extensionRoot, '..');
 const project = resolve(repositoryRoot, 'src', 'ExcelMcp.McpServer', 'ExcelMcp.McpServer.csproj');
 const targets = [
   { runtime: 'win-x64', directory: 'win32-x64', executable: 'Sbroenne.ExcelMcp.McpServer.exe' },
-  { runtime: 'osx-arm64', directory: 'darwin-arm64', executable: 'Sbroenne.ExcelMcp.McpServer' }
+  { runtime: 'osx-arm64', directory: 'darwin-arm64', executable: 'Sbroenne.ExcelMcp.McpServer' },
+  { runtime: 'osx-x64', directory: 'darwin-x64', executable: 'Sbroenne.ExcelMcp.McpServer' }
 ];
 
 for (const target of targets) {
@@ -40,7 +41,19 @@ for (const target of targets) {
     process.exit(result.status ?? 1);
   }
 
-  if (target.runtime === 'osx-arm64') {
-    chmodSync(resolve(output, target.executable), 0o755);
+  if (target.runtime.startsWith('osx-')) {
+    const executablePath = resolve(output, target.executable);
+    chmodSync(executablePath, 0o755);
+    const signing = spawnSync(
+      'pwsh',
+      ['-NoProfile', '-File', resolve(repositoryRoot, 'scripts', 'Sign-MacBinary.ps1'), '-Path', executablePath],
+      { cwd: repositoryRoot, encoding: 'utf8', stdio: 'inherit' }
+    );
+    if (signing.error) {
+      throw signing.error;
+    }
+    if (signing.status !== 0) {
+      process.exit(signing.status ?? 1);
+    }
   }
 }

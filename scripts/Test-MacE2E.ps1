@@ -5,10 +5,17 @@ Tests the experimental macOS workbook slice through the real CLI and MCP process
 .DESCRIPTION
 Requires running desktop Excel and existing Automation consent. Uses ordinary
 temporary fixtures and LaunchServices; never requests permission or accesses
-Excel's container. Does not establish native create, Power Query or VBA parity.
+Excel's container. Includes repository-authored MS-QDEFF/OOXML Power Query
+fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
 #>
 [CmdletBinding()]
-param([switch]$SkipBuild, [string]$PipeName)
+param(
+    [switch]$SkipBuild,
+    [string]$PipeName,
+    [switch]$IncludePowerQueryFixtures,
+    [switch]$IncludePythonInExcel,
+    [switch]$IncludeRangeExpansion
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -74,17 +81,29 @@ $environment = @{
     EXCELMCP_CLI_PIPE = $pipe
     DOTNET_ROOT = $dotnetRoot
 }
+if ($IncludePowerQueryFixtures) {
+    $environment.EXCELMCP_MAC_PQ_FIXTURE_E2E = '1'
+}
+if ($IncludePythonInExcel) {
+    $environment.EXCELMCP_MAC_PYTHON_E2E = '1'
+}
+if ($IncludeRangeExpansion) {
+    $environment.EXCELMCP_MAC_RANGE_EXPANSION_E2E = '1'
+}
 try {
     $test = Invoke-MacTestCommand dotnet @(
         'test', 'tests/ExcelMcp.Portable.Tests/ExcelMcp.Portable.Tests.csproj',
         '-c', 'Release', '--no-build', '--nologo', '-v', 'minimal',
         '--filter', 'FullyQualifiedName~MacExcelE2ETests', '--blame-hang-timeout', '5m'
-    ) 360 $environment
+    ) 600 $environment
     Write-Host $test.stdout
     if (-not [string]::IsNullOrWhiteSpace($test.stderr)) { Write-Host $test.stderr }
-    if ($test.exitCode -ne 0 -or
-        $test.stdout -notmatch 'Passed!.*Failed:\s*0\b.*Passed:\s*2\b.*Skipped:\s*0\b.*Total:\s*2\b') {
-        throw 'Both macOS entry-point workflows must pass; missing, skipped or failed cases are not success.'
+    $expectedPassed = if ($IncludePowerQueryFixtures) { 6 } else { 4 }
+    $expectedSkipped = if ($IncludePowerQueryFixtures) { 0 } else { 1 }
+    $expectedTotal = if ($IncludePowerQueryFixtures) { 6 } else { 5 }
+    $summaryPattern = "Passed!.*Failed:\s*0\b.*Passed:\s*$expectedPassed\b.*Skipped:\s*$expectedSkipped\b.*Total:\s*$expectedTotal\b"
+    if ($test.exitCode -ne 0 -or $test.stdout -notmatch $summaryPattern) {
+        throw "Expected $expectedPassed passed and $expectedSkipped skipped macOS workflows; missing or failed cases are not success."
     }
 }
 finally {
@@ -95,5 +114,9 @@ finally {
         }
     }
 }
-Write-Host 'macOS CLI/MCP workbook slice passed. Windows COM and unsupported Mac features remain separate gates.'
+if ($IncludePowerQueryFixtures) {
+    Write-Host 'macOS CLI/MCP workbook and repository-owned Power Query fixture slices passed. Refresh, Windows COM, and unsupported Mac features remain separate gates.'
+} else {
+    Write-Host 'macOS CLI/MCP workbook slice passed. Power Query fixture acceptance requires -IncludePowerQueryFixtures and remains gated.'
+}
 $global:LASTEXITCODE = 0

@@ -3,14 +3,14 @@
     Creates one platform-specific MCPB package for Claude Desktop.
 
 .DESCRIPTION
-    Builds the MCP Server as a self-contained Windows x64 or Apple Silicon
-    macOS executable and packages it as an .mcpb file for one-click installation.
+    Builds the MCP Server as a self-contained Windows x64 or macOS x64/Arm64
+    executable and packages it as an .mcpb file for one-click installation.
 
 .PARAMETER Version
     Package version. Defaults to the version in Directory.Build.props.
 
 .PARAMETER RuntimeIdentifier
-    Native runtime to package: win-x64 or osx-arm64.
+    Native runtime to package: win-x64, osx-arm64, or osx-x64.
 
 .PARAMETER OutputDir
     Output directory relative to mcpb/. Defaults to ./artifacts.
@@ -22,7 +22,7 @@ param(
     [string]$Version,
 
     [Parameter()]
-    [ValidateSet("win-x64", "osx-arm64")]
+    [ValidateSet("win-x64", "osx-arm64", "osx-x64")]
     [string]$RuntimeIdentifier = "win-x64",
 
     [Parameter()]
@@ -46,7 +46,7 @@ $Target = if ($RuntimeIdentifier -eq "win-x64") {
         LongDescription = "Automate the real Microsoft Excel application from Claude on Windows. 31 specialized tools with 326 operations cover Power Query, DAX and the Data Model, VBA, PivotTables, Charts, Conditional Formatting, and more through Excel's COM API. Requires Windows x64 and Microsoft Excel 2016 or later."
     }
 }
-else {
+elseif ($RuntimeIdentifier -eq "osx-arm64") {
     @{
         Platform = "darwin"
         Slug = "macos-arm64"
@@ -54,6 +54,16 @@ else {
         BundleExecutable = "excel-mcp-server"
         DisplayName = "Excel (Apple Silicon macOS)"
         LongDescription = "Automate the real Microsoft Excel application from Claude on Apple Silicon macOS. The capability-gated backend supports session lifecycle; worksheet create, list, rename, and delete; range values, formulas, number formats, row and column sizing, clearing, and calculation; plus Power Query list and view for clean saved workbooks without a Data Model. Unavailable operations fail explicitly. Requires Excel for Mac 16.112 or later."
+    }
+}
+else {
+    @{
+        Platform = "darwin"
+        Slug = "macos-x64"
+        SourceExecutable = "Sbroenne.ExcelMcp.McpServer"
+        BundleExecutable = "excel-mcp-server"
+        DisplayName = "Excel (Intel macOS)"
+        LongDescription = "Automate Microsoft Excel on Intel macOS with ExcelMcp's capability-gated Mac backend. This package is cross-built and structurally validated; physical Intel Mac Excel execution remains unverified."
     }
 }
 
@@ -107,10 +117,15 @@ $FinalExecutable = Join-Path $ServerDir $Target.BundleExecutable
 Move-Item (Join-Path $PublishDir $Target.SourceExecutable) $FinalExecutable -Force
 Remove-Item -LiteralPath $PublishDir -Recurse -Force
 
-if ($RuntimeIdentifier -eq "osx-arm64" -and -not $IsWindows) {
+if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal) -and -not $IsWindows) {
     & /bin/chmod +x $FinalExecutable
     if ($LASTEXITCODE -ne 0) {
         throw "Could not mark the macOS MCP Server executable."
+    }
+
+    & (Join-Path $RootDir "scripts/Sign-MacBinary.ps1") -Path $FinalExecutable
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not sign the macOS MCP Server executable."
     }
 }
 
@@ -147,7 +162,7 @@ Copy-Item (Join-Path $RootDir "CHANGELOG.md") (Join-Path $StagingDir "CHANGELOG.
 
 $McpbFileName = "excel-mcp-$Version-$($Target.Slug).mcpb"
 $McpbPath = Join-Path $OutputDir $McpbFileName
-$MacExecutableRelativePath = if ($RuntimeIdentifier -eq "osx-arm64") {
+$MacExecutableRelativePath = if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal)) {
     "server/excel-mcp-server"
 }
 else {
@@ -165,7 +180,7 @@ try {
     if ($null -eq $ExecutableEntry) {
         throw "MCPB package is missing $ExpectedEntry."
     }
-    if ($RuntimeIdentifier -eq "osx-arm64" -and
+    if ($RuntimeIdentifier.StartsWith("osx-", [StringComparison]::Ordinal) -and
         ($ExecutableEntry.ExternalAttributes -band 0x00400000) -eq 0) {
         throw "macOS MCPB executable does not have an executable mode."
     }

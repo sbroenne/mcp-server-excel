@@ -2,7 +2,10 @@
 
 **Model Context Protocol server for natural language Excel automation**
 
-This plugin provides the `excel-mcp` skill and a plugin-local MCP bootstrap for GitHub Copilot. Use natural language to automate Power Query, DAX measures, PivotTables, Tables, Charts, VBA macros, and more through Windows Excel COM API.
+This plugin provides the `excel-mcp` skill and launches the published
+`@sbroenne/mcp-server-excel` npm package. Use natural language to automate Excel
+through the complete Windows COM backend or the capability-gated macOS
+x64/Arm64 backend.
 
 **Best for:** Conversational AI workflows (GitHub Copilot Chat, Claude Desktop, Cursor) where rich tool schemas and persistent connections matter more than token efficiency.
 
@@ -10,7 +13,9 @@ This plugin provides the `excel-mcp` skill and a plugin-local MCP bootstrap for 
 
 ## Prerequisites
 
-- **Windows** with Microsoft Excel 2016 or later (COM interop required)
+- **Windows x64** with Microsoft Excel 2016 or later, or **macOS x64/Arm64**
+  with Excel for Mac 16.112 or later (Intel hardware execution is unverified)
+- **Node.js 18 or later** with optional dependencies enabled
 - **GitHub Copilot extension** or other MCP-compatible client
 
 ---
@@ -31,28 +36,18 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 ### Option 3: Manual Installation
 
 1. Install the plugin
-2. Let the plugin bootstrap the latest self-contained `mcp-excel.exe` on first use
+2. Let `npx` install the matching self-contained runtime on first use
 3. Or add the standalone binary to your MCP client configuration manually (see [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/))
 
-### Runtime Bootstrap
+### Runtime resolution
 
-The plugin does **not** rely on a bundled `mcp-excel.exe`. Its Agent Plugins 1.0 `mcp.json` launches a PowerShell wrapper that:
-
-- checks GitHub Releases for the newest `ExcelMcp-MCP-Server-*-windows.zip`
-- downloads and caches the latest self-contained Windows server on first invocation
-- stores plugin-hosted runtime state under `PLUGIN_DATA\runtime`
-- re-checks freshness at most once per Copilot chat session
-
-The optional global shim runs outside an Agent Plugins host, uses
-`~\.copilot\plugin-runtime\mcp-server-excel\excel-mcp`, and checks for updates at
-most once every 24 hours.
-
-If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-mcp\com.github.copilot\bin\install-global.ps1"
-```
+The Agent Plugins 1.0 `mcp.json` runs
+`npx -y @sbroenne/mcp-server-excel`. npm installs exactly one optional runtime
+package for the current host: Windows uses
+`@sbroenne/mcp-server-excel-win32-x64`; macOS uses
+`@sbroenne/mcp-server-excel-darwin-arm64` or
+`@sbroenne/mcp-server-excel-darwin-x64`. Unsupported platforms fail closed;
+physical Intel Mac Excel execution remains unverified.
 
 ---
 

@@ -32,6 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// most 80 characters. Use view for one query's full M code.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
+[MacCapability(MacCapabilityTier.PowerQueryPackage, MacImplementationStatus.Blocked, false)]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
     Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. READS: list returns compact metadata, exact load state, and an M preview of at most 80 characters; use view for one query's full M code. IDENTITY: Load detection, refresh, unload, and delete use the exact case-insensitive mashup Location, so prefix names remain isolated. EVALUATE: Temporary query, sheet, table, and connection cleanup is verified; cleanup failures return an error with recovery guidance. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. Values are case-insensitive and unknown values are rejected. M-CODE: Preserved exactly by default. Set formatMCode=true only with user consent; it sends M code to powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
 public interface IPowerQueryCommands
@@ -42,6 +43,7 @@ public interface IPowerQueryCommands
     /// use view for a single query's complete formula. Inspection failures fail the action
     /// rather than silently omitting a query.
     /// </summary>
+    [MacCapability(MacCapabilityTier.PowerQueryPackage, MacImplementationStatus.Partial, true)]
     [ServiceAction("list")]
     PowerQueryListResult List(IExcelBatch batch);
 
@@ -50,6 +52,7 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to view</param>
+    [MacCapability(MacCapabilityTier.PowerQueryPackage, MacImplementationStatus.Partial, true)]
     [ServiceAction("view")]
     PowerQueryViewResult View(IExcelBatch batch, [RequiredParameter] string queryName);
 
@@ -60,6 +63,11 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query to refresh</param>
     /// <param name="timeout">Public input is whole seconds from 0 through 2147483. Omitted or 0 uses the 30-minute data-operation default.</param>
     /// <param name="progress">Optional progress reporter</param>
+    [MacCapability(
+        MacCapabilityTier.PowerQueryPackage,
+        MacImplementationStatus.Blocked,
+        false,
+        Blocker = "repository-owned worksheet fixtures have not yet proven synchronous refresh completion and engine error propagation")]
     [ServiceAction("refresh")]
     PowerQueryRefreshResult Refresh(IExcelBatch batch, [RequiredParameter] string queryName, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null);
 
@@ -68,6 +76,7 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
+    [MacCapability(MacCapabilityTier.PowerQueryPackage, MacImplementationStatus.Partial, true)]
     [ServiceAction("get-load-config")]
     PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, [RequiredParameter] string queryName);
 
@@ -110,6 +119,7 @@ public interface IPowerQueryCommands
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <param name="formatMCode">Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
+    [MacCapability(MacCapabilityTier.PowerQueryPackage, MacImplementationStatus.Partial, true)]
     OperationResult Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true, bool formatMCode = false);
 
     /// <summary>
@@ -140,6 +150,11 @@ public interface IPowerQueryCommands
     /// <param name="timeout">Public input is whole seconds from 0 through 2147483. Omitted or 0 uses the 30-minute data-operation default.</param>
     /// <param name="progress">Optional progress reporter</param>
     /// <exception cref="InvalidOperationException">Thrown when any Power Query fails to refresh</exception>
+    [MacCapability(
+        MacCapabilityTier.PowerQueryPackage,
+        MacImplementationStatus.Blocked,
+        false,
+        Blocker = "refresh-all has broader workbook scope and lacks per-query synchronous completion and error evidence")]
     OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null);
 
     /// <summary>

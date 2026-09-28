@@ -6,7 +6,7 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 
 ### Required
 - **Windows:** Windows 10 or later with Microsoft Excel 2016 or later
-- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+- **macOS:** Intel or Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
 
 Windows provides the complete operation set. The first macOS release is
 capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
@@ -17,7 +17,7 @@ capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
-- **Node.js** - Required for the recommended `npx` installation and other `npx` commands. Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
+- **Node.js 18+** - Required for the recommended `npx` installation and other `npx` commands. Install from [nodejs.org](https://nodejs.org/) or with `winget install OpenJS.NodeJS.LTS` on Windows.
 
 ---
 
@@ -36,8 +36,10 @@ Use this order to avoid setup confusion:
 
 ### VS Code Extension (Easiest - One-Click Setup)
 
-The VS Code extension and MCPB bundle are available for Windows x64 and Apple
-Silicon macOS. Choose the platform-specific artifact when installing manually.
+The VS Code extension and MCPB bundle are available for Windows x64 and macOS
+x64/Arm64. Choose the platform-specific artifact when installing manually.
+Intel packages are cross-built and structurally validated; physical Intel Mac
+Excel execution remains unverified.
 
 1. **Install the Extension**
    - Open VS Code
@@ -62,6 +64,7 @@ Silicon macOS. Choose the platform-specific artifact when installing manually.
 1. Download `excel-mcp-{version}-windows.mcpb` or
    `excel-mcp-{version}-macos-arm64.mcpb` from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+   (`excel-mcp-{version}-macos-x64.mcpb` on Intel Mac)
 2. Double-click the `.mcpb` file (or drag-and-drop onto Claude Desktop)
 3. Restart Claude Desktop
 
@@ -100,9 +103,11 @@ Run the self-contained server directly through npm:
 npx -y @sbroenne/mcp-server-excel --version
 ```
 
-The npm package includes the Windows server, so it does not require .NET or a
-separate download from GitHub Releases. npm caches the package after the first
-run.
+The npm launcher installs `@sbroenne/mcp-server-excel-win32-x64` on Windows,
+`@sbroenne/mcp-server-excel-darwin-arm64` on Apple Silicon, or
+`@sbroenne/mcp-server-excel-darwin-x64` on Intel macOS, so it does not
+require .NET or a separate GitHub Release download. npm caches packages after
+the first run. Intel macOS never falls back to the ARM64 runtime.
 
 #### Option B: Standalone Executable
 
@@ -110,6 +115,7 @@ run.
 2. Download the archive for your platform:
    - Windows: **`ExcelMcp-MCP-Server-{version}-windows.zip`**
    - Apple Silicon macOS: **`ExcelMcp-MCP-Server-{version}-macos-arm64.zip`**
+   - Intel macOS: **`ExcelMcp-MCP-Server-{version}-macos-x64.zip`**
 3. Extract it to a permanent location.
 
 ```powershell
@@ -353,6 +359,7 @@ the version after the package name.
 2. Download the new ZIP for your platform:
    - Windows: `ExcelMcp-MCP-Server-{version}-windows.zip`
    - Apple Silicon macOS: `ExcelMcp-MCP-Server-{version}-macos-arm64.zip`
+   - Intel macOS: `ExcelMcp-MCP-Server-{version}-macos-x64.zip`
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell
@@ -384,19 +391,18 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 ### 1. "mcp-excel is not recognized as an internal or external command"
 
 This error applies to the standalone executable. Either use the recommended npm
-configuration or add `mcp-excel.exe` to your PATH.
+configuration or add `mcp-excel.exe` (Windows) or `mcp-excel` (macOS) to your
+PATH.
 
 Either:
-- Add the directory containing `mcp-excel.exe` to your PATH (see Step 2 above)
-- Or use the full path in your MCP client config: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
+- Add the directory containing the executable to your PATH (see Step 2 above)
+- Or use its full path in your MCP client configuration
 
 ### 2. MCP Server Not Responding
 
-**Check if the exe exists:**
+**Check which executable is on PATH:**
 ```powershell
-where.exe mcp-excel
-# Or with full path:
-Test-Path "C:\Tools\ExcelMcp\mcp-excel.exe"
+Get-Command mcp-excel
 ```
 
 **Verify it runs:**

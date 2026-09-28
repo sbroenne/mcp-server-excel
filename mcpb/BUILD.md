@@ -19,7 +19,7 @@ mcpb/
 ## Prerequisites
 
 - .NET 10 SDK
-- Windows x64 or Apple Silicon macOS to run matching executable verification
+- Windows x64 or macOS x64/Arm64 to run matching executable verification
 
 The script can cross-compile either target, but it skips executable launch
 verification when the build host cannot run that target.
@@ -95,7 +95,7 @@ workbook content.
 
 ## Release Workflow
 
-The unified release workflow builds and publishes both MCPB artifacts with the
+The unified release workflow builds and publishes all three MCPB artifacts with the
 MCP Server, CLI, VS Code extension, and NuGet packages. Do not edit the manifest
 or upload a differently named ZIP by hand.
 

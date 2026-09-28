@@ -8,6 +8,7 @@ Choose the MCPB matching your computer:
 
 - `excel-mcp-<version>-windows.mcpb`
 - `excel-mcp-<version>-macos-arm64.mcpb`
+- `excel-mcp-<version>-macos-x64.mcpb`
 
 ## What It Does
 
@@ -28,8 +29,11 @@ calculation. Other actions return an explicit unsupported-platform error.
 ## Requirements
 
 - **Windows x64** with Microsoft Excel 2016 or later, or
-- **Apple Silicon macOS** with Excel for Mac 16.112 or later
+- **macOS x64/Arm64** with Excel for Mac 16.112 or later
 - **Claude Desktop**
+
+Intel macOS packages are cross-built and structurally validated. Physical Intel
+Mac Excel execution remains unverified.
 
 ## Installation
 

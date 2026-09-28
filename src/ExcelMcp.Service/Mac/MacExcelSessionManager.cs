@@ -146,6 +146,12 @@ internal sealed class MacExcelSessionManager : IDisposable
                 $"Session '{sessionId}' requires manual recovery " +
                 "and cannot accept more operations.");
         }
+        if (session.UnsafeReason is not null)
+        {
+            throw new InvalidOperationException(
+                $"Session '{sessionId}' is unsafe after an uncertain Office.js mutation: " +
+                session.UnsafeReason);
+        }
 
         if (!session.TryAdmitOperation())
         {
@@ -156,6 +162,12 @@ internal sealed class MacExcelSessionManager : IDisposable
         Interlocked.Increment(ref session.ActiveOperations);
         try
         {
+            if (session.UnsafeReason is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' is unsafe after an uncertain Office.js mutation: " +
+                    session.UnsafeReason);
+            }
             return await operation(session);
         }
         finally

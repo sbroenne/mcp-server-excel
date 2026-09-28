@@ -61,7 +61,7 @@
     "chatSkills": [
       {
         "name": "excel-mcp",
-        "description": "Excel MCP Server skill for Windows and Apple Silicon macOS workbook automation.",
+        "description": "Excel MCP Server skill for Windows x64 and macOS x64/Arm64 workbook automation.",
         "path": "./skills/excel-mcp/SKILL.md"
       }
     ]
@@ -72,11 +72,11 @@
     "copy:skills": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../scripts/Copy-VscodeSkills.ps1",
     "build:mcp-server": "npm run clean && npm run clean:bin && node scripts/build-mcp-runtimes.mjs",
     "copy:changelog": "node -e \"const fs=require('fs'); fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');\"",
-    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile",
+    "vscode:prepublish": "npm run compile",
     "validate:features": "node scripts/validate-feature-metadata.mjs",
     "compile": "npm run validate:features && tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "node scripts/package-platforms.mjs",
+    "package": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile && node scripts/package-platforms.mjs",
     "lint": "oxlint src -D correctness -D suspicious -D perf --deny-warnings"
   },
   "devDependencies": {

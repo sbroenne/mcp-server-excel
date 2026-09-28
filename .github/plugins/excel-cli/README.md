@@ -2,7 +2,9 @@
 
 **Command-line Excel automation for coding agents — 64% more token-efficient than MCP Server**
 
-This plugin provides the `excel-cli` skill plus a lightweight runtime bootstrap for GitHub Copilot CLI agents. The skill guides agents to use `excelcli` commands for Power Query, DAX, PivotTables, Tables, Charts, VBA, and more — all through Windows Excel COM automation.
+This plugin provides the `excel-cli` skill for GitHub Copilot CLI agents. The
+skill guides agents to invoke `npx -y @sbroenne/excelcli` for Power Query, DAX,
+PivotTables, Tables, Charts, VBA, and more through the matching platform backend.
 
 **Best for:** Coding agents (GitHub Copilot, Cursor, Windsurf) that need Excel automation without loading large tool schemas into context.
 
@@ -10,7 +12,9 @@ This plugin provides the `excel-cli` skill plus a lightweight runtime bootstrap 
 
 ## Prerequisites
 
-- **Windows** with Microsoft Excel 2016 or later (COM interop required)
+- **Windows x64** with Microsoft Excel 2016 or later, or **macOS x64/Arm64**
+  with Excel for Mac 16.112 or later (Intel hardware execution is unverified)
+- **Node.js 18 or later** with optional dependencies enabled
 
 ---
 
@@ -23,33 +27,20 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-### Step 2: Install the Optional Global Shim
-
-If you want `excelcli` on PATH for shell usage outside plugin-driven flows, install the plugin-provided shim:
+### Step 2: Run the CLI
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
+npx -y @sbroenne/excelcli --help
 ```
 
-This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that directory to your user PATH if needed.
+For a persistent command on PATH, use
+`npm install --global @sbroenne/excelcli`. Windows installs
+`@sbroenne/excelcli-win32-x64`; macOS installs
+`@sbroenne/excelcli-darwin-arm64` or `@sbroenne/excelcli-darwin-x64`.
+Unsupported platforms fail closed; physical Intel Mac Excel execution remains
+unverified.
 
-### Step 3: First Use Bootstraps `excelcli`
-
-The plugin ships **wrapper/download logic** instead of a bundled executable. On first real invocation it:
-
-1. Uses the host-managed persistent plugin data directory (`PLUGIN_DATA\runtime`) for its cache
-2. Queries the newest GitHub Release from `sbroenne/mcp-server-excel`
-3. Downloads the self-contained Windows CLI asset if needed
-4. Reuses that runtime for the rest of the chat session without repeated freshness checks
-
-The optional global shim runs outside an Agent Plugins host and uses
-`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` as its standalone cache.
-Standalone shim use checks for updates at most once every 24 hours.
-
-You do **not** need a separate standalone install just to use the plugin.
-
-### Step 4: Optional Standalone CLI Install
+### Step 3: Optional Standalone CLI Install
 
 If you still prefer a fully separate non-plugin install, you can use the normal release channels:
 

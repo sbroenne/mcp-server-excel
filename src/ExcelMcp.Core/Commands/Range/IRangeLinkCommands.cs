@@ -147,6 +147,9 @@ public interface IRangeLinkCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <param name="locked">Lock status: true = locked (protected when sheet protection enabled), false = unlocked (editable)</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native cell-lock mutation source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("set-cell-lock")]
     OperationResult SetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] bool locked);
 
@@ -156,6 +159,9 @@ public interface IRangeLinkCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native cell-lock inspection source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-cell-lock")]
     RangeLockInfoResult GetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }

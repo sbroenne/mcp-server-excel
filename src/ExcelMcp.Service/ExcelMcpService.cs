@@ -43,6 +43,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
+    private readonly MacVbaHelperClient? _macVbaHelperClient;
     private readonly MacPowerQueryHelperDispatcher? _macPowerQueryHelperDispatcher;
     private readonly Func<string, TimeSpan, Task<JsonElement>>? _getMacHelperCapabilities;
     private readonly IReadOnlySet<string> _macPowerQueryCandidateActions =
@@ -91,6 +92,7 @@ public sealed class ExcelMcpService : IDisposable
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
             var helperClient = new MacVbaHelperClient(_macBackend);
+            _macVbaHelperClient = helperClient;
             _getMacHelperCapabilities = helperClient.GetCapabilitiesAsync;
             _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
                 helperClient.DispatchAsync);
@@ -475,7 +477,8 @@ public sealed class ExcelMcpService : IDisposable
                 filePath = session.FilePath,
                 isExcelVisible = session.IsVisible,
                 activeOperations = Volatile.Read(ref session.ActiveOperations),
-                canClose = session.PendingOperations == 0 && !session.IsClosing
+                canClose = session.PendingOperations == 0 && !session.IsClosing,
+                unsafeReason = session.UnsafeReason
             }).ToList();
             return new ServiceResponse
             {
@@ -504,9 +507,15 @@ public sealed class ExcelMcpService : IDisposable
             }
 
             var closeArgs = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
+            var session = _macSessionManager!.Sessions.FirstOrDefault(
+                candidate => candidate.SessionId == request.SessionId);
             var closed = await _macSessionManager!.CloseAsync(request.SessionId, closeArgs?.Save ?? false);
             if (closed)
             {
+                if (session is not null)
+                {
+                    await TryUnregisterOfficeSessionAsync(session);
+                }
                 return new ServiceResponse { Success = true };
             }
             if (_knownSessionIds.ContainsKey(request.SessionId))
@@ -603,8 +612,18 @@ public sealed class ExcelMcpService : IDisposable
         }
 
         var command = $"{category}.{action}";
-        var capability = MacCommandCapabilities.Get(command);
-        if (!capability.IsAvailable)
+        var officeCandidateEnabled = MacOfficeActionCatalog.TryGet(command, out _)
+            && MacOfficeBridgeConfiguration.IsActionEnabled(command);
+        var capability = MacCommandCapabilities.Get(
+            command,
+            officeCandidateEnabled: officeCandidateEnabled);
+        var scenarioAcceptance = CanUseScenarioForAcceptance(
+            command,
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E"),
+            MacVbaHelperClient.GetInstallation());
+        var knownPowerQueryAction = category == "powerquery"
+            && ServiceRegistry.PowerQuery.TryParseAction(action, out _);
+        if (!capability.IsAvailable && !scenarioAcceptance && !knownPowerQueryAction)
         {
             return new ServiceResponse
             {
@@ -618,20 +637,73 @@ public sealed class ExcelMcpService : IDisposable
         {
             return await _macSessionManager!.ExecuteAsync(request.SessionId, async session =>
             {
+                var arguments = string.IsNullOrWhiteSpace(request.Args)
+                    ? new JsonObject()
+                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                ResolveMacFileArguments(category, action, arguments);
+
+                if (capability.RequiredTier == MacCapabilityTier.OfficeAddIn)
+                {
+                    if (!MacOfficeActionCatalog.TryGet(command, out var officeAction))
+                    {
+                        throw new InvalidOperationException(
+                            $"Office.js metadata is missing for '{command}'.");
+                    }
+                    try
+                    {
+                        using var officeClient = MacOfficeBridgeClient.CreateDefault();
+                        var officeResult = await officeClient.InvokeAsync(
+                            session.SessionId,
+                            session.FilePath,
+                            command,
+                            arguments,
+                            session.OperationTimeout,
+                            officeAction.Mutation);
+                        return new ServiceResponse
+                        {
+                            Success = true,
+                            Result = officeResult.GetRawText()
+                        };
+                    }
+                    catch (MacOfficeMutationUncertainException ex)
+                    {
+                        session.MarkUnsafe(ex.Message);
+                        throw;
+                    }
+                }
+
                 if (category == "powerquery")
                 {
                     return await DispatchMacPowerQueryAsync(action, request, session);
                 }
 
-                var arguments = string.IsNullOrWhiteSpace(request.Args)
-                    ? new JsonObject()
-                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                if (IsScenarioHelperCommand(command))
+                {
+                    var helperResult = await _macVbaHelperClient!.DispatchAsync(
+                        session.FilePath,
+                        command,
+                        arguments,
+                        session.OperationTimeout);
+                    var helperResponse = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
+                        ?? new JsonObject();
+                    helperResponse["success"] = true;
+                    return new ServiceResponse
+                    {
+                        Success = true,
+                        Result = helperResponse.ToJsonString(ServiceProtocol.JsonOptions)
+                    };
+                }
+
+                if (category == "pythoninexcel")
+                {
+                    MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
+                }
                 arguments["filePath"] = session.FilePath;
-                ResolveMacFileArguments(category, action, arguments);
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
-                    session.OperationTimeout);
+                    session.OperationTimeout,
+                    allowFailureResult: category == "pythoninexcel");
                 return new ServiceResponse
                 {
                     Success = true,
@@ -664,6 +736,26 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             };
         }
+        catch (MacOfficeMutationUncertainException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "MutationOutcomeUncertain",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeBridgeTimeoutException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
         catch (TimeoutException ex)
         {
             await InvalidateMacSessionAsync(request.SessionId);
@@ -671,6 +763,16 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "Timeout",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeBridgeException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.ErrorCategory,
                 ErrorMessage = ex.Message,
                 ExceptionType = ex.GetType().Name
             };
@@ -703,6 +805,46 @@ public sealed class ExcelMcpService : IDisposable
             // Shared Excel is never killed; recovery gating remains if exact close did not complete.
         }
     }
+
+    private static async Task TryUnregisterOfficeSessionAsync(MacExcelSession session)
+    {
+        try
+        {
+            using var officeClient = MacOfficeBridgeClient.CreateDefault();
+            await officeClient.TryUnregisterAsync(session.SessionId, session.FilePath);
+        }
+        catch (Exception ex) when (ex is MacOfficeBridgeException
+                                   or IOException
+                                   or JsonException
+                                   or InvalidOperationException
+                                   or UriFormatException)
+        {
+            // The optional add-in must not prevent native session close.
+        }
+    }
+
+    internal static bool CanUseScenarioForAcceptance(
+        string command,
+        string? e2eMode,
+        MacVbaHelperInstallation installation)
+    {
+        if (!string.Equals(e2eMode, "1", StringComparison.Ordinal))
+        {
+            return false;
+        }
+        return IsNativeScenarioCommand(command)
+            || IsScenarioHelperCommand(command)
+                && installation is { IsConfigured: true, SourceExists: true };
+    }
+
+    private static bool IsNativeScenarioCommand(string command) =>
+        command is "analysis.list-scenarios"
+            or "analysis.update-scenario"
+            or "analysis.delete-scenario"
+            or "analysis.create-scenario-summary";
+
+    private static bool IsScenarioHelperCommand(string command) =>
+        command is "analysis.create-scenario" or "analysis.show-scenario";
 
     private async Task<ServiceResponse> DispatchMacPowerQueryAsync(
         string action,
@@ -1006,30 +1148,24 @@ public sealed class ExcelMcpService : IDisposable
         string action,
         JsonObject arguments)
     {
+        if (category == "table" && action == "append")
+        {
+            var rows = arguments["rows"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
+            var rowsFile = arguments["rowsFile"]?.GetValue<string>();
+            arguments["rows"] = JsonSerializer.SerializeToNode(
+                ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows"),
+                ServiceProtocol.JsonOptions);
+            arguments.Remove("rowsFile");
+            return;
+        }
+
         if (category != "range")
         {
             ValidateMacRangeFormatArguments(category, action, arguments);
             return;
         }
 
-        if (action == "set-values")
-        {
-            var values = arguments["values"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
-            var valuesFile = arguments["valuesFile"]?.GetValue<string>();
-            arguments["values"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveValuesOrFile(values, valuesFile),
-                ServiceProtocol.JsonOptions);
-            arguments.Remove("valuesFile");
-        }
-        else if (action == "set-formulas")
-        {
-            var formulas = arguments["formulas"]?.Deserialize<List<List<string>>>(ServiceProtocol.JsonOptions);
-            var formulasFile = arguments["formulasFile"]?.GetValue<string>();
-            arguments["formulas"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile),
-                ServiceProtocol.JsonOptions);
-            arguments.Remove("formulasFile");
-        }
+        MacRangeArguments.Prepare(category, action, arguments);
     }
 
     private static void ValidateMacRangeFormatArguments(

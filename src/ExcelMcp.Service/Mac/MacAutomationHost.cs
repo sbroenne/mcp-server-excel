@@ -65,25 +65,35 @@ public static class MacAutomationHost
     {
         using var document = JsonDocument.Parse(arguments);
         var filePath = document.RootElement.GetProperty("filePath").GetString();
-        var sheetName = document.RootElement.GetProperty("sheetName").GetString();
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
-        var mutation = command == "sheet.create"
-            ? $"""
+        string mutation;
+        if (command == "sheet.create")
+        {
+            var sheetName = document.RootElement.GetProperty("sheetName").GetString();
+            ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+            mutation = $"""
                 tell workbook targetWorkbookIndex
                     set createdWorksheet to make new worksheet at end
                     set name of createdWorksheet to "{EscapeAppleScript(sheetName)}"
                 end tell
-                """
-            : $"delete worksheet \"{EscapeAppleScript(sheetName)}\" of workbook targetWorkbookIndex";
+                """;
+        }
+        else
+        {
+            var sheetName = document.RootElement.GetProperty("sheetName").GetString();
+            ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+            mutation = $"delete worksheet \"{EscapeAppleScript(sheetName)}\" of workbook targetWorkbookIndex";
+        }
         var script = $$"""
             set workbookPath to "{{EscapeAppleScript(filePath)}}"
             tell application "Microsoft Excel"
                 set targetWorkbookIndex to 0
                 repeat with workbookIndex from 1 to count of workbooks
-                    if (full name of workbook workbookIndex as text) is workbookPath then
-                        set targetWorkbookIndex to workbookIndex
-                    end if
+                    try
+                        if (full name of workbook workbookIndex as text) is workbookPath then
+                            set targetWorkbookIndex to workbookIndex
+                        end if
+                    end try
                 end repeat
                 if targetWorkbookIndex is 0 then error "Workbook is not open in this ExcelMcp session."
                 {{mutation}}

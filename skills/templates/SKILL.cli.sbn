@@ -1,44 +1,45 @@
 ---
 name: excel-cli
 description: >
-  Excel CLI automation skill for Windows and Apple Silicon macOS workbooks. Use when a coding agent needs
+  Excel CLI automation skill for Windows and macOS x64/Arm64 workbooks. Use when a coding agent needs
   token-efficient, scriptable, or unattended Excel automation via excelcli commands.
   Best for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk
   workbook edits. Windows supports the complete operation set; macOS supports
   session, worksheet, range value/formula/clear, and calculation operations. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+; feature availability differs by platform.
+compatibility: Requires Windows with Excel 2016+ or macOS x64/Arm64 with Excel 16.112+; feature availability differs by platform. Intel packages are cross-built and hardware-unverified.
 ---
 
 # Excel Automation with excelcli
 
 ## Preconditions
 
-- Windows host with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
+- Windows host with Microsoft Excel 2016+, or macOS x64/Arm64 with Excel 16.112+
 - Windows uses COM; macOS uses the capability-gated Apple Events backend
 - **Every command below invokes `excelcli` directly, so it must resolve on PATH.**
-  Installing the `excel-cli` plugin does *not* put it there — the global shim is opt-in. Run
-  `com.github.copilot\bin\install-global.ps1` from the installed plugin folder once (it writes
-  `excelcli.cmd` / `excelcli.ps1` into `~\.copilot\bin` and adds that to your user PATH), or
-  install the runtime independently via the standalone release zip or
+  Installing the `excel-cli` plugin does *not* put it there. Run
+  `npm install --global @sbroenne/excelcli`, or install the runtime independently
+  via the standalone release zip or
   `dotnet tool install --global Sbroenne.ExcelMcp.CLI`.
   If `excelcli` is not found, report that and stop — do not guess at a path.
-- In an Agent Plugins host, the runtime is downloaded and cached under
-  `PLUGIN_DATA\runtime`; release freshness is checked once per Copilot session. The optional
-  global shim falls back to `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` and checks
-  for updates at most once every 24 hours.
+- npm installs the Windows x64, Darwin ARM64, or Darwin x64 optional runtime
+  package for the current host. Other unsupported platforms fail closed.
 
 ## macOS Capability Gate
 
-On macOS, use only `session create/open/list/close`, `sheet list/rename/delete`,
-range get/set values and formulas, range clear all/contents/formats, and
-calculation commands. Do not attempt Power Query, VBA, Data Model/DAX,
-PivotTables, tables, charts, slicers, connections, QueryTables, named ranges,
+On macOS, use `session create/open/list/close/test`, `sheet
+list/create/rename/delete`, range get/set values and formulas, range clear
+all/contents/formats, number-format reads and one-format writes, explicit
+column width/row height, and `calculationmode calculate`. Power Query supports
+`list`, `view`, `get-load-config`, and `update` only with `--refresh false` on
+a clean saved workbook without a Data Model. Do not attempt Power Query
+refresh or destination/lifecycle actions, VBA, Data Model/DAX, PivotTables,
+tables, charts, slicers, connections, QueryTables, named ranges, other
 formatting, screenshots, windows, Python, What-If analysis, XML maps, drawings,
 sparklines, or unsupported worksheet/range commands. Report the capability
 limit instead of retrying, clicking dialogs, changing security settings, or
-rewriting the workbook package with another library.
+using an unverified package rewrite.
 
 ## Workflow Checklist
 

@@ -8,12 +8,21 @@ ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistan
 | 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
 
 Both entry points support **Windows with Microsoft Excel 2016+** and
-**Apple Silicon macOS with Excel for Mac 16.112+**. Windows provides the complete
+**macOS x64/Arm64 with Excel for Mac 16.112+**. Windows provides the complete
 operation set; macOS provides the [documented capability-gated subset](../specs/MACOS-SUPPORT.md).
 The standalone distributions do not require a .NET runtime.
 
-Windows and macOS use separate native archives; one executable file cannot be
-shared across PE/Windows and Mach-O/macOS.
+Windows, Apple Silicon macOS, and Intel macOS use separate native archives; one
+executable file cannot be shared across PE/Windows and Mach-O/macOS. Intel
+packages are cross-built and structurally validated, but physical Intel Mac
+Excel execution remains unverified. See
+[macOS distribution readiness](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-DISTRIBUTION.md)
+for package inspection, signing, and notarization details.
+
+The [optional macOS Office.js bridge](MACOS-OFFICEJS.md) is a development-stage
+capability foundation with separate explicit install, activation, health,
+upgrade, and removal steps. It is not needed for the base macOS operation set
+and does not currently enable tables, charts, PivotTables, or formatting.
 
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
 

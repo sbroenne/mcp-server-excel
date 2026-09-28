@@ -54,6 +54,11 @@ The first implementation increment now exists behind runtime platform selection:
 - MCP Server and `excelcli` compile as `net10.0` hosts on macOS. Windows retains
   `net10.0-windows`, WinForms tray integration, SID-secured pipes, COM routing
   and owned-process cleanup.
+- Apple Silicon and Intel release ZIPs, VSIX, MCPB, and matching Darwin npm runtime packages
+  contain self-contained executables. The npm launchers and Copilot plugins
+  resolve the architecture-matched Darwin packages through `npx`. Intel
+  packages are cross-built and structurally validated; physical Intel Mac Excel
+  execution remains unverified.
 - The shared Service selects a serialized JXA/Apple Events backend on macOS.
   CLI IPC uses a stable hashed per-user identity and current-user-only Unix
   named pipes. The Mac daemon has no tray and never force-kills shared Excel.
@@ -61,9 +66,15 @@ The first implementation increment now exists behind runtime platform selection:
   workbook. Timeout handling attempts workbook cleanup without killing Excel;
   complete invalidation and recovery guarantees still need hardening.
 - Implemented native bridge actions are session create/open/close, worksheet
-  create/list/rename/delete, range get/set values and formulas (including
-  existing JSON/CSV file transforms), number-format read/write, explicit
-  row/column sizing, clear operations, and calculation.
+  create/list/rename/delete, worksheet visibility and tab-color operations,
+  range get/set values and formulas (including existing JSON/CSV file
+  transforms), number-format read/write, explicit row/column sizing, clear
+  operations, calculation, Goal Seek, and one- or two-variable Data Tables.
+- A native Python in Excel `Range.Formula2` candidate and its portable
+  validation/polling regressions are staged, but both public actions remain
+  capability-gated. Microsoft documents Python in Excel on qualifying Business
+  and Enterprise subscriptions beginning with Excel for Mac 16.96, but declared
+  API presence and product availability did not establish automation parity.
 - Power Query `list`, `view`, and `get-load-config` are implemented for clean,
   saved workbooks using package inspection. Package-only `update` requires
   `refresh=false`; the contract default remains `refresh=true`, so Mac callers
@@ -98,6 +109,14 @@ The first implementation increment now exists behind runtime platform selection:
   number formats, dimensions, worksheet creation, missing-sheet failure and
   recovery, save/reopen, discard, sentinel preservation, clean empty Power
   Query lists, dirty-workbook rejection, and cleanup.
+- An optional versioned Office.js foundation now provides explicit
+  install/activation/health/upgrade/removal lifecycle, authenticated loopback
+  HTTPS, exact workbook/session binding, correlated serialized requests,
+  deadlines/cancellation, and runtime negotiation of the installed Excel
+  version and `ExcelApi` requirement sets. It exposes health only. User-mediated
+  sideload activation and localhost certificate trust currently block a
+  prompt-free real-Excel smoke test, so no tables, charts, PivotTables,
+  conditional-formatting, or other feature actions are enabled.
 
 This is **not completion of the parity plan**. Worksheet creation uses the
 working nested AppleScript form after JXA returned Excel parameter errors.
@@ -172,6 +191,12 @@ procedure executed. ExcelMcp does not dispatch a probe macro as a preflight.
 
 ## Required parity and priorities
 
+Implementation status is branch-specific: a capability implemented in another
+open feature PR is not present in the base branch until integrated. The feature
+branches must be combined and their capability metadata regenerated before
+claiming a complete product. Classifying an action as blocked is not completing
+its implementation.
+
 The existing Windows source contracts are the baseline. Match operation names,
 parameters, defaults, validation, results, errors, persistence and observable
 behavior wherever Mac Excel permits. MCP and CLI must remain equal entry points
@@ -192,6 +217,17 @@ requirements, and status (verified parity, partial, blocked, or not yet tested).
 Do not classify an untested action as a platform limitation. Every proposed
 exception needs evidence, its user impact, alternatives considered, and an
 explicit scope decision before release.
+
+The authoritative inventory is now generated from Core contract and capability
+annotations:
+
+- [Human-readable action inventory](../docs/MACOS-ACTION-INVENTORY.md)
+- [Machine-readable action inventory](../docs/generated/macos-action-inventory.json)
+
+`MacCommandCapabilities` consumes the same generated action records. Interface
+metadata supplies a default only where all actions share a candidate tier;
+verified native and package-backed actions use method-level overrides. Unknown
+commands are not inferred from a broad category.
 
 ### Power Query parity workstream
 
@@ -286,6 +322,31 @@ Read-only inspection of the installed Excel 16.112.3 scripting dictionary found:
 - `evaluate` (`smXL2435`) evaluates Excel names/formulas. It is not an exposed
   general VBA interpreter or a Power Query M evaluator.
 
+The next helper-free worksheet batch was evaluated against the same installed
+dictionary and synthetic real-Excel workbooks:
+
+| Existing action(s) | Declared Apple Events evidence | Real Excel evidence | Status |
+| --- | --- | --- | --- |
+| Worksheet style `set-visibility`, `get-visibility`, `show`, `hide`, `very-hide` | Worksheet `visible` is a read/write `XlSheetVisibility` property with visible, hidden, and very-hidden enumerators | CLI and MCP exercised hidden, very hidden, explicit visible, and convenience show/hide transitions with exact result names | Implemented |
+| Worksheet style `set-tab-color`, `get-tab-color`, `clear-tab-color` | Worksheet `sheet tab` exposes read/write `color` and `color index`; `XlColorIndex` declares `none` | CLI and MCP round-tripped RGB `#112233`, cleared it, and observed `HasColor=false` | Implemented |
+| Worksheet `copy` | `copy worksheet` declares optional before/after sheet parameters | JXA renamed the existing destination rather than adding a sheet; typed AppleScript returned parameter errors or introduced an untitled workbook outside the owned session | Blocked; declared terminology did not prove contract parity |
+| Worksheet `move` | No move-worksheet command is declared | Not executed because no declared route exists and copy/delete is not an equivalent atomic move | Blocked |
+| Python in Excel `set-formula`, `get-result` | Range `formula2` is declared read/write; Microsoft documents qualifying Mac availability from 16.96 | The first quoted-literal CLI/MCP run exposed incorrect use of a nonexistent range-address property. After switching to the declared `get address` command, both entry points resolved `$Z$1`, but the PY formula remained empty. A bounded transport comparison on Excel 16.113.1 proved JXA Formula2 persisted `=1+2` and value `3` across fresh processes; typed AppleScript returned `-50`; the same quoted PY literal immediately read back with empty `formula2`, `formula`, and value in both the setter and a fresh JXA process | Blocked; actions remain capability-gated because ordinary Formula2 works but PY cannot be invoked truthfully in the tested environment |
+| Range `copy`, `copy-values`, `copy-formulas` | `copy range` accepts a destination range without clipboard use; range `value` and `formula r1c1` are read/write | Source candidate uses native copy for complete content, direct matrices for values, and R1C1 matrices so relative references adjust at the destination | Pending real CLI/MCP acceptance; capability-gated |
+| Range `get-used-range`, `get-info` | Worksheet `used range`, `get address`, row/column collections, number format, and geometry properties are declared | Source candidate preserves absolute addresses and treats Excel's missing-object response for a genuinely empty sheet as a zero-dimensional `$A$1` used range | Pending real CLI/MCP acceptance; capability-gated |
+| Range `get-current-region` | Range `current region` is declared read-only | On a populated `D5:E6` block, JXA returned “The object you are trying to access does not exist” and typed AppleScript returned Excel parameter error `-50` | Blocked; remains capability-gated rather than reconstructing Excel's region semantics |
+| Range `set-number-formats` | Range `number format` is read/write | Source candidate resolves inline/file input through the shared transform, validates the exact 2D shape, and writes each cell to cover single-row and single-column matrices | Pending real CLI/MCP acceptance; capability-gated |
+| Range format `auto-fit-columns`, `auto-fit-rows` | `autofit` accepts a range; range `rows` and `columns` expose the complete selected dimensions | Source candidate targets the selected range's full row/column collections | Pending real CLI/MCP acceptance; capability-gated |
+| Range format `merge-cells`, `unmerge-cells`, `get-merge-info` | `merge`, `unmerge`, read/write `merge cells`, and read-only `merge area` are declared | Source candidate de-duplicates every merged area intersecting the requested range rather than reporting only its first cell | Pending real CLI/MCP acceptance; capability-gated |
+| Range link `set-cell-lock`, `get-cell-lock` | Range `locked` is read/write | Source candidate writes the complete range and reads the first cell, matching the Windows contract | Pending real CLI/MCP acceptance; capability-gated |
+| Calculation `set-mode`, `get-mode` | Application `calculation` is read/write | The declared property is application-global in shared Excel, so changing it cannot preserve exact workbook ownership when unrelated workbooks are open | Blocked for the native shared-Excel tier |
+| Named range lifecycle | Workbook `named item` elements expose name, references, reference range, value, and visibility | The object model appears sufficient, but hidden/internal-name filtering, bounded previews, create/delete dispatch, and exact reference normalization still require a separate evidence slice | Deferred until the range batch is accepted |
+
+The failed copy probes did not authorize closing the untitled workbook or
+terminating shared Excel. Exact-path AppleScript lookup now skips workbooks
+whose `full name` cannot be represented, so unrelated unsaved workbooks do not
+break create/delete mutations for an owned workbook.
+
 The dictionary was read using `/usr/bin/sdef '/Applications/Microsoft Excel.app'`
 and XML inspection of command/class/property declarations. No workbook was
 opened or modified, no macro executed, and no consent requested for this
@@ -370,6 +431,35 @@ Power Query feasibility is now demonstrated beyond parser round-tripping:
   connection-only queries, Data Model loads, temporary-query cleanup, source
   errors, or refresh completion across all connectors.
 
+The repository now also owns an independent fixture factory in
+`tests/ExcelMcp.Portable.Tests/PowerQueryFixtureFactory.cs`. It generates blank
+OOXML packages containing only repository-authored identifiers, literal M,
+values, MS-QDEFF DataMashup streams, connections, and (for the worksheet
+variant) table/QueryTable relationships. Each temporary workbook receives a
+JSON provenance manifest with its SHA-256 hash. Package-audit tests reject
+missing content types, required parts, relationship edges, external
+relationships, invalid DataMashup content, and mismatched load graphs. No
+generated workbook binary is committed.
+
+Real-Excel acceptance is **not established** for these new packages. On
+2026-09-27, the opt-in exact-path run through both CLI and MCP timed out while
+attaching the connection-only fixture after LaunchServices handoff. Independent
+blank-workbook baseline opens failed through the same host-wide LaunchServices
+path, so this result does not establish that either candidate package is
+malformed. The run did not click or dismiss UI, terminate Excel, change
+trust/security, or access an Excel container. The worksheet-loaded fixture,
+save/reopen normalization, and synchronous refresh could therefore not be
+proven. Both generated variants remain test candidates, not accepted fixtures,
+and every refresh-dependent action stays gated.
+
+The failing path is preserved as
+`RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated`. Because
+candidate acceptance is unproven and must be isolated from the established
+baseline workflow, it runs only with the explicit
+`scripts/Test-MacE2E.ps1 -IncludePowerQueryFixtures` switch. A normal Mac E2E
+run continues to exercise the established blank-workbook CLI/MCP workflows
+without launching an unverified candidate.
+
 VBA package work reached a narrower result:
 
 - `[MS-OVBA]` documents the project storage format. The MIT-licensed
@@ -392,12 +482,157 @@ VBA package work reached a narrower result:
   separately approved user-managed trust prerequisite or another non-prompting
   trust design.
 
-**Conclusion:** helper-free Power Query authoring is technically viable through
-transactional saved-package editing and real Excel refresh, with the complete
-contract still to implement and validate. VBA source parsing is viable, but
-source mutation is not yet executable in Excel and remains blocked on a valid
-recompilation/cache strategy plus unattended trust. No production capability
-is enabled solely from these probes.
+No repository-owned `.xlsm` fixture is committed in this layer. Its acceptance
+contract now requires Excel-authored executable state through the optional
+helper: the user imports the original repository `.bas` into a blank workbook
+and saves the `.xlsm`/`.xlam`, so Excel creates and compiles `vbaProject.bin`.
+The harness then uses the version 1 `ExcelMcpDispatch` envelope with exact
+workbook `FullName`, a 32-character lowercase hexadecimal request ID, strict
+allowlisted actions, typed arguments, structured success/error responses, and
+a 262144-byte UTF-8 request/result limit. It must add/read/update/delete the
+harmless `ExcelMcpFixtureModule` in that test-owned workbook and prove exact
+source through both CLI and MCP. It does not synthesize, download, or copy a
+`vbaProject.bin`, and helper v1 does not use arbitrary evaluation or `vba.run`.
+Existing MS-OVBA research proves source preservation and project recognition
+but not an executable project cache; committing that output as a VBA fixture
+would falsely imply runnable coverage.
+
+The companion helper Power Query harness creates a connection-only literal
+`#table` query, then lists, views, updates, renames, views, deletes with
+`deleteConnection=true`, and lists again to prove absence. Static API presence,
+trust readiness, and `supportedActions` are not proof: each corresponding
+`provenMethods` field remains false until the exact prompt-free real-Excel
+lifecycle passes. Connection-only helper coverage must not be reported as
+worksheet load or public create/load-to-table parity.
+
+The opt-in direct-engine runner is
+`scripts/Test-MacHelperAcceptance.ps1`. It requires an already installed and
+open exact `ExcelMcpHelper.xlam`, prior user-managed macro approval, prior
+user-managed VBA project-model trust, and a dedicated blank `.xlsm` created and
+saved by Excel. It requires helper version `1.0.1` and rejects the broken
+`1.0.0` artifact. It never installs the helper, changes security preferences,
+synthesizes `vbaProject.bin`, or opens the Power Query package candidates:
+
+```powershell
+pwsh ./scripts/Test-MacHelperAcceptance.ps1 `
+  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
+  -WorkbookPath '/absolute/path/ExcelMcpHelperAcceptance.xlsm' `
+  -MacroApprovalConfirmed `
+  -VbaProjectTrustConfirmed `
+  -ExcelAuthoredWorkbookConfirmed
+```
+
+The runner opens the exact test workbook through the public CLI session path,
+then exercises the fixed `helper.dispatch` backend in both built CLI and MCP
+entry points. It reports `acceptanceScope=direct-helper-engine` and
+`publicCommandAcceptance=false`: a passing run is helper engine evidence, not
+proof that currently gated public commands are implemented. Determinate runs
+delete only the reserved literal query and standard-module names and close the
+test workbook without saving. A transport timeout or helper
+`RecoveryRequired/rollback_failed` result stops further mutation, closes only
+the exact test-owned workbook without saving when that remains possible,
+attempts to invalidate the private runner session, preserves the exact workbook
+path in the receipt, and requires manual reconciliation rather than guessing
+whether VBA completed.
+
+**Conclusion:** transactional updates to an existing Excel-authored Power Query
+package remain viable, but independently creating an Excel-accepted package is
+not yet proven. VBA source parsing is viable, but source mutation is not yet
+executable in Excel and remains blocked on a valid recompilation/cache strategy
+plus unattended trust. No production capability is enabled solely from these
+probes.
+
+## Implementation routes for remaining features
+
+The following routes are selected for further implementation, not advertised as
+working features. Microsoft documentation and the installed Excel dictionary
+identify callable APIs; actual CLI/MCP behavior still requires real-Excel tests.
+The target is Mac-only execution. Remote Windows Excel is not a fallback.
+
+### Power Query and VBA helper
+
+Use a versioned, optional `.xlam` add-in authored from original source and saved
+by Excel itself. One-time installation and approval are explicit user steps.
+Do not synthesize executable VBA project binaries or silently install source
+into target workbooks. Native features remain independent of this helper.
+
+An allowlisted dispatcher receives a bounded structured request through
+`run VB Macro`, selects the target by exact `Workbook.FullName`, and returns a
+correlated structured result. It must not use `ActiveWorkbook`, evaluate
+arbitrary incoming code, or change trust settings. Permission to execute the
+helper does not imply permission to inspect or edit VBA projects.
+
+- **Power Query:** use `Workbook.Queries`, `Queries.Add`,
+  `WorkbookQuery.Formula`, `Name`, and `Delete`, plus query-backed `ListObjects`
+  and `QueryTable.Refresh`. Microsoft's
+  [Mac Power Query documentation](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query)
+  explicitly describes these query objects and gives a worksheet-load example.
+  Prove refresh completion, connection-only behavior and cleanup separately.
+- **VBA source:** use `VBProject.VBComponents` and `CodeModule` through the
+  helper, with explicit user-managed project trust. The absence of these objects
+  from Apple Events does not prove their absence inside VBA. Verify the actual
+  Mac methods, protected/signed projects and component-type restrictions before
+  enabling source actions.
+- **Timeouts:** terminating the automation caller does not stop VBA already
+  running in Excel. Invalidate the affected session and reconcile completion;
+  never retry a possibly completed mutation through another backend.
+
+Create original query and macro fixtures through Excel rather than treating
+package-parser round-trips as proof that Excel accepts an executable workbook.
+A failed LaunchServices handoff affecting ordinary baseline workbooks is not,
+by itself, evidence that a query package is invalid. Stop on repair/recovery UI;
+never repeatedly open suspect files as part of default tests.
+
+### Native and Office.js coverage
+
+The installed native dictionary exposes tables, chart/series properties,
+PivotTables and fields, scenarios, QueryTables, shapes and workbook windows.
+Use those APIs where reliable; use the optional Office.js bridge or trusted VBA
+helper where the complete existing contract needs another route.
+
+The Office.js bridge requires real action dispatch through the shared Service,
+not just a health response. Negotiate numbered `ExcelApi` sets and
+[`ExcelApiDesktop 1.1`](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/excel/excel-api-desktop-1-1-requirement-set)
+independently: desktop APIs include Mac window geometry, panes and
+point-to-screen conversion. Bind requests to the exact workbook at execution
+and completion, and preserve mutation uncertainty after cancellation.
+
+Worksheet copy/move must preserve entire sheet content and identity, not merely
+copy cell values. Likewise, a chart over PivotTable result cells is not a linked
+PivotChart. Test these distinctions rather than substituting superficially
+similar output.
+
+### Python and screenshots
+
+[Python in Excel is available on qualifying Macs](https://support.microsoft.com/en-gb/excel/python/python-in-excel-availability).
+The native dictionary exposes `formula2`; use it for the existing `=PY()` command
+contract, with explicit return type, calculation-state checks, `#BUSY!` handling
+and useful license/network errors. Python continues to execute in Microsoft's
+cloud as documented by the command; a local Python interpreter is not equivalent.
+
+Screenshots must capture the actual Excel window, including floating charts,
+without modifying the clipboard. Use
+[ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-in-macos)
+with an exact-window filter and Excel-provided screen geometry for cropping.
+Screen Recording permission requires explicit user setup. Cell or chart image
+export alone does not satisfy the existing screenshot contract.
+
+### XML maps and Data Model limits
+
+Office.js `CustomXmlPart` stores XML but does not implement Excel XML maps.
+Test `Workbook.XmlMaps`, `Range.XPath` and map import/export through the helper.
+A package-backed alternative must preserve genuine mapped-cell bindings,
+repeating rows, schema validation and save/reopen behavior. Importing XML into
+ordinary cells is not an equivalent replacement.
+
+Office.js explicitly
+[does not support OLAP PivotTables or Power Pivot](https://learn.microsoft.com/en-us/office/dev/add-ins/excel/excel-add-ins-pivottables).
+The Windows model commands also depend on Excel model objects and
+ADO/MSOLAP execution. Probe the Mac `Workbook.Model` and model connection through
+the helper before reaching a platform conclusion. Reading package metadata does
+not establish DAX execution, model refresh or model mutation. If no Mac engine
+route exists, retain the specific unresolved actions as a disclosed limitation;
+do not simulate them with worksheet formulas or silently use a remote service.
 
 ## Experiment
 
@@ -579,6 +814,15 @@ consent, cross-builds Release, and requires exactly two passing entry-point
 cases. `-SkipBuild` is only appropriate after a successful Release build in the
 same worktree. Fixtures live in ordinary temporary storage, never Excel's
 container. The runner stops only its private daemon, not shared Excel.
+`-IncludePythonInExcel` opts those same two workflows into the literal `PY()`
+acceptance sequence; when selected, unavailable capability, licensing, cloud
+connection, policy, serialization, or result failures fail the run rather than
+being converted to a skip. It is intentionally not part of the default baseline
+while Python actions remain capability-gated.
+`-IncludeRangeExpansion` similarly opts both entry points into the pending native
+range-expansion acceptance sequence. Until that sequence passes against desktop
+Excel, the new range routes remain capability-gated and the switch is not part
+of the default baseline.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,
@@ -663,6 +907,140 @@ COM Excel.
 
 ## Architecture findings
 
+## Specialized feature evidence matrix
+
+This inventory was refreshed against Microsoft Excel for Mac **16.113.1** on
+Apple Silicon, the installed scripting dictionary from
+`/usr/bin/sdef '/Applications/Microsoft Excel.app'`, and Microsoft's Office.js
+reference updated in September 2026. Excel 16.113.1 is new enough for the
+documented stable `ExcelApi 1.21` floor (Mac 16.110.1), but host support for a
+requirement set is not contract evidence by itself.
+
+Status meanings:
+
+- **Enabled**: prompt-free real Excel passed through both `excelcli` and MCP,
+  including returned fields and workbook effects.
+- **Candidate**: an API route exists or one entry point passed, but complete
+  cross-entry-point result, completion, error, cleanup, and persistence
+  semantics are not yet proven.
+- **Blocked**: the inspected native and Office.js surfaces do not expose the
+  contract, or the only route violates an existing contract requirement.
+
+The serialized real-Excel validation slot is shared with the other macOS
+workstreams. Candidate operations stay gated until they receive that slot.
+
+### Connections and legacy QueryTables
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `connection.list` | Apple Events | Candidate | `workbook connection` is declared, but safe enumeration and sanitized type metadata are unverified. Users must use Windows for truthful connection inventory. |
+| `connection.view` | Apple Events | Candidate | The dictionary does not expose the complete typed OLEDB/ODBC property set; credential-safe parity is unproven. |
+| `connection.create` | Apple Events | Candidate | Provider availability, command type, and `Connections.Add2` parity are unproven on Mac. No connection is created by the gated command. |
+| `connection.refresh` | Apple Events | Candidate | A broad refresh command exists, but exact-connection completion and source errors are not established. |
+| `connection.get-refresh-status` | Apple Events | Candidate | Typed OLEDB/ODBC status equivalent is not declared. |
+| `connection.cancel-refresh` | Apple Events | Candidate | Cancellation is declared for QueryTables, not proven for exact typed workbook connections. |
+| `connection.delete` | Apple Events | Candidate | Exact ownership cleanup of only the target connection's QueryTables is unproven. |
+| `connection.load-to` | Apple Events | Candidate | Exact destination replacement and connection ownership semantics are unproven. |
+| `connection.get-properties` | Apple Events | Candidate | Complete typed settings and sanitized connection reporting are unverified. |
+| `connection.set-properties` | Apple Events | Candidate | Typed OLEDB/ODBC settings and password handling are unverified. |
+| `connection.test` | Apple Events | Candidate | Configuration-only validation cannot be inferred from refresh acceptance. |
+| `querytable.list` | Apple Events | Candidate | Worksheet `query table` elements and destination/refreshing properties are declared; a prompt-free fixture is still required. |
+| `querytable.view` | Apple Events | Candidate | Most legacy text/web properties are declared, but source classification and sanitized connection output are not yet round-tripped. |
+| `querytable.create-text` | Apple Events | Candidate | `TEXT;` construction is plausible; encoding, qualifier, delimiter, synchronous refresh, and local-file error behavior need a fixture. |
+| `querytable.create-web` | Apple Events | Candidate | `URL;` properties are declared, but unattended network completion and HTML selection/error behavior are unproven. |
+| `querytable.set-properties` | Apple Events | Candidate | Properties are declared; exact persistence and invalid-value behavior remain untested. |
+| `querytable.refresh` | Apple Events | Candidate | `refresh query table` returns a boolean, but source errors and synchronous completion need proof. |
+| `querytable.get-refresh-status` | Apple Events | Candidate | `refreshing` is declared; live background-refresh evidence is missing. |
+| `querytable.cancel-refresh` | Apple Events | Candidate | `cancel refresh` is declared; idle and active result DTO semantics are untested. |
+| `querytable.delete` | Apple Events | Candidate | Exact-name deletion and preservation of result cells/related objects need proof. |
+
+### Data Model, relationships, and DAX
+
+The installed dictionary has no `Model`, model-table, relationship, measure,
+DAX evaluate, DMV, or embedded ADO model surface. Stable Office.js through
+`ExcelApi 1.21` does not provide the Windows contract's Data Model CRUD and DAX
+execution APIs. Package inspection cannot truthfully report unsaved model state
+or execute DAX. Every action below is therefore gated as evidenced unsupported
+for the current native and Office.js tiers.
+
+| Action | Tier | Status | User impact / blocker |
+| --- | --- | --- | --- |
+| `datamodel.list-tables` | Evidenced unsupported | Blocked | No live model table collection. |
+| `datamodel.list-columns` | Evidenced unsupported | Blocked | No live model column collection. |
+| `datamodel.read-table` | Evidenced unsupported | Blocked | No complete live table/measure metadata route. |
+| `datamodel.read-info` | Evidenced unsupported | Blocked | Model counts and state cannot be guessed from package parts. |
+| `datamodel.read-connection` | Evidenced unsupported | Blocked | No credential-safe embedded model connection endpoint. |
+| `datamodel.list-measures` | Evidenced unsupported | Blocked | No measure collection or DAX formula access. |
+| `datamodel.read` | Evidenced unsupported | Blocked | No exact measure identity/formula endpoint. |
+| `datamodel.create-measure` | Evidenced unsupported | Blocked | No measure creation or format API. |
+| `datamodel.update-measure` | Evidenced unsupported | Blocked | No measure formula/description/format mutation API. |
+| `datamodel.delete-measure` | Evidenced unsupported | Blocked | No exact measure deletion API. |
+| `datamodel.delete-table` | Evidenced unsupported | Blocked | No exact model-table deletion API. |
+| `datamodel.rename-table` | Evidenced unsupported | Blocked | Renaming a query or worksheet table is not model-table parity. |
+| `datamodel.refresh` | Evidenced unsupported | Blocked | Broad workbook refresh cannot establish model completion or errors. |
+| `datamodel.evaluate` | Evidenced unsupported | Blocked | No DAX execution endpoint. |
+| `datamodel.execute-dmv` | Evidenced unsupported | Blocked | No embedded ADOMD/DMV endpoint. |
+| `datamodelrel.list-relationships` | Evidenced unsupported | Blocked | No relationship collection. |
+| `datamodelrel.read-relationship` | Evidenced unsupported | Blocked | No exact four-part relationship lookup. |
+| `datamodelrel.create-relationship` | Evidenced unsupported | Blocked | No relationship creation API. |
+| `datamodelrel.update-relationship` | Evidenced unsupported | Blocked | No active-state mutation API. |
+| `datamodelrel.delete-relationship` | Evidenced unsupported | Blocked | No exact relationship deletion API. |
+
+### What-if analysis
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `analysis.goal-seek` | Apple Events | **Enabled** | Excel 16.113.1 passed prompt-free CLI and MCP fixtures. Both returned `converged`, the approximate final formula value, and the changing value; the workbook was targeted by exact path and was not implicitly saved. |
+| `analysis.list-scenarios` | Apple Events | Candidate | Scenario elements/properties are declared, but value ordering, comment prefix, and protection metadata need a real fixture. |
+| `analysis.create-scenario` | Apple Events | Candidate | A scenario class exists, but construction, cell/value count validation, and protection flags are unproven. |
+| `analysis.update-scenario` | Apple Events | Candidate | `change scenario` is declared; exact value conversion and failure behavior are untested. |
+| `analysis.show-scenario` | Apple Events | Candidate | Applying stored values without invoking a dialog needs proof. |
+| `analysis.delete-scenario` | Apple Events | Candidate | Exact-name deletion and missing-name errors need proof. |
+| `analysis.create-scenario-summary` | Apple Events | Candidate | `create summary for scenarios` is declared; generated-sheet identity and PivotTable variant are untested. |
+| `analysis.create-data-table` | Apple Events | **Enabled** | Excel 16.113.1 passed prompt-free CLI and MCP fixtures for a one-variable table with exact `[1, 4, 9]` results. The same native command accepts the contract's optional row input, optional column input, or both; calls without either input remain rejected. |
+
+### Drawings, sparklines, slicers, and screenshots
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `drawing.list-objects` | Office.js add-in | Candidate | Office.js can enumerate shapes, but the optional bridge is not installed and Forms-control parity is incomplete. |
+| `drawing.get-object` | Office.js add-in | Candidate | Geometry/text/format/accessibility DTO parity needs the bridge and fixtures. |
+| `drawing.add-image` | Office.js add-in | Candidate | Base64 image insertion exists; local-file handling and exact dimensions need bridge validation. |
+| `drawing.add-shape` | Office.js add-in | Candidate | Shape creation exists; the contract's type mapping and formatting need validation. |
+| `drawing.add-text-box` | Office.js add-in | Candidate | Text shapes exist; exact font/fill/line semantics need validation. |
+| `drawing.add-connector` | Office.js add-in | Candidate | Connector coverage and endpoint semantics are incomplete. |
+| `drawing.add-form-control` | Office.js add-in | Blocked | Stable Office.js does not provide parity for the contract's safe worksheet Forms controls and bindings. |
+| `drawing.update-object` | Office.js add-in | Candidate | Common shape mutations exist; Forms bindings and all-or-error updates remain unproven. |
+| `drawing.delete-object` | Office.js add-in | Candidate | Exact identity and missing-object errors need bridge validation. |
+| `drawing.list-sparklines` | Office.js add-in | Candidate | Sparkline groups are available through Office.js; the optional bridge is not installed. |
+| `drawing.get-sparkline` | Office.js add-in | Candidate | Location/source/type/color DTO parity needs bridge validation. |
+| `drawing.add-sparkline` | Office.js add-in | Candidate | Creation exists; line/column/win-loss mapping and marker behavior need fixtures. |
+| `drawing.update-sparkline` | Office.js add-in | Candidate | Source/type/style mutation needs exact round-trip evidence. |
+| `drawing.delete-sparkline` | Office.js add-in | Candidate | Exact group deletion needs bridge validation. |
+| `slicer.create-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Slicer creation exists, but PivotTable-field identity and placement need the optional bridge. |
+| `slicer.list-slicers` | Office.js `ExcelApi 1.10` add-in | Candidate | Item/selection and PivotTable filtering DTOs need validation. |
+| `slicer.set-slicer-selection` | Office.js `ExcelApi 1.10` add-in | Candidate | `clearFirst` union semantics need real fixtures. |
+| `slicer.delete-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Exact slicer identity and missing-name behavior need validation. |
+| `slicer.create-table-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Table-column source and placement need bridge validation. |
+| `slicer.list-table-slicers` | Office.js `ExcelApi 1.10` add-in | Candidate | Table-only classification needs validation. |
+| `slicer.set-table-slicer-selection` | Office.js `ExcelApi 1.10` add-in | Candidate | Table filtering and `clearFirst` behavior need validation. |
+| `slicer.delete-table-slicer` | Office.js `ExcelApi 1.10` add-in | Candidate | Exact table-slicer deletion needs validation. |
+| `screenshot.capture` | Optional native helper | Blocked | Apple Events only declares clipboard-based `copy picture`, which violates the no-clipboard live-window contract. A helper would require explicit Screen Recording permission and crop/stitch evidence. |
+| `screenshot.capture-sheet` | Optional native helper | Blocked | Same blocker; Office.js has no API that photographs the live Excel window with all visuals. |
+
+### XML maps and Python in Excel
+
+| Action | Tier | Status | Evidence and blocker / user impact |
+| --- | --- | --- | --- |
+| `xmlmap.list` | Evidenced unsupported | Blocked | Neither the installed dictionary nor stable Office.js exposes Excel XML maps. |
+| `xmlmap.add` | Evidenced unsupported | Blocked | Custom XML parts are not worksheet XML-map creation parity. |
+| `xmlmap.map-range` | Evidenced unsupported | Blocked | No XPath-to-cell mapping API. |
+| `xmlmap.import-xml` | Evidenced unsupported | Blocked | Generic XML parsing/package edits cannot invoke Excel's XML-map import semantics. |
+| `xmlmap.export-xml` | Evidenced unsupported | Blocked | No live mapped-cell export endpoint. |
+| `xmlmap.delete` | Evidenced unsupported | Blocked | No exact map deletion endpoint. |
+| `pythoninexcel.set-formula` | Apple Events | Candidate | Range `formula2` is declared, but licensed `PY()` availability, return type, immediate `#NAME?`, and cloud error behavior need a prompt-free account fixture. |
+| `pythoninexcel.get-result` | Apple Events | Candidate | The dictionary exposes `formula2` and values but no calculation-state endpoint proven equivalent to the Windows completion guard; returning `#BUSY!` would violate the contract. |
+
 Changing target frameworks or replacing COM activation alone is insufficient.
 
 | Boundary | Current coupling / required work |
@@ -699,7 +1077,7 @@ tests for parsing/dispatch. This macOS release does not change that policy.
 | --- | --- |
 | Native Apple Events / AppleScript | Demonstrated desktop workbook transport; evaluate together with deeper object-model access, rather than letting dictionary coverage define the product scope |
 | Transactional saved-package editing plus Apple Events | Demonstrated for an existing Power Query M update and worksheet refresh; preferred helper-free direction for clean workbooks. Full metadata mutation, rollback and VBA recompilation remain to implement |
-| Optional macro helper invoked from AppleScript | Approved as a later opt-in tier for known macro execution only; requires explicit macro enablement and unattended preflight |
+| Optional macro helper invoked from AppleScript | Selected opt-in route for known macro execution and live Power Query APIs; requires explicit installation, execution permission and unattended preflight |
 | Optional VBA project-model helper | Versioned fixed-dispatch source and host transport implemented; source CRUD remains gated behind explicit user trust and real method evidence; must never change trust itself |
 | Office.js add-in + local bridge | Approved as a gradual optional tier for tables, charts, PivotTables, conditional formatting, and related workbook surfaces; requires deployment, lifetime, and per-version API checks |
 | Windows Excel behind a remote service | Could preserve more existing behavior, but not native macOS support; introduces remote data handling/security and is outside this release |
@@ -750,7 +1128,7 @@ only when their own security and lifecycle gates are satisfied.
 | 5. VBA project-model tier | Add source CRUD only behind explicit user-managed project-model trust | Full synthetic import/view/run/update/delete lifecycle passes without trust mutation or dialog automation |
 | 6. Remaining Windows surface and distribution | Complete the action inventory, installers/bootstrap scripts, signing/notarization, and separately validated architectures | No unclassified omissions; clean-machine permission and installation UX exercised |
 | 4. Remaining Windows surface | Work through every remaining category, including tables, named ranges, charts, regular PivotTables, formatting and platform integrations | Complete action-level compatibility inventory, tested parity where possible, and no unclassified omissions |
-| 5. Distribution | Mac launch/lifetime, extension paths, installers/bootstrap scripts, `osx-arm64` and separately validated `osx-x64`, signing/notarization, shared docs and skills | Clean-machine install and permission UX exercised; priority parity gates, Mac real-Excel tests and Windows nonregression suites pass |
+| 5. Distribution | Mac launch/lifetime, extension paths, installers/bootstrap scripts, `osx-arm64`, explicit Intel rejection, signing/notarization, shared docs and skills | Clean-machine install and permission UX exercised; priority parity gates, Mac real-Excel tests and Windows nonregression suites pass |
 
 Investigate Data Model/DAX/OLAP/Power Pivot operations and Power Query
 `data-model`/`both` destinations as potential host limitations; do not infer
@@ -783,6 +1161,8 @@ future parity additions require their own user-visible changesets.
 - [Request access to multiple files; grants stored with the app](https://learn.microsoft.com/en-us/office/vba/office-mac/grantaccesstomultiplefiles)
 - [Mac Power Query, including VBA query authoring](https://support.microsoft.com/en-us/excel/import-and-shape-data-in-excel-for-mac-power-query)
 - [Excel analytics platform differences](https://support.microsoft.com/en-us/excel/learn-to-use-power-query-and-power-pivot-in-excel)
+- [Python in Excel availability, including qualifying Mac subscriptions and versions](https://support.microsoft.com/en-gb/excel/python/python-in-excel-availability)
+- [Range.Formula2 behavior](https://learn.microsoft.com/en-us/office/vba/api/excel.range.formula2)
 - [Office.js Excel API requirement sets](https://learn.microsoft.com/en-us/javascript/api/requirement-sets/excel/excel-api-requirement-sets)
 - Installed Excel scripting dictionary, `Microsoft Excel.app/Contents/Resources/Excel.sdef`.
 

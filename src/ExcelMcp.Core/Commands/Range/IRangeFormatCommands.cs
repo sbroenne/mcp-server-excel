@@ -31,6 +31,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// MERGE: Combines cells into one. Only top-left cell value is preserved.
 /// </summary>
 [ServiceCategory("rangeformat", "RangeFormat")]
+[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
         "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +
@@ -221,6 +222,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to auto-fit (e.g., 'A:D' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native column auto-fit source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("auto-fit-columns")]
     OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -230,6 +234,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to auto-fit (e.g., '1:10' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native row auto-fit source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("auto-fit-rows")]
     OperationResult AutoFitRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -241,6 +248,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to merge into a single cell (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native cell-merge source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("merge-cells")]
     OperationResult MergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -250,6 +260,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to unmerge (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native cell-unmerge source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("unmerge-cells")]
     OperationResult UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -259,6 +272,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to check for merged cells (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+        Evidence = "Native merged-cell inspection source is present; complete cross-entry-point behavior is unverified.",
+        Blocker = "the native range candidate has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-merge-info")]
     RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -271,6 +287,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to set width (e.g., 'A:A' or 'A1:D100')</param>
     /// <param name="columnWidth">Width in points (1 point = 1/72 inch, approx 0.35mm). Standard width ~8.43 points. Range: 0.25-409 points.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-column-width")]
     OperationResult SetColumnWidth(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double columnWidth);
 
@@ -281,6 +298,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to set height (e.g., '1:10' or 'A1:D100')</param>
     /// <param name="rowHeight">Height in points (1 point = 1/72 inch, approx 0.35mm). Default row height ~15 points. Range: 0-409 points.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-row-height")]
     OperationResult SetRowHeight(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double rowHeight);
 }

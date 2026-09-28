@@ -1,9 +1,11 @@
 # ExcelMcp Architecture
 
 ExcelMcp controls the actual Microsoft Excel desktop application—not just
-`.xlsx` files. Windows uses the complete COM backend. Apple Silicon macOS uses
-a capability-gated Apple Events backend for the verified workbook, worksheet,
-range, formula, clear, and calculation subset.
+`.xlsx` files. Windows uses the complete COM backend. macOS x64/Arm64 packages use
+a capability-gated Apple Events backend for the verified workbook, worksheet
+lifecycle/style, range, formula, clear, calculation, Goal Seek, and Data Table
+subset. Desktop acceptance has run on Apple Silicon; physical Intel Excel
+acceptance remains outstanding.
 
 ## Two equal entry points
 
@@ -44,6 +46,9 @@ workflow.
    invokes the service in-process.
 6. **Source generators** (`src/ExcelMcp.Generators*`) generate CLI commands,
    MCP schemas, and skill manifests from Core interfaces.
+7. **Optional Office.js bridge** (`office-addin`) provides an action-gated
+   localhost HTTPS broker and Excel task pane for future Mac capability tiers.
+   It is not required by the base backend and currently exposes health only.
 
 ## Platform backends
 
@@ -58,6 +63,14 @@ Windows sessions own an Excel process. macOS sessions own only an exact
 workbook inside the user's shared Excel application; they never terminate
 Excel or close unrelated workbooks. Existing macOS files are handed to Excel
 through LaunchServices and attached by exact path.
+
+The optional Office.js tier is a separate, versioned capability boundary. Its
+broker authenticates the local channel, binds an Office.js runtime to the exact
+saved workbook URL and ExcelMcp session, serializes requests, enforces
+deadlines/cancellation, and negotiates `ExcelApi` requirement sets plus the
+running Excel version. No feature is routed through this tier until real Excel
+proves the full public contract through both entry points. See
+[Office.js bridge setup and security](MACOS-OFFICEJS.md).
 
 ## CLI desktop integration
 

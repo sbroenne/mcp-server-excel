@@ -23,6 +23,21 @@ public sealed class MacExcelTheoryAttribute : TheoryAttribute
     }
 }
 
+public sealed class MacPowerQueryFixtureTheoryAttribute : TheoryAttribute
+{
+    public MacPowerQueryFixtureTheoryAttribute()
+    {
+        if (!OperatingSystem.IsMacOS()
+            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E") != "1"
+            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_PQ_FIXTURE_E2E") != "1")
+        {
+            Skip =
+                "Explicit potentially modal Power Query package run required: " +
+                "scripts/Test-MacE2E.ps1 -IncludePowerQueryFixtures.";
+        }
+    }
+}
+
 [CollectionDefinition("Mac Excel E2E", DisableParallelization = true)]
 public sealed class MacExcelCollectionDefinition;
 
@@ -32,6 +47,12 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     private static readonly int[][] SentinelValues = [[9876]];
     private static readonly int[][] UnsavedValues = [[999]];
     private static readonly string[][] SumFormula = [["=SUM(B2:B3)"]];
+    private static readonly string[][] RangeExpansionFormula = [["=D5*2"]];
+    private static readonly string[][] RangeExpansionFormats =
+    [
+        ["0", "0.00"],
+        ["@", "#,##0"]
+    ];
     private static readonly string[] InitialSheetNames = ["Data", "Spare"];
 
     [MacExcelTheory]
@@ -64,6 +85,32 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         {
             var mainSession = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = main }, deadline.Token));
+            if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1")
+            {
+                Success(await client.CallAsync("pythoninexcel", "set-formula", mainSession,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["range_address"] = "Z1",
+                        ["code"] = "\"ExcelMcp\" + \" Python\"",
+                        ["return_type"] = 0
+                    }, deadline.Token));
+                var pythonResult = Success(await client.CallAsync(
+                    "pythoninexcel", "get-result", mainSession,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["range_address"] = "Z1",
+                        ["max_wait_seconds"] = 30
+                    }, deadline.Token));
+                Assert.Contains("Z1", pythonResult.GetProperty("rangeAddress").GetString(), StringComparison.Ordinal);
+                var pythonFormula = pythonResult.GetProperty("formula").GetString();
+                Assert.StartsWith("=PY(", pythonFormula, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("\"\"ExcelMcp\"\"", pythonFormula, StringComparison.Ordinal);
+                Assert.Equal("ExcelMcp Python", pythonResult.GetProperty("value").GetString());
+                Assert.False(pythonResult.GetProperty("isPythonObject").GetBoolean());
+                Assert.False(pythonResult.GetProperty("isPythonError").GetBoolean());
+            }
             var duplicateName = await client.CallAsync("file", "open", null,
                 new() { ["path"] = duplicate }, deadline.Token);
             Assert.False(duplicateName.GetProperty("success").GetBoolean());
@@ -82,10 +129,51 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Assert.Equal("Data", Assert.Single(sheets.GetProperty("worksheets").EnumerateArray()).GetProperty("name").GetString());
             Success(await client.CallAsync("sheet", "create", mainSession,
                 new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Success(await client.CallAsync("worksheetstyle", "set-tab-color", mainSession,
+                new()
+                {
+                    ["sheet_name"] = "Created",
+                    ["red"] = 17,
+                    ["green"] = 34,
+                    ["blue"] = 51
+                }, deadline.Token));
+            var tabColor = Success(await client.CallAsync(
+                "worksheetstyle", "get-tab-color", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.True(tabColor.GetProperty("hasColor").GetBoolean());
+            Assert.Equal(17, tabColor.GetProperty("red").GetInt32());
+            Assert.Equal(34, tabColor.GetProperty("green").GetInt32());
+            Assert.Equal(51, tabColor.GetProperty("blue").GetInt32());
+            Assert.Equal("#112233", tabColor.GetProperty("hexColor").GetString());
+            Success(await client.CallAsync("worksheetstyle", "clear-tab-color", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            tabColor = Success(await client.CallAsync(
+                "worksheetstyle", "get-tab-color", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.False(tabColor.GetProperty("hasColor").GetBoolean());
+            Success(await client.CallAsync("worksheetstyle", "hide", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            var visibility = Success(await client.CallAsync(
+                "worksheetstyle", "get-visibility", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.Equal("Hidden", visibility.GetProperty("visibilityName").GetString());
+            Success(await client.CallAsync("worksheetstyle", "very-hide", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            visibility = Success(await client.CallAsync(
+                "worksheetstyle", "get-visibility", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Assert.Equal("VeryHidden", visibility.GetProperty("visibilityName").GetString());
+            Success(await client.CallAsync("worksheetstyle", "set-visibility", mainSession,
+                new() { ["sheet_name"] = "Created", ["visibility"] = "visible" }, deadline.Token));
+            Success(await client.CallAsync("worksheetstyle", "hide", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
+            Success(await client.CallAsync("worksheetstyle", "show", mainSession,
+                new() { ["sheet_name"] = "Created" }, deadline.Token));
             sheets = Success(await client.CallAsync("sheet", "list", mainSession, new(), deadline.Token));
             Assert.Contains(
                 sheets.GetProperty("worksheets").EnumerateArray(),
-                sheet => sheet.GetProperty("name").GetString() == "Created");
+                sheet => sheet.GetProperty("name").GetString() == "Created"
+                    && sheet.GetProperty("visible").GetBoolean());
             Success(await client.CallAsync("sheet", "delete", mainSession,
                 new() { ["sheet_name"] = "Created" }, deadline.Token));
             var dirtyPowerQueryRead = await client.CallAsync(
@@ -171,6 +259,150 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Success(await client.CallAsync("calculation_mode", "calculate", mainSession,
                 RangeArgs("C1", ("scope", "range")), deadline.Token));
 
+            if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_RANGE_EXPANSION_E2E") == "1")
+            {
+                Success(await client.CallAsync("sheet", "create", mainSession,
+                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+                var emptyUsedRange = Success(await client.CallAsync(
+                    "range", "get-used-range", mainSession,
+                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+                Assert.Equal("$A$1", emptyUsedRange.GetProperty("rangeAddress").GetString());
+                Assert.Equal(0, emptyUsedRange.GetProperty("rowCount").GetInt32());
+                Assert.Equal(0, emptyUsedRange.GetProperty("columnCount").GetInt32());
+                Assert.Empty(emptyUsedRange.GetProperty("values").EnumerateArray());
+                Success(await client.CallAsync("sheet", "delete", mainSession,
+                    new() { ["sheet_name"] = "EmptyRange" }, deadline.Token));
+
+                Success(await client.CallAsync("range", "set-values", mainSession,
+                    RangeArgs("D5:E6", ("values", new object?[][]
+                    {
+                        [4, null],
+                        ["A deliberately long value for native auto-fit", 7]
+                    })), deadline.Token));
+                Success(await client.CallAsync("range", "set-formulas", mainSession,
+                    RangeArgs("E5", ("formulas", RangeExpansionFormula)), deadline.Token));
+                Success(await client.CallAsync("range", "set-number-formats", mainSession,
+                    RangeArgs("D5:E6", ("formats", RangeExpansionFormats)), deadline.Token));
+                var matrixFormats = Success(await client.CallAsync(
+                    "range", "get-number-formats", mainSession, RangeArgs("D5:E6"), deadline.Token));
+                Assert.Equal("0", matrixFormats.GetProperty("formats")[0][0].GetString());
+                Assert.Equal("0.00", matrixFormats.GetProperty("formats")[0][1].GetString());
+                Assert.Equal("@", matrixFormats.GetProperty("formats")[1][0].GetString());
+                Assert.Equal("#,##0", matrixFormats.GetProperty("formats")[1][1].GetString());
+
+                var info = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("D5:E6"), deadline.Token));
+                Assert.Equal("$D$5:$E$6", info.GetProperty("address").GetString());
+                Assert.Equal(2, info.GetProperty("rowCount").GetInt32());
+                Assert.Equal(2, info.GetProperty("columnCount").GetInt32());
+                Assert.True(info.GetProperty("width").GetDouble() > 0);
+                Assert.True(info.GetProperty("height").GetDouble() > 0);
+
+                Success(await client.CallAsync("range", "copy", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "G5"
+                    }, deadline.Token));
+                var copiedFormula = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("H5"), deadline.Token));
+                Assert.Equal("=G5*2", copiedFormula.GetProperty("formulas")[0][0].GetString());
+                var copiedFormats = Success(await client.CallAsync(
+                    "range", "get-number-formats", mainSession, RangeArgs("G5:H6"), deadline.Token));
+                Assert.Equal("0.00", copiedFormats.GetProperty("formats")[0][1].GetString());
+
+                Success(await client.CallAsync("range", "copy-values", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "J5"
+                    }, deadline.Token));
+                var copiedValues = Success(await client.CallAsync(
+                    "range", "get-values", mainSession, RangeArgs("J5:K6"), deadline.Token));
+                Assert.Equal(8, copiedValues.GetProperty("values")[0][1].GetDouble());
+                Assert.Equal(7, copiedValues.GetProperty("values")[1][1].GetDouble());
+
+                Success(await client.CallAsync("range", "copy-formulas", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "M5"
+                    }, deadline.Token));
+                var formulasOnly = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("N5"), deadline.Token));
+                Assert.Equal("=M5*2", formulasOnly.GetProperty("formulas")[0][0].GetString());
+                var formulasOnlyFormats = Success(await client.CallAsync(
+                    "range", "get-number-formats", mainSession, RangeArgs("M5:N6"), deadline.Token));
+                Assert.All(
+                    formulasOnlyFormats.GetProperty("formats").EnumerateArray()
+                        .SelectMany(row => row.EnumerateArray()),
+                    format => Assert.Equal("General", format.GetString()));
+
+                var usedRange = Success(await client.CallAsync(
+                    "range", "get-used-range", mainSession,
+                    new() { ["sheet_name"] = "Data" }, deadline.Token));
+                Assert.Equal("$A$1:$N$6", usedRange.GetProperty("rangeAddress").GetString());
+                Assert.Equal(6, usedRange.GetProperty("rowCount").GetInt32());
+                Assert.Equal(14, usedRange.GetProperty("columnCount").GetInt32());
+
+                Success(await client.CallAsync("rangeformat", "set-column-width", mainSession,
+                    RangeArgs("D:E", ("column_width", 5)), deadline.Token));
+                var narrowColumns = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("D:E"), deadline.Token));
+                Success(await client.CallAsync("rangeformat", "auto-fit-columns", mainSession,
+                    RangeArgs("D:E"), deadline.Token));
+                var fittedColumns = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("D:E"), deadline.Token));
+                Assert.True(
+                    fittedColumns.GetProperty("width").GetDouble()
+                    > narrowColumns.GetProperty("width").GetDouble());
+
+                Success(await client.CallAsync("rangeformat", "set-row-height", mainSession,
+                    RangeArgs("6:6", ("row_height", 5)), deadline.Token));
+                var shortRow = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("6:6"), deadline.Token));
+                Success(await client.CallAsync("rangeformat", "auto-fit-rows", mainSession,
+                    RangeArgs("6:6"), deadline.Token));
+                var fittedRow = Success(await client.CallAsync(
+                    "range", "get-info", mainSession, RangeArgs("6:6"), deadline.Token));
+                Assert.True(
+                    fittedRow.GetProperty("height").GetDouble()
+                    > shortRow.GetProperty("height").GetDouble());
+
+                Success(await client.CallAsync("rangeformat", "merge-cells", mainSession,
+                    RangeArgs("P5:Q5"), deadline.Token));
+                var mergeInfo = Success(await client.CallAsync(
+                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token));
+                Assert.True(mergeInfo.GetProperty("isMerged").GetBoolean());
+                Assert.Equal(
+                    ["$P$5:$Q$5"],
+                    mergeInfo.GetProperty("mergedRanges").EnumerateArray()
+                        .Select(item => item.GetString()!).ToArray());
+                Success(await client.CallAsync("rangeformat", "unmerge-cells", mainSession,
+                    RangeArgs("P5:Q5"), deadline.Token));
+                mergeInfo = Success(await client.CallAsync(
+                    "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token));
+                Assert.False(mergeInfo.GetProperty("isMerged").GetBoolean());
+                Assert.Empty(mergeInfo.GetProperty("mergedRanges").EnumerateArray());
+
+                Success(await client.CallAsync("rangelink", "set-cell-lock", mainSession,
+                    RangeArgs("R5:S5", ("locked", false)), deadline.Token));
+                var lockInfo = Success(await client.CallAsync(
+                    "rangelink", "get-cell-lock", mainSession, RangeArgs("R5:S5"), deadline.Token));
+                Assert.False(lockInfo.GetProperty("isLocked").GetBoolean());
+                Success(await client.CallAsync("rangelink", "set-cell-lock", mainSession,
+                    RangeArgs("R5:S5", ("locked", true)), deadline.Token));
+                lockInfo = Success(await client.CallAsync(
+                    "rangelink", "get-cell-lock", mainSession, RangeArgs("R5:S5"), deadline.Token));
+                Assert.True(lockInfo.GetProperty("isLocked").GetBoolean());
+            }
+
             var values = Success(await client.CallAsync("range", "get-values", mainSession,
                 RangeArgs("A1:B3"), deadline.Token));
             Assert.Equal(3, values.GetProperty("rowCount").GetInt32());
@@ -242,6 +474,386 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 output.WriteLine($"Failed run retained synthetic fixtures at {directory.FullName}.");
             }
         }
+    }
+
+    [MacExcelTheory]
+    [InlineData("cli")]
+    [InlineData("mcp")]
+    [Trait("Category", "Integration")]
+    [Trait("RequiresExcel", "true")]
+    [Trait("Feature", "MacAnalysis")]
+    public async Task SpecializedAnalysis_RealEntryPointRoundTrip(string entryPoint)
+    {
+        Assert.Equal(0, MacAutomationAccess.Check());
+        var root = FindRepository();
+        var directory = Directory.CreateTempSubdirectory("excelmcp-mac-analysis-");
+        var workbookPath = Path.Combine(directory.FullName, $"analysis-{Guid.NewGuid():N}.xlsx");
+        CreateBlankWorkbook(workbookPath);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        await using var client = await EntryPointClient.CreateAsync(root, entryPoint, output, deadline.Token);
+        var completed = false;
+        string? sessionId = null;
+        try
+        {
+            sessionId = SessionId(await client.CallAsync("file", "open", null,
+                new() { ["path"] = workbookPath }, deadline.Token));
+            Success(await client.CallAsync("range", "set-values", sessionId,
+                RangeArgs("F1", ("values", new object?[][] { [2] })), deadline.Token));
+            Success(await client.CallAsync("range", "set-formulas", sessionId,
+                RangeArgs("G1", ("formulas", new object?[][] { ["=F1*F1"] })), deadline.Token));
+            var goalSeek = Success(await client.CallAsync("analysis", "goal-seek", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["formula_cell"] = "G1",
+                    ["goal"] = 25,
+                    ["changing_cell"] = "F1"
+                }, deadline.Token));
+            Assert.True(goalSeek.GetProperty("converged").GetBoolean());
+            Assert.InRange(goalSeek.GetProperty("formulaValue").GetDouble(), 24.999, 25.001);
+            Assert.InRange(goalSeek.GetProperty("changingValue").GetDouble(), 4.999, 5.001);
+
+            Success(await client.CallAsync("range", "set-values", sessionId,
+                RangeArgs("I1:J4", ("values", new object?[][]
+                {
+                    [null, null],
+                    [1, null],
+                    [2, null],
+                    [3, null]
+                })), deadline.Token));
+            Success(await client.CallAsync("range", "set-formulas", sessionId,
+                RangeArgs("J1", ("formulas", new object?[][] { ["=$G$1"] })), deadline.Token));
+            Success(await client.CallAsync("analysis", "create-data-table", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["table_range"] = "I1:J4",
+                    ["column_input_cell"] = "F1"
+                }, deadline.Token));
+            var dataTable = Success(await client.CallAsync("range", "get-values", sessionId,
+                RangeArgs("J2:J4"), deadline.Token));
+            Assert.Equal([1d, 4d, 9d], dataTable.GetProperty("values").EnumerateArray()
+                .Select(row => row[0].GetDouble()).ToArray());
+
+            Success(await client.CallAsync("range", "set-values", sessionId,
+                RangeArgs("K1:K2", ("values", new object?[][] { [1], [2] })), deadline.Token));
+            Success(await client.CallAsync("range", "set-formulas", sessionId,
+                RangeArgs("L1", ("formulas", new object?[][] { ["=SUM(K1:K2)"] })), deadline.Token));
+            Success(await client.CallAsync("analysis", "create-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Best Case",
+                    ["changing_cells"] = "K1:K2",
+                    ["values"] = new object?[] { 10, 20 },
+                    ["comment"] = "Mac scenario fixture",
+                    ["locked"] = false,
+                    ["hidden"] = true
+                }, deadline.Token));
+            Success(await client.CallAsync("analysis", "create-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Alternate",
+                    ["changing_cells"] = "K1:K2",
+                    ["values"] = new object?[] { 5, 6 }
+                }, deadline.Token));
+
+            var scenarios = Success(await client.CallAsync(
+                "analysis", "list-scenarios", sessionId,
+                new() { ["sheet_name"] = "Data" }, deadline.Token));
+            var listed = scenarios.GetProperty("scenarios").EnumerateArray().ToArray();
+            Assert.Equal(2, listed.Length);
+            var bestCase = Assert.Single(
+                listed,
+                scenario => scenario.GetProperty("name").GetString() == "Best Case");
+            Assert.Equal("$K$1:$K$2", bestCase.GetProperty("changingCells").GetString());
+            Assert.Equal([10d, 20d], bestCase.GetProperty("values").EnumerateArray()
+                .Select(value => value.GetDouble()).ToArray());
+            Assert.Contains("Mac scenario fixture", bestCase.GetProperty("comment").GetString());
+            Assert.False(bestCase.GetProperty("locked").GetBoolean());
+            Assert.True(bestCase.GetProperty("hidden").GetBoolean());
+
+            Success(await client.CallAsync("analysis", "update-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Best Case",
+                    ["changing_cells"] = "K1:K2",
+                    ["values"] = new object?[] { 30, 40 }
+                }, deadline.Token));
+            Success(await client.CallAsync("analysis", "show-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Best Case"
+                }, deadline.Token));
+            var shownValues = Success(await client.CallAsync("range", "get-values", sessionId,
+                RangeArgs("K1:K2"), deadline.Token));
+            Assert.Equal([30d, 40d], shownValues.GetProperty("values").EnumerateArray()
+                .Select(row => row[0].GetDouble()).ToArray());
+
+            foreach (var reportType in new[] { "summary", "pivot-table" })
+            {
+                var summary = Success(await client.CallAsync(
+                    "analysis", "create-scenario-summary", sessionId,
+                    new()
+                    {
+                        ["sheet_name"] = "Data",
+                        ["report_type"] = reportType,
+                        ["result_cells"] = "L1"
+                    }, deadline.Token));
+                Assert.Equal(reportType, summary.GetProperty("reportType").GetString());
+                Assert.False(string.IsNullOrWhiteSpace(summary.GetProperty("reportSheetName").GetString()));
+            }
+
+            Success(await client.CallAsync("analysis", "delete-scenario", sessionId,
+                new()
+                {
+                    ["sheet_name"] = "Data",
+                    ["scenario_name"] = "Alternate"
+                }, deadline.Token));
+            scenarios = Success(await client.CallAsync(
+                "analysis", "list-scenarios", sessionId,
+                new() { ["sheet_name"] = "Data" }, deadline.Token));
+            Assert.Single(scenarios.GetProperty("scenarios").EnumerateArray());
+
+            Success(await client.CallAsync("file", "close", sessionId, new(), deadline.Token));
+            completed = true;
+            output.WriteLine($"{entryPoint}: real Goal Seek, data-table, and scenario round trip passed.");
+        }
+        finally
+        {
+            if (!completed && sessionId is not null)
+            {
+                using var cleanupDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                try
+                {
+                    Success(await client.CallAsync(
+                        "file", "close", sessionId, new() { ["save"] = false }, cleanupDeadline.Token));
+                    output.WriteLine($"Closed failed-run fixture without saving: {workbookPath}");
+                }
+                catch (Exception cleanupError)
+                {
+                    output.WriteLine(
+                        $"Could not close failed-run fixture '{workbookPath}' without saving: {cleanupError.Message}");
+                }
+            }
+            if (completed)
+            {
+                File.Delete(workbookPath);
+                directory.Delete();
+            }
+            else
+            {
+                output.WriteLine($"Failed run retained synthetic fixture at {workbookPath}.");
+            }
+        }
+    }
+
+    [MacPowerQueryFixtureTheory]
+    [InlineData("cli")]
+    [InlineData("mcp")]
+    [Trait("Category", "Integration")]
+    [Trait("RequiresExcel", "true")]
+    [Trait("Feature", "MacPowerQueryFixture")]
+    public async Task RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated(
+        string entryPoint)
+    {
+        Assert.Equal(0, MacAutomationAccess.Check());
+        var root = FindRepository();
+        var directory = Directory.CreateTempSubdirectory("excelmcp-mac-pq-e2e-");
+        var connectionOnly = PowerQueryFixtureFactory.Create(
+            directory.FullName,
+            PowerQueryFixtureKind.ConnectionOnly);
+        var worksheetLoaded = PowerQueryFixtureFactory.Create(
+            directory.FullName,
+            PowerQueryFixtureKind.WorksheetLoaded);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+        await using var client = await EntryPointClient.CreateAsync(
+            root,
+            entryPoint,
+            output,
+            deadline.Token);
+        var completed = false;
+        try
+        {
+            await AssertPowerQueryRoundTripAsync(
+                client,
+                connectionOnly.WorkbookPath,
+                expectedLoadMode: "connection-only",
+                expectedTargetSheet: null,
+                deadline.Token);
+            await AssertPowerQueryRoundTripAsync(
+                client,
+                worksheetLoaded.WorkbookPath,
+                expectedLoadMode: "load-to-table",
+                expectedTargetSheet: PowerQueryFixtureFactory.WorksheetName,
+                deadline.Token);
+            completed = true;
+            output.WriteLine(
+                $"{entryPoint}: Excel accepted and preserved both repository-owned Power Query fixtures; " +
+                "refresh remains explicitly gated.");
+        }
+        finally
+        {
+            if (completed)
+            {
+                Directory.Delete(directory.FullName, recursive: true);
+            }
+            else
+            {
+                output.WriteLine(
+                    $"Failed Power Query run retained repository-owned evidence at {directory.FullName}.");
+            }
+        }
+    }
+
+    private static async Task AssertPowerQueryRoundTripAsync(
+        EntryPointClient client,
+        string workbookPath,
+        string expectedLoadMode,
+        string? expectedTargetSheet,
+        CancellationToken cancellationToken)
+    {
+        string? session = null;
+        try
+        {
+            session = SessionId(await client.CallAsync(
+                "file",
+                "open",
+                null,
+                new() { ["path"] = workbookPath },
+                cancellationToken));
+            await AssertPowerQueryStateAsync(
+                client,
+                session,
+                expectedLoadMode,
+                expectedTargetSheet,
+                cancellationToken);
+            Success(await client.CallAsync(
+                "file",
+                "close",
+                session,
+                new() { ["save"] = true },
+                cancellationToken));
+            session = null;
+
+            session = SessionId(await client.CallAsync(
+                "file",
+                "open",
+                null,
+                new() { ["path"] = workbookPath },
+                cancellationToken));
+            await AssertPowerQueryStateAsync(
+                client,
+                session,
+                expectedLoadMode,
+                expectedTargetSheet,
+                cancellationToken);
+
+            if (expectedTargetSheet is not null)
+            {
+                var before = Success(await client.CallAsync(
+                    "range",
+                    "get-values",
+                    session,
+                    RangeArgsOnSheet(expectedTargetSheet, "A1:B3"),
+                    cancellationToken));
+                AssertLiteralOutput(before);
+
+                var refresh = await client.CallAsync(
+                    "powerquery",
+                    "refresh",
+                    session,
+                    new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
+                    cancellationToken);
+                Assert.False(refresh.GetProperty("success").GetBoolean());
+                Assert.Equal(
+                    "PlatformNotSupported",
+                    refresh.GetProperty("errorCategory").GetString());
+                Assert.Contains(
+                    "completion",
+                    refresh.GetProperty("errorMessage").GetString(),
+                    StringComparison.OrdinalIgnoreCase);
+
+                var after = Success(await client.CallAsync(
+                    "range",
+                    "get-values",
+                    session,
+                    RangeArgsOnSheet(expectedTargetSheet, "A1:B3"),
+                    cancellationToken));
+                AssertLiteralOutput(after);
+            }
+
+            Success(await client.CallAsync(
+                "file",
+                "close",
+                session,
+                new(),
+                cancellationToken));
+            session = null;
+        }
+        finally
+        {
+            if (session is not null)
+            {
+                await client.TryCloseAsync(session);
+            }
+        }
+    }
+
+    private static async Task AssertPowerQueryStateAsync(
+        EntryPointClient client,
+        string session,
+        string expectedLoadMode,
+        string? expectedTargetSheet,
+        CancellationToken cancellationToken)
+    {
+        var list = Success(await client.CallAsync(
+            "powerquery",
+            "list",
+            session,
+            new(),
+            cancellationToken));
+        var query = Assert.Single(list.GetProperty("queries").EnumerateArray());
+        Assert.Equal(PowerQueryFixtureFactory.QueryName, query.GetProperty("name").GetString());
+        Assert.Equal(expectedLoadMode, query.GetProperty("loadMode").GetString());
+
+        var view = Success(await client.CallAsync(
+            "powerquery",
+            "view",
+            session,
+            new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
+            cancellationToken));
+        Assert.Equal(PowerQueryFixtureFactory.LiteralM, view.GetProperty("mCode").GetString());
+        Assert.Equal(expectedLoadMode, view.GetProperty("loadMode").GetString());
+
+        var load = Success(await client.CallAsync(
+            "powerquery",
+            "get-load-config",
+            session,
+            new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
+            cancellationToken));
+        Assert.Equal(expectedLoadMode, load.GetProperty("loadMode").GetString());
+        if (expectedTargetSheet is null)
+        {
+            Assert.False(load.TryGetProperty("targetSheet", out _));
+        }
+        else
+        {
+            Assert.Equal(expectedTargetSheet, load.GetProperty("targetSheet").GetString());
+        }
+    }
+
+    private static void AssertLiteralOutput(JsonElement values)
+    {
+        Assert.Equal("Item", values.GetProperty("values")[0][0].GetString());
+        Assert.Equal("Amount", values.GetProperty("values")[0][1].GetString());
+        Assert.Equal("Alpha", values.GetProperty("values")[1][0].GetString());
+        Assert.Equal(10, values.GetProperty("values")[1][1].GetDouble());
+        Assert.Equal("Beta", values.GetProperty("values")[2][0].GetString());
+        Assert.Equal(20, values.GetProperty("values")[2][1].GetDouble());
     }
 
     private static Dictionary<string, object?> RangeArgs(string address, params (string Key, object? Value)[] extras)
@@ -403,10 +1015,15 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             {
                 args["action"] = action;
                 if (sessionId is not null) { args["session_id"] = sessionId; }
-                if (tool == "file" && action == "open") { args["timeout_seconds"] = 15; }
+                if (tool == "file" && action == "open")
+                {
+                    args["timeout_seconds"] =
+                        UsesExtendedOpenTimeout() ? 60 : 15;
+                }
                 var mcpTool = tool switch
                 {
                     "sheet" => "worksheet",
+                    "worksheetstyle" => "worksheet_style",
                     "rangeformat" => "range_format",
                     _ => tool
                 };
@@ -433,12 +1050,43 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     });
                     command.Add(value is string text ? text : JsonSerializer.Serialize(value));
                 }
-                if (tool == "file" && action == "open") { command.AddRange(["--timeout", "15"]); }
+                if (tool == "file" && action == "open")
+                {
+                    command.AddRange([
+                        "--timeout",
+                        UsesExtendedOpenTimeout() ? "60" : "15"
+                    ]);
+                }
                 json = await RunCliAsync(command, cancellationToken);
             }
+
             using var document = JsonDocument.Parse(json);
             return document.RootElement.Clone();
         }
+
+        public async Task TryCloseAsync(string sessionId)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                var result = await CallAsync("file", "close", sessionId, new(), deadline.Token);
+                if (!result.GetProperty("success").GetBoolean())
+                {
+                    _output.WriteLine(
+                        $"Best-effort fixture workbook cleanup failed: {result.GetRawText()}");
+                }
+            }
+            catch (Exception exception)
+            {
+                _output.WriteLine(
+                    $"Best-effort fixture workbook cleanup threw {exception.GetType().Name}: " +
+                    exception.Message);
+            }
+        }
+
+        private static bool UsesExtendedOpenTimeout() =>
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1"
+            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_RANGE_EXPANSION_E2E") == "1";
 
         private static ProcessStartInfo CreateStart(string executable)
         {
