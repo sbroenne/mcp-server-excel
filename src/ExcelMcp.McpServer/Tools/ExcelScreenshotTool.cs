@@ -61,6 +61,11 @@ public static class ExcelScreenshotTool
                 ExcelToolsBase.ForwardToServiceFunc
             ));
 
+        return CreateToolResult(jsonResponse);
+    }
+
+    internal static CallToolResult CreateToolResult(string jsonResponse)
+    {
         // Parse the JSON response to extract image data
         try
         {

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.McpServer.Tools;
@@ -63,5 +64,31 @@ public sealed class ExcelScreenshotToolRoutingTests
 
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(arguments, ExcelToolsBase.JsonOptions));
         Assert.Equal("B2:C4", json.RootElement.GetProperty("rangeAddress").GetString());
+    }
+
+    [Fact]
+    public void CreateToolResult_SuccessWithTruncationMessage_ReturnsMessageToCaller()
+    {
+        const string truncationMessage =
+            "The range was too large to capture in full and was truncated to its top-left portion";
+        var screenshot = new ScreenshotResult
+        {
+            Success = true,
+            ImageBase64 = Convert.ToBase64String([1, 2, 3]),
+            MimeType = "image/png",
+            Width = 120,
+            Height = 80,
+            SheetName = "Summary",
+            RangeAddress = "$A$1:$BA$20",
+            Message = truncationMessage
+        };
+        string json = JsonSerializer.Serialize(screenshot, ExcelToolsBase.JsonOptions);
+
+        var result = ExcelScreenshotTool.CreateToolResult(json);
+
+        Assert.NotEqual(true, result.IsError);
+        Assert.Single(result.Content.OfType<ImageContentBlock>());
+        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        Assert.Contains(truncationMessage, text, StringComparison.Ordinal);
     }
 }
