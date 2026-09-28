@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -104,7 +105,19 @@ public sealed class ServiceWorkbookLifecycleTests
                     await WriteWorkflowValuesAsync(service, sessionId, sheetName, marker, index);
                     Assert.Equal(marker, await ReadMarkerAsync(service, sessionId, sheetName));
                     await FormatWorkflowValuesAsync(service, sessionId, sheetName);
-                    await CloseSessionAsync(service, sessionId, save: true);
+                    var saveState = CaptureSaveState(service, sessionId, workbookPath);
+                    Assert.True(saveState.FileExists);
+                    Assert.True(saveState.FileLength > 0);
+                    Assert.False(saveState.ReadOnly);
+                    Assert.False(saveState.HasReadOnlyAttribute);
+                    Assert.False(saveState.Saved);
+                    Assert.True(saveState.ProcessAlive);
+                    Assert.NotNull(saveState.ExcelProcessId);
+                    Assert.Equal(
+                        Path.GetFullPath(workbookPath),
+                        saveState.ExcelFullName,
+                        ignoreCase: true);
+                    await CloseSessionAsync(service, sessionId, save: true, saveState: saveState);
                     sessions.TryRemove(sessionId, out _);
 
                     Assert.True(File.Exists(workbookPath), $"Expected workbook to exist: {workbookPath}");
@@ -113,7 +126,11 @@ public sealed class ServiceWorkbookLifecycleTests
                     var persisted = await ReadMarkerAsync(service, reopenedSessionId, sheetName);
                     await CloseSessionAsync(service, reopenedSessionId, save: false);
                     sessions.TryRemove(reopenedSessionId, out _);
-                    return new WorkflowResult(index, workbookPath, persisted);
+                    return new WorkflowResult(
+                        index,
+                        workbookPath,
+                        persisted,
+                        saveState.ExcelProcessId!.Value);
                 }
                 catch (Exception ex)
                 {
@@ -176,6 +193,9 @@ public sealed class ServiceWorkbookLifecycleTests
             Assert.Equal(
                 workflowCount,
                 results.Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.Equal(
+                workflowCount,
+                results.Select(result => result.ExcelProcessId).Distinct().Count());
             Assert.All(
                 results,
                 result => Assert.Equal($"Marker-{result.Index}", result.PersistedValue));
@@ -378,7 +398,8 @@ public sealed class ServiceWorkbookLifecycleTests
     private static async Task CloseSessionAsync(
         ExcelMcpService service,
         string sessionId,
-        bool save)
+        bool save,
+        WorkbookSaveState? saveState = null)
     {
         var response = await service.ProcessAsync(new ServiceRequest
         {
@@ -386,7 +407,41 @@ public sealed class ServiceWorkbookLifecycleTests
             SessionId = sessionId,
             Args = JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions)
         });
-        Assert.True(response.Success, response.ErrorMessage);
+        Assert.True(
+            response.Success,
+            $"{response.ErrorMessage}{Environment.NewLine}" +
+            $"HRESULT: {response.HResult ?? "<none>"}{Environment.NewLine}" +
+            $"Inner error: {response.InnerError ?? "<none>"}{Environment.NewLine}" +
+            $"Pre-save state: {saveState?.ToString() ?? "<not captured>"}");
+    }
+
+    private static WorkbookSaveState CaptureSaveState(
+        ExcelMcpService service,
+        string sessionId,
+        string workbookPath)
+    {
+        var batch = Assert.IsAssignableFrom<IExcelBatch>(
+            service.SessionManager.GetSession(sessionId));
+        var excelState = batch.Execute((context, _) => new
+        {
+            FullName = context.Book.FullName,
+            ReadOnly = context.Book.ReadOnly,
+            Saved = context.Book.Saved
+        });
+        var file = new FileInfo(workbookPath);
+        file.Refresh();
+
+        return new WorkbookSaveState(
+            workbookPath,
+            excelState.FullName,
+            excelState.ReadOnly,
+            excelState.Saved,
+            file.Exists,
+            file.Exists && file.IsReadOnly,
+            file.Exists ? file.Length : null,
+            file.Exists ? file.LastWriteTimeUtc : null,
+            batch.ExcelProcessId,
+            batch.IsExcelProcessAlive());
     }
 
     private static string GetSessionId(ServiceResponse response)
@@ -398,5 +453,21 @@ public sealed class ServiceWorkbookLifecycleTests
         return sessionId!;
     }
 
-    private sealed record WorkflowResult(int Index, string FilePath, string? PersistedValue);
+    private sealed record WorkflowResult(
+        int Index,
+        string FilePath,
+        string? PersistedValue,
+        int ExcelProcessId);
+
+    private sealed record WorkbookSaveState(
+        string RequestedPath,
+        string ExcelFullName,
+        bool ReadOnly,
+        bool Saved,
+        bool FileExists,
+        bool HasReadOnlyAttribute,
+        long? FileLength,
+        DateTime? LastWriteTimeUtc,
+        int? ExcelProcessId,
+        bool ProcessAlive);
 }
