@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -130,6 +131,25 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal("Value", values[1, 2]);
         Assert.Equal("North", values[2, 1]);
         Assert.Equal(100d, Convert.ToDouble(values[2, 2], CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void Preflight_WithExcelInvalidTableName_ReturnsBlocker()
+    {
+        var batch = _fixture.BatchToken;
+        _fixture.CreateNamedTestSheet(batch, "Data");
+        _rangeCommands.SetValues(
+            batch, "Data", "A1:B2", [["Name", "Value"], ["North", 100]]);
+
+        var result = _tableCommands.Preflight(
+            batch, "Data", new string('A', 256), "A1:B2");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.False(result.SafeToCreate);
+        var finding = Assert.Single(
+            result.Findings,
+            item => item.Kind == TablePreflightFindingKind.TableNameInvalid);
+        Assert.Equal(TablePreflightSeverity.Blocker, finding.Severity);
     }
 
     [Theory]

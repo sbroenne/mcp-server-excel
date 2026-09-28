@@ -138,6 +138,24 @@ public class PersistentServiceTableDaxTests(
         Assert.Contains("C", readResult.Table!.Range, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void CreateFromDax_WithLocalizedTableName_CreatesReadableTable()
+    {
+        var tableName = $"表{Guid.NewGuid():N}";
+
+        var result = CreateFromDax(
+            "Sheet1",
+            tableName,
+            "EVALUATE 'SalesTable'",
+            "A1");
+        Assert.True(result.Success, result.ErrorMessage);
+
+        var readResult = _tableCommands.Read(_fixture.BatchToken, tableName);
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.NotNull(readResult.Table);
+        Assert.Equal(tableName, readResult.Table.Name);
+    }
+
     /// <summary>
     /// Failed Excel name assignment must not leave the created default table or
     /// model workbook connection in the open workbook.

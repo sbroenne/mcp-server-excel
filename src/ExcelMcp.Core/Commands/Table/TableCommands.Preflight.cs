@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -39,7 +40,7 @@ public partial class TableCommands
                     ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 effectiveRange = ResolveEffectiveRange(sheet, rangeAddress);
 
-                return AnalyzePreflight(
+                var result = AnalyzePreflight(
                     ctx.Book,
                     effectiveRange,
                     batch.WorkbookPath,
@@ -48,6 +49,23 @@ public partial class TableCommands
                     rangeAddress,
                     hasHeaders,
                     ct);
+                try
+                {
+                    ValidateTableNameWithExcel(ctx.App, ctx.Book, tableName);
+                }
+                catch (Exception ex) when (ex is ArgumentException or COMException)
+                {
+                    result.Findings.Add(new TablePreflightFinding
+                    {
+                        Kind = TablePreflightFindingKind.TableNameInvalid,
+                        Severity = TablePreflightSeverity.Blocker,
+                        Message = $"Excel rejects table name '{tableName}'.",
+                        Remediation = "Choose a table name accepted by Excel."
+                    });
+                    result.SafeToCreate = false;
+                }
+
+                return result;
             }
             finally
             {

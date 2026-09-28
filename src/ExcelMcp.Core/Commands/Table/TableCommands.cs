@@ -82,7 +82,7 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     private static bool TableExists(dynamic workbook, string tableName)
         => CoreLookupHelpers.TableExists(workbook, tableName);
 
-    private static void SetCreatedTableNameOrRollback(
+    internal static void SetCreatedTableNameOrRollback(
         dynamic listObject,
         string tableName,
         dynamic? workbookConnection = null,
