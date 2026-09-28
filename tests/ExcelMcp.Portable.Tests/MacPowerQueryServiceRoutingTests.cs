@@ -442,6 +442,54 @@ public sealed class MacPowerQueryServiceRoutingTests
         }
     }
 
+    [Fact]
+    public async Task RefreshSharesExplicitTimeoutAcrossCapabilityProbeAndDispatch()
+    {
+        TimeSpan? capabilityTimeout = null;
+        TimeSpan? dispatchTimeout = null;
+        var path = TempWorkbookPath();
+        using var service = new ExcelMcpService(
+            CreateBackend([]),
+            async (workbookPath, timeout) =>
+            {
+                capabilityTimeout = timeout;
+                await Task.Delay(20);
+                return Capabilities("powerquery.refresh");
+            },
+            (workbookPath, action, arguments, timeout) =>
+            {
+                dispatchTimeout = timeout;
+                return Task.FromResult(JsonSerializer.SerializeToElement(new
+                {
+                    queryName = "Sales",
+                    hasErrors = false,
+                    errorMessages = Array.Empty<string>(),
+                    refreshTime = DateTimeOffset.UtcNow,
+                    isConnectionOnly = false
+                }));
+            });
+
+        try
+        {
+            var sessionId = await OpenAsync(service, path);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.refresh",
+                SessionId = sessionId,
+                Args = """{"queryName":"Sales","timeout":17}"""
+            });
+
+            Assert.True(response.Success, response.ErrorMessage);
+            Assert.Equal(TimeSpan.FromSeconds(17), capabilityTimeout);
+            Assert.NotNull(dispatchTimeout);
+            Assert.True(dispatchTimeout < capabilityTimeout);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData("-1")]
     [InlineData("1.5")]
