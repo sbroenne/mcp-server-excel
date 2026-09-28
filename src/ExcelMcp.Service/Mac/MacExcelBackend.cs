@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
@@ -43,13 +44,32 @@ internal sealed class MacExcelBackend
                     handoff.ArgumentList.Add("-b");
                     handoff.ArgumentList.Add("com.microsoft.Excel");
                     handoff.ArgumentList.Add(filePath);
-                    var result = await _runProcess(handoff, null, timeoutCts.Token);
-                    EnsureSuccessfulExit("LaunchServices handoff", result);
-                    return await InvokeScriptAsync(
-                        command,
-                        serializedArguments,
-                        timeoutCts.Token,
-                        allowFailureResult);
+                    timeoutCts.Token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var result = await _runProcess(handoff, null, timeoutCts.Token);
+                        EnsureSuccessfulExit("LaunchServices handoff", result);
+                        var attached = await InvokeScriptAsync(command, serializedArguments, timeoutCts.Token);
+                        if (!attached.TryGetProperty("success", out var success)
+                            || success.ValueKind != JsonValueKind.True
+                            || (attached.TryGetProperty("errorMessage", out var error)
+                                && !string.IsNullOrEmpty(error.GetString())))
+                        {
+                            throw new InvalidDataException("Excel did not confirm successful workbook attachment.");
+                        }
+                        return attached;
+                    }
+                    catch (Exception error) when (error is OperationCanceledException
+                        or InvalidOperationException or IOException or InvalidDataException or JsonException or Win32Exception)
+                    {
+                        throw new MacExcelOperationException(
+                            "RecoveryRequired",
+                            "The Excel file-open outcome is uncertain; the request may still complete. " +
+                            "Do not retry automatically or delete the workbook. Unlock the macOS desktop " +
+                            "and resolve any pending Excel dialogs, then reconcile the exact workbook. " +
+                            $"Original failure: {error.Message}",
+                            error);
+                    }
                 }
                 finally
                 {
@@ -203,8 +223,9 @@ internal sealed class MacExcelBackend
 
 internal sealed record MacProcessResult(int ExitCode, string StandardOutput, string StandardError);
 
-internal sealed class MacExcelOperationException(string errorCategory, string message)
-    : InvalidOperationException(message)
+internal sealed class MacExcelOperationException(
+    string errorCategory, string message, Exception? innerException = null)
+    : InvalidOperationException(message, innerException)
 {
     public string ErrorCategory { get; } = errorCategory;
 }

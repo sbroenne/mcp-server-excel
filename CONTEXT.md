@@ -55,7 +55,10 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 - Different sessions have separate public namespaces. The same workbook cannot
   be opened in multiple sessions; macOS also serializes open preflight,
   LaunchServices handoff, and attachment across participating processes.
-- A timeout can leave Excel busy after the caller stops waiting. Such a session is no longer safe for additional work and must be closed.
+- A timeout can leave Excel busy after the caller stops waiting. Such a session
+  is no longer safe for additional work. On macOS, an unconfirmed file-open
+  handoff requires manual reconciliation, not automatic close or rollback;
+  see `specs/MACOS-SUPPORT.md`.
 - Workbook changes are not automatically saved when a batch or session is disposed. Saving is an explicit operation.
 
 ## Sources of truth

@@ -43,10 +43,10 @@ internal sealed class MacExcelSessionManager : IDisposable
             AddSession(sessionId, normalizedPath, timeout, show);
             return sessionId;
         }
-        catch
+        catch (Exception error)
         {
             _paths.TryRemove(normalizedPath, out _);
-            if (packageCreated)
+            if (packageCreated && error is not MacExcelOperationException { ErrorCategory: "RecoveryRequired" })
             {
                 File.Delete(normalizedPath);
             }
@@ -96,6 +96,14 @@ internal sealed class MacExcelSessionManager : IDisposable
     private async Task<bool> CloseSessionAsync(string sessionId, MacExcelSession session, bool save)
     {
         await session.BeginClose();
+        if (session.HasUnconfirmedOpen)
+        {
+            throw new MacExcelOperationException(
+                "RecoveryRequired",
+                "The workbook has an unconfirmed file-open request. Automatic close or rollback is unsafe. " +
+                "Resolve pending Excel dialogs and reconcile the exact workbook and retained recovery files " +
+                "before restarting the ExcelMcp client.");
+        }
         var closeResult = await CloseAndReconcileAsync(
             session,
             "session.close",
@@ -162,6 +170,12 @@ internal sealed class MacExcelSessionManager : IDisposable
         Interlocked.Increment(ref session.ActiveOperations);
         try
         {
+            if (session.RequiresPackageRecovery)
+            {
+                throw new InvalidOperationException(
+                    $"Session '{sessionId}' requires manual recovery " +
+                    "and cannot accept more operations.");
+            }
             if (session.UnsafeReason is not null)
             {
                 throw new InvalidOperationException(
@@ -248,16 +262,22 @@ internal sealed class MacExcelSessionManager : IDisposable
 
             mutateWorkingCopy(workingPath);
             File.Move(workingPath, session.FilePath, overwrite: true);
-            await _backend.InvokeAsync(
-                "session.open",
-                new { filePath = session.FilePath, show = session.IsVisible },
-                session.OperationTimeout);
+            await ReopenAsync(session);
             reopened = true;
             closed = false;
             await afterReopen();
         }
         catch (Exception operationError)
         {
+            if (session.HasUnconfirmedOpen)
+            {
+                preserveCheckpoint = true;
+                throw new MacExcelOperationException(
+                    "RecoveryRequired",
+                    $"Power Query reopen was not confirmed. The workbook and recovery checkpoint " +
+                    $"at '{checkpointPath}' were preserved without automatic rollback. {operationError.Message}",
+                    operationError);
+            }
             if (!closed && !reopened)
             {
                 throw;
@@ -282,10 +302,7 @@ internal sealed class MacExcelSessionManager : IDisposable
                 }
                 try
                 {
-                    await _backend.InvokeAsync(
-                        "session.open",
-                        new { filePath = session.FilePath, show = session.IsVisible },
-                        session.OperationTimeout);
+                    await ReopenAsync(session);
                     closed = false;
                 }
                 catch (Exception error)
@@ -305,9 +322,11 @@ internal sealed class MacExcelSessionManager : IDisposable
                     {
                         recoveryErrors.Add(reopenError);
                     }
-                    throw new InvalidOperationException(
-                        "Power Query package setup failed and automatic cleanup or reopen did not complete.",
-                        new AggregateException(recoveryErrors));
+                    const string message = "Power Query package setup failed and automatic cleanup or reopen did not complete.";
+                    var errors = new AggregateException(recoveryErrors);
+                    throw session.HasUnconfirmedOpen
+                        ? new MacExcelOperationException("RecoveryRequired", message, errors)
+                        : new InvalidOperationException(message, errors);
                 }
                 throw;
             }
@@ -327,19 +346,18 @@ internal sealed class MacExcelSessionManager : IDisposable
                 }
 
                 RestoreFileAtomically(checkpointPath, session.FilePath);
-                await _backend.InvokeAsync(
-                    "session.open",
-                    new { filePath = session.FilePath, show = session.IsVisible },
-                    session.OperationTimeout);
+                await ReopenAsync(session);
             }
             catch (Exception rollbackError)
             {
                 preserveCheckpoint = true;
                 session.RequiresPackageRecovery = true;
-                throw new InvalidOperationException(
-                    $"Power Query package mutation failed and automatic rollback also failed. " +
-                    $"The recovery checkpoint remains at '{checkpointPath}'.",
-                    new AggregateException(operationError, rollbackError));
+                var message = $"Power Query package mutation failed and automatic rollback also failed. " +
+                    $"The recovery checkpoint remains at '{checkpointPath}'.";
+                var errors = new AggregateException(operationError, rollbackError);
+                throw session.HasUnconfirmedOpen
+                    ? new MacExcelOperationException("RecoveryRequired", message, errors)
+                    : new InvalidOperationException(message, errors);
             }
 
             if (createdBaseline)
@@ -356,6 +374,24 @@ internal sealed class MacExcelSessionManager : IDisposable
             {
                 File.Delete(checkpointPath);
             }
+        }
+    }
+
+    private async Task ReopenAsync(MacExcelSession session)
+    {
+        try
+        {
+            await _backend.InvokeAsync(
+                "session.open",
+                new { filePath = session.FilePath, show = session.IsVisible },
+                session.OperationTimeout);
+            session.HasUnconfirmedOpen = false;
+        }
+        catch (MacExcelOperationException error) when (error.ErrorCategory == "RecoveryRequired")
+        {
+            session.HasUnconfirmedOpen = true;
+            session.RequiresPackageRecovery = true;
+            throw;
         }
     }
 
@@ -568,6 +604,8 @@ internal sealed class MacExcelSessionManager : IDisposable
         await session.BeginClose();
         try
         {
+            // A queued open may complete later even when a current closed-state probe returns false.
+            if (session.HasUnconfirmedOpen) return;
             var closeResult = await CloseAndReconcileAsync(
                 session,
                 "session.close",

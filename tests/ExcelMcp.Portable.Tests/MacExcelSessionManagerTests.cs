@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Collection("Mac backend state")]
 public sealed class MacExcelSessionManagerTests
 {
     [Fact]
@@ -25,8 +26,10 @@ public sealed class MacExcelSessionManagerTests
         Assert.Contains("may still complete", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task Execute_QueuedBeforeUncertainMutation_DoesNotRunAfterSessionBecomesUnsafe()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Execute_QueuedBeforeUncertainMutation_DoesNotRunAfterSessionBecomesUnsafe(bool packageRecovery)
     {
         using var manager = CreateManager();
         var sessionId = await manager.OpenAsync(
@@ -51,7 +54,8 @@ public sealed class MacExcelSessionManagerTests
         });
         await WaitForAsync(() => session.PendingOperations == 2);
 
-        session.MarkUnsafe("The dispatched mutation may still complete.");
+        if (packageRecovery) manager.RequireRecovery(sessionId);
+        else session.MarkUnsafe("The dispatched mutation may still complete.");
         releaseFirst.SetResult();
 
         Assert.True(await first);
@@ -177,6 +181,95 @@ public sealed class MacExcelSessionManagerTests
         Assert.Equal("foreign", await File.ReadAllTextAsync(path));
         File.Delete(path);
         directory.Delete();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_OnlyDeletesNewPackageWhenFailurePrecedesHandoff(bool afterHandoff)
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-open-recovery-");
+        var path = Path.Combine(directory.FullName, "created.xlsx");
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            var fail = start.FileName != "/usr/bin/open"
+                && AutomationCommand(start) == (afterHandoff ? "session.open" : "session.prepare-open");
+            return Task.FromResult(fail
+                ? Success("""{"success":false,"errorCategory":"ComInterop","errorMessage":"Open was not confirmed."}""")
+                : Success());
+        });
+        try
+        {
+            using var manager = new MacExcelSessionManager(backend);
+            var error = await Assert.ThrowsAsync<MacExcelOperationException>(() =>
+                manager.CreateAsync(path, macroEnabled: false, show: false, TimeSpan.FromSeconds(5)));
+
+            Assert.Equal(afterHandoff, File.Exists(path));
+            Assert.Equal(afterHandoff ? "RecoveryRequired" : "ComInterop", error.ErrorCategory);
+            Assert.Empty(manager.Sessions);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            directory.Delete();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PackageMutation_UnconfirmedReopenPreservesFilesWithoutRetryOrDisposalMutation(bool duringRollback)
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-package-open-recovery-");
+        var path = Path.Combine(directory.FullName, "query.xlsx");
+        await File.WriteAllTextAsync(path, "original");
+        var calls = 0;
+        var opens = 0;
+        var backend = new MacExcelBackend((start, input, cancellationToken) =>
+        {
+            calls++;
+            if (start.FileName != "/usr/bin/open" && AutomationCommand(start) == "session.open"
+                && ++opens >= (duringRollback ? 3 : 2))
+            {
+                return Task.FromResult(Success(
+                    """{"success":false,"errorCategory":"ComInterop","errorMessage":"Reopen was not confirmed."}"""));
+            }
+            return Task.FromResult(Success());
+        });
+        var manager = new MacExcelSessionManager(backend);
+        try
+        {
+            var sessionId = await manager.OpenAsync(path, show: false, TimeSpan.FromSeconds(5));
+            var error = await Record.ExceptionAsync(() => manager.ExecuteAsync(sessionId, async session =>
+            {
+                await manager.MutatePackageAsync(session,
+                    working => File.WriteAllText(working, "updated"),
+                    () => duringRollback ? throw new InvalidOperationException("refresh failed") : Task.CompletedTask);
+                return true;
+            }));
+
+            Assert.Equal(duringRollback ? "original" : "updated", await File.ReadAllTextAsync(path));
+            Assert.Equal(duringRollback ? 3 : 2, opens);
+            Assert.Equal("RecoveryRequired", Assert.IsType<MacExcelOperationException>(error).ErrorCategory);
+            Assert.True(Assert.Single(manager.Sessions).RequiresPackageRecovery);
+            var artifacts = TransactionArtifacts(directory);
+            Assert.Equal(3, artifacts.Length);
+            Assert.All(artifacts.Where(file => file.EndsWith(".tmp", StringComparison.Ordinal)),
+                file => Assert.Equal("original", File.ReadAllText(file)));
+            var callsBeforeClose = calls;
+            var close = await Assert.ThrowsAsync<MacExcelOperationException>(() =>
+                manager.CloseAsync(sessionId, save: false));
+            Assert.Equal("RecoveryRequired", close.ErrorCategory);
+            manager.Dispose();
+            Assert.Equal(callsBeforeClose, calls);
+            Assert.Equal(duringRollback ? "original" : "updated", await File.ReadAllTextAsync(path));
+            Assert.Equal(artifacts.Order(), TransactionArtifacts(directory).Order());
+        }
+        finally
+        {
+            manager.Dispose();
+            directory.Delete(recursive: true);
+        }
     }
 
     [Theory]
@@ -568,7 +661,7 @@ public sealed class MacExcelSessionManagerTests
             show: false,
             TimeSpan.FromSeconds(5));
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+        var error = await Assert.ThrowsAsync<MacExcelOperationException>(
             () => manager.ExecuteAsync(sessionId, async session =>
             {
                 await manager.MutatePackageAsync(
@@ -581,10 +674,16 @@ public sealed class MacExcelSessionManagerTests
         Assert.Contains("Checkpoint copy failed", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("Journal delete failed", error.ToString(), StringComparison.Ordinal);
         Assert.Contains("reopen failed", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal("RecoveryRequired", error.ErrorCategory);
         Assert.True(Assert.Single(manager.Sessions).RequiresPackageRecovery);
+        Assert.True(Assert.Single(manager.Sessions).HasUnconfirmedOpen);
+        var artifacts = TransactionArtifacts(directory);
+        Assert.Equal(2, artifacts.Length);
 
         failRecovery = false;
         manager.Dispose();
+        Assert.All(artifacts, file => Assert.True(File.Exists(file)));
+        foreach (var file in artifacts) File.Delete(file);
         File.Delete(path);
         directory.Delete();
     }

@@ -14,6 +14,7 @@ internal sealed class MacExcelSession
     public string? PackageBaselinePath { get; set; }
     public string? PackageTransactionPath { get; set; }
     public bool RequiresPackageRecovery { get; set; }
+    public bool HasUnconfirmedOpen { get; set; }
     public string? UnsafeReason { get; private set; }
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public SemaphoreSlim OperationLock { get; } = new(1, 1);

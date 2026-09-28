@@ -121,6 +121,15 @@ Runtime platform selection preserves the initial behavior:
 - Existing-file open uses a non-prompting native Automation preflight, rejects
   an already-open target, hands the exact path to LaunchServices, then attaches
   through JXA under a shared deadline.
+- Failure or an invalid response after the handoff begins is `RecoveryRequired`
+  through both entry points, not confirmation that the workbook stayed closed.
+  New files are preserved. A Power Query transaction with an unconfirmed reopen
+  preserves the workbook, checkpoint and available baseline/journal; it neither
+  retries nor rolls back automatically. Queued commands are rejected, and
+  session close/disposal does not mutate that uncertain workbook. Resolve any
+  Excel dialogs and reconcile the exact file and recovery artifacts manually
+  before restarting the client. A negative immediate `session.is-open` result
+  does not prove that a queued LaunchServices request cannot complete later.
 - Portable regression tests cover platform-neutral path validation and errors,
   service startup/status without Excel, stable user-scoped IPC naming, native
   permission status/layout, handoff ordering, failures and deadlines.
@@ -471,7 +480,19 @@ blank-workbook baseline opens failed through the same host-wide LaunchServices
 path. The later attempt followed a successful combined native/named-range run,
 and correcting the independently discovered incomplete theme matrices did not
 remove the opening failure. The timeout therefore does not establish its root
-cause or validate either candidate package. The runs did not click or dismiss UI, terminate Excel, change
+cause or validate either candidate package. A subsequent user screenshot
+identified Excel's content-repair alert for the connection-only test workbook.
+Read-only stack inspection also confirmed a modal alert inside document opening.
+This is a fixture rejection, not an Automation permission request; acceptance
+must reject repair rather than treat a recovered workbook as valid. The specific
+package defect that triggered the alert remains unconfirmed, and the corrected
+fixture was not proven to reach Excel while the earlier alert was active.
+After the desktop was unlocked and Excel was observed running in a new process,
+the production CLI/MCP baseline with range expansion and named ranges passed
+again: six cases and one expected Power Query skip. The uncertain-open recovery
+change has 379 passing portable tests, including shared Service error transport;
+these checks do not validate the rejected query packages.
+The runs did not click or dismiss UI, terminate Excel, change
 trust/security, or access an Excel container. The worksheet-loaded fixture,
 save/reopen normalization, and synchronous refresh could therefore not be
 proven. Both generated variants remain test candidates, not accepted fixtures,

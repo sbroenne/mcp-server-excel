@@ -28,3 +28,8 @@ auto-fit; merge and unmerge; and cell lock get/set through both MCP and
 `excelcli`. Used-range, current-region, and merged-area discovery remain
 explicitly unavailable because Excel's declared Apple Events routes did not
 preserve their Windows contracts.
+
+Return explicit recovery guidance when a macOS file-open handoff cannot be
+confirmed. Preserve newly created workbooks and Power Query recovery files
+instead of deleting or rolling them back while Excel may still open them.
+Reject queued operations and avoid automatic close on unconfirmed reopens.
