@@ -15,6 +15,24 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Fact]
+    public async Task SessionClose_MissingSessionReturnsStructuredError()
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.close",
+            SessionId = "missing-session",
+            Args = """{"save":false}"""
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("SessionNotFound", response.ErrorCategory);
+        Assert.Equal("missing-session", response.SessionId);
+        Assert.Contains("not found", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact(Timeout = 60000)]
     public async Task SessionClose_WhenDisposeFails_QuarantinesSessionAndRetryDoesNotReportAlreadyClosed()
     {

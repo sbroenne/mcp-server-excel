@@ -317,23 +317,13 @@ internal sealed class ServiceBridgeLifetime : IDisposable
 
         internal void Release()
         {
-            if (Interlocked.Decrement(ref _leases) == 0)
-            {
-                DisposeIfRequested();
-            }
+            Interlocked.Decrement(ref _leases);
         }
 
         internal void RequestDispose()
         {
             Interlocked.Exchange(ref _disposeRequested, 1);
-            DisposeIfRequested();
-        }
-
-        private void DisposeIfRequested()
-        {
-            if (Volatile.Read(ref _disposeRequested) != 0
-                && Volatile.Read(ref _leases) == 0
-                && Interlocked.Exchange(ref _disposed, 1) == 0)
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
             {
                 Backend.Dispose();
             }

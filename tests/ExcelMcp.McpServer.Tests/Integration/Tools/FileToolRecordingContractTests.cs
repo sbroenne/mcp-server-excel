@@ -118,6 +118,57 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(0, result.RootElement.GetProperty("sessions").GetArrayLength());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task List_PreservesOperationAndVisibilityFields(bool isExcelVisible)
+    {
+        var response = new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(new
+            {
+                success = true,
+                count = 1,
+                sessions = new[]
+                {
+                    new
+                    {
+                        sessionId = "session-list",
+                        filePath = @"C:\workbook.xlsx",
+                        isExcelVisible,
+                        activeOperations = 0,
+                        canClose = true
+                    }
+                }
+            }, ServiceProtocol.JsonOptions)
+        };
+
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "list",
+                ["save"] = false,
+                ["show"] = false,
+                ["timeout_seconds"] = 120
+            },
+            response,
+            "session.list",
+            expectedSessionId: null,
+            expectedArgsJson: null);
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.Equal(1, result.RootElement.GetProperty("count").GetInt32());
+        var session = Assert.Single(
+            result.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal("session-list", session.GetProperty("sessionId").GetString());
+        Assert.Equal(@"C:\workbook.xlsx", session.GetProperty("filePath").GetString());
+        Assert.Equal(isExcelVisible, session.GetProperty("isExcelVisible").GetBoolean());
+        Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
+        Assert.True(session.GetProperty("canClose").GetBoolean());
+    }
+
     [Fact]
     public async Task Close_DispatchesExactSessionAndSaveDefault()
     {
@@ -142,6 +193,131 @@ public sealed class FileToolRecordingContractTests(
 
         Assert.Equal("session-close", call.Request.SessionId);
         using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(
+            "session-close",
+            result.RootElement.GetProperty("session_id").GetString());
         Assert.False(result.RootElement.GetProperty("saved").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Close_MissingSessionPreservesStructuredError()
+    {
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "close",
+                ["session_id"] = "missing-session",
+                ["save"] = false,
+                ["show"] = false,
+                ["timeout_seconds"] = 120
+            },
+            new ServiceResponse
+            {
+                Success = false,
+                Command = "session.close",
+                SessionId = "missing-session",
+                ErrorCategory = "SessionNotFound",
+                ErrorMessage = "Session 'missing-session' not found",
+                ExceptionType = "InvalidOperationException"
+            },
+            "session.close",
+            "missing-session",
+            """{"save":false}""");
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(result.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Equal(
+            "SessionNotFound",
+            result.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal(
+            "Session 'missing-session' not found",
+            result.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal(
+            "InvalidOperationException",
+            result.RootElement.GetProperty("exceptionType").GetString());
+    }
+
+    [Fact]
+    public async Task Open_LockedErrorAndRetryPreserveProtocolContract()
+    {
+        var path = Path.Join(
+            Path.GetTempPath(),
+            $"locked-recording-{Guid.NewGuid():N}.xlsx");
+        await File.WriteAllTextAsync(path, string.Empty);
+        var arguments = new Dictionary<string, object?>
+        {
+            ["action"] = "open",
+            ["path"] = path,
+            ["save"] = false,
+            ["show"] = false,
+            ["timeout_seconds"] = 120
+        };
+        var expectedArgs = JsonSerializer.Serialize(new
+        {
+            filePath = path,
+            show = false,
+            timeoutSeconds = 120
+        }, ServiceProtocol.JsonOptions);
+
+        try
+        {
+            var failedCall = await _fixture.CallToolAsync(
+                "file",
+                arguments,
+                new ServiceResponse
+                {
+                    Success = false,
+                    Command = "session.open",
+                    ErrorCategory = "WorkbookAccess",
+                    ErrorMessage = "Workbook is already open. Close the file and retry with exclusive access.",
+                    ExceptionType = "IOException"
+                },
+                "session.open",
+                expectedSessionId: null,
+                expectedArgsJson: expectedArgs);
+            using (var failedResult = JsonDocument.Parse(failedCall.JsonResult))
+            {
+                Assert.False(failedResult.RootElement.GetProperty("success").GetBoolean());
+                Assert.True(failedResult.RootElement.GetProperty("isError").GetBoolean());
+                Assert.Equal(
+                    "WorkbookAccess",
+                    failedResult.RootElement.GetProperty("errorCategory").GetString());
+                Assert.Equal(
+                    "Workbook is already open. Close the file and retry with exclusive access.",
+                    failedResult.RootElement.GetProperty("errorMessage").GetString());
+                Assert.Equal(
+                    "IOException",
+                    failedResult.RootElement.GetProperty("exceptionType").GetString());
+            }
+
+            var retryCall = await _fixture.CallToolAsync(
+                "file",
+                arguments,
+                new ServiceResponse
+                {
+                    Success = true,
+                    Result = JsonSerializer.Serialize(new
+                    {
+                        success = true,
+                        sessionId = "retry-session",
+                        filePath = path
+                    }, ServiceProtocol.JsonOptions)
+                },
+                "session.open",
+                expectedSessionId: null,
+                expectedArgsJson: expectedArgs);
+            using var retryResult = JsonDocument.Parse(retryCall.JsonResult);
+            Assert.True(retryResult.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(
+                "retry-session",
+                retryResult.RootElement.GetProperty("session_id").GetString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

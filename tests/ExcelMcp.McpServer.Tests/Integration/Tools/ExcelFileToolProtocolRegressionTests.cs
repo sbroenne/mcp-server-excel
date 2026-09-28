@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Text.Json;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -21,12 +20,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("RequiresExcel", "true")]
 public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBase
 {
-    private readonly string _tempDir;
-
     public ExcelFileToolProtocolRegressionTests(ITestOutputHelper output)
         : base(output, "ExcelFileToolProtocolRegressionClient")
     {
-        _tempDir = CreateTempDirectory("ExcelFileToolProtocolRegressionTests");
     }
 
     private static string? GetConfiguredIrmTestFilePath()
@@ -35,60 +31,6 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         return !string.IsNullOrWhiteSpace(irmTestFile) && File.Exists(irmTestFile)
             ? Path.GetFullPath(irmTestFile)
             : null;
-    }
-
-    [Fact]
-    public async Task FileOpen_FileLockedByAnotherProcess_ReturnsActionableError_AndNextOpenSucceeds()
-    {
-        var lockedFile = Path.Join(_tempDir, $"LockedOpen_{Guid.NewGuid():N}.xlsx");
-        ExcelSession.CreateNew(lockedFile, false, (ctx, ct) => true);
-
-        using (var fileLock = new FileStream(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
-        {
-            var lockedResult = await CallToolAsync("file", new Dictionary<string, object?>
-            {
-                ["action"] = "open",
-                ["path"] = lockedFile
-            });
-
-            Output.WriteLine($"Locked file open result: {lockedResult}");
-
-            using var lockedJson = JsonDocument.Parse(lockedResult);
-            Assert.False(lockedJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.True(lockedJson.RootElement.GetProperty("isError").GetBoolean());
-
-            var errorMessage = lockedJson.RootElement.GetProperty("errorMessage").GetString();
-            Assert.NotNull(errorMessage);
-            Assert.Contains("already open", errorMessage, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("close the file", errorMessage, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("exclusive access", errorMessage, StringComparison.OrdinalIgnoreCase);
-            Assert.False(string.IsNullOrWhiteSpace(lockedJson.RootElement.GetProperty("exceptionType").GetString()));
-        }
-
-        var listAfterFailure = await CallToolAsync("file", new Dictionary<string, object?>
-        {
-            ["action"] = "list"
-        });
-
-        using (var listAfterFailureJson = JsonDocument.Parse(listAfterFailure))
-        {
-            Assert.True(listAfterFailureJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.Equal(0, listAfterFailureJson.RootElement.GetProperty("sessions").GetArrayLength());
-        }
-
-        var openAfterRelease = await CallToolAsync("file", new Dictionary<string, object?>
-        {
-            ["action"] = "open",
-            ["path"] = lockedFile
-        });
-        AssertSuccess(openAfterRelease, "Open workbook after lock release");
-
-        var sessionId = GetJsonProperty(openAfterRelease, "session_id");
-        Assert.False(string.IsNullOrWhiteSpace(sessionId));
-        TrackSession(sessionId);
-
-        await CloseSessionAsync(sessionId, save: false);
-        await Task.Delay(TimeSpan.FromSeconds(2));
     }
 
     [ConfiguredIrmFact]

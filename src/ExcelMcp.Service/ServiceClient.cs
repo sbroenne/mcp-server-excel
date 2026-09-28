@@ -77,13 +77,20 @@ public sealed class ServiceClient : IDisposable
             totalTimeout,
             startedAt,
             _timeProvider);
-        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        connectCts.CancelAfter(connectTimeout);
         var connected = false;
 
         try
         {
-            await pipe.ConnectAsync(ToTimeoutMilliseconds(connectTimeout), connectCts.Token);
+            using (var connectTimeoutCts = new CancellationTokenSource(
+                connectTimeout,
+                _timeProvider))
+            using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                connectTimeoutCts.Token))
+            {
+                await pipe.ConnectAsync(ToTimeoutMilliseconds(connectTimeout), connectCts.Token);
+            }
+
             connected = true;
 
             // Use StreamJsonRpc typed proxy for the RPC call
@@ -95,9 +102,13 @@ public sealed class ServiceClient : IDisposable
                     totalTimeout,
                     startedAt,
                     _timeProvider);
-                using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                using var requestTimeoutCts = new CancellationTokenSource(
+                    requestTimeout,
+                    _timeProvider);
+                using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    requestTimeoutCts.Token);
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
-                requestCts.CancelAfter(requestTimeout);
 
                 var callTask = proxy.ProcessCommandAsync(request);
                 var disconnectTask = WaitForPipeDisconnectAsync(

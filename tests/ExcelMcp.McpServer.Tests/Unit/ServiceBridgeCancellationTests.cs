@@ -181,6 +181,38 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
     }
 
     [Fact]
+    public async Task SendAsync_CancelledRequestResetsBackendAndCompletesOtherBlockedRequest()
+    {
+        var backend = new MultiRequestBlockingBackend(expectedRequests: 2);
+        using var lifetime = new ServiceBridgeLifetime(() => backend);
+        using var cancellation = new CancellationTokenSource();
+
+        var cancelledRequest = lifetime.SendAsync(
+            "session.open",
+            sessionId: null,
+            args: null,
+            timeoutSeconds: null,
+            cancellation.Token);
+        var otherRequest = lifetime.SendAsync(
+            "session.open",
+            sessionId: null,
+            args: null,
+            timeoutSeconds: null,
+            CancellationToken.None);
+        await backend.WaitForRequestsAsync();
+
+        cancellation.Cancel();
+
+        var cancelledResponse = await cancelledRequest.WaitAsync(TimeSpan.FromSeconds(5));
+        var otherResponse = await otherRequest.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal("Cancelled", cancelledResponse.ErrorCategory);
+        Assert.False(otherResponse.Success);
+        Assert.Equal("disposed", otherResponse.ErrorMessage);
+        Assert.True(backend.Disposed);
+    }
+
+    [Fact]
     public async Task DisposeIfOwnedBy_WithMatchingOwner_DisposesService()
     {
         var backend = new BlockingBackend(completeImmediately: true);
@@ -195,7 +227,7 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
     }
 
     [Fact]
-    public async Task Dispose_DuringActiveRequest_DefersBackendDisposalUntilResponse()
+    public async Task Dispose_DuringActiveRequest_DisposesBackendAndCompletesResponse()
     {
         var backend = new DelayedCompletionBackend();
         using var lifetime = new ServiceBridgeLifetime(() => backend);
@@ -209,10 +241,10 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
 
         lifetime.Dispose();
 
-        Assert.False(backend.Disposed);
-        backend.Complete(new ServiceResponse { Success = true });
-        Assert.True((await sendTask).Success);
         Assert.True(backend.Disposed);
+        var response = await sendTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(response.Success);
+        Assert.Equal("disposed", response.ErrorMessage);
     }
 
     [Fact]
@@ -339,6 +371,42 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
             });
             return true;
         }
+
+        public void Dispose()
+        {
+            Disposed = true;
+            _response.TrySetResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = "disposed"
+            });
+        }
+    }
+
+    private sealed class MultiRequestBlockingBackend(int expectedRequests)
+        : IServiceBridgeBackend
+    {
+        private readonly TaskCompletionSource<bool> _requestsStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<ServiceResponse> _response =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _requestCount;
+
+        internal bool Disposed { get; private set; }
+
+        public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+        {
+            if (Interlocked.Increment(ref _requestCount) == expectedRequests)
+            {
+                _requestsStarted.TrySetResult(true);
+            }
+
+            return _response.Task;
+        }
+
+        internal Task<bool> WaitForRequestsAsync() => _requestsStarted.Task;
+
+        public bool ForceCloseSession(string sessionId) => false;
 
         public void Dispose()
         {

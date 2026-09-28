@@ -12,13 +12,28 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("RequiresExcel", "true")]
 public sealed class ServiceWorkbookLifecycleTests
 {
-    [Fact]
-    public async Task CreateHidden_ListReportsVisibilityAndCloseState()
+    [Theory]
+    [InlineData("create", false)]
+    [InlineData("create", true)]
+    [InlineData("open", false)]
+    [InlineData("open", true)]
+    public async Task CreateAndOpen_ListReportsRequestedVisibilityAndCloseState(
+        string action,
+        bool show)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
-            var workbookPath = Path.Join(directory, "hidden.xlsx");
-            var sessionId = await CreateSessionAsync(service, workbookPath);
+            var workbookPath = Path.Join(directory, $"{action}-{show}.xlsx");
+            if (action == "open")
+            {
+                File.Copy(
+                    Path.Join(AppContext.BaseDirectory, "TestFiles", "batch-test-static.xlsx"),
+                    workbookPath);
+            }
+
+            var sessionId = action == "create"
+                ? await CreateSessionAsync(service, workbookPath, show)
+                : await OpenSessionAsync(service, workbookPath, show);
             sessions[sessionId] = 0;
 
             var list = await service.ProcessAsync(new ServiceRequest
@@ -31,7 +46,7 @@ public sealed class ServiceWorkbookLifecycleTests
             var session = Assert.Single(
                 result.RootElement.GetProperty("sessions").EnumerateArray(),
                 item => item.GetProperty("sessionId").GetString() == sessionId);
-            Assert.False(session.GetProperty("isExcelVisible").GetBoolean());
+            Assert.Equal(show, session.GetProperty("isExcelVisible").GetBoolean());
             Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
             Assert.True(session.GetProperty("canClose").GetBoolean());
         });
@@ -63,26 +78,92 @@ public sealed class ServiceWorkbookLifecycleTests
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
             const int workflowCount = 4;
-            await Task.WhenAll(Enumerable.Range(0, workflowCount).Select(async index =>
+            var openedCount = 0;
+            var allOpened = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseWorkflows = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var startupFailure = new TaskCompletionSource<Exception>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var workflows = Enumerable.Range(0, workflowCount).Select(index => Task.Run(async () =>
             {
                 var workbookPath = Path.Join(directory, $"concurrent-{index}.xlsx");
+                var sheetName = $"Data{index}";
                 var marker = $"Marker-{index}";
-                var sessionId = await CreateSessionAsync(service, workbookPath);
-                sessions[sessionId] = 0;
-                await WriteMarkerAsync(service, sessionId, marker);
-                await CloseSessionAsync(service, sessionId, save: true);
-                sessions.TryRemove(sessionId, out _);
+                try
+                {
+                    var sessionId = await CreateSessionAsync(service, workbookPath);
+                    sessions[sessionId] = 0;
+                    if (Interlocked.Increment(ref openedCount) == workflowCount)
+                    {
+                        allOpened.TrySetResult(true);
+                    }
 
-                var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
-                sessions[reopenedSessionId] = 0;
-                Assert.Equal(
-                    marker,
-                    await ReadMarkerAsync(service, reopenedSessionId));
-                await CloseSessionAsync(service, reopenedSessionId, save: false);
-                sessions.TryRemove(reopenedSessionId, out _);
-            }));
+                    await releaseWorkflows.Task;
+                    await CreateSheetAsync(service, sessionId, sheetName);
+                    await WriteWorkflowValuesAsync(service, sessionId, sheetName, marker, index);
+                    Assert.Equal(marker, await ReadMarkerAsync(service, sessionId, sheetName));
+                    await FormatWorkflowValuesAsync(service, sessionId, sheetName);
+                    await CloseSessionAsync(service, sessionId, save: true);
+                    sessions.TryRemove(sessionId, out _);
+
+                    Assert.True(File.Exists(workbookPath), $"Expected workbook to exist: {workbookPath}");
+                    var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
+                    sessions[reopenedSessionId] = 0;
+                    var persisted = await ReadMarkerAsync(service, reopenedSessionId, sheetName);
+                    await CloseSessionAsync(service, reopenedSessionId, save: false);
+                    sessions.TryRemove(reopenedSessionId, out _);
+                    return new WorkflowResult(index, workbookPath, persisted);
+                }
+                catch (Exception ex)
+                {
+                    startupFailure.TrySetResult(ex);
+                    throw;
+                }
+            })).ToArray();
+
+            try
+            {
+                var readiness = await Task.WhenAny(allOpened.Task, startupFailure.Task)
+                    .WaitAsync(TimeSpan.FromMinutes(2));
+                if (readiness == startupFailure.Task)
+                {
+                    throw await startupFailure.Task;
+                }
+
+                Assert.Equal(workflowCount, service.SessionCount);
+                var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                Assert.True(list.Success, list.ErrorMessage);
+                using (var result = JsonDocument.Parse(list.Result!))
+                {
+                    var openSessionIds = result.RootElement
+                        .GetProperty("sessions")
+                        .EnumerateArray()
+                        .Select(item => item.GetProperty("sessionId").GetString())
+                        .ToArray();
+                    Assert.Equal(workflowCount, openSessionIds.Length);
+                    Assert.All(sessions.Keys, sessionId => Assert.Contains(sessionId, openSessionIds));
+                }
+            }
+            finally
+            {
+                releaseWorkflows.TrySetResult(true);
+            }
+
+            var results = await Task.WhenAll(workflows);
+            Assert.Equal(workflowCount, results.Length);
+            Assert.Equal(
+                workflowCount,
+                results.Select(result => result.FilePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.All(
+                results,
+                result => Assert.Equal($"Marker-{result.Index}", result.PersistedValue));
 
             Assert.Equal(0, service.SessionCount);
+            var finalList = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            Assert.True(finalList.Success, finalList.ErrorMessage);
+            using var finalResult = JsonDocument.Parse(finalList.Result!);
+            Assert.Empty(finalResult.RootElement.GetProperty("sessions").EnumerateArray());
         });
     }
 
@@ -146,7 +227,8 @@ public sealed class ServiceWorkbookLifecycleTests
 
     private static async Task<string> CreateSessionAsync(
         ExcelMcpService service,
-        string workbookPath)
+        string workbookPath,
+        bool show = false)
     {
         var response = await service.ProcessAsync(new ServiceRequest
         {
@@ -154,7 +236,7 @@ public sealed class ServiceWorkbookLifecycleTests
             Args = JsonSerializer.Serialize(new
             {
                 filePath = workbookPath,
-                show = false,
+                show,
                 timeoutSeconds = 120
             }, ServiceProtocol.JsonOptions)
         });
@@ -163,7 +245,8 @@ public sealed class ServiceWorkbookLifecycleTests
 
     private static async Task<string> OpenSessionAsync(
         ExcelMcpService service,
-        string workbookPath)
+        string workbookPath,
+        bool show = false)
     {
         var response = await service.ProcessAsync(new ServiceRequest
         {
@@ -171,7 +254,7 @@ public sealed class ServiceWorkbookLifecycleTests
             Args = JsonSerializer.Serialize(new
             {
                 filePath = workbookPath,
-                show = false,
+                show,
                 timeoutSeconds = 120
             }, ServiceProtocol.JsonOptions)
         });
@@ -197,15 +280,74 @@ public sealed class ServiceWorkbookLifecycleTests
         Assert.True(response.Success, response.ErrorMessage);
     }
 
+    private static async Task CreateSheetAsync(
+        ExcelMcpService service,
+        string sessionId,
+        string sheetName)
+    {
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.create",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new { sheetName }, ServiceProtocol.JsonOptions)
+        });
+        Assert.True(response.Success, response.ErrorMessage);
+    }
+
+    private static async Task WriteWorkflowValuesAsync(
+        ExcelMcpService service,
+        string sessionId,
+        string sheetName,
+        string marker,
+        int index)
+    {
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "range.set-values",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new
+            {
+                sheetName,
+                rangeAddress = "A1:A2",
+                values = new object?[][] { [marker], [$"File-{index}"] }
+            }, ServiceProtocol.JsonOptions)
+        });
+        Assert.True(response.Success, response.ErrorMessage);
+    }
+
+    private static async Task FormatWorkflowValuesAsync(
+        ExcelMcpService service,
+        string sessionId,
+        string sheetName)
+    {
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "rangeformat.format-range",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new
+            {
+                sheetName,
+                rangeAddress = "A1:A2",
+                bold = true
+            }, ServiceProtocol.JsonOptions)
+        });
+        Assert.True(response.Success, response.ErrorMessage);
+    }
+
     private static async Task<string?> ReadMarkerAsync(
         ExcelMcpService service,
-        string sessionId)
+        string sessionId,
+        string sheetName = "Sheet1")
     {
         var response = await service.ProcessAsync(new ServiceRequest
         {
             Command = "range.get-values",
             SessionId = sessionId,
-            Args = """{"sheetName":"Sheet1","rangeAddress":"A1"}"""
+            Args = JsonSerializer.Serialize(new
+            {
+                sheetName,
+                rangeAddress = "A1"
+            }, ServiceProtocol.JsonOptions)
         });
         Assert.True(response.Success, response.ErrorMessage);
         using var result = JsonDocument.Parse(response.Result!);
@@ -234,4 +376,6 @@ public sealed class ServiceWorkbookLifecycleTests
         Assert.False(string.IsNullOrWhiteSpace(sessionId));
         return sessionId!;
     }
+
+    private sealed record WorkflowResult(int Index, string FilePath, string? PersistedValue);
 }

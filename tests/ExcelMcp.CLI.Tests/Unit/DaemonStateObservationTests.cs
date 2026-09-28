@@ -339,6 +339,36 @@ public sealed class DaemonStateObservationTests
             Assert.InRange(timeout, TimeSpan.Zero, DaemonAutoStart.BusyDaemonConnectTimeout));
     }
 
+    [Fact]
+    public async Task EnsureAndConnectAsync_StartupTimerUsesControlledClock()
+    {
+        var clock = new SingleTimerTimeProvider();
+        var runtime = new DaemonAutoStart.Runtime(
+            PingAsync: static async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return false;
+            },
+            IsDaemonMutexHeld: () => false,
+            IsStartupInProgress: () => false,
+            TryStartDaemonAsync: (_, _) => throw new InvalidOperationException(),
+            WaitForResponsiveDaemonAsync: (_, _) => throw new InvalidOperationException(),
+            DelayAsync: (_, _) => throw new InvalidOperationException());
+
+        var connectTask = DaemonAutoStart.EnsureAndConnectAsync(
+            $"startup-clock-{Guid.NewGuid():N}",
+            runtime,
+            clock,
+            CancellationToken.None);
+        await clock.WaitForTimerAsync();
+
+        clock.Advance(DaemonAutoStart.StartupReadyTimeout);
+
+        var exception = await Assert.ThrowsAsync<TimeoutException>(
+            () => connectTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Contains("did not become ready", exception.Message, StringComparison.Ordinal);
+    }
+
     private sealed class AdvancingTimeProvider : TimeProvider
     {
         private long _timestamp;
@@ -348,6 +378,67 @@ public sealed class DaemonStateObservationTests
         public override long GetTimestamp() => _timestamp;
 
         internal void Advance(TimeSpan elapsed) => _timestamp += elapsed.Ticks;
+    }
+
+    private sealed class SingleTimerTimeProvider : TimeProvider
+    {
+        private readonly TaskCompletionSource<SingleTimer> _timer =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private long _timestamp;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() => _timestamp;
+
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period)
+        {
+            var timer = new SingleTimer(callback, state, _timestamp + dueTime.Ticks);
+            _timer.TrySetResult(timer);
+            return timer;
+        }
+
+        internal Task<SingleTimer> WaitForTimerAsync() =>
+            _timer.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        internal void Advance(TimeSpan elapsed)
+        {
+            _timestamp += elapsed.Ticks;
+            if (_timer.Task.IsCompletedSuccessfully)
+            {
+                _timer.Task.Result.FireIfDue(_timestamp);
+            }
+        }
+
+        internal sealed class SingleTimer(
+            TimerCallback callback,
+            object? state,
+            long dueAt) : ITimer
+        {
+            private bool _disposed;
+
+            internal void FireIfDue(long timestamp)
+            {
+                if (!_disposed && timestamp >= dueAt)
+                {
+                    _disposed = true;
+                    callback(state);
+                }
+            }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period) => false;
+
+            public void Dispose() => _disposed = true;
+
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
+        }
     }
 
     private static bool DequeueObservation(
