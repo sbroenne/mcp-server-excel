@@ -309,13 +309,13 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("powerquery.view")]
     [InlineData("powerquery.get-load-config")]
     [InlineData("powerquery.update")]
-    public void PowerQueryReadCommands_AreAvailableThroughSecurePackageTier(string command)
+    public void PowerQueryReadCommands_RemainUnprovenInHelperTier(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
-        Assert.True(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.PowerQueryPackage, capability.RequiredTier);
-        Assert.Empty(capability.UnavailableMessage);
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.NotEmpty(capability.UnavailableMessage);
     }
 
     [Theory]
@@ -331,9 +331,9 @@ public sealed class MacCommandCapabilitiesTests
     {
         var capability = MacCommandCapabilities.Get(command);
 
-        Assert.True(capability.IsAvailable);
+        Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.Empty(capability.UnavailableMessage);
+        Assert.NotEmpty(capability.UnavailableMessage);
     }
 
     [Theory]

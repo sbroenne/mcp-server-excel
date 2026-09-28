@@ -3,7 +3,7 @@
 .SYNOPSIS
 Runs the ordinary-file LaunchServices spike by default.
 .DESCRIPTION
-Default mode uses temporary OOXML fixtures without accessing Excel's container.
+Default mode copies an intact Excel-authored template without accessing Excel's container.
 The explicit AllowExcelContainerAccess switch reproduces the older container
 experiment, which is NOT prompt-free. That mode creates two disposable workbooks inside Excel's sandbox, checks native automation
 across separate osascript processes, and removes only those workbooks. Does not quit Excel,

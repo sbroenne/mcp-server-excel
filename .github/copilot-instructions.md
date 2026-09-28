@@ -20,6 +20,12 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - `Success == true` requires an empty or null `ErrorMessage`.
+- Treat workbook files as opaque. Never create, parse, inspect, or mutate ZIP,
+  OOXML, relationship, custom XML, or DataMashup internals in production code,
+  tests, scripts, or fixtures, including through a package/Open XML library.
+  Use Excel-supported APIs or a trusted helper that automates Excel; otherwise
+  report the capability as unsupported. Copying an intact Excel-authored
+  workbook or template as an opaque whole file is allowed.
 - Keep customer/workbook data, credentials, connection strings, and private
   paths out of public artifacts. Keep temporary notes outside the repository.
 

@@ -156,12 +156,12 @@ public sealed class MacVbaHelperProtocolTests
         const string requestId = "0123456789abcdef0123456789abcdef";
         var result = MacVbaHelperProtocol.ParseResponse(
             """
-            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.3.0"},"error":null}
+            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.4.0"},"error":null}
             """,
             requestId);
 
         Assert.True(result.Success);
-        Assert.Equal("1.3.0", result.Result!.Value.GetProperty("helperVersion").GetString());
+        Assert.Equal("1.4.0", result.Result!.Value.GetProperty("helperVersion").GetString());
 
         Assert.Throws<InvalidOperationException>(() => MacVbaHelperProtocol.ParseResponse(
             """
@@ -201,7 +201,7 @@ public sealed class MacVbaHelperProtocolTests
         using var reader = new StreamReader(stream!);
         var source = reader.ReadToEnd();
 
-        Assert.Contains("Private Const HELPER_VERSION As String = \"1.3.0\"", source);
+        Assert.Contains("Private Const HELPER_VERSION As String = \"1.4.0\"", source);
         Assert.Contains("Public Function ExcelMcpDispatch(ByVal requestJson As String) As String", source);
         Assert.Contains("candidate.FullName", source);
         Assert.Contains("VBProject.VBComponents", source);
@@ -211,6 +211,9 @@ public sealed class MacVbaHelperProtocolTests
         Assert.Contains("Application.Run qualifiedName", source);
         Assert.Contains("\"\"\"vbaRun\"\":false", source);
         Assert.Contains("Queries.Add", source);
+        Assert.Contains("PowerQueryMetadataJson(target, target.Queries(index), False)", source);
+        Assert.Contains("Left$(formula, 80)", source);
+        Assert.Contains("CallByName(connection, \"InModel\", VbGet)", source);
         Assert.Contains("QueryTable.WorkbookConnection", source);
         Assert.Contains("queryTable.Refresh", source);
         Assert.Contains("If Not CBool(queryTable.Refresh(False)) Then", source);

@@ -5,7 +5,7 @@ Runs guarded public CLI and MCP acceptance for macOS Power Query lifecycle candi
 .DESCRIPTION
 This script never installs the helper, changes Excel security, or creates a
 workbook. The caller supplies an original Excel-authored dedicated workbook and
-confirms that the exact helper 1.3.0 installation is trusted and an exclusive
+confirms that the exact helper 1.4.0 installation is trusted and an exclusive
 desktop Excel slot is available.
 
 Each entry point opens the exact workbook, uses only the public Power Query
@@ -31,7 +31,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$helperVersion = '1.3.0'
+$helperVersion = '1.4.0'
 $acceptanceScope = 'public-powerquery-lifecycle-cli-mcp'
 $requiredActions = @(
     'powerquery.create',

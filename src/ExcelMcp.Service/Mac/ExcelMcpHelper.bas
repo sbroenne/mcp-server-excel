@@ -1,7 +1,7 @@
 Attribute VB_Name = "ExcelMcpHelper"
 Option Explicit
 
-Private Const HELPER_VERSION As String = "1.3.0"
+Private Const HELPER_VERSION As String = "1.4.0"
 Private Const PROTOCOL_VERSION As Long = 1
 Private Const MAX_PAYLOAD_BYTES As Long = 262144
 Private Const MAX_SAFE_ERROR_DETAIL_CHARS As Long = 512
@@ -325,7 +325,7 @@ Private Function PowerQueryList(ByVal target As Workbook) As String
     Dim index As Long
     For index = 1 To target.Queries.Count
         If index > 1 Then output = output & ","
-        output = output & "{""name"":" & JsonQuote(CStr(target.Queries(index).Name)) & "}"
+        output = output & PowerQueryMetadataJson(target, target.Queries(index), False)
     Next index
     PowerQueryList = output & "]}"
 End Function
@@ -333,8 +333,57 @@ End Function
 Private Function PowerQueryView(ByVal target As Workbook, ByVal queryName As String) As String
     Dim query As Object
     Set query = QueryByExactName(target, queryName)
-    PowerQueryView = "{""name"":" & JsonQuote(CStr(query.Name)) & _
-        ",""formula"":" & JsonQuote(CStr(query.Formula)) & "}"
+    PowerQueryView = PowerQueryMetadataJson(target, query, True)
+End Function
+
+Private Function PowerQueryMetadataJson( _
+    ByVal target As Workbook, _
+    ByVal query As Object, _
+    ByVal includeFormula As Boolean) As String
+    Dim queryName As String
+    queryName = CStr(query.Name)
+    Dim formula As String
+    formula = CStr(query.Formula)
+    Dim loadedSheet As String
+    Dim queryTable As Object
+    Set queryTable = ExactQueryTable(target, queryName, loadedSheet)
+    Dim hasWorksheetLoad As Boolean
+    hasWorksheetLoad = Not queryTable Is Nothing
+    Dim hasModelLoad As Boolean
+    hasModelLoad = ExactQueryIsInModel(target, queryName)
+
+    Dim loadMode As String
+    If hasWorksheetLoad And hasModelLoad Then
+        loadMode = "load-to-both"
+    ElseIf hasWorksheetLoad Then
+        loadMode = "load-to-table"
+    ElseIf hasModelLoad Then
+        loadMode = "load-to-data-model"
+    Else
+        loadMode = "connection-only"
+    End If
+
+    Dim output As String
+    output = "{""name"":" & JsonQuote(queryName)
+    If includeFormula Then
+        output = output & ",""formula"":" & JsonQuote(formula)
+    Else
+        output = output & ",""formulaPreview"":" & JsonQuote(Left$(formula, 80))
+    End If
+    output = output & ",""characterCount"":" & CStr(Len(formula)) & _
+        ",""loadMode"":" & JsonQuote(loadMode) & _
+        ",""targetSheet"":"
+    If hasWorksheetLoad Then
+        output = output & JsonQuote(loadedSheet)
+    Else
+        output = output & "null"
+    End If
+    output = output & ",""hasConnection"":" & _
+        JsonBoolean(hasWorksheetLoad Or hasModelLoad) & _
+        ",""isConnectionOnly"":" & _
+        JsonBoolean(Not hasWorksheetLoad And Not hasModelLoad) & _
+        ",""isLoadedToDataModel"":" & JsonBoolean(hasModelLoad) & "}"
+    PowerQueryMetadataJson = output
 End Function
 
 Private Function PowerQueryCreate( _
@@ -985,6 +1034,29 @@ Private Function ExactQueryConnectionExists( _
             Exit Function
         End If
     Next index
+End Function
+
+Private Function ExactQueryIsInModel( _
+    ByVal target As Workbook, _
+    ByVal queryName As String) As Boolean
+    Dim index As Long
+    For index = 1 To target.Connections.Count
+        Dim connection As WorkbookConnection
+        Set connection = target.Connections(index)
+        If ConnectionMatchesQuery(connection, queryName) Then
+            On Error GoTo ModelStateUnavailable
+            If CBool(CallByName(connection, "InModel", VbGet)) Then
+                ExactQueryIsInModel = True
+                Exit Function
+            End If
+            On Error GoTo 0
+        End If
+    Next index
+    Exit Function
+
+ModelStateUnavailable:
+    Err.Raise vbObjectError + 7016, _
+        "ExcelMcpHelper", "query_destination_unsupported"
 End Function
 
 Private Function ConnectionMatchesQuery( _

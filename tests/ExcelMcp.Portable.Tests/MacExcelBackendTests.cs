@@ -163,7 +163,7 @@ public sealed class MacExcelBackendTests
     {
         var directory = Directory.CreateTempSubdirectory("excelmcp-service-open-recovery-");
         var path = Path.Combine(directory.FullName, "workbook.xlsx");
-        if (action == "open") MacWorkbookPackage.Create(path, macroEnabled: false);
+        if (action == "open") File.WriteAllBytes(path, [1]);
         var calls = 0;
         var backend = new MacExcelBackend((start, input, cancellationToken) =>
         {

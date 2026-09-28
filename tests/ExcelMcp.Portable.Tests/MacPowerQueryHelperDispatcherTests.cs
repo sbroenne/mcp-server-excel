@@ -8,6 +8,107 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 public sealed class MacPowerQueryHelperDispatcherTests
 {
     [Fact]
+    public async Task ListMapsCompletePublicMetadata()
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                queries = new[]
+                {
+                    new
+                    {
+                        name = "Sales",
+                        formulaPreview = "let Source = 1 in Source",
+                        characterCount = 24,
+                        loadMode = "load-to-table",
+                        targetSheet = "Report",
+                        isConnectionOnly = false,
+                        isLoadedToDataModel = false
+                    }
+                }
+            })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.list",
+            new JsonObject());
+
+        var result = await dispatcher.DispatchAsync(
+            route,
+            "/tmp/exact.xlsx",
+            TimeSpan.FromSeconds(5),
+            "list",
+            new JsonObject());
+
+        var query = Assert.Single(result.GetProperty("queries").EnumerateArray());
+        Assert.True(result.GetProperty("success").GetBoolean());
+        Assert.Equal("/tmp/exact.xlsx", result.GetProperty("filePath").GetString());
+        Assert.Equal("Sales", query.GetProperty("name").GetString());
+        Assert.Equal("load-to-table", query.GetProperty("loadMode").GetString());
+        Assert.Equal("Report", query.GetProperty("targetSheet").GetString());
+        Assert.False(query.TryGetProperty("formula", out _));
+    }
+
+    [Theory]
+    [InlineData("view")]
+    [InlineData("get-load-config")]
+    public async Task ViewHelperMapsReadResultWithoutPackageInspection(string publicAction)
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                name = "Sales",
+                formula = "let Source = 1 in Source",
+                characterCount = 24,
+                loadMode = "connection-only",
+                isConnectionOnly = true,
+                isLoadedToDataModel = false,
+                hasConnection = false
+            })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.view",
+            new JsonObject { ["name"] = "Sales" });
+
+        var result = await dispatcher.DispatchAsync(
+            route,
+            "/tmp/exact.xlsx",
+            TimeSpan.FromSeconds(5),
+            publicAction,
+            Parse("""{"queryName":"Sales"}"""));
+
+        Assert.True(result.GetProperty("success").GetBoolean());
+        Assert.Equal("Sales", result.GetProperty("queryName").GetString());
+        Assert.Equal("connection-only", result.GetProperty("loadMode").GetString());
+        Assert.False(result.TryGetProperty("targetSheet", out _));
+        Assert.Equal(
+            publicAction == "view",
+            result.TryGetProperty("mCode", out _));
+    }
+
+    [Fact]
+    public async Task ReadRejectsIncompleteHelperMetadata()
+    {
+        var dispatcher = new MacPowerQueryHelperDispatcher((path, action, arguments, timeout) =>
+            Task.FromResult(JsonSerializer.SerializeToElement(new
+            {
+                name = "Sales",
+                formula = "let Source = 1 in Source"
+            })));
+        var route = new MacPowerQueryRoute(
+            MacPowerQueryRouteKind.Helper,
+            "powerquery.view",
+            new JsonObject { ["name"] = "Sales" });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            dispatcher.DispatchAsync(
+                route,
+                "/tmp/exact.xlsx",
+                TimeSpan.FromSeconds(5),
+                "view",
+                Parse("""{"queryName":"Sales"}""")));
+    }
+
+    [Fact]
     public async Task MutationFailureIsNotRetriedThroughAnotherRoute()
     {
         var calls = 0;

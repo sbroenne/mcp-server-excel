@@ -5,8 +5,6 @@ public enum MacCapabilityTier
 {
     /// <summary>Built into the Apple Events backend without an optional helper.</summary>
     Native,
-    /// <summary>Saved-workbook inspection or mutation using published package formats.</summary>
-    PowerQueryPackage,
     /// <summary>Optional Office.js add-in.</summary>
     OfficeAddIn,
     /// <summary>Optional macro execution helper.</summary>

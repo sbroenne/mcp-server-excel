@@ -174,11 +174,11 @@ After completing operations, report:
 
 Use `file(action: 'test')` or `excelcli -q session test <path>` before opening
 when access or information protection is uncertain. The shared result reports
-`canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
-For ordinary workbooks, this briefly opens the file read-only in Excel and
-closes it without saving; use the timeout option for slow validation opens.
-IRM/AIP files report `canOpen:false` until the required interactive Excel
-authentication occurs; open them with a visible session.
+path-level access plus `isIrmProtected`, `willOpenReadOnly`, and
+`requiresVisibleSession`. Workbook content is opaque, so MCP fields `is_valid`
+and `can_open` remain false until an actual open asks Excel to validate the file.
+IRM/AIP files require interactive Excel authentication; open them with a
+visible session.
 
 Always close sessions when done. MCP example:
 

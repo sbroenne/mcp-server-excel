@@ -109,7 +109,7 @@ public sealed class MacHelperAcceptanceRunnerTests
         Assert.Contains("Sbroenne.ExcelMcp.McpServer.dll", script, StringComparison.Ordinal);
         Assert.Contains("--excelmcp-mac-automation", script, StringComparison.Ordinal);
         Assert.Contains("helper.dispatch", script, StringComparison.Ordinal);
-        Assert.Contains("helper version does not match protocol 1 / helper 1.3.0", script, StringComparison.Ordinal);
+        Assert.Contains("helper version does not match protocol 1 / helper 1.4.0", script, StringComparison.Ordinal);
         Assert.Contains("helper.inspect-engines", script, StringComparison.Ordinal);
         Assert.Contains("Assert-EngineInspection", script, StringComparison.Ordinal);
         Assert.DoesNotContain("helper 1.1.0", script, StringComparison.Ordinal);

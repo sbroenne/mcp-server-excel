@@ -4,7 +4,6 @@ namespace Sbroenne.ExcelMcp.Service.Mac;
 
 internal enum MacPowerQueryRouteKind
 {
-    SavedPackage,
     Helper,
     Unsupported
 }
@@ -26,29 +25,42 @@ internal static class MacPowerQueryRouteSelector
         ArgumentNullException.ThrowIfNull(arguments);
         ArgumentNullException.ThrowIfNull(helperActions);
 
-        if (action is "list" or "view" or "get-load-config")
+        if (action == "list")
         {
-            return SavedPackage();
+            return Helper(
+                "powerquery.list",
+                new JsonObject(),
+                helperActions,
+                "Power Query list requires the trusted helper.");
+        }
+
+        if (action is "view" or "get-load-config")
+        {
+            return Helper(
+                "powerquery.view",
+                new JsonObject
+                {
+                    ["name"] = RequiredString(arguments, "queryName")
+                },
+                helperActions,
+                $"Power Query {action} requires the trusted helper.");
         }
 
         if (action == "update")
         {
             var refresh = arguments["refresh"]?.GetValue<bool>() ?? true;
-            if (!refresh)
-            {
-                return SavedPackage();
-            }
-
             return Helper(
                 "powerquery.update",
                 new JsonObject
                 {
                     ["name"] = RequiredString(arguments, "queryName"),
                     ["formula"] = RequiredString(arguments, "mCode"),
-                    ["refresh"] = true
+                    ["refresh"] = refresh
                 },
                 helperActions,
-                "Power Query update with refresh requires the trusted helper refresh contract.");
+                refresh
+                    ? "Power Query update with refresh requires the trusted helper refresh contract."
+                    : "Power Query update requires the trusted helper.");
         }
 
         if (action == "rename")
@@ -199,9 +211,6 @@ internal static class MacPowerQueryRouteSelector
             helperActions,
             $"Power Query {action} requires the trusted helper method '{helperAction}'.");
     }
-
-    private static MacPowerQueryRoute SavedPackage() =>
-        new(MacPowerQueryRouteKind.SavedPackage);
 
     private static MacPowerQueryRoute Helper(
         string action,

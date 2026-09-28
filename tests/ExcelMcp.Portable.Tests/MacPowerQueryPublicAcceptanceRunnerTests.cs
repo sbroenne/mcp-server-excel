@@ -53,7 +53,7 @@ public sealed class MacPowerQueryPublicAcceptanceRunnerTests
             root.GetProperty("acceptanceScope").GetString());
         Assert.False(root.GetProperty("runtimeProof").GetBoolean());
         Assert.False(root.GetProperty("publicCommandAcceptance").GetBoolean());
-        Assert.Equal("1.3.0", root.GetProperty("helperVersion").GetString());
+        Assert.Equal("1.4.0", root.GetProperty("helperVersion").GetString());
         Assert.Equal(
             ["cli", "mcp"],
             root.GetProperty("entryPoints").EnumerateArray()

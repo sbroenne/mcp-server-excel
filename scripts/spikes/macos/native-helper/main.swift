@@ -214,7 +214,7 @@ final class Probe: NSObject, NSApplicationDelegate {
             checks.append("sentinel-preserved")
         } catch { failure = error }
         if timedOut {
-            throw failure ?? ProbeFailure.failed("Timed out. Retained synthetic fixtures; Excel was not stopped.")
+            throw failure ?? ProbeFailure.failed("Timed out. Retained Excel-authored fixtures; Excel was not stopped.")
         }
         for path in owned {
             do { _ = try invoke("cleanup", path) }

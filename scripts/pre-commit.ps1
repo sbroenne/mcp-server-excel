@@ -668,6 +668,27 @@ catch {
 }
 
 Write-Host ""
+Write-Host "Checking for direct workbook package access..." -ForegroundColor Cyan
+
+try {
+    $workbookPackageScript = Join-Path $rootDir "scripts\check-workbook-package-access.ps1"
+    & $workbookPackageScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "Direct workbook package access detected!" -ForegroundColor Red
+        Write-Host "   Treat workbook files as opaque and use Excel-supported APIs or a trusted helper." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Workbook package access check passed" -ForegroundColor Green
+}
+catch {
+    Write-Host "Error running workbook package access check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "Checking for undocumented ((dynamic)) casts..." -ForegroundColor Cyan
 
 try {

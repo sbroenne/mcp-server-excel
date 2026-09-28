@@ -36,7 +36,20 @@ internal sealed class MacPowerQueryHelperDispatcher(
             ?? throw new InvalidOperationException(
                 $"Helper action '{route.HelperAction}' returned a non-object result.");
         JsonObject result;
-        if (publicAction == "rename")
+        if (publicAction == "list")
+        {
+            result = MapListResult(workbookPath, helperObject);
+        }
+        else if (publicAction is "view" or "get-load-config")
+        {
+            var queryName = RequiredString(publicArguments, "queryName");
+            result = MapReadResult(
+                workbookPath,
+                queryName,
+                helperObject,
+                includeFormula: publicAction == "view");
+        }
+        else if (publicAction == "rename")
         {
             var oldName = RequiredString(publicArguments, "oldName");
             var newName = RequiredString(publicArguments, "newName");
@@ -78,6 +91,112 @@ internal sealed class MacPowerQueryHelperDispatcher(
         }
 
         return JsonSerializer.SerializeToElement(result, ServiceProtocol.JsonOptions);
+    }
+
+    private static JsonObject MapListResult(
+        string workbookPath,
+        JsonObject helperResult)
+    {
+        if (helperResult["queries"] is not JsonArray queries)
+        {
+            throw new InvalidOperationException(
+                "Helper list result is missing the queries array.");
+        }
+
+        var mappedQueries = new JsonArray();
+        foreach (JsonNode? queryNode in queries)
+        {
+            if (queryNode is not JsonObject query)
+            {
+                throw new InvalidOperationException(
+                    "Helper list result contains an invalid query.");
+            }
+
+            string loadMode = RequiredLoadMode(query);
+            bool isConnectionOnly = RequiredBoolean(query, "isConnectionOnly");
+            bool isLoadedToDataModel =
+                RequiredBoolean(query, "isLoadedToDataModel");
+            string? targetSheet = OptionalHelperString(query, "targetSheet");
+            ValidateLoadMetadata(
+                loadMode,
+                isConnectionOnly,
+                isLoadedToDataModel,
+                hasConnection: null,
+                targetSheet);
+            var mapped = new JsonObject
+            {
+                ["name"] = RequiredHelperString(query, "name"),
+                ["formulaPreview"] = RequiredHelperString(query, "formulaPreview"),
+                ["characterCount"] = RequiredInt32(query, "characterCount"),
+                ["loadMode"] = loadMode,
+                ["isConnectionOnly"] = isConnectionOnly,
+                ["isLoadedToDataModel"] = isLoadedToDataModel
+            };
+            if (targetSheet is not null)
+            {
+                mapped["targetSheet"] = targetSheet;
+            }
+            mappedQueries.Add(mapped);
+        }
+
+        var result = OperationResult(workbookPath);
+        result["queries"] = mappedQueries;
+        return result;
+    }
+
+    private static JsonObject MapReadResult(
+        string workbookPath,
+        string queryName,
+        JsonObject helperResult,
+        bool includeFormula)
+    {
+        string returnedName = RequiredHelperString(helperResult, "name");
+        if (!string.Equals(queryName, returnedName, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Helper view result does not identify the requested query.");
+        }
+
+        string loadMode = RequiredLoadMode(helperResult);
+        bool hasConnection = RequiredBoolean(helperResult, "hasConnection");
+        bool isConnectionOnly =
+            RequiredBoolean(helperResult, "isConnectionOnly");
+        bool isLoadedToDataModel =
+            RequiredBoolean(helperResult, "isLoadedToDataModel");
+        string? targetSheet =
+            OptionalHelperString(helperResult, "targetSheet");
+        ValidateLoadMetadata(
+            loadMode,
+            isConnectionOnly,
+            isLoadedToDataModel,
+            hasConnection,
+            targetSheet);
+
+        var result = OperationResult(workbookPath);
+        result["queryName"] = queryName;
+        result["loadMode"] = loadMode;
+        result["hasConnection"] = hasConnection;
+        result["isConnectionOnly"] = isConnectionOnly;
+        result["isLoadedToDataModel"] = isLoadedToDataModel;
+        if (targetSheet is not null)
+        {
+            result["targetSheet"] = targetSheet;
+        }
+
+        string formula = RequiredHelperString(helperResult, "formula");
+        int characterCount = RequiredInt32(helperResult, "characterCount");
+        if (formula.Length != characterCount)
+        {
+            throw new InvalidOperationException(
+                "Helper view result formula length does not match characterCount.");
+        }
+        if (includeFormula)
+        {
+            result["mCode"] = formula;
+            result["characterCount"] = characterCount;
+        }
+
+        return result;
     }
 
     private static JsonObject OperationResult(string workbookPath) =>
@@ -167,10 +286,66 @@ internal sealed class MacPowerQueryHelperDispatcher(
         }
     }
 
+    private static string? OptionalHelperString(
+        JsonObject source,
+        string propertyName)
+    {
+        if (source[propertyName] is null)
+        {
+            return null;
+        }
+
+        return RequiredHelperString(source, propertyName);
+    }
+
     private static string RequiredString(JsonObject arguments, string propertyName) =>
         arguments[propertyName]?.GetValue<string>() is { } value
             ? value
             : throw new ArgumentException($"{propertyName} is required.");
+
+    private static string RequiredHelperString(JsonObject value, string propertyName) =>
+        value[propertyName] is JsonValue property
+            && property.TryGetValue<string>(out var result)
+            && !string.IsNullOrWhiteSpace(result)
+                ? result
+                : throw new InvalidOperationException(
+                    $"Helper result property '{propertyName}' must be a non-empty string.");
+
+    private static string RequiredLoadMode(JsonObject value)
+    {
+        string loadMode = RequiredHelperString(value, "loadMode");
+        return loadMode is
+                "connection-only" or
+                "load-to-table" or
+                "load-to-data-model" or
+                "load-to-both"
+            ? loadMode
+            : throw new InvalidOperationException(
+                "Helper result property 'loadMode' is invalid.");
+    }
+
+    private static void ValidateLoadMetadata(
+        string loadMode,
+        bool isConnectionOnly,
+        bool isLoadedToDataModel,
+        bool? hasConnection,
+        string? targetSheet)
+    {
+        bool expectedConnectionOnly = loadMode == "connection-only";
+        bool expectedDataModel =
+            loadMode is "load-to-data-model" or "load-to-both";
+        bool expectedConnection = !expectedConnectionOnly;
+        bool expectedTargetSheet =
+            loadMode is "load-to-table" or "load-to-both";
+        if (isConnectionOnly != expectedConnectionOnly
+            || isLoadedToDataModel != expectedDataModel
+            || hasConnection is not null && hasConnection != expectedConnection
+            || (targetSheet is not null) != expectedTargetSheet)
+        {
+            throw new InvalidOperationException(
+                "Helper result contains inconsistent Power Query load metadata.");
+        }
+    }
 
     private static bool RequiredBoolean(JsonObject value, string propertyName) =>
         value[propertyName] is JsonValue property

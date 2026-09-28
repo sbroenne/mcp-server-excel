@@ -6,7 +6,6 @@ internal enum MacCapabilityTier
 {
     Native,
     OfficeAddIn,
-    PowerQueryPackage,
     MacroHelper,
     VbaProjectModel,
     OptionalNativeHelper,

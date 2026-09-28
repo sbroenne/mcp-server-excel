@@ -2198,12 +2198,12 @@
       "targetCellAddress: string?; optional; default null; Optional target cell address for worksheet loads (e.g., \"B5\"). Required when loading to an existing worksheet with other data.",
       "formatMCode: bool; optional; default false; Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy."
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.delete",
@@ -2211,12 +2211,12 @@
     "windowsVariants": [
       "queryName: string; required; Name of the query to delete"
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.evaluate",
@@ -2224,12 +2224,12 @@
     "windowsVariants": [
       "mCode: string; required; inline value or file path, mutually exclusive; M code to evaluate. Public callers must supply either inline mCode or a readable mCodeFile, not both."
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.get-load-config",
@@ -2237,24 +2237,24 @@
     "windowsVariants": [
       "queryName: string; required; Name of the query"
     ],
-    "tier": "PowerQueryPackage",
-    "isAvailable": true,
-    "implementationStatus": "Partial",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": ""
+    "tier": "MacroHelper",
+    "isAvailable": false,
+    "implementationStatus": "Blocked",
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.list",
     "windowsSemantics": "Lists compact metadata for all Power Queries, including exact worksheet/Data Model load state and an M formula preview bounded to 80 characters. Full M code is omitted; use view for a single query's complete formula. Inspection failures fail the action rather than silently omitting a query.",
     "windowsVariants": [
     ],
-    "tier": "PowerQueryPackage",
-    "isAvailable": true,
-    "implementationStatus": "Partial",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": ""
+    "tier": "MacroHelper",
+    "isAvailable": false,
+    "implementationStatus": "Blocked",
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.load-to",
@@ -2265,12 +2265,12 @@
       "targetSheet: string?; optional; default null; Target worksheet name (required for LoadToTable and LoadToBoth)",
       "targetCellAddress: string?; optional; default null; Optional target cell address (e.g., \"B5\"). Required when loading to an existing worksheet to avoid clearing other content."
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.refresh",
@@ -2279,12 +2279,12 @@
       "queryName: string; required; Name of the query to refresh",
       "timeout: System.TimeSpan; optional; default default; Public input is whole seconds from 0 through 2147483. Omitted or 0 uses the 30-minute data-operation default."
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "repository-owned worksheet fixtures have not yet proven synchronous refresh completion and engine error propagation"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.refresh-all",
@@ -2292,12 +2292,12 @@
     "windowsVariants": [
       "timeout: System.TimeSpan; optional; default default; Public input is whole seconds from 0 through 2147483. Omitted or 0 uses the 30-minute data-operation default."
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "refresh-all has broader workbook scope and lacks per-query synchronous completion and error evidence"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.rename",
@@ -2306,12 +2306,12 @@
       "oldName: string; required; Current name of the query",
       "newName: string; required; New name for the query"
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.unload",
@@ -2319,12 +2319,12 @@
     "windowsVariants": [
       "queryName: string; required; Name of the query to unload"
     ],
-    "tier": "PowerQueryPackage",
+    "tier": "MacroHelper",
     "isAvailable": false,
     "implementationStatus": "Blocked",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity"
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.update",
@@ -2335,12 +2335,12 @@
       "refresh: bool; optional; default true; Whether to refresh data after update (default: true)",
       "formatMCode: bool; optional; default false; Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy."
     ],
-    "tier": "PowerQueryPackage",
-    "isAvailable": true,
-    "implementationStatus": "Partial",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": ""
+    "tier": "MacroHelper",
+    "isAvailable": false,
+    "implementationStatus": "Blocked",
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "powerquery.view",
@@ -2348,12 +2348,12 @@
     "windowsVariants": [
       "queryName: string; required; Name of the query to view"
     ],
-    "tier": "PowerQueryPackage",
-    "isAvailable": true,
-    "implementationStatus": "Partial",
-    "evidence": "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-    "excelApiVersion": "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-    "blocker": ""
+    "tier": "MacroHelper",
+    "isAvailable": false,
+    "implementationStatus": "Blocked",
+    "evidence": "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
+    "excelApiVersion": "Excel for Mac 16.112.3 Apple Events dictionary.",
+    "blocker": "the trusted helper action has not passed exact public CLI and MCP acceptance"
   },
   {
     "command": "pythoninexcel.get-result",

@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
@@ -101,7 +100,7 @@ public sealed class SessionLifecycleContractTests : IDisposable
     [InlineData("missing.xlsx", false, false, false, false, false, false)]
     [InlineData("invalid.txt", true, false, false, false, false, false)]
     [InlineData("corrupt.xlsx", true, false, false, false, false, false)]
-    [InlineData("normal.xlsx", true, false, true, true, false, false)]
+    [InlineData("normal.xlsx", true, false, false, false, false, false)]
     [InlineData("protected.xlsx", true, true, false, false, true, true)]
     [InlineData("protected-modern.xlsx", true, true, false, false, true, true)]
     public async Task SessionTest_ReturnsCanonicalFileMetadata(
@@ -128,7 +127,7 @@ public sealed class SessionLifecycleContractTests : IDisposable
             {
                 if (string.Equals(fileName, "normal.xlsx", StringComparison.Ordinal))
                 {
-                    CreateMinimalWorkbook(path);
+                    CopyOpaqueWorkbook(path);
                 }
                 else
                 {
@@ -163,26 +162,13 @@ public sealed class SessionLifecycleContractTests : IDisposable
         }
     }
 
-    private static void CreateMinimalWorkbook(string path)
+    private static void CopyOpaqueWorkbook(string path)
     {
-        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
-        WriteEntry(archive, "[Content_Types].xml",
-            """<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>""");
-        WriteEntry(archive, "_rels/.rels",
-            """<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""");
-        WriteEntry(archive, "xl/workbook.xml",
-            """<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>""");
-        WriteEntry(archive, "xl/_rels/workbook.xml.rels",
-            """<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>""");
-        WriteEntry(archive, "xl/worksheets/sheet1.xml",
-            """<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>""");
-    }
-
-    private static void WriteEntry(ZipArchive archive, string name, string content)
-    {
-        var entry = archive.CreateEntry(name);
-        using var writer = new StreamWriter(entry.Open());
-        writer.Write(content);
+        using var source = typeof(ExcelMcpService).Assembly.GetManifestResourceStream(
+            "Sbroenne.ExcelMcp.Service.Mac.Blank.xlsx");
+        Assert.NotNull(source);
+        using var destination = File.Create(path);
+        source!.CopyTo(destination);
     }
 
     public void Dispose()

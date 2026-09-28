@@ -47,12 +47,22 @@ public class FileCommands : IFileCommands
                         FileAccess.Read,
                         FileShare.ReadWrite);
                     message =
-                        "IRM/AIP protection detected. Container validity and openability require " +
+                        "IRM/AIP protection detected. Structural validity and openability require " +
                         "an interactive Excel open; use show=true. ExcelMcp will open this file read-only.";
                 }
                 else
                 {
                     FileAccessValidator.ValidateFileNotLocked(filePath);
+                    using var readTest = new FileStream(
+                        filePath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite);
+                    message =
+                        "Path, extension, lock, and read-access checks passed. " +
+                        "ExcelMcp treats workbook contents as opaque, so structural validity " +
+                        "and openability were not inspected. Use workbook.open to have Excel " +
+                        "validate the workbook.";
                 }
             }
             catch (InvalidOperationException ex)

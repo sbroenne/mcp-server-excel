@@ -49,6 +49,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Mac\MacExcelBridge.js" />
     <EmbeddedResource Include="Mac\ExcelMcpHelper.bas" />
+    <EmbeddedResource Include="Mac\Templates\Blank.xlsx"
+                      LogicalName="Sbroenne.ExcelMcp.Service.Mac.Blank.xlsx" />
     <Content Include="Mac\ExcelMcpHelper.bas"
              CopyToOutputDirectory="PreserveNewest"
              TargetPath="helpers\ExcelMcpHelper.bas" />

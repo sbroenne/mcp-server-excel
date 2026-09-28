@@ -7,16 +7,30 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 public sealed class MacPowerQueryRouteSelectorTests
 {
     [Theory]
-    [InlineData("list", null)]
-    [InlineData("view", """{"queryName":"Sales"}""")]
-    [InlineData("get-load-config", """{"queryName":"Sales"}""")]
-    [InlineData("update", """{"queryName":"Sales","mCode":"let Source = 1 in Source","refresh":false}""")]
-    public void SavedPackageActionsNeverRequireHelper(string action, string? args)
+    [InlineData("list", null, "powerquery.list")]
+    [InlineData("view", """{"queryName":"Sales"}""", "powerquery.view")]
+    [InlineData("get-load-config", """{"queryName":"Sales"}""", "powerquery.view")]
+    [InlineData(
+        "update",
+        """{"queryName":"Sales","mCode":"let Source = 1 in Source","refresh":false}""",
+        "powerquery.update")]
+    public void ReadAndNonRefreshingUpdateActionsRequireAdvertisedHelper(
+        string action,
+        string? args,
+        string helperAction)
     {
-        var route = MacPowerQueryRouteSelector.Select(action, Parse(args), Actions());
+        var available = MacPowerQueryRouteSelector.Select(
+            action,
+            Parse(args),
+            Actions(helperAction));
+        var unavailable = MacPowerQueryRouteSelector.Select(
+            action,
+            Parse(args),
+            Actions());
 
-        Assert.Equal(MacPowerQueryRouteKind.SavedPackage, route.Kind);
-        Assert.Null(route.HelperAction);
+        Assert.Equal(MacPowerQueryRouteKind.Helper, available.Kind);
+        Assert.Equal(helperAction, available.HelperAction);
+        Assert.Equal(MacPowerQueryRouteKind.Unsupported, unavailable.Kind);
     }
 
     [Fact]

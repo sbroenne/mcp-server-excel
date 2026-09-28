@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -19,21 +17,6 @@ public sealed class MacExcelTheoryAttribute : TheoryAttribute
         if (!OperatingSystem.IsMacOS() || Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E") != "1")
         {
             Skip = "Explicit macOS desktop Excel run required: scripts/Test-MacE2E.ps1.";
-        }
-    }
-}
-
-public sealed class MacPowerQueryFixtureTheoryAttribute : TheoryAttribute
-{
-    public MacPowerQueryFixtureTheoryAttribute()
-    {
-        if (!OperatingSystem.IsMacOS()
-            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E") != "1"
-            || Environment.GetEnvironmentVariable("EXCELMCP_MAC_PQ_FIXTURE_E2E") != "1")
-        {
-            Skip =
-                "Explicit potentially modal Power Query package run required: " +
-                "scripts/Test-MacE2E.ps1 -IncludePowerQueryFixtures.";
         }
     }
 }
@@ -85,6 +68,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         {
             var mainSession = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = main }, deadline.Token));
+            await InitializeWorkbookAsync(
+                client,
+                mainSession,
+                includeSpare: true,
+                deadline.Token);
             if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_PYTHON_E2E") == "1")
             {
                 Success(await client.CallAsync("pythoninexcel", "set-formula", mainSession,
@@ -180,9 +168,9 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 "powerquery", "list", mainSession, new(), deadline.Token);
             Assert.False(dirtyPowerQueryRead.GetProperty("success").GetBoolean());
             Assert.Contains(
-                "saved workbook",
+                "EXCELMCP_MAC_VBA_HELPER_PATH",
                 dirtyPowerQueryRead.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
+                StringComparison.Ordinal);
 
             var createdSession = SessionId(await client.CallAsync("file", "create", null,
                 new() { ["path"] = created }, deadline.Token));
@@ -205,38 +193,26 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             Success(await client.CallAsync("file", "close", createdSession, new(), deadline.Token));
             Success(await client.CallAsync("file", "close", createdSession, new(), deadline.Token));
 
-            var macroSession = SessionId(await client.CallAsync("file", "create", null,
-                new() { ["path"] = createdMacro }, deadline.Token));
-            var unsupportedVba = await client.CallAsync("vba", "run", macroSession,
-                new() { ["procedure_name"] = "Module1.NotAvailable", ["timeout"] = 1 }, deadline.Token);
-            Assert.False(unsupportedVba.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", unsupportedVba.GetProperty("errorCategory").GetString());
-            Assert.Contains(
-                "preflight",
-                unsupportedVba.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(
-                "public CLI and MCP acceptance",
-                unsupportedVba.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
-            var unsupportedVbaList = await client.CallAsync(
-                "vba", "list", macroSession, new(), deadline.Token);
-            Assert.False(unsupportedVbaList.GetProperty("success").GetBoolean());
+            var unsupportedMacroCreate = await client.CallAsync(
+                "file", "create", null,
+                new() { ["path"] = createdMacro }, deadline.Token);
+            Assert.False(unsupportedMacroCreate.GetProperty("success").GetBoolean());
             Assert.Equal(
                 "PlatformNotSupported",
-                unsupportedVbaList.GetProperty("errorCategory").GetString());
+                unsupportedMacroCreate.GetProperty("errorCategory").GetString());
             Assert.Contains(
-                "project object model",
-                unsupportedVbaList.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(
-                "optional helper",
-                unsupportedVbaList.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
-            Success(await client.CallAsync("file", "close", macroSession, new(), deadline.Token));
+                "Excel-authored .xlsm template",
+                unsupportedMacroCreate.GetProperty("errorMessage").GetString(),
+                StringComparison.Ordinal);
+            Assert.False(File.Exists(createdMacro));
 
             var sentinelSession = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = sentinel }, deadline.Token));
+            await InitializeWorkbookAsync(
+                client,
+                sentinelSession,
+                includeSpare: false,
+                deadline.Token);
             Success(await client.CallAsync("range", "set-values", sentinelSession,
                 RangeArgs("A1", ("values", SentinelValues)), deadline.Token));
             Success(await client.CallAsync("range", "set-values", mainSession,
@@ -409,26 +385,17 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
             Success(await client.CallAsync("file", "close", mainSession, new() { ["save"] = true }, deadline.Token));
             mainSession = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = main }, deadline.Token));
-            var powerQueries = Success(await client.CallAsync("powerquery", "list", mainSession, new(), deadline.Token));
-            Assert.Empty(powerQueries.GetProperty("queries").EnumerateArray());
+            var reopenedPowerQueryRead = await client.CallAsync(
+                "powerquery", "list", mainSession, new(), deadline.Token);
+            Assert.False(reopenedPowerQueryRead.GetProperty("success").GetBoolean());
+            Assert.Contains(
+                "EXCELMCP_MAC_VBA_HELPER_PATH",
+                reopenedPowerQueryRead.GetProperty("errorMessage").GetString(),
+                StringComparison.Ordinal);
             var saved = Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("C1"), deadline.Token));
             Assert.Equal(30, saved.GetProperty("values")[0][0].GetDouble());
             Success(await client.CallAsync("range", "set-values", mainSession,
                 RangeArgs("B2", ("values", UnsavedValues)), deadline.Token));
-            var dirtyClose = await InvokeAutomationHostAsync(
-                root,
-                "session.close-if-saved",
-                new { filePath = main },
-                deadline.Token);
-            Assert.False(dirtyClose.GetProperty("success").GetBoolean());
-            Assert.Equal("InvalidOperation", dirtyClose.GetProperty("errorCategory").GetString());
-            Assert.Contains(
-                "saved workbook",
-                dirtyClose.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
-            var stillOpen = Success(await client.CallAsync(
-                "range", "get-values", mainSession, RangeArgs("B2"), deadline.Token));
-            Assert.Equal(999, stillOpen.GetProperty("values")[0][0].GetDouble());
             Success(await client.CallAsync("file", "close", mainSession, new(), deadline.Token));
             mainSession = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = main }, deadline.Token));
             var discarded = Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("B2"), deadline.Token));
@@ -455,7 +422,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             }
             else
             {
-                output.WriteLine($"Failed run retained synthetic fixtures at {directory.FullName}.");
+                output.WriteLine($"Failed run retained opaque workbook copies at {directory.FullName}.");
             }
         }
     }
@@ -490,6 +457,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         {
             sessionId = SessionId(await client.CallAsync("file", "open", null,
                 new() { ["path"] = workbookPath }, deadline.Token));
+            await InitializeWorkbookAsync(
+                client,
+                sessionId,
+                includeSpare: false,
+                deadline.Token);
             Success(await client.CallAsync("range", "set-values", sessionId,
                 RangeArgs("F1", ("values", new object?[][] { [2] })), deadline.Token));
             Success(await client.CallAsync("range", "set-formulas", sessionId,
@@ -642,211 +614,18 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             }
             if (completed)
             {
-                Directory.Delete(directory.FullName, recursive: true);
+                File.Delete(workbookPath);
+                directory.Delete();
             }
             else
             {
-                output.WriteLine(
-                    $"Failed Power Query run retained repository-owned evidence at {directory.FullName}.");
+                output.WriteLine($"Failed run retained opaque workbook copy at {workbookPath}.");
             }
         }
-    }
-
-    private static async Task AssertPowerQueryRoundTripAsync(
-        EntryPointClient client,
-        string workbookPath,
-        string expectedLoadMode,
-        string? expectedTargetSheet,
-        CancellationToken cancellationToken)
-    {
-        string? session = null;
-        try
-        {
-            session = SessionId(await client.CallAsync(
-                "file",
-                "open",
-                null,
-                new() { ["path"] = workbookPath },
-                cancellationToken));
-            // Excel normalizes the generated package on first open; package reads require a saved workbook.
-            Success(await client.CallAsync(
-                "file",
-                "close",
-                session,
-                new() { ["save"] = true },
-                cancellationToken));
-            session = null;
-
-            session = SessionId(await client.CallAsync(
-                "file",
-                "open",
-                null,
-                new() { ["path"] = workbookPath },
-                cancellationToken));
-            await AssertPowerQueryStateAsync(
-                client,
-                session,
-                expectedLoadMode,
-                expectedTargetSheet,
-                cancellationToken);
-
-            if (expectedTargetSheet is not null)
-            {
-                var before = Success(await client.CallAsync(
-                    "range",
-                    "get-values",
-                    session,
-                    RangeArgsOnSheet(expectedTargetSheet, "A1:B3"),
-                    cancellationToken));
-                AssertLiteralOutput(before);
-
-                var refresh = await client.CallAsync(
-                    "powerquery",
-                    "refresh",
-                    session,
-                    new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
-                    cancellationToken);
-                Assert.False(refresh.GetProperty("success").GetBoolean());
-                Assert.Equal(
-                    "PlatformNotSupported",
-                    refresh.GetProperty("errorCategory").GetString());
-                Assert.Contains(
-                    "completion",
-                    refresh.GetProperty("errorMessage").GetString(),
-                    StringComparison.OrdinalIgnoreCase);
-
-                var after = Success(await client.CallAsync(
-                    "range",
-                    "get-values",
-                    session,
-                    RangeArgsOnSheet(expectedTargetSheet, "A1:B3"),
-                    cancellationToken));
-                AssertLiteralOutput(after);
-            }
-
-            Success(await client.CallAsync(
-                "file",
-                "close",
-                session,
-                new(),
-                cancellationToken));
-            session = null;
-        }
-        finally
-        {
-            if (session is not null)
-            {
-                await client.TryCloseAsync(session);
-            }
-        }
-    }
-
-    private static async Task AssertPowerQueryStateAsync(
-        EntryPointClient client,
-        string session,
-        string expectedLoadMode,
-        string? expectedTargetSheet,
-        CancellationToken cancellationToken)
-    {
-        var list = Success(await client.CallAsync(
-            "powerquery",
-            "list",
-            session,
-            new(),
-            cancellationToken));
-        var query = Assert.Single(list.GetProperty("queries").EnumerateArray());
-        Assert.Equal(PowerQueryFixtureFactory.QueryName, query.GetProperty("name").GetString());
-        Assert.Equal(expectedLoadMode, query.GetProperty("loadMode").GetString());
-
-        var view = Success(await client.CallAsync(
-            "powerquery",
-            "view",
-            session,
-            new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
-            cancellationToken));
-        Assert.True(view.TryGetProperty("mCode", out var formula), view.GetRawText());
-        Assert.Equal(PowerQueryFixtureFactory.LiteralM, formula.GetString());
-        Assert.Equal(expectedLoadMode, view.GetProperty("loadMode").GetString());
-
-        var load = Success(await client.CallAsync(
-            "powerquery",
-            "get-load-config",
-            session,
-            new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
-            cancellationToken));
-        Assert.Equal(expectedLoadMode, load.GetProperty("loadMode").GetString());
-        if (expectedTargetSheet is null)
-        {
-            Assert.False(load.TryGetProperty("targetSheet", out _));
-        }
-        else
-        {
-            Assert.Equal(expectedTargetSheet, load.GetProperty("targetSheet").GetString());
-        }
-    }
-
-    private static void AssertLiteralOutput(JsonElement values)
-    {
-        Assert.Equal("Item", values.GetProperty("values")[0][0].GetString());
-        Assert.Equal("Amount", values.GetProperty("values")[0][1].GetString());
-        Assert.Equal("Alpha", values.GetProperty("values")[1][0].GetString());
-        Assert.Equal(10, values.GetProperty("values")[1][1].GetDouble());
-        Assert.Equal("Beta", values.GetProperty("values")[2][0].GetString());
-        Assert.Equal(20, values.GetProperty("values")[2][1].GetDouble());
     }
 
     private static Dictionary<string, object?> RangeArgs(string address, params (string Key, object? Value)[] extras)
         => RangeArgsOnSheet("Data", address, extras);
-
-    private static async Task<JsonElement> InvokeAutomationHostAsync(
-        string repositoryRoot,
-        string command,
-        object arguments,
-        CancellationToken cancellationToken)
-    {
-        var executable = Path.Combine(
-            repositoryRoot,
-            "src",
-            "ExcelMcp.CLI",
-            "bin",
-            "Release",
-            "net10.0",
-            "excelcli");
-        var start = new ProcessStartInfo(executable)
-        {
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        start.ArgumentList.Add(MacAutomationHost.Marker);
-        start.ArgumentList.Add(command);
-        using var process = new Process { StartInfo = start };
-        Assert.True(process.Start());
-        await process.StandardInput.WriteAsync(
-            JsonSerializer.Serialize(arguments).AsMemory(),
-            cancellationToken);
-        process.StandardInput.Close();
-        var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            await process.WaitForExitAsync();
-            throw;
-        }
-        Assert.Equal("", await stderr);
-        Assert.Equal(0, process.ExitCode);
-        using var result = JsonDocument.Parse(await stdout);
-        return result.RootElement.Clone();
-    }
 
     private static Dictionary<string, object?> RangeArgsOnSheet(
         string sheetName,
@@ -886,22 +665,33 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 
-    internal static void CreateBlankWorkbook(string path)
+    internal static void CreateBlankWorkbook(string path) =>
+        MacWorkbookTemplate.Copy(path, macroEnabled: false);
+
+    internal static async Task InitializeWorkbookAsync(
+        EntryPointClient client,
+        string sessionId,
+        bool includeSpare,
+        CancellationToken cancellationToken)
     {
-        var parts = new Dictionary<string, string>
+        Success(await client.CallAsync(
+            "sheet",
+            "rename",
+            sessionId,
+            new()
+            {
+                ["old_name"] = "Sheet1",
+                ["new_name"] = "Data"
+            },
+            cancellationToken));
+        if (includeSpare)
         {
-            ["[Content_Types].xml"] = """<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>""",
-            ["_rels/.rels"] = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""",
-            ["xl/workbook.xml"] = """<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/><sheet name="Spare" sheetId="2" r:id="rId2"/></sheets></workbook>""",
-            ["xl/_rels/workbook.xml.rels"] = """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>""",
-            ["xl/worksheets/sheet1.xml"] = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>""",
-            ["xl/worksheets/sheet2.xml"] = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>"""
-        };
-        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
-        foreach (var (name, content) in parts)
-        {
-            using var writer = new StreamWriter(archive.CreateEntry(name).Open(), new UTF8Encoding(false));
-            writer.Write(content);
+            Success(await client.CallAsync(
+                "sheet",
+                "create",
+                sessionId,
+                new() { ["sheet_name"] = "Spare" },
+                cancellationToken));
         }
     }
 

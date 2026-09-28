@@ -340,13 +340,13 @@ function Invoke-HelperAction {
 
 function Assert-Capabilities {
     param([string]$EntryPoint, [hashtable]$Capabilities)
-    if ($Capabilities.helperVersion -cne '1.3.0' -or $Capabilities.protocolVersion -ne 1) {
-        throw "$EntryPoint helper version does not match protocol 1 / helper 1.3.0."
+    if ($Capabilities.helperVersion -cne '1.4.0' -or $Capabilities.protocolVersion -ne 1) {
+        throw "$EntryPoint helper version does not match protocol 1 / helper 1.4.0."
     }
     $supportedActions = @($Capabilities.supportedActions)
     if ($supportedActions.Count -ne $requiredActions.Count -or
         (Compare-Object $requiredActions $supportedActions -CaseSensitive).Count -ne 0) {
-        throw "$EntryPoint helper supportedActions does not match the exact 1.3.0 contract."
+        throw "$EntryPoint helper supportedActions does not match the exact 1.4.0 contract."
     }
     if ($Capabilities.trustReadiness.powerQueryReadable -ne $true) {
         throw "$EntryPoint helper reports Power Query live access is not ready."

@@ -188,17 +188,6 @@ public static class ServiceInfoExtractor
                 string.Empty);
         }
 
-        if (tier == "PowerQueryPackage")
-        {
-            return new MacCapabilityInfo(
-                tier,
-                "Blocked",
-                isAvailable,
-                "Repository-owned MS-QDEFF and OOXML package tests cover saved-workbook inspection and transactional updates.",
-                "MS-QDEFF; ECMA-376/ISO 29500; Excel for Mac 16.112.3.",
-                "saved-package support cannot prove live Excel refresh, destination mutation, or Data Model identity");
-        }
-
         if (tier == "OfficeAddIn")
         {
             return new MacCapabilityInfo(

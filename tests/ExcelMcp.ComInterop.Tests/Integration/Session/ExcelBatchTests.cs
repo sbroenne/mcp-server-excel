@@ -1,8 +1,5 @@
 using System.Diagnostics;
-using System.Globalization;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
@@ -619,24 +616,51 @@ public class ExcelBatchTests : IAsyncLifetime
 
     private static string ReadTableColumnFormatCode(string workbookPath, string columnName)
     {
-        using var archive = ZipFile.OpenRead(workbookPath);
-        var tableEntry = archive.Entries.Single(entry => entry.FullName.StartsWith("xl/tables/", StringComparison.OrdinalIgnoreCase));
-        var tableDocument = XDocument.Load(tableEntry.Open());
-        XNamespace spreadsheetNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        var column = tableDocument.Descendants(spreadsheetNamespace + "tableColumn")
-            .Single(element => element.Attribute("name")?.Value == columnName);
-        int dxfId = int.Parse(column.Attribute("dataDxfId")!.Value, CultureInfo.InvariantCulture);
-
-        var stylesEntry = archive.GetEntry("xl/styles.xml")
-            ?? throw new InvalidOperationException("Workbook styles were not found.");
-        var stylesDocument = XDocument.Load(stylesEntry.Open());
-        return stylesDocument.Root!
-            .Element(spreadsheetNamespace + "dxfs")!
-            .Elements(spreadsheetNamespace + "dxf")
-            .ElementAt(dxfId)
-            .Element(spreadsheetNamespace + "numFmt")!
-            .Attribute("formatCode")!
-            .Value;
+        object? excel = null;
+        object? workbooks = null;
+        object? workbook = null;
+        object? worksheets = null;
+        object? worksheet = null;
+        object? listObjects = null;
+        object? table = null;
+        object? listColumns = null;
+        object? column = null;
+        object? dataBodyRange = null;
+        try
+        {
+            var excelType = Type.GetTypeFromProgID("Excel.Application")
+                ?? throw new InvalidOperationException("Microsoft Excel is not installed.");
+            excel = Activator.CreateInstance(excelType)
+                ?? throw new InvalidOperationException("Could not start Microsoft Excel.");
+            dynamic excelDispatch = excel;
+            excelDispatch.DisplayAlerts = false;
+            workbooks = excelDispatch.Workbooks;
+            workbook = ((dynamic)workbooks).Open(workbookPath, ReadOnly: true);
+            worksheets = ((dynamic)workbook).Worksheets;
+            worksheet = ((dynamic)worksheets)[1];
+            listObjects = ((dynamic)worksheet).ListObjects;
+            table = ((dynamic)listObjects)[1];
+            listColumns = ((dynamic)table).ListColumns;
+            column = ((dynamic)listColumns)[columnName];
+            dataBodyRange = ((dynamic)column).DataBodyRange;
+            return Convert.ToString(((dynamic)dataBodyRange).NumberFormatLocal)
+                ?? string.Empty;
+        }
+        finally
+        {
+            CloseWorkbookAndQuitExcel(workbook, excel);
+            ReleaseComObjects(
+                dataBodyRange,
+                column,
+                listColumns,
+                table,
+                listObjects,
+                worksheet,
+                worksheets,
+                workbook,
+                workbooks,
+                excel);
+        }
     }
 
     private static void CloseWorkbookAndQuitExcel(object? workbook, object? excel)
@@ -775,3 +799,4 @@ public class ExcelBatchTests : IAsyncLifetime
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
+

@@ -9,18 +9,13 @@ its COM API, so the Power Query engine that runs is Excel's own. Credentials,
 privacy levels, native connectors, and the Data Model all behave exactly as they
 do when you click **Data → Refresh All** yourself.
 
-On macOS, saved-package inspection currently supports `list`, `view`, and
-`get-load-config` for clean, saved workbooks without a Data Model. Package-only
-`update` is available only with `refresh=false`. The update is staged with a
-same-directory backup: closing the session without saving restores the original,
-while explicit save commits it. `refresh`, `refresh-all`, and update's default
-`refresh=true` remain explicitly gated until a repository-safe unattended
-fixture proves exact completion and error behavior through Mac Excel.
-The repository-authored MS-QDEFF/OOXML candidates timed out at the same
-exact-path LaunchServices attachment gate as independent baseline workbooks.
-That host-wide failure does not establish malformed packages, but the
-candidates are still not accepted refresh fixtures;
-see [macOS support](../../specs/MACOS-SUPPORT.md#helper-free-saved-package-investigation).
+On macOS, every Power Query action uses the optional trusted Excel helper.
+ExcelMcp never reads or modifies workbook package internals. Helper 1.4.0 has
+fixed implementations for the lifecycle, including complete list/view/load
+metadata, but public actions remain disabled by default until prompt-free CLI
+and MCP acceptance proves each action. Without an installed, trusted, and
+explicitly proven helper method, the command returns `PlatformNotSupported`;
+see [macOS support](../../specs/MACOS-SUPPORT.md#power-query).
 
 ## What you ask for
 

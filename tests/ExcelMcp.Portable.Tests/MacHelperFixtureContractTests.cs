@@ -114,7 +114,7 @@ public sealed class MacHelperFixtureContractTests
                 "requestId": "{{RequestId}}",
                 "success": true,
                 "result": {
-                  "helperVersion": "1.3.0",
+                  "helperVersion": "1.4.0",
                   "protocolVersion": 1,
                   "staticAvailability": {
                     "queriesApi": true,

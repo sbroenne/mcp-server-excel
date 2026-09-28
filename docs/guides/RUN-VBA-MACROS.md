@@ -47,14 +47,14 @@ authoring and temporary evaluation. Installation
 alone does not enable a command: production actions stay gated until their
 individual methods have real-Excel evidence.
 
-Helper version `1.3.0` adds fixed Power Query create/update/refresh/refresh-all,
+Helper version `1.4.0` adds fixed Power Query create/update/refresh/refresh-all,
 load-to/unload, and temporary-query evaluation candidates. They support only
 connection-only or one exact worksheet-table destination; Data Model and
 multi-destination variants fail explicitly. The source implements rollback and
 temporary-artifact cleanup, but every corresponding proof flag remains false
 until prompt-free real-Excel CLI and MCP acceptance succeeds.
 
-Helper 1.3.0 also has source-complete candidate routes for VBA `list`, `view`,
+Helper 1.4.0 also has source-complete candidate routes for VBA `list`, `view`,
 `import`, `update`, and `delete`, plus exact workbook-qualified `run`. They
 remain unavailable by default. Maintainers may enable only named actions with
 `EXCELMCP_MAC_VBA_CANDIDATE_ACTIONS` while running the guarded public

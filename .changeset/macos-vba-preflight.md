@@ -10,7 +10,7 @@ preferences. Macro execution and source CRUD remain gated until repository-owned
 fixtures and a safe project-model route satisfy their independent evidence
 requirements. The distribution now also includes reviewable source and a
 strict, versioned transport foundation for an optional user-installed Mac Excel
-helper add-in. Helper version 1.3.0 includes fixed, transactional candidates for
+helper add-in. Helper version 1.4.0 includes fixed, transactional candidates for
 Power Query authoring, synchronous refresh, worksheet load transitions, and
 temporary-query evaluation, plus a bounded read-only observation of late-bound
 XML Maps and workbook-model APIs. It also supplies strict public-contract
@@ -19,7 +19,7 @@ adapters for VBA source lifecycle and exact workbook-qualified
 helper does not enable unproven actions; every new method remains individually
 gated by prompt-free CLI and MCP evidence.
 
-Add a guarded public Power Query lifecycle acceptance runner for helper 1.3.0.
+Add a guarded public Power Query lifecycle acceptance runner for helper 1.4.0.
 It requires explicit user confirmations, a dedicated Excel-authored workbook,
 and an exclusive desktop slot; scopes the exact candidate actions to child CLI
 and MCP processes; uses only literal credential-free M; verifies supported

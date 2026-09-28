@@ -5,14 +5,15 @@ Tests the experimental macOS workbook slice through the real CLI and MCP process
 .DESCRIPTION
 Requires running desktop Excel and existing Automation consent. Uses ordinary
 temporary fixtures and LaunchServices; never requests permission or accesses
-Excel's container. Includes repository-authored MS-QDEFF/OOXML Power Query
-fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
+Excel's container. Power Query and VBA remain helper-gated unless their explicit
+acceptance runners pass.
 Scenario acceptance requires -IncludeScenarios and an already configured trusted helper.
 Named-range acceptance adds two public entry-point cases with -IncludeNamedRanges.
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
+    [string]$PipeName,
     [switch]$IncludePythonInExcel,
     [switch]$IncludeRangeExpansion,
     [switch]$IncludeScenarios,
@@ -93,7 +94,6 @@ $environment = @{
     EXCELMCP_MAC_E2E_PIPE = $pipe
     EXCELMCP_CLI_PIPE = $pipe
     DOTNET_ROOT = $dotnetRoot
-    EXCELMCP_MAC_PQ_FIXTURE_E2E = if ($IncludePowerQueryFixtures) { '1' } else { '0' }
     EXCELMCP_MAC_PYTHON_E2E = if ($IncludePythonInExcel) { '1' } else { '0' }
     EXCELMCP_MAC_RANGE_EXPANSION_E2E = if ($IncludeRangeExpansion) { '1' } else { '0' }
     EXCELMCP_MAC_SCENARIO_E2E = if ($IncludeScenarios) { '1' } else { '0' }
@@ -111,9 +111,9 @@ try {
     ) 600 $environment
     Write-Host $test.stdout
     if (-not [string]::IsNullOrWhiteSpace($test.stderr)) { Write-Host $test.stderr }
-    $expectedPassed = if ($IncludePowerQueryFixtures) { 6 } else { 4 }
+    $expectedPassed = 4
     if ($IncludeNamedRanges) { $expectedPassed += 2 }
-    $expectedSkipped = if ($IncludePowerQueryFixtures) { 0 } else { 1 }
+    $expectedSkipped = 0
     $expectedTotal = $expectedPassed + $expectedSkipped
     $summaryPattern = "Passed!.*Failed:\s*0\b.*Passed:\s*$expectedPassed\b.*Skipped:\s*$expectedSkipped\b.*Total:\s*$expectedTotal\b"
     if ($test.exitCode -ne 0 -or $test.stdout -notmatch $summaryPattern) {
@@ -128,9 +128,5 @@ finally {
         }
     }
 }
-if ($IncludePowerQueryFixtures) {
-    Write-Host 'macOS CLI/MCP workbook and repository-owned Power Query fixture slices passed. Refresh, Windows COM, and unsupported Mac features remain separate gates.'
-} else {
-    Write-Host 'macOS CLI/MCP workbook slice passed. Power Query fixture acceptance requires -IncludePowerQueryFixtures and remains gated.'
-}
+Write-Host 'macOS CLI/MCP workbook slice passed. Helper-gated and Windows COM features remain separate acceptance gates.'
 $global:LASTEXITCODE = 0

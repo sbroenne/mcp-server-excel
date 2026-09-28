@@ -1,6 +1,4 @@
-using System.IO.Compression;
 using System.Text.Json;
-using System.Xml.Linq;
 using Sbroenne.ExcelMcp.Service.Mac;
 using Xunit;
 using Xunit.Abstractions;
@@ -44,7 +42,6 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
         var sentinelPath = Path.Combine(directory.FullName, $"sentinel-{Guid.NewGuid():N}.xlsx");
         CreateBlankWorkbook(path);
         CreateBlankWorkbook(sentinelPath);
-        AddPreviewFixtures(path);
         string? session = null;
         string? sentinel = null;
         var completed = false;
@@ -53,12 +50,31 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
         {
             session = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = path }, deadline.Token));
             sentinel = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = sentinelPath }, deadline.Token));
+            await InitializeWorkbookAsync(client, session, includeSpare: true, deadline.Token);
+            await InitializeWorkbookAsync(client, sentinel, includeSpare: false, deadline.Token);
             Success(await client.CallAsync("range", "set-values", sentinel,
                 new() { ["sheet_name"] = "Data", ["range_address"] = "A1", ["values"] = SentinelValues },
                 deadline.Token));
 
             async Task<JsonElement> Call(string action, Dictionary<string, object?> args) =>
                 await client.CallAsync("namedrange", action, session, args, deadline.Token);
+            foreach (var (name, reference) in new[]
+            {
+                ("PreviewBoundary", "Data!$A$1:$A$10000"),
+                ("PreviewOverBoundary", "Data!$A$1:$A$10001"),
+                ("Input", "Data!$A$1"),
+                ("DynamicInput", "=OFFSET(Data!$A$1,0,0,1,1)"),
+                ("LargePreview", "Data!$A:$A"),
+                ("MultipleAreas", "Data!$A$1,Data!$B$2"),
+                ("ConstantOnly", "=42")
+            })
+            {
+                Success(await Call("create", new()
+                {
+                    ["name"] = name,
+                    ["reference"] = reference
+                }));
+            }
             var created = Success(await Call("create", new() { ["name"] = createdName, ["reference"] = "Data!$A$1" }));
             Assert.Equal(path, created.GetProperty("filePath").GetString());
             var duplicate = await Call("create", new() { ["name"] = "newinput", ["reference"] = "Data!$B$2" });
@@ -68,26 +84,8 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             var number = await Call("read", new() { ["name"] = createdName });
             Assert.Equal(17, number.GetProperty("value").GetDouble());
             Assert.Equal("Double", number.GetProperty("valueType").GetString());
-            Success(await Call("write", new() { ["name"] = "Data!Input", ["value"] = "99" }));
-            Assert.Equal(99, (await Call("read", new() { ["name"] = "Data!Input" })).GetProperty("value").GetDouble());
             Assert.Equal(17, (await Call("read", new() { ["name"] = "Input" })).GetProperty("value").GetDouble());
             Assert.Equal(17, (await Call("read", new() { ["name"] = "DynamicInput" })).GetProperty("value").GetDouble());
-            Success(await Call("write", new() { ["name"] = "Data!ShadowOnly", ["value"] = "42" }));
-            var collision = await Call("create", new() { ["name"] = "ShadowOnly", ["reference"] = "Data!$A$2" });
-            Assert.False(collision.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", collision.GetProperty("errorCategory").GetString());
-            Assert.Equal(42, (await Call("read", new() { ["name"] = "Data!ShadowOnly" })).GetProperty("value").GetDouble());
-            var scopedCreate = await Call("create", new() { ["name"] = "Data!CreatedLocal", ["reference"] = "Data!$A$2" });
-            Assert.False(scopedCreate.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", scopedCreate.GetProperty("errorCategory").GetString());
-            var ambiguous = await Call("read", new() { ["name"] = "ShadowedDynamic" });
-            Assert.False(ambiguous.GetProperty("success").GetBoolean());
-            Assert.Equal("PlatformNotSupported", ambiguous.GetProperty("errorCategory").GetString());
-            Success(await client.CallAsync("sheet", "rename", session,
-                new() { ["old_name"] = "Spare", ["new_name"] = "Names With Spaces" }, deadline.Token));
-            Success(await Call("write", new() { ["name"] = "'Names With Spaces'!LocalInput", ["value"] = "88" }));
-            Assert.Equal(88, (await Call("read", new() { ["name"] = "'Names With Spaces'!LocalInput" }))
-                .GetProperty("value").GetDouble());
             Success(await client.CallAsync("range", "set-number-format", session,
                 new() { ["sheet_name"] = "Data", ["range_address"] = "A1", ["format_code"] = "yyyy-mm-dd" }, deadline.Token));
             Success(await Call("write", new() { ["name"] = createdName, ["value"] = "44927" }));
@@ -130,9 +128,6 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
                 deadline.Token));
             Assert.Equal(4, (await Call("read", new() { ["name"] = createdName })).GetProperty("value")[1][1].GetDouble());
             var names = Success(await Call("list", new())).GetProperty("namedRanges").EnumerateArray().ToArray();
-            Assert.DoesNotContain(names, item => item.GetProperty("name").GetString() == "HiddenInternal");
-            Assert.DoesNotContain(names, item => item.GetProperty("name").GetString()!
-                .EndsWith("_FilterDatabase", StringComparison.OrdinalIgnoreCase));
             var boundary = Assert.Single(names, item => item.GetProperty("name").GetString() == "PreviewBoundary");
             Assert.Equal(10_000, boundary.GetProperty("cellCount").GetInt64());
             Assert.Equal("Array", boundary.GetProperty("valueType").GetString());
@@ -151,11 +146,6 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             var constant = Assert.Single(names, item => item.GetProperty("name").GetString() == "ConstantOnly");
             Assert.Equal("Unavailable", constant.GetProperty("valueType").GetString());
             Assert.False(string.IsNullOrWhiteSpace(constant.GetProperty("valueOmittedReason").GetString()));
-            var dynamicPreview = Assert.Single(names, item => item.GetProperty("name").GetString() == "ShadowedDynamic");
-            Assert.Equal("Unavailable", dynamicPreview.GetProperty("valueType").GetString());
-            Assert.Contains("shadowed", dynamicPreview.GetProperty("valueOmittedReason").GetString(), StringComparison.Ordinal);
-            Assert.DoesNotContain(names, item => item.GetProperty("name").GetString() == "Data!CreatedLocal");
-
             Success(await client.CallAsync("file", "close", session, new() { ["save"] = true }, deadline.Token));
             session = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = path }, deadline.Token));
             Assert.Equal(4, (await Call("read", new() { ["name"] = createdName })).GetProperty("value")[1][1].GetDouble());
@@ -164,12 +154,6 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             Assert.False(missing.GetProperty("success").GetBoolean());
             Assert.Equal("InvalidOperation", missing.GetProperty("errorCategory").GetString());
             Assert.Contains("not found", missing.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
-            Success(await Call("update", new() { ["name"] = "'Names With Spaces'!LocalInput", ["reference"] = "Data!$D$1" }));
-            Assert.Equal(99, (await Call("read", new() { ["name"] = "'Names With Spaces'!LocalInput" })).GetProperty("value").GetDouble());
-            Success(await Call("delete", new() { ["name"] = "'Names With Spaces'!LocalInput" }));
-            var missingLocal = await Call("read", new() { ["name"] = "'Names With Spaces'!LocalInput" });
-            Assert.Equal("InvalidOperation", missingLocal.GetProperty("errorCategory").GetString());
-            Assert.Equal(99, (await Call("read", new() { ["name"] = "Data!Input" })).GetProperty("value").GetDouble());
             var unchanged = Success(await client.CallAsync("range", "get-values", sentinel,
                 new() { ["sheet_name"] = "Data", ["range_address"] = "A1" }, deadline.Token));
             Assert.Equal(9876, unchanged.GetProperty("values")[0][0].GetDouble());
@@ -192,36 +176,8 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             }
             else
             {
-                output.WriteLine($"Failed named-range run retained its synthetic fixtures at {directory.FullName}.");
+                output.WriteLine($"Failed named-range run retained its opaque workbook copies at {directory.FullName}.");
             }
         }
-    }
-
-    private static void AddPreviewFixtures(string path)
-    {
-        using var archive = ZipFile.Open(path, ZipArchiveMode.Update);
-        var entry = archive.GetEntry("xl/workbook.xml")!;
-        XDocument document;
-        using (var stream = entry.Open()) document = XDocument.Load(stream);
-        XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        document.Root!.Add(new XElement(ns + "definedNames",
-            new XElement(ns + "definedName", new XAttribute("name", "HiddenInternal"), new XAttribute("hidden", "1"), "#REF!"),
-            new XElement(ns + "definedName", new XAttribute("name", "_xlnm._FilterDatabase"),
-                new XAttribute("localSheetId", "0"), new XAttribute("hidden", "1"), "Data!$A$1"),
-            new XElement(ns + "definedName", new XAttribute("name", "PreviewBoundary"), "Data!$A$1:$A$10000"),
-            new XElement(ns + "definedName", new XAttribute("name", "PreviewOverBoundary"), "Data!$A$1:$A$10001"),
-            new XElement(ns + "definedName", new XAttribute("name", "Input"), new XAttribute("localSheetId", "0"), "Data!$D$1"),
-            new XElement(ns + "definedName", new XAttribute("name", "Input"), "Data!$A$1"),
-            new XElement(ns + "definedName", new XAttribute("name", "ShadowOnly"), new XAttribute("localSheetId", "0"), "Data!$D$2"),
-            new XElement(ns + "definedName", new XAttribute("name", "LocalInput"), new XAttribute("localSheetId", "1"), "Spare!$A$1"),
-            new XElement(ns + "definedName", new XAttribute("name", "DynamicInput"), "OFFSET(Data!$A$1,0,0,1,1)"),
-            new XElement(ns + "definedName", new XAttribute("name", "ShadowedDynamic"), "OFFSET(Data!$A$1,0,0,1,1)"),
-            new XElement(ns + "definedName", new XAttribute("name", "ShadowedDynamic"), new XAttribute("localSheetId", "0"), "Data!$D$3"),
-            new XElement(ns + "definedName", new XAttribute("name", "LargePreview"), "Data!$A:$A"),
-            new XElement(ns + "definedName", new XAttribute("name", "MultipleAreas"), "Data!$A$1,Data!$B$2"),
-            new XElement(ns + "definedName", new XAttribute("name", "ConstantOnly"), "42")));
-        entry.Delete();
-        using var output = archive.CreateEntry("xl/workbook.xml").Open();
-        document.Save(output);
     }
 }

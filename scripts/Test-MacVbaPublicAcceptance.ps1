@@ -73,7 +73,7 @@ foreach ($assembly in @($cliAssembly, $mcpAssembly)) {
 if ($ValidateOnly) {
     [ordered]@{
         success = $true
-        helperVersion = '1.3.0'
+        helperVersion = '1.4.0'
         acceptanceScope = 'public-vba-cli-mcp'
         publicCommandAcceptance = $false
         executed = $false
@@ -300,7 +300,7 @@ Invoke-McpAcceptance
 
 [ordered]@{
     success = $true
-    helperVersion = '1.3.0'
+    helperVersion = '1.4.0'
     acceptanceScope = 'public-vba-cli-mcp'
     publicCommandAcceptance = $true
     executed = $true

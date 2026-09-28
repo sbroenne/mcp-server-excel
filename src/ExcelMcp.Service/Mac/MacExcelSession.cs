@@ -11,9 +11,7 @@ internal sealed class MacExcelSession
     public required string FilePath { get; init; }
     public required TimeSpan OperationTimeout { get; init; }
     public required bool IsVisible { get; set; }
-    public string? PackageBaselinePath { get; set; }
-    public string? PackageTransactionPath { get; set; }
-    public bool RequiresPackageRecovery { get; set; }
+    public bool RequiresRecovery { get; set; }
     public bool HasUnconfirmedOpen { get; set; }
     public string? UnsafeReason { get; private set; }
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
