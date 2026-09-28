@@ -92,7 +92,9 @@ internal static class MacPowerQueryRouteSelector
             {
                 ["name"] = queryName,
                 ["formula"] = RequiredString(arguments, "mCode"),
-                ["destination"] = destination
+                ["destination"] = destination,
+                ["sheetName"] = null,
+                ["cellAddress"] = null
             };
             if (destination == "load-to-table")
             {
@@ -148,7 +150,9 @@ internal static class MacPowerQueryRouteSelector
             var helperArguments = new JsonObject
             {
                 ["name"] = queryName,
-                ["destination"] = destination
+                ["destination"] = destination,
+                ["sheetName"] = null,
+                ["cellAddress"] = null
             };
             if (destination == "load-to-table")
             {

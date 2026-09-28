@@ -123,6 +123,8 @@ public sealed class MacPowerQueryRouteSelectorTests
         Assert.Equal("Sales", route.HelperArguments!["name"]!.GetValue<string>());
         Assert.Equal("let Source = 1 in Source", route.HelperArguments["formula"]!.GetValue<string>());
         Assert.Equal("connection-only", route.HelperArguments["destination"]!.GetValue<string>());
+        Assert.True(route.HelperArguments.ContainsKey("sheetName"));
+        Assert.True(route.HelperArguments.ContainsKey("cellAddress"));
         Assert.Null(route.HelperArguments["sheetName"]);
         Assert.Null(route.HelperArguments["cellAddress"]);
     }
@@ -168,6 +170,23 @@ public sealed class MacPowerQueryRouteSelectorTests
                 Actions("powerquery.load-to")));
 
         Assert.Contains("targetCellAddress", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadToConnectionOnlyUsesExplicitNullWorksheetArguments()
+    {
+        var route = MacPowerQueryRouteSelector.Select(
+            "load-to",
+            Parse("""{"queryName":"Sales","loadDestination":"connection-only"}"""),
+            Actions("powerquery.load-to"));
+
+        Assert.Equal(MacPowerQueryRouteKind.Helper, route.Kind);
+        Assert.Equal("Sales", route.HelperArguments!["name"]!.GetValue<string>());
+        Assert.Equal("connection-only", route.HelperArguments["destination"]!.GetValue<string>());
+        Assert.True(route.HelperArguments.ContainsKey("sheetName"));
+        Assert.True(route.HelperArguments.ContainsKey("cellAddress"));
+        Assert.Null(route.HelperArguments["sheetName"]);
+        Assert.Null(route.HelperArguments["cellAddress"]);
     }
 
     [Theory]
