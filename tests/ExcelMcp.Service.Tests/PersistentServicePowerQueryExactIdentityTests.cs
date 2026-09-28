@@ -36,7 +36,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     {
         var response = await _fixture.SendForFailureAsync(
             "powerquery.refresh",
-            new { queryName = "MissingQuery", timeout = TimeSpan.FromSeconds(30) });
+            new { queryName = "MissingQuery", timeout = 30 });
 
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("NotFound", response.ErrorCategory);
@@ -60,7 +60,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
 
         var response = await _fixture.SendForFailureAsync(
             "powerquery.refresh",
-            new { queryName = "a", timeout = TimeSpan.FromSeconds(30) });
+            new { queryName = "a", timeout = 30 });
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("Prerequisite", response.ErrorCategory);
         Assert.Contains(

@@ -157,7 +157,7 @@ public sealed partial class PersistentServicePowerQueryRefreshTests(
 
         var response = await _fixture.SendForFailureAsync(
             "powerquery.refresh",
-            new { queryName, timeout = TimeSpan.FromMinutes(1) });
+            new { queryName, timeout = 60 });
 
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("Prerequisite", response.ErrorCategory);
