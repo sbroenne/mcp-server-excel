@@ -3,10 +3,12 @@ using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
@@ -97,13 +99,35 @@ internal static class CliTelemetry
                 {
                     invocationTelemetry.RequestTracked = true;
                 }
+                var expectedNegative = IsExpectedNegative(request, response);
                 trackInvocation(
                     request.Command,
                     stopwatch.ElapsedMilliseconds,
                     response?.Success == true,
                     trackedFailureCategory,
-                    false);
+                    expectedNegative);
             }
+        }
+    }
+
+    private static bool IsExpectedNegative(
+        ServiceRequest request,
+        ServiceResponse? response)
+    {
+        if (response?.Success != true
+            || !string.Equals(request.Command, "session.test", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(response.Result))
+        {
+            return false;
+        }
+
+        try
+        {
+            return ServiceProtocol.Deserialize<FileValidationInfo>(response.Result) is { CanOpen: false };
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 

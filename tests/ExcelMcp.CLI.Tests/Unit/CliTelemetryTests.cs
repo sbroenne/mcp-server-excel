@@ -283,6 +283,33 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public void TrackCliInvocation_PreservesExpectedNegativeBatchTelemetry()
+    {
+        var trackedInvocations = new List<(string Command, bool Succeeded, bool ExpectedNegative)>();
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["batch", "--input", "commands.json"],
+            () =>
+            {
+                _ = CliTelemetry.TrackCommandAsync(
+                    new ServiceRequest { Command = "session.test" },
+                    () => Task.FromResult(new ServiceResponse
+                    {
+                        Success = true,
+                        Result = """{"canOpen":false}"""
+                    }),
+                    (command, _, succeeded, _, expectedNegative) =>
+                        trackedInvocations.Add((command, succeeded, expectedNegative))).GetAwaiter().GetResult();
+                return 1;
+            },
+            (command, _, succeeded, _, expectedNegative) =>
+                trackedInvocations.Add((command, succeeded, expectedNegative)));
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal([("session.test", true, true)], trackedInvocations);
+    }
+
+    [Fact]
     public void TrackCliInvocation_PreservesLocallyRejectedBatchItems()
     {
         var trackedInvocations = new List<(string Command, bool Succeeded, string? ErrorCategory)>();
