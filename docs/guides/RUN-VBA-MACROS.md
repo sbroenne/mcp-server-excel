@@ -106,9 +106,11 @@ The workbook must be an Excel-authored dedicated workbook with no existing
 Power Queries. The workflow uses only public CLI and MCP commands, literal
 credential-free `#table` M, separate disposable working copies, and an exact
 per-action candidate allowlist scoped to child processes. It verifies supported
-worksheet and connection-only lifecycle behavior plus continued rejection of
-Data Model and combined destinations. `-ValidateOnly` checks the plan and emits
-a non-proof receipt; it does not launch Excel or prove a public method.
+worksheet and connection-only lifecycle behavior, exact loaded `A1:A2` values
+through public range reads after saved reopen checkpoints, plus continued
+rejection of Data Model and combined destinations. `-ValidateOnly` checks the
+plan and emits a non-proof receipt; it does not launch Excel or prove a public
+method.
 
 Macro execution and VBA project access are separate settings. Do not enable all
 macros globally to install the helper. Enable only the trust your reviewed

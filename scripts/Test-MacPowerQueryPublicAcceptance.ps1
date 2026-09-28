@@ -310,6 +310,22 @@ function Assert-Evaluate {
     }
 }
 
+function Assert-LoadedValues {
+    param(
+        [hashtable]$Result,
+        [string]$ExpectedValue,
+        [string]$Context
+    )
+    $values = @($Result.values)
+    if ($values.Count -ne 2 -or
+        @($values[0]).Count -ne 1 -or
+        @($values[1]).Count -ne 1 -or
+        [string]$values[0][0] -cne 'Value' -or
+        [string]$values[1][0] -cne $ExpectedValue) {
+        throw "$Context loaded values mismatch."
+    }
+}
+
 function New-WorkingCopy {
     param([string]$EntryPoint)
     $extension = [IO.Path]::GetExtension($workbookPath)
@@ -320,19 +336,25 @@ function New-WorkingCopy {
 }
 
 function Open-CliSession {
-    param([string]$Path)
+    param([string]$Path, [ref]$ExactlyClosed)
+    $ExactlyClosed.Value = $false
     $open = Invoke-Cli @(
         'session', 'open', $Path, '--timeout', "$OperationTimeoutSeconds"
     ) 'CLI open'
-    return [string]$open.sessionId
+    $sessionId = [string]$open.sessionId
+    if ([string]::IsNullOrWhiteSpace($sessionId)) {
+        throw 'CLI open returned no session ID.'
+    }
+    return $sessionId
 }
 
 function Checkpoint-CliSession {
-    param([string]$Session, [string]$Path)
+    param([string]$Session, [string]$Path, [ref]$ExactlyClosed)
     $null = Invoke-Cli @(
         'session', 'close', '--session', $Session, '--save', 'true'
     ) 'CLI checkpoint close'
-    return Open-CliSession $Path
+    $ExactlyClosed.Value = $true
+    return Open-CliSession $Path $ExactlyClosed
 }
 
 function Invoke-CliAcceptance {
@@ -343,10 +365,10 @@ function Invoke-CliAcceptance {
     $unsupportedName = "ExcelMcpCliUnsupported_$suffix"
     $workingPath = New-WorkingCopy 'cli'
     $session = $null
-    $closed = $false
+    $exactlyClosed = $true
     $closeError = ''
     try {
-        $session = Open-CliSession $workingPath
+        $session = Open-CliSession $workingPath ([ref]$exactlyClosed)
         Assert-DedicatedWorkbookIsEmpty (
             Invoke-Cli @('powerquery', 'list', '--session', $session) 'CLI initial list'
         ) 'CLI acceptance'
@@ -367,7 +389,12 @@ function Invoke-CliAcceptance {
             '--target-sheet', $sheetName,
             '--target-cell-address', 'A1'
         ) 'CLI create'
-        $session = Checkpoint-CliSession $session $workingPath
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
+        $loaded = Invoke-Cli @(
+            'range', 'get-values', '--session', $session,
+            '--sheet', $sheetName, '--range', 'A1:A2'
+        ) 'CLI created values'
+        Assert-LoadedValues $loaded 'original' 'CLI created checkpoint'
         $list = Invoke-Cli @('powerquery', 'list', '--session', $session) 'CLI list'
         Assert-QueryListed $list $queryName $true
         Assert-View (
@@ -379,7 +406,12 @@ function Invoke-CliAcceptance {
             'powerquery', 'update', '--session', $session,
             '--query-name', $queryName, '--m-code', $updatedFormula, '--refresh', 'true'
         ) 'CLI update'
-        $session = Checkpoint-CliSession $session $workingPath
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
+        $loaded = Invoke-Cli @(
+            'range', 'get-values', '--session', $session,
+            '--sheet', $sheetName, '--range', 'A1:A2'
+        ) 'CLI updated values'
+        Assert-LoadedValues $loaded 'updated' 'CLI updated checkpoint'
         Assert-View (
             Invoke-Cli @(
                 'powerquery', 'view', '--session', $session, '--query-name', $queryName
@@ -390,7 +422,7 @@ function Invoke-CliAcceptance {
             '--old-name', $queryName, '--new-name', $renamedName
         ) 'CLI rename'
         Assert-Rename $rename $queryName $renamedName
-        $session = Checkpoint-CliSession $session $workingPath
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
         Assert-LoadConfig (
             Invoke-Cli @(
                 'powerquery', 'get-load-config', '--session', $session,
@@ -401,7 +433,7 @@ function Invoke-CliAcceptance {
             'powerquery', 'load-to', '--session', $session,
             '--query-name', $renamedName, '--load-destination', 'connection-only'
         ) 'CLI load connection-only'
-        $session = Checkpoint-CliSession $session $workingPath
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
         Assert-LoadConfig (
             Invoke-Cli @(
                 'powerquery', 'get-load-config', '--session', $session,
@@ -419,10 +451,22 @@ function Invoke-CliAcceptance {
                 '--query-name', $renamedName, '--timeout', "$OperationTimeoutSeconds"
             ) 'CLI refresh'
         ) $renamedName $sheetName
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
+        $loaded = Invoke-Cli @(
+            'range', 'get-values', '--session', $session,
+            '--sheet', $sheetName, '--range', 'A1:A2'
+        ) 'CLI refreshed checkpoint values'
+        Assert-LoadedValues $loaded 'updated' 'CLI refreshed checkpoint'
         $null = Invoke-Cli @(
             'powerquery', 'refresh-all', '--session', $session,
             '--timeout', "$OperationTimeoutSeconds"
         ) 'CLI refresh all'
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
+        $loaded = Invoke-Cli @(
+            'range', 'get-values', '--session', $session,
+            '--sheet', $sheetName, '--range', 'A1:A2'
+        ) 'CLI refresh-all checkpoint values'
+        Assert-LoadedValues $loaded 'updated' 'CLI refresh-all checkpoint'
         Assert-Evaluate (
             Invoke-Cli @(
                 'powerquery', 'evaluate', '--session', $session, '--m-code', $evaluatedFormula
@@ -431,7 +475,7 @@ function Invoke-CliAcceptance {
         $null = Invoke-Cli @(
             'powerquery', 'unload', '--session', $session, '--query-name', $renamedName
         ) 'CLI unload'
-        $session = Checkpoint-CliSession $session $workingPath
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
         Assert-LoadConfig (
             Invoke-Cli @(
                 'powerquery', 'get-load-config', '--session', $session,
@@ -441,32 +485,29 @@ function Invoke-CliAcceptance {
         $null = Invoke-Cli @(
             'powerquery', 'delete', '--session', $session, '--query-name', $renamedName
         ) 'CLI delete'
-        $session = Checkpoint-CliSession $session $workingPath
+        $session = Checkpoint-CliSession $session $workingPath ([ref]$exactlyClosed)
         Assert-QueryListed (
             Invoke-Cli @('powerquery', 'list', '--session', $session) 'CLI final list'
         ) $renamedName $false
     }
     finally {
-        if ($null -eq $session -and -not $script:uncertain) {
-            $closed = $true
-        }
         if ($null -ne $session) {
             if (-not $script:uncertain) {
                 try {
                     $null = Invoke-Cli @(
                         'session', 'close', '--session', $session, '--save', 'false'
                     ) 'CLI close without save'
-                    $closed = $true
+                    $exactlyClosed = $true
                 }
                 catch {
                     $closeError = $_.Exception.Message
                 }
             }
         }
-        if ($closed -and [IO.File]::Exists($workingPath)) {
+        if ($exactlyClosed -and [IO.File]::Exists($workingPath)) {
             [IO.File]::Delete($workingPath)
         }
-        if (-not $closed) {
+        if (-not $exactlyClosed) {
             throw "RECOVERY_REQUIRED: CLI acceptance could not confirm exact close. Preserve '$workingPath' for manual reconciliation. $closeError"
         }
     }
@@ -487,16 +528,24 @@ function Start-Mcp {
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $start
     $null = $process.Start()
+    $process | Add-Member -NotePropertyName AcceptanceStandardErrorTask `
+        -NotePropertyValue $process.StandardError.ReadToEndAsync()
     return $process
 }
 
 function Read-McpResponse {
     param([Diagnostics.Process]$Process, [int]$Id)
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $budget = [TimeSpan]::FromSeconds($OperationTimeoutSeconds)
     while ($true) {
+        $remaining = $budget - $timer.Elapsed
+        if ($remaining -le [TimeSpan]::Zero) {
+            $script:uncertain = $true
+            throw "TIMEOUT_UNCERTAIN: MCP response $Id exceeded $OperationTimeoutSeconds seconds."
+        }
         $task = $Process.StandardOutput.ReadLineAsync()
         try {
-            $line = $task.WaitAsync(
-                [TimeSpan]::FromSeconds($OperationTimeoutSeconds)).GetAwaiter().GetResult()
+            $line = $task.WaitAsync($remaining).GetAwaiter().GetResult()
         }
         catch [TimeoutException] {
             $script:uncertain = $true
@@ -555,15 +604,21 @@ function Open-McpSession {
     param(
         [Diagnostics.Process]$Process,
         [ref]$NextId,
-        [string]$Path
+        [string]$Path,
+        [ref]$ExactlyClosed
     )
+    $ExactlyClosed.Value = $false
     $open = Invoke-McpTool $Process $NextId 'file' @{
         action = 'open'
         path = $Path
         show = $false
         timeout_seconds = $OperationTimeoutSeconds
     } 'MCP open'
-    return [string]$open.sessionId
+    $sessionId = [string]$open.sessionId
+    if ([string]::IsNullOrWhiteSpace($sessionId)) {
+        throw 'MCP open returned no session ID.'
+    }
+    return $sessionId
 }
 
 function Checkpoint-McpSession {
@@ -571,12 +626,14 @@ function Checkpoint-McpSession {
         [Diagnostics.Process]$Process,
         [ref]$NextId,
         [string]$Session,
-        [string]$Path
+        [string]$Path,
+        [ref]$ExactlyClosed
     )
     $null = Invoke-McpTool $Process $NextId 'file' @{
         action = 'close'; session_id = $Session; save = $true
     } 'MCP checkpoint close'
-    return Open-McpSession $Process $NextId $Path
+    $ExactlyClosed.Value = $true
+    return Open-McpSession $Process $NextId $Path $ExactlyClosed
 }
 
 function Invoke-McpAcceptance {
@@ -589,7 +646,7 @@ function Invoke-McpAcceptance {
     $process = Start-Mcp
     $nextId = 1
     $session = $null
-    $closed = $false
+    $exactlyClosed = $true
     $closeError = ''
     try {
         Write-McpMessage $process @{
@@ -610,7 +667,7 @@ function Invoke-McpAcceptance {
             params = @{}
         }
 
-        $session = Open-McpSession $process ([ref]$nextId) $workingPath
+        $session = Open-McpSession $process ([ref]$nextId) $workingPath ([ref]$exactlyClosed)
         Assert-DedicatedWorkbookIsEmpty (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'list'; session_id = $session
@@ -636,7 +693,13 @@ function Invoke-McpAcceptance {
             target_sheet = $sheetName
             target_cell_address = 'A1'
         } 'MCP create'
-        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
+        $loaded = Invoke-McpTool $process ([ref]$nextId) 'range' @{
+            action = 'get-values'; session_id = $session
+            sheet_name = $sheetName; range_address = 'A1:A2'
+        } 'MCP created values'
+        Assert-LoadedValues $loaded 'original' 'MCP created checkpoint'
         $list = Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
             action = 'list'; session_id = $session
         } 'MCP list'
@@ -653,7 +716,13 @@ function Invoke-McpAcceptance {
             m_code = $updatedFormula
             refresh = $true
         } 'MCP update'
-        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
+        $loaded = Invoke-McpTool $process ([ref]$nextId) 'range' @{
+            action = 'get-values'; session_id = $session
+            sheet_name = $sheetName; range_address = 'A1:A2'
+        } 'MCP updated values'
+        Assert-LoadedValues $loaded 'updated' 'MCP updated checkpoint'
         Assert-View (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'view'; session_id = $session; query_name = $queryName
@@ -666,7 +735,8 @@ function Invoke-McpAcceptance {
             new_name = $renamedName
         } 'MCP rename'
         Assert-Rename $rename $queryName $renamedName
-        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
         Assert-LoadConfig (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'get-load-config'; session_id = $session; query_name = $renamedName
@@ -678,7 +748,8 @@ function Invoke-McpAcceptance {
             query_name = $renamedName
             load_destination = 'connection-only'
         } 'MCP load connection-only'
-        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
         Assert-LoadConfig (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'get-load-config'; session_id = $session; query_name = $renamedName
@@ -700,9 +771,23 @@ function Invoke-McpAcceptance {
                 timeout = $OperationTimeoutSeconds
             } 'MCP refresh'
         ) $renamedName $sheetName
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
+        $loaded = Invoke-McpTool $process ([ref]$nextId) 'range' @{
+            action = 'get-values'; session_id = $session
+            sheet_name = $sheetName; range_address = 'A1:A2'
+        } 'MCP refreshed checkpoint values'
+        Assert-LoadedValues $loaded 'updated' 'MCP refreshed checkpoint'
         $null = Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
             action = 'refresh-all'; session_id = $session; timeout = $OperationTimeoutSeconds
         } 'MCP refresh all'
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
+        $loaded = Invoke-McpTool $process ([ref]$nextId) 'range' @{
+            action = 'get-values'; session_id = $session
+            sheet_name = $sheetName; range_address = 'A1:A2'
+        } 'MCP refresh-all checkpoint values'
+        Assert-LoadedValues $loaded 'updated' 'MCP refresh-all checkpoint'
         Assert-Evaluate (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'evaluate'; session_id = $session; m_code = $evaluatedFormula
@@ -711,7 +796,8 @@ function Invoke-McpAcceptance {
         $null = Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
             action = 'unload'; session_id = $session; query_name = $renamedName
         } 'MCP unload'
-        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
         Assert-LoadConfig (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'get-load-config'; session_id = $session; query_name = $renamedName
@@ -720,7 +806,8 @@ function Invoke-McpAcceptance {
         $null = Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
             action = 'delete'; session_id = $session; query_name = $renamedName
         } 'MCP delete'
-        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath
+        $session = Checkpoint-McpSession $process ([ref]$nextId) $session $workingPath `
+            ([ref]$exactlyClosed)
         Assert-QueryListed (
             Invoke-McpTool $process ([ref]$nextId) 'powerquery' @{
                 action = 'list'; session_id = $session
@@ -728,16 +815,13 @@ function Invoke-McpAcceptance {
         ) $renamedName $false
     }
     finally {
-        if ($null -eq $session -and -not $script:uncertain) {
-            $closed = $true
-        }
         if ($null -ne $session -and -not $process.HasExited) {
             if (-not $script:uncertain) {
                 try {
                     $null = Invoke-McpTool $process ([ref]$nextId) 'file' @{
                         action = 'close'; session_id = $session; save = $false
                     } 'MCP close without save'
-                    $closed = $true
+                    $exactlyClosed = $true
                 }
                 catch {
                     $closeError = $_.Exception.Message
@@ -746,19 +830,36 @@ function Invoke-McpAcceptance {
         }
         if (-not $process.HasExited) {
             $process.StandardInput.Close()
-            if (-not $process.WaitForExit(5000)) { $process.Kill($true) }
+            if (-not $process.WaitForExit(5000)) {
+                $process.Kill($true)
+                $process.WaitForExit()
+            }
         }
+        $mcpStandardError = $process.AcceptanceStandardErrorTask.GetAwaiter().GetResult()
         $process.Dispose()
-        if ($closed -and [IO.File]::Exists($workingPath)) {
+        if ($exactlyClosed -and [IO.File]::Exists($workingPath)) {
             [IO.File]::Delete($workingPath)
         }
-        if (-not $closed) {
-            throw "RECOVERY_REQUIRED: MCP acceptance could not confirm exact close. Preserve '$workingPath' for manual reconciliation. $closeError"
+        if (-not $exactlyClosed) {
+            throw "RECOVERY_REQUIRED: MCP acceptance could not confirm exact close. Preserve '$workingPath' for manual reconciliation. $closeError $mcpStandardError"
         }
     }
 }
 
-Invoke-CliAcceptance
+function Stop-PrivateCliDaemon {
+    & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') `
+        -PipeName $environment.EXCELMCP_CLI_PIPE
+    if ($LASTEXITCODE -ne 0) {
+        throw "Private CLI daemon cleanup failed with exit code $LASTEXITCODE."
+    }
+}
+
+try {
+    Invoke-CliAcceptance
+}
+finally {
+    Stop-PrivateCliDaemon
+}
 Invoke-McpAcceptance
 
 [ordered]@{

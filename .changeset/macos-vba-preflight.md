@@ -23,5 +23,7 @@ Add a guarded public Power Query lifecycle acceptance runner for helper 1.3.0.
 It requires explicit user confirmations, a dedicated Excel-authored workbook,
 and an exclusive desktop slot; scopes the exact candidate actions to child CLI
 and MCP processes; uses only literal credential-free M; verifies supported
-worksheet/connection-only behavior and gated Data Model variants; and emits
-validation-only receipts that cannot be mistaken for runtime proof.
+worksheet/connection-only behavior with exact loaded-cell checks across saved
+reopens, keeps unconfirmed opens/closes for recovery, verifies gated Data Model
+variants, and emits validation-only receipts that cannot be mistaken for
+runtime proof.

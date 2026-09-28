@@ -586,7 +586,9 @@ candidates only in its child processes, and invokes the public `powerquery`
 surface rather than `helper.dispatch`. It exercises create/list/view/update/
 rename/get-load-config/load-to/refresh/unload/delete/refresh-all/evaluate with
 literal `#table` M that has no external source or credentials. Package reads are
-checked after explicit saved checkpoints in the disposable working copy.
+checked after explicit saved checkpoints in the disposable working copy. Public
+`range.get-values` calls also verify the exact `A1:A2` header and loaded value
+after create, update, refresh, and refresh-all, including save/close/reopen.
 Data Model and combined destinations must still fail with
 `PlatformNotSupported`. A passing receipt records
 `acceptanceScope=public-powerquery-lifecycle-cli-mcp` and

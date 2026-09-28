@@ -99,6 +99,74 @@ public sealed class MacPowerQueryPublicAcceptanceRunnerTests
         Assert.DoesNotContain("Test-MacE2E.ps1", script, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Runner_VerifiesLoadedValuesAcrossRefreshAndSavedReopen()
+    {
+        var script = ReadRunner();
+
+        Assert.Contains("function Assert-LoadedValues", script, StringComparison.Ordinal);
+        Assert.Contains("'range', 'get-values'", script, StringComparison.Ordinal);
+        Assert.Contains("action = 'get-values'", script, StringComparison.Ordinal);
+        Assert.Contains("'A1:A2'", script, StringComparison.Ordinal);
+        Assert.Contains("Assert-LoadedValues $loaded 'original'", script, StringComparison.Ordinal);
+        Assert.Contains("Assert-LoadedValues $loaded 'updated'", script, StringComparison.Ordinal);
+        Assert.Contains("CLI refreshed checkpoint", script, StringComparison.Ordinal);
+        Assert.Contains("CLI refresh-all checkpoint", script, StringComparison.Ordinal);
+        Assert.Contains("MCP refreshed checkpoint", script, StringComparison.Ordinal);
+        Assert.Contains("MCP refresh-all checkpoint", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Runner_BoundsMcpProtocolAndDrainsStandardError()
+    {
+        var script = ReadRunner();
+
+        Assert.Contains("StandardError.ReadToEndAsync()", script, StringComparison.Ordinal);
+        Assert.Contains("[Diagnostics.Stopwatch]::StartNew()", script, StringComparison.Ordinal);
+        Assert.Contains("$remaining", script, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "[TimeSpan]::FromSeconds($OperationTimeoutSeconds)).GetAwaiter().GetResult()",
+            script,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Runner_ShutsDownOnlyItsPrivateCliPipe()
+    {
+        var script = ReadRunner();
+
+        Assert.Contains("Stop-ExcelMcpProcesses.ps1", script, StringComparison.Ordinal);
+        Assert.Contains("-PipeName $environment.EXCELMCP_CLI_PIPE", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stop-Process", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("Get-Process", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Runner_PreservesWorkingCopyUnlessExactCloseIsConfirmed()
+    {
+        var script = ReadRunner();
+
+        Assert.Contains("$exactlyClosed = $true", script, StringComparison.Ordinal);
+        Assert.Contains("$ExactlyClosed.Value = $false", script, StringComparison.Ordinal);
+        Assert.Contains("$ExactlyClosed.Value = $true", script, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "if ($null -eq $session -and -not $script:uncertain)",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "could not confirm exact close. Preserve",
+            script,
+            StringComparison.Ordinal);
+    }
+
+    private static string ReadRunner()
+    {
+        return File.ReadAllText(Path.Combine(
+            FindRepository(),
+            "scripts",
+            "Test-MacPowerQueryPublicAcceptance.ps1"));
+    }
+
     private static string FindRepository()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
