@@ -36,8 +36,11 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal(3, info.Table!.RowCount);
     }
 
-    [Fact]
-    public void ListAndRead_WithUnstyledTable_ReturnsEmptyTableStyle()
+    [Theory]
+    [InlineData("")]
+    [InlineData("TableStyleLight1")]
+    [InlineData("TableStyleMedium2")]
+    public void ListAndRead_WithTableStyle_ReturnsExpectedTableStyle(string tableStyle)
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
@@ -64,7 +67,7 @@ public sealed partial class PersistentServiceTablePreflightTests
                 sheet = (Excel.Worksheet)sheets[sheetName];
                 tables = sheet.ListObjects;
                 table = tables["PlainTable"];
-                table.TableStyle = "";
+                table.TableStyle = tableStyle;
             }
             finally
             {
@@ -80,9 +83,9 @@ public sealed partial class PersistentServiceTablePreflightTests
 
         Assert.True(list.Success, $"List failed: {list.ErrorMessage}");
         Assert.Equal(
-            "",
+            tableStyle,
             Assert.Single(list.Tables, table => table.Name == "PlainTable").TableStyle);
         Assert.True(read.Success, $"Read failed: {read.ErrorMessage}");
-        Assert.Equal("", read.Table!.TableStyle);
+        Assert.Equal(tableStyle, read.Table!.TableStyle);
     }
 }

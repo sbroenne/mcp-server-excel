@@ -372,7 +372,8 @@ public partial class TableCommands
             tableStyle = table.TableStyle;
             return tableStyle switch
             {
-                null => "",
+                // Excel can represent a cleared style as a single NUL character.
+                null or "\0" => "",
                 string styleName => styleName,
                 // Reason: Excel returns a COM TableStyle object or a string when no style is applied.
                 _ => ((dynamic)tableStyle).Name?.ToString() ?? ""
