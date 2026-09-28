@@ -1066,7 +1066,7 @@ public sealed class ExcelMcpService : IDisposable
         new()
         {
             Success = true,
-            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(result, result.GetType(), ServiceProtocol.JsonOptions)
         };
 
     private static void ResolveMacFileArguments(

@@ -50,6 +50,10 @@ public sealed class PowerQueryFixtureFactoryTests
             $"Location={PowerQueryFixtureFactory.QueryName}",
             load.Connection,
             StringComparison.Ordinal);
+        using var archive = ZipFile.OpenRead(fixture.WorkbookPath);
+        using var stream = archive.GetEntry("xl/tables/table1.xml")!.Open();
+        var table = XDocument.Load(stream);
+        Assert.Equal("queryTable", (string?)table.Root?.Attribute("tableType"));
     }
 
     [Fact]
@@ -120,6 +124,29 @@ public sealed class PowerQueryFixtureFactoryTests
         {
             Assert.Contains(audit.Errors, error => error.Contains(name, StringComparison.Ordinal));
         }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("worksheet")]
+    [InlineData("xml")]
+    public void Audit_RejectsTableTypeThatDoesNotMatchQueryTableRelationship(string? tableType)
+    {
+        using var directory = new TemporaryDirectory("excelmcp-pq-fixture-");
+        var fixture = PowerQueryFixtureFactory.Create(directory.Path, PowerQueryFixtureKind.WorksheetLoaded);
+        using (var archive = ZipFile.Open(fixture.WorkbookPath, ZipArchiveMode.Update))
+        {
+            var entry = archive.GetEntry("xl/tables/table1.xml")!;
+            XDocument table;
+            using (var stream = entry.Open()) table = XDocument.Load(stream);
+            table.Root!.SetAttributeValue("tableType", tableType);
+            entry.Delete();
+            using var output = archive.CreateEntry("xl/tables/table1.xml").Open();
+            table.Save(output);
+        }
+
+        var audit = PowerQueryFixtureFactory.Audit(fixture.WorkbookPath, PowerQueryFixtureKind.WorksheetLoaded);
+        Assert.Contains(audit.Errors, error => error.Contains("tableType", StringComparison.Ordinal));
     }
 
     private sealed class TemporaryDirectory : IDisposable

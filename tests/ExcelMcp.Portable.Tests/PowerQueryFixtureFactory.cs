@@ -225,7 +225,7 @@ internal static class PowerQueryFixtureFactory
                 """);
             parts["xl/tables/table1.xml"] = XmlBytes(
                 $"""
-                <table xmlns="{SpreadsheetNamespace}" id="1" name="LiteralRowsTable" displayName="LiteralRowsTable" ref="A1:B3" totalsRowShown="0">
+                <table xmlns="{SpreadsheetNamespace}" id="1" name="LiteralRowsTable" displayName="LiteralRowsTable" ref="A1:B3" tableType="queryTable" totalsRowShown="0">
                   <autoFilter ref="A1:B3"/>
                   <tableColumns count="2">
                     <tableColumn id="1" name="Item" queryTableFieldId="1"/>
@@ -557,6 +557,10 @@ internal static class PowerQueryFixtureFactory
             if ((string?)table?.Root?.Attribute("ref") != "A1:B3")
             {
                 errors.Add("Worksheet table range is not A1:B3.");
+            }
+            if ((string?)table?.Root?.Attribute("tableType") != "queryTable")
+            {
+                errors.Add("Worksheet tableType must be queryTable for its QueryTable relationship.");
             }
             if ((string?)queryTable?.Root?.Attribute("connectionId") != "1")
             {

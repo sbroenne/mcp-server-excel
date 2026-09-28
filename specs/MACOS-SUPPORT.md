@@ -473,7 +473,8 @@ DrawingML theme style matrices. Each theme matrix list now contains the required
 three styles; focused failing-first tests cover generation and audit rejection.
 No generated workbook binary is committed.
 
-Real-Excel acceptance is **not established** for these new packages. On
+Real-Excel acceptance is **not established for both entry points and variants**.
+On
 2026-09-27 and again on 2026-09-28, the opt-in exact-path run through both CLI and MCP timed out while
 attaching the connection-only fixture after LaunchServices handoff. Independent
 blank-workbook baseline opens failed through the same host-wide LaunchServices
@@ -493,10 +494,29 @@ again: six cases and one expected Power Query skip. The uncertain-open recovery
 change has 379 passing portable tests, including shared Service error transport;
 these checks do not validate the rejected query packages.
 The runs did not click or dismiss UI, terminate Excel, change
-trust/security, or access an Excel container. The worksheet-loaded fixture,
-save/reopen normalization, and synchronous refresh could therefore not be
-proven. Both generated variants remain test candidates, not accepted fixtures,
-and every refresh-dependent action stays gated.
+trust/security, or access an Excel container.
+
+A subsequent bounded CLI attempt opened the corrected connection-only fixture
+without repair. Saving and reopening normalized the generated package before
+saved-only inspection. This exposed a shared response-serialization defect:
+`view` and `get-load-config` had serialized only `ResultBase`, omitting M code,
+query identity and load fields. The serializer now preserves the concrete
+result type; four failing-first portable regressions cover both actions and
+both load variants. The connection-only CLI phase then passed exact M and
+load-state assertions.
+
+The next worksheet-loaded open triggered another content-repair alert,
+confirmed by a user screenshot. No further workbook opens were attempted.
+Offline inspection found that its table omitted `tableType="queryTable"`
+despite owning a QueryTable relationship. Generation and the package audit now
+enforce that relationship/type agreement, with four failing-first checks.
+The official Open XML schema validator reports no errors for either generated
+variant, but did not detect the semantic mismatch before the fix.
+The corrected worksheet-loaded variant still requires a fresh no-repair
+desktop run after the pending alert is rejected and the exact open reconciled.
+Connection-only MCP acceptance and synchronous refresh are also unproven.
+Both generated variants remain opt-in acceptance candidates, and every
+refresh-dependent action stays gated.
 
 The failing path is preserved as
 `RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated`. Because

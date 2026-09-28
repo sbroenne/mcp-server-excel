@@ -33,3 +33,7 @@ Return explicit recovery guidance when a macOS file-open handoff cannot be
 confirmed. Preserve newly created workbooks and Power Query recovery files
 instead of deleting or rolling them back while Excel may still open them.
 Reject queued operations and avoid automatic close on unconfirmed reopens.
+
+Preserve the full Power Query view and load-configuration results in the shared
+Mac response serializer, including M code, query identity and load destination,
+instead of returning only the base success and file-path fields.

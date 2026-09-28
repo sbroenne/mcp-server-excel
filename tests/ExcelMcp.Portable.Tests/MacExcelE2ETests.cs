@@ -668,12 +668,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 null,
                 new() { ["path"] = workbookPath },
                 cancellationToken));
-            await AssertPowerQueryStateAsync(
-                client,
-                session,
-                expectedLoadMode,
-                expectedTargetSheet,
-                cancellationToken);
+            // Excel normalizes the generated package on first open; package reads require a saved workbook.
             Success(await client.CallAsync(
                 "file",
                 "close",
@@ -769,7 +764,8 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             session,
             new() { ["query_name"] = PowerQueryFixtureFactory.QueryName },
             cancellationToken));
-        Assert.Equal(PowerQueryFixtureFactory.LiteralM, view.GetProperty("mCode").GetString());
+        Assert.True(view.TryGetProperty("mCode", out var formula), view.GetRawText());
+        Assert.Equal(PowerQueryFixtureFactory.LiteralM, formula.GetString());
         Assert.Equal(expectedLoadMode, view.GetProperty("loadMode").GetString());
 
         var load = Success(await client.CallAsync(

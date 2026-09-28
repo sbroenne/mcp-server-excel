@@ -9,6 +9,59 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 
 public sealed class MacPowerQueryServiceRoutingTests
 {
+    [Theory]
+    [InlineData(PowerQueryFixtureKind.ConnectionOnly, "view")]
+    [InlineData(PowerQueryFixtureKind.ConnectionOnly, "get-load-config")]
+    [InlineData(PowerQueryFixtureKind.WorksheetLoaded, "view")]
+    [InlineData(PowerQueryFixtureKind.WorksheetLoaded, "get-load-config")]
+    public async Task PackageResultPreservesDerivedPublicFields(PowerQueryFixtureKind kind, string action)
+    {
+        var directory = Directory.CreateTempSubdirectory("excelmcp-pq-result-");
+        try
+        {
+            var fixture = PowerQueryFixtureFactory.Create(directory.FullName, kind);
+            using var service = new ExcelMcpService(
+                CreateBackend([]),
+                (_, _) => throw new InvalidOperationException("Package reads must not probe the helper."),
+                (_, _, _, _) => throw new InvalidOperationException("Package reads must not invoke the helper."));
+            var sessionId = await OpenAsync(service, fixture.WorkbookPath);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = $"powerquery.{action}",
+                SessionId = sessionId,
+                Args = JsonSerializer.Serialize(new { queryName = PowerQueryFixtureFactory.QueryName })
+            });
+
+            Assert.True(response.Success, response.ErrorMessage);
+            using var document = JsonDocument.Parse(Assert.IsType<string>(response.Result));
+            var result = document.RootElement;
+            Assert.True(result.TryGetProperty("queryName", out var queryName), result.GetRawText());
+            Assert.Equal(PowerQueryFixtureFactory.QueryName, queryName.GetString());
+            var loaded = kind == PowerQueryFixtureKind.WorksheetLoaded;
+            Assert.Equal(loaded ? "load-to-table" : "connection-only", result.GetProperty("loadMode").GetString());
+            Assert.Equal(loaded, result.GetProperty("hasConnection").GetBoolean());
+            Assert.False(result.GetProperty("isLoadedToDataModel").GetBoolean());
+            if (loaded)
+            {
+                Assert.Equal(PowerQueryFixtureFactory.WorksheetName, result.GetProperty("targetSheet").GetString());
+            }
+            else
+            {
+                Assert.False(result.TryGetProperty("targetSheet", out _));
+            }
+            if (action == "view")
+            {
+                Assert.Equal(PowerQueryFixtureFactory.LiteralM, result.GetProperty("mCode").GetString());
+                Assert.Equal(PowerQueryFixtureFactory.LiteralM.Length, result.GetProperty("characterCount").GetInt32());
+                Assert.Equal(!loaded, result.GetProperty("isConnectionOnly").GetBoolean());
+            }
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public async Task HelperMutationSelectsRouteBeforeWorkbookPackageInspection()
     {
