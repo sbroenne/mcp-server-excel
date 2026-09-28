@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -71,13 +72,19 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             var argsJson = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
                 ? cmd.Args.Value.GetRawText()
                 : null;
+            var validationStopwatch = Stopwatch.StartNew();
             try
             {
                 ServiceRegistry.ValidateCommandArguments(cmd.Command, argsJson);
             }
             catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
             {
+                validationStopwatch.Stop();
                 validationErrors[i] = ex.Message;
+                CliTelemetry.TrackLocalFailure(
+                    cmd.Command,
+                    validationStopwatch.ElapsedMilliseconds,
+                    "InvalidInput");
             }
         }
 

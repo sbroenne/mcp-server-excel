@@ -206,8 +206,17 @@ internal sealed class SessionListCommand : AsyncCommand
                     : DaemonConnectionPolicy.ControlTimeout));
         if (response.Success && response.Result != null)
         {
-            var result = JsonNode.Parse(response.Result) as JsonObject
-                ?? throw new JsonException("Service returned an invalid session list response.");
+            JsonObject result;
+            try
+            {
+                result = JsonNode.Parse(response.Result) as JsonObject
+                    ?? throw new JsonException("Service returned an invalid session list response.");
+            }
+            catch (JsonException)
+            {
+                CliTelemetry.RecordFinalFailure("InvalidResponse");
+                throw;
+            }
             result["daemonState"] = DaemonConnectionPolicy.RunningState;
             CliCommandRuntime.Current.Output.WriteLine(result.ToJsonString(ServiceProtocol.JsonOptions));
             return 0;
@@ -222,6 +231,7 @@ internal sealed class SessionListCommand : AsyncCommand
                 ErrorCategory = "InvalidResponse",
                 ErrorMessage = "Service returned an invalid session list response."
             };
+            CliTelemetry.RecordFinalFailure(response.ErrorCategory);
         }
 
         var failureState = daemonConnection.ResolveFailureState(pipeName, response);
@@ -274,16 +284,31 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
 
         if (string.IsNullOrWhiteSpace(response.Result))
         {
+            CliTelemetry.RecordFinalFailure("InvalidResponse");
             return CliErrorOutput.WriteError("Service returned an invalid file test response.");
         }
 
-        var result = ServiceProtocol.Deserialize<FileValidationInfo>(response.Result);
+        FileValidationInfo? result;
+        try
+        {
+            result = ServiceProtocol.Deserialize<FileValidationInfo>(response.Result);
+        }
+        catch (JsonException)
+        {
+            CliTelemetry.RecordFinalFailure("InvalidResponse");
+            throw;
+        }
         if (result == null)
         {
+            CliTelemetry.RecordFinalFailure("InvalidResponse");
             return CliErrorOutput.WriteError("Service returned an invalid file test response.");
         }
 
         CliCommandRuntime.Current.Output.WriteLine(response.Result);
+        if (!result.CanOpen)
+        {
+            CliTelemetry.RecordExpectedNegative();
+        }
         return result.CanOpen ? 0 : 1;
     }
 

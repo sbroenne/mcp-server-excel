@@ -142,7 +142,13 @@ internal sealed class Program
 
         try
         {
-            return CliTelemetry.TrackCliInvocation(filteredArgs, () => app.Run(filteredArgs));
+            var telemetryObserver = CliCommandRuntime.Current.TelemetryObserver;
+            return telemetryObserver == null
+                ? CliTelemetry.TrackCliInvocation(filteredArgs, () => app.Run(filteredArgs))
+                : CliTelemetry.TrackCliInvocation(
+                    filteredArgs,
+                    () => app.Run(filteredArgs),
+                    telemetryObserver);
         }
         catch (CommandRuntimeException ex)
         {

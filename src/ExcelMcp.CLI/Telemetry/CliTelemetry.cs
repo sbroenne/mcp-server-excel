@@ -3,10 +3,12 @@ using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
@@ -64,7 +66,7 @@ internal static class CliTelemetry
     internal static async Task<ServiceResponse> TrackCommandAsync(
         ServiceRequest request,
         Func<Task<ServiceResponse>> operation,
-        Action<string, long, bool, string?> trackInvocation)
+        Action<string, long, bool, string?, bool> trackInvocation)
     {
         var stopwatch = Stopwatch.StartNew();
         ServiceResponse? response = null;
@@ -97,13 +99,82 @@ internal static class CliTelemetry
                 {
                     invocationTelemetry.RequestTracked = true;
                 }
+                var expectedNegative = IsExpectedNegative(request, response);
                 trackInvocation(
                     request.Command,
                     stopwatch.ElapsedMilliseconds,
                     response?.Success == true,
-                    trackedFailureCategory);
+                    trackedFailureCategory,
+                    expectedNegative);
             }
         }
+    }
+
+    private static bool IsExpectedNegative(
+        ServiceRequest request,
+        ServiceResponse? response)
+    {
+        if (response?.Success != true
+            || !string.Equals(request.Command, "session.test", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(response.Result))
+        {
+            return false;
+        }
+
+        try
+        {
+            return ServiceProtocol.Deserialize<FileValidationInfo>(response.Result) is { CanOpen: false };
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    internal static void RecordFinalFailure(string errorCategory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorCategory);
+        var invocationTelemetry = CurrentInvocationTelemetry.Value;
+        if (invocationTelemetry != null)
+        {
+            invocationTelemetry.FailureCategory = errorCategory;
+        }
+    }
+
+    internal static void RecordExpectedNegative()
+    {
+        var invocationTelemetry = CurrentInvocationTelemetry.Value;
+        if (invocationTelemetry != null)
+        {
+            invocationTelemetry.ExpectedNegative = true;
+            invocationTelemetry.FailureCategory = null;
+        }
+    }
+
+    internal static void TrackLocalFailure(
+        string command,
+        long durationMs,
+        string errorCategory) =>
+        TrackLocalFailure(command, durationMs, errorCategory, TrackCommandInvocation);
+
+    internal static void TrackLocalFailure(
+        string command,
+        long durationMs,
+        string errorCategory,
+        Action<string, long, bool, string?, bool> trackInvocation)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorCategory);
+        ArgumentNullException.ThrowIfNull(trackInvocation);
+
+        var invocationTelemetry = CurrentInvocationTelemetry.Value;
+        if (invocationTelemetry != null)
+        {
+            invocationTelemetry.RequestTracked = true;
+            invocationTelemetry.FailureCategory ??= errorCategory;
+        }
+
+        trackInvocation(command, durationMs, false, errorCategory, false);
     }
 
     /// <summary>
@@ -117,7 +188,7 @@ internal static class CliTelemetry
     internal static int TrackCliInvocation(
         string[] args,
         Func<int> operation,
-        Action<string, long, bool, string?> trackInvocation)
+        Action<string, long, bool, string?, bool> trackInvocation)
     {
         if (args.Any(arg => HelpFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
         {
@@ -131,6 +202,7 @@ internal static class CliTelemetry
         var stopwatch = Stopwatch.StartNew();
         var exitCode = 1;
         string? failureCategory = null;
+        var operationThrew = false;
         try
         {
             exitCode = operation();
@@ -138,6 +210,7 @@ internal static class CliTelemetry
         }
         catch (Exception ex)
         {
+            operationThrew = true;
             failureCategory = OperationFailureClassifier.Classify(ex);
             throw;
         }
@@ -145,13 +218,18 @@ internal static class CliTelemetry
         {
             stopwatch.Stop();
             CurrentInvocationTelemetry.Value = previousInvocationTelemetry;
-            if (!isBatch || !invocationTelemetry.RequestTracked)
+            var unhandledBatchFailure = isBatch && operationThrew;
+            if (!isBatch || !invocationTelemetry.RequestTracked || unhandledBatchFailure)
             {
+                var expectedNegative = invocationTelemetry.ExpectedNegative;
                 trackInvocation(
                     ResolveCliCommand(args),
                     stopwatch.ElapsedMilliseconds,
-                    exitCode == 0,
-                    failureCategory ?? invocationTelemetry.FailureCategory);
+                    exitCode == 0 || expectedNegative,
+                    unhandledBatchFailure
+                        ? failureCategory
+                        : invocationTelemetry.FailureCategory ?? failureCategory,
+                    expectedNegative);
             }
         }
     }
@@ -210,7 +288,8 @@ internal static class CliTelemetry
         string command,
         long durationMs,
         bool succeeded,
-        string? errorCategory)
+        string? errorCategory,
+        bool expectedNegative)
     {
         if (_telemetryClient == null)
         {
@@ -220,7 +299,12 @@ internal static class CliTelemetry
         try
         {
             var (eventTelemetry, requestTelemetry) =
-                CreateCommandInvocationTelemetry(command, durationMs, succeeded, errorCategory);
+                CreateCommandInvocationTelemetry(
+                    command,
+                    durationMs,
+                    succeeded,
+                    errorCategory,
+                    expectedNegative);
             _telemetryClient.TrackEvent(eventTelemetry);
             _telemetryClient.TrackRequest(requestTelemetry);
         }
@@ -234,7 +318,8 @@ internal static class CliTelemetry
             string command,
             long durationMs,
             bool succeeded,
-            string? errorCategory)
+            string? errorCategory,
+            bool expectedNegative = false)
     {
         var (tool, action) = ResolveOperation(command);
         var operationName = $"{tool}/{action}";
@@ -245,7 +330,9 @@ internal static class CliTelemetry
             ["Action"] = action,
             ["EntryPoint"] = EntryPoint,
             ["Success"] = succeeded.ToString(),
-            ["Outcome"] = succeeded ? "succeeded" : "failed"
+            ["Outcome"] = expectedNegative
+                ? "expected-negative"
+                : succeeded ? "succeeded" : "failed"
         };
 
         if (!succeeded)
@@ -363,5 +450,7 @@ internal static class CliTelemetry
         public bool RequestTracked { get; set; }
 
         public string? FailureCategory { get; set; }
+
+        public bool ExpectedNegative { get; set; }
     }
 }

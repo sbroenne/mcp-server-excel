@@ -229,7 +229,16 @@ internal sealed class ServiceStatusCommand : AsyncCommand
                     : DaemonConnectionPolicy.ControlTimeout));
         if (response.Success && response.Result != null)
         {
-            var status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
+            ServiceStatus? status;
+            try
+            {
+                status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
+            }
+            catch (JsonException)
+            {
+                CliTelemetry.RecordFinalFailure("InvalidResponse");
+                throw;
+            }
             if (status != null)
             {
                 Console.WriteLine(JsonSerializer.Serialize(new
@@ -255,6 +264,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
                 ErrorCategory = "InvalidResponse",
                 ErrorMessage = "Service returned an invalid status response."
             };
+            CliTelemetry.RecordFinalFailure(response.ErrorCategory);
         }
 
         var failureState = DaemonConnectionPolicy.ResolveFailureState(pipeName, response);
