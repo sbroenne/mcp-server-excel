@@ -90,10 +90,10 @@ internal static class MacCommandCapabilities
                     string.Empty);
             }
 
-            return Unavailable(
-                MacCapabilityTier.PowerQueryPackage,
-                command,
-                "the secure saved-package Power Query mutation tier, which is not enabled in this release");
+            return new MacCommandCapability(
+                true,
+                MacCapabilityTier.MacroHelper,
+                string.Empty);
         }
 
         if (category == "vba")

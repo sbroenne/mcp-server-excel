@@ -169,12 +169,19 @@ public sealed class MacCommandCapabilitiesTests
     [Theory]
     [InlineData("powerquery.refresh")]
     [InlineData("powerquery.refresh-all")]
-    public void PowerQueryRefresh_StaysGatedWithoutRealExcelCompletionEvidence(string command)
+    [InlineData("powerquery.create")]
+    [InlineData("powerquery.rename")]
+    [InlineData("powerquery.delete")]
+    [InlineData("powerquery.load-to")]
+    [InlineData("powerquery.unload")]
+    [InlineData("powerquery.evaluate")]
+    public void PowerQueryHelperCommandsReachDynamicRouteSelection(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.PowerQueryPackage, capability.RequiredTier);
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
     }
 
     [Theory]
