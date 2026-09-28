@@ -460,6 +460,10 @@ public sealed class ExcelMcpService : IDisposable
                     result.IsValid = true;
                     result.CanOpen = true;
                 }
+                catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     result.Message =

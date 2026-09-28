@@ -249,21 +249,23 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
                 // Workbook macro execution must remain available for explicit VBA operations on
                 // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
-                // later in the same batch. Keep non-macro workbooks on ForceDisable, but allow
-                // macro-enabled workbook opens to use Low.
+                // later in the same batch. Validation opens are different: they inspect untrusted
+                // workbooks and must always disable macros, even for .xlsm files.
                 // msoAutomationSecurityLow = 1
                 // msoAutomationSecurityForceDisable = 3
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
                 // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
                 // so dispatch a plain integer without loading an Office.Core type.
-                bool opensMacroEnabledWorkbook = _isMacroEnabled ||
-                    _allWorkbookPaths.Any(path => string.Equals(Path.GetExtension(path), ".xlsm", StringComparison.OrdinalIgnoreCase));
+                int automationSecurity = SelectAutomationSecurity(
+                    _isMacroEnabled,
+                    _openReadOnly,
+                    _allWorkbookPaths);
                 // Reflection dispatch avoids the dynamic binder's retained ITypeInfo RCW,
                 // which can block STA termination after Excel.Quit has already returned.
                 tempExcel.GetType().InvokeMember(
                     "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
-                    target: tempExcel, args: [opensMacroEnabledWorkbook ? 1 : 3],
+                    target: tempExcel, args: [automationSecurity],
                     culture: CultureInfo.InvariantCulture);
 
                 // Open or create workbooks in the same Excel instance
@@ -353,7 +355,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 Notify: false,
                                 AddToMru: false);
                         }
-                        catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                        catch (COMException ex) when (
+                            !_openReadOnly &&
+                            ex.HResult == unchecked((int)0x800A03EC))
                         {
                             // Excel Error 1004 - File is already open or locked
                             throw FileAccessValidator.CreateFileLockedError(path, ex);
@@ -649,6 +653,25 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
             "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
             $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
+    }
+
+    internal static int SelectAutomationSecurity(
+        bool createsMacroEnabledWorkbook,
+        bool openReadOnly,
+        IReadOnlyCollection<string> workbookPaths)
+    {
+        if (openReadOnly)
+        {
+            return 3;
+        }
+
+        bool opensMacroEnabledWorkbook = createsMacroEnabledWorkbook ||
+            workbookPaths.Any(path =>
+                string.Equals(
+                    Path.GetExtension(path),
+                    ".xlsm",
+                    StringComparison.OrdinalIgnoreCase));
+        return opensMacroEnabledWorkbook ? 1 : 3;
     }
 
     private static string CreateIrmRequiresVisibleSessionMessage(string workbookPath)

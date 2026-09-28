@@ -80,14 +80,7 @@ internal sealed class ServiceFileCommands(ExcelMcpService service)
 {
     internal FileValidationInfo Test(string filePath)
     {
-        var response = service.ProcessAsync(new ServiceRequest
-        {
-            Command = "session.test",
-            Args = JsonSerializer.Serialize(
-                new { filePath },
-                ServiceProtocol.JsonOptions),
-            Source = "service-file-tests"
-        }).GetAwaiter().GetResult();
+        var response = TestRaw(filePath);
 
         Assert.True(response.Success, response.ErrorMessage);
         Assert.True(string.IsNullOrEmpty(response.ErrorMessage));
@@ -97,5 +90,17 @@ internal sealed class ServiceFileCommands(ExcelMcpService service)
                 ServiceProtocol.JsonOptions)
             ?? throw new InvalidOperationException(
                 "session.test returned no file validation result.");
+    }
+
+    internal ServiceResponse TestRaw(string filePath)
+    {
+        return service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.test",
+            Args = JsonSerializer.Serialize(
+                new { filePath },
+                ServiceProtocol.JsonOptions),
+            Source = "service-file-tests"
+        }).GetAwaiter().GetResult();
     }
 }

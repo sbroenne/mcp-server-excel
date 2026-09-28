@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -63,6 +64,37 @@ public sealed partial class ServiceFileCommandsTests
         Assert.False(info.CanOpen);
         Assert.NotNull(info.Message);
         Assert.Contains("valid Excel workbook", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("already open", info.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("timeout", nameof(TimeoutException))]
+    [InlineData("cancellation", nameof(OperationCanceledException))]
+    public void Test_ValidationControlFlowFailure_ReturnsServiceError(
+        string failure,
+        string expectedExceptionType)
+    {
+        var testFile = _fixture.CreateTestFile();
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => throw failure switch
+        {
+            "timeout" => new TimeoutException("Validation timed out."),
+            "cancellation" => new OperationCanceledException("Validation cancelled."),
+            _ => throw new InvalidOperationException($"Unknown failure type: {failure}")
+        };
+
+        try
+        {
+            var response = _fileCommands.TestRaw(testFile);
+
+            Assert.False(response.Success);
+            Assert.NotNull(response.ErrorMessage);
+            Assert.True(string.IsNullOrEmpty(response.Result));
+            Assert.Equal(expectedExceptionType, response.ExceptionType);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+        }
     }
 
     [Fact]
