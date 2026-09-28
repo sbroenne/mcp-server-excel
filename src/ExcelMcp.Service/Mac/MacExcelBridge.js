@@ -1,4 +1,5 @@
 ObjC.import("Foundation");
+ObjC.import("AppKit");
 
 function json(value) {
     return JSON.stringify(value);
@@ -48,7 +49,7 @@ function worksheetByName(workbook, sheetName) {
 function excelProcessId() {
     const applications = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
         "com.microsoft.Excel");
-    if (applications.count !== 1) {
+    if (Number(applications.count) !== 1) {
         throw new Error("Expected exactly one running Microsoft Excel application process.");
     }
     return Number(applications.objectAtIndex(0).processIdentifier);

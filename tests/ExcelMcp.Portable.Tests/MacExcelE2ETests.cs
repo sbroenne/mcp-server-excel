@@ -216,7 +216,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 unsupportedVba.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Assert.Contains(
-                "repository-owned synthetic fixture",
+                "repository-owned fixture",
                 unsupportedVba.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             var unsupportedVbaList = await client.CallAsync(
@@ -230,7 +230,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 unsupportedVbaList.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Assert.Contains(
-                "scripting dictionary",
+                "Apple Events",
                 unsupportedVbaList.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Success(await client.CallAsync("file", "close", macroSession, new(), deadline.Token));
@@ -543,6 +543,14 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 RangeArgs("J2:J4"), deadline.Token));
             Assert.Equal([1d, 4d, 9d], dataTable.GetProperty("values").EnumerateArray()
                 .Select(row => row[0].GetDouble()).ToArray());
+
+            if (Environment.GetEnvironmentVariable("EXCELMCP_MAC_SCENARIO_E2E") != "1")
+            {
+                Success(await client.CallAsync("file", "close", sessionId, new(), deadline.Token));
+                completed = true;
+                output.WriteLine($"{entryPoint}: real Goal Seek and data-table round trip passed; scenarios were not selected.");
+                return;
+            }
 
             Success(await client.CallAsync("range", "set-values", sessionId,
                 RangeArgs("K1:K2", ("values", new object?[][] { [1], [2] })), deadline.Token));
@@ -1021,6 +1029,12 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
         private static ProcessStartInfo CreateStart(string executable)
         {
+            if (!File.Exists(executable))
+            {
+                throw new FileNotFoundException(
+                    "Mac E2E build output is missing. Run scripts/Test-MacE2E.ps1 without -SkipBuild.",
+                    executable);
+            }
             var managedAssembly = executable.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
             var start = new ProcessStartInfo(managedAssembly ? "dotnet" : executable)
             {

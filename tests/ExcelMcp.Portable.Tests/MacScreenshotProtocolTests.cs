@@ -322,6 +322,8 @@ public sealed class MacScreenshotProtocolTests
         using var reader = new StreamReader(stream);
         var script = reader.ReadToEnd();
 
+        Assert.Contains("ObjC.import(\"AppKit\")", script, StringComparison.Ordinal);
+        Assert.Contains("Number(applications.count) !== 1", script, StringComparison.Ordinal);
         Assert.Contains("command === \"screenshot.window-identity\"", script, StringComparison.Ordinal);
         Assert.Contains("windows[index].windowNumber()", script, StringComparison.Ordinal);
         Assert.Contains("windows[index].id()", script, StringComparison.Ordinal);

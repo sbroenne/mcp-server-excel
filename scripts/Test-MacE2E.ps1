@@ -7,20 +7,21 @@ Requires running desktop Excel and existing Automation consent. Uses ordinary
 temporary fixtures and LaunchServices; never requests permission or accesses
 Excel's container. Includes repository-authored MS-QDEFF/OOXML Power Query
 fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
+Scenario acceptance requires -IncludeScenarios and an already configured trusted helper.
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
     [switch]$IncludePythonInExcel,
     [switch]$IncludeRangeExpansion,
-    [string]$PipeName)
+    [switch]$IncludeScenarios
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if (-not $IsMacOS) { throw 'This runner requires macOS desktop Excel.' }
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'spikes/macos/MacTestEnvironment.ps1')
-Assert-MacAutomationAllowed
 
 $pipe = if ([string]::IsNullOrWhiteSpace($PipeName)) { "em-$([guid]::NewGuid().ToString('N'))" } else { $PipeName }
 if ([Text.Encoding]::UTF8.GetByteCount((Join-Path ([IO.Path]::GetTempPath()) "CoreFxPipe_$pipe")) -gt 104) {
@@ -66,6 +67,18 @@ if (-not $SkipBuild) {
 }
 
 $cli = Join-Path $root 'src/ExcelMcp.CLI/bin/Release/net10.0/excelcli'
+$requiredOutputs = @(
+    $cli,
+    (Join-Path $root 'src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.dll'),
+    (Join-Path $root 'src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.runtimeconfig.json'),
+    (Join-Path $root 'tests/ExcelMcp.Portable.Tests/bin/Release/net10.0/Sbroenne.ExcelMcp.Portable.Tests.dll')
+)
+foreach ($output in $requiredOutputs) {
+    if (-not [IO.File]::Exists($output)) {
+        throw "Required Mac E2E build output is missing: $output. Run this script without -SkipBuild; packaging may have removed previous build outputs."
+    }
+}
+Assert-MacAutomationAllowed
 $runtimes = Invoke-MacTestCommand dotnet @('--list-runtimes') 30
 $runtimePaths = [regex]::Matches($runtimes.stdout, '(?m)^Microsoft\.NETCore\.App \S+ \[(.+)\]\r?$')
 if ($runtimes.exitCode -ne 0 -or $runtimePaths.Count -eq 0) {
@@ -78,12 +91,10 @@ $environment = @{
     EXCELMCP_MAC_E2E_PIPE = $pipe
     EXCELMCP_CLI_PIPE = $pipe
     DOTNET_ROOT = $dotnetRoot
-}
-if ($IncludePythonInExcel) {
-    $environment.EXCELMCP_MAC_PYTHON_E2E = '1'
-}
-if ($IncludeRangeExpansion) {
-    $environment.EXCELMCP_MAC_RANGE_EXPANSION_E2E = '1'
+    EXCELMCP_MAC_PQ_FIXTURE_E2E = if ($IncludePowerQueryFixtures) { '1' } else { '0' }
+    EXCELMCP_MAC_PYTHON_E2E = if ($IncludePythonInExcel) { '1' } else { '0' }
+    EXCELMCP_MAC_RANGE_EXPANSION_E2E = if ($IncludeRangeExpansion) { '1' } else { '0' }
+    EXCELMCP_MAC_SCENARIO_E2E = if ($IncludeScenarios) { '1' } else { '0' }
 }
 try {
     $test = Invoke-MacTestCommand dotnet @(

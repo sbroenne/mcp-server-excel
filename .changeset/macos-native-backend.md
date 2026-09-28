@@ -18,3 +18,6 @@ are included in releases, along with separate native Windows and Apple Silicon
 macOS Claude Desktop MCPB bundles. Power Query mutations and VBA remain
 capability-gated while transactional workbook orchestration and the optional
 macro/VBA trust tiers are implemented.
+
+Correct the guarded screenshot process lookup to load AppKit and normalize
+Objective-C collection counts before selecting the exact Excel process.

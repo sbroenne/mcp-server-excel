@@ -50,10 +50,11 @@ fixtures that can prove completion, errors, and cleanup.
 ## Implementation status
 
 The initial verified operations and the next guarded implementation increment
-are combined in the coordinator branch. Source integration does not establish
-desktop acceptance: Excel became unresponsive during native range acceptance,
-and further desktop work is paused pending user-managed recovery. No shared
-Excel termination or security-setting change is part of that recovery.
+are combined in the coordinator branch. Excel is responsive again, and the
+combined default desktop baseline passes through both CLI and MCP: workbook
+lifecycle/range operations and Goal Seek/data tables. No shared Excel termination
+or security-setting change was required. Source integration and baseline success
+do not establish acceptance of the remaining guarded feature candidates.
 
 The combined source includes helper 1.3.0 for Power Query lifecycle and VBA source
 operations, Office.js dispatch for selected tables/charts/ordinary PivotTables
@@ -830,20 +831,23 @@ and report their private location locally, not in this document.
 
 ### Actual CLI/MCP integration
 
-`tests/ExcelMcp.Portable.Tests/MacExcelE2ETests.cs` runs two opt-in workflows:
-the real CLI apphost with a private daemon pipe, and the real MCP stdio server.
-Both passed in approximately 31 seconds in the user-confirmed no-dialog run.
-The standard runner subsequently passed both cases with zero skips and completed
-its private-daemon cleanup:
+`tests/ExcelMcp.Portable.Tests/MacExcelE2ETests.cs` exercises the real CLI apphost
+with a private daemon pipe and the real MCP stdio server. The combined default
+baseline passed four cases in approximately 93 seconds: workbook operations and
+Goal Seek/data tables through each entry point, with one optional Power Query
+fixture theory skipped. The standard runner completed its private-daemon cleanup:
 
 ```powershell
 pwsh -NoProfile -File scripts/Test-E2E.ps1
 ```
 
 On macOS this routes to `Test-MacE2E.ps1`, checks Automation without requesting
-consent, cross-builds Release, and requires exactly two passing entry-point
-cases. `-SkipBuild` is only appropriate after a successful Release build in the
-same worktree. Fixtures live in ordinary temporary storage, never Excel's
+consent, cross-builds Release, and requires exactly four passing entry-point
+cases and one skipped Power Query theory (six passes and no skips when
+`-IncludePowerQueryFixtures` is selected). `-SkipBuild` is only appropriate after
+a successful Release build in the same worktree whose outputs still exist;
+packaging may remove those outputs. Missing binaries fail before Excel access.
+Fixtures live in ordinary temporary storage, never Excel's
 container. The runner stops only its private daemon, not shared Excel.
 `-IncludePythonInExcel` opts those same two workflows into the literal `PY()`
 acceptance sequence; when selected, unavailable capability, licensing, cloud
@@ -854,6 +858,11 @@ while Python actions remain capability-gated.
 range-expansion acceptance sequence. Until that sequence passes against desktop
 Excel, the new range routes remain capability-gated and the switch is not part
 of the default baseline.
+`-IncludeScenarios` opts both analysis cases into scenario lifecycle acceptance
+using an already configured trusted helper. An unavailable helper or scenario
+operation fails that selected workflow; the established Goal Seek/data-table
+baseline does not require helper setup. Optional switches are set explicitly
+for each run rather than inherited from the invoking shell.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,
