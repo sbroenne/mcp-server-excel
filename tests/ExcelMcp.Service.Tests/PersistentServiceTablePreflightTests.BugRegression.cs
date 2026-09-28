@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -32,5 +34,58 @@ public sealed partial class PersistentServiceTablePreflightTests
         var info = _tableCommands.Read(batch, "DataTable");
         Assert.True(info.Success, $"Read after append failed: {info.ErrorMessage}");
         Assert.Equal(3, info.Table!.RowCount);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("TableStyleLight1")]
+    [InlineData("TableStyleMedium2")]
+    public void ListAndRead_WithTableStyle_ReturnsExpectedTableStyle(string tableStyle)
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        _rangeCommands.SetValues(
+            batch,
+            sheetName,
+            "A1:B2",
+            [["Name", "Value"], ["Example", 1]]);
+        _tableCommands.Create(
+            batch,
+            sheetName,
+            "PlainTable",
+            "A1:B2");
+
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.ListObjects? tables = null;
+            Excel.ListObject? table = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                tables = sheet.ListObjects;
+                table = tables["PlainTable"];
+                table.TableStyle = tableStyle;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref tables);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+        var list = _tableCommands.List(batch);
+        var read = _tableCommands.Read(batch, "PlainTable");
+
+        Assert.True(list.Success, $"List failed: {list.ErrorMessage}");
+        Assert.Equal(
+            tableStyle,
+            Assert.Single(list.Tables, table => table.Name == "PlainTable").TableStyle);
+        Assert.True(read.Success, $"Read failed: {read.ErrorMessage}");
+        Assert.Equal(tableStyle, read.Table!.TableStyle);
     }
 }
