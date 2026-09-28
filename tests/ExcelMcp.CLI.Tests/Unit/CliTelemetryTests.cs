@@ -21,7 +21,7 @@ public sealed class CliTelemetryTests
         var response = await CliTelemetry.TrackCommandAsync(
             request,
             () => Task.FromResult(new ServiceResponse { Success = true }),
-            (command, _, succeeded, _) =>
+            (command, _, succeeded, _, _) =>
             {
                 trackedCommand = command;
                 trackedSuccess = succeeded;
@@ -68,6 +68,22 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public void CreateCommandInvocationTelemetry_IdentifiesExpectedNegativeOutcome()
+    {
+        var (eventTelemetry, requestTelemetry) =
+            CliTelemetry.CreateCommandInvocationTelemetry(
+                "session.test",
+                25,
+                succeeded: true,
+                errorCategory: null,
+                expectedNegative: true);
+
+        Assert.Equal("expected-negative", eventTelemetry.Properties["Outcome"]);
+        Assert.True(requestTelemetry.Success);
+        Assert.DoesNotContain("FailureClass", eventTelemetry.Properties.Keys);
+    }
+
+    [Fact]
     public async Task TrackCommandAsync_ClassifiesCancellationWhenNoResponseIsReturned()
     {
         var request = new ServiceRequest { Command = "range.get-values" };
@@ -77,7 +93,7 @@ public sealed class CliTelemetryTests
         await Assert.ThrowsAsync<OperationCanceledException>(() => CliTelemetry.TrackCommandAsync(
             request,
             () => Task.FromException<ServiceResponse>(new OperationCanceledException()),
-            (_, _, succeeded, errorCategory) =>
+            (_, _, succeeded, errorCategory, _) =>
             {
                 trackedCategory = errorCategory;
                 trackedSuccess = succeeded;
@@ -120,7 +136,7 @@ public sealed class CliTelemetryTests
         var exitCode = CliTelemetry.TrackCliInvocation(
             ["service", "start"],
             () => 1,
-            (command, _, succeeded, _) =>
+            (command, _, succeeded, _, _) =>
             {
                 trackedCommand = command;
                 trackedSuccess = succeeded;
@@ -139,15 +155,15 @@ public sealed class CliTelemetryTests
         CliTelemetry.TrackCliInvocation(
             ["calculationmode", "get", @"--file", @"C:\customer\Q3 forecast.xlsx"],
             () => 0,
-            (command, _, _, _) => trackedCommand = command);
+            (command, _, _, _, _) => trackedCommand = command);
 
         Assert.Equal("calculation.get", trackedCommand);
     }
 
     [Fact]
-    public void TrackCliInvocation_UsesFinalCommandOutcomeInsteadOfRequestOutcome()
+    public void TrackCliInvocation_ReportsExpectedNegativeDiagnosticOutcome()
     {
-        var trackedInvocations = new List<(string Command, bool Succeeded)>();
+        var trackedInvocations = new List<(string Command, bool Succeeded, bool ExpectedNegative)>();
 
         var exitCode = CliTelemetry.TrackCliInvocation(
             ["session", "test"],
@@ -156,13 +172,16 @@ public sealed class CliTelemetryTests
                 _ = CliTelemetry.TrackCommandAsync(
                     new ServiceRequest { Command = "session.test" },
                     () => Task.FromResult(new ServiceResponse { Success = true }),
-                    (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
+                    (command, _, succeeded, _, expectedNegative) =>
+                        trackedInvocations.Add((command, succeeded, expectedNegative))).GetAwaiter().GetResult();
+                CliTelemetry.RecordExpectedNegative();
                 return 1;
             },
-            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+            (command, _, succeeded, _, expectedNegative) =>
+                trackedInvocations.Add((command, succeeded, expectedNegative)));
 
         Assert.Equal(1, exitCode);
-        Assert.Equal([("session.test", false)], trackedInvocations);
+        Assert.Equal([("session.test", true, true)], trackedInvocations);
     }
 
     [Fact]
@@ -177,10 +196,10 @@ public sealed class CliTelemetryTests
                 _ = CliTelemetry.TrackCommandAsync(
                     new ServiceRequest { Command = "session.open" },
                     () => Task.FromResult(new ServiceResponse { Success = false, ErrorCategory = "InvalidInput" }),
-                    (_, _, _, errorCategory) => trackedCategory = errorCategory).GetAwaiter().GetResult();
+                    (_, _, _, errorCategory, _) => trackedCategory = errorCategory).GetAwaiter().GetResult();
                 return 1;
             },
-            (_, _, _, errorCategory) => trackedCategory = errorCategory);
+            (_, _, _, errorCategory, _) => trackedCategory = errorCategory);
 
         Assert.Equal(1, exitCode);
         Assert.Equal("InvalidInput", trackedCategory);
@@ -206,7 +225,7 @@ public sealed class CliTelemetryTests
                     _ = CliTelemetry.TrackCommandAsync(
                         new ServiceRequest { Command = "service.shutdown" },
                         () => Task.FromException<ServiceResponse>(new OperationCanceledException()),
-                        (_, _, _, errorCategory) => trackedCategory = errorCategory).GetAwaiter().GetResult();
+                        (_, _, _, errorCategory, _) => trackedCategory = errorCategory).GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException)
                 {
@@ -214,10 +233,32 @@ public sealed class CliTelemetryTests
 
                 return 1;
             },
-            (_, _, _, errorCategory) => trackedCategory = errorCategory);
+            (_, _, _, errorCategory, _) => trackedCategory = errorCategory);
 
         Assert.Equal(1, exitCode);
         Assert.Equal("Cancelled", trackedCategory);
+    }
+
+    [Fact]
+    public void TrackCliInvocation_PreservesPostResponseFailureCategory()
+    {
+        string? trackedCategory = null;
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["session", "list"],
+            () =>
+            {
+                _ = CliTelemetry.TrackCommandAsync(
+                    new ServiceRequest { Command = "session.list" },
+                    () => Task.FromResult(new ServiceResponse { Success = true }),
+                    (_, _, _, errorCategory, _) => trackedCategory = errorCategory).GetAwaiter().GetResult();
+                CliTelemetry.RecordFinalFailure("InvalidResponse");
+                return 1;
+            },
+            (_, _, _, errorCategory, _) => trackedCategory = errorCategory);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal("InvalidResponse", trackedCategory);
     }
 
     [Fact]
@@ -232,13 +273,47 @@ public sealed class CliTelemetryTests
                 _ = CliTelemetry.TrackCommandAsync(
                     new ServiceRequest { Command = "session.list" },
                     () => Task.FromResult(new ServiceResponse { Success = true }),
-                    (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
+                    (command, _, succeeded, _, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
                 return 0;
             },
-            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+            (command, _, succeeded, _, _) => trackedInvocations.Add((command, succeeded)));
 
         Assert.Equal(0, exitCode);
         Assert.Equal([("session.list", true)], trackedInvocations);
+    }
+
+    [Fact]
+    public void TrackCliInvocation_PreservesLocallyRejectedBatchItems()
+    {
+        var trackedInvocations = new List<(string Command, bool Succeeded, string? ErrorCategory)>();
+
+        var exitCode = CliTelemetry.TrackCliInvocation(
+            ["batch", "--input", "commands.json"],
+            () =>
+            {
+                CliTelemetry.TrackLocalFailure(
+                    "range.set-values",
+                    5,
+                    "InvalidInput",
+                    (command, _, succeeded, errorCategory, _) =>
+                        trackedInvocations.Add((command, succeeded, errorCategory)));
+                _ = CliTelemetry.TrackCommandAsync(
+                    new ServiceRequest { Command = "session.list" },
+                    () => Task.FromResult(new ServiceResponse { Success = true }),
+                    (command, _, succeeded, errorCategory, _) =>
+                        trackedInvocations.Add((command, succeeded, errorCategory))).GetAwaiter().GetResult();
+                return 1;
+            },
+            (command, _, succeeded, errorCategory, _) =>
+                trackedInvocations.Add((command, succeeded, errorCategory)));
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(
+            [
+                ("range.set-values", false, "InvalidInput"),
+                ("session.list", true, null)
+            ],
+            trackedInvocations);
     }
 
     [Fact]
@@ -249,7 +324,7 @@ public sealed class CliTelemetryTests
         var exitCode = CliTelemetry.TrackCliInvocation(
             ["batch", "--input", "empty.json"],
             () => 1,
-            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+            (command, _, succeeded, _, _) => trackedInvocations.Add((command, succeeded)));
 
         Assert.Equal(1, exitCode);
         Assert.Equal([("batch.run", false)], trackedInvocations);
@@ -267,10 +342,10 @@ public sealed class CliTelemetryTests
                 _ = CliTelemetry.TrackCommandAsync(
                     new ServiceRequest { Command = "service.ping" },
                     () => Task.FromResult(new ServiceResponse { Success = false, ErrorCategory = "ServiceUnavailable" }),
-                    (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
+                    (command, _, succeeded, _, _) => trackedInvocations.Add((command, succeeded))).GetAwaiter().GetResult();
                 return 0;
             },
-            (command, _, succeeded, _) => trackedInvocations.Add((command, succeeded)));
+            (command, _, succeeded, _, _) => trackedInvocations.Add((command, succeeded)));
 
         Assert.Equal(0, exitCode);
         Assert.Equal([("service.status", true)], trackedInvocations);
@@ -284,7 +359,7 @@ public sealed class CliTelemetryTests
         CliTelemetry.TrackCliInvocation(
             ["sheet", "--help"],
             () => 0,
-            (_, _, _, _) => tracked = true);
+            (_, _, _, _, _) => tracked = true);
 
         Assert.False(tracked);
     }
