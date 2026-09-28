@@ -469,9 +469,13 @@ public sealed class ExcelMcpService : IDisposable
         var command = $"{category}.{action}";
         var officeCandidateEnabled = MacOfficeActionCatalog.TryGet(command, out _)
             && MacOfficeBridgeConfiguration.IsActionEnabled(command);
+        var rangeCandidateAcceptanceEnabled = MacRangeAcceptanceCatalog.IsAcceptanceEnabled(
+            command,
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_RANGE_EXPANSION_E2E"));
         var capability = MacCommandCapabilities.Get(
             command,
-            officeCandidateEnabled);
+            officeCandidateEnabled: officeCandidateEnabled,
+            rangeCandidateAcceptanceEnabled: rangeCandidateAcceptanceEnabled);
         var scenarioAcceptance = CanUseScenarioForAcceptance(
             command,
             Environment.GetEnvironmentVariable("EXCELMCP_MAC_SCENARIO_E2E"),

@@ -106,6 +106,153 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("range.copy")]
+    [InlineData("range.copy-values")]
+    [InlineData("range.copy-formulas")]
+    [InlineData("range.get-used-range")]
+    [InlineData("range.get-info")]
+    [InlineData("range.set-number-formats")]
+    [InlineData("rangeformat.auto-fit-columns")]
+    [InlineData("rangeformat.auto-fit-rows")]
+    [InlineData("rangeformat.merge-cells")]
+    [InlineData("rangeformat.unmerge-cells")]
+    [InlineData("rangeformat.get-merge-info")]
+    [InlineData("rangelink.set-cell-lock")]
+    [InlineData("rangelink.get-cell-lock")]
+    public void RangeAcceptanceOverride_EnablesOnlyExplicitCandidates(string command)
+    {
+        var capability = MacCommandCapabilities.Get(
+            command,
+            rangeCandidateAcceptanceEnabled: true);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
+    }
+
+    [Theory]
+    [InlineData("range.get-current-region")]
+    [InlineData("pythoninexcel.set-formula")]
+    [InlineData("analysis.list-scenarios")]
+    public void RangeAcceptanceOverride_DoesNotBypassOtherGates(string command)
+    {
+        var capability = MacCommandCapabilities.Get(
+            command,
+            rangeCandidateAcceptanceEnabled: true);
+
+        Assert.False(capability.IsAvailable);
+    }
+
+    [Theory]
+    [InlineData("range.copy", "1", true)]
+    [InlineData("range.copy", null, false)]
+    [InlineData("range.copy", "true", false)]
+    [InlineData("range.get-current-region", "1", false)]
+    [InlineData("pythoninexcel.set-formula", "1", false)]
+    public void RangeAcceptanceCatalog_RequiresExactOptInAndExplicitMembership(
+        string command,
+        string? environmentValue,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            MacRangeAcceptanceCatalog.IsAcceptanceEnabled(command, environmentValue));
+    }
+
+    [Theory]
+    [InlineData("analysis.goal-seek")]
+    [InlineData("analysis.create-data-table")]
+    public void ProvenWhatIfAnalysisCommands_AreNative(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Contains("CLI and MCP", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("16.113.1", capability.ExcelApiVersion, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("analysis.list-scenarios")]
+    [InlineData("analysis.update-scenario")]
+    [InlineData("analysis.delete-scenario")]
+    [InlineData("analysis.create-scenario-summary")]
+    public void UnverifiedNativeScenarioActions_RemainGated(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("dictionary", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void UnverifiedScenarioMutations_RecordMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("scenarioCreateShow", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains("helper", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("drawing.add-sparkline")]
+    [InlineData("drawing.add-shape")]
+    [InlineData("slicer.list-slicers")]
+    [InlineData("slicer.set-table-slicer-selection")]
+    public void SpecializedOfficeJsCommands_ReportAddInTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+    }
+
+    [Fact]
+    public void Screenshot_ReportsOptionalNativeHelperTier()
+    {
+        var capability = MacCommandCapabilities.Get("screenshot.capture");
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OptionalNativeHelper, capability.RequiredTier);
+        Assert.Contains("Screen Recording", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("connection.list")]
+    [InlineData("querytable.list")]
+    [InlineData("pythoninexcel.set-formula")]
+    public void UnprovenAppleEventCandidates_ReportNativeTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("table.create")]
     [InlineData("chart.create-from-range")]
     [InlineData("pivottable.create-from-range")]

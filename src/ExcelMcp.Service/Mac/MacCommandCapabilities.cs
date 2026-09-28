@@ -39,7 +39,9 @@ internal static class MacCommandCapabilities
 
     public static MacCommandCapability Get(
         string command,
-        MacVbaPreflightResult? vbaPreflight = null)
+        MacVbaPreflightResult? vbaPreflight = null,
+        bool officeCandidateEnabled = false,
+        bool rangeCandidateAcceptanceEnabled = false)
     {
         "sheet.list",
         "sheet.create",
@@ -93,6 +95,40 @@ internal static class MacCommandCapabilities
     {
         if (NativeCommands.Contains(command))
         {
+            if (rangeCandidateAcceptanceEnabled
+                && MacRangeAcceptanceCatalog.Contains(command)
+                && !capability.IsAvailable
+                && capability.RequiredTier == MacCapabilityTier.Native)
+            {
+                return capability with
+                {
+                    IsAvailable = true,
+                    UnavailableMessage = string.Empty
+                };
+            }
+            if (officeCandidateEnabled && MacOfficeActionCatalog.TryGet(command, out _))
+            {
+                return capability with
+                {
+                    IsAvailable = true,
+                    RequiredTier = MacCapabilityTier.OfficeAddIn,
+                    UnavailableMessage = string.Empty
+                };
+            }
+            if (!capability.IsAvailable && command.StartsWith("vba.", StringComparison.Ordinal))
+            {
+                vbaPreflight ??= MacVbaPreflight.Check();
+                var readiness = command == "vba.run"
+                    ? MacVbaPreflight.DescribeMacroExecution(vbaPreflight.MacroExecution)
+                    : MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess);
+                var evidence = command == "vba.run"
+                    ? "A repository-owned fixture has not yet proven unattended workbook-qualified execution through CLI and MCP."
+                    : "Apple Events scripting exposes no project-model route; the optional helper requires separate execution evidence.";
+                return capability with
+                {
+                    UnavailableMessage = $"{capability.UnavailableMessage} Preflight reports that {readiness}. {evidence}"
+                };
+            }
             return capability;
         }
 
