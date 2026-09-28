@@ -18,7 +18,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Speed", "Slow")]
 public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFixture<TempDirectoryFixture>
 {
-    private const int ReopenIterations = 1;
+    private const int ReopenIterations = 3;
     private const int ConcurrentCreateCount = 4;
 
     private readonly ITestOutputHelper _output;

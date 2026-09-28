@@ -6,6 +6,17 @@ For the complete release history, see [CHANGELOG.md](../CHANGELOG.md).
 AI assistants should discover the current contract through MCP `tools/list` or
 `excelcli --help` rather than relying on hardcoded parameter lists.
 
+## Unreleased - Compact Power Query List Model
+
+The obsolete public `PowerQueryInfo.Formula` property has been removed. Code
+that read full M formulas from that property must use the Power Query `view`
+action instead.
+
+- `powerquery list` returns bounded `FormulaPreview` values and exact load
+  metadata; it does not return complete M code.
+- Use `powerquery view --query-name <name>` to retrieve one query's complete M
+  code.
+
 ## 2.0.0 - Canonical File Lifecycle
 
 Released on August 21, 2026 in
@@ -33,8 +44,9 @@ load state instead of serializing full formulas.
 - Use `powerquery view` to read one query's complete M code.
 - Inspection errors now fail the operation instead of silently omitting a
   query.
-- `PowerQueryInfo.Formula` remains available for source and binary
-  compatibility, but it is obsolete and excluded from list JSON.
+- At the time of the 2.0.0 release, `PowerQueryInfo.Formula` remained available
+  for source and binary compatibility, but was obsolete and excluded from list
+  JSON. It is removed by the current unreleased change documented above.
 
 ### Public Inputs
 
