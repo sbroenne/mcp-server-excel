@@ -10,8 +10,9 @@ preferences. Macro execution and source CRUD remain gated until repository-owned
 fixtures and a safe project-model route satisfy their independent evidence
 requirements. The distribution now also includes reviewable source and a
 strict, versioned transport foundation for an optional user-installed Mac Excel
-helper add-in. Helper version 1.1.0 includes fixed, transactional candidates for
+helper add-in. Helper version 1.2.0 includes fixed, transactional candidates for
 Power Query authoring, synchronous refresh, worksheet load transitions, and
-temporary-query evaluation. Installing the helper does not enable unproven
-actions; every new method remains individually gated by prompt-free CLI and MCP
-evidence.
+temporary-query evaluation, plus a bounded read-only observation of late-bound
+XML Maps and workbook-model APIs. Installing the helper does not enable
+unproven actions; every new method remains individually gated by prompt-free
+CLI and MCP evidence.

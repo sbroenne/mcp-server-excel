@@ -45,7 +45,7 @@ do accept M source for query authoring and temporary evaluation. Installation
 alone does not enable a command: production actions stay gated until their
 individual methods have real-Excel evidence.
 
-Helper version `1.1.0` adds fixed Power Query create/update/refresh/refresh-all,
+Helper version `1.2.0` adds fixed Power Query create/update/refresh/refresh-all,
 load-to/unload, and temporary-query evaluation candidates. They support only
 connection-only or one exact worksheet-table destination; Data Model and
 multi-destination variants fail explicitly. The source implements rollback and
@@ -58,6 +58,14 @@ actions such as `powerquery.create,powerquery.delete`. This opt-in enables only
 listed actions that the matching helper version also advertises; unknown names
 are rejected, and it never enables another Power Query method implicitly.
 Remove the variable after the acceptance run.
+
+The same version adds a read-only `helper.inspect-engines` probe for the
+late-bound `Workbook.XmlMaps` and `Workbook.Model` object paths. It reports only
+the observation made against the exact target workbook: `accessible`,
+`unavailable`, `error`, or `unknown`, plus a fixed reason code and optional
+object count. A zero-table workbook model is `unknown`, not evidence that the
+engine is unavailable. An accessible XML Maps collection proves only object
+model access, not XML import, export, schema, or XPath behavior.
 
 The first installed-helper validation must also exercise the VBA parser itself,
 not only the host DTOs: a protocol version such as `1.4`, malformed JSON,

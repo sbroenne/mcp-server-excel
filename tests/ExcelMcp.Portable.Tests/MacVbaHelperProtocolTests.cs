@@ -72,6 +72,20 @@ public sealed class MacVbaHelperProtocolTests
     }
 
     [Fact]
+    public void Request_AllowsBoundedReadOnlyEngineInspection()
+    {
+        var request = MacVbaHelperProtocol.CreateRequest(
+            "0123456789abcdef0123456789abcdef",
+            "/tmp/exact workbook.xlsx",
+            "helper.inspect-engines",
+            new { });
+
+        Assert.Equal(
+            "helper.inspect-engines",
+            MacVbaHelperProtocol.ParseRequest(request).Action);
+    }
+
+    [Fact]
     public void Request_PreservesExplicitNullArguments()
     {
         var request = MacVbaHelperProtocol.CreateRequest(
@@ -125,12 +139,12 @@ public sealed class MacVbaHelperProtocolTests
         const string requestId = "0123456789abcdef0123456789abcdef";
         var result = MacVbaHelperProtocol.ParseResponse(
             """
-            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.1.0"},"error":null}
+            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.2.0"},"error":null}
             """,
             requestId);
 
         Assert.True(result.Success);
-        Assert.Equal("1.1.0", result.Result!.Value.GetProperty("helperVersion").GetString());
+        Assert.Equal("1.2.0", result.Result!.Value.GetProperty("helperVersion").GetString());
 
         Assert.Throws<InvalidOperationException>(() => MacVbaHelperProtocol.ParseResponse(
             """
@@ -170,7 +184,7 @@ public sealed class MacVbaHelperProtocolTests
         using var reader = new StreamReader(stream!);
         var source = reader.ReadToEnd();
 
-        Assert.Contains("Private Const HELPER_VERSION As String = \"1.1.0\"", source);
+        Assert.Contains("Private Const HELPER_VERSION As String = \"1.2.0\"", source);
         Assert.Contains("Public Function ExcelMcpDispatch(ByVal requestJson As String) As String", source);
         Assert.Contains("candidate.FullName", source);
         Assert.Contains("VBProject.VBComponents", source);
@@ -204,6 +218,15 @@ public sealed class MacVbaHelperProtocolTests
         Assert.Contains("ConnectionMatchesQuery", source);
         Assert.Contains("ignoredResult = PowerQueryRefresh(target, CStr(query.Name))", source);
         Assert.Contains("mSafeErrorDetail = failureDetails", source);
+        Assert.Contains("Private Function InspectOptionalEngines", source);
+        Assert.Contains("\"unknown\", True, tableCount, \"no_model_objects_observed\"", source);
+        Assert.Contains("\"accessible\", True, mapCount, \"api_access_only\"", source);
+        Assert.Contains("CallByName(target, \"XmlMaps\", VbGet)", source);
+        Assert.Contains("CallByName(target, \"Model\", VbGet)", source);
+        Assert.Contains(",\"\"apiAccessible\"\":\" & JsonBoolean(apiAccessible)", source);
+        Assert.Contains(",\"\"objectCount\"\":\" & countJson", source);
+        Assert.Contains(",\"\"reasonCode\"\":\" & JsonQuote(reasonCode)", source);
+        Assert.DoesNotContain("CustomXmlPart", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("If cleanupNumber <> 0 Then", source);
         Assert.Contains("If rollbackNumber <> 0 Then", source);
         Assert.Contains(@"""rollback_failed""", source);
