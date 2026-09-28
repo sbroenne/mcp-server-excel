@@ -48,6 +48,10 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Mac\MacExcelBridge.js" />
+    <EmbeddedResource Include="Mac\ExcelMcpHelper.bas" />
+    <Content Include="Mac\ExcelMcpHelper.bas"
+             CopyToOutputDirectory="PreserveNewest"
+             TargetPath="helpers\ExcelMcpHelper.bas" />
   </ItemGroup>
 
 </Project>

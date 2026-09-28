@@ -87,6 +87,13 @@ The first implementation increment now exists behind runtime platform selection:
   configured, and indeterminate state. Source operations separately report
   whether user-managed VBA project-model trust is enabled. ExcelMcp never
   writes either preference.
+- The distribution includes the original, reviewable
+  `helpers/ExcelMcpHelper.bas` source for an optional user-installed add-in.
+  The v1 host transport invokes only
+  `ExcelMcpHelper.xlam!ExcelMcpDispatch`, passes one JSON argument, requires the
+  exact configured open add-in `FullName`, validates helper and protocol
+  versions, and correlates a bounded structured response. This is transport
+  evidence, not proof of any Excel method.
 - Existing-file open uses a non-prompting native Automation preflight, rejects
   an already-open target, hands the exact path to LaunchServices, then attaches
   through JXA under a shared deadline.
@@ -117,6 +124,25 @@ object model. The approved design now permits gradual, optional helpers:
 Office.js for broad workbook features, a macro helper for execution, and a VBA
 project-model tier only after explicit user trust. Base macOS support must not
 require macros or VBA project trust.
+
+The initial helper protocol is version 1 with a 262,144-byte UTF-8 request and
+response limit. Its envelope is exactly
+`{version,requestId,workbookPath,action,arguments}` and its response is exactly
+`{version,requestId,success,result,error}`. Request IDs are 32 lowercase
+hexadecimal characters. Unknown, duplicate, missing, malformed, over-depth, or
+oversized data fails before dispatch. The helper resolves targets only by exact
+`Workbook.FullName`; it has no caller-selected macro entry point, expression
+evaluation, or general code-execution action.
+
+The source contains fixed implementations for Power Query `Workbook.Queries`
+and exact worksheet `ListObject.QueryTable` access; VBA
+`VBComponents`/`CodeModule` list, view, standard-module import, update, and
+delete; and the narrowly requested scenario create/show gaps. Capability output
+keeps static API availability, current trust readiness, and per-method proven
+evidence separate. All proven-method flags begin false. Signed or locked VBA
+projects are not mutated, update/delete accept only standard modules, and no
+operation saves the target workbook implicitly. Public routing remains gated
+until each method has prompt-free real Excel CLI and MCP evidence.
 
 `vba.run` also remains gated. The installed dictionary's `run VB Macro` command
 is a candidate workbook-qualified execution route, but no independently
@@ -965,7 +991,7 @@ tests for parsing/dispatch. This macOS release does not change that policy.
 | Native Apple Events / AppleScript | Demonstrated desktop workbook transport; evaluate together with deeper object-model access, rather than letting dictionary coverage define the product scope |
 | Transactional saved-package editing plus Apple Events | Demonstrated for an existing Power Query M update and worksheet refresh; preferred helper-free direction for clean workbooks. Full metadata mutation, rollback and VBA recompilation remain to implement |
 | Optional macro helper invoked from AppleScript | Selected opt-in route for known macro execution and live Power Query APIs; requires explicit installation, execution permission and unattended preflight |
-| Optional VBA project-model helper | Approved only as a separate, explicit-trust tier for source CRUD; must never change the trust setting itself |
+| Optional VBA project-model helper | Versioned fixed-dispatch source and host transport implemented; source CRUD remains gated behind explicit user trust and real method evidence; must never change trust itself |
 | Office.js add-in + local bridge | Approved as a gradual optional tier for tables, charts, PivotTables, conditional formatting, and related workbook surfaces; requires deployment, lifetime, and per-version API checks |
 | Windows Excel behind a remote service | Could preserve more existing behavior, but not native macOS support; introduces remote data handling/security and is outside this release |
 | File-only library without Excel execution | Does not meet the repository's real-Excel calculation/refresh requirement |

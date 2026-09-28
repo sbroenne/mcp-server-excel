@@ -83,7 +83,14 @@ a repository-owned fixture proves unattended CLI and MCP behavior. VBA source
 operations remain unavailable until the optional, explicitly installed helper
 has a verified project-model route under separate user-managed trust.
 Apple Events lacks that route, but this does not establish a VBA engine limit.
-ExcelMcp does not inject helper code into user workbooks.
+The Mac distribution may include reviewable source for an
+optional, version-matched `ExcelMcpHelper.xlam` dispatcher that the user imports
+into a new add-in with Excel. ExcelMcp does not install it, inject code into
+user workbooks, change trust, or dynamically select VBA to execute. The helper
+accepts only a fixed action allowlist, exact configured add-in and target
+workbook identities, correlated bounded JSON, and sanitized errors. Installing
+it is not proof that any method is safe; public actions remain independently
+gated until real CLI and MCP evidence exists.
 
 **Security Implications:**
 

@@ -90,9 +90,9 @@ try {
     ) 600 $environment
     Write-Host $test.stdout
     if (-not [string]::IsNullOrWhiteSpace($test.stderr)) { Write-Host $test.stderr }
-    $expectedPassed = if ($IncludePowerQueryFixtures) { 4 } else { 2 }
+    $expectedPassed = if ($IncludePowerQueryFixtures) { 6 } else { 4 }
     $expectedSkipped = if ($IncludePowerQueryFixtures) { 0 } else { 1 }
-    $expectedTotal = if ($IncludePowerQueryFixtures) { 4 } else { 3 }
+    $expectedTotal = if ($IncludePowerQueryFixtures) { 6 } else { 5 }
     $summaryPattern = "Passed!.*Failed:\s*0\b.*Passed:\s*$expectedPassed\b.*Skipped:\s*$expectedSkipped\b.*Total:\s*$expectedTotal\b"
     if ($test.exitCode -ne 0 -or $test.stdout -notmatch $summaryPattern) {
         throw "Expected $expectedPassed passed and $expectedSkipped skipped macOS workflows; missing or failed cases are not success."
