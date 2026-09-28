@@ -110,12 +110,12 @@ public sealed class MacVbaHelperProtocolTests
         const string requestId = "0123456789abcdef0123456789abcdef";
         var result = MacVbaHelperProtocol.ParseResponse(
             """
-            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.0.0"},"error":null}
+            {"version":1,"requestId":"0123456789abcdef0123456789abcdef","success":true,"result":{"helperVersion":"1.0.1"},"error":null}
             """,
             requestId);
 
         Assert.True(result.Success);
-        Assert.Equal("1.0.0", result.Result!.Value.GetProperty("helperVersion").GetString());
+        Assert.Equal("1.0.1", result.Result!.Value.GetProperty("helperVersion").GetString());
 
         Assert.Throws<InvalidOperationException>(() => MacVbaHelperProtocol.ParseResponse(
             """
@@ -164,11 +164,44 @@ public sealed class MacVbaHelperProtocolTests
         Assert.Contains("scenarios.Add", source);
         Assert.Contains("scenario.Show", source);
         Assert.Contains("scenarioCreateShow", source);
+        Assert.Contains("powerQueryCreate", source);
+        Assert.Contains("powerQueryEvaluate", source);
+        Assert.DoesNotContain("powerQueryMutation", source, StringComparison.Ordinal);
         Assert.Contains("engineCapabilities", source);
         Assert.Contains("helper_target_forbidden", source);
+        Assert.Contains("If cleanupNumber <> 0 Then", source);
+        Assert.Contains("If rollbackNumber <> 0 Then", source);
+        Assert.Contains(@"""rollback_failed""", source);
+        Assert.Contains("IsJsonUnsignedLong", source);
+        Assert.DoesNotContain("IsNumeric(raw)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Application.Evaluate", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ExecuteGlobal", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("VBComponents.Import", source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EmbeddedHelper_RespectsVbaStatementContinuationLimit()
+    {
+        using var stream = typeof(MacVbaHelperProtocol).Assembly.GetManifestResourceStream(
+            "Sbroenne.ExcelMcp.Service.Mac.ExcelMcpHelper.bas");
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream!);
+        var lines = reader.ReadToEnd().ReplaceLineEndings("\n").Split('\n');
+        var continuations = 0;
+        foreach (var line in lines)
+        {
+            if (line.TrimEnd().EndsWith(" _", StringComparison.Ordinal))
+            {
+                continuations++;
+                Assert.True(
+                    continuations <= 24,
+                    $"VBA statement ending near '{line.Trim()}' exceeds 24 continuations.");
+            }
+            else
+            {
+                continuations = 0;
+            }
+        }
     }
 
     [Fact]

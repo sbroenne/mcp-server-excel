@@ -50,6 +50,12 @@ listed actions that the matching helper version also advertises; unknown names
 are rejected, and it never enables another Power Query method implicitly.
 Remove the variable after the acceptance run.
 
+The first installed-helper validation must also exercise the VBA parser itself,
+not only the host DTOs: a protocol version such as `1.4`, malformed JSON,
+unknown/duplicate properties, and mismatched correlation must be rejected
+before any mutation, followed by one read-only capability request through both
+CLI and MCP.
+
 Macro execution and VBA project access are separate settings. Do not enable all
 macros globally to install the helper. Enable only the trust your reviewed
 workflow requires. To remove the helper, disable it in Excel's add-in manager,
