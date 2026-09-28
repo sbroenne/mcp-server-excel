@@ -40,6 +40,67 @@ public sealed class SessionManagerTeardownFailureTests
     }
 
     [Fact]
+    public void Dispose_AutoSaveFailure_IsReportedAfterTeardownCompletes()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(saveFails: true, disposeFails: false);
+        RegisterSession(manager, "save-failure", Path.GetFullPath("save-failure.xlsx"), batch);
+
+        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
+
+        Assert.Equal(1, batch.SaveCallCount);
+        Assert.Equal(1, batch.DisposeCallCount);
+        var inner = Assert.Single(failure.InnerExceptions);
+        Assert.Contains("save-failure", inner.Message, StringComparison.Ordinal);
+        Assert.Contains("synthetic save failure", inner.Message, StringComparison.Ordinal);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void Dispose_AutoSaveAndTeardownFailures_AreBothReported()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(saveFails: true, disposeFails: true);
+        RegisterSession(manager, "combined-failure", Path.GetFullPath("combined-failure.xlsx"), batch);
+
+        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
+
+        Assert.Equal(1, batch.SaveCallCount);
+        Assert.Equal(1, batch.DisposeCallCount);
+        Assert.Equal(2, failure.InnerExceptions.Count);
+        Assert.Contains(
+            failure.InnerExceptions,
+            exception => exception.Message.Contains("synthetic save failure", StringComparison.Ordinal));
+        Assert.Contains(
+            failure.InnerExceptions,
+            exception => exception.Message.Contains("synthetic teardown failure", StringComparison.Ordinal));
+        Assert.All(
+            failure.InnerExceptions,
+            exception => Assert.Contains("combined-failure", exception.Message, StringComparison.Ordinal));
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void Dispose_AutoSaveFailure_DoesNotSkipOtherSessions()
+    {
+        using var manager = new SessionManager();
+        var failingBatch = new ConfigurableFailingBatch(saveFails: true, disposeFails: false);
+        var healthyBatch = new ConfigurableFailingBatch(saveFails: false, disposeFails: false);
+        RegisterSession(manager, "failing-save", Path.GetFullPath("failing-save.xlsx"), failingBatch);
+        RegisterSession(manager, "healthy-save", Path.GetFullPath("healthy-save.xlsx"), healthyBatch);
+
+        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
+
+        Assert.Equal(1, failingBatch.SaveCallCount);
+        Assert.Equal(1, failingBatch.DisposeCallCount);
+        Assert.Equal(1, healthyBatch.SaveCallCount);
+        Assert.Equal(1, healthyBatch.DisposeCallCount);
+        var inner = Assert.Single(failure.InnerExceptions);
+        Assert.Same(failingBatch.SaveException, inner.InnerException);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
     public void CloseSession_OneShotDisposeFailure_RemainsQuarantinedUntilCleanupConfirmed()
     {
         using var manager = new SessionManager();
@@ -143,7 +204,69 @@ public sealed class SessionManagerTeardownFailureTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public void Save(CancellationToken cancellationToken = default) =>
+        public void Save(CancellationToken cancellationToken = default)
+        {
+        }
+    }
+
+    private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails) : IExcelBatch
+    {
+        internal InvalidOperationException SaveException { get; } =
+            new("synthetic save failure");
+
+        public int SaveCallCount { get; private set; }
+
+        public int DisposeCallCount { get; private set; }
+
+        public string WorkbookPath => Path.GetFullPath("configurable-failure.xlsx");
+
+        public Microsoft.Extensions.Logging.ILogger Logger => NullLogger.Instance;
+
+        public IReadOnlyDictionary<string, Excel.Workbook> Workbooks =>
+            new Dictionary<string, Excel.Workbook>();
+
+        public bool HasTimedOutOperation => false;
+
+        public int? ExcelProcessId => Environment.ProcessId;
+
+        public TimeSpan OperationTimeout => TimeSpan.FromSeconds(1);
+
+        public bool IsExcelVisible => false;
+
+        public void Dispose()
+        {
+            DisposeCallCount++;
+            if (disposeFails)
+            {
+                throw new InvalidOperationException("synthetic teardown failure");
+            }
+        }
+
+        public bool IsExcelProcessAlive() => true;
+
+        public void Save(CancellationToken cancellationToken = default)
+        {
+            SaveCallCount++;
+            if (saveFails)
+            {
+                throw SaveException;
+            }
+        }
+
+        public void UpdateWorkbookPath(string workbookPath) =>
+            throw new NotSupportedException();
+
+        public Excel.Workbook GetWorkbook(string filePath) =>
+            throw new NotSupportedException();
+
+        public void Execute(
+            Action<ExcelContext, CancellationToken> operation,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public T Execute<T>(
+            Func<ExcelContext, CancellationToken, T> operation,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 }

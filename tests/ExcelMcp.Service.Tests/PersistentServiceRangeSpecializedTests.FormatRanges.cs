@@ -59,6 +59,26 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     }
 
     [Fact]
+    public void FormatRanges_NumberFormatWithLocalizedDateLettersInLiteral_UsesRegionalDecimalSeparator()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        _commands.SetValues(batch, sheetName, "A1", [[12.5]]);
+
+        var result = FormatRanges(
+            batch,
+            sheetName,
+            ["A1"],
+            numberFormat: "0.00 \"Total\"");
+
+        Assert.True(result.Success, $"FormatRanges failed: {result.ErrorMessage}");
+        Assert.Equal("0.00 \"Total\"", ReadCellNumberFormat(sheetName, "A1"));
+        Assert.Equal(
+            $"12{ReadDecimalSeparator()}50 Total",
+            ReadCellText(sheetName, "A1"));
+    }
+
+    [Fact]
     public void FormatRanges_InvalidTargetAddress_ErrorMessageIncludesIndex()
     {
         var batch = _fixture.BatchToken;
@@ -259,6 +279,32 @@ public sealed partial class PersistentServiceRangeSpecializedTests
                 ComUtilities.Release(ref sheet!);
             }
         });
+
+    private string ReadCellText(string sheetName, string cellAddress) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            dynamic? sheet = null;
+            dynamic? range = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = sheets[sheetName];
+                range = sheet.Range[cellAddress];
+                return Convert.ToString(range.Text, System.Globalization.CultureInfo.InvariantCulture)
+                    ?? string.Empty;
+            }
+            finally
+            {
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+    private string ReadDecimalSeparator() =>
+        _fixture.ExecuteRawVerification((context, _) =>
+            context.FormatTranslator.DecimalSeparator);
 
     private Issue585FormattingState ReadIssue585FormattingState(
         string sheetName,

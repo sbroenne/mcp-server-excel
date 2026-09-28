@@ -285,6 +285,43 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
     }
 
     [Fact]
+    public async Task Dispose_WhenBackendCleanupFails_ClearsGenerationBeforePropagating()
+    {
+        var firstBackend = new ThrowingDisposeBackend();
+        var currentBackend = new BlockingBackend(completeImmediately: true);
+        var factoryCalls = 0;
+        var lifetime = new ServiceBridgeLifetime(() =>
+            Interlocked.Increment(ref factoryCalls) == 1
+                ? firstBackend
+                : currentBackend);
+        try
+        {
+            Assert.True((await lifetime.SendAsync(
+                "sheet.list",
+                sessionId: null,
+                args: null,
+                timeoutSeconds: null,
+                CancellationToken.None)).Success);
+
+            var failure = Assert.Throws<InvalidOperationException>(() => lifetime.Dispose());
+
+            Assert.Equal("synthetic backend cleanup failure", failure.Message);
+            Assert.True(firstBackend.DisposeAttempted);
+            Assert.True((await lifetime.SendAsync(
+                "sheet.list",
+                sessionId: null,
+                args: null,
+                timeoutSeconds: null,
+                CancellationToken.None)).Success);
+            Assert.Equal(2, factoryCalls);
+        }
+        finally
+        {
+            lifetime.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task SetServiceFactory_DuringInitializationPublishesOnlyNewFactoryBackend()
     {
         using var factoryEntered = new ManualResetEventSlim();
@@ -361,6 +398,22 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
                 Success = false,
                 ErrorMessage = "disposed"
             });
+        }
+    }
+
+    private sealed class ThrowingDisposeBackend : IServiceBridgeBackend
+    {
+        internal bool DisposeAttempted { get; private set; }
+
+        public Task<ServiceResponse> ProcessAsync(ServiceRequest request) =>
+            Task.FromResult(new ServiceResponse { Success = true });
+
+        public bool ForceCloseSession(string sessionId) => false;
+
+        public void Dispose()
+        {
+            DisposeAttempted = true;
+            throw new InvalidOperationException("synthetic backend cleanup failure");
         }
     }
 

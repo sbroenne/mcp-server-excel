@@ -112,11 +112,17 @@ public sealed class NumberFormatTranslator
         IsEnglishNumberLocale = DecimalSeparator == "." && ThousandsSeparator == ",";
     }
 
-    internal NumberFormatTranslator(string decimalSeparator, string thousandsSeparator, string generalFormatName = "General")
+    internal NumberFormatTranslator(
+        string decimalSeparator,
+        string thousandsSeparator,
+        string generalFormatName = "General",
+        string dayCode = "d",
+        string monthCode = "m",
+        string yearCode = "y")
     {
-        DayCode = "d";
-        MonthCode = MinuteCode = "m";
-        YearCode = "y";
+        DayCode = dayCode;
+        MonthCode = MinuteCode = monthCode;
+        YearCode = yearCode;
         HourCode = "h";
         SecondCode = "s";
         DateSeparator = "/";
@@ -124,7 +130,10 @@ public sealed class NumberFormatTranslator
         DecimalSeparator = decimalSeparator;
         ThousandsSeparator = thousandsSeparator;
         GeneralFormatName = generalFormatName;
-        IsEnglishDateLocale = true;
+        IsEnglishDateLocale =
+            dayCode.Equals("d", StringComparison.OrdinalIgnoreCase) &&
+            monthCode.Equals("m", StringComparison.OrdinalIgnoreCase) &&
+            yearCode.Equals("y", StringComparison.OrdinalIgnoreCase);
         IsEnglishNumberLocale = decimalSeparator == "." && thousandsSeparator == ",";
     }
 
@@ -184,19 +193,58 @@ public sealed class NumberFormatTranslator
     /// </summary>
     private bool ContainsLocaleSpecificCodes(string format)
     {
-        // Check for German-style codes (case-insensitive)
-        // T = Tag (day), J = Jahr (year) are unique to German
-        // We check for these to avoid double-translation
-        if (!DayCode.Equals("d", StringComparison.OrdinalIgnoreCase) &&
-            format.Contains(DayCode, StringComparison.OrdinalIgnoreCase))
-            return true;
+        for (var index = 0; index < format.Length; index++)
+        {
+            if (IsTwoCharacterLiteralPrefix(format[index]) && index + 1 < format.Length)
+            {
+                index++;
+                continue;
+            }
 
-        if (!YearCode.Equals("y", StringComparison.OrdinalIgnoreCase) &&
-            format.Contains(YearCode, StringComparison.OrdinalIgnoreCase))
-            return true;
+            if (format[index] == '"')
+            {
+                var quoteEnd = format.IndexOf('"', index + 1);
+                if (quoteEnd < 0)
+                {
+                    return false;
+                }
+
+                index = quoteEnd;
+                continue;
+            }
+
+            if (format[index] == '[')
+            {
+                var bracketEnd = format.IndexOf(']', index + 1);
+                if (bracketEnd < 0)
+                {
+                    return false;
+                }
+
+                index = bracketEnd;
+                continue;
+            }
+
+            if (IsLocalizedDateTokenAt(format, index, DayCode, "d") ||
+                IsLocalizedDateTokenAt(format, index, YearCode, "y"))
+            {
+                return true;
+            }
+        }
 
         return false;
     }
+
+    private static bool IsLocalizedDateTokenAt(
+        string format,
+        int index,
+        string localeCode,
+        string invariantCode) =>
+        !localeCode.Equals(invariantCode, StringComparison.OrdinalIgnoreCase) &&
+        format.AsSpan(index).StartsWith(localeCode, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTwoCharacterLiteralPrefix(char value) =>
+        value is '\\' or '_' or '*';
 
     /// <summary>
     /// Translates format string character by character, handling context (date vs time vs number).
@@ -254,8 +302,8 @@ public sealed class NumberFormatTranslator
                 }
             }
 
-            // Skip escaped characters (backslash)
-            if (c == '\\' && i + 1 < format.Length)
+            // Backslash escapes, spacing, and fill tokens consume the following character.
+            if (IsTwoCharacterLiteralPrefix(c) && i + 1 < format.Length)
             {
                 result.Append(format.AsSpan(i, 2));
                 i += 2;

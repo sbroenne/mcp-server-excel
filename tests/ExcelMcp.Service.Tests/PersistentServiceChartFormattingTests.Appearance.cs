@@ -385,6 +385,29 @@ public sealed partial class PersistentServiceChartFormattingTests
         Assert.Equal(format, _chartCommands.GetAxisNumberFormat(batch, chart.ChartName, ChartAxisType.Value));
     }
 
+    [Fact]
+    public void SetAxisNumberFormat_LocalizedDateLettersInLiteral_RoundTripsInvariantCode()
+    {
+        var batch = _fixture.BatchToken;
+        var chart = _chartCommands.CreateFromRange(
+            batch,
+            _sheetName,
+            "A1:B4",
+            ChartType.ColumnClustered,
+            50,
+            50);
+
+        _chartCommands.SetAxisNumberFormat(
+            batch,
+            chart.ChartName,
+            ChartAxisType.Value,
+            "0.00 \"Total\"");
+
+        Assert.Equal(
+            "0.00 \"Total\"",
+            _chartCommands.GetAxisNumberFormat(batch, chart.ChartName, ChartAxisType.Value));
+    }
+
     // === PLACEMENT TESTS ===
 
     [Fact]

@@ -1151,7 +1151,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>CRITICAL:</b> Sessions are disposed SEQUENTIALLY to avoid COM threading issues.</para>
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
-    /// <exception cref="AggregateException">One or more sessions could not confirm Excel teardown.</exception>
+    /// <exception cref="AggregateException">One or more sessions could not be saved or shut down.</exception>
     public void Dispose()
     {
         if (_disposed)
@@ -1184,6 +1184,9 @@ public sealed class SessionManager : IDisposable
                 }
                 catch (Exception ex)
                 {
+                    failures.Add(new InvalidOperationException(
+                        $"Failed to auto-save session '{sessionId}': {ex.Message}",
+                        ex));
                     _logger.LogWarning(ex, "Failed to auto-save session for {Path} before shutdown (changes may be lost)", session.WorkbookPath);
                 }
             }

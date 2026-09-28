@@ -44,4 +44,33 @@ public sealed class NumberFormatTranslatorTests
 
         Assert.Equal(expected, translator.TranslateFromLocale(format));
     }
+
+    [Theory]
+    [InlineData("0.00 \"Total\"", "0,00 \"Total\"")]
+    [InlineData("0.00 \\T", "0,00 \\T")]
+    [InlineData("0.00 _T", "0,00 _T")]
+    [InlineData("0.00 *J", "0,00 *J")]
+    [InlineData("0.00 [Rot]\"Jahr\"", "0,00 [Rot]\"Jahr\"")]
+    public void TranslateToLocale_LocalDateLettersInLiterals_DoNotSkipInvariantNumberTranslation(
+        string format,
+        string expected)
+    {
+        var translator = CreateGermanTranslator();
+
+        Assert.Equal(expected, translator.TranslateToLocale(format));
+        Assert.Equal(format, translator.TranslateFromLocale(expected));
+    }
+
+    [Theory]
+    [InlineData("TT.MM.JJJJ")]
+    [InlineData("[Red]TT.MM.JJJJ")]
+    public void TranslateToLocale_GenuineLocalizedDateTokens_AreUnchanged(string format)
+    {
+        var translator = CreateGermanTranslator();
+
+        Assert.Equal(format, translator.TranslateToLocale(format));
+    }
+
+    private static NumberFormatTranslator CreateGermanTranslator() =>
+        new(",", ".", "Standard", dayCode: "T", monthCode: "M", yearCode: "J");
 }

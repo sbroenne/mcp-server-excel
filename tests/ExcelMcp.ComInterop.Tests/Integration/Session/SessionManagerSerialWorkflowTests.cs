@@ -159,6 +159,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
                 "Expected < 1s. Session is poisoned but not failing fast.");
         }
 
+        Assert.True(manager.CloseSession(sessionId, save: false, force: true));
         _output.WriteLine("✓ GetSession after timeout test passed");
     }
 
