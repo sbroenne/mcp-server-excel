@@ -14,19 +14,29 @@ internal sealed class DaemonHost : IDisposable
     private readonly Func<ServiceRequest, Task<ServiceResponse>> _requestHandler;
     private readonly Func<int> _sessionCount;
     private readonly TimeProvider _timeProvider;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private readonly Func<string, NamedPipeServerStream> _serverFactory;
+    private readonly TaskCompletionSource _acceptLoopStopped =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private DateTimeOffset _lastActivityTime;
     private bool _disposed;
 
     internal DaemonHost(
         Func<ServiceRequest, Task<ServiceResponse>> requestHandler,
         Func<int> sessionCount,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        Func<TimeSpan, CancellationToken, Task>? delay = null,
+        Func<string, NamedPipeServerStream>? serverFactory = null)
     {
         ArgumentNullException.ThrowIfNull(requestHandler);
         ArgumentNullException.ThrowIfNull(sessionCount);
         _requestHandler = requestHandler;
         _sessionCount = sessionCount;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _delay = delay
+            ?? ((duration, cancellationToken) =>
+                Task.Delay(duration, _timeProvider, cancellationToken));
+        _serverFactory = serverFactory ?? ServiceSecurity.CreateSecureServer;
         _lastActivityTime = _timeProvider.GetUtcNow();
     }
 
@@ -48,7 +58,7 @@ internal sealed class DaemonHost : IDisposable
             NamedPipeServerStream? server = null;
             try
             {
-                server = ServiceSecurity.CreateSecureServer(pipeName);
+                server = _serverFactory(pipeName);
                 await server.WaitForConnectionAsync(_shutdownCts.Token);
                 currentBackoff = InitialBackoff;
                 RecordActivity();
@@ -71,7 +81,7 @@ internal sealed class DaemonHost : IDisposable
             {
                 try
                 {
-                    await Task.Delay(currentBackoff, _timeProvider, _shutdownCts.Token);
+                    await _delay(currentBackoff, _shutdownCts.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -102,6 +112,7 @@ internal sealed class DaemonHost : IDisposable
             }
         }
 
+        _acceptLoopStopped.TrySetResult();
         if (!_activeConnectionTasks.IsEmpty)
         {
             await Task.WhenAll(_activeConnectionTasks.Keys.Select(ObserveConnectionTaskAsync));
@@ -116,6 +127,8 @@ internal sealed class DaemonHost : IDisposable
     }
 
     internal void RecordActivity() => _lastActivityTime = _timeProvider.GetUtcNow();
+
+    internal Task WaitForAcceptLoopStoppedAsync() => _acceptLoopStopped.Task;
 
     private async Task RunConnectionAsync(
         NamedPipeServerStream clientServer,
@@ -170,7 +183,7 @@ internal sealed class DaemonHost : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), _timeProvider, cancellationToken);
+                await _delay(TimeSpan.FromSeconds(30), cancellationToken);
                 if (_sessionCount() > 0)
                 {
                     RecordActivity();
@@ -193,7 +206,7 @@ internal sealed class DaemonHost : IDisposable
     {
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(100), _timeProvider, _shutdownCts.Token);
+            await _delay(TimeSpan.FromMilliseconds(100), _shutdownCts.Token);
             RequestShutdown();
         }
         catch (OperationCanceledException) when (_shutdownCts.IsCancellationRequested)

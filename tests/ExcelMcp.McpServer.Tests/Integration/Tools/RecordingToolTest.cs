@@ -27,7 +27,7 @@ internal static class RecordingToolTest
     internal static void AssertRequest(
         ServiceRequest request,
         string command,
-        string sessionId,
+        string? sessionId,
         string? expectedArgsJson)
     {
         Assert.Equal(command, request.Command);

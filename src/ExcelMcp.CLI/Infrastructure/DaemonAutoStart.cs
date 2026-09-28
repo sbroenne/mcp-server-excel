@@ -75,7 +75,8 @@ internal static class DaemonAutoStart
                 runtime.IsStartupInProgress);
             var responsivenessDeadline = startupInProgress
                 ? startupDeadline
-                : OperationDeadline.Start(startupDeadline.Cap(BusyDaemonWaitTimeout));
+                : startupDeadline.Restart(
+                    startupDeadline.Cap(BusyDaemonWaitTimeout));
             while (true)
             {
                 if (!startupInProgress && runtime.IsStartupInProgress())
@@ -89,7 +90,7 @@ internal static class DaemonAutoStart
                     break;
                 }
 
-                await Task.Delay(
+                await runtime.DelayAsync(
                     responsivenessDeadline.Cap(BusyDaemonRetryInterval),
                     cancellationToken);
 
@@ -182,14 +183,17 @@ internal static class DaemonAutoStart
             (deadline, cancellationToken) =>
                 TryStartDaemonWithStartupLockAsync(pipeName, deadline, cancellationToken),
             (deadline, cancellationToken) =>
-                WaitForResponsiveDaemonAsync(pipeName, deadline, cancellationToken));
+                WaitForResponsiveDaemonAsync(pipeName, deadline, cancellationToken),
+            static (delay, cancellationToken) =>
+                Task.Delay(delay, cancellationToken));
 
     internal sealed record Runtime(
         Func<TimeSpan, CancellationToken, Task<bool>> PingAsync,
         Func<bool> IsDaemonMutexHeld,
         Func<bool> IsStartupInProgress,
         Func<OperationDeadline, CancellationToken, Task<StartOutcome>> TryStartDaemonAsync,
-        Func<OperationDeadline, CancellationToken, Task<bool>> WaitForResponsiveDaemonAsync);
+        Func<OperationDeadline, CancellationToken, Task<bool>> WaitForResponsiveDaemonAsync,
+        Func<TimeSpan, CancellationToken, Task> DelayAsync);
 
     internal enum StartOutcome
     {

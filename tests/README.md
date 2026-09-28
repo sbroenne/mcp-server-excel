@@ -216,7 +216,7 @@ $testArgs = @('-c', 'Release', '--no-build', '--disable-build-servers',
 # Ordinary groups. Run sequentially for the simplest reproducible ordering.
 dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust&Feature!=Screenshot' --logger 'trx;LogFileName=Core-main.trx'
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature!=VBA&Feature!=Screenshot' --logger 'trx;LogFileName=Service-main.trx'
-dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName!~VbaRun_OnMacroWorkbook&FullyQualifiedName!~ParallelMultiFileWorkflows_StayIsolatedAndLeaveNoSessions' --logger 'trx;LogFileName=CLI-main.trx'
+dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName!~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=CLI-main.trx'
 dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName!~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=MCP-main.trx'
 dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=ComInterop-normal.trx'
 dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Skills-normal.trx'
@@ -229,17 +229,17 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs
 dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=CLI-vba.trx'
 dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=MCP-vba.trx'
 
-# Exclusive desktop and workload-sensitive groups: no other Excel test hosts.
+# Exclusive desktop group: no other Excel test hosts.
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature=Screenshot' --logger 'trx;LogFileName=Service-screenshot.trx'
-dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName~ParallelMultiFileWorkflows_StayIsolatedAndLeaveNoSessions' --logger 'trx;LogFileName=CLI-parallel.trx'
 ```
 
-The last test still runs all four workbook workflows concurrently and retains
-its 30-second command limits; only competing external test hosts are excluded.
+The Service normal group includes the four-workbook isolation workflow in its
+exclusive Excel collection. CLI acceptance keeps representative executable,
+pipe, persistence, and shutdown wiring without repeating that workbook matrix.
 Use an outer hard deadline in addition to the per-test hang limit: up to eight
 hours for ordinary Core, two hours for ordinary CLI/MCP, 90 minutes for
 ComInterop, 30 minutes for skills/screenshots, 45 minutes for Core VBA, and
-10 minutes for each transport-VBA or parallel-workflow run. Stop on nonzero
+10 minutes for each transport-VBA run. Stop on nonzero
 exit codes or zero matching cases.
 
 Refresh `--list-tests` for every final binary and reconcile case counts,

@@ -194,6 +194,64 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
         Assert.True(backend.Disposed);
     }
 
+    [Fact]
+    public async Task Dispose_DuringActiveRequest_DefersBackendDisposalUntilResponse()
+    {
+        var backend = new DelayedCompletionBackend();
+        using var lifetime = new ServiceBridgeLifetime(() => backend);
+        var sendTask = lifetime.SendAsync(
+            "sheet.list",
+            sessionId: null,
+            args: null,
+            timeoutSeconds: null,
+            CancellationToken.None);
+        await backend.WaitForRequestAsync();
+
+        lifetime.Dispose();
+
+        Assert.False(backend.Disposed);
+        backend.Complete(new ServiceResponse { Success = true });
+        Assert.True((await sendTask).Success);
+        Assert.True(backend.Disposed);
+    }
+
+    [Fact]
+    public async Task Dispose_DuringFactoryInitialization_DiscardsStaleBackend()
+    {
+        using var factoryEntered = new ManualResetEventSlim();
+        using var releaseFactory = new ManualResetEventSlim();
+        var staleBackend = new BlockingBackend(completeImmediately: true);
+        var currentBackend = new BlockingBackend(completeImmediately: true);
+        var factoryCalls = 0;
+        using var lifetime = new ServiceBridgeLifetime(() =>
+        {
+            if (Interlocked.Increment(ref factoryCalls) == 1)
+            {
+                factoryEntered.Set();
+                releaseFactory.Wait();
+                return staleBackend;
+            }
+
+            return currentBackend;
+        });
+
+        var sendTask = Task.Run(() => lifetime.SendAsync(
+            "sheet.list",
+            sessionId: null,
+            args: null,
+            timeoutSeconds: null,
+            CancellationToken.None));
+        Assert.True(factoryEntered.Wait(TimeSpan.FromSeconds(5)));
+
+        lifetime.Dispose();
+        releaseFactory.Set();
+
+        Assert.True((await sendTask).Success);
+        Assert.True(staleBackend.Disposed);
+        Assert.False(currentBackend.Disposed);
+        Assert.Equal(2, factoryCalls);
+    }
+
     private sealed class BlockingBackend : IServiceBridgeBackend
     {
         public List<string> ClosedSessions { get; } = [];

@@ -18,6 +18,8 @@ internal readonly struct OperationDeadline
 
     internal static OperationDeadline Start(TimeSpan timeout, TimeProvider timeProvider) => new(timeout, timeProvider);
 
+    internal OperationDeadline Restart(TimeSpan timeout) => new(timeout, _timeProvider);
+
     internal TimeSpan Remaining
     {
         get

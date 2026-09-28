@@ -14,18 +14,37 @@ internal interface ICliRequestClientFactory
     Task<ICliRequestClient> ConnectAsync(CancellationToken cancellationToken);
 }
 
+internal interface ICliDaemonConnection
+{
+    DaemonConnectionPolicy.DaemonObservation Observe(string pipeName);
+
+    Task<ServiceResponse> SendControlRequestAsync(
+        string pipeName,
+        ServiceRequest request,
+        CancellationToken cancellationToken,
+        TimeSpan timeout);
+
+    DaemonConnectionPolicy.DaemonFailureState ResolveFailureState(
+        string pipeName,
+        ServiceResponse response);
+}
+
 internal sealed class CliCommandRuntime
 {
     private static readonly AsyncLocal<CliCommandRuntime?> AmbientRuntime = new();
     private static readonly ICliRequestClientFactory ProductionClientFactory =
         new DaemonCliRequestClientFactory();
+    private static readonly ICliDaemonConnection ProductionDaemonConnection =
+        new DaemonConnectionAdapter();
 
     internal CliCommandRuntime(
         ICliRequestClientFactory clientFactory,
         TextReader input,
         TextWriter output,
         TextWriter error,
-        bool isOutputRedirected)
+        bool isOutputRedirected,
+        ICliDaemonConnection? daemonConnection = null,
+        Func<Task<string?>>? latestVersionProvider = null)
     {
         ArgumentNullException.ThrowIfNull(clientFactory);
         ArgumentNullException.ThrowIfNull(input);
@@ -36,6 +55,9 @@ internal sealed class CliCommandRuntime
         Output = output;
         Error = error;
         IsOutputRedirected = isOutputRedirected;
+        DaemonConnection = daemonConnection ?? ProductionDaemonConnection;
+        LatestVersionProvider = latestVersionProvider
+            ?? (() => NuGetVersionChecker.GetLatestVersionAsync());
     }
 
     internal static CliCommandRuntime Current =>
@@ -51,6 +73,8 @@ internal sealed class CliCommandRuntime
     internal TextWriter Output { get; }
     internal TextWriter Error { get; }
     internal bool IsOutputRedirected { get; }
+    internal ICliDaemonConnection DaemonConnection { get; }
+    internal Func<Task<string?>> LatestVersionProvider { get; }
 
     internal static IDisposable Push(CliCommandRuntime runtime)
     {
@@ -75,6 +99,28 @@ internal sealed class CliCommandRuntime
             AmbientRuntime.Value = previous;
         }
     }
+}
+
+internal sealed class DaemonConnectionAdapter : ICliDaemonConnection
+{
+    public DaemonConnectionPolicy.DaemonObservation Observe(string pipeName) =>
+        DaemonConnectionPolicy.Observe(pipeName);
+
+    public Task<ServiceResponse> SendControlRequestAsync(
+        string pipeName,
+        ServiceRequest request,
+        CancellationToken cancellationToken,
+        TimeSpan timeout) =>
+        DaemonConnectionPolicy.SendControlRequestAsync(
+            pipeName,
+            request,
+            cancellationToken,
+            timeout);
+
+    public DaemonConnectionPolicy.DaemonFailureState ResolveFailureState(
+        string pipeName,
+        ServiceResponse response) =>
+        DaemonConnectionPolicy.ResolveFailureState(pipeName, response);
 }
 
 internal sealed class DaemonCliRequestClientFactory : ICliRequestClientFactory

@@ -182,8 +182,9 @@ internal sealed class SessionListCommand : AsyncCommand
     protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
-        var observation = DaemonConnectionPolicy.Observe(pipeName);
-        var response = await DaemonConnectionPolicy.SendControlRequestAsync(
+        var daemonConnection = CliCommandRuntime.Current.DaemonConnection;
+        var observation = daemonConnection.Observe(pipeName);
+        var response = await daemonConnection.SendControlRequestAsync(
             pipeName,
             new ServiceRequest { Command = "session.list" },
             cancellationToken,
@@ -210,7 +211,7 @@ internal sealed class SessionListCommand : AsyncCommand
             };
         }
 
-        var failureState = DaemonConnectionPolicy.ResolveFailureState(pipeName, response);
+        var failureState = daemonConnection.ResolveFailureState(pipeName, response);
         if (failureState.Name == DaemonConnectionPolicy.StoppedState)
         {
             return WriteStoppedSessionList();

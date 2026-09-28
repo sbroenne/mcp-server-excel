@@ -73,6 +73,7 @@ internal sealed class Program
 
         app.Configure(config =>
         {
+            config.ConfigureConsole(CreateOutputConsole());
             config.SetApplicationName("excelcli");
             config.SetApplicationVersion(GetCurrentVersion());
             config.Settings.StrictParsing = true;
@@ -175,7 +176,7 @@ internal sealed class Program
     private static async Task<int> HandleVersionAsync()
     {
         var currentVersion = GetCurrentVersion();
-        var latestVersion = await NuGetVersionChecker.GetLatestVersionAsync();
+        var latestVersion = await CliCommandRuntime.Current.LatestVersionProvider();
         var updateAvailable = latestVersion != null && CompareVersions(currentVersion, latestVersion) < 0;
 
         // Always show banner for version output
@@ -184,17 +185,20 @@ internal sealed class Program
         // Show friendly update message if available
         if (updateAvailable)
         {
-            AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
-            AnsiConsole.MarkupLine($"[cyan]Download:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
+            var output = CreateOutputConsole();
+            output.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
+            output.MarkupLine($"[cyan]Download:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
         }
         else if (latestVersion != null)
         {
-            AnsiConsole.MarkupLine($"[green]✓ You're running the latest version:[/] [white]{currentVersion}[/]");
+            CreateOutputConsole().MarkupLine(
+                $"[green]✓ You're running the latest version:[/] [white]{currentVersion}[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine($"[yellow]⚠ Could not check for updates[/]");
-            AnsiConsole.MarkupLine($"[dim]Current version: {currentVersion}[/]");
+            var output = CreateOutputConsole();
+            output.MarkupLine("[yellow]⚠ Could not check for updates[/]");
+            output.MarkupLine($"[dim]Current version: {currentVersion}[/]");
         }
 
         return 0;
@@ -210,6 +214,14 @@ internal sealed class Program
         return AnsiConsole.Create(new AnsiConsoleSettings
         {
             Out = new AnsiConsoleOutput(CliCommandRuntime.Current.Error)
+        });
+    }
+
+    private static IAnsiConsole CreateOutputConsole()
+    {
+        return AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(CliCommandRuntime.Current.Output)
         });
     }
 

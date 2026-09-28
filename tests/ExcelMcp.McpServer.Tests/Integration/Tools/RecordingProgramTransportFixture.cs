@@ -40,6 +40,25 @@ public sealed class RecordingProgramTransportFixture :
         string expectedCommand,
         string? expectedArgsJson)
     {
+        return await CallToolAsync(
+            toolName,
+            arguments,
+            response,
+            expectedCommand,
+            arguments["session_id"] as string
+                ?? throw new InvalidOperationException(
+                    "Session-scoped recording calls must supply a session_id."),
+            expectedArgsJson);
+    }
+
+    public async Task<CapturedToolCall> CallToolAsync(
+        string toolName,
+        Dictionary<string, object?> arguments,
+        ServiceResponse response,
+        string expectedCommand,
+        string? expectedSessionId,
+        string? expectedArgsJson)
+    {
         await _callGate.WaitAsync(_cts.Token);
         try
         {
@@ -61,9 +80,7 @@ public sealed class RecordingProgramTransportFixture :
             RecordingToolTest.AssertRequest(
                 request,
                 expectedCommand,
-                arguments["session_id"] as string
-                    ?? throw new InvalidOperationException(
-                        "Recording calls must supply a session_id."),
+                expectedSessionId,
                 expectedArgsJson);
             return new CapturedToolCall(text, request);
         }

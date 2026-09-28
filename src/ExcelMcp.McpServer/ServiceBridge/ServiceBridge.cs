@@ -25,6 +25,7 @@ internal sealed class ServiceBridgeLifetime : IDisposable
     private ServiceInstance? _current;
     private Exception? _lastStartupException;
     private long _pendingOwnerToken;
+    private long _configurationGeneration;
 
     internal ServiceBridgeLifetime(Func<IServiceBridgeBackend> serviceFactory)
     {
@@ -33,30 +34,60 @@ internal sealed class ServiceBridgeLifetime : IDisposable
 
     internal async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken)
     {
-        if (Volatile.Read(ref _current) != null)
+        return await AcquireServiceAsync(cancellationToken) != null;
+    }
+
+    private async Task<ServiceInstance?> AcquireServiceAsync(
+        CancellationToken cancellationToken)
+    {
+        var current = Volatile.Read(ref _current);
+        if (current != null)
         {
-            return true;
+            return current;
         }
 
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_current != null)
+            while (true)
             {
-                return true;
-            }
+                current = Volatile.Read(ref _current);
+                if (current != null)
+                {
+                    return current;
+                }
 
-            var backend = _serviceFactory();
-            Volatile.Write(
-                ref _current,
-                new ServiceInstance(backend, Interlocked.Read(ref _pendingOwnerToken)));
-            _lastStartupException = null;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _lastStartupException = ex;
-            return false;
+                var generation = Interlocked.Read(ref _configurationGeneration);
+                var serviceFactory = Volatile.Read(ref _serviceFactory);
+                IServiceBridgeBackend backend;
+                try
+                {
+                    backend = serviceFactory();
+                }
+                catch (Exception ex)
+                {
+                    if (generation != Interlocked.Read(ref _configurationGeneration))
+                    {
+                        continue;
+                    }
+
+                    _lastStartupException = ex;
+                    return null;
+                }
+
+                if (generation != Interlocked.Read(ref _configurationGeneration))
+                {
+                    backend.Dispose();
+                    continue;
+                }
+
+                current = new ServiceInstance(
+                    backend,
+                    Interlocked.Read(ref _pendingOwnerToken));
+                Volatile.Write(ref _current, current);
+                _lastStartupException = null;
+                return current;
+            }
         }
         finally
         {
@@ -71,7 +102,14 @@ internal sealed class ServiceBridgeLifetime : IDisposable
         int? timeoutSeconds,
         CancellationToken cancellationToken)
     {
-        if (!await EnsureServiceAsync(cancellationToken))
+        ServiceInstance? instance;
+        do
+        {
+            instance = await AcquireServiceAsync(cancellationToken);
+        }
+        while (instance != null && !instance.TryAcquire());
+
+        if (instance == null)
         {
             return new ServiceResponse
             {
@@ -84,67 +122,73 @@ internal sealed class ServiceBridgeLifetime : IDisposable
             };
         }
 
-        var request = new ServiceRequest
-        {
-            Command = command,
-            SessionId = sessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, ServiceBridge.JsonOptions) : null
-        };
-
-        var instance = Volatile.Read(ref _current)!;
-        var processTask = Task.Run(
-            async () => await instance.Backend.ProcessAsync(request),
-            CancellationToken.None);
-
-        if (!timeoutSeconds.HasValue && !cancellationToken.CanBeCanceled)
-        {
-            return await processTask;
-        }
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        if (timeoutSeconds.HasValue)
-        {
-            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
-        }
-
         try
         {
-            return await processTask.WaitAsync(cts.Token);
-        }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested)
-        {
-            var completedResponse = await TryGetCompletedResponseAsync(processTask);
-            if (completedResponse != null)
+            var request = new ServiceRequest
             {
-                return completedResponse;
+                Command = command,
+                SessionId = sessionId,
+                Args = args != null ? JsonSerializer.Serialize(args, ServiceBridge.JsonOptions) : null
+            };
+
+            var processTask = Task.Run(
+                async () => await instance.Backend.ProcessAsync(request),
+                CancellationToken.None);
+
+            if (!timeoutSeconds.HasValue && !cancellationToken.CanBeCanceled)
+            {
+                return await processTask;
             }
 
-            CleanupCancelledRequest(instance, sessionId);
-
-            if (timeoutSeconds.HasValue && !cancellationToken.IsCancellationRequested)
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (timeoutSeconds.HasValue)
             {
+                cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
+            }
+
+            try
+            {
+                return await processTask.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                var completedResponse = await TryGetCompletedResponseAsync(processTask);
+                if (completedResponse != null)
+                {
+                    return completedResponse;
+                }
+
+                CleanupCancelledRequest(instance, sessionId);
+
+                if (timeoutSeconds.HasValue && !cancellationToken.IsCancellationRequested)
+                {
+                    return new ServiceResponse
+                    {
+                        Success = false,
+                        Command = command,
+                        SessionId = sessionId,
+                        ErrorCategory = "Timeout",
+                        ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds.",
+                        ExceptionType = nameof(TimeoutException)
+                    };
+                }
+
                 return new ServiceResponse
                 {
                     Success = false,
                     Command = command,
                     SessionId = sessionId,
-                    ErrorCategory = "Timeout",
-                    ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds.",
-                    ExceptionType = nameof(TimeoutException)
+                    ErrorCategory = "Cancelled",
+                    ErrorMessage = string.IsNullOrWhiteSpace(sessionId)
+                        ? "Operation was cancelled. The Excel MCP service was reset to avoid leaving a stuck Excel operation behind."
+                        : "Operation was cancelled and the session has been closed to avoid leaving a stuck Excel operation behind. Please reopen the file with a new session.",
+                    ExceptionType = nameof(OperationCanceledException)
                 };
             }
-
-            return new ServiceResponse
-            {
-                Success = false,
-                Command = command,
-                SessionId = sessionId,
-                ErrorCategory = "Cancelled",
-                ErrorMessage = string.IsNullOrWhiteSpace(sessionId)
-                    ? "Operation was cancelled. The Excel MCP service was reset to avoid leaving a stuck Excel operation behind."
-                    : "Operation was cancelled and the session has been closed to avoid leaving a stuck Excel operation behind. Please reopen the file with a new session.",
-                ExceptionType = nameof(OperationCanceledException)
-            };
+        }
+        finally
+        {
+            instance.Release();
         }
     }
 
@@ -171,14 +215,16 @@ internal sealed class ServiceBridgeLifetime : IDisposable
 
     internal void SetServiceFactory(Func<IServiceBridgeBackend> serviceFactory)
     {
+        ArgumentNullException.ThrowIfNull(serviceFactory);
+        Volatile.Write(ref _serviceFactory, serviceFactory);
         Dispose();
-        _serviceFactory = serviceFactory;
     }
 
     public void Dispose()
     {
+        Interlocked.Increment(ref _configurationGeneration);
         var instance = Interlocked.Exchange(ref _current, null);
-        instance?.Backend.Dispose();
+        instance?.RequestDispose();
         _lastStartupException = null;
     }
 
@@ -209,7 +255,7 @@ internal sealed class ServiceBridgeLifetime : IDisposable
             return false;
         }
 
-        instance.Backend.Dispose();
+        instance.RequestDispose();
         _lastStartupException = null;
         return true;
     }
@@ -241,7 +287,58 @@ internal sealed class ServiceBridgeLifetime : IDisposable
         return $"Failed to start ExcelMCP Service in-process: {exception.GetType().Name}: {exception.Message}";
     }
 
-    private sealed record ServiceInstance(IServiceBridgeBackend Backend, long OwnerToken);
+    private sealed class ServiceInstance(
+        IServiceBridgeBackend backend,
+        long ownerToken)
+    {
+        private int _leases;
+        private int _disposeRequested;
+        private int _disposed;
+
+        internal IServiceBridgeBackend Backend { get; } = backend;
+        internal long OwnerToken { get; } = ownerToken;
+
+        internal bool TryAcquire()
+        {
+            if (Volatile.Read(ref _disposeRequested) != 0)
+            {
+                return false;
+            }
+
+            Interlocked.Increment(ref _leases);
+            if (Volatile.Read(ref _disposeRequested) == 0)
+            {
+                return true;
+            }
+
+            Release();
+            return false;
+        }
+
+        internal void Release()
+        {
+            if (Interlocked.Decrement(ref _leases) == 0)
+            {
+                DisposeIfRequested();
+            }
+        }
+
+        internal void RequestDispose()
+        {
+            Interlocked.Exchange(ref _disposeRequested, 1);
+            DisposeIfRequested();
+        }
+
+        private void DisposeIfRequested()
+        {
+            if (Volatile.Read(ref _disposeRequested) != 0
+                && Volatile.Read(ref _leases) == 0
+                && Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                Backend.Dispose();
+            }
+        }
+    }
 }
 
 /// <summary>

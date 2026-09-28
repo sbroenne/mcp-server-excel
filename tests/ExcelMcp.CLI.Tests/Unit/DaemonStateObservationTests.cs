@@ -203,7 +203,8 @@ public sealed class DaemonStateObservationTests
                 waitedForStartup = true;
                 Assert.False(deadline.IsExpired);
                 return Task.FromResult(true);
-            });
+            },
+            DelayAsync: (_, _) => Task.CompletedTask);
 
         using var client = await DaemonAutoStart.EnsureAndConnectCoreAsync(
             $"race-test-{Guid.NewGuid():N}",
@@ -240,7 +241,8 @@ public sealed class DaemonStateObservationTests
             {
                 remainingAfterLaunch = deadline.Remaining;
                 return Task.FromResult(false);
-            });
+            },
+            DelayAsync: (_, _) => Task.CompletedTask);
 
         await Assert.ThrowsAsync<TimeoutException>(() =>
             DaemonAutoStart.EnsureAndConnectCoreAsync(
@@ -269,7 +271,8 @@ public sealed class DaemonStateObservationTests
             IsStartupInProgress: () => throw new InvalidOperationException("No daemon was observed."),
             TryStartDaemonAsync: (_, _) => Task.FromResult(DaemonAutoStart.StartOutcome.Ready),
             WaitForResponsiveDaemonAsync: (_, _) =>
-                throw new InvalidOperationException("A ready daemon must not be probed again."));
+                throw new InvalidOperationException("A ready daemon must not be probed again."),
+            DelayAsync: (_, _) => Task.CompletedTask);
 
         using var client = await DaemonAutoStart.EnsureAndConnectCoreAsync(
             $"ready-test-{Guid.NewGuid():N}",
@@ -297,6 +300,43 @@ public sealed class DaemonStateObservationTests
                 }));
 
         Assert.False(launchAttempted);
+    }
+
+    [Fact]
+    public async Task EnsureAndConnectCoreAsync_BusyDaemonUsesControlledClockAndSingleBudget()
+    {
+        var clock = new AdvancingTimeProvider();
+        var observedPingTimeouts = new List<TimeSpan>();
+        var delays = new List<TimeSpan>();
+        var runtime = new DaemonAutoStart.Runtime(
+            PingAsync: (timeout, _) =>
+            {
+                observedPingTimeouts.Add(timeout);
+                return Task.FromResult(false);
+            },
+            IsDaemonMutexHeld: () => true,
+            IsStartupInProgress: () => false,
+            TryStartDaemonAsync: (_, _) =>
+                throw new InvalidOperationException("A busy daemon must not start another daemon."),
+            WaitForResponsiveDaemonAsync: (_, _) => Task.FromResult(false),
+            DelayAsync: (delay, _) =>
+            {
+                delays.Add(delay);
+                clock.Advance(delay);
+                return Task.CompletedTask;
+            });
+
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            DaemonAutoStart.EnsureAndConnectCoreAsync(
+                $"busy-clock-{Guid.NewGuid():N}",
+                OperationDeadline.Start(TimeSpan.FromSeconds(3), clock),
+                runtime,
+                CancellationToken.None));
+
+        Assert.NotEmpty(delays);
+        Assert.Equal(TimeSpan.FromSeconds(3), delays.Aggregate(TimeSpan.Zero, (sum, delay) => sum + delay));
+        Assert.All(observedPingTimeouts, timeout =>
+            Assert.InRange(timeout, TimeSpan.Zero, DaemonAutoStart.BusyDaemonConnectTimeout));
     }
 
     private sealed class AdvancingTimeProvider : TimeProvider

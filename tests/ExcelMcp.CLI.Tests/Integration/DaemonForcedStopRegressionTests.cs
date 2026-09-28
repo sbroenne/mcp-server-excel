@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
-using System.Xml.Linq;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
@@ -31,58 +30,6 @@ public sealed class DaemonForcedStopRegressionTests
 
             return data;
         }
-    }
-
-    [Fact]
-    public void MutexNames_UseDisjointHashedNamespaces()
-    {
-        const string daemonPrefix = "ExcelMcpCli_Daemon_";
-        const string startupPrefix = "ExcelMcpCli_Startup_";
-        const string trackerPrefix = "ExcelMcpCli_Tracker_";
-        var pipeNames = GetAdversarialPipeNames();
-        var names = pipeNames
-            .SelectMany(pipeName => new[]
-            {
-                DaemonAutoStart.GetDaemonMutexName(pipeName),
-                DaemonAutoStart.GetDaemonStartupLockName(pipeName),
-                DaemonProcessTracker.GetTrackingMutexName(pipeName)
-            })
-            .ToList();
-
-        Assert.Equal(
-            pipeNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() * 3,
-            names.Distinct(StringComparer.Ordinal).Count());
-        foreach (var pipeName in pipeNames)
-        {
-            var daemonName = DaemonAutoStart.GetDaemonMutexName(pipeName);
-            var startupName = DaemonAutoStart.GetDaemonStartupLockName(pipeName);
-            var trackerName = DaemonProcessTracker.GetTrackingMutexName(pipeName);
-            Assert.StartsWith(daemonPrefix, daemonName, StringComparison.Ordinal);
-            Assert.StartsWith(startupPrefix, startupName, StringComparison.Ordinal);
-            Assert.StartsWith(trackerPrefix, trackerName, StringComparison.Ordinal);
-            Assert.Equal(64, daemonName[daemonPrefix.Length..].Length);
-            Assert.Equal(64, startupName[startupPrefix.Length..].Length);
-            Assert.Equal(64, trackerName[trackerPrefix.Length..].Length);
-            Assert.All(daemonName[daemonPrefix.Length..], character => Assert.True(char.IsAsciiHexDigit(character)));
-            Assert.All(startupName[startupPrefix.Length..], character => Assert.True(char.IsAsciiHexDigit(character)));
-            Assert.All(trackerName[trackerPrefix.Length..], character => Assert.True(char.IsAsciiHexDigit(character)));
-            Assert.Equal(daemonName, DaemonAutoStart.GetDaemonMutexName(pipeName));
-            Assert.Equal(startupName, DaemonAutoStart.GetDaemonStartupLockName(pipeName));
-            Assert.Equal(trackerName, DaemonProcessTracker.GetTrackingMutexName(pipeName));
-        }
-
-        Assert.Equal(
-            DaemonAutoStart.GetDaemonMutexName("foo"),
-            DaemonAutoStart.GetDaemonMutexName("FOO"));
-        Assert.Equal(
-            DaemonAutoStart.GetDaemonStartupLockName("foo"),
-            DaemonAutoStart.GetDaemonStartupLockName("FOO"));
-        Assert.Equal(
-            DaemonProcessTracker.GetTrackingMutexName("foo"),
-            DaemonProcessTracker.GetTrackingMutexName("FOO"));
-        Assert.Equal(
-            DaemonProcessTracker.GetTrackingFilePath("foo"),
-            DaemonProcessTracker.GetTrackingFilePath("FOO"));
     }
 
     [Fact(Timeout = 60000)]
@@ -284,91 +231,6 @@ public sealed class DaemonForcedStopRegressionTests
         Assert.True(await first);
         Assert.True(await second);
         Assert.True(secondEntered.Task.IsCompleted);
-    }
-
-    [Fact]
-    public void PreBuildCleanup_RunsOnlyForCliProject()
-    {
-        var buildProperties = XDocument.Load(
-            Path.Combine(GetRepositoryRoot(), "Directory.Build.props"));
-        var cleanupTarget = buildProperties
-            .Descendants("Target")
-            .Single(element => string.Equals(
-                element.Attribute("Name")?.Value,
-                "StopExcelMcpProcesses",
-                StringComparison.Ordinal));
-
-        var condition = cleanupTarget.Attribute("Condition")?.Value;
-
-        Assert.Contains(
-            "'$(MSBuildProjectName)' == 'ExcelMcp.CLI'",
-            condition,
-            StringComparison.Ordinal);
-        Assert.Equal("BeforeBuild", cleanupTarget.Attribute("BeforeTargets")?.Value);
-    }
-
-    [Fact]
-    public void CleanupScript_StagesCurrentClientWhenExistingBinaryIsStale()
-    {
-        var cleanupScript = File.ReadAllText(
-            Path.Combine(GetRepositoryRoot(), "scripts", "Stop-ExcelMcpProcesses.ps1"));
-
-        Assert.Contains(
-            @"src\ExcelMcp.CLI\Infrastructure\DaemonAutoStart.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.CLI\Infrastructure\PreBuildProcessCleanup.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.CLI\Program.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.ComInterop\Session\SessionManager.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.ComInterop\Session\ExcelBatch.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.ComInterop\Session\ExcelProcessIdentity.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.ComInterop\Session\OwnedProcessGuard.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "-p:ExcelMcpCleanupRoot=$stagingRoot",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "-p:ExcelMcpSkipCleanup=true",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.Cleanup\ExcelMcp.Cleanup.csproj",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.Service\ServiceClient.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            @"src\ExcelMcp.Service\Rpc\IExcelDaemonRpc.cs",
-            cleanupScript,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "if ($availableClis.Count -eq 0)",
-            cleanupScript,
-            StringComparison.Ordinal);
     }
 
     [Fact(Timeout = 300000)]

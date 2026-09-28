@@ -38,18 +38,21 @@ public sealed class InProcessCliCommandTests
         var request = Assert.Single(factory.Requests);
         Assert.Equal("session.open", request.Command);
         Assert.Null(request.SessionId);
-        using (var args = JsonDocument.Parse(request.Args!))
-        {
-            Assert.Equal(workbookPath, args.RootElement.GetProperty("filePath").GetString());
-            Assert.False(args.RootElement.GetProperty("show").GetBoolean());
-            Assert.False(args.RootElement.TryGetProperty("timeoutSeconds", out _));
-        }
+        Assert.Equal(
+            """{"filePath":"C:\\workbooks\\locked.xlsx","show":false}""",
+            request.Args);
 
         using var envelope = JsonDocument.Parse(output.ToString());
         var root = envelope.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.True(root.GetProperty("isError").GetBoolean());
-        Assert.Equal(root.GetProperty("error").GetString(), root.GetProperty("errorMessage").GetString());
+        Assert.Equal(
+            "Workbook is already open; close the file and retry with exclusive access.",
+            root.GetProperty("error").GetString());
+        Assert.Equal(
+            "Workbook is already open; close the file and retry with exclusive access.",
+            root.GetProperty("errorMessage").GetString());
+        Assert.Equal("ComInterop", root.GetProperty("errorCategory").GetString());
         Assert.Equal(nameof(IOException), root.GetProperty("exceptionType").GetString());
         Assert.Equal("session.open", root.GetProperty("command").GetString());
         Assert.Equal(string.Empty, error.ToString());
@@ -105,17 +108,173 @@ public sealed class InProcessCliCommandTests
         });
     }
 
+    [Theory]
+    [InlineData("open", false, "session.open")]
+    [InlineData("open", true, "session.open")]
+    [InlineData("create", false, "session.create")]
+    [InlineData("create", true, "session.create")]
+    public async Task SessionCommand_MapsShowFlagAndDefaults(
+        string action,
+        bool show,
+        string expectedCommand)
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"sessionId":"session-1"}"""
+        });
+        var output = new StringWriter();
+        var runtime = CreateRuntime(factory, output, new StringWriter());
+        var arguments = new List<string>
+        {
+            "--quiet",
+            "session",
+            action,
+            @"C:\workbooks\book.xlsx"
+        };
+        if (show)
+        {
+            arguments.Add("--show");
+        }
+
+        var exitCode = await Program.RunAsync(arguments.ToArray(), runtime);
+
+        Assert.Equal(0, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal(expectedCommand, request.Command);
+        Assert.Null(request.SessionId);
+        Assert.Equal(
+            show
+                ? """{"filePath":"C:\\workbooks\\book.xlsx","show":true}"""
+                : """{"filePath":"C:\\workbooks\\book.xlsx","show":false}""",
+            request.Args);
+    }
+
+    [Fact]
+    public async Task Help_WritesParserOutputToInjectedOutput()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "--help"],
+            CreateRuntime(new RecordingClientFactory(), output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("USAGE:", output.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("session", output.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public async Task Version_WritesFriendlyOutputToInjectedStreams()
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = CreateRuntime(
+            new RecordingClientFactory(),
+            output,
+            error,
+            latestVersionProvider: static () => Task.FromResult<string?>(null));
+
+        var exitCode = await Program.RunAsync(["--version"], runtime);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Could not check for updates", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Current version:", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains(
+            "Excel automation powered by ExcelMcp Core",
+            error.ToString(),
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("stopped", false)]
+    [InlineData("unresponsive", true)]
+    public async Task SessionList_UsesControlledDaemonState(
+        string expectedState,
+        bool running)
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var daemonConnection = new RecordingDaemonConnection(
+            new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "ServiceUnavailable",
+                ErrorMessage = "controlled transport failure"
+            },
+            new DaemonConnectionPolicy.DaemonFailureState(expectedState, running));
+        var runtime = CreateRuntime(
+            new RecordingClientFactory(),
+            output,
+            error,
+            daemonConnection: daemonConnection);
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "list"],
+            runtime);
+
+        Assert.Equal(expectedState == "stopped" ? 0 : 1, exitCode);
+        Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
+        using var envelope = JsonDocument.Parse(output.ToString());
+        Assert.Equal(expectedState, envelope.RootElement.GetProperty("daemonState").GetString());
+        if (running)
+        {
+            Assert.True(envelope.RootElement.GetProperty("running").GetBoolean());
+            Assert.Equal(
+                "controlled transport failure",
+                envelope.RootElement.GetProperty("error").GetString());
+        }
+        else
+        {
+            Assert.Equal(0, envelope.RootElement.GetProperty("count").GetInt32());
+            Assert.Empty(envelope.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.False(envelope.RootElement.TryGetProperty("running", out _));
+        }
+    }
+
     private static CliCommandRuntime CreateRuntime(
         RecordingClientFactory factory,
         StringWriter output,
         StringWriter error,
-        string input = "") =>
+        string input = "",
+        ICliDaemonConnection? daemonConnection = null,
+        Func<Task<string?>>? latestVersionProvider = null) =>
         new(
             factory,
             new StringReader(input),
             output,
             error,
-            isOutputRedirected: true);
+            isOutputRedirected: true,
+            daemonConnection,
+            latestVersionProvider);
+
+    private sealed class RecordingDaemonConnection(
+        ServiceResponse response,
+        DaemonConnectionPolicy.DaemonFailureState failureState)
+        : ICliDaemonConnection
+    {
+        internal List<ServiceRequest> Requests { get; } = [];
+
+        public DaemonConnectionPolicy.DaemonObservation Observe(string pipeName) =>
+            new(DaemonRunning: failureState.Running, StartupInProgress: false);
+
+        public Task<ServiceResponse> SendControlRequestAsync(
+            string pipeName,
+            ServiceRequest request,
+            CancellationToken cancellationToken,
+            TimeSpan timeout)
+        {
+            Requests.Add(request);
+            return Task.FromResult(response);
+        }
+
+        public DaemonConnectionPolicy.DaemonFailureState ResolveFailureState(
+            string pipeName,
+            ServiceResponse serviceResponse) =>
+            failureState;
+    }
 
     private sealed class RecordingClientFactory(params ServiceResponse[] responses)
         : ICliRequestClientFactory

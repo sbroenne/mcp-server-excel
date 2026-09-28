@@ -64,11 +64,15 @@ public sealed class WorkbookToolIntegrationTests(
         Assert.Equal("custom", property.GetProperty("scope").GetString());
     }
 
-    [Fact]
-    public async Task SaveAs_UpdatesWorkbookAndSessionPaths()
+    [Theory]
+    [InlineData("xlsx")]
+    [InlineData("xlsm")]
+    [InlineData("xlsb")]
+    [InlineData("xls")]
+    public async Task SaveAs_MapsEverySupportedFormat(string format)
     {
         const string sessionId = "recording-session";
-        const string targetPath = @"C:\adapter-tests\saved.xlsx";
+        var targetPath = $@"C:\adapter-tests\saved.{format}";
         var saveCall = await _fixture.CallToolAsync(
             "workbook",
             new Dictionary<string, object?>
@@ -76,12 +80,12 @@ public sealed class WorkbookToolIntegrationTests(
                 ["action"] = "save-as",
                 ["session_id"] = sessionId,
                 ["target_path"] = targetPath,
-                ["format"] = "xlsx"
+                ["format"] = format
             },
             RecordingToolTest.Success(
                 $$$"""{"success":true,"fullName":"{{{targetPath.Replace("\\", "\\\\", StringComparison.Ordinal)}}}"}"""),
             "workbook.save-as",
-            """{"targetPath":"C:\\adapter-tests\\saved.xlsx","format":"xlsx"}""");
+            $$$"""{"targetPath":"{{{targetPath.Replace("\\", "\\\\", StringComparison.Ordinal)}}}","format":"{{{format}}}"}""");
 
         using (var args = RecordingToolTest.ParseArgs(
             saveCall.Request,
@@ -89,7 +93,7 @@ public sealed class WorkbookToolIntegrationTests(
             sessionId))
         {
             Assert.Equal(targetPath, args.RootElement.GetProperty("targetPath").GetString());
-            Assert.Equal("xlsx", args.RootElement.GetProperty("format").GetString());
+            Assert.Equal(format, args.RootElement.GetProperty("format").GetString());
         }
         using var result = JsonDocument.Parse(saveCall.JsonResult);
         Assert.Equal(targetPath, result.RootElement.GetProperty("fullName").GetString());

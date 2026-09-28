@@ -32,15 +32,10 @@ public sealed class ParameterAliasBackwardCompatTests
         var request = Assert.Single(requests);
         Assert.Equal("range.set-values", request.Command);
         Assert.Equal("session-1", request.SessionId);
-        using var args = JsonDocument.Parse(request.Args!);
-        Assert.Equal("AliasSheet", args.RootElement.GetProperty("sheetName").GetString());
-        Assert.Equal("C7", args.RootElement.GetProperty("rangeAddress").GetString());
-        Assert.Equal(
-            "BackwardCompat",
-            args.RootElement.GetProperty("values")[0][0].GetString());
-
-        using var output = JsonDocument.Parse(result.Stdout);
-        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
+        AssertJsonEqual(
+            """{"sheetName":"AliasSheet","rangeAddress":"C7","values":[["BackwardCompat"]]}""",
+            request.Args);
+        AssertJsonEqual("""{"success":true}""", result.Stdout);
     }
 
     [Fact]
@@ -58,14 +53,22 @@ public sealed class ParameterAliasBackwardCompatTests
         var request = Assert.Single(requests);
         Assert.Equal("range.get-values", request.Command);
         Assert.Equal("session-1", request.SessionId);
-        using var args = JsonDocument.Parse(request.Args!);
-        Assert.Equal("AliasSheet", args.RootElement.GetProperty("sheetName").GetString());
-        Assert.Equal("E9", args.RootElement.GetProperty("rangeAddress").GetString());
+        AssertJsonEqual(
+            """{"sheetName":"AliasSheet","rangeAddress":"E9"}""",
+            request.Args);
+        AssertJsonEqual(
+            """{"success":true,"values":[["ReadTest"]]}""",
+            result.Stdout);
+    }
 
-        using var output = JsonDocument.Parse(result.Stdout);
-        Assert.True(output.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal(
-            "ReadTest",
-            output.RootElement.GetProperty("values")[0][0].GetString());
+    private static void AssertJsonEqual(string expectedJson, string? actualJson)
+    {
+        Assert.NotNull(actualJson);
+        using var expected = JsonDocument.Parse(expectedJson);
+        using var actual = JsonDocument.Parse(actualJson);
+        Assert.True(
+            JsonElement.DeepEquals(expected.RootElement, actual.RootElement),
+            $"Expected {expected.RootElement.GetRawText()}, " +
+            $"but received {actual.RootElement.GetRawText()}.");
     }
 }
