@@ -506,8 +506,8 @@ The opt-in direct-engine runner is
 `scripts/Test-MacHelperAcceptance.ps1`. It requires an already installed and
 open exact `ExcelMcpHelper.xlam`, prior user-managed macro approval, prior
 user-managed VBA project-model trust, and a dedicated blank `.xlsm` created and
-saved by Excel. It requires helper version `1.0.1` and rejects the broken
-`1.0.0` artifact. It never installs the helper, changes security preferences,
+saved by Excel. It requires helper version `1.2.0` and rejects older helper
+artifacts. It never installs the helper, changes security preferences,
 synthesizes `vbaProject.bin`, or opens the Power Query package candidates:
 
 ```powershell
@@ -521,7 +521,9 @@ pwsh ./scripts/Test-MacHelperAcceptance.ps1 `
 
 The runner opens the exact test workbook through the public CLI session path,
 then exercises the fixed `helper.dispatch` backend in both built CLI and MCP
-entry points. It reports `acceptanceScope=direct-helper-engine` and
+entry points. Its read-only preflight includes `helper.inspect-engines`;
+`unknown` means the API was reachable but no model object was observed, not
+that the engine is unavailable. It reports `acceptanceScope=direct-helper-engine` and
 `publicCommandAcceptance=false`: a passing run is helper engine evidence, not
 proof that currently gated public commands are implemented. Determinate runs
 delete only the reserved literal query and standard-module names and close the

@@ -72,7 +72,7 @@ public sealed class MacHelperAcceptanceRunnerTests
             root.GetProperty("entryPoints").EnumerateArray()
                 .Select(item => item.GetString()!).ToArray());
         Assert.Equal(
-            ["helper.capabilities", "powerquery", "vba"],
+            ["helper.capabilities", "helper.inspect-engines", "powerquery", "vba"],
             root.GetProperty("phases").EnumerateArray()
                 .Select(item => item.GetString()!).ToArray());
     }
@@ -90,8 +90,12 @@ public sealed class MacHelperAcceptanceRunnerTests
         Assert.Contains("Sbroenne.ExcelMcp.McpServer.dll", script, StringComparison.Ordinal);
         Assert.Contains("--excelmcp-mac-automation", script, StringComparison.Ordinal);
         Assert.Contains("helper.dispatch", script, StringComparison.Ordinal);
-        Assert.Contains("helper version does not match protocol 1 / helper 1.0.1", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("helper 1.0.0", script, StringComparison.Ordinal);
+        Assert.Contains("helper version does not match protocol 1 / helper 1.2.0", script, StringComparison.Ordinal);
+        Assert.Contains("helper.inspect-engines", script, StringComparison.Ordinal);
+        Assert.Contains("Assert-EngineInspection", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("helper 1.1.0", script, StringComparison.Ordinal);
+        Assert.Contains("destination = 'connection-only'", script, StringComparison.Ordinal);
+        Assert.Contains("refresh = $false", script, StringComparison.Ordinal);
         Assert.Contains("publicCommandAcceptance = $false", script, StringComparison.Ordinal);
         Assert.Contains("Invalidate-RunnerSession", script, StringComparison.Ordinal);
         Assert.Contains("RECOVERY_REQUIRED", script, StringComparison.Ordinal);

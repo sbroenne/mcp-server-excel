@@ -11,7 +11,7 @@ internal static class MacHelperFixtureContract
 {
     public const int ProtocolVersion = 1;
     public const int MaximumUtf8Bytes = 262_144;
-    public const string HelperVersion = "1.0.1";
+    public const string HelperVersion = "1.2.0";
     public const string QueryName = "ExcelMcpFixtureLiteral";
     public const string RenamedQueryName = "ExcelMcpFixtureLiteralRenamed";
     public const string QueryFormula =
@@ -29,12 +29,18 @@ internal static class MacHelperFixtureContract
     public static IReadOnlyList<string> SupportedActions { get; } =
     [
         "helper.capabilities",
+        "helper.inspect-engines",
         "powerquery.list",
         "powerquery.view",
         "powerquery.create",
         "powerquery.update",
         "powerquery.rename",
         "powerquery.delete",
+        "powerquery.refresh",
+        "powerquery.refresh-all",
+        "powerquery.load-to",
+        "powerquery.unload",
+        "powerquery.evaluate",
         "analysis.create-scenario",
         "analysis.show-scenario",
         "vba.list",
@@ -49,14 +55,18 @@ internal static class MacHelperFixtureContract
         new("powerquery.create", new Dictionary<string, object?>
         {
             ["name"] = QueryName,
-            ["formula"] = QueryFormula
+            ["formula"] = QueryFormula,
+            ["destination"] = "connection-only",
+            ["sheetName"] = null,
+            ["cellAddress"] = null
         }),
         new("powerquery.list", new Dictionary<string, object?>()),
         new("powerquery.view", new Dictionary<string, object?> { ["name"] = QueryName }),
         new("powerquery.update", new Dictionary<string, object?>
         {
             ["name"] = QueryName,
-            ["formula"] = UpdatedQueryFormula
+            ["formula"] = UpdatedQueryFormula,
+            ["refresh"] = false
         }),
         new("powerquery.rename", new Dictionary<string, object?>
         {
