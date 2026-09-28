@@ -156,8 +156,8 @@ public sealed partial class PersistentServiceTablePreflightTests
         _fixture.CreateNamedTestSheet(_fixture.BatchToken, "Data");
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            ExcelWorksheet? sheet = null;
-            ExcelRange? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             Microsoft.Office.Interop.Excel.Interior? interior = null;
             Microsoft.Office.Interop.Excel.Font? font = null;
             try
@@ -192,8 +192,8 @@ public sealed partial class PersistentServiceTablePreflightTests
     {
         return _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            ExcelWorksheet? sheet = null;
-            ExcelRange? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             Microsoft.Office.Interop.Excel.Workbooks? workbooks = null;
             try
             {
@@ -206,12 +206,12 @@ public sealed partial class PersistentServiceTablePreflightTests
                 {
                     for (int column = 1; column <= 3; column++)
                     {
-                        ExcelRange? cell = null;
+                        Excel.Range? cell = null;
                         Microsoft.Office.Interop.Excel.Interior? interior = null;
                         Microsoft.Office.Interop.Excel.Font? font = null;
                         try
                         {
-                            cell = (ExcelRange)range[row, column];
+                            cell = (Excel.Range)range[row, column];
                             interior = cell.Interior;
                             font = cell.Font;
                             formats.Add(string.Format(CultureInfo.InvariantCulture,
