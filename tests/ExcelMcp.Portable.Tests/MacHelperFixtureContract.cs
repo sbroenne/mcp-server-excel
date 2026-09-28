@@ -11,7 +11,7 @@ internal static class MacHelperFixtureContract
 {
     public const int ProtocolVersion = 1;
     public const int MaximumUtf8Bytes = 262_144;
-    public const string HelperVersion = "1.0.0";
+    public const string HelperVersion = "1.0.1";
     public const string QueryName = "ExcelMcpFixtureLiteral";
     public const string RenamedQueryName = "ExcelMcpFixtureLiteralRenamed";
     public const string QueryFormula =
@@ -35,8 +35,6 @@ internal static class MacHelperFixtureContract
         "powerquery.update",
         "powerquery.rename",
         "powerquery.delete",
-        "powerquery.refresh",
-        "powerquery.refresh-all",
         "analysis.create-scenario",
         "analysis.show-scenario",
         "vba.list",
