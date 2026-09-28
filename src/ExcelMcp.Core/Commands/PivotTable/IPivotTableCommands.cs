@@ -55,7 +55,7 @@ public interface IPivotTableCommands
     /// <param name="destinationCell">Destination cell address (e.g., "A1")</param>
     /// <param name="pivotTableName">Name for the new PivotTable</param>
     /// <returns>Created PivotTable name and initial field list</returns>
-    [ServiceAction("create-from-range")]
+    [ServiceAction("create-from-range"), OfficeAddInAction("1.8", mutation: true)]
     PivotTableCreateResult CreateFromRange(IExcelBatch batch,
         string sourceSheet, string sourceRange,
         string destinationSheet, string destinationCell,
@@ -70,7 +70,7 @@ public interface IPivotTableCommands
     /// <param name="destinationCell">Destination cell address (e.g., "A1")</param>
     /// <param name="pivotTableName">Name for the new PivotTable</param>
     /// <returns>Created PivotTable name and available fields</returns>
-    [ServiceAction("create-from-table")]
+    [ServiceAction("create-from-table"), OfficeAddInAction("1.8", mutation: true)]
     PivotTableCreateResult CreateFromTable(IExcelBatch batch,
         string tableName,
         string destinationSheet, string destinationCell,
@@ -97,7 +97,7 @@ public interface IPivotTableCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable to delete</param>
     /// <returns>Operation result</returns>
-    [ServiceAction("delete")]
+    [ServiceAction("delete"), OfficeAddInAction("1.15", mutation: true)]
     OperationResult Delete(IExcelBatch batch, string pivotTableName);
 
     /// <summary>

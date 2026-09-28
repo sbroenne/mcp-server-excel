@@ -32,7 +32,7 @@ public interface ISlicerCommands
     /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
     /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
     /// <returns>Created slicer details with available items</returns>
-    [ServiceAction("create-slicer")]
+    [ServiceAction("create-slicer"), OfficeAddInAction("1.15", mutation: true)]
     SlicerResult CreateSlicer(IExcelBatch batch, string pivotTableName,
         string fieldName, string slicerName, string destinationSheet, string position);
 
@@ -76,7 +76,7 @@ public interface ISlicerCommands
     /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
     /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
     /// <returns>Created slicer details with available items</returns>
-    [ServiceAction("create-table-slicer")]
+    [ServiceAction("create-table-slicer"), OfficeAddInAction("1.10", mutation: true)]
     SlicerResult CreateTableSlicer(IExcelBatch batch, string tableName,
         string columnName, string slicerName, string destinationSheet, string position);
 

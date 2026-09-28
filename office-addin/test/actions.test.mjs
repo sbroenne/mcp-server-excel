@@ -14,7 +14,11 @@ test("source contract metadata matches every Office.js action registration", asy
     "../../src/ExcelMcp.Core/Commands/Table/ITableCommands.cs",
     "../../src/ExcelMcp.Core/Commands/Table/ITableColumnCommands.cs",
     "../../src/ExcelMcp.Core/Commands/ConditionalFormat/IConditionalFormattingCommands.cs",
-    "../../src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs"
+    "../../src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs",
+    "../../src/ExcelMcp.Core/Commands/Chart/IChartCommands.cs",
+    "../../src/ExcelMcp.Core/Commands/Chart/IChartConfigCommands.cs",
+    "../../src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs",
+    "../../src/ExcelMcp.Core/Commands/Slicer/ISlicerCommands.cs"
   ];
   const contracts = new Map();
   for (const relativePath of contractFiles) {
@@ -416,6 +420,285 @@ test("rejects an action when the active workbook lacks its required API", async 
   );
 });
 
+test("keeps inexact PivotChart, OLAP, grouping, and slicer discovery routes disabled", () => {
+  for (const action of [
+    "chart.create-from-pivottable",
+    "chart.list",
+    "pivottable.create-from-datamodel",
+    "pivottable.get-cache-options",
+    "pivottablefield.group-by-date",
+    "pivottablefield.group-items",
+    "slicer.list-slicers",
+    "slicer.set-slicer-selection"
+  ]) {
+    assert.equal(getImplementedAction(action), null, action);
+  }
+});
+
+test("creates a regular chart with target-range precedence and exact result shape", async () => {
+  const fixture = createChartContext();
+  const result = await executeOfficeAction({
+    action: "chart.create-from-range",
+    payload: {
+      sheetName: "Data",
+      sourceRangeAddress: "A1:B4",
+      chartType: "Column3DClustered",
+      left: 900,
+      top: 700,
+      width: 500,
+      height: 350,
+      chartName: "Sales Chart",
+      targetRange: "D2:H14"
+    }
+  }, {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+
+  assert.deepEqual(fixture.addCalls, [{
+    type: "3DColumnClustered",
+    sourceAddress: "Data!A1:B4",
+    seriesBy: "Auto"
+  }]);
+  assert.deepEqual(fixture.positionCalls, [{
+    start: "Data!D2:H14:first",
+    end: "Data!D2:H14:last"
+  }]);
+  assert.deepEqual(result, {
+    success: true,
+    errorMessage: null,
+    action: "create",
+    message: "IMPORTANT: You MUST take a screenshot(capture-sheet) to verify the chart does not overlap the data.",
+    chartName: "Sales Chart",
+    sheetName: "Data",
+    chartType: "Column3DClustered",
+    isPivotChart: false,
+    linkedPivotTable: null,
+    left: 40,
+    top: 60,
+    width: 320,
+    height: 240
+  });
+});
+
+test("uses Core automatic chart padding and reports data collisions", async () => {
+  const automatic = createChartContext();
+  const runtime = (fixture) => ({
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+
+  const placed = await executeOfficeAction({
+    action: "chart.create-from-range",
+    payload: {
+      sheetName: "Data",
+      sourceRangeAddress: "A1:B4",
+      chartType: "ColumnClustered",
+      left: 0,
+      top: 0,
+      width: 400,
+      height: 300,
+      chartName: "Automatic"
+    }
+  }, runtime(automatic));
+
+  assert.equal(placed.left, 10);
+  assert.equal(placed.top, 50);
+
+  const colliding = createChartContext();
+  colliding.usedRange.height = 100;
+  const result = await executeOfficeAction({
+    action: "chart.create-from-range",
+    payload: {
+      sheetName: "Data",
+      sourceRangeAddress: "A1:B4",
+      chartType: "ColumnClustered",
+      chartName: "Collision",
+      targetRange: "D2:H14"
+    }
+  }, runtime(colliding));
+
+  assert.equal(
+    result.message,
+    "OVERLAP WARNING: Chart overlaps data area Data!A1:B4. Use chart move or fit-to-range to reposition, then screenshot(capture-sheet) to verify layout."
+  );
+});
+
+test("routes chart configuration with Core enum mappings and 1-based series indexes", async () => {
+  const fixture = createChartContext();
+  const runtime = {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  };
+
+  await executeOfficeAction({
+    action: "chartconfig.set-axis-scale",
+    payload: {
+      chartName: "Existing",
+      axis: "ValueSecondary",
+      minimumScale: null,
+      maximumScale: 100,
+      majorUnit: 10,
+      minorUnit: null
+    }
+  }, runtime);
+  await executeOfficeAction({
+    action: "chartconfig.set-series-chart-type",
+    payload: { chartName: "Existing", seriesIndex: 2, chartType: "LineMarkers" }
+  }, runtime);
+  const plot = await executeOfficeAction({
+    action: "chartconfig.get-plot-options",
+    payload: { chartName: "Existing" }
+  }, runtime);
+
+  assert.deepEqual(fixture.axisCalls.at(-1), ["Value", "Secondary"]);
+  assert.equal(fixture.chart.axes.lastAxis.minimum, "");
+  assert.equal(fixture.chart.axes.lastAxis.maximum, 100);
+  assert.equal(fixture.chart.axes.lastAxis.majorUnit, 10);
+  assert.equal(fixture.chart.axes.lastAxis.minorUnit, "");
+  assert.deepEqual(fixture.seriesCalls, [1]);
+  assert.equal(fixture.chart.seriesItems[1].chartType, "LineMarkers");
+  assert.deepEqual(plot, {
+    success: true,
+    errorMessage: null,
+    chartName: "Existing",
+    plotBy: "Columns",
+    displayBlanksAs: "Gaps",
+    plotVisibleOnly: true
+  });
+});
+
+test("adds trendlines with 1-based indexes and exact shared result shape", async () => {
+  const fixture = createChartContext();
+  const result = await executeOfficeAction({
+    action: "chartconfig.add-trendline",
+    payload: {
+      chartName: "Existing",
+      seriesIndex: 1,
+      trendlineType: "Polynomial",
+      order: 3,
+      forward: 2,
+      displayEquation: true,
+      displayRSquared: false,
+      name: "Forecast"
+    }
+  }, {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+
+  assert.deepEqual(result, {
+    success: true,
+    errorMessage: null,
+    action: "add-trendline",
+    message: "Trendline added to series 1 of 'Existing'.",
+    chartName: "Existing",
+    seriesIndex: 1,
+    trendlineIndex: 1,
+    type: "Polynomial",
+    name: "Forecast"
+  });
+  assert.equal(fixture.trendline.polynomialOrder, 3);
+  assert.equal(fixture.trendline.forwardPeriod, 2);
+  assert.equal(fixture.trendline.showEquation, true);
+  assert.equal(fixture.trendline.showRSquared, false);
+});
+
+test("creates ordinary range PivotTables with exact shared DTO fields", async () => {
+  const fixture = createPivotContext();
+  const result = await executeOfficeAction({
+    action: "pivottable.create-from-range",
+    payload: {
+      sourceSheet: "Source",
+      sourceRange: "A1:C4",
+      destinationSheet: "Report",
+      destinationCell: "E3",
+      pivotTableName: "SalesPivot"
+    }
+  }, {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+
+  assert.deepEqual(fixture.addCalls, [{
+    name: "SalesPivot",
+    source: "Source!A1:C4",
+    destination: "Report!E3"
+  }]);
+  assert.deepEqual(result, {
+    success: true,
+    errorMessage: null,
+    pivotTableName: "SalesPivot",
+    sheetName: "Report",
+    range: "Report!E3:G6",
+    sourceData: "Source!A1:C4",
+    sourceRowCount: 3,
+    availableFields: ["Region", "Sales", "Units"]
+  });
+});
+
+test("rejects OLAP PivotTable mutations instead of treating metadata availability as parity", async () => {
+  const fixture = createPivotContext("Unknown");
+  await assert.rejects(
+    executeOfficeAction({
+      action: "pivottable.delete",
+      payload: { pivotTableName: "ModelPivot" }
+    }, {
+      requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+      async run(callback) {
+        return callback(fixture.context);
+      }
+    }),
+    /OLAP and Power Pivot require the trusted VBA capability/
+  );
+  assert.equal(fixture.pivot.deleted, false);
+});
+
+test("creates a table slicer with exact known source identity and item captions", async () => {
+  const fixture = createPivotContext();
+  const result = await executeOfficeAction({
+    action: "slicer.create-table-slicer",
+    payload: {
+      tableName: "Sales",
+      columnName: "Region",
+      slicerName: "RegionSlicer",
+      destinationSheet: "Report",
+      position: "J2"
+    }
+  }, {
+    requirementSets: { excelApi: ["1.21"], excelApiDesktop: [] },
+    async run(callback) {
+      return callback(fixture.context);
+    }
+  });
+
+  assert.deepEqual(result, {
+    success: true,
+    errorMessage: null,
+    name: "RegionSlicer",
+    caption: "RegionSlicer",
+    fieldName: "Region",
+    sheetName: "Report",
+    position: "J2",
+    selectedItems: ["North"],
+    availableItems: ["North", "South"],
+    connectedPivotTables: [],
+    connectedTable: "Sales",
+    sourceType: "Table",
+    workflowHint: "Slicer 'RegionSlicer' created for column 'Region' in table 'Sales'. Use SetTableSlicerSelection to filter data."
+  });
+});
+
 test("serializes dispatched Excel.run actions", async () => {
   let active = 0;
   let maximum = 0;
@@ -457,6 +740,263 @@ test("serializes dispatched Excel.run actions", async () => {
   await Promise.all([first, second]);
   assert.equal(maximum, 1);
 });
+
+function createChartContext() {
+  const addCalls = [];
+  const positionCalls = [];
+  const axisCalls = [];
+  const seriesCalls = [];
+  const trendline = {
+    name: "",
+    type: "",
+    load() {}
+  };
+  const trendlines = {
+    items: [],
+    add(type) {
+      trendline.type = type;
+      this.items.push(trendline);
+      return trendline;
+    },
+    getCount() {
+      return { value: this.items.length };
+    },
+    getItem(index) {
+      return this.items[index];
+    }
+  };
+  const seriesItems = [
+    { chartType: "ColumnClustered", trendlines },
+    { chartType: "ColumnClustered", trendlines }
+  ];
+  const axes = {
+    lastAxis: null,
+    getItem(type, group) {
+      axisCalls.push([type, group]);
+      const axis = {
+        minimum: 0,
+        maximum: 0,
+        majorUnit: 0,
+        minorUnit: 0,
+        title: {},
+        majorGridlines: { visible: true, load() {} },
+        minorGridlines: { visible: false, load() {} },
+        load() {}
+      };
+      this.lastAxis = axis;
+      return axis;
+    }
+  };
+  const chart = {
+    name: "Existing",
+    chartType: "ColumnClustered",
+    left: 10,
+    top: 20,
+    width: 400,
+    height: 300,
+    plotBy: "Columns",
+    displayBlanksAs: "NotPlotted",
+    plotVisibleOnly: true,
+    isNullObject: false,
+    title: {},
+    legend: {},
+    dataLabels: {},
+    axes,
+    seriesItems,
+    series: {
+      getItemAt(index) {
+        seriesCalls.push(index);
+        return seriesItems[index];
+      }
+    },
+    load() {},
+    setPosition(start, end) {
+      positionCalls.push({ start: start.address, end: end.address });
+      this.left = 40;
+      this.top = 60;
+      this.width = 320;
+      this.height = 240;
+    },
+    delete() {}
+  };
+  const nullChart = {
+    isNullObject: true,
+    load() {}
+  };
+  const ranges = new Map();
+  const range = (address) => {
+    if (!ranges.has(address)) {
+      ranges.set(address, {
+        address,
+        getCell() {
+          return { address: `${address}:first` };
+        },
+        getLastCell() {
+          return { address: `${address}:last` };
+        }
+      });
+    }
+    return ranges.get(address);
+  };
+  const charts = {
+    items: [chart],
+    add(type, source, seriesBy) {
+      addCalls.push({ type, sourceAddress: source.address, seriesBy });
+      chart.chartType = type;
+      return chart;
+    },
+    getItemOrNullObject(name) {
+      return name === chart.name ? chart : nullChart;
+    },
+    load() {}
+  };
+  const usedRange = {
+    address: "Data!A1:B4",
+    left: 0,
+    top: 0,
+    width: 100,
+    height: 40,
+    load() {}
+  };
+  const sheet = {
+    name: "Data",
+    charts,
+    load() {},
+    getRange(address) {
+      return range(`Data!${address}`);
+    },
+    getUsedRange() {
+      return usedRange;
+    }
+  };
+  const context = {
+    workbook: {
+      worksheets: {
+        items: [sheet],
+        load() {},
+        getItem() {
+          return sheet;
+        }
+      },
+      tables: {
+        getItem() {
+          return { getRange: () => range("Data!A1:B4") };
+        }
+      }
+    },
+    async sync() {}
+  };
+  return {
+    context,
+    chart,
+    trendline,
+    usedRange,
+    addCalls,
+    positionCalls,
+    axisCalls,
+    seriesCalls
+  };
+}
+
+function createPivotContext(sourceType = "LocalRange") {
+  const addCalls = [];
+  const sourceRange = {
+    address: "Source!A1:C4",
+    rowCount: 4,
+    values: [
+      ["Region", "Sales", "Units"],
+      ["North", 10, 1],
+      ["South", 20, 2],
+      ["North", 30, 3]
+    ],
+    load() {}
+  };
+  const destination = { address: "Report!E3" };
+  const position = { address: "Report!J2", left: 500, top: 30, load() {} };
+  const pivotRange = { address: "Report!E3:G6", load() {} };
+  const pivot = {
+    deleted: false,
+    layout: { getRange: () => pivotRange },
+    getDataSourceType() {
+      return { value: sourceType };
+    },
+    delete() {
+      this.deleted = true;
+    }
+  };
+  const slicer = {
+    name: "",
+    caption: "",
+    left: 0,
+    top: 0,
+    load() {},
+    getSelectedItems() {
+      return { value: ["north-key"] };
+    },
+    slicerItems: {
+      items: [
+        { key: "north-key", name: "North" },
+        { key: "south-key", name: "South" }
+      ],
+      load() {}
+    }
+  };
+  const sourceSheet = {
+    name: "Source",
+    load() {},
+    getRange() {
+      return sourceRange;
+    }
+  };
+  const reportSheet = {
+    name: "Report",
+    load() {},
+    getRange(address) {
+      return address === "J2" ? position : destination;
+    }
+  };
+  const tables = {
+    Sales: {
+      name: "Sales",
+      getRange() {
+        return sourceRange;
+      }
+    }
+  };
+  const context = {
+    workbook: {
+      worksheets: {
+        getItem(name) {
+          return name === "Source" ? sourceSheet : reportSheet;
+        }
+      },
+      tables: {
+        getItem(name) {
+          return tables[name];
+        }
+      },
+      pivotTables: {
+        add(name, source, target) {
+          addCalls.push({ name, source: source.address, destination: target.address });
+          return pivot;
+        },
+        getItem() {
+          return pivot;
+        }
+      },
+      slicers: {
+        add(source, field, sheet) {
+          assert.equal(source, tables.Sales);
+          assert.equal(field, "Region");
+          assert.equal(sheet, reportSheet);
+          return slicer;
+        }
+      }
+    },
+    async sync() {}
+  };
+  return { context, pivot, addCalls };
+}
 
 function createWorksheetCollection() {
   const sheets = new Map([

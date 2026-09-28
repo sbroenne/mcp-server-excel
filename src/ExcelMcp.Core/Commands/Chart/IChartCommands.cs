@@ -63,7 +63,7 @@ public interface IChartCommands
     /// <param name="height">Chart height in points</param>
     /// <param name="chartName">Optional chart name (auto-generated if omitted)</param>
     /// <param name="targetRange">Cell range to position chart within (e.g., 'F2:K15'). PREFERRED over left/top. When set, left/top are ignored.</param>
-    [ServiceAction("create-from-range")]
+    [ServiceAction("create-from-range"), OfficeAddInAction("1.1", mutation: true)]
     ChartCreateResult CreateFromRange(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
@@ -89,7 +89,7 @@ public interface IChartCommands
     /// <param name="height">Chart height in points</param>
     /// <param name="chartName">Optional chart name (auto-generated if omitted)</param>
     /// <param name="targetRange">Cell range to position chart within (e.g., 'F2:K15'). PREFERRED over left/top. When set, left/top are ignored.</param>
-    [ServiceAction("create-from-table")]
+    [ServiceAction("create-from-table"), OfficeAddInAction("1.1", mutation: true)]
     ChartCreateResult CreateFromTable(
         IExcelBatch batch,
         [RequiredParameter] string tableName,
@@ -135,7 +135,7 @@ public interface IChartCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart to delete</param>
-    [ServiceAction("delete")]
+    [ServiceAction("delete"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string chartName);
 
     /// <summary>
@@ -147,7 +147,7 @@ public interface IChartCommands
     /// <param name="top">New top position in points (null to keep current)</param>
     /// <param name="width">New width in points (null to keep current)</param>
     /// <param name="height">New height in points (null to keep current)</param>
-    [ServiceAction("move")]
+    [ServiceAction("move"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult Move(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
@@ -163,7 +163,7 @@ public interface IChartCommands
     /// <param name="chartName">Name of the chart to fit</param>
     /// <param name="sheetName">Worksheet containing the range</param>
     /// <param name="rangeAddress">Range to fit the chart to (e.g., A1:D10)</param>
-    [ServiceAction("fit-to-range")]
+    [ServiceAction("fit-to-range"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult FitToRange(
         IExcelBatch batch,
         [RequiredParameter] string chartName,

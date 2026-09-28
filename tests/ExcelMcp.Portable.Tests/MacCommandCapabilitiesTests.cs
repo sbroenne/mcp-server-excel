@@ -145,11 +145,16 @@ public sealed class MacCommandCapabilitiesTests
         Assert.Contains("Office.js", capability.UnavailableMessage, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void OfficeAddInCandidate_IsRoutableOnlyWhenExplicitlyEnabled()
+    [Theory]
+    [InlineData("table.create")]
+    [InlineData("chart.create-from-range")]
+    [InlineData("chartconfig.get-plot-options")]
+    [InlineData("pivottable.create-from-range")]
+    [InlineData("slicer.create-table-slicer")]
+    public void OfficeAddInCandidate_IsRoutableOnlyWhenExplicitlyEnabled(string command)
     {
         var capability = MacCommandCapabilities.Get(
-            "table.create",
+            command,
             officeCandidateEnabled: true);
 
         Assert.True(capability.IsAvailable);
