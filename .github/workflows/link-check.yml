@@ -54,14 +54,20 @@ jobs:
           # --root-dir lets root-relative hrefs resolve against the built
           # output, so internal and external links are both covered. It must be
           # an absolute path - lychee rejects relative values.
+          #
+          # npmjs.com answers automated clients with 403 even when the package
+          # exists, so its links can't be checked this way. The MCP Registry
+          # API is slow at times, so allow more time before giving up.
           args: >-
             --root-dir ${{ github.workspace }}/gh-pages/_site
             --no-progress
             --max-concurrency 4
+            --timeout 60
             --accept 200,206,429
             --exclude '^https?://localhost'
             --exclude '^https?://127\.0\.0\.1'
             --exclude 'example\.com'
+            --exclude '^https://www\.npmjs\.com/'
             'gh-pages/_site/**/*.html'
           fail: true
           output: lychee-report.md
