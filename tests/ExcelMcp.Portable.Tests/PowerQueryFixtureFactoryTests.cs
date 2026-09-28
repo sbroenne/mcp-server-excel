@@ -149,6 +149,85 @@ public sealed class PowerQueryFixtureFactoryTests
         Assert.Contains(audit.Errors, error => error.Contains("tableType", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(PowerQueryFixtureKind.ConnectionOnly)]
+    [InlineData(PowerQueryFixtureKind.WorksheetLoaded)]
+    public void Create_EncodesMashupColumnNamesAsJsonArray(PowerQueryFixtureKind kind)
+    {
+        using var directory = new TemporaryDirectory("excelmcp-pq-fixture-");
+        var fixture = PowerQueryFixtureFactory.Create(directory.Path, kind);
+        RewriteMetadata(fixture.WorkbookPath, metadata =>
+        {
+            var entry = Assert.Single(metadata.Descendants(),
+                element => (string?)element.Attribute("Type") == "FillColumnNames");
+            var value = Assert.IsType<string>((string?)entry.Attribute("Value"));
+            Assert.StartsWith("s", value, StringComparison.Ordinal);
+            var names = JsonSerializer.Deserialize<string[]>(value[1..]);
+            Assert.NotNull(names);
+            Assert.Equal(["Item", "Amount"], names);
+        });
+    }
+
+    [Theory]
+    [InlineData("sItem,Amount")]
+    [InlineData("s[\"Item\"]")]
+    [InlineData("l2")]
+    public void Audit_RejectsInvalidMashupColumnNames(string value)
+    {
+        using var directory = new TemporaryDirectory("excelmcp-pq-fixture-");
+        var fixture = PowerQueryFixtureFactory.Create(directory.Path, PowerQueryFixtureKind.WorksheetLoaded);
+        RewriteMetadata(fixture.WorkbookPath, metadata =>
+            metadata.Descendants().Single(element =>
+                (string?)element.Attribute("Type") == "FillColumnNames").SetAttributeValue("Value", value));
+
+        var audit = PowerQueryFixtureFactory.Audit(fixture.WorkbookPath, PowerQueryFixtureKind.WorksheetLoaded);
+        Assert.Contains(audit.Errors, error => error.Contains("FillColumnNames", StringComparison.Ordinal));
+    }
+
+    private static void RewriteMetadata(string path, Action<XDocument> edit)
+    {
+        using var archive = ZipFile.Open(path, ZipArchiveMode.Update);
+        var entry = archive.GetEntry("customXml/item1.xml")!;
+        XDocument document;
+        using (var stream = entry.Open()) document = XDocument.Load(stream);
+        using var rootReader = new BinaryReader(new MemoryStream(Convert.FromBase64String(document.Root!.Value)));
+        var rootVersion = rootReader.ReadUInt32();
+        var sections = Enumerable.Range(0, 4)
+            .Select(_ => rootReader.ReadBytes(rootReader.ReadInt32())).ToArray();
+        using var metadataReader = new BinaryReader(new MemoryStream(sections[2]));
+        var metadataVersion = metadataReader.ReadUInt32();
+        using var xmlStream = new MemoryStream(metadataReader.ReadBytes(metadataReader.ReadInt32()));
+        var metadata = XDocument.Load(xmlStream);
+        var binaryContent = metadataReader.ReadBytes(metadataReader.ReadInt32());
+        edit(metadata);
+        using var updatedXml = new MemoryStream();
+        metadata.Save(updatedXml);
+        using var updatedMetadata = new MemoryStream();
+        using (var writer = new BinaryWriter(updatedMetadata, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(metadataVersion);
+            writer.Write(checked((int)updatedXml.Length));
+            writer.Write(updatedXml.ToArray());
+            writer.Write(binaryContent.Length);
+            writer.Write(binaryContent);
+        }
+        sections[2] = updatedMetadata.ToArray();
+        using var updatedRoot = new MemoryStream();
+        using (var writer = new BinaryWriter(updatedRoot, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(rootVersion);
+            foreach (var section in sections)
+            {
+                writer.Write(section.Length);
+                writer.Write(section);
+            }
+        }
+        document.Root.Value = Convert.ToBase64String(updatedRoot.ToArray());
+        entry.Delete();
+        using var output = archive.CreateEntry("customXml/item1.xml").Open();
+        document.Save(output);
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory(string prefix)

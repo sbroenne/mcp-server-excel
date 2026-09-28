@@ -518,6 +518,14 @@ variant still failed to attach, leaving an alert. The table-type correction is
 therefore not the complete solution. Further opens are paused; a user-provided
 repair report from the disposable fixture is needed to identify the remaining
 defect. A repaired workbook would be diagnostic only, never acceptance proof.
+Read-only Accessibility inspection confirms that this repair prompt remains
+active. Microsoft's published MS-QDEFF metadata schema/example then exposed a
+separate deterministic defect: `FillColumnNames` is a string containing a JSON
+array, while the factory emitted comma-separated text. Generation now emits
+`s["Item","Amount"]`, and package audit decodes the DataMashup metadata and
+rejects a missing, mistyped or mismatched column list. Five failing-first tests
+cover both generated variants and malformed values. This correction remains
+offline-only until the earlier modal request is explicitly resolved.
 Connection-only MCP acceptance and synchronous refresh are also unproven.
 Both generated variants remain opt-in acceptance candidates, and every
 refresh-dependent action stays gated.

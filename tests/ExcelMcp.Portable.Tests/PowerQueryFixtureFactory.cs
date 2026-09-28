@@ -359,7 +359,7 @@ internal static class PowerQueryFixtureFactory
                     <Entry Type="RecoveryTargetSheet" Value="s{(loaded ? WorksheetName : string.Empty)}"/>
                     <Entry Type="RecoveryTargetRow" Value="l1"/>
                     <Entry Type="RecoveryTargetColumn" Value="l1"/>
-                    <Entry Type="FillColumnNames" Value="sItem,Amount"/>
+                    <Entry Type="FillColumnNames" Value="s[&quot;Item&quot;,&quot;Amount&quot;]"/>
                     <Entry Type="FillCount" Value="l2"/>
                     <Entry Type="FillStatus" Value="sComplete"/>
                   </StableEntries>
@@ -526,12 +526,52 @@ internal static class PowerQueryFixtureFactory
 
         try
         {
-            _ = Convert.FromBase64String(document.Root.Value);
+            using var root = new BinaryReader(new MemoryStream(Convert.FromBase64String(document.Root.Value)));
+            if (root.ReadUInt32() != 0)
+            {
+                throw new InvalidDataException("Unexpected DataMashup version.");
+            }
+            _ = ReadSized(root);
+            _ = ReadSized(root);
+            using var metadata = new BinaryReader(new MemoryStream(ReadSized(root)));
+            if (metadata.ReadUInt32() != 0)
+            {
+                throw new InvalidDataException("Unexpected DataMashup metadata version.");
+            }
+            using var xml = new MemoryStream(ReadSized(metadata));
+            var metadataXml = XDocument.Load(xml);
+            var entries = metadataXml.Descendants(XName.Get("Entry", DataMashupNamespace))
+                .Where(element => (string?)element.Attribute("Type") == "FillColumnNames").ToArray();
+            if (entries.Length != 1)
+            {
+                throw new InvalidDataException("Exactly one FillColumnNames entry is required.");
+            }
+            var value = (string?)entries[0].Attribute("Value");
+            if (value is null || !value.StartsWith('s'))
+            {
+                throw new InvalidDataException("FillColumnNames must use the string value prefix.");
+            }
+            var columns = JsonSerializer.Deserialize<string[]>(value[1..]);
+            if (columns is null || !columns.SequenceEqual(["Item", "Amount"], StringComparer.Ordinal))
+            {
+                throw new InvalidDataException("FillColumnNames must identify the Item and Amount columns in order.");
+            }
         }
-        catch (FormatException)
+        catch (Exception error) when (error is FormatException or EndOfStreamException
+            or InvalidDataException or System.Xml.XmlException or JsonException)
         {
-            errors.Add("DataMashup content is not valid base64.");
+            errors.Add($"DataMashup FillColumnNames metadata is invalid: {error.Message}");
         }
+    }
+
+    private static byte[] ReadSized(BinaryReader reader)
+    {
+        var length = reader.ReadUInt32();
+        if (length > reader.BaseStream.Length - reader.BaseStream.Position)
+        {
+            throw new InvalidDataException("DataMashup section exceeds the available content.");
+        }
+        return reader.ReadBytes(checked((int)length));
     }
 
     private static void AuditLoadGraph(

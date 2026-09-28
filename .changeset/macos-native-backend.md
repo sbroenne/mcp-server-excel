@@ -42,3 +42,7 @@ Fix daemon startup when invoking `dotnet excelcli.dll`: the child process now
 receives the CLI assembly path instead of attempting to execute `dotnet service`.
 Use a macOS-compatible private pipe name and bounded native CLI shutdown in the
 Power Query acceptance runner rather than Windows-only cleanup discovery.
+
+Encode generated Power Query `FillColumnNames` using the JSON-array string
+required by MS-QDEFF, and reject malformed or mismatched metadata during the
+fixture package audit.
