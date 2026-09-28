@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "Telemetry")]
 [Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "false")]
 public sealed class CliTelemetryTests
 {
     [Fact]
