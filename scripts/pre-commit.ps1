@@ -541,7 +541,6 @@ Invoke-ValidationStep `
         }
     }
 
-if ($isWindowsHost) {
 Invoke-ValidationStep `
     -Heading "Running VS Code extension package validation..." `
     -FailureSummary "VS Code extension package validation failed! Fix the extension build or manifest mismatch before committing." `
@@ -569,13 +568,7 @@ Invoke-ValidationStep `
             Pop-Location
         }
     }
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping VS Code extension package validation (package targets Windows)." -ForegroundColor Yellow
-}
 
-if ($isWindowsHost) {
 Invoke-ValidationStep `
     -Heading "Building MCPB bundle deliverable..." `
     -FailureSummary "MCPB bundle validation failed!" `
@@ -609,11 +602,6 @@ Invoke-ValidationStep `
             Pop-Location
         }
     }
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping MCPB bundle validation (requires Windows Desktop targeting pack)." -ForegroundColor Yellow
-}
 
 Invoke-ValidationStep `
     -Heading "Building agent skills deliverables..." `

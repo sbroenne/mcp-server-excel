@@ -46,6 +46,38 @@ function worksheetByName(workbook, sheetName) {
     throw new Error(`Worksheet '${sheetName}' does not exist.`);
 }
 
+function sheetVisibility(value) {
+    if (typeof value === "number") {
+        if (value === -1) return { appleEvent: "sheet visible", value: -1, name: "Visible" };
+        if (value === 0) return { appleEvent: "sheet hidden", value: 0, name: "Hidden" };
+        if (value === 2) return { appleEvent: "sheet very hidden", value: 2, name: "VeryHidden" };
+    }
+
+    const normalized = String(value).replace(/[\s_-]/g, "").toLocaleLowerCase();
+    if (normalized === "visible" || normalized === "sheetvisible") {
+        return { appleEvent: "sheet visible", value: -1, name: "Visible" };
+    }
+    if (normalized === "hidden" || normalized === "sheethidden") {
+        return { appleEvent: "sheet hidden", value: 0, name: "Hidden" };
+    }
+    if (normalized === "veryhidden" || normalized === "sheetveryhidden") {
+        return { appleEvent: "sheet very hidden", value: 2, name: "VeryHidden" };
+    }
+
+    throw new Error("Visibility must be visible, hidden, or veryhidden.");
+}
+
+function currentSheetVisibility(sheet) {
+    return sheetVisibility(sheet.visible());
+}
+
+function requireRgb(value) {
+    if (!Number.isInteger(value) || value < 0 || value > 255) {
+        throw new Error("RGB values must be between 0 and 255");
+    }
+    return value;
+}
+
 function excelProcessId() {
     const applications = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(
         "com.microsoft.Excel");

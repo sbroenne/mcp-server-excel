@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
-    2. Strip any runtime payloads from plugin roots
-    3. Update release metadata in plugin.json and version.txt
+       Render bootstrap scripts only in the output tree; source templates stay read-only.
+    2. Strip any runtime payloads from plugin bin/ roots
+    3. Update runtime-bootstrap metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 

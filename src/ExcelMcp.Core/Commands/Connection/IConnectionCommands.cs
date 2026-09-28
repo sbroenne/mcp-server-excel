@@ -11,6 +11,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// TIMEOUT: 30 min auto-timeout for refresh/load-to.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+    Evidence = "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events.",
+    Blocker = "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
     Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations. Power Query connections redirect to powerquery by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. Typed OLEDB/ODBC refresh status and cancellation are available. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
 public interface IConnectionCommands

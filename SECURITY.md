@@ -69,12 +69,21 @@ permission and dispatch occur in the same bounded executable child because
 Automation authorization is sender-specific. ExcelMcp does not automate System
 Settings, weaken macro security, or click Excel warnings.
 
+The optional macOS Office.js bridge is not required by either entry point.
+Its per-user token and copied private key are mode `0600`; protocol mismatches,
+inactive add-ins, identity mismatches, unsupported requirement sets, expired
+requests, and cancelled requests fail closed. Users or administrators must
+provide and trust the localhost certificate explicitly. Removal does not alter
+keychain trust that ExcelMcp did not create.
+
 macOS VBA capability checks read the effective Office macro and project-model
 preferences without changing them. A permissive preference is not treated as
 proof that a workbook or macro is trusted: macro execution stays disabled until
 a repository-owned fixture proves unattended CLI and MCP behavior. VBA source
-operations remain unavailable because Excel's Apple Events dictionary has no
-project-model route. The Mac distribution may include reviewable source for an
+operations remain unavailable until the optional, explicitly installed helper
+has a verified project-model route under separate user-managed trust.
+Apple Events lacks that route, but this does not establish a VBA engine limit.
+The Mac distribution may include reviewable source for an
 optional, version-matched `ExcelMcpHelper.xlam` dispatcher that the user imports
 into a new add-in with Excel. ExcelMcp does not install it, inject code into
 user workbooks, or change trust. Its run action accepts only a validated
@@ -245,6 +254,9 @@ We follow responsible disclosure practices:
   reads the user-managed macro and project-model preferences; execution and
   source operations remain capability-gated until their independent evidence
   requirements are met.
+- **Office.js Capability Claims**: Requirement-set availability and installed
+  Excel version are negotiated at runtime, but features remain gated until
+  real-Excel contract tests establish support
 
 ### File System Access
 

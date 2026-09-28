@@ -12,7 +12,9 @@ public enum MacCapabilityTier
     /// <summary>Optional trusted VBA project object-model helper.</summary>
     VbaProjectModel,
     /// <summary>No selected macOS implementation tier.</summary>
-    Unsupported
+    Unsupported,
+    /// <summary>Optional native window-capture helper with explicit screen permission.</summary>
+    OptionalNativeHelper
 }
 
 /// <summary>Current implementation state of a public operation on macOS.</summary>

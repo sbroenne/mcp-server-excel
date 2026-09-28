@@ -799,4 +799,3 @@ public class ExcelBatchTests : IAsyncLifetime
     //
     // Keeping this comment as documentation that the scenario is handled in production code.
 }
-

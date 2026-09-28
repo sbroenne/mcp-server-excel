@@ -36,7 +36,7 @@ public sealed class MacCommandCapabilitiesTests
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
     }
 
     [Theory]
@@ -47,38 +47,7 @@ public sealed class MacCommandCapabilitiesTests
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
-        Assert.Contains("dictionary", capability.Evidence, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Theory]
-    [InlineData("analysis.create-scenario")]
-    [InlineData("analysis.show-scenario")]
-    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
-    {
-        var capability = MacCommandCapabilities.Get(command);
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.Contains("VBA helper", capability.UnavailableMessage, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("drawing.add-sparkline")]
-    [InlineData("drawing.add-shape")]
-    [InlineData("slicer.list-slicers")]
-    [InlineData("slicer.set-table-slicer-selection")]
-    public void SpecializedOfficeJsCommands_ReportAddInTier(string command)
-    {
-        var capability = MacCommandCapabilities.Get(command);
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
-        Assert.Contains("scenarioCreateShow", capability.Evidence, StringComparison.Ordinal);
-        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
     }
 
     [Theory]
@@ -271,7 +240,7 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
-    public void VbaRun_RequiresMacroHelperWithoutProjectModelTrust()
+    public void VbaRun_RemainsGatedWithoutRepositoryFixtureEvidence()
     {
         var capability = MacCommandCapabilities.Get(
             "vba.run",
@@ -327,7 +296,7 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("powerquery.load-to")]
     [InlineData("powerquery.unload")]
     [InlineData("powerquery.evaluate")]
-    public void PowerQueryHelperCommandsReachDynamicRouteSelection(string command)
+    public void PowerQueryHelperCommands_RemainUnprovenInInventory(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 

@@ -427,30 +427,21 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         }
     }
 
-    [MacPowerQueryFixtureTheory]
+    [MacExcelTheory]
     [InlineData("cli")]
     [InlineData("mcp")]
     [Trait("Category", "Integration")]
     [Trait("RequiresExcel", "true")]
-    [Trait("Feature", "MacPowerQueryFixture")]
-    public async Task RepositoryOwnedPowerQueryFixtures_RoundTripAndKeepRefreshGated(
-        string entryPoint)
+    [Trait("Feature", "MacAnalysis")]
+    public async Task SpecializedAnalysis_RealEntryPointRoundTrip(string entryPoint)
     {
         Assert.Equal(0, MacAutomationAccess.Check());
         var root = FindRepository();
-        var directory = Directory.CreateTempSubdirectory("excelmcp-mac-pq-e2e-");
-        var connectionOnly = PowerQueryFixtureFactory.Create(
-            directory.FullName,
-            PowerQueryFixtureKind.ConnectionOnly);
-        var worksheetLoaded = PowerQueryFixtureFactory.Create(
-            directory.FullName,
-            PowerQueryFixtureKind.WorksheetLoaded);
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(4));
-        await using var client = await EntryPointClient.CreateAsync(
-            root,
-            entryPoint,
-            output,
-            deadline.Token);
+        var directory = Directory.CreateTempSubdirectory("excelmcp-mac-analysis-");
+        var workbookPath = Path.Combine(directory.FullName, $"analysis-{Guid.NewGuid():N}.xlsx");
+        CreateBlankWorkbook(workbookPath);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        await using var client = await EntryPointClient.CreateAsync(root, entryPoint, output, deadline.Token);
         var completed = false;
         string? sessionId = null;
         try
@@ -792,6 +783,26 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
             using var document = JsonDocument.Parse(json);
             return document.RootElement.Clone();
+        }
+
+        public async Task TryCloseAsync(string sessionId)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                var result = await CallAsync("file", "close", sessionId, new(), deadline.Token);
+                if (!result.GetProperty("success").GetBoolean())
+                {
+                    _output.WriteLine(
+                        $"Best-effort fixture workbook cleanup failed: {result.GetRawText()}");
+                }
+            }
+            catch (Exception exception)
+            {
+                _output.WriteLine(
+                    $"Best-effort fixture workbook cleanup threw {exception.GetType().Name}: " +
+                    exception.Message);
+            }
         }
 
         private static bool UsesExtendedOpenTimeout() =>

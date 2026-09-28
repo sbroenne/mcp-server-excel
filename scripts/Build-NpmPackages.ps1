@@ -32,7 +32,7 @@ $runtimePackageSuffix = switch ($RuntimeIdentifier) {
 }
 $runtimeFileName = if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal)) { $commandName } else { "$commandName.exe" }
 $launcherSource = Join-Path $repoRoot "npm-packages\$packageName"
-$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-win32-x64"
+$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-$runtimePackageSuffix"
 $sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
 $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
 $licensePath = Join-Path $repoRoot 'LICENSE'
@@ -42,7 +42,7 @@ $helperSource = Join-Path $runtimeDirectory 'helpers/excelmcp-screencapture'
 $resolvedOutput = [IO.Path]::GetFullPath($OutputDirectory)
 $stagingRoot = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpm-$([Guid]::NewGuid().ToString('N'))"
 $launcherStage = Join-Path $stagingRoot $packageName
-$runtimeStage = Join-Path $stagingRoot "$packageName-win32-x64"
+$runtimeStage = Join-Path $stagingRoot "$packageName-$runtimePackageSuffix"
 
 function Copy-PackageSource {
     param(
@@ -175,7 +175,9 @@ try {
     Write-PackageManifest -Path (Join-Path $launcherStage 'package.json') -Update {
         param($manifest)
         $manifest.version = $Version
-        $manifest.optionalDependencies."@sbroenne/$packageName-win32-x64" = $Version
+        foreach ($property in $manifest.optionalDependencies.PSObject.Properties) {
+            $property.Value = $Version
+        }
     }
 
     $runtimeTarball = New-NpmTarball `

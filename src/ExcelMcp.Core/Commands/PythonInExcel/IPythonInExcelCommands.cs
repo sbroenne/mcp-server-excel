@@ -27,6 +27,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 /// builtins (sum()/len()) to avoid getting a Series back instead of a scalar total.
 /// </summary>
 [ServiceCategory("pythoninexcel", "PythonInExcel")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+    Evidence = "Native Formula2 retains ordinary formulas across calls, but the literal PY formula returned empty on the tested host.",
+    ExcelApiVersion = "Excel for Mac 16.113.1; Formula2.",
+    Blocker = "Python feature readiness and persistent formula results must pass a prompt-free real-Excel fixture")]
 [McpTool("pythoninexcel", Title = "Python in Excel Operations", Destructive = true, Category = "data",
     Description = "Write and read Microsoft 365 \"Python in Excel\" =PY() formulas. Requires a licensed M365 account with Python in Excel enabled and internet access - Python code executes in Microsoft's cloud sandbox, not locally. SET-FORMULA writes '=PY(code, returnType)' via Range.Formula2 (returnType: 0=Excel Value, 1=Python Object; always pass it explicitly). GET-RESULT reads back the result, polling until the cloud round-trip completes (a fresh formula reads as #BUSY! while still computing); completion is detected deterministically from Excel's calculation state, so a real result is not confused with the #BUSY! placeholder. If Excel returns #NAME? for a PY() formula, both actions report that Python in Excel is unavailable in the current session. If the backend is still busy at the deadline (e.g. a cold start), GET-RESULT says so - call it again or raise maxWaitSeconds. Reference live worksheet data inside the Python code using xl(\"A1:A6\"), xl(\"Sheet1!A1:A6\"), or a named range xl(\"MyRange\") - this works reliably. TIP: xl() returns a DataFrame/Series, not a plain list, so prefer .sum()/.mean()/.max() methods over Python's builtin sum()/len().")]
 public interface IPythonInExcelCommands

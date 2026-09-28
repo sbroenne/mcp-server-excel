@@ -802,12 +802,12 @@
     "windowsVariants": [
       "connectionName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.create",
@@ -818,12 +818,12 @@
       "commandText: string?; optional; default null; SQL query or table name",
       "description: string?; optional; default null; Optional description for the connection"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.delete",
@@ -831,12 +831,12 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection to delete"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.get-properties",
@@ -844,12 +844,12 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.get-refresh-status",
@@ -857,24 +857,24 @@
     "windowsVariants": [
       "connectionName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.list",
     "windowsSemantics": "Lists all connections in a workbook",
     "windowsVariants": [
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.load-to",
@@ -883,12 +883,12 @@
       "connectionName: string; required; Name of the connection",
       "sheetName: string; required; Target worksheet name"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.refresh",
@@ -897,12 +897,12 @@
       "connectionName: string; required; Name of the connection to refresh",
       "timeout: System.TimeSpan?; optional; default null; Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.set-properties",
@@ -917,12 +917,12 @@
       "savePassword: bool?; optional; default null; Save password in connection (null to keep current)",
       "refreshPeriod: int?; optional; default null; Auto-refresh interval in minutes (null to keep current)"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.test",
@@ -930,12 +930,12 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection to test"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "connection.view",
@@ -943,12 +943,12 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection to view"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "datamodel.create-measure",
@@ -1287,12 +1287,12 @@
       "lineColor: string?; optional; default null",
       "lineWeight: double?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.add-form-control",
@@ -1309,12 +1309,12 @@
       "linkedCell: string?; optional; default null",
       "inputRange: string?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.add-image",
@@ -1329,12 +1329,12 @@
       "height: double; optional; default 80.0",
       "lockAspectRatio: bool; optional; default true"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.add-shape",
@@ -1352,12 +1352,12 @@
       "lineColor: string?; optional; default null",
       "lineWeight: double?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.add-sparkline",
@@ -1370,12 +1370,12 @@
       "lineColor: string?; optional; default null",
       "showMarkers: bool; optional; default false"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.add-text-box",
@@ -1393,12 +1393,12 @@
       "fillColor: string?; optional; default null",
       "lineColor: string?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.delete-object",
@@ -1407,12 +1407,12 @@
       "sheetName: string; required",
       "objectName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.delete-sparkline",
@@ -1421,12 +1421,12 @@
       "sheetName: string; required",
       "locationRange: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.get-object",
@@ -1435,12 +1435,12 @@
       "sheetName: string; required",
       "objectName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.get-sparkline",
@@ -1449,12 +1449,12 @@
       "sheetName: string; required",
       "locationRange: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.list-objects",
@@ -1462,12 +1462,12 @@
     "windowsVariants": [
       "sheetName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.list-sparklines",
@@ -1475,12 +1475,12 @@
     "windowsVariants": [
       "sheetName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.update-object",
@@ -1507,12 +1507,12 @@
       "linkedCell: string?; optional; default null",
       "inputRange: string?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "drawing.update-sparkline",
@@ -1525,12 +1525,12 @@
       "lineColor: string?; optional; default null",
       "showMarkers: bool?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "file.close",
@@ -2363,12 +2363,12 @@
       "rangeAddress: string; required; Cell address containing the PY() formula",
       "maxWaitSeconds: int; optional; default 30; Maximum seconds to poll for the cloud result before giving up (default: 30). Must be shorter than the session operation timeout. Returns as soon as the result is ready."
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native Formula2 retains ordinary formulas across calls, but the literal PY formula returned empty on the tested host.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Formula2.",
+    "blocker": "Python feature readiness and persistent formula results must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "pythoninexcel.set-formula",
@@ -2379,12 +2379,12 @@
       "code: string; required; Python source code (e.g. \"xl('A1:A6').sum()\")",
       "returnType: int; optional; default 0; 0 = Excel Value (default), 1 = Python Object"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native Formula2 retains ordinary formulas across calls, but the literal PY formula returned empty on the tested host.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Formula2.",
+    "blocker": "Python feature readiness and persistent formula results must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.cancel-refresh",
@@ -2393,12 +2393,12 @@
       "sheetName: string; required",
       "queryTableName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.create-text",
@@ -2413,12 +2413,12 @@
       "encoding: int; optional; default 65001",
       "hasHeaders: bool; optional; default true"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.create-web",
@@ -2432,12 +2432,12 @@
       "webTables: string?; optional; default null",
       "formatting: string; optional; default \"none\""
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.delete",
@@ -2446,12 +2446,12 @@
       "sheetName: string; required",
       "queryTableName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.get-refresh-status",
@@ -2460,24 +2460,24 @@
       "sheetName: string; required",
       "queryTableName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.list",
     "windowsSemantics": "Lists all worksheet QueryTables in the workbook.",
     "windowsVariants": [
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.refresh",
@@ -2486,12 +2486,12 @@
       "sheetName: string; required",
       "queryTableName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.set-properties",
@@ -2505,12 +2505,12 @@
       "adjustColumnWidth: bool?; optional; default null",
       "preserveFormatting: bool?; optional; default null"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "querytable.view",
@@ -2519,12 +2519,12 @@
       "sheetName: string; required",
       "queryTableName: string; required"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
+    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture"
   },
   {
     "command": "range.clear-all",
@@ -2623,7 +2623,7 @@
       "sheetName: string; required; Name of the worksheet",
       "cellAddress: string; required; Single cell address (e.g., 'B5') - expands to contiguous data region around this cell"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "Blocked",
     "evidence": "Native CurrentRegion probes returned a missing object through JXA and parameter error -50 through typed AppleScript.",
@@ -2678,7 +2678,7 @@
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "Blocked",
     "evidence": "On populated sheets, CLI and MCP both received the empty-sheet $A$1 fallback because JXA used range returned a missing object. JXA special cells also returned a missing object and typed AppleScript returned parameter error -50.",
@@ -2748,11 +2748,11 @@
   },
   {
     "command": "range.set-values",
-    "windowsSemantics": "Sets values in a range from 2D array or file. Provide EITHER values (inline JSON 2D array) OR valuesFile (path to .json or .csv file), not both. JSON file: must contain a 2D array like [[1,2],[3,4]]. CSV file: rows become array rows, comma-separated values become columns. Every row must be rectangular and match the target range column count. Writes that intersect merged cells fail unless the target is only the merged range's top-left cell.",
+    "windowsSemantics": "Sets values in a range from 2D array or file. Provide EITHER values (inline JSON 2D array) OR valuesFile (path to .json or .csv file), not both. JSON file: must contain a 2D array like [[1,2],[3,4]]. CSV file: rows become array rows, comma-separated values become columns. Every row must be rectangular and match the target range column count. Writes that intersect merged cells fail unless the target is only the merged range's top-left cell. Strict ISO dates such as \"2025-01-15\" are stored as native Excel dates. Prefix an ISO-looking value with an apostrophe to preserve it as text.",
     "windowsVariants": [
       "sheetName: string; required; Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only",
       "rangeAddress: string; required; Cell range address matching data dimensions (e.g., 'A1' for [[value]], 'A1:B2' for [[v1,v2],[v3,v4]])",
-      "values: System.Collections.Generic.List<global::System.Collections.Generic.List<object?>>?; optional; default null; 2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Optional if valuesFile is provided.",
+      "values: System.Collections.Generic.List<global::System.Collections.Generic.List<object?>>?; optional; default null; 2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Strict ISO dates such as \"2025-01-15\" become native Excel dates. Optional if valuesFile is provided.",
       "valuesFile: string?; optional; default null; Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter."
     ],
     "tier": "Native",
@@ -3005,7 +3005,7 @@
       "sheetName: string; required; Name of the worksheet",
       "rangeAddress: string; required; Cell range to check for merged cells (e.g., 'A1:D10')"
     ],
-    "tier": "OfficeAddIn",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "Blocked",
     "evidence": "The declared merge command persists merged cells, but the merge area property returned a missing object through fresh JXA descriptors and typed AppleScript returned parameter error -50.",
@@ -3326,12 +3326,12 @@
       "rangeAddress: string; optional; default \"A1:Z30\"; Range to capture (e.g., \"A1:F20\")",
       "quality: Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotQuality; optional; default Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotQuality.Medium; Image quality: Medium (default, JPEG 75% scale), High (PNG full scale), Low (JPEG 50% scale)"
     ],
-    "tier": "Unsupported",
+    "tier": "OptionalNativeHelper",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "ScreenCaptureKit provides an exact-window capture route; range geometry and real Excel acceptance remain unverified.",
+    "excelApiVersion": "ScreenCaptureKit and Excel desktop window geometry; versions require runtime checks.",
+    "blocker": "an optional native screen-capture helper with explicit Screen Recording permission and verified range geometry"
   },
   {
     "command": "screenshot.capture-sheet",
@@ -3340,12 +3340,12 @@
       "sheetName: string?; optional; default null; Worksheet name (null for active sheet)",
       "quality: Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotQuality; optional; default Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotQuality.Medium; Image quality: Medium (default, JPEG 75% scale), High (PNG full scale), Low (JPEG 50% scale)"
     ],
-    "tier": "Unsupported",
+    "tier": "OptionalNativeHelper",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "ScreenCaptureKit provides an exact-window capture route; range geometry and real Excel acceptance remain unverified.",
+    "excelApiVersion": "ScreenCaptureKit and Excel desktop window geometry; versions require runtime checks.",
+    "blocker": "an optional native screen-capture helper with explicit Screen Recording permission and verified range geometry"
   },
   {
     "command": "sheet.add-image",
@@ -3829,12 +3829,12 @@
       "destinationSheet: string; required; Worksheet where slicer will be placed",
       "position: string; required; Top-left cell position for the slicer (e.g., \"H2\")"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.create-table-slicer",
@@ -3846,12 +3846,12 @@
       "destinationSheet: string; required; Worksheet where slicer will be placed",
       "position: string; required; Top-left cell position for the slicer (e.g., \"H2\")"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.delete-slicer",
@@ -3859,12 +3859,12 @@
     "windowsVariants": [
       "slicerName: string; required; Name of the slicer to delete"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.delete-table-slicer",
@@ -3872,12 +3872,12 @@
     "windowsVariants": [
       "slicerName: string; required; Name of the slicer to delete"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.list-slicers",
@@ -3885,12 +3885,12 @@
     "windowsVariants": [
       "pivotTableName: string?; optional; default null; Optional PivotTable name to filter slicers (null = all slicers)"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.list-table-slicers",
@@ -3898,12 +3898,12 @@
     "windowsVariants": [
       "tableName: string?; optional; default null; Optional table name to filter slicers (null = all table slicers)"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.set-slicer-selection",
@@ -3913,12 +3913,12 @@
       "selectedItems: System.Collections.Generic.List<string>; required; Items to select (show in PivotTable)",
       "clearFirst: bool; optional; default true; If true, clears existing selection before setting new items (default: true)"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "slicer.set-table-slicer-selection",
@@ -3928,12 +3928,12 @@
       "selectedItems: System.Collections.Generic.List<string>; required; Items to select (show in table)",
       "clearFirst: bool; optional; default true; If true, clears existing selection before setting new items (default: true)"
     ],
-    "tier": "Unsupported",
+    "tier": "OfficeAddIn",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+    "excelApiVersion": "Office.js requirement and Excel build not yet established.",
+    "blocker": "the optional Office.js add-in tier, which is not installed in this release"
   },
   {
     "command": "table.add-to-data-model",

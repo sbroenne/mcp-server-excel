@@ -10,8 +10,8 @@ than a file-only calculation engine.
 ## System map
 
 ```text
-MCP Server -> in-process ExcelMcpService -> platform backend -> desktop Excel
-CLI        -> background ExcelMcpService -> platform backend -> desktop Excel
+MCP Server -> owned Service bridge -> in-process ExcelMcpService -> platform backend -> desktop Excel
+CLI parser -> named-pipe daemon host -> ExcelMcpService -> platform backend -> desktop Excel
 ```
 
 The MCP Server and `excelcli` are equal user entry points. They expose the same operations and behavior, but they run in separate processes and do not share open sessions.

@@ -34,6 +34,7 @@ for (const [component, packageName, commandName] of [
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version,
+        '-RuntimeIdentifier', runtimeIdentifier,
         '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
       ], { encoding: 'utf8', timeout: 90_000 });
       assert.ifError(result.error);
@@ -42,7 +43,7 @@ for (const [component, packageName, commandName] of [
 
       for (const [kind, archive, name] of [
         ['launcher', packages.LauncherPackage, packageName],
-        ['runtime', packages.RuntimePackage, `${packageName}-win32-x64`]
+        ['runtime', packages.RuntimePackage, `${packageName}-${runtimeSuffix}`]
       ]) {
         const destination = join(sandbox, kind);
         mkdirSync(destination);
@@ -58,9 +59,9 @@ for (const [component, packageName, commandName] of [
         assert.equal(manifest.version, version);
         assert.equal(readFileSync(join(root, 'LICENSE'), 'utf8'), readFileSync(join(repoRoot, 'LICENSE'), 'utf8'));
         if (kind === 'runtime') {
-          assert.equal(manifest.main, `${commandName}.exe`);
-          assert.deepEqual(manifest.os, ['win32']);
-          assert.deepEqual(manifest.cpu, ['x64', 'arm64']);
+          assert.equal(manifest.main, executableName);
+          assert.deepEqual(manifest.os, expectedOs);
+          assert.deepEqual(manifest.cpu, expectedCpu);
           assert.deepEqual(readFileSync(join(root, manifest.main)), payload);
           if (runtimeIdentifier.startsWith('osx-')) {
             assert.deepEqual(readFileSync(join(root, 'helpers', 'excelmcp-screencapture')), payload);
@@ -86,4 +87,5 @@ for (const [component, packageName, commandName] of [
       rmSync(sandbox, { recursive: true, force: true });
     }
   });
+  }
 }

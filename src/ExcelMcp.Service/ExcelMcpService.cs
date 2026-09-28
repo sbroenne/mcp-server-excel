@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -18,7 +17,6 @@ using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using Sbroenne.ExcelMcp.Service.Mac;
-using StreamJsonRpc;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -41,6 +39,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
+    private readonly MacVbaHelperClient? _macVbaHelperClient;
     private readonly MacPowerQueryHelperDispatcher? _macPowerQueryHelperDispatcher;
     private readonly MacVbaHelperDispatcher? _macVbaHelperDispatcher;
     private readonly Func<string, TimeSpan, Task<JsonElement>>? _getMacHelperCapabilities;
@@ -85,6 +84,9 @@ public sealed class ExcelMcpService : IDisposable
     public ExcelMcpService()
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _daemonHost = new DaemonHost(
+            ProcessAsync,
+            () => _sessionManager.GetActiveSessions().Count);
         _macPowerQueryHelperDispatcher = null;
         _getMacHelperCapabilities = null;
         if (OperatingSystem.IsMacOS())
@@ -92,6 +94,7 @@ public sealed class ExcelMcpService : IDisposable
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
             var helperClient = new MacVbaHelperClient(_macBackend);
+            _macVbaHelperClient = helperClient;
             _getMacHelperCapabilities = helperClient.GetCapabilitiesAsync;
             _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
                 helperClient.DispatchAsync);
@@ -128,6 +131,9 @@ public sealed class ExcelMcpService : IDisposable
             ?? new(
                 MacMacroExecutionAvailability.Unknown,
                 MacVbaProjectModelAccess.Unknown);
+        _daemonHost = new DaemonHost(
+            ProcessAsync,
+            () => _sessionManager.GetActiveSessions().Count);
     }
 
     public DateTime StartTime => _startTime;
@@ -540,9 +546,23 @@ public sealed class ExcelMcpService : IDisposable
                     return await DispatchMacVbaAsync(action, arguments, session);
                 }
 
-                var arguments = string.IsNullOrWhiteSpace(request.Args)
-                    ? new JsonObject()
-                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                if (IsScenarioHelperCommand(command))
+                {
+                    var helperResult = await _macVbaHelperClient!.DispatchAsync(
+                        session.FilePath,
+                        command,
+                        arguments,
+                        session.OperationTimeout);
+                    var helperResponse = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
+                        ?? new JsonObject();
+                    helperResponse["success"] = true;
+                    return new ServiceResponse
+                    {
+                        Success = true,
+                        Result = helperResponse.ToJsonString(ServiceProtocol.JsonOptions)
+                    };
+                }
+
                 if (category == "pythoninexcel")
                 {
                     MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
@@ -560,8 +580,6 @@ public sealed class ExcelMcpService : IDisposable
                         MacCommandCapabilities.Get(nameCommand).IsAvailable);
                 }
                 arguments["filePath"] = session.FilePath;
-                MacRangeArguments.Prepare(category, action, arguments);
-                ValidateMacRangeFormatArguments(category, action, arguments);
                 var result = await _macBackend!.InvokeAsync(
                     command,
                     arguments,
@@ -599,6 +617,26 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             };
         }
+        catch (MacOfficeMutationUncertainException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "MutationOutcomeUncertain",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeBridgeTimeoutException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
         catch (TimeoutException ex)
         {
             await InvalidateMacSessionAsync(request.SessionId);
@@ -630,16 +668,6 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             };
         }
-        catch (MacVbaHelperException ex)
-        {
-            return new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = ex.Category,
-                ErrorMessage = ex.Message,
-                ExceptionType = ex.GetType().Name
-            };
-        }
         catch (Exception ex)
         {
             return CreateErrorResponse(ex);
@@ -658,6 +686,46 @@ public sealed class ExcelMcpService : IDisposable
             // Shared Excel is never killed; recovery gating remains if exact close did not complete.
         }
     }
+
+    private static async Task TryUnregisterOfficeSessionAsync(MacExcelSession session)
+    {
+        try
+        {
+            using var officeClient = MacOfficeBridgeClient.CreateDefault();
+            await officeClient.TryUnregisterAsync(session.SessionId, session.FilePath);
+        }
+        catch (Exception ex) when (ex is MacOfficeBridgeException
+                                   or IOException
+                                   or JsonException
+                                   or InvalidOperationException
+                                   or UriFormatException)
+        {
+            // The optional add-in must not prevent native session close.
+        }
+    }
+
+    internal static bool CanUseScenarioForAcceptance(
+        string command,
+        string? e2eMode,
+        MacVbaHelperInstallation installation)
+    {
+        if (!string.Equals(e2eMode, "1", StringComparison.Ordinal))
+        {
+            return false;
+        }
+        return IsNativeScenarioCommand(command)
+            || IsScenarioHelperCommand(command)
+                && installation is { IsConfigured: true, SourceExists: true };
+    }
+
+    private static bool IsNativeScenarioCommand(string command) =>
+        command is "analysis.list-scenarios"
+            or "analysis.update-scenario"
+            or "analysis.delete-scenario"
+            or "analysis.create-scenario-summary";
+
+    private static bool IsScenarioHelperCommand(string command) =>
+        command is "analysis.create-scenario" or "analysis.show-scenario";
 
     private async Task<ServiceResponse> DispatchMacPowerQueryAsync(
         string action,
@@ -1862,10 +1930,16 @@ public sealed class ExcelMcpService : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _shutdownCts.Cancel();
-        _macSessionManager?.Dispose();
-        _sessionManager.Dispose();
-        _shutdownCts.Dispose();
+        _daemonHost.RequestShutdown();
+        try
+        {
+            _macSessionManager?.Dispose();
+            _sessionManager.Dispose();
+        }
+        finally
+        {
+            _daemonHost.Dispose();
+        }
     }
 }
 

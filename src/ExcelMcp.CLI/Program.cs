@@ -17,12 +17,39 @@ internal sealed class Program
 
     private static async Task<int> Main(string[] args)
     {
+        CliTelemetry.Initialize();
+        try
+        {
+            return await RunAsync(args);
+        }
+        finally
+        {
+            CliTelemetry.Flush();
+        }
+    }
+
+    internal static async Task<int> RunAsync(
+        string[] args,
+        CliCommandRuntime? runtime = null)
+    {
+        if (runtime is null)
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+
+        using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
+
         if (MacAutomationHost.TryRun(args, out var automationExitCode))
         {
             return automationExitCode;
         }
 
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
+        var isPiped = CliCommandRuntime.Current.IsOutputRedirected;
+        var showBanner = !isQuiet && !isPiped;
+        var jsonOutputMode = isQuiet || isPiped;
+
+        // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
         var showVersion = filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
 
@@ -42,11 +69,6 @@ internal sealed class Program
             }
             return RunServiceDaemon(pipeNameOverride);
         }
-
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
-        var isPiped = Console.IsOutputRedirected;
-        var showBanner = !isQuiet && !isPiped;
-        var jsonOutputMode = isQuiet || isPiped;
 
         if (filteredArgs.Length == 0)
         {

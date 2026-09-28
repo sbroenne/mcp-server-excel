@@ -12,8 +12,17 @@
     excluded because those archives are not workbook files.
 #>
 
+param(
+    [string]$RootPath
+)
+
 $ErrorActionPreference = 'Stop'
-$rootDir = Split-Path -Parent $PSScriptRoot
+$rootDir = if ([string]::IsNullOrWhiteSpace($RootPath)) {
+    Split-Path -Parent $PSScriptRoot
+}
+else {
+    [IO.Path]::GetFullPath($RootPath)
+}
 $scanRoots = @('src', 'tests', 'scripts')
 $sourceExtensions = @('.cs', '.js', '.mjs', '.ps1', '.psm1', '.sh')
 $distributionZipAllowList = @(
@@ -23,6 +32,9 @@ $distributionZipAllowList = @(
 $violations = [Collections.Generic.List[object]]::new()
 foreach ($scanRoot in $scanRoots) {
     $absoluteRoot = Join-Path $rootDir $scanRoot
+    if (-not (Test-Path -LiteralPath $absoluteRoot -PathType Container)) {
+        continue
+    }
     foreach ($file in Get-ChildItem -LiteralPath $absoluteRoot -Recurse -File) {
         if ($sourceExtensions -notcontains $file.Extension -or
             $file.FullName -match '[/\\](bin|obj|node_modules)[/\\]') {
@@ -31,14 +43,20 @@ foreach ($scanRoot in $scanRoots) {
 
         $relativePath = [IO.Path]::GetRelativePath($rootDir, $file.FullName)
         $relativePath = $relativePath.Replace('\', '/')
-        if ($relativePath -eq 'scripts/check-workbook-package-access.ps1') {
+        if ($relativePath -in @(
+                'scripts/check-workbook-package-access.ps1',
+                'tests/ExcelMcp.SkillGeneration.Tests/WorkbookPackageAccessGuardTests.cs')) {
             continue
         }
-        $content = Get-Content -LiteralPath $file.FullName
+        $content = @(Get-Content -LiteralPath $file.FullName)
         for ($lineIndex = 0; $lineIndex -lt $content.Count; $lineIndex++) {
             $line = $content[$lineIndex]
             $reason = $null
-            if ($line -match '(?i)(\[Content_Types\]\.xml|xl[/\\]workbook\.xml|DataMashup|MacPowerQueryPackage|MacWorkbookPackage)') {
+            $normalizedLine = $line.Replace('\', '/')
+            if ($normalizedLine.Contains(
+                    'xl/workbook.xml',
+                    [StringComparison]::OrdinalIgnoreCase) -or
+                $line -match '(?i)(\[Content_Types\]\.xml|DataMashup|MacPowerQueryPackage|MacWorkbookPackage)') {
                 $reason = 'workbook package internals'
             }
             elseif ($line -match '(?i)(System\.IO\.Packaging|DocumentFormat\.OpenXml)') {

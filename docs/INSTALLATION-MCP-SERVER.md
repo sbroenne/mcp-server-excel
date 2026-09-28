@@ -17,7 +17,7 @@ capability-gated; see [macOS support](../specs/MACOS-SUPPORT.md).
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
-- **Node.js** - Required for the recommended `npx` installation and other `npx` commands. Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
+- **Node.js 18+** - Required for the recommended `npx` installation and other `npx` commands. Install from [nodejs.org](https://nodejs.org/) or with `winget install OpenJS.NodeJS.LTS` on Windows.
 
 ---
 
@@ -391,7 +391,8 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 ### 1. "mcp-excel is not recognized as an internal or external command"
 
 This error applies to the standalone executable. Either use the recommended npm
-configuration or add `mcp-excel.exe` to your PATH.
+configuration or add `mcp-excel.exe` (Windows) or `mcp-excel` (macOS) to your
+PATH.
 
 Either:
 - Add the directory containing the executable to your PATH (see Step 2 above)

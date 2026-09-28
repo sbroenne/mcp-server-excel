@@ -5,8 +5,6 @@ import { foregroundChild } from 'foreground-child';
 const require = createRequire(import.meta.url);
 
 export function createLauncher({ packageName, commandName }) {
-  const runtimePackageName = `${packageName}-win32-x64`;
-
   function resolveRuntime({
     platform = process.platform,
     arch = process.arch,

@@ -21,6 +21,12 @@ macro/VBA trust tiers are implemented.
 Correct the guarded screenshot process lookup to load AppKit and normalize
 Objective-C collection counts before selecting the exact Excel process.
 
+Enable six native named-range operations after real CLI/MCP lifecycle acceptance,
+including bounded visible-name previews, scoped access, bulk named-range addresses
+and save/reopen. Reject worksheet-scoped creation, existing local-name collisions
+and ambiguous dynamic references before mutation. Preserve date serial values
+in named-range and ordinary range reads using Excel's numeric Value2 property.
+
 Add native macOS range parity for complete, values-only, and formulas-only
 copy; two-dimensional number formats; range information; row and column
 auto-fit; merge and unmerge; and cell lock get/set through both MCP and

@@ -245,26 +245,6 @@ jobs:
         name: cli-npm
         path: cli-npm-artifacts/*.tgz
 
-    - name: Build and Test CLI npm Packages
-      run: |
-        .\scripts\Build-NpmPackages.ps1 `
-          -Component Cli `
-          -Version $env:VERSION `
-          -RuntimeExecutable "cli-publish\excelcli.exe" `
-          -OutputDirectory "cli-npm-artifacts"
-
-        .\scripts\Test-NpmPackages.ps1 `
-          -Component Cli `
-          -LauncherPackage "cli-npm-artifacts\sbroenne-excelcli-$env:VERSION.tgz" `
-          -RuntimePackage "cli-npm-artifacts\sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
-      shell: pwsh
-
-    - name: Upload CLI npm Artifacts
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-      with:
-        name: cli-npm
-        path: cli-npm-artifacts/*.tgz
-
     - name: Create CLI ZIP
       run: |
         $version = $env:VERSION

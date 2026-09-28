@@ -1,9 +1,11 @@
 # ExcelMcp Architecture
 
 ExcelMcp controls the actual Microsoft Excel desktop application—not just
-`.xlsx` files. Windows uses the complete COM backend. macOS x64/Arm64 uses
-a capability-gated Apple Events backend for the verified workbook, worksheet,
-range, formula, clear, and calculation subset.
+`.xlsx` files. Windows uses the complete COM backend. macOS x64/Arm64 packages use
+a capability-gated Apple Events backend for the verified workbook, worksheet
+lifecycle/style, range, formula, clear, calculation, Goal Seek, and Data Table
+subset. Desktop acceptance has run on Apple Silicon; physical Intel Excel
+acceptance remains outstanding.
 
 ## Two equal entry points
 
@@ -43,7 +45,8 @@ workflow.
 2. **Core** (`src/ExcelMcp.Core`) implements Excel operations for Power Query,
    DAX, VBA, worksheets, ranges, charts, and other domains.
 3. **Service** (`src/ExcelMcp.Service`) manages sessions, routes commands, and
-   selects the Windows COM or macOS Apple Events backend.
+   selects the Windows COM or macOS Apple Events backend; its daemon host
+   provides the CLI's named-pipe process lifetime.
 4. **CLI** (`src/ExcelMcp.CLI`) exposes generated command categories and uses a
    persistent daemon.
 5. **MCP Server** (`src/ExcelMcp.McpServer`) exposes generated MCP tools and

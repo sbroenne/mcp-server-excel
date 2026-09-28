@@ -133,7 +133,7 @@ test('resolveRuntime supports Windows Arm64 through x64 emulation', () => {
 test('resolveRuntime rejects unsupported Windows architectures', () => {
   assert.throws(
     () => resolveRuntime({ platform: 'win32', arch: 'ia32' }),
-    /x64 or Arm64/
+    /Windows x64\/Arm64/
   );
 });
 

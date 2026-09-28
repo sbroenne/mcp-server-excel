@@ -68,7 +68,8 @@ exit codes to the same native `excelcli` executable; session management and
 Excel behavior are unchanged.
 
 Avoid installing multiple distributions of `excelcli` on the same PATH. Use
-`where.exe excelcli` to check which installation your shell will run.
+`Get-Command excelcli` in PowerShell to check which installation your shell
+will run.
 
 ### Standalone Executable (Also Primary)
 
