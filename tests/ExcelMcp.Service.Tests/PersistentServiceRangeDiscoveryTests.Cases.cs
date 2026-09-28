@@ -10,6 +10,17 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
     // === NATIVE EXCEL COM OPERATIONS TESTS ===
 
     [Fact]
+    public async Task GetUsedRange_MissingSheet_ReturnsCategorizedNotFound()
+    {
+        var response = await _fixture.SendForFailureAsync(
+            "range.get-used-range",
+            new { sheetName = "MissingSheet" });
+
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal("NotFound", response.ErrorCategory);
+    }
+
+    [Fact]
     public void GetUsedRange_SheetWithSparseData_ReturnsNonEmptyCells()
     {
         // Arrange - use shared file, create unique sheet for this test
@@ -147,7 +158,5 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
     }
 
 }
-
-
 
 

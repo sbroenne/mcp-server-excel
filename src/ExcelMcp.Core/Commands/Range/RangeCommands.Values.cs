@@ -278,7 +278,8 @@ public partial class RangeCommands
         List<string> mergedRanges)
     {
         string rangeLabel = mergedRanges.Count == 1 ? "Merged range" : "Merged ranges";
-        throw new InvalidOperationException(
+        throw new OperationFailureException(
+            OperationFailureCategory.Conflict,
             $"Cannot write to range '{requestedRangeAddress}' because the write intersects merged cells. " +
             $"{rangeLabel}: {string.Join(", ", mergedRanges)}. " +
             "Write only to each merged range's top-left cell, or unmerge the affected range before writing.");
