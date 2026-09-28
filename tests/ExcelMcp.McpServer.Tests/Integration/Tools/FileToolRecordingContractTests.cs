@@ -15,6 +15,50 @@ public sealed class FileToolRecordingContractTests(
 {
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
+    [Fact]
+    public async Task Test_DispatchesTimeoutToReadOnlyValidationOpen()
+    {
+        var path = Path.Join(
+            Path.GetTempPath(),
+            $"file-test-recording-{Guid.NewGuid():N}.xlsx");
+        var response = new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(new
+            {
+                success = true,
+                filePath = path,
+                exists = true,
+                isValid = true,
+                canOpen = true
+            }, ServiceProtocol.JsonOptions)
+        };
+        var expectedArgs = JsonSerializer.Serialize(new
+        {
+            filePath = path,
+            timeoutSeconds = 45
+        }, ServiceProtocol.JsonOptions);
+
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "test",
+                ["path"] = path,
+                ["save"] = false,
+                ["show"] = false,
+                ["timeout_seconds"] = 45
+            },
+            response,
+            "session.test",
+            expectedSessionId: null,
+            expectedArgsJson: expectedArgs);
+
+        Assert.Null(call.Request.SessionId);
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.True(result.RootElement.GetProperty("canOpen").GetBoolean());
+    }
+
     [Theory]
     [InlineData("create", "session.create", false)]
     [InlineData("open", "session.open", true)]

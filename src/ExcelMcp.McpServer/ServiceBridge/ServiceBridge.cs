@@ -500,9 +500,15 @@ public static class ServiceBridge
     /// </summary>
     public static async Task<ServiceResponse> TestFileAsync(
         string excelPath,
+        int timeoutSeconds = 120,
         CancellationToken cancellationToken = default)
     {
-        return await SendAsync("session.test", null, new { filePath = excelPath }, cancellationToken: cancellationToken);
+        return await SendAsync(
+            "session.test",
+            null,
+            new { filePath = excelPath, timeoutSeconds },
+            timeoutSeconds,
+            cancellationToken);
     }
 
     /// <summary>

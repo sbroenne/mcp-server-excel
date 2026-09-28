@@ -260,7 +260,9 @@ public sealed class ExcelMcpService : IDisposable
                 ["filePath", "show", "timeoutSeconds"],
                 StringComparer.Ordinal),
             "close" => new HashSet<string>(["save"], StringComparer.Ordinal),
-            "test" => new HashSet<string>(["filePath"], StringComparer.Ordinal),
+            "test" => new HashSet<string>(
+                ["filePath", "timeoutSeconds"],
+                StringComparer.Ordinal),
             _ => []
         };
         var unknownParameters = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
@@ -429,6 +431,11 @@ public sealed class ExcelMcpService : IDisposable
     private ServiceResponse HandleSessionTest(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionTestArgs>(request.Args);
+        var timeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
         if (string.IsNullOrWhiteSpace(args.FilePath))
         {
             return new ServiceResponse
@@ -442,6 +449,24 @@ public sealed class ExcelMcpService : IDisposable
         try
         {
             var result = _fileCommands.Test(args.FilePath);
+            if (result.Exists
+                && result.Extension is ".xlsx" or ".xlsm"
+                && !result.IsIrmProtected
+                && result.Message == null)
+            {
+                try
+                {
+                    _sessionManager.ValidateWorkbookOpen(result.FilePath, timeout);
+                    result.IsValid = true;
+                    result.CanOpen = true;
+                }
+                catch (Exception ex)
+                {
+                    result.Message =
+                        $"File is not a valid Excel workbook or Excel could not open it: {ex.Message}";
+                }
+            }
+
             return new ServiceResponse
             {
                 Success = true,
@@ -1087,4 +1112,8 @@ public sealed class SessionOpenArgs
     public int? TimeoutSeconds { get; set; }
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
-public sealed class SessionTestArgs { public string? FilePath { get; set; } }
+public sealed class SessionTestArgs
+{
+    public string? FilePath { get; set; }
+    public int? TimeoutSeconds { get; set; }
+}

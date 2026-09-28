@@ -10,8 +10,8 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Layer", "CLI")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "File")]
-[Trait("RequiresExcel", "false")]
-[Trait("Speed", "Fast")]
+[Trait("RequiresExcel", "true")]
+[Trait("Speed", "Medium")]
 public sealed class SessionLifecycleContractTests : IDisposable
 {
     private readonly ITestOutputHelper _output;

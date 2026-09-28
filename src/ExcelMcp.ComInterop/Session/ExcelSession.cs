@@ -96,6 +96,37 @@ public static class ExcelSession
     }
 
     /// <summary>
+    /// Opens one workbook read-only for validation and returns a disposable batch.
+    /// </summary>
+    internal static IExcelBatch BeginReadOnlyValidation(
+        string filePath,
+        TimeSpan? operationTimeout)
+    {
+        var fullPath = Path.GetFullPath(filePath);
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException(
+                $"Excel file not found: {fullPath}.",
+                fullPath);
+        }
+
+        var extension = Path.GetExtension(fullPath).ToLowerInvariant();
+        if (extension is not (".xlsx" or ".xlsm"))
+        {
+            throw new ArgumentException(
+                $"Invalid file extension '{extension}'. Validation supports .xlsx and .xlsm only.",
+                nameof(filePath));
+        }
+
+        return new ExcelBatch(
+            [fullPath],
+            logger: null,
+            show: false,
+            operationTimeout: operationTimeout,
+            openReadOnly: true);
+    }
+
+    /// <summary>
     /// Creates a new Excel workbook at the specified path with a synchronous COM operation.
     /// Creates a minimal workbook then allows executing an operation before saving.
     /// </summary>
@@ -244,6 +275,4 @@ public static class ExcelSession
         thread.Join(TimeSpan.FromSeconds(10));
     }
 }
-
-
 

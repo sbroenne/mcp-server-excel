@@ -242,12 +242,29 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
             return CliErrorOutput.WriteError("File path is required.");
         }
 
+        try
+        {
+            ParameterTransforms.ValidateTimeoutSeconds(
+                settings.TimeoutSeconds,
+                "timeout",
+                minimumSeconds: 10,
+                maximumSeconds: 3600);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return CliErrorOutput.WriteError(ex.Message);
+        }
+
         using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.test",
             Args = JsonSerializer.Serialize(
-                new { filePath = settings.FilePath },
+                new
+                {
+                    filePath = settings.FilePath,
+                    timeoutSeconds = settings.TimeoutSeconds
+                },
                 ServiceProtocol.JsonOptions)
         }, cancellationToken);
 
@@ -276,5 +293,9 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         [CommandArgument(0, "<FILE>")]
         [Description("Full path to test for existence, validity, openability, and IRM/AIP requirements")]
         public string FilePath { get; init; } = string.Empty;
+
+        [CommandOption("--timeout <SECONDS>")]
+        [Description("Excel validation open timeout in whole seconds (default: 120; range: 10-3600)")]
+        public int? TimeoutSeconds { get; init; }
     }
 }

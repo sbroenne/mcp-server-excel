@@ -199,6 +199,28 @@ catch {
 }
 
 Write-Host ""
+Write-Host "Checking for direct workbook package XML access..." -ForegroundColor Cyan
+
+try {
+    $packageAccessScript = Join-Path $rootDir "scripts\check-workbook-package-access.ps1"
+    & $packageAccessScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "Direct workbook package XML access detected!" -ForegroundColor Red
+        Write-Host "   Production code must access workbook contents through Excel COM." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Workbook package access check passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "Error running workbook package access check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "Checking Core Commands coverage and naming..." -ForegroundColor Cyan
 
 try {

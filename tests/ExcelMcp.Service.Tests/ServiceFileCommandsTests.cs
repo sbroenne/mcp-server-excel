@@ -21,10 +21,11 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// - ❌ DO NOT test infrastructure (paths, directories, OS validation)
 /// </summary>
 [Trait("Layer", "Service")]
-[Trait("Category", "Unit")]
-[Trait("Speed", "Fast")]
+[Trait("Category", "Integration")]
+[Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
-[Trait("RequiresExcel", "false")]
+[Trait("RequiresExcel", "true")]
+[Collection("Sequential")]
 public sealed partial class ServiceFileCommandsTests :
     IClassFixture<ServiceFileTestFixture>
 {
@@ -52,6 +53,7 @@ public sealed class ServiceFileTestFixture : IDisposable
 
     internal ServiceFileCommands Commands { get; }
     internal string TempDir => _tempDir;
+    internal int SessionCount => _service.SessionCount;
 
     internal string CreateTestFile()
     {

@@ -125,6 +125,12 @@ jobs:
           & scripts/check-com-leaks.ps1
           if ($LASTEXITCODE -ne 0) { throw "COM object leaks detected. All dynamic COM objects must be released in finally blocks." }
 
+      - name: Workbook package access check
+        shell: pwsh
+        run: |
+          & scripts/check-workbook-package-access.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Production code must access Excel workbook contents through COM, not ZIP/OOXML package XML." }
+
       - name: Core coverage + naming audit
         shell: pwsh
         run: |
