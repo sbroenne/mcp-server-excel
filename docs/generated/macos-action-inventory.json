@@ -1599,12 +1599,12 @@
       "name: string; required; Name for the new named range",
       "reference: string; required; Cell reference (e.g., Sheet1!$A$1:$B$10)"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
   },
   {
     "command": "namedrange.delete",
@@ -1612,24 +1612,24 @@
     "windowsVariants": [
       "name: string; required; Name of the named range to delete"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
   },
   {
     "command": "namedrange.list",
     "windowsSemantics": "Lists visible user-defined named ranges in the workbook. Hidden Excel internal names are omitted before value inspection. Large ranges return metadata without materializing values.",
     "windowsVariants": [
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
   },
   {
     "command": "namedrange.read",
@@ -1637,12 +1637,12 @@
     "windowsVariants": [
       "name: string; required; Name of the named range"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
   },
   {
     "command": "namedrange.update",
@@ -1651,12 +1651,12 @@
       "name: string; required; Name of the named range",
       "reference: string; required; New cell reference (e.g., Sheet1!$A$1:$B$10)"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
   },
   {
     "command": "namedrange.write",
@@ -1665,12 +1665,12 @@
       "name: string; required; Name of the named range",
       "value: string; required; Value to set"
     ],
-    "tier": "Unsupported",
+    "tier": "Native",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "Windows contract and generated routing are the only recorded evidence.",
-    "excelApiVersion": "Unverified",
-    "blocker": "No verified macOS backend route exists for this action."
+    "evidence": "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    "excelApiVersion": "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    "blocker": "Native named ranges have not completed real CLI and MCP acceptance."
   },
   {
     "command": "pivottable.create-from-datamodel",

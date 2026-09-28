@@ -330,6 +330,93 @@ function requireSupported(command, supported) {
     }
 }
 
+function findNamedItem(workbook, name) {
+    const items = workbook.namedItems;
+    for (let index = 0; index < items.length; index++) {
+        if (items[index].name().toLowerCase() === name.toLowerCase()) {
+            return items[index];
+        }
+    }
+    return null;
+}
+
+function namedRangeValue(range) {
+    const raw = range.value();
+    const count = Number(range.rows.length) * Number(range.columns.length);
+    const value = count === 1 ? firstScalar(raw) : normalizeMatrix(raw);
+    let valueType = "null";
+    if (Array.isArray(value)) valueType = "Array";
+    else if (typeof value === "number") valueType = "Double";
+    else if (typeof value === "boolean") valueType = "Boolean";
+    else if (typeof value === "string") valueType = "String";
+    else if (value != null) {
+        throw new Error("Excel returned an unsupported named range value type.");
+    }
+    return value == null ? { valueType } : { value, valueType };
+}
+
+function namedRangeList(workbook, filePath) {
+    const result = [];
+    const items = workbook.namedItems;
+    for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        if (!item.visible()) continue;
+        const name = item.name();
+        const localName = name.substring(name.lastIndexOf("!") + 1).replace(/^'|'$/g, "").toLowerCase();
+        if (localName.startsWith("_xlnm.") || localName === "_filterdatabase") continue;
+        const info = { name, refersTo: item.references(), valueType: "Unavailable" };
+        try {
+            const range = item.referenceRange();
+            if (range.areas().length > 1) {
+                info.valueType = "MultiAreaRange";
+                info.valueOmittedReason = "Named range resolves to multiple areas; list omits multi-area value previews.";
+            } else {
+                const count = Number(range.rows.length) * Number(range.columns.length);
+                if (!Number.isSafeInteger(count) || count < 1) {
+                    throw new Error("Excel returned an invalid named range cell count.");
+                }
+                info.cellCount = count;
+                if (count > 10000) {
+                    info.valueType = "RangeTooLarge";
+                    info.valueOmittedReason =
+                        `Named range contains ${count} cells, which exceeds the list preview limit of 10000.`;
+                } else {
+                    Object.assign(info, namedRangeValue(range));
+                }
+            }
+        } catch (error) {
+            if (![-1728, -1700, -1004].includes(Number(error.errorNumber))) throw error;
+            info.valueOmittedReason = error.message || String(error);
+        }
+        result.push(info);
+    }
+    return { success: true, filePath, namedRanges: result };
+}
+
+function dispatchNamedRange(excel, workbook, command, args) {
+    if (command === "namedrange.list") {
+        return namedRangeList(workbook, args.filePath);
+    }
+    const item = findNamedItem(workbook, args.name);
+    if (command === "namedrange.create") {
+        if (item) throw new Error(`Named range '${args.name}' already exists.`);
+        workbook.namedItems.push(excel.NamedItem({ name: args.name, references: args.reference }));
+    } else {
+        if (!item) throw new Error(`Named range '${args.name}' not found.`);
+        if (command === "namedrange.update") item.references = args.reference;
+        else if (command === "namedrange.delete") item.delete();
+        else if (command === "namedrange.write") item.referenceRange().value = args.parsedValue;
+        else if (command === "namedrange.read") {
+            return Object.assign(
+                { name: args.name, refersTo: item.references() },
+                namedRangeValue(item.referenceRange()));
+        } else {
+            requireSupported(command, []);
+        }
+    }
+    return { success: true, filePath: args.filePath };
+}
+
 function run(argv) {
     const command = argv[0];
     const args = JSON.parse(argv[1] || "{}");
@@ -358,6 +445,9 @@ function run(argv) {
         }
         if (command === "session.close") {
             const workbook = workbookByPath(excel, args.filePath);
+            if (command.startsWith("namedrange.")) {
+                return json(dispatchNamedRange(excel, workbook, command, args));
+            }
             workbook.close({ saving: args.save ? "yes" : "no" });
             return json({ success: true, errorMessage: "" });
         }

@@ -8,13 +8,15 @@ temporary fixtures and LaunchServices; never requests permission or accesses
 Excel's container. Includes repository-authored MS-QDEFF/OOXML Power Query
 fixtures. Refresh and VBA remain gated unless their explicit assertions pass.
 Scenario acceptance requires -IncludeScenarios and an already configured trusted helper.
+Named-range acceptance adds two public entry-point cases with -IncludeNamedRanges.
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
     [switch]$IncludePythonInExcel,
     [switch]$IncludeRangeExpansion,
-    [switch]$IncludeScenarios
+    [switch]$IncludeScenarios,
+    [switch]$IncludeNamedRanges
 )
 
 Set-StrictMode -Version Latest
@@ -95,18 +97,24 @@ $environment = @{
     EXCELMCP_MAC_PYTHON_E2E = if ($IncludePythonInExcel) { '1' } else { '0' }
     EXCELMCP_MAC_RANGE_EXPANSION_E2E = if ($IncludeRangeExpansion) { '1' } else { '0' }
     EXCELMCP_MAC_SCENARIO_E2E = if ($IncludeScenarios) { '1' } else { '0' }
+    EXCELMCP_MAC_NAMED_RANGE_E2E = if ($IncludeNamedRanges) { '1' } else { '0' }
 }
 try {
+    $filter = 'FullyQualifiedName~MacExcelE2ETests'
+    if ($IncludeNamedRanges) {
+        $filter += '|FullyQualifiedName~MacNamedRangeE2ETests'
+    }
     $test = Invoke-MacTestCommand dotnet @(
         'test', 'tests/ExcelMcp.Portable.Tests/ExcelMcp.Portable.Tests.csproj',
         '-c', 'Release', '--no-build', '--nologo', '-v', 'minimal',
-        '--filter', 'FullyQualifiedName~MacExcelE2ETests', '--blame-hang-timeout', '5m'
+        '--filter', $filter, '--blame-hang-timeout', '5m'
     ) 600 $environment
     Write-Host $test.stdout
     if (-not [string]::IsNullOrWhiteSpace($test.stderr)) { Write-Host $test.stderr }
-    $expectedPassed = if ($IncludePowerQueryFixtures) { 4 } else { 2 }
+    $expectedPassed = if ($IncludePowerQueryFixtures) { 6 } else { 4 }
+    if ($IncludeNamedRanges) { $expectedPassed += 2 }
     $expectedSkipped = if ($IncludePowerQueryFixtures) { 0 } else { 1 }
-    $expectedTotal = if ($IncludePowerQueryFixtures) { 4 } else { 3 }
+    $expectedTotal = $expectedPassed + $expectedSkipped
     $summaryPattern = "Passed!.*Failed:\s*0\b.*Passed:\s*$expectedPassed\b.*Skipped:\s*$expectedSkipped\b.*Total:\s*$expectedTotal\b"
     if ($test.exitCode -ne 0 -or $test.stdout -notmatch $summaryPattern) {
         throw "Expected $expectedPassed passed and $expectedSkipped skipped macOS workflows; missing or failed cases are not success."

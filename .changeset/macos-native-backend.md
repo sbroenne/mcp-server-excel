@@ -21,3 +21,7 @@ macro/VBA trust tiers are implemented.
 
 Correct the guarded screenshot process lookup to load AppKit and normalize
 Objective-C collection counts before selecting the exact Excel process.
+
+Add guarded native named-range lifecycle and bounded visible-name preview
+implementations, with an explicit CLI/MCP acceptance workflow. These candidate
+commands remain unavailable by default until desktop behavior is verified.

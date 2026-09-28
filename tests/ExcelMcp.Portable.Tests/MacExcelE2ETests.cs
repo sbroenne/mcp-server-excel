@@ -878,7 +878,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         return result;
     }
 
-    private static JsonElement Success(JsonElement result)
+    internal static JsonElement Success(JsonElement result)
     {
         Assert.True(result.GetProperty("success").GetBoolean(), result.GetRawText());
         if (result.TryGetProperty("errorMessage", out var error))
@@ -888,7 +888,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         return result;
     }
 
-    private static string SessionId(JsonElement result)
+    internal static string SessionId(JsonElement result)
     {
         Success(result);
         var property = result.TryGetProperty("session_id", out var id) ? id : result.GetProperty("sessionId");
@@ -896,7 +896,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         return property.GetString()!;
     }
 
-    private static string FindRepository()
+    internal static string FindRepository()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Sbroenne.ExcelMcp.sln")))
@@ -906,7 +906,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 
-    private static void CreateBlankWorkbook(string path)
+    internal static void CreateBlankWorkbook(string path)
     {
         var parts = new Dictionary<string, string>
         {
@@ -925,7 +925,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         }
     }
 
-    private sealed class EntryPointClient : IAsyncDisposable
+    internal sealed class EntryPointClient : IAsyncDisposable
     {
         private readonly string _cli;
         private readonly string _pipe = Environment.GetEnvironmentVariable("EXCELMCP_MAC_E2E_PIPE") ?? $"em-{Guid.NewGuid():N}";

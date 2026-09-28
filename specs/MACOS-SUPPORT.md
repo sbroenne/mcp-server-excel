@@ -58,7 +58,8 @@ do not establish acceptance of the remaining guarded feature candidates.
 
 The combined source includes helper 1.3.0 for Power Query lifecycle and VBA source
 operations, Office.js dispatch for selected tables/charts/ordinary PivotTables
-and slicers, fourteen native range candidates, Python in Excel, scenarios, and
+and slicers, fourteen native range candidates, six named-range candidates,
+Python in Excel, scenarios, and
 exact-window screenshots. New features remain disabled by default. Explicit
 candidate opt-ins exist only for bounded acceptance, not as evidence of support.
 Developer ID/notarization, physical Intel Excel, and Windows COM regression
@@ -863,6 +864,12 @@ using an already configured trusted helper. An unavailable helper or scenario
 operation fails that selected workflow; the established Goal Seek/data-table
 baseline does not require helper setup. Optional switches are set explicitly
 for each run rather than inherited from the invoking shell.
+`-IncludeNamedRanges` adds two dedicated CLI/MCP cases for native named-item
+create/read/write/update/delete/list. They check scalar types, arrays, duplicate
+and missing-name failures, hidden/internal-name filtering before value access,
+the 10,000-cell list-preview limit, multi-area omission, save/reopen, and isolation
+from a second open workbook. These commands remain disabled by default until
+the explicit acceptance sequence passes.
 
 Real entry-point tests exposed two host-lifetime defects that the standalone
 spike could not catch: MCP attempted to start a Windows `kernel32` stdin monitor,

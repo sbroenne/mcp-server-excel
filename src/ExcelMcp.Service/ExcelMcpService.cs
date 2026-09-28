@@ -481,10 +481,14 @@ public sealed class ExcelMcpService : IDisposable
             && ServiceRegistry.PowerQuery.TryParseAction(action, out _);
         var vbaRouteSelection = category == "vba"
             && ServiceRegistry.Vba.TryParseAction(action, out _);
+        var namedRangeAcceptance = MacNamedRangeArguments.CanUseForAcceptance(
+            command,
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_NAMED_RANGE_E2E"));
         if (!capability.IsAvailable
             && !scenarioAcceptance
             && !powerQueryRouteSelection
-            && !vbaRouteSelection)
+            && !vbaRouteSelection
+            && !namedRangeAcceptance)
         {
             return new ServiceResponse
             {
@@ -548,6 +552,10 @@ public sealed class ExcelMcpService : IDisposable
                 if (category == "pythoninexcel")
                 {
                     MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
+                }
+                if (category == "namedrange")
+                {
+                    MacNamedRangeArguments.Prepare(action, arguments);
                 }
                 arguments["filePath"] = session.FilePath;
                 MacRangeArguments.Prepare(category, action, arguments);

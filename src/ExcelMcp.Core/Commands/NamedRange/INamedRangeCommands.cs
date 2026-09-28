@@ -12,6 +12,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// TIP: use range get-values/set-values with the named range as the range address for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+    Evidence = "Native named-item lifecycle and bounded visible-name previews are implemented but require real CLI and MCP acceptance.",
+    ExcelApiVersion = "Excel Apple Events named item; installed Excel 16.113.1 dictionary.",
+    Blocker = "Native named ranges have not completed real CLI and MCP acceptance.")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
     Description = "Named ranges for formulas/parameters. LIST returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: value is data to store in the named range. TIP: Use range(rangeAddress=namedRangeName) for bulk data operations.")]
 public interface INamedRangeCommands
@@ -89,6 +93,5 @@ public interface INamedRangeCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name);
 }
-
 
 
