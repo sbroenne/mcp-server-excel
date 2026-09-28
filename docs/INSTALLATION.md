@@ -19,6 +19,11 @@ Excel execution remains unverified. See
 [macOS distribution readiness](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-DISTRIBUTION.md)
 for package inspection, signing, and notarization details.
 
+The [optional macOS Office.js bridge](MACOS-OFFICEJS.md) is a development-stage
+capability foundation with separate explicit install, activation, health,
+upgrade, and removal steps. It is not needed for the base macOS operation set
+and does not currently enable tables, charts, PivotTables, or formatting.
+
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
 
 ---

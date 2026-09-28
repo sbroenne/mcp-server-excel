@@ -20,6 +20,80 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("analysis.goal-seek")]
+    [InlineData("analysis.create-data-table")]
+    public void ProvenWhatIfAnalysisCommands_AreNative(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
+    }
+
+    [Theory]
+    [InlineData("analysis.list-scenarios")]
+    [InlineData("analysis.update-scenario")]
+    [InlineData("analysis.delete-scenario")]
+    [InlineData("analysis.create-scenario-summary")]
+    public void DictionaryBackedScenarioCommands_RemainGatedUntilRealExcelEvidence(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("analysis.create-scenario")]
+    [InlineData("analysis.show-scenario")]
+    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains("VBA helper", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("drawing.add-sparkline")]
+    [InlineData("drawing.add-shape")]
+    [InlineData("slicer.list-slicers")]
+    [InlineData("slicer.set-table-slicer-selection")]
+    public void SpecializedOfficeJsCommands_ReportAddInTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+    }
+
+    [Fact]
+    public void Screenshot_ReportsOptionalNativeHelperTier()
+    {
+        var capability = MacCommandCapabilities.Get("screenshot.capture");
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OptionalNativeHelper, capability.RequiredTier);
+        Assert.Contains("Screen Recording", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("connection.list")]
+    [InlineData("querytable.list")]
+    [InlineData("pythoninexcel.set-formula")]
+    public void UnprovenAppleEventCandidates_ReportNativeTier(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Contains("real-Excel fixture", capability.UnavailableMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("table.create")]
     [InlineData("chart.create")]
     [InlineData("pivottable.create")]
@@ -33,13 +107,49 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
-    public void VbaRun_RequiresMacroHelperWithoutProjectModelTrust()
+    public void OfficeAddInCandidate_IsRoutableOnlyWhenExplicitlyEnabled()
     {
-        var capability = MacCommandCapabilities.Get("vba.run");
+        var capability = MacCommandCapabilities.Get(
+            "table.create",
+            officeCandidateEnabled: true);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+        Assert.Empty(capability.UnavailableMessage);
+    }
+
+    [Fact]
+    public void VbaRun_RemainsGatedWithoutRepositoryFixtureEvidence()
+    {
+        var capability = MacCommandCapabilities.Get(
+            "vba.run",
+            new MacVbaPreflightResult(
+                MacMacroExecutionAvailability.Available,
+                MacVbaProjectModelAccess.Disabled));
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
         Assert.DoesNotContain("project object model", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("repository-owned", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unattended", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("Disabled", "disabled")]
+    [InlineData("UserApprovalRequired", "approval")]
+    [InlineData("Unknown", "could not")]
+    public void VbaRun_ReportsNonPromptingMacroPreflight(
+        string availabilityName,
+        string expectedMessage)
+    {
+        var availability = Enum.Parse<MacMacroExecutionAvailability>(availabilityName);
+        var capability = MacCommandCapabilities.Get(
+            "vba.run",
+            new MacVbaPreflightResult(availability, MacVbaProjectModelAccess.Disabled));
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
+        Assert.Contains(expectedMessage, capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -73,13 +183,34 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("vba.import")]
     [InlineData("vba.update")]
     [InlineData("vba.delete")]
-    public void VbaSourceCommands_RequireProjectModelTrust(string command)
+    public void VbaSourceCommands_ReportMissingTrustAndScriptingRoute(string command)
     {
-        var capability = MacCommandCapabilities.Get(command);
+        var capability = MacCommandCapabilities.Get(
+            command,
+            new MacVbaPreflightResult(
+                MacMacroExecutionAvailability.Available,
+                MacVbaProjectModelAccess.Disabled));
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.VbaProjectModel, capability.RequiredTier);
         Assert.Contains("project object model", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("disabled", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scripting", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void VbaSourceCommands_StayGatedWhenProjectModelTrustIsEnabled()
+    {
+        var capability = MacCommandCapabilities.Get(
+            "vba.list",
+            new MacVbaPreflightResult(
+                MacMacroExecutionAvailability.Available,
+                MacVbaProjectModelAccess.Enabled));
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.VbaProjectModel, capability.RequiredTier);
+        Assert.Contains("enabled", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scripting", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -1,0 +1,19 @@
+{
+  "name": "@excelmcp/officejs-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional capability-negotiation bridge for ExcelMcp on macOS.",
+  "files": [
+    "src/",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node --test test/*.test.mjs",
+    "bridge": "node src/cli.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

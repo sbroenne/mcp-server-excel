@@ -7,6 +7,7 @@ internal enum MacCapabilityTier
     PowerQueryPackage,
     MacroHelper,
     VbaProjectModel,
+    OptionalNativeHelper,
     Unsupported
 }
 
@@ -34,22 +35,23 @@ internal static class MacCommandCapabilities
         "range.set-number-format",
         "rangeformat.set-column-width",
         "rangeformat.set-row-height",
-        "calculation.calculate"
+        "calculation.calculate",
+        "analysis.goal-seek",
+        "analysis.create-data-table"
     };
 
-    private static readonly HashSet<string> OfficeAddInCategories = new(StringComparer.Ordinal)
-    {
-        "table",
-        "tablecolumn",
-        "chart",
-        "chartconfig",
-        "pivottable",
-        "pivottablefield",
-        "pivottablecalc",
-        "conditionalformat"
-    };
+    public static MacCommandCapability Get(string command, bool officeCandidateEnabled = false)
+        => Get(command, officeCandidateEnabled, null);
 
-    public static MacCommandCapability Get(string command)
+    public static MacCommandCapability Get(
+        string command,
+        MacVbaPreflightResult vbaPreflight)
+        => Get(command, false, vbaPreflight);
+
+    private static MacCommandCapability Get(
+        string command,
+        bool officeCandidateEnabled,
+        MacVbaPreflightResult? vbaPreflight)
     {
         if (NativeCommands.Contains(command))
         {
@@ -59,6 +61,21 @@ internal static class MacCommandCapabilities
         var separator = command.IndexOf('.');
         var category = separator > 0 ? command[..separator] : command;
         var action = separator > 0 ? command[(separator + 1)..] : string.Empty;
+
+        if (MacOfficeActionCatalog.TryGet(command, out _))
+        {
+            if (officeCandidateEnabled)
+            {
+                return new MacCommandCapability(
+                    true,
+                    MacCapabilityTier.OfficeAddIn,
+                    string.Empty);
+            }
+            return Unavailable(
+                MacCapabilityTier.OfficeAddIn,
+                command,
+                "an Office.js implementation candidate that has not passed live contract parity validation");
+        }
 
         if (category == "powerquery")
         {
@@ -81,24 +98,65 @@ internal static class MacCommandCapabilities
 
         if (category == "vba")
         {
+            vbaPreflight ??= MacVbaPreflight.Check();
             return action == "run"
                 ? Unavailable(
                     MacCapabilityTier.MacroHelper,
                     command,
-                    "the optional macro helper tier, which requires the user to enable macros")
+                    "the optional macOS macro execution tier; preflight reports that " +
+                    $"{MacVbaPreflight.DescribeMacroExecution(vbaPreflight.MacroExecution)}; " +
+                    "a repository-owned synthetic fixture has not yet proven unattended, " +
+                    "workbook-qualified execution through both CLI and MCP")
                 : Unavailable(
                     MacCapabilityTier.VbaProjectModel,
                     command,
-                    "the optional VBA project object model tier, which requires explicit user trust");
+                    "the optional macOS VBA project-model tier; preflight reports that " +
+                    $"{MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess)}, " +
+                    "and Excel's installed scripting dictionary exposes no VBA project-model route");
         }
 
-        if (OfficeAddInCategories.Contains(category)
-            || category == "rangeformat")
+        if (command is "analysis.create-scenario" or "analysis.show-scenario")
+        {
+            return Unavailable(
+                MacCapabilityTier.MacroHelper,
+                command,
+                "the optional trusted VBA helper because the installed native dictionary does not expose " +
+                "exact scenario creation or Scenario.Show");
+        }
+
+        if (category is "connection" or "querytable" or "analysis" or "pythoninexcel")
+        {
+            return Unavailable(
+                MacCapabilityTier.Native,
+                command,
+                "an Apple Events route whose exact result, completion, error, and cleanup semantics " +
+                "have not yet passed a prompt-free real-Excel fixture");
+        }
+
+        if (category == "screenshot")
+        {
+            return Unavailable(
+                MacCapabilityTier.OptionalNativeHelper,
+                command,
+                "an optional native screen-capture helper with explicit Screen Recording permission");
+        }
+
+        if (category is "table"
+            or "tablecolumn"
+            or "chart"
+            or "chartconfig"
+            or "pivottable"
+            or "pivottablefield"
+            or "pivottablecalc"
+            or "conditionalformat"
+            or "drawing"
+            or "slicer"
+            or "rangeformat")
         {
             return Unavailable(
                 MacCapabilityTier.OfficeAddIn,
                 command,
-                "the optional Office.js add-in tier, which is not installed in this release");
+                "an Office.js implementation that has not passed contract parity validation");
         }
 
         return Unavailable(

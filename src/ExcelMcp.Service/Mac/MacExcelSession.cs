@@ -14,6 +14,7 @@ internal sealed class MacExcelSession
     public string? PackageBaselinePath { get; set; }
     public string? PackageTransactionPath { get; set; }
     public bool RequiresPackageRecovery { get; set; }
+    public string? UnsafeReason { get; private set; }
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public SemaphoreSlim OperationLock { get; } = new(1, 1);
     public int ActiveOperations;
@@ -50,6 +51,14 @@ internal sealed class MacExcelSession
 
             _pendingOperations++;
             return true;
+        }
+    }
+
+    public void MarkUnsafe(string reason)
+    {
+        lock (_stateLock)
+        {
+            UnsafeReason ??= reason;
         }
     }
 
