@@ -68,6 +68,25 @@ if (-not [string]::Equals(
         [StringComparison]::Ordinal)) {
     throw "HelperPath must name the exact artifact 'ExcelMcpHelper.xlam'."
 }
+if (-not [string]::Equals(
+        [IO.Path]::GetExtension($certificateFile),
+        '.cer',
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw "PublicCertificatePath must name an exported public '.cer' file."
+}
+
+$certificateText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($certificateFile))
+$privateKeyMarkers = @(
+    '-----BEGIN PRIVATE KEY-----',
+    '-----BEGIN ENCRYPTED PRIVATE KEY-----',
+    '-----BEGIN RSA PRIVATE KEY-----',
+    '-----BEGIN EC PRIVATE KEY-----'
+)
+foreach ($marker in $privateKeyMarkers) {
+    if ($certificateText.Contains($marker, [StringComparison]::Ordinal)) {
+        throw 'PublicCertificatePath must not contain private-key material.'
+    }
+}
 
 $sourceText = [IO.File]::ReadAllText($source)
 $helperVersionMatch = [regex]::Match(

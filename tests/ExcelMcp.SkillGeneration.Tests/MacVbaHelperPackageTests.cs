@@ -113,7 +113,7 @@ public sealed class MacVbaHelperPackageTests
         {
             var helperPath = Path.Combine(sandbox, "ExcelMcpHelper.xlam");
             var sourcePath = Path.Combine(sandbox, "ExcelMcpHelper.bas");
-            var certificatePath = Path.Combine(sandbox, "ExcelMcpHelper.pfx");
+            var certificatePath = Path.Combine(sandbox, "ExcelMcpHelper.cer");
             await File.WriteAllBytesAsync(helperPath, [0x50, 0x4B, 0x03, 0x04]);
             await File.WriteAllTextAsync(
                 sourcePath,
@@ -136,9 +136,9 @@ public sealed class MacVbaHelperPackageTests
             using var certificate = request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddDays(-1),
                 DateTimeOffset.UtcNow.AddYears(1));
-            await File.WriteAllBytesAsync(
+            await File.WriteAllTextAsync(
                 certificatePath,
-                certificate.Export(X509ContentType.Pfx, string.Empty));
+                $"{certificate.ExportCertificatePem()}{rsa.ExportPkcs8PrivateKeyPem()}");
 
             var result = await RunScriptAsync(
                 "-HelperPath", helperPath,
@@ -150,6 +150,7 @@ public sealed class MacVbaHelperPackageTests
                 "-SelfCertTrustModelConfirmed");
 
             Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("must not contain private-key material", result.CombinedOutput);
             Assert.False(Directory.Exists(Path.Combine(sandbox, "package")));
         }
         finally
