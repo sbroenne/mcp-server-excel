@@ -12,8 +12,7 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -97,8 +96,7 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -182,8 +180,7 @@ public partial class TableCommands
     /// <inheritdoc />
     public OperationResult ClearFilters(IExcelBatch batch, string tableName)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -212,8 +209,7 @@ public partial class TableCommands
     /// <inheritdoc />
     public TableFilterResult GetFilters(IExcelBatch batch, string tableName)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         var result = new TableFilterResult { FilePath = batch.WorkbookPath, TableName = tableName };
         return batch.Execute((ctx, ct) =>
@@ -303,6 +299,5 @@ public partial class TableCommands
         });
     }
 }
-
 
 

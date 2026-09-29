@@ -18,8 +18,7 @@ public partial class TableCommands
         TableRegion region,
         string? columnName = null)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         var result = new TableStructuredReferenceResult { FilePath = batch.WorkbookPath };
         return batch.Execute((ctx, ct) =>
@@ -165,6 +164,5 @@ public partial class TableCommands
         return regionRange; // Return region range directly
     }
 }
-
 
 

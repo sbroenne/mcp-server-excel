@@ -23,8 +23,7 @@ public partial class TableCommands
         string columnName,
         bool ascending = true)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -76,8 +75,7 @@ public partial class TableCommands
         string tableName,
         List<TableSortColumn> sortColumns)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -180,6 +178,5 @@ public partial class TableCommands
         });
     }
 }
-
 
 

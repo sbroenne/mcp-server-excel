@@ -60,8 +60,8 @@ public partial class TableCommands
     private static void ValidateCreateInputs(string sheetName, string tableName, string rangeAddress)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+        ValidateRequiredTableName(tableName);
         ArgumentException.ThrowIfNullOrWhiteSpace(rangeAddress);
-        ValidateTableName(tableName);
     }
 
     private static Excel.Range ResolveEffectiveRange(Excel.Worksheet sheet, string rangeAddress)

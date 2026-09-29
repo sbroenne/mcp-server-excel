@@ -12,8 +12,7 @@ public partial class TableCommands
     /// <inheritdoc />
     public AddToDataModelResult AddToDataModel(IExcelBatch batch, string tableName, bool stripBracketColumnNames = false)
     {
-        // Security: Validate table name
-        ValidateTableName(tableName);
+        ValidateRequiredTableName(tableName);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -212,6 +211,5 @@ public partial class TableCommands
         }
     }
 }
-
 
 
