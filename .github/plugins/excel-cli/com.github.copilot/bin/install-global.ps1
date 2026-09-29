@@ -40,6 +40,11 @@ $encodedBootstrap = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes(
 $cmdShim = @"
 @echo off
 setlocal
+where npx.cmd >nul 2>&1
+if not errorlevel 1 (
+    call npx.cmd -y @sbroenne/excelcli@latest %*
+    exit /b %ERRORLEVEL%
+)
 set "EXCELCLI_EXE="
 for /f "tokens=2 delims=:" %%i in ('chcp') do set "EXCELCLI_CODEPAGE=%%i"
 chcp 65001 >nul

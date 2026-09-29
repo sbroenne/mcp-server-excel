@@ -179,6 +179,12 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             var bin = Directory.CreateDirectory(Path.Combine(plugin, "bin")).FullName;
             File.WriteAllText(Path.Combine(bin, "start-cli.ps1"), "Write-Output 'quoted-wrapper-ran'\n$global:LASTEXITCODE=0");
             File.WriteAllText(Path.Combine(bin, "download.ps1"), "Write-Output \"$env:SystemRoot\\System32\\cmd.exe\"");
+            File.WriteAllText(
+                Path.Combine(sandbox, "npx.cmd"),
+                """
+                @echo off
+                cmd.exe %3 %4 %5
+                """);
             var installers = Directory.CreateDirectory(Path.Combine(plugin, "com.github.copilot", "bin")).FullName;
             var installer = Path.Combine(installers, "install-global.ps1");
             var userBin = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot", "bin")).FullName;
@@ -188,7 +194,12 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             File.WriteAllText(installer, source, new UTF8Encoding(true));
             var existingPath = Path.Combine(userBin, existingShim);
             File.WriteAllText(existingPath, "keep existing shim");
-            var environment = new Dictionary<string, string> { ["USERPROFILE"] = sandbox, ["TEST_USER_PATH"] = userBin };
+            var environment = new Dictionary<string, string>
+            {
+                ["USERPROFILE"] = sandbox,
+                ["TEST_USER_PATH"] = userBin,
+                ["PATH"] = $"{sandbox};{Environment.GetEnvironmentVariable("PATH")}"
+            };
             var installed = await RunPowerShellFileAsync(installer, [], environment);
             Assert.True(installed.ExitCode == 0, installed.Stdout + installed.Stderr);
             Assert.Equal("keep existing shim", File.ReadAllText(existingPath));
@@ -204,6 +215,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             var cmd = await RunPowerShellFileAsync(cmdProbe, [], environment);
             Assert.True(cmd.ExitCode == 0, cmd.Stdout + cmd.Stderr + File.ReadAllText(Path.Combine(userBin, "excelcli.cmd")));
             Assert.Contains("cmd-wrapper-ran", cmd.Stdout, StringComparison.Ordinal);
+            Assert.Contains("call npx.cmd -y @sbroenne/excelcli@latest %*", File.ReadAllText(Path.Combine(userBin, "excelcli.cmd")), StringComparison.Ordinal);
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -2157,30 +2169,23 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                 """,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-            var echoScriptPath = Path.Combine(sandbox, "echo-streams.js");
+            File.WriteAllText(Path.Combine(sandbox, "npx.cmd"), "@echo off\r\n");
+            var npmBinDirectory = Path.Combine(sandbox, "node_modules", "npm", "bin");
+            Directory.CreateDirectory(npmBinDirectory);
+            var npxCliPath = Path.Combine(npmBinDirectory, "npx-cli.js");
             File.WriteAllText(
-                echoScriptPath,
+                npxCliPath,
                 """
-                WScript.StdOut.Write("pipeline-ok");
-                WScript.StdErr.Write("pipeline-error");
-                """,
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-            var fakeNpxPath = Path.Combine(sandbox, "npx.ps1");
-            File.WriteAllText(
-                fakeNpxPath,
-                """
-                [CmdletBinding()]
-                param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
-
-                if ($Arguments[0] -ne "-y" -or $Arguments[1] -ne "@sbroenne/excelcli@latest") {
-                    throw "Unexpected npx arguments: $($Arguments -join ' ')"
+                if (process.argv[2] !== "-y" ||
+                    process.argv[3] !== "@sbroenne/excelcli@latest") {
+                    throw new Error("Unexpected npx arguments");
                 }
-
-                & (Get-Command "cscript.exe").Source @($Arguments[2..($Arguments.Count - 1)])
-                exit $LASTEXITCODE
+                process.stdout.write(process.argv[4]);
+                process.stderr.write("pipeline-error");
                 """,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            const string jsonArgument = """[["Name","Amount"],["Widget",1500]]""";
 
             var harnessPath = Path.Combine(sandbox, "invoke-wrapper.ps1");
             File.WriteAllText(
@@ -2192,14 +2197,14 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                     [string]$WrapperPath,
 
                     [Parameter(Mandatory = $true)]
-                    [string]$EchoScriptPath,
+                    [string]$NpxDirectory,
 
                     [Parameter(Mandatory = $true)]
-                    [string]$NpxDirectory
+                    [string]$JsonArgument
                 )
 
                 $env:PATH = "$NpxDirectory;$env:PATH"
-                $captured = (& $WrapperPath //nologo $EchoScriptPath | Out-String).Trim()
+                $captured = (& $WrapperPath $JsonArgument | Out-String).Trim()
                 Write-Output "captured=$captured"
                 """,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
@@ -2208,12 +2213,12 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                 harnessPath,
                 [
                     "-WrapperPath", Path.Combine(pluginBinDirectory, "start-cli.ps1"),
-                    "-EchoScriptPath", echoScriptPath,
-                    "-NpxDirectory", sandbox
+                    "-NpxDirectory", sandbox,
+                    "-JsonArgument", jsonArgument
                 ]);
 
             Assert.Equal(0, result.ExitCode);
-            Assert.Equal("captured=pipeline-ok", result.Stdout.Trim());
+            Assert.Equal($"captured={jsonArgument}", result.Stdout.Trim());
             Assert.Equal("pipeline-error", result.Stderr.Trim());
         }
         finally
