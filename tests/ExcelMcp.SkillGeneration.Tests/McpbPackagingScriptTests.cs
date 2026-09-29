@@ -109,6 +109,17 @@ public sealed class McpbPackagingScriptTests
                     if ($script:moveAttempt -eq 3) { throw 'restore root cause' }
                     Microsoft.PowerShell.Management\Move-Item -LiteralPath $LiteralPath -Destination $Destination
                 }
+                function Remove-Item {
+                    param(
+                        [Parameter(Mandatory)][string]$LiteralPath,
+                        [switch]$Recurse,
+                        [switch]$Force
+                    )
+                    if ($LiteralPath.EndsWith('.tmp', [StringComparison]::OrdinalIgnoreCase)) {
+                        throw 'temporary cleanup root cause'
+                    }
+                    Microsoft.PowerShell.Management\Remove-Item @PSBoundParameters
+                }
                 try {
                     Install-PackageOutput `
                         -Source '{{EscapePowerShellLiteral(source)}}' `
@@ -123,11 +134,16 @@ public sealed class McpbPackagingScriptTests
             Assert.Contains("installation root cause", result.CombinedOutput, StringComparison.Ordinal);
             Assert.Contains("restore root cause", result.CombinedOutput, StringComparison.Ordinal);
             Assert.Contains("Recovery backup retained at", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("temporary cleanup root cause", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("Temporary output retained at", result.CombinedOutput, StringComparison.Ordinal);
             Assert.False(Directory.Exists(destination));
 
             var backup = Assert.Single(Directory.GetDirectories(sandbox, "*.bak"));
             Assert.Equal("previous", await File.ReadAllTextAsync(Path.Combine(backup, "payload.txt")));
             Assert.Contains(backup, result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+            var temporary = Assert.Single(Directory.GetDirectories(sandbox, "*.tmp"));
+            Assert.Equal("replacement", await File.ReadAllTextAsync(Path.Combine(temporary, "payload.txt")));
+            Assert.Contains(temporary, result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
         }
         finally { Directory.Delete(sandbox, recursive: true); }
     }

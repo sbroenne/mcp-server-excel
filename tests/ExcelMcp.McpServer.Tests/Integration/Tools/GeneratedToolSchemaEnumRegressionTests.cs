@@ -82,7 +82,7 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
     }
 
     [Fact]
-    public async Task CalculationReference_ExamplesMatchGeneratedToolSchema()
+    public async Task AuthoredCalculationExamples_MatchGeneratedToolSchema()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var calculationTool = tools.Single(tool => tool.Name == "calculation_mode");
@@ -97,46 +97,54 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
             .Select(value => value!)
             .ToHashSet(StringComparer.Ordinal);
         var requiredParameterNames = GetRequiredPropertyNames(calculationTool.JsonSchema);
-        var referencePath = Path.Combine(
-            FindRepoRoot(),
-            "skills",
-            "assets",
-            "excel-mcp",
-            "references",
-            "calculation.md");
-        var content = await File.ReadAllTextAsync(referencePath, TestCancellationToken);
-        var examples = Regex.Matches(content, @"\bcalculation_mode\((?<arguments>[^)\r\n]+)\)");
-
-        Assert.NotEmpty(examples);
-        foreach (Match example in examples)
+        var repoRoot = FindRepoRoot();
+        var sourcePaths = new[]
         {
-            var arguments = example.Groups["arguments"].Value.Split(
-                ',',
-                StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            var parameterNames = new HashSet<string>(StringComparer.Ordinal);
-            string? action = null;
+            Path.Combine("skills", "assets", "excel-mcp", "references", "calculation.md"),
+            Path.Combine("skills", "shared", "gotchas.md"),
+            Path.Combine("skills", "templates", "SKILL.mcp.sbn")
+        };
 
-            foreach (var argument in arguments)
+        foreach (var sourcePath in sourcePaths)
+        {
+            var content = await File.ReadAllTextAsync(
+                Path.Combine(repoRoot, sourcePath),
+                TestCancellationToken);
+            var examples = Regex.Matches(content, @"\bcalculation_mode\((?<arguments>[^)\r\n]+)\)");
+
+            Assert.NotEmpty(examples);
+            foreach (Match example in examples)
             {
-                var namedArgument = Regex.Match(
-                    argument,
-                    @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*['""](?<value>[^'""]+)['""]$");
-                Assert.True(namedArgument.Success, $"Use named MCP arguments in `{example.Value}`.");
+                var arguments = example.Groups["arguments"].Value.Split(
+                    ',',
+                    StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                var parameterNames = new HashSet<string>(StringComparer.Ordinal);
+                string? action = null;
 
-                var parameterName = namedArgument.Groups["name"].Value;
-                Assert.Contains(parameterName, schemaParameterNames);
-                parameterNames.Add(parameterName);
-                if (parameterName == "action")
+                foreach (var argument in arguments)
                 {
-                    action = namedArgument.Groups["value"].Value;
-                }
-            }
+                    var namedArgument = Regex.Match(
+                        argument,
+                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*['""](?<value>[^'""]+)['""]$");
+                    Assert.True(
+                        namedArgument.Success,
+                        $"Use named MCP arguments in `{example.Value}` from {sourcePath}.");
 
-            Assert.NotNull(action);
-            Assert.Contains(action, actionNames);
-            foreach (var requiredParameterName in requiredParameterNames)
-            {
-                Assert.Contains(requiredParameterName, parameterNames);
+                    var parameterName = namedArgument.Groups["name"].Value;
+                    Assert.Contains(parameterName, schemaParameterNames);
+                    parameterNames.Add(parameterName);
+                    if (parameterName == "action")
+                    {
+                        action = namedArgument.Groups["value"].Value;
+                    }
+                }
+
+                Assert.NotNull(action);
+                Assert.Contains(action, actionNames);
+                foreach (var requiredParameterName in requiredParameterNames)
+                {
+                    Assert.Contains(requiredParameterName, parameterNames);
+                }
             }
         }
     }

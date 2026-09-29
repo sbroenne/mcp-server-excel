@@ -92,6 +92,12 @@ function Install-PackageOutput {
             }
         }
     } finally {
-        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }
+        if (Test-Path -LiteralPath $temporary) {
+            try {
+                Remove-Item -LiteralPath $temporary -Recurse -Force
+            } catch {
+                Write-Warning "Temporary package output cleanup failed: $($_.Exception.Message). Temporary output retained at '$temporary'."
+            }
+        }
     }
 }
