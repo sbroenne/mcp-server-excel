@@ -16,6 +16,81 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public class OleMessageFilterTests
 {
     [Fact]
+    public void RegisterAndRevoke_ReleasesEveryOwnedNativePointer()
+    {
+        var released = new List<nint>();
+        Exception? threadException = null;
+        var registrations = new Queue<(int Result, nint Previous)>(
+        [
+            (0, (nint)22),
+            (0, (nint)33)
+        ]);
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                OleMessageFilter.CreateInterfacePointerForTests = _ => (nint)11;
+                OleMessageFilter.RegisterMessageFilterForTests = _ => registrations.Dequeue();
+                OleMessageFilter.ReleasePointerForTests = pointer => released.Add(pointer);
+
+                OleMessageFilter.Register();
+                OleMessageFilter.Revoke();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+            finally
+            {
+                OleMessageFilter.ResetNativeHooksForTests();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        Assert.Null(threadException);
+        Assert.Equal([(nint)33, (nint)11, (nint)22], released);
+    }
+
+    [Fact]
+    public void Register_WhenNativeRegistrationFails_ReleasesGeneratedAndReturnedPointers()
+    {
+        var released = new List<nint>();
+        Exception? threadException = null;
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                OleMessageFilter.CreateInterfacePointerForTests = _ => (nint)41;
+                OleMessageFilter.RegisterMessageFilterForTests = _ => (unchecked((int)0x80004005), (nint)42);
+                OleMessageFilter.ReleasePointerForTests = pointer => released.Add(pointer);
+
+                Assert.Throws<InvalidOperationException>(OleMessageFilter.Register);
+                Assert.False(OleMessageFilter.IsRegistered);
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+            finally
+            {
+                OleMessageFilter.ResetNativeHooksForTests();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        Assert.Null(threadException);
+        Assert.Equal([(nint)42, (nint)41], released);
+    }
+
+    [Fact]
     public void Register_OnStaThread_DoesNotThrow()
     {
         // Arrange & Act & Assert
@@ -322,7 +397,3 @@ public class OleMessageFilterTests
         Assert.Equal(100, returnValue);
     }
 }
-
-
-
-

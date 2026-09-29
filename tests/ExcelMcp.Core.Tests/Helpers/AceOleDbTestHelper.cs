@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -16,7 +17,9 @@ public static class AceOleDbTestHelper
     /// </summary>
     public static void CreateExcelDataSource(string workbookPath)
     {
-        ExcelSession.CreateNew(workbookPath, isMacroEnabled: false, (ctx, ct) =>
+        SavedWorkbookTemplates.CopyBlankTo(workbookPath);
+        using var batch = ExcelSession.BeginBatch(workbookPath);
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Name = "Products";
@@ -62,7 +65,6 @@ public static class AceOleDbTestHelper
     /// </summary>
     public static string GetDefaultCommandText() => "SELECT * FROM [Products$]";
 }
-
 
 
 

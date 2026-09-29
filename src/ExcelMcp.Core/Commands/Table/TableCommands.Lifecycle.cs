@@ -36,42 +36,38 @@ public partial class TableCommands
                             dynamic? table = null;
                             dynamic? headerRowRange = null;
                             dynamic? dataBodyRange = null;
+                            dynamic? tableRange = null;
+                            dynamic? listColumns = null;
+                            dynamic? dataRows = null;
                             try
                             {
                                 table = listObjects.Item(j);
                                 string tableName = table.Name;
-                                string rangeAddress = table.Range.Address;
+                                tableRange = table.Range;
+                                string rangeAddress = tableRange.Address;
                                 bool showHeaders = table.ShowHeaders;
                                 bool showTotals = table.ShowTotals;
                                 string tableStyleName = GetTableStyleName(table);
 
                                 // Get column count and names
-                                int columnCount = table.ListColumns.Count;
+                                listColumns = table.ListColumns;
+                                int columnCount = listColumns.Count;
                                 var columns = new List<string>();
 
                                 if (showHeaders)
                                 {
-                                    dynamic? listColumns = null;
-                                    try
+                                    for (int k = 1; k <= listColumns.Count; k++)
                                     {
-                                        listColumns = table.ListColumns;
-                                        for (int k = 1; k <= listColumns.Count; k++)
+                                        dynamic? column = null;
+                                        try
                                         {
-                                            dynamic? column = null;
-                                            try
-                                            {
-                                                column = listColumns.Item(k);
-                                                columns.Add(column.Name);
-                                            }
-                                            finally
-                                            {
-                                                ComUtilities.Release(ref column);
-                                            }
+                                            column = listColumns.Item(k);
+                                            columns.Add(column.Name);
                                         }
-                                    }
-                                    finally
-                                    {
-                                        ComUtilities.Release(ref listColumns);
+                                        finally
+                                        {
+                                            ComUtilities.Release(ref column);
+                                        }
                                     }
                                 }
 
@@ -83,11 +79,13 @@ public partial class TableCommands
                                     dataBodyRange = table.DataBodyRange;
                                     if (dataBodyRange != null)
                                     {
-                                        rowCount = dataBodyRange.Rows.Count;
+                                        dataRows = dataBodyRange.Rows;
+                                        rowCount = dataRows.Count;
                                     }
                                 }
                                 finally
                                 {
+                                    ComUtilities.Release(ref dataRows);
                                     ComUtilities.Release(ref dataBodyRange);
                                 }
 
@@ -106,6 +104,8 @@ public partial class TableCommands
                             }
                             finally
                             {
+                                ComUtilities.Release(ref listColumns);
+                                ComUtilities.Release(ref tableRange);
                                 ComUtilities.Release(ref headerRowRange);
                                 ComUtilities.Release(ref table);
                             }
@@ -278,44 +278,40 @@ public partial class TableCommands
             dynamic? sheet = null;
             dynamic? dataBodyRange = null;
             dynamic? headerRowRange = null;
+            dynamic? tableRange = null;
+            dynamic? listColumns = null;
+            dynamic? dataRows = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
 
                 sheet = table.Parent;
                 string sheetName = sheet.Name;
-                string rangeAddress = table.Range.Address;
+                tableRange = table.Range;
+                string rangeAddress = tableRange.Address;
                 bool showHeaders = table.ShowHeaders;
                 bool showTotals = table.ShowTotals;
                 string tableStyleName = GetTableStyleName(table);
 
                 // Get column count and names
-                int columnCount = table.ListColumns.Count;
+                listColumns = table.ListColumns;
+                int columnCount = listColumns.Count;
                 var columns = new List<string>();
 
                 if (showHeaders)
                 {
-                    dynamic? listColumns = null;
-                    try
+                    for (int i = 1; i <= listColumns.Count; i++)
                     {
-                        listColumns = table.ListColumns;
-                        for (int i = 1; i <= listColumns.Count; i++)
+                        dynamic? column = null;
+                        try
                         {
-                            dynamic? column = null;
-                            try
-                            {
-                                column = listColumns.Item(i);
-                                columns.Add(column.Name);
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref column);
-                            }
+                            column = listColumns.Item(i);
+                            columns.Add(column.Name);
                         }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref listColumns);
+                        finally
+                        {
+                            ComUtilities.Release(ref column);
+                        }
                     }
                 }
 
@@ -327,11 +323,13 @@ public partial class TableCommands
                     dataBodyRange = table.DataBodyRange;
                     if (dataBodyRange != null)
                     {
-                        rowCount = dataBodyRange.Rows.Count;
+                        dataRows = dataBodyRange.Rows;
+                        rowCount = dataRows.Count;
                     }
                 }
                 finally
                 {
+                    ComUtilities.Release(ref dataRows);
                     ComUtilities.Release(ref dataBodyRange);
                 }
 
@@ -353,6 +351,8 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref listColumns);
+                ComUtilities.Release(ref tableRange);
                 ComUtilities.Release(ref headerRowRange);
                 ComUtilities.Release(ref dataBodyRange);
                 ComUtilities.Release(ref sheet);

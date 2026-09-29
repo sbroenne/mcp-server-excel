@@ -100,77 +100,70 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         return batch.Execute((ctx, ct) =>
         {
             // Find chart by name across all worksheets
-            dynamic worksheets = ctx.Book.Worksheets;
-            int wsCount = Convert.ToInt32(worksheets.Count);
-
-            for (int i = 1; i <= wsCount; i++)
+            dynamic? worksheets = null;
+            try
             {
-                dynamic? worksheet = null;
-                dynamic? shapes = null;
+                worksheets = ctx.Book.Worksheets;
+                int wsCount = Convert.ToInt32(worksheets.Count);
 
-                try
+                for (int i = 1; i <= wsCount; i++)
                 {
-                    worksheet = worksheets.Item(i);
-                    string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
-                    shapes = worksheet.Shapes;
-                    int shapeCount = Convert.ToInt32(shapes.Count);
+                    dynamic? worksheet = null;
+                    dynamic? shapes = null;
 
-                    for (int j = 1; j <= shapeCount; j++)
+                    try
                     {
-                        dynamic? shape = null;
-                        dynamic? chart = null;
+                        worksheet = worksheets.Item(i);
+                        string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
+                        shapes = worksheet.Shapes;
+                        int shapeCount = Convert.ToInt32(shapes.Count);
 
-                        try
+                        for (int j = 1; j <= shapeCount; j++)
                         {
-                            shape = shapes.Item(j);
+                            dynamic? shape = null;
+                            dynamic? chart = null;
 
-                            // Check if this is a chart and name matches
-                            if (Convert.ToInt32(shape.Type) != 3)
+                            try
                             {
-                                continue;
-                            }
+                                shape = shapes.Item(j);
 
-                            string shapeName = shape.Name?.ToString() ?? string.Empty;
-                            if (!shapeName.Equals(chartName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
+                                if (Convert.ToInt32(shape.Type) != 3)
+                                {
+                                    continue;
+                                }
 
-                            chart = shape.Chart;
+                                string shapeName = shape.Name?.ToString() ?? string.Empty;
+                                if (!shapeName.Equals(chartName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
 
-                            // Determine strategy and get detailed info
-                            IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
+                                chart = shape.Chart;
+                                IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
 #pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetDetailedInfo with dynamic parameters
-                            var result = strategy.GetDetailedInfo(chart, chartName, sheetName, shape);
+                                return strategy.GetDetailedInfo(chart, chartName, sheetName, shape);
 #pragma warning restore CS8604
-
-                            ComUtilities.Release(ref chart!);
-                            ComUtilities.Release(ref shape!);
-                            ComUtilities.Release(ref shapes!);
-                            ComUtilities.Release(ref worksheet!);
-                            ComUtilities.Release(ref worksheets!);
-
-                            return result;
-                        }
-                        catch (System.Runtime.InteropServices.COMException)
-                        {
-                            ComUtilities.Release(ref chart!);
-                            ComUtilities.Release(ref shape!);
-                            throw;
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref chart);
+                                ComUtilities.Release(ref shape);
+                            }
                         }
                     }
+                    finally
+                    {
+                        ComUtilities.Release(ref shapes);
+                        ComUtilities.Release(ref worksheet);
+                    }
                 }
-                finally
-                {
-                    ComUtilities.Release(ref shapes!);
-                    ComUtilities.Release(ref worksheet!);
-                }
+
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
-
-            ComUtilities.Release(ref worksheets!);
-
-            // Chart not found
-            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            finally
+            {
+                ComUtilities.Release(ref worksheets);
+            }
         });
     }
 
@@ -245,7 +238,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     string fullRangeAddress = sourceRangeAddress.Contains('!')
                         ? sourceRangeAddress
                         : $"'{sheetName}'!{sourceRangeAddress}";
-                    sourceRangeObj = ctx.Book.Application.Range[fullRangeAddress];
+                    sourceRangeObj = ctx.App.Range[fullRangeAddress];
                     try
                     {
                         chart.SetSourceData(sourceRangeObj);
@@ -625,67 +618,64 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         return batch.Execute((ctx, ct) =>
         {
             // Find and delete chart
-            dynamic worksheets = ctx.Book.Worksheets;
-            int wsCount = Convert.ToInt32(worksheets.Count);
-
-            for (int i = 1; i <= wsCount; i++)
+            dynamic? worksheets = null;
+            try
             {
-                dynamic? worksheet = null;
-                dynamic? shapes = null;
+                worksheets = ctx.Book.Worksheets;
+                int wsCount = Convert.ToInt32(worksheets.Count);
 
-                try
+                for (int i = 1; i <= wsCount; i++)
                 {
-                    worksheet = worksheets.Item(i);
-                    shapes = worksheet.Shapes;
-                    int shapeCount = Convert.ToInt32(shapes.Count);
+                    dynamic? worksheet = null;
+                    dynamic? shapes = null;
 
-                    for (int j = 1; j <= shapeCount; j++)
+                    try
                     {
-                        dynamic? shape = null;
+                        worksheet = worksheets.Item(i);
+                        shapes = worksheet.Shapes;
+                        int shapeCount = Convert.ToInt32(shapes.Count);
 
-                        try
+                        for (int j = 1; j <= shapeCount; j++)
                         {
-                            shape = shapes.Item(j);
+                            dynamic? shape = null;
 
-                            // Check if this is a chart and name matches
-                            if (Convert.ToInt32(shape.Type) != 3)
+                            try
                             {
-                                continue;
-                            }
+                                shape = shapes.Item(j);
 
-                            string shapeName = shape.Name?.ToString() ?? string.Empty;
-                            if (!shapeName.Equals(chartName, StringComparison.OrdinalIgnoreCase))
+                                if (Convert.ToInt32(shape.Type) != 3)
+                                {
+                                    continue;
+                                }
+
+                                string shapeName = shape.Name?.ToString() ?? string.Empty;
+                                if (!shapeName.Equals(chartName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
+
+                                shape.Delete();
+                                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                            }
+                            finally
                             {
-                                continue;
+                                ComUtilities.Release(ref shape);
                             }
-
-                            // Delete the chart
-                            shape.Delete();
-
-                            ComUtilities.Release(ref shape!);
-                            ComUtilities.Release(ref shapes!);
-                            ComUtilities.Release(ref worksheet!);
-                            ComUtilities.Release(ref worksheets!);
-
-                            return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Success
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref shape!);
                         }
                     }
+                    finally
+                    {
+                        ComUtilities.Release(ref shapes);
+                        ComUtilities.Release(ref worksheet);
+                    }
                 }
-                finally
-                {
-                    ComUtilities.Release(ref shapes!);
-                    ComUtilities.Release(ref worksheet!);
-                }
+
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
-
-            ComUtilities.Release(ref worksheets!);
-
-            // Chart not found
-            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            finally
+            {
+                ComUtilities.Release(ref worksheets);
+            }
         });
     }
 

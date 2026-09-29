@@ -6,6 +6,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -86,41 +87,47 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
+            Excel.WorkbookConnection? conn = null;
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
+
+                if (conn == null)
+                {
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                }
+
+                result.Type = ConnectionHelpers.GetConnectionTypeName((int)conn.Type);
+                result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
+
+                string sanitizedConnectionString =
+                    ConnectionStringSanitizer.Sanitize(GetConnectionString(conn)) ?? "";
+                result.ConnectionString = sanitizedConnectionString;
+
+                result.CommandText = GetCommandText(conn);
+                result.CommandType = GetCommandType(conn);
+
+                var definition = new
+                {
+                    Name = connectionName,
+                    Type = result.Type,
+                    Description = conn.Description?.ToString() ?? "",
+                    IsPowerQuery = result.IsPowerQuery,
+                    ConnectionString = sanitizedConnectionString,
+                    CommandText = result.CommandText,
+                    CommandType = result.CommandType,
+                    Properties = GetConnectionProperties(conn)
+                };
+
+                result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
+
+                result.Success = true;
+                return result;
             }
-
-            result.Type = ConnectionHelpers.GetConnectionTypeName((int)conn.Type);
-            result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
-
-            // Get connection string (raw for LLM usage - sanitization removed)
-            string? rawConnectionString = GetConnectionString(conn);
-            result.ConnectionString = rawConnectionString ?? "";
-
-            // Get command text and type
-            result.CommandText = GetCommandText(conn);
-            result.CommandType = GetCommandType(conn);
-
-            // Build comprehensive JSON definition
-            var definition = new
+            finally
             {
-                Name = connectionName,
-                Type = result.Type,
-                Description = conn.Description?.ToString() ?? "",
-                IsPowerQuery = result.IsPowerQuery,
-                ConnectionString = result.ConnectionString,
-                CommandText = result.CommandText,
-                CommandType = result.CommandType,
-                Properties = GetConnectionProperties(conn)
-            };
-
-            result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
-
-            result.Success = true;
-            return result;
+                ComUtilities.Release(ref conn);
+            }
         });
     }
 
@@ -167,26 +174,32 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
+            Excel.WorkbookConnection? conn = null;
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
-            }
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
 
-            // Check if this is a Power Query connection (handle separately)
-            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-            {
-                // Check if this is an orphaned Power Query connection
-                if (PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
+                if (conn == null)
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' is an orphaned Power Query connection with no corresponding query. Use connection 'delete' to remove it.");
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
                 }
-                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery 'refresh' instead.");
-            }
 
-            RefreshWorkbookConnection(conn, ct);
-            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
+                {
+                    if (PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
+                    {
+                        throw new InvalidOperationException($"Connection '{connectionName}' is an orphaned Power Query connection with no corresponding query. Use connection 'delete' to remove it.");
+                    }
+                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery 'refresh' instead.");
+                }
+
+                RefreshWorkbookConnection(conn, ct);
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            }
+            finally
+            {
+                ComUtilities.Release(ref conn);
+            }
         }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
     }
 
@@ -246,9 +259,11 @@ public partial class ConnectionCommands
 
             try
             {
-                // PIA gap: WorkbookConnection.Refreshing is not in Microsoft.Office.Interop.Excel.
-                _ = ((dynamic)connection).Refreshing;
-                supportsRefreshing = true;
+                supportsRefreshing = subConnection != null;
+                if (supportsRefreshing)
+                {
+                    _ = subConnection.Refreshing;
+                }
             }
             catch (COMException)
             {
@@ -266,8 +281,7 @@ public partial class ConnectionCommands
                     {
                         try
                         {
-                            // PIA gap: WorkbookConnection.Refreshing is not in Microsoft.Office.Interop.Excel.
-                            return ((dynamic)connection).Refreshing;
+                            return subConnection.Refreshing;
                         }
                         catch (COMException)
                         {
@@ -282,8 +296,7 @@ public partial class ConnectionCommands
                     {
                         try
                         {
-                            // PIA gap: WorkbookConnection.CancelRefresh is not in Microsoft.Office.Interop.Excel.
-                            ((dynamic)connection).CancelRefresh();
+                            subConnection.CancelRefresh();
                         }
                         catch (COMException)
                         {
