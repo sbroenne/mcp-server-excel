@@ -114,11 +114,13 @@ Packaging performs these steps automatically:
 4. Validates feature and Marketplace metadata.
 5. Compiles TypeScript and runs `vsce package`.
 
-To build only the bundled executable:
+To prepare and inspect the bundled executable through the shared package path,
+run these commands from the repository root:
 
 ```powershell
-npm run build:mcp-server
-.\bin\Sbroenne.ExcelMcp.McpServer.exe --version
+.\scripts\Build-AgentSkills.ps1 -GenerateOnly
+.\scripts\Build-ReleasePackages.ps1 -Components Extension -SkillsDirectory artifacts\generated-skills -OutputDirectory artifacts\extension-check
+.\artifacts\extension-check\runtimes\Mcp\Sbroenne.ExcelMcp.McpServer.exe --version
 ```
 
 ## Local testing
@@ -165,8 +167,9 @@ Run `npm ci` from `vscode-extension`.
 
 ### MCP Server is missing
 
-Run `npm run build:mcp-server`, then verify that
-`bin/Sbroenne.ExcelMcp.McpServer.exe --version` succeeds. The manifest provider
+Run the shared package commands above, then verify that
+`artifacts/extension-check/runtimes/Mcp/Sbroenne.ExcelMcp.McpServer.exe --version`
+succeeds. The manifest provider
 ID and the ID passed to `registerMcpServerDefinitionProvider` must both be
 `excel-mcp`.
 

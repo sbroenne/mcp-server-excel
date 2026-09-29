@@ -136,6 +136,27 @@ public sealed class AutomationSafetyTests
     }
 
     [Fact]
+    public async Task SkillGeneration_StripsAnsiBeforeParsingCliHelp()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var script = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
+            var result = await RunAsync(root, $$"""
+                $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
+                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'ConvertTo-PlainHelpLines' }, $true)
+                . ([scriptblock]::Create($function.Extent.Text))
+                $plain = @(ConvertTo-PlainHelpLines @("`e[32mCOMMANDS:`e[0m", "`e[1m    session  Manage sessions`e[0m"))
+                if ($plain[0] -cne 'COMMANDS:' -or $plain[1] -cne '    session  Manage sessions') {
+                    throw "ANSI help was not normalized: $plain"
+                }
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task CaptureEvidence_NeverSavesAndStillQuitsAfterCloseFails()
     {
         var root = NewSandbox();

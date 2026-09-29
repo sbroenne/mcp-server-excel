@@ -43,6 +43,14 @@ $SkillsDir = Join-Path $RepoRoot "skills"
 $SharedDir = Join-Path $SkillsDir "shared"
 . (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 
+function ConvertTo-PlainHelpLines {
+    param([AllowEmptyCollection()][object[]]$Lines)
+
+    return @($Lines | ForEach-Object {
+        ([string]$_) -replace "`e\[[0-?]*[ -/]*[@-~]", ''
+    })
+}
+
 # Generate a complete reference from the built CLI so aliases and branch commands cannot drift.
 function Generate-CliReference {
     param(
@@ -183,7 +191,7 @@ function Generate-CliReference {
     }
 
     Write-Host "  Generating CLI command reference from excelcli..." -ForegroundColor Cyan
-    $mainHelp = @(& $ExcelCliPath --help 2>&1)
+    $mainHelp = ConvertTo-PlainHelpLines @(& $ExcelCliPath --help 2>&1)
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to run '$ExcelCliPath --help'."
     }
@@ -214,7 +222,7 @@ function Generate-CliReference {
     $commands = Get-HelpEntries -Lines $mainHelp -Header "COMMANDS:" -Kind Command
     foreach ($command in ($commands | Sort-Object { $_.Spec.Split(' ')[0] })) {
         $commandName = $command.Spec.Split(' ')[0]
-        $help = @(& $ExcelCliPath $commandName --help 2>&1)
+        $help = ConvertTo-PlainHelpLines @(& $ExcelCliPath $commandName --help 2>&1)
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to run '$ExcelCliPath $commandName --help'."
         }
@@ -253,7 +261,7 @@ function Generate-CliReference {
         if ($subcommands.Count -gt 0) {
             foreach ($subcommand in $subcommands) {
                 $subcommandName = $subcommand.Spec.Split(' ')[0]
-                $subcommandHelp = @(& $ExcelCliPath $commandName $subcommandName --help 2>&1)
+                $subcommandHelp = ConvertTo-PlainHelpLines @(& $ExcelCliPath $commandName $subcommandName --help 2>&1)
                 if ($LASTEXITCODE -ne 0) {
                     throw "Failed to run '$ExcelCliPath $commandName $subcommandName --help'."
                 }
