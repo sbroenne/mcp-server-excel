@@ -28,15 +28,30 @@ public sealed class MacCommandCapabilitiesTests
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
     }
 
-    [Theory]
-    [InlineData("pythoninexcel.set-formula")]
-    [InlineData("pythoninexcel.get-result")]
-    public void PythonInExcel_RemainsGatedWithoutPersistentFormula2RoundTrip(string command)
+    [Fact]
+    public void PythonInExcel_SetFormulaIsNative()
     {
-        var capability = MacCommandCapabilities.Get(command);
+        var capability = MacCommandCapabilities.Get("pythoninexcel.set-formula");
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Contains("CLI and MCP", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("16.113.2", capability.ExcelApiVersion, StringComparison.Ordinal);
+        Assert.Empty(capability.UnavailableMessage);
+    }
+
+    [Fact]
+    public void PythonInExcel_GetResultIsBlockedAfterPublicMcpFailure()
+    {
+        var capability = MacCommandCapabilities.Get("pythoninexcel.get-result");
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Contains("MCP", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("Message not understood", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("16.113.2", capability.ExcelApiVersion, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -236,12 +251,10 @@ public sealed class MacCommandCapabilitiesTests
         Assert.Contains("Screen Recording", capability.UnavailableMessage, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("querytable.list")]
-    [InlineData("pythoninexcel.set-formula")]
-    public void UnprovenAppleEventCandidates_ReportNativeTier(string command)
+    [Fact]
+    public void UnprovenQueryTableCandidateReportsNativeTier()
     {
-        var capability = MacCommandCapabilities.Get(command);
+        var capability = MacCommandCapabilities.Get("querytable.list");
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);

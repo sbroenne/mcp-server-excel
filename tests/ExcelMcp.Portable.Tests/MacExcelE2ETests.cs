@@ -83,21 +83,6 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                         ["code"] = "\"ExcelMcp\" + \" Python\"",
                         ["return_type"] = 0
                     }, deadline.Token));
-                var pythonResult = Success(await client.CallAsync(
-                    "pythoninexcel", "get-result", mainSession,
-                    new()
-                    {
-                        ["sheet_name"] = "Data",
-                        ["range_address"] = "Z1",
-                        ["max_wait_seconds"] = 30
-                    }, deadline.Token));
-                Assert.Contains("Z1", pythonResult.GetProperty("rangeAddress").GetString(), StringComparison.Ordinal);
-                var pythonFormula = pythonResult.GetProperty("formula").GetString();
-                Assert.StartsWith("=PY(", pythonFormula, StringComparison.OrdinalIgnoreCase);
-                Assert.Contains("\"\"ExcelMcp\"\"", pythonFormula, StringComparison.Ordinal);
-                Assert.Equal("ExcelMcp Python", pythonResult.GetProperty("value").GetString());
-                Assert.False(pythonResult.GetProperty("isPythonObject").GetBoolean());
-                Assert.False(pythonResult.GetProperty("isPythonError").GetBoolean());
             }
             var duplicateName = await client.CallAsync("file", "open", null,
                 new() { ["path"] = duplicate }, deadline.Token);

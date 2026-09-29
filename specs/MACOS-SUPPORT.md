@@ -94,6 +94,7 @@ Verified native coverage includes:
   column sizing, copy variants, bounded metadata, auto-fit, merge/unmerge, and
   cell locking for the accepted variants;
 - calculation, Goal Seek, one- and two-variable Data Tables;
+- licensed Python in Excel formula writes through `Range.Formula2`;
 - the accepted named-range lifecycle variants;
 - exact-window screenshot identity where separately enabled.
 
@@ -101,6 +102,10 @@ Known native Apple Events gaps remain gated, including UsedRange,
 CurrentRegion, merge-area inspection, worksheet copy/move, application-global
 calculation-mode mutation in shared Excel, and any action whose declared
 dictionary surface did not survive real CLI/MCP acceptance.
+
+Python in Excel result reads remain gated because Excel 16.113.2 rejected the
+native Apple Events read through the public MCP entry point after accepting the
+formula write. Windows remains the supported route for `get-result`.
 
 Excel 16.113.1 defines a thin read-only `workbook connection` class but exposes
 no workbook collection, creation command, or typed OLEDB/ODBC properties needed
