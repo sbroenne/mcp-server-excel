@@ -119,6 +119,7 @@ public partial class DataModelCommands
                 }
 
                 // Read all rows from the recordset
+                resultExtractionStarting?.Invoke();
                 while (!recordset.EOF)
                 {
                     ct.ThrowIfCancellationRequested();

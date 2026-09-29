@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Runtime.ExceptionServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -30,13 +31,22 @@ internal sealed class InjectedCancellationBatch(
         Action<ExcelContext, CancellationToken> operation,
         CancellationToken cancellationToken = default)
     {
-        try
+        Exception? operationError = null;
+        inner.Execute((context, _) =>
         {
-            inner.Execute((context, _) => operation(context, injectedToken));
-        }
-        catch (TimeoutException) when (injectedToken.IsCancellationRequested)
+            try
+            {
+                operation(context, injectedToken);
+            }
+            catch (Exception ex)
+            {
+                operationError = ex;
+            }
+        });
+
+        if (operationError is not null)
         {
-            throw new OperationCanceledException(injectedToken);
+            ExceptionDispatchInfo.Capture(operationError).Throw();
         }
     }
 
@@ -44,14 +54,26 @@ internal sealed class InjectedCancellationBatch(
         Func<ExcelContext, CancellationToken, T> operation,
         CancellationToken cancellationToken = default)
     {
-        try
+        T result = default!;
+        Exception? operationError = null;
+        inner.Execute((context, _) =>
         {
-            return inner.Execute((context, _) => operation(context, injectedToken));
-        }
-        catch (TimeoutException) when (injectedToken.IsCancellationRequested)
+            try
+            {
+                result = operation(context, injectedToken);
+            }
+            catch (Exception ex)
+            {
+                operationError = ex;
+            }
+        });
+
+        if (operationError is not null)
         {
-            throw new OperationCanceledException(injectedToken);
+            ExceptionDispatchInfo.Capture(operationError).Throw();
         }
+
+        return result;
     }
 
     public Excel.Workbook GetWorkbook(string filePath) => inner.GetWorkbook(filePath);

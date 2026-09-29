@@ -9,13 +9,18 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class DataModelCommands : IDataModelCommands, IDataModelRelCommands
 {
+    private readonly Action? resultExtractionStarting;
+
     /// <summary>
     /// Constructor for DataModelCommands
     /// </summary>
-    public DataModelCommands()
+    public DataModelCommands() : this(null)
     {
-        // No dependencies currently needed
+    }
+
+    internal DataModelCommands(Action? resultExtractionStarting)
+    {
+        this.resultExtractionStarting = resultExtractionStarting;
     }
 }
-
 
