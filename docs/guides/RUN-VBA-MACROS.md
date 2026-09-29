@@ -7,11 +7,13 @@ macros keep working instead of being rewritten.
 This is something file-parser libraries cannot do at all: `.xlsm` macro code is
 only meaningful to Excel's VBA host.
 
-## One-time setup: enable VBA trust
+## One-time setup for project access: enable VBA trust
 
 Excel blocks all programmatic access to the VBA project by default. **You must
-enable it manually** — ExcelMcp never changes this setting for you, because doing
-so silently would be a security problem.
+enable it manually** before listing, viewing, importing, updating, or deleting
+VBA modules. ExcelMcp never changes this setting for you, because doing so
+silently would be a security problem. Running an existing macro does not inspect
+the VBA project and does not require this setting.
 
 1. Open Excel
 2. **File → Options → Trust Center → Trust Center Settings**
@@ -19,8 +21,9 @@ so silently would be a security problem.
 4. Tick **Trust access to the VBA project object model**
 5. Click OK, then restart Excel
 
-Without it, every VBA operation fails with an access error. This is a per-machine,
-per-Office-install setting, so remote and CI machines need it too.
+Without it, VBA project inspection and editing fail with a `Permissions` error.
+This is a per-machine, per-Office-install setting, so remote and CI machines that
+manage VBA modules need it too.
 
 !!! warning "Security implication"
     Enabling VBA trust allows any program on the machine to read and modify VBA
@@ -69,8 +72,8 @@ file. `delete` removes a module.
 
 ## Save to the right file format
 
-Macro-enabled workbooks must be `.xlsm` (or `.xlsb`). Saving VBA into an `.xlsx`
-silently discards it. If you are adding VBA to an `.xlsx`, save-as `.xlsm` first.
+VBA commands support `.xlsm` workbooks. Saving VBA into an `.xlsx` silently
+discards it. If you are adding VBA to an `.xlsx`, save-as `.xlsm` first.
 
 ## Verify
 
@@ -83,8 +86,9 @@ excelcli -q screenshot capture-sheet --session $session --sheet Summary
 
 ## Known gotchas
 
-**Access denied on every VBA action** means the trust setting above is off. It is
-by far the most common cause of VBA failures.
+**Access denied while listing or changing modules** means the trust setting above
+is off. This is separate from a failure returned by `run`, which comes from Excel
+while locating or executing the requested macro.
 
 **Macros can display dialogs.** A `MsgBox` inside a macro blocks execution until
 someone dismisses it. Prefer macros that write results to cells over ones that

@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 ///
 /// PREREQUISITES:
 /// - Workbook must be macro-enabled (.xlsm)
-/// - VBA trust must be enabled manually in Excel for project access
+/// - VBA trust must be enabled manually in Excel for project inspection and editing
 ///
 /// SCOPE:
 /// - List and view existing VBA components and their procedures
@@ -18,11 +18,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - Run executes a procedure by name
 ///
 /// RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub').
+/// Running an existing macro does not require VBA project access.
 /// ExcelMcp does not configure VBA trust settings for you.
 /// </summary>
 [ServiceCategory("vba", "Vba")]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
-    Description = "VBA module and procedure operations for macro-enabled workbooks (.xlsm). Lists and views existing VBA components, imports new standard modules, updates or deletes module code, and runs procedures. VBA trust must be enabled manually in Excel; ExcelMcp does not configure Trust Center settings.")]
+    Description = "VBA module and procedure operations for macro-enabled workbooks (.xlsm). Lists and views existing VBA components, imports new standard modules, updates or deletes module code, and runs procedures. VBA project inspection and editing require Trust Center access; running an existing macro does not. ExcelMcp does not configure Trust Center settings.")]
 public interface IVbaCommands
 {
     /// <summary>
@@ -70,5 +71,4 @@ public interface IVbaCommands
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
 }
-
 

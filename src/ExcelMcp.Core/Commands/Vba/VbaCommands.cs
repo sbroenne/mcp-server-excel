@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -110,14 +111,15 @@ public partial class VbaCommands : IVbaCommands
     /// <summary>
     /// Validate that file is macro-enabled (.xlsm) for VBA operations
     /// </summary>
-    private static (bool IsValid, string? ErrorMessage) ValidateVbaFile(string filePath)
+    private static void EnsureVbaFile(string filePath)
     {
         string extension = Path.GetExtension(filePath).ToLowerInvariant();
         if (extension != ".xlsm")
         {
-            return (false, $"VBA operations require macro-enabled workbooks (.xlsm). Current file has extension: {extension}");
+            throw new OperationFailureException(
+                OperationFailureCategory.InvalidInput,
+                $"VBA operations require macro-enabled workbooks (.xlsm). Current file has extension: {extension}");
         }
-        return (true, null);
     }
 
     private static string ExtractProcedureName(string codeLine)
@@ -148,5 +150,3 @@ public partial class VbaCommands : IVbaCommands
         };
     }
 }
-
-
