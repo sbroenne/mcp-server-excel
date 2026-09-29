@@ -278,6 +278,12 @@ public sealed class McpbPackagingScriptTests
                     Directory.CreateDirectory(Path.GetDirectoryName(wrapper)!);
                     File.WriteAllText(wrapper, "1.2.3");
                 }
+                else
+                {
+                    File.Copy(
+                        Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "mcp.json"),
+                        Path.Combine(plugin, "mcp.json"));
+                }
             }
             File.Delete(Path.Combine(built, "excel-cli", missingFile));
             var output = Directory.CreateDirectory(Path.Combine(sandbox, "artifacts", "published")).FullName;
