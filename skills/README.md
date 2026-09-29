@@ -53,11 +53,11 @@ editing output that the next build replaces.
 
 | Change | Source |
 |--------|--------|
-| Tool or parameter description | Core interface XML documentation and attributes |
-| Skill prose and tool-selection rules | `templates/SKILL.cli.sbn` and `templates/SKILL.mcp.sbn` |
-| Shared workflows, examples, and limitations | `shared/*.md` |
+| Tool or parameter description | Command interface XML documentation and attributes under `src/ExcelMcp.Core` |
+| Skill prose and tool-selection rules | `skills/templates/SKILL.cli.sbn` and `skills/templates/SKILL.mcp.sbn` |
+| Shared workflows, examples, and limitations | `skills/shared/*.md` |
 | Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
-| MCP prompt description overrides | `GenerateSkillPromptsClass` in the MCP Server project file |
+| MCP prompt description overrides | `GenerateSkillPromptsClass` in `src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj` |
 
 Release builds generate the manifest and embedded MCP prompts. Complete
 installable skills are generated explicitly, outside the tracked source tree:
@@ -81,7 +81,7 @@ skills/shared/*.md -> copied skill references
   -> embedded MCP prompt content + generated ExcelSkillPrompts.g.cs
 ```
 
-To add a shared reference, create the Markdown under `shared/`. Review the MCP
+To add a shared reference, create the Markdown under `skills/shared/`. Review the MCP
 prompt description overrides if its automatic description is insufficient.
 Build the solution in Release and generate the skills, then inspect both skill references and the
 generated prompt surface for the intended content. The extension packages a

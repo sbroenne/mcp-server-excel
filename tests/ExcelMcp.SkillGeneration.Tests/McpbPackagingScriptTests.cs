@@ -82,6 +82,103 @@ public sealed class McpbPackagingScriptTests
         finally { Directory.Delete(sandbox, recursive: true); }
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "Packaging")]
+    public async Task InstallPackageOutput_WhenInstallAndRestoreFail_PreservesBothErrorsAndRecoveryBackup()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var source = Directory.CreateDirectory(Path.Combine(sandbox, "source")).FullName;
+            var destination = Directory.CreateDirectory(Path.Combine(sandbox, "destination")).FullName;
+            await File.WriteAllTextAsync(Path.Combine(source, "payload.txt"), "replacement");
+            await File.WriteAllTextAsync(Path.Combine(destination, "payload.txt"), "previous");
+
+            var result = await RunPowerShellAsync($$"""
+                $ErrorActionPreference = 'Stop'
+                . '{{EscapePowerShellLiteral(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"))}}'
+                $script:moveAttempt = 0
+                function Move-Item {
+                    param(
+                        [Parameter(Mandatory)][string]$LiteralPath,
+                        [Parameter(Mandatory)][string]$Destination
+                    )
+                    $script:moveAttempt++
+                    if ($script:moveAttempt -eq 2) { throw 'installation root cause' }
+                    if ($script:moveAttempt -eq 3) { throw 'restore root cause' }
+                    Microsoft.PowerShell.Management\Move-Item -LiteralPath $LiteralPath -Destination $Destination
+                }
+                try {
+                    Install-PackageOutput `
+                        -Source '{{EscapePowerShellLiteral(source)}}' `
+                        -Destination '{{EscapePowerShellLiteral(destination)}}'
+                } catch {
+                    [Console]::Error.WriteLine($_.Exception.Message)
+                    exit 1
+                }
+                """);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("installation root cause", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("restore root cause", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("Recovery backup retained at", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(destination));
+
+            var backup = Assert.Single(Directory.GetDirectories(sandbox, "*.bak"));
+            Assert.Equal("previous", await File.ReadAllTextAsync(Path.Combine(backup, "payload.txt")));
+            Assert.Contains(backup, result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "Packaging")]
+    public async Task InstallPackageOutput_WhenBackupCleanupFails_ReportsSuccessAndRetainedBackup()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var source = Directory.CreateDirectory(Path.Combine(sandbox, "source")).FullName;
+            var destination = Directory.CreateDirectory(Path.Combine(sandbox, "destination")).FullName;
+            await File.WriteAllTextAsync(Path.Combine(source, "payload.txt"), "replacement");
+            await File.WriteAllTextAsync(Path.Combine(destination, "payload.txt"), "previous");
+
+            var result = await RunPowerShellAsync($$"""
+                $ErrorActionPreference = 'Stop'
+                . '{{EscapePowerShellLiteral(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"))}}'
+                function Remove-Item {
+                    param(
+                        [Parameter(Mandatory)][string]$LiteralPath,
+                        [switch]$Recurse,
+                        [switch]$Force
+                    )
+                    if ($LiteralPath.EndsWith('.bak', [StringComparison]::OrdinalIgnoreCase)) {
+                        throw 'backup cleanup root cause'
+                    }
+                    Microsoft.PowerShell.Management\Remove-Item @PSBoundParameters
+                }
+                Install-PackageOutput `
+                    -Source '{{EscapePowerShellLiteral(source)}}' `
+                    -Destination '{{EscapePowerShellLiteral(destination)}}'
+                Write-Output 'install returned successfully'
+                """);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("install returned successfully", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("installed successfully", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("backup cleanup root cause", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("Backup retained at", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Equal("replacement", await File.ReadAllTextAsync(Path.Combine(destination, "payload.txt")));
+
+            var backup = Assert.Single(Directory.GetDirectories(sandbox, "*.bak"));
+            Assert.Equal("previous", await File.ReadAllTextAsync(Path.Combine(backup, "payload.txt")));
+            Assert.Contains(backup, result.CombinedOutput, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
     [Theory]
     [InlineData("src/output")]
     [InlineData("skills/generated")]

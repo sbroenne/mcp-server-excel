@@ -76,12 +76,12 @@ When you write formulas with `range(action: 'set-formulas')`, they don't automat
 
 **Why:** Excel calculates formulas in background or on-demand depending on calculation mode.
 
-**Fix:** After writing formulas, call `calculation_mode(action: 'calculate', scope: 'workbook')` before reading values back:
+**Fix:** After writing formulas, call `calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook')` before reading values back:
 
 ```
-1. range(action: 'set-formulas', ...)     → Formula written, not calculated
-2. calculation_mode(action: 'calculate')  → Now recalculate
-3. range(action: 'get-values', ...)       → Read calculated results
+1. range(action: 'set-formulas', session_id: '<session-id>', sheet_name: '<sheet>', range_address: '<range>', formulas: <formulas>) -> Formula written, not calculated
+2. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook') -> Now recalculate
+3. range(action: 'get-values', session_id: '<session-id>', sheet_name: '<sheet>', range_address: '<range>') -> Read calculated results
 ```
 
 ## Python in Excel Requires Microsoft 365 Entitlement

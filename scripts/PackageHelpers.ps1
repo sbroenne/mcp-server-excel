@@ -64,10 +64,33 @@ function Install-PackageOutput {
         try {
             Move-Item -LiteralPath $temporary -Destination $Destination
         } catch {
-            if (Test-Path -LiteralPath $backup) { Move-Item -LiteralPath $backup -Destination $Destination }
-            throw
+            $installationError = $_
+            if (-not (Test-Path -LiteralPath $backup)) { throw $installationError }
+            try {
+                Move-Item -LiteralPath $backup -Destination $Destination
+            } catch {
+                $recoveryError = $_
+                $destinationState = if (Test-Path -LiteralPath $Destination) {
+                    "Destination exists at '$Destination'."
+                } else {
+                    "Destination is absent at '$Destination'."
+                }
+                $backupState = if (Test-Path -LiteralPath $backup) {
+                    "Recovery backup retained at '$backup'."
+                } else {
+                    "Recovery backup is absent from '$backup'."
+                }
+                throw "Package installation failed: $($installationError.Exception.Message). Recovery also failed: $($recoveryError.Exception.Message). $destinationState $backupState"
+            }
+            throw $installationError
         }
-        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
+        if (Test-Path -LiteralPath $backup) {
+            try {
+                Remove-Item -LiteralPath $backup -Recurse -Force
+            } catch {
+                Write-Warning "Package output installed successfully at '$Destination', but backup cleanup failed: $($_.Exception.Message). Backup retained at '$backup'."
+            }
+        }
     } finally {
         if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }
     }
