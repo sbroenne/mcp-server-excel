@@ -210,6 +210,21 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("querytable.view")]
+    [InlineData("querytable.set-properties")]
+    public void QueryTableIncompleteContracts_RequireNewTierOrLimitationEvidence(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("omits", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("public", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
     [InlineData("drawing.add-sparkline")]
     [InlineData("drawing.add-shape")]
     [InlineData("slicer.list-slicers")]

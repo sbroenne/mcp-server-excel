@@ -3320,17 +3320,17 @@
       "adjustColumnWidth: bool?; optional; default null",
       "preserveFormatting: bool?; optional; default null"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
-    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored querytable workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "evidence": "Excel for Mac 16.113.1 exposes background query, refresh-on-open, and column-width settings but omits refresh period and preserve formatting required by the public mutation contract.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "the native dictionary cannot satisfy every public property variant; select another proven tier or record bounded limitation evidence rather than silently ignoring inputs",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored querytable workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "querytable.view",
@@ -3339,17 +3339,17 @@
       "sheetName: string; required",
       "queryTableName: string; required"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
-    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored querytable workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "evidence": "Excel for Mac 16.113.1 exposes core QueryTable properties but omits refresh period, preserve formatting, and web selection, tables, and formatting fields required by the view result.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "the native dictionary cannot return the complete public contract; select another proven tier or record bounded limitation evidence rather than returning partial success",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored querytable workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "range.clear-all",

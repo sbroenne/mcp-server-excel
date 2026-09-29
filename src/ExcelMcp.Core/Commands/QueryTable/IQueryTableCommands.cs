@@ -23,6 +23,13 @@ public interface IQueryTableCommands
 
     /// <summary>Views one QueryTable and source-specific configuration.</summary>
     [ServiceAction("view")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes core QueryTable properties but omits refresh period, preserve formatting, and web selection, tables, and formatting fields required by the view result.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "the native dictionary cannot return the complete public contract; select another proven tier or record bounded limitation evidence rather than returning partial success")]
     QueryTableViewResult View(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
@@ -77,6 +84,13 @@ public interface IQueryTableCommands
 
     /// <summary>Updates common QueryTable refresh and formatting settings.</summary>
     [ServiceAction("set-properties")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes background query, refresh-on-open, and column-width settings but omits refresh period and preserve formatting required by the public mutation contract.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "the native dictionary cannot satisfy every public property variant; select another proven tier or record bounded limitation evidence rather than silently ignoring inputs")]
     OperationResult SetProperties(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,

@@ -108,8 +108,10 @@ no workbook collection, creation command, or typed OLEDB/ODBC properties needed
 by the public connection contract. It exposes QueryTable elements and
 properties, but no construction command for text or web sources. Connection
 actions and QueryTable creation therefore remain `MacLimitationCandidate`
-plans; read/update/refresh/delete QueryTable operations remain native candidates
-for an original Excel-authored fixture.
+plans. QueryTable view/set-properties are also limitation candidates because
+the dictionary omits fields required by their public contracts. List, refresh,
+refresh-status, cancel, and delete remain native candidates for an original
+Excel-authored fixture.
 
 ## Power Query
 
