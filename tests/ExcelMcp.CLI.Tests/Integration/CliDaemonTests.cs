@@ -544,7 +544,9 @@ public sealed class CliDaemonTests : IAsyncLifetime
     {
         var mutexName = DaemonAutoStart.GetDaemonMutexName(_testPipeName);
         using var sleeper = StartMutexHoldingProcess(mutexName);
-        await WaitForMutexAsync(mutexName);
+        var ready = await sleeper.StandardOutput.ReadLineAsync()
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        Assert.Equal("ready", ready);
 
         DaemonProcessTracker.RegisterProcess(
             _testPipeName,
@@ -688,7 +690,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
             StartInfo = new ProcessStartInfo
             {
                 FileName = "powershell",
-                Arguments = $"-NoLogo -NoProfile -NonInteractive -Command \"$created = $false; $m = New-Object System.Threading.Mutex($true, '{mutexName}', [ref]$created); if (-not $created) {{ exit 99 }}; try {{ Start-Sleep -Seconds 60 }} finally {{ $m.ReleaseMutex(); $m.Dispose() }}\"",
+                Arguments = $"-NoLogo -NoProfile -NonInteractive -Command \"$created = $false; $m = New-Object System.Threading.Mutex($true, '{mutexName}', [ref]$created); if (-not $created) {{ exit 99 }}; try {{ Write-Output 'ready'; Start-Sleep -Seconds 60 }} finally {{ $m.ReleaseMutex(); $m.Dispose() }}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -698,24 +700,6 @@ public sealed class CliDaemonTests : IAsyncLifetime
 
         process.Start();
         return process;
-    }
-
-    private static async Task WaitForMutexAsync(string mutexName, int maxRetries = 20, int delayMs = 250)
-    {
-        for (var i = 0; i < maxRetries; i++)
-        {
-            try
-            {
-                using var mutex = Mutex.OpenExisting(mutexName);
-                return;
-            }
-            catch (WaitHandleCannotBeOpenedException)
-            {
-                await Task.Delay(delayMs);
-            }
-        }
-
-        throw new TimeoutException($"Mutex '{mutexName}' was not acquired within {maxRetries * delayMs}ms");
     }
 
     private async Task WaitForDaemonReadyAsync(int maxRetries = 20, int delayMs = 500)
