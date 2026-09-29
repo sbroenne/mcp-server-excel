@@ -34,6 +34,13 @@ public interface IQueryTableCommands
     /// textQualifier: double-quote, single-quote, or none.
     /// </summary>
     [ServiceAction("create-text")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a text source and destination.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "no faithful creation route is selected; a bounded live probe or another supported tier must prove source identity, destination ownership, refresh completion, and cleanup")]
     OperationResult CreateText(
         IExcelBatch batch,
         [RequiredParameter] string queryTableName,
@@ -51,6 +58,13 @@ public interface IQueryTableCommands
     /// formatting: none, rich-text, or all.
     /// </summary>
     [ServiceAction("create-web")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.NotTested,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a web source and destination.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "no faithful creation route is selected; a bounded live probe or another supported tier must prove source identity, destination ownership, refresh completion, and cleanup")]
     OperationResult CreateWeb(
         IExcelBatch batch,
         [RequiredParameter] string queryTableName,

@@ -103,6 +103,14 @@ CurrentRegion, merge-area inspection, worksheet copy/move, application-global
 calculation-mode mutation in shared Excel, and any action whose declared
 dictionary surface did not survive real CLI/MCP acceptance.
 
+Excel 16.113.1 defines a thin read-only `workbook connection` class but exposes
+no workbook collection, creation command, or typed OLEDB/ODBC properties needed
+by the public connection contract. It exposes QueryTable elements and
+properties, but no construction command for text or web sources. Connection
+actions and QueryTable creation therefore remain `MacLimitationCandidate`
+plans; read/update/refresh/delete QueryTable operations remain native candidates
+for an original Excel-authored fixture.
+
 ## Power Query
 
 All macOS Power Query operations use the optional trusted VBA helper. There is

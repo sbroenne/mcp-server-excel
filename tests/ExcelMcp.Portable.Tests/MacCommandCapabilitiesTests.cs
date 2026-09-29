@@ -171,6 +171,45 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("connection.list")]
+    [InlineData("connection.view")]
+    [InlineData("connection.create")]
+    [InlineData("connection.refresh")]
+    [InlineData("connection.get-refresh-status")]
+    [InlineData("connection.cancel-refresh")]
+    [InlineData("connection.delete")]
+    [InlineData("connection.load-to")]
+    [InlineData("connection.get-properties")]
+    [InlineData("connection.set-properties")]
+    [InlineData("connection.test")]
+    public void ConnectionActions_RequireNewTierOrLimitationEvidence(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("no workbook collection", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("public contract", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("querytable.create-text")]
+    [InlineData("querytable.create-web")]
+    public void QueryTableCreation_RequiresNewTierOrLimitationEvidence(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Contains("no construction command", capability.Evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("faithful creation route", capability.Blocker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
     [InlineData("drawing.add-sparkline")]
     [InlineData("drawing.add-shape")]
     [InlineData("slicer.list-slicers")]
@@ -194,7 +233,6 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
-    [InlineData("connection.list")]
     [InlineData("querytable.list")]
     [InlineData("pythoninexcel.set-formula")]
     public void UnprovenAppleEventCandidates_ReportNativeTier(string command)

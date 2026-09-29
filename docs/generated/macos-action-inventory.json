@@ -1042,17 +1042,17 @@
     "windowsVariants": [
       "connectionName: string; required"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.create",
@@ -1063,17 +1063,17 @@
       "commandText: string?; optional; default null; SQL query or table name",
       "description: string?; optional; default null; Optional description for the connection"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.delete",
@@ -1081,17 +1081,17 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection to delete"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.get-properties",
@@ -1099,17 +1099,17 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.get-refresh-status",
@@ -1117,34 +1117,34 @@
     "windowsVariants": [
       "connectionName: string; required"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.list",
     "windowsSemantics": "Lists all connections in a workbook",
     "windowsVariants": [
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.load-to",
@@ -1153,17 +1153,17 @@
       "connectionName: string; required; Name of the connection",
       "sheetName: string; required; Target worksheet name"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.refresh",
@@ -1172,17 +1172,17 @@
       "connectionName: string; required; Name of the connection to refresh",
       "timeout: System.TimeSpan?; optional; default null; Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.set-properties",
@@ -1197,17 +1197,17 @@
       "savePassword: bool?; optional; default null; Save password in connection (null to keep current)",
       "refreshPeriod: int?; optional; default null; Auto-refresh interval in minutes (null to keep current)"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.test",
@@ -1215,17 +1215,17 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection to test"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "connection.view",
@@ -1233,17 +1233,17 @@
     "windowsVariants": [
       "connectionName: string; required; Name of the connection to view"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes workbook connections; exact command behavior is unverified.",
+    "evidence": "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
     "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact connection, provider, completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored connection workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "blocker": "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; select another proven tier or record bounded limitation evidence",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored connection workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "datamodel.create-measure",
@@ -3198,17 +3198,17 @@
       "encoding: int; optional; default 65001",
       "hasHeaders: bool; optional; default true"
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
-    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored querytable workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "evidence": "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a text source and destination.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "no faithful creation route is selected; a bounded live probe or another supported tier must prove source identity, destination ownership, refresh completion, and cleanup",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored querytable workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "querytable.create-web",
@@ -3222,17 +3222,17 @@
       "webTables: string?; optional; default null",
       "formatting: string; optional; default \"none\""
     ],
-    "tier": "Native",
+    "tier": "Unsupported",
     "isAvailable": false,
     "implementationStatus": "NotTested",
-    "evidence": "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
-    "excelApiVersion": "Excel for Mac 16.113.1; Apple Events.",
-    "blocker": "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture",
-    "plannedTier": "Native",
-    "acceptanceFixture": "Dedicated Excel-authored querytable workbook with reversible literals and unrelated sentinel content.",
-    "acceptanceCommand": "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
-    "recoveryRule": "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
-    "evidenceCriteria": "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."
+    "evidence": "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a web source and destination.",
+    "excelApiVersion": "Excel for Mac 16.113.1 Apple Events dictionary.",
+    "blocker": "no faithful creation route is selected; a bounded live probe or another supported tier must prove source identity, destination ownership, refresh completion, and cleanup",
+    "plannedTier": "MacLimitationCandidate",
+    "acceptanceFixture": "Dedicated Excel-authored querytable workbook suitable for a bounded read-only capability probe.",
+    "acceptanceCommand": "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+    "recoveryRule": "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+    "evidenceCriteria": "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence."
   },
   {
     "command": "querytable.delete",
