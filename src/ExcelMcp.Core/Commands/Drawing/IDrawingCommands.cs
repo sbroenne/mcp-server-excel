@@ -15,7 +15,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 /// COLORS: use #RRGGBB hexadecimal values.
 /// </summary>
 [ServiceCategory("drawing", "Drawing")]
-[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events and Office.js do not expose one supported drawing surface that preserves ExcelMcp's image, AutoShape, connector, Forms-control, and sparkline lifecycle plus formatting and binding metadata.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "current supported macOS APIs cannot preserve the drawing contract; use the Windows COM backend")]
 [McpTool("drawing", Title = "Drawing Object Operations", Destructive = true, Category = "structure",
     Description = "Worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, and safe worksheet Forms controls with list/read/update/delete lifecycle and formatting. Add common geometric, arrow, and flowchart AutoShapes. Colors use #RRGGBB. Forms controls exclude ActiveX/OLE and macro assignment. Manage line, column, and win/loss sparklines. ")]
 public interface IDrawingCommands

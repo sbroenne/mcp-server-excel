@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 /// builtins (sum()/len()) to avoid getting a Series back instead of a scalar total.
 /// </summary>
 [ServiceCategory("pythoninexcel", "PythonInExcel")]
-[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Partial, false,
     Evidence = "Native Formula2 retains ordinary formulas across calls, but the literal PY formula returned empty on the tested host.",
     ExcelApiVersion = "Excel for Mac 16.113.1; Formula2.",
     Blocker = "Python feature readiness and persistent formula results must pass a prompt-free real-Excel fixture")]

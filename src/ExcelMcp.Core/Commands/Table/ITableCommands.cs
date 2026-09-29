@@ -26,7 +26,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// Related: tablecolumn (filter/sort/columns), datamodel (DAX measures, evaluate queries)
 /// </summary>
 [ServiceCategory("table", "Table")]
-[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events exposes no table object model. Office.js routes exist only for methods marked OfficeAddInAction; it exposes no Data Model/DAX APIs and cannot reproduce the preflight contract's CurrentRegion, merged-cell, and formula-risk guarantees.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "no supported local macOS API preserves this table contract; use the Windows COM backend")]
 [McpTool("table", Title = "Table Operations", Destructive = true, Category = "data",
     Description = "Excel Tables (ListObjects) - lifecycle and data operations. SAFE CREATION: Use preflight to inspect merged cells, headers, excluded contiguous columns, formula-sort risks, and the effective range without changing the workbook. Create runs the same checks and rejects deterministic blockers; heuristic warnings remain advisory. Formula risk analysis is skipped with an explicit warning when the proposed range exceeds 100,000 cells. CONVERT TO TABLE: Write data to a range, then use create. STYLING: Pass tableStyle on create or use set-style later; never apply range_format to table headers or data rows. Prefer append/resize/rename over delete+recreate. Deleting tables used by PivotTables or the Data Model breaks those objects. Use table_column for filtering, sorting, and columns.")]
 public interface ITableCommands

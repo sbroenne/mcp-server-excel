@@ -69,7 +69,7 @@ public class ScreenshotResult : OperationResult
 /// Use High only when fine detail inspection is needed.
 /// </summary>
 [ServiceCategory("screenshot", "Screenshot")]
-[MacCapability(MacCapabilityTier.OptionalNativeHelper, MacImplementationStatus.NotTested, false,
+[MacCapability(MacCapabilityTier.OptionalNativeHelper, MacImplementationStatus.Partial, false,
     Evidence = "ScreenCaptureKit provides an exact-window capture route; range geometry and real Excel acceptance remain unverified.",
     ExcelApiVersion = "ScreenCaptureKit and Excel desktop window geometry; versions require runtime checks.",
     Blocker = "an optional native screen-capture helper with explicit Screen Recording permission and verified range geometry")]

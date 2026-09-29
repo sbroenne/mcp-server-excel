@@ -21,7 +21,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// - 'create-from-datamodel': Use a Power Pivot Data Model table as source
 /// </summary>
 [ServiceCategory("pivottable", "PivotTable")]
-[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events does not expose a complete PivotTable contract. Office.js routes exist only for methods marked OfficeAddInAction; it has no Data Model creation, PivotCache option, or drill-through parity.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "no supported local macOS API preserves this PivotTable contract; use the Windows COM backend")]
 [McpTool("pivottable", Title = "PivotTable Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable lifecycle: create from various sources, list, read, refresh, delete. BEST PRACTICE: Use list before creating. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. LAYOUT: 0=Compact (default), 1=Tabular (best for export), 2=Outline. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. STYLING: PivotTable visual styles are not supported by this API. Do not apply range_format to PivotTable cells — cell formatting is overwritten on the next refresh. Use pivottable_field for field management, pivottable_calc for calculated fields.")]
 public interface IPivotTableCommands

@@ -36,7 +36,7 @@ public interface IAnalysisCommands
     [ServiceAction("list-scenarios")]
     [MacCapability(
         MacCapabilityTier.Native,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Partial,
         false,
         Evidence = "Excel 16.113.1 dictionary exposes scenario metadata and get values; portable routing is not real-Excel evidence.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
@@ -70,7 +70,7 @@ public interface IAnalysisCommands
     [ServiceAction("update-scenario")]
     [MacCapability(
         MacCapabilityTier.Native,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Partial,
         false,
         Evidence = "Excel 16.113.1 dictionary exposes change scenario; portable routing is not real-Excel evidence.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
@@ -104,7 +104,7 @@ public interface IAnalysisCommands
     [ServiceAction("delete-scenario")]
     [MacCapability(
         MacCapabilityTier.Native,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Partial,
         false,
         Evidence = "Excel 16.113.1 dictionary exposes scenario elements and generic delete; portable routing is not real-Excel evidence.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
@@ -120,7 +120,7 @@ public interface IAnalysisCommands
     [ServiceAction("create-scenario-summary")]
     [MacCapability(
         MacCapabilityTier.Native,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Partial,
         false,
         Evidence = "Excel 16.113.1 dictionary exposes create summary for scenarios with standard and PivotTable report types.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",

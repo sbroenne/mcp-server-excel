@@ -72,8 +72,8 @@ capability annotation.
 
 Each generated record also carries the remaining-work execution plan:
 
-- `plannedTier`: the tier to prove next, or `MacLimitationCandidate` when no
-  faithful route has been selected;
+- `plannedTier`: the tier to prove next, or `MacLimitation` when the reviewed
+  supported APIs cannot preserve the exact public contract;
 - `acceptanceFixture`: the required Excel-authored, opaque test asset;
 - `acceptanceCommand`: the guarded public CLI/MCP runner or the action-specific
   extension that must be added;
@@ -87,6 +87,8 @@ enable an action or replace real Excel evidence.
 
 Verified native coverage includes:
 
+- platform-independent diagnostic ping, echo, and parameter validation without
+  starting or dispatching to Excel;
 - exact workbook create/open/close and owned-session cleanup;
 - worksheet list/create/rename/delete;
 - worksheet visibility and tab color;
@@ -106,9 +108,9 @@ Excel 16.113.1 defines a thin read-only `workbook connection` class but exposes
 no workbook collection, creation command, or typed OLEDB/ODBC properties needed
 by the public connection contract. It exposes QueryTable elements and
 properties, but no construction command for text or web sources. Connection
-actions and QueryTable creation therefore remain `MacLimitationCandidate`
-plans. QueryTable view/set-properties are also limitation candidates because
-the dictionary omits fields required by their public contracts. List, refresh,
+actions and QueryTable creation are explicit `MacLimitation` plans.
+QueryTable view/set-properties are also limitations because the dictionary
+omits fields required by their public contracts. List, refresh,
 refresh-status, cancel, and delete remain native candidates for an original
 Excel-authored fixture.
 
@@ -136,7 +138,7 @@ while Office.js exposes no Scenario API. Native list/update/delete/summary
 candidates require a separately Excel-authored scenario fixture.
 
 These actions use the `Unsupported` tier with `Blocked` evidence and generated
-`MacLimitationCandidate` execution plans. They fail before workbook dispatch;
+`MacLimitation` execution plans. They fail before workbook dispatch;
 there is no environment-variable opt-in or hidden helper route.
 
 ## Removed VBA helper design
@@ -154,9 +156,13 @@ upgrade, and removal lifecycle; authenticated loopback HTTPS; exact
 workbook/session binding; correlated serialized requests; deadlines; and
 runtime requirement-set negotiation.
 
-Installation proves only health. Tables, charts, ordinary PivotTables, slicers,
-conditional formatting, and worksheet movement candidates remain unavailable
-until user-mediated activation and exact public CLI/MCP acceptance succeed.
+Installation proves only health. The 65 source-contract methods carrying
+`OfficeAddInAction` have matching repository handlers, requirement-set gates,
+and Excel-free contract tests. They remain `Partial` and unavailable until
+user-mediated activation and exact public CLI/MCP acceptance succeed. The
+other formerly planned Office.js actions are explicit `MacLimitation` entries:
+the reviewed API omits contract-critical identity, type, source, or result
+metadata, and ExcelMcp does not return partial success or guessed values.
 
 ## Permissions and dialogs
 

@@ -71,7 +71,10 @@ public class CalculationModeResult : OperationResult
 /// for faster performance, then recalculate once at the end.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
-[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Excel for Mac exposes calculation mode only as application-global state. A session-scoped read or mutation would observe or change shared Excel state owned by unrelated workbooks.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi application calculation review.",
+    Blocker = "the public session contract cannot safely read or mutate shared application-global calculation mode; use the Windows COM backend")]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
     Description = "Optimize bulk write performance by controlling Excel's automatic recalculation. Use manual mode when writing 10+ cells to avoid recalculating after every write. MODES: automatic (default - recalculates on every change), manual (only when explicitly requested), semi-automatic (auto except data tables). BATCH WORKFLOW (required for 10+ cell operations): 1. set-mode(manual) 2. Perform all writes (range set-values, set-formulas) 3. calculate(workbook) 4. set-mode(automatic). SCOPES for calculate: workbook (all formulas), sheet (requires sheetName), range (requires sheetName + rangeAddress). NOT needed for: reading formulas, small edits (1-9 cells), or when immediate calculation results are required.")]
 public interface ICalculationModeCommands

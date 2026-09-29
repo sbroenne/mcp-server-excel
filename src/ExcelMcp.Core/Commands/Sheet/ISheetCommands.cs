@@ -15,7 +15,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
-[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "The interface default covers sheet actions without a separately verified native or Office.js route.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "current supported macOS APIs cannot preserve this sheet contract; use the Windows COM backend")]
 public interface ISheetCommands
 {
     // === LIFECYCLE OPERATIONS ===
@@ -128,4 +131,3 @@ public interface ISheetCommands
         string? beforeSheet = null,
         string? afterSheet = null);
 }
-

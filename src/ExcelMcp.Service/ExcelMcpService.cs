@@ -123,6 +123,8 @@ public sealed class ExcelMcpService : IDisposable
             {
                 var macResponse = category == "service"
                     ? HandleServiceCommand(action)
+                    : category == "diag"
+                        ? DispatchSessionless(action, request)
                     : category == "session"
                         ? await HandleMacSessionCommandAsync(action, request)
                         : await DispatchMacCommandAsync(category, action, request);

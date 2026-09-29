@@ -29,6 +29,20 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Theory]
+    [InlineData("diag.ping")]
+    [InlineData("diag.echo")]
+    [InlineData("diag.validate-params")]
+    public void DiagnosticCommands_ArePlatformIndependent(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
+        Assert.Equal("No Excel API required.", capability.ExcelApiVersion);
+    }
+
+    [Theory]
     [InlineData("pythoninexcel.set-formula")]
     [InlineData("pythoninexcel.get-result")]
     public void PythonInExcel_RemainsGatedWithoutPersistentFormula2RoundTrip(string command)
@@ -42,12 +56,13 @@ public sealed class MacCommandCapabilitiesTests
     [Theory]
     [InlineData("sheet.copy")]
     [InlineData("sheet.move")]
-    public void SheetReordering_RemainsGatedWithoutProvenAppleEventsParity(string command)
+    public void SheetReordering_UsesDisabledOfficeAddInCandidate(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+        Assert.Equal("Partial", capability.ImplementationStatus);
     }
 
     [Theory]
@@ -139,7 +154,7 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Equal("Partial", capability.ImplementationStatus);
         Assert.Contains("dictionary", capability.Evidence, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
     }
@@ -154,7 +169,7 @@ public sealed class MacCommandCapabilitiesTests
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
         Assert.Equal("Blocked", capability.ImplementationStatus);
-        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
         Assert.Contains("no Scenario API", capability.Evidence, StringComparison.Ordinal);
         Assert.Contains("does not ship a VBA helper", capability.Blocker, StringComparison.Ordinal);
     }
@@ -177,8 +192,8 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
-        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
         Assert.Contains("no workbook collection", capability.Evidence, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("public contract", capability.Blocker, StringComparison.OrdinalIgnoreCase);
     }
@@ -192,8 +207,8 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
-        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
         Assert.Contains("no construction command", capability.Evidence, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("faithful creation route", capability.Blocker, StringComparison.OrdinalIgnoreCase);
     }
@@ -207,8 +222,8 @@ public sealed class MacCommandCapabilitiesTests
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
-        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
         Assert.Contains("omits", capability.Evidence, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("public", capability.Blocker, StringComparison.OrdinalIgnoreCase);
     }
@@ -218,12 +233,14 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("drawing.add-shape")]
     [InlineData("slicer.list-slicers")]
     [InlineData("slicer.set-table-slicer-selection")]
-    public void SpecializedOfficeJsCommands_ReportAddInTier(string command)
+    public void SpecializedOfficeJsCommandsWithoutFaithfulHandlers_ReportLimitations(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
     }
 
     [Fact]
@@ -301,7 +318,7 @@ public sealed class MacCommandCapabilitiesTests
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
         Assert.Equal("Blocked", capability.ImplementationStatus);
-        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
         Assert.Contains("no Workbook.Queries", capability.Evidence, StringComparison.Ordinal);
         Assert.Contains("does not ship a VBA helper", capability.Blocker, StringComparison.Ordinal);
     }
@@ -320,7 +337,7 @@ public sealed class MacCommandCapabilitiesTests
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
         Assert.Equal("Blocked", capability.ImplementationStatus);
-        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Equal("MacLimitation", capability.PlannedTier);
         Assert.Contains("does not ship a VBA helper", capability.Blocker, StringComparison.Ordinal);
     }
 
@@ -373,6 +390,46 @@ public sealed class MacCommandCapabilitiesTests
                 Assert.False(string.IsNullOrWhiteSpace(item.EvidenceCriteria));
             }
         });
+    }
+
+    [Fact]
+    public void Inventory_HasNoUnreviewedActions()
+    {
+        var unreviewed = MacCommandCapabilities.Inventory
+            .Where(item => item.ImplementationStatus == "NotTested")
+            .Select(item => item.Command)
+            .ToArray();
+
+        Assert.Empty(unreviewed);
+    }
+
+    [Fact]
+    public void OfficeAddInInventory_DistinguishesImplementedCandidatesFromApiLimitations()
+    {
+        var candidates = MacOfficeActionCatalog.All
+            .Select(item => item.Command)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.NotEmpty(candidates);
+        Assert.All(
+            MacCommandCapabilities.Inventory.Where(item => candidates.Contains(item.Command)),
+            item =>
+            {
+                Assert.Equal(MacCapabilityTier.OfficeAddIn, item.RequiredTier);
+                Assert.Equal("Partial", item.ImplementationStatus);
+                Assert.False(item.IsAvailable);
+                Assert.Contains("activate the task-pane", item.Blocker, StringComparison.OrdinalIgnoreCase);
+            });
+        Assert.All(
+            MacCommandCapabilities.Inventory.Where(item =>
+                item.PlannedTier == "MacLimitation"
+                && item.Command.StartsWith("chart.", StringComparison.Ordinal)),
+            item =>
+            {
+                Assert.Equal(MacCapabilityTier.Unsupported, item.RequiredTier);
+                Assert.Equal("Blocked", item.ImplementationStatus);
+                Assert.DoesNotContain(item.Command, candidates);
+            });
     }
 
     [Fact]

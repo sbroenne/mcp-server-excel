@@ -1529,6 +1529,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
                 "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
                 "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."),
+            _ when capability.Status == "Blocked" => new MacAcceptancePlan(
+                "MacLimitation",
+                "No fixture is required for the recorded API limitation.",
+                "Use the Windows COM backend for this contract; reevaluate only when Microsoft exposes a supported local macOS API with equivalent semantics.",
+                "Do not approximate the contract, inspect workbook packages, automate UI, install helpers, or change user trust/security settings.",
+                "Retain the action-specific Apple Events and Office.js evidence, the user-visible alternative, and explicit PlatformNotSupported behavior."),
             _ => new MacAcceptancePlan(
                 "MacLimitationCandidate",
                 $"Dedicated Excel-authored {family} workbook suitable for a bounded read-only capability probe.",

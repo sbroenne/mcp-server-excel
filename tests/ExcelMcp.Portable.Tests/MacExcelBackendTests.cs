@@ -10,6 +10,23 @@ namespace Sbroenne.ExcelMcp.Portable.Tests;
 public sealed class MacExcelBackendTests
 {
     [Fact]
+    public async Task SharedService_DiagnosticCommandDoesNotDispatchToExcel()
+    {
+        var backend = new MacExcelBackend((_, _, _) =>
+            throw new InvalidOperationException("Diagnostic commands must not reach Excel."));
+        using var service = new ExcelMcpService(backend);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "diag.ping"
+        });
+
+        Assert.True(response.Success, response.ErrorMessage);
+        Assert.Null(response.ErrorMessage);
+        Assert.NotNull(response.Result);
+    }
+
+    [Fact]
     public async Task StructuredCommandFailure_CanRemainAResultDto()
     {
         var backend = new MacExcelBackend((start, input, cancellationToken) =>

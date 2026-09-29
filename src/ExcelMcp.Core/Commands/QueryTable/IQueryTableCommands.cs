@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Use powerquery for modern connectors and transformations.
 /// </summary>
 [ServiceCategory("querytable", "QueryTable")]
-[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.NotTested, false,
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Partial, false,
     Evidence = "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
     ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events.",
     Blocker = "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture")]
@@ -25,7 +25,7 @@ public interface IQueryTableCommands
     [ServiceAction("view")]
     [MacCapability(
         MacCapabilityTier.Unsupported,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Blocked,
         false,
         Evidence = "Excel for Mac 16.113.1 exposes core QueryTable properties but omits refresh period, preserve formatting, and web selection, tables, and formatting fields required by the view result.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
@@ -43,7 +43,7 @@ public interface IQueryTableCommands
     [ServiceAction("create-text")]
     [MacCapability(
         MacCapabilityTier.Unsupported,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Blocked,
         false,
         Evidence = "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a text source and destination.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
@@ -67,7 +67,7 @@ public interface IQueryTableCommands
     [ServiceAction("create-web")]
     [MacCapability(
         MacCapabilityTier.Unsupported,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Blocked,
         false,
         Evidence = "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a web source and destination.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
@@ -86,7 +86,7 @@ public interface IQueryTableCommands
     [ServiceAction("set-properties")]
     [MacCapability(
         MacCapabilityTier.Unsupported,
-        MacImplementationStatus.NotTested,
+        MacImplementationStatus.Blocked,
         false,
         Evidence = "Excel for Mac 16.113.1 exposes background query, refresh-on-open, and column-width settings but omits refresh period and preserve formatting required by the public mutation contract.",
         ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",

@@ -135,6 +135,23 @@ public static class ServiceInfoExtractor
             .FirstOrDefault(candidate => candidate.AttributeClass?.Name == "MacCapabilityAttribute");
         if (attribute is null)
         {
+            var office = symbol.GetAttributes()
+                .FirstOrDefault(candidate =>
+                    candidate.AttributeClass?.Name == "OfficeAddInActionAttribute");
+            if (office is not null)
+            {
+                var requirementSet = office.ConstructorArguments.Length > 0
+                    ? office.ConstructorArguments[0].Value?.ToString()
+                    : null;
+                return new MacCapabilityInfo(
+                    "OfficeAddIn",
+                    "Partial",
+                    false,
+                    "The repository Office.js handler, exact action registration, requirement-set gate, and Excel-free contract tests are complete; source and mock evidence do not establish desktop Excel parity.",
+                    $"Office.js ExcelApi {requirementSet ?? "requirement set unspecified"}; desktop Excel build not yet accepted.",
+                    "Office.js real Excel acceptance requires the user to trust the localhost leaf certificate and activate the task-pane for the exact saved workbook");
+            }
+
             return inherited ?? MacCapabilityInfo.Unclassified;
         }
 
@@ -201,11 +218,11 @@ public static class ServiceInfoExtractor
 
         return new MacCapabilityInfo(
             "Unsupported",
-            "NotTested",
+            "Blocked",
             false,
-            "Windows contract and generated routing are the only recorded evidence.",
-            "Unverified.",
-            "a capability that is not supported by the macOS Excel backend");
+            "The Apple Events and Office.js catalogs expose no action-specific route proven to preserve this generated Windows contract.",
+            "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi requirement-set review.",
+            "current supported macOS APIs cannot preserve the exact public contract; use the Windows COM backend");
     }
 
     private static string GetEnumArgumentName(TypedConstant argument, string fallback)

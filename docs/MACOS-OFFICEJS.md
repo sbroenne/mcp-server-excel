@@ -3,25 +3,25 @@
 The Office.js bridge is a versioned, optional capability tier. ExcelMcp's base
 Apple Events features continue to work when it is not installed, not running,
 or not active in a workbook. The installed configuration currently enables
-only `bridge.health`. Candidate handlers for tables and table columns,
-conditional formatting, same-workbook worksheet copy/move, regular charts and
-chart configuration, ordinary local PivotTable creation/deletion, and
-source-identifiable slicer creation remain unavailable to CLI and MCP callers
-until their existing ExcelMcp contracts pass real-Excel parity tests. The
-disabled ordinary-local PivotTable candidate also implements exact placed-field
-removal, naming, value formatting, item filtering, label sorting, data reads,
-row layout, row-field subtotals, and row/column grand totals.
+only `bridge.health`. Exactly 65 source-contract actions have matching
+repository handlers, numbered requirement-set gates, serialization coverage,
+and Excel-free action tests. The generated inventory records these as
+`Partial`, not implemented: source shape and mocks do not prove desktop Excel
+behavior. They cover tables and table columns, conditional formatting,
+same-workbook worksheet copy/move, regular charts and supported chart
+configuration, ordinary local PivotTable creation/deletion, exact placed-field
+operations, and source-identifiable slicer creation.
 
-The Office.js candidate deliberately excludes linked PivotChart creation,
+The reviewed Office.js surface cannot preserve linked PivotChart creation,
 OLAP/Data Model PivotTables, PivotCache configuration, PivotTable grouping,
 calculated fields and members, and slicer operations whose source identity
 cannot be proved. Field listing, row/column/filter/value placement, and
 aggregation changes also remain excluded. Their shared results and validation
 require the source field's exact data type and unique values; Office.js does not
 expose a trustworthy source data type and cannot distinguish dates from numeric
-Excel serials without guessing from number formats. These operations require
-the trusted VBA capability or remain unsupported; a chart over PivotTable
-output is not substituted for a genuine linked PivotChart.
+Excel serials without guessing from number formats. These operations are generated as `MacLimitation` and require the Windows COM
+backend; a chart over PivotTable output is not substituted for a genuine linked
+PivotChart.
 
 The generated `enabledActions` allowlist is the shared Service/broker release
 gate. Installation and upgrade reset it to `bridge.health`; development
@@ -100,9 +100,9 @@ The installer writes:
 
 Restart Excel after installation. Open the exact saved workbook already owned
 by an ExcelMcp session, then activate **ExcelMcp capability bridge** from
-Excel's add-ins UI if Excel does not activate the sideloaded task pane
-automatically. This user-mediated activation is the current blocker to a
-prompt-free real-Excel smoke test.
+Excel's add-ins UI. Trusting the supplied localhost leaf certificate and this
+single exact-workbook task-pane activation are the smallest manual steps that
+cannot be safely automated. ExcelMcp never changes those trust settings.
 
 The add-in reports Excel's host version and every supported numbered
 `ExcelApi` and `ExcelApiDesktop` requirement set at runtime. The two families

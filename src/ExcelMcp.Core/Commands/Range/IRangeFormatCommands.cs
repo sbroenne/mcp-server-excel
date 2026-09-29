@@ -31,7 +31,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// MERGE: Combines cells into one. Only top-left cell value is preserved.
 /// </summary>
 [ServiceCategory("rangeformat", "RangeFormat")]
-[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "The native backend implements only separately annotated sizing and merge actions. Office.js does not expose exact built-in style identity or the complete validation, border, orientation, and all-target atomicity semantics required by the remaining contracts.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "current supported macOS APIs cannot preserve the remaining range-format contract; use the Windows COM backend")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
         "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +

@@ -85,11 +85,11 @@ public sealed class MacCapabilityInfo
 {
     public static MacCapabilityInfo Unclassified { get; } = new(
         "Unsupported",
-        "NotTested",
+        "Blocked",
         false,
-        "Windows contract and generated routing are the only recorded evidence.",
-        "Unverified",
-        "No verified macOS backend route exists for this action.");
+        "The Apple Events and Office.js catalogs expose no action-specific route proven to preserve this generated Windows contract.",
+        "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi requirement-set review.",
+        "current supported macOS APIs cannot preserve the exact public contract; use the Windows COM backend");
 
     public MacCapabilityInfo(
         string tier,

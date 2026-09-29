@@ -26,7 +26,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// Use chartconfig for series, titles, legends, styles, placement mode.
 /// </summary>
 [ServiceCategory("chart", "Chart")]
-[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events chart routes do not preserve the generated result contracts. Office.js routes exist only for methods marked OfficeAddInAction and cannot create or verify a genuine PivotChart link.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "no supported local macOS API preserves this chart contract; use the Windows COM backend")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
     Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). Use chart_config for series, titles, legends, and styling.")]
 public interface IChartCommands

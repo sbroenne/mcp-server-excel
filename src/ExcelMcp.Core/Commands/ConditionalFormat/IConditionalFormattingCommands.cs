@@ -17,7 +17,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// For 'between' and 'notBetween', both formula1 and formula2 are required.
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
-[MacCapability(MacCapabilityTier.OfficeAddIn, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events exposes no conditional-format object model. Office.js routes exist only for methods marked OfficeAddInAction.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi 1.6.",
+    Blocker = "no supported local macOS API preserves this conditional-format contract; use the Windows COM backend")]
 [McpTool("conditionalformat", Title = "Conditional Formatting", Destructive = true, Category = "structure",
     Description = "Conditional formatting - visual rules based on cell values. TYPES: cellValue, expression, colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition (accepts both camelCase and kebab-case). For cellValue: requires operatorType + formula1. Visual types use dedicated add-rule parameters and list-rules returns their type-specific config (colorScaleCriteria, dataBar, iconSet, top10, aboveBelow, datePeriod). FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 public interface IConditionalFormattingCommands

@@ -29,7 +29,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%').
 /// </summary>
 [ServiceCategory("range", "Range")]
-[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.NotTested, false)]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "The interface default covers range actions without a separately verified native route. Formula validation requires Excel's parser and localized error behavior, which the reviewed macOS surfaces do not expose as a non-mutating contract.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "current supported macOS APIs cannot preserve this range contract; use the Windows COM backend")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
     Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
