@@ -3,11 +3,12 @@
 .SYNOPSIS
 Tests the experimental macOS workbook slice through the real CLI and MCP processes.
 .DESCRIPTION
-Requires running desktop Excel and existing Automation consent. Uses ordinary
-temporary fixtures and LaunchServices; never requests permission or accesses
-Excel's container. Power Query and VBA are explicit macOS limitations because
-Excel exposes no supported local API that satisfies their public contracts.
-Named-range acceptance adds two public entry-point cases with -IncludeNamedRanges.
+Starts or focuses desktop Excel through LaunchServices and requires existing
+Automation consent. Uses ordinary temporary fixtures; never requests permission
+or accesses Excel's container. Power Query and VBA are explicit macOS
+limitations because Excel exposes no supported local API that satisfies their
+public contracts. Named-range acceptance adds two public entry-point cases with
+-IncludeNamedRanges.
 #>
 [CmdletBinding()]
 param(
@@ -79,6 +80,11 @@ foreach ($output in $requiredOutputs) {
         throw "Required Mac E2E build output is missing: $output. Run this script without -SkipBuild; packaging may have removed previous build outputs."
     }
 }
+$excelLaunch = Invoke-MacTestCommand /usr/bin/open @('-a', 'Microsoft Excel') 30
+if ($excelLaunch.exitCode -ne 0) {
+    throw "Could not launch Microsoft Excel through LaunchServices: $($excelLaunch.stderr)"
+}
+Start-Sleep -Seconds 5
 Assert-MacAutomationAllowed
 $runtimes = Invoke-MacTestCommand dotnet @('--list-runtimes') 30
 $runtimePaths = [regex]::Matches($runtimes.stdout, '(?m)^Microsoft\.NETCore\.App \S+ \[(.+)\]\r?$')
