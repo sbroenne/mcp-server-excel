@@ -16,6 +16,21 @@ public sealed class DataModelEvaluateComErrorTests(
     DataModelPivotTableFixture fixture)
 {
     [Fact]
+    public void Evaluate_CancelledBeforeExecution_StopsBeforeQuery()
+    {
+        using var innerBatch = ExcelSession.BeginBatch(fixture.TestFilePath);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        using var batch = new InjectedCancellationBatch(
+            innerBatch,
+            cancellation.Token);
+        var commands = new DataModelCommands();
+
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            commands.Evaluate(batch, "EVALUATE ROW(\"Probe\", 42)"));
+    }
+
+    [Fact]
     public void Evaluate_InvalidDax_PreservesComExceptionTopology()
     {
         using var batch = ExcelSession.BeginBatch(fixture.TestFilePath);

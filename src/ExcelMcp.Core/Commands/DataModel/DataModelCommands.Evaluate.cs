@@ -41,6 +41,8 @@ public partial class DataModelCommands
 
             try
             {
+                ct.ThrowIfCancellationRequested();
+
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
@@ -92,6 +94,8 @@ public partial class DataModelCommands
                         $"DAX evaluation failed: {ex.Message}", ex);
                 }
 
+                ct.ThrowIfCancellationRequested();
+
                 // Get field (column) information
                 fields = recordset.Fields;
                 int fieldCount = fields.Count;
@@ -100,6 +104,7 @@ public partial class DataModelCommands
                 // Extract column names (fully qualified: Table[Column])
                 for (int i = 0; i < fieldCount; i++)
                 {
+                    ct.ThrowIfCancellationRequested();
                     dynamic? field = null;
                     try
                     {
@@ -116,10 +121,12 @@ public partial class DataModelCommands
                 // Read all rows from the recordset
                 while (!recordset.EOF)
                 {
+                    ct.ThrowIfCancellationRequested();
                     var row = new List<object?>();
 
                     for (int i = 0; i < fieldCount; i++)
                     {
+                        ct.ThrowIfCancellationRequested();
                         dynamic? field = null;
                         try
                         {
