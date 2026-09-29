@@ -11,6 +11,87 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.12] - 2026-09-29
+
+### Major Changes
+
+- [#903](https://github.com/sbroenne/mcp-server-excel/pull/903) [`cf69114`](https://github.com/sbroenne/mcp-server-excel/commit/cf6911488e5c679fae25ebf1944082a5bf677a90) Thanks [@sbroenne](https://github.com/sbroenne)! - **Remove the obsolete full Power Query formula field**: `PowerQueryInfo.Formula`
+  is no longer available. Query lists continue to return bounded
+  `FormulaPreview` values; use the Power Query `view` action to retrieve complete
+  M code.
+
+### Patch Changes
+
+- [#903](https://github.com/sbroenne/mcp-server-excel/pull/903) [`cf69114`](https://github.com/sbroenne/mcp-server-excel/commit/cf6911488e5c679fae25ebf1944082a5bf677a90) Thanks [@sbroenne](https://github.com/sbroenne)! - Return a clear not-found result when deleting a missing OLAP calculated member.
+
+- [#926](https://github.com/sbroenne/mcp-server-excel/pull/926) [`ee80d68`](https://github.com/sbroenne/mcp-server-excel/commit/ee80d68ee4503e3a7a1d2f4ca4462aa8e504fce4) Thanks [@sbroenne](https://github.com/sbroenne)! - **Safer Excel sessions and connection output**: Queued operations now expire
+  without running later or closing a healthy session, connection details redact
+  credentials, one-cell reads return correctly, refresh cancellation is reported,
+  and Excel COM objects are released more reliably.
+
+- [#928](https://github.com/sbroenne/mcp-server-excel/pull/928) [`259b3f8`](https://github.com/sbroenne/mcp-server-excel/commit/259b3f802ac6990fec38413e68d9c231afb6cf7f) Thanks [@sbroenne](https://github.com/sbroenne)! - Install reusable CLI and MCP skills from `sbroenne/mcp-server-excel-plugins`.
+  The source repository now keeps templates and authored guidance only; complete
+  skills are generated for packaging. Existing installed skills remain installed,
+  but the old source-repository install command does not redirect automatically.
+
+- [#903](https://github.com/sbroenne/mcp-server-excel/pull/903) [`cf69114`](https://github.com/sbroenne/mcp-server-excel/commit/cf6911488e5c679fae25ebf1944082a5bf677a90) Thanks [@sbroenne](https://github.com/sbroenne)! - **Consistent number formats across regional settings**: Range formatting, chart
+  axes, and PivotTable value fields now use the same US-style format codes through
+  both the CLI and MCP Server, without corrupting decimal places or comparison
+  thresholds in custom formats. Locale-specific date letters inside quoted or
+  escaped literal text no longer prevent regional decimal translation. Excel continues
+  to display numbers using the user's regional separators.
+
+  **Clean screenshot edges**: Range captures now account for Excel's per-cell pixel
+  rounding, preventing blank strips at some window sizes and zoom levels.
+
+  **Reliable Excel shutdown**: Release unused automation metadata before closing
+  Excel to avoid stalled cleanup, and report session save and cleanup failures instead of
+  silently ignoring them. All sessions still receive a teardown attempt when one
+  auto-save fails. Normal post-Quit cleanup keeps its existing total time
+  limit and targets only the session's verified Excel process.
+
+  **Public command parity**: Range value, formula-read, and clear commands now
+  accept an empty sheet name when the range address is a workbook named range.
+  Setting an empty chart title now hides the title as documented.
+
+- [#923](https://github.com/sbroenne/mcp-server-excel/pull/923) [`83f7246`](https://github.com/sbroenne/mcp-server-excel/commit/83f724624c0dad13c17a14024659e728b3b41351) Thanks [@sbroenne](https://github.com/sbroenne)! - Stop Data Model and Power Query evaluation promptly when the operation timeout
+  expires, while preserving temporary Power Query cleanup.
+
+- [#920](https://github.com/sbroenne/mcp-server-excel/pull/920) [`397dd77`](https://github.com/sbroenne/mcp-server-excel/commit/397dd7716418ac764ff3b1d52c553be3e04ddf26) Thanks [@sbroenne](https://github.com/sbroenne)! - **Excel-backed file validation**: `file test` and `excelcli session test` now
+  validate ordinary workbooks by briefly opening them read-only in Excel instead
+  of inspecting internal workbook XML. The validation open honors the existing
+  MCP timeout, and the CLI command now supports the same `--timeout` option.
+
+- [#896](https://github.com/sbroenne/mcp-server-excel/pull/896) [`d0f8e36`](https://github.com/sbroenne/mcp-server-excel/commit/d0f8e362a88ade797938cdecf57cee5f6f2fd171) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **Unstyled tables can be listed and read again**: The `table list` and `table read`
+  actions now handle Excel tables that have no table style applied.
+  No-style values are returned as an empty string, while applied style names are preserved.
+
+- [#879](https://github.com/sbroenne/mcp-server-excel/pull/879) [`6b64c5c`](https://github.com/sbroenne/mcp-server-excel/commit/6b64c5c2d02b3b5d3dccaaf2fa95a72dc252a853) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - `screenshot(capture-sheet)` now includes embedded charts outside the worksheet's used cells.
+
+- [#885](https://github.com/sbroenne/mcp-server-excel/pull/885) [`4e2fb12`](https://github.com/sbroenne/mcp-server-excel/commit/4e2fb123eb6287b2625f0217df50fa61ebe0f0dc) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **More actionable failure reporting**: Missing worksheets, named ranges, and
+  Power Query load targets now retain a safe input or workbook-state category.
+  Writes blocked by merged cells are also identified instead of appearing as
+  unclassified failures in usage analytics.
+
+- [#895](https://github.com/sbroenne/mcp-server-excel/pull/895) [`e94159f`](https://github.com/sbroenne/mcp-server-excel/commit/e94159f917a3ae6c42d29ea940ce33d592c22175) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **Localized Excel table names**: Table operations now accept non-ASCII names
+  that Excel allows, such as `表1` and `テーブル1`, instead of rejecting them
+  before Excel checks the name.
+
+- [#928](https://github.com/sbroenne/mcp-server-excel/pull/928) [`259b3f8`](https://github.com/sbroenne/mcp-server-excel/commit/259b3f802ac6990fec38413e68d9c231afb6cf7f) Thanks [@sbroenne](https://github.com/sbroenne)! - Retry transient Windows sharing failures while replacing CLI daemon tracking
+  state so concurrent cleanup and startup do not leave a locked runtime behind.
+
+- [#928](https://github.com/sbroenne/mcp-server-excel/pull/928) [`259b3f8`](https://github.com/sbroenne/mcp-server-excel/commit/259b3f802ac6990fec38413e68d9c231afb6cf7f) Thanks [@sbroenne](https://github.com/sbroenne)! - Preserve unrelated Copilot settings when installing the MCP plugin globally.
+  Plugin downloads now stop if the shared installation lock cannot be acquired,
+  and update their cached state without exposing partially written JSON.
+  The optional CLI installer repairs missing launchers without overwriting their
+  existing partner and supports installation paths containing apostrophes or
+  non-ASCII characters.
+  Failed launcher writes restore the previous installation, or retain recovery
+  backups and report both errors if automatic restoration is blocked.
+
+- [#887](https://github.com/sbroenne/mcp-server-excel/pull/887) [`f00aa35`](https://github.com/sbroenne/mcp-server-excel/commit/f00aa35c172c4b20f5154449cb43699e111261c8) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - **CLI usage analytics**: Anonymous operation telemetry now includes CLI commands,
+  and every invocation identifies whether it came from `excelcli` or the MCP Server.
+
 ## [2.0.10] - 2026-09-27
 
 ### Minor Changes
