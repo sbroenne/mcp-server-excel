@@ -3335,7 +3335,7 @@
   },
   {
     "command": "screenshot.capture-sheet",
-    "windowsSemantics": "Captures the entire used area of a worksheet as an image. For CLI: use --output <path> to save the image directly to a PNG/JPEG file.",
+    "windowsSemantics": "Captures the used cell area of a worksheet plus its embedded charts as an image. For CLI: use --output <path> to save the image directly to a PNG/JPEG file.",
     "windowsVariants": [
       "sheetName: string?; optional; default null; Worksheet name (null for active sheet)",
       "quality: Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotQuality; optional; default Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotQuality.Medium; Image quality: Medium (default, JPEG 75% scale), High (PNG full scale), Low (JPEG 50% scale)"
