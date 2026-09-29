@@ -35,11 +35,15 @@ public sealed class DataModelEvaluateComErrorTests(
     {
         using var innerBatch = ExcelSession.BeginBatch(fixture.TestFilePath);
         using var cancellation = new CancellationTokenSource();
-        cancellation.CancelAfter(TimeSpan.FromSeconds(2));
         using var batch = new InjectedCancellationBatch(
             innerBatch,
             cancellation.Token);
-        var commands = new DataModelCommands();
+        bool extractionStarted = false;
+        var commands = new DataModelCommands(() =>
+        {
+            extractionStarted = true;
+            cancellation.Cancel();
+        });
 
         Assert.ThrowsAny<OperationCanceledException>(() =>
             commands.Evaluate(
@@ -54,6 +58,7 @@ public sealed class DataModelEvaluateComErrorTests(
                     SELECTCOLUMNS('SalesTable', "E", 'SalesTable'[SalesID])
                 )
                 """));
+        Assert.True(extractionStarted);
         Assert.True(cancellation.IsCancellationRequested);
 
         var followUp = commands.Evaluate(

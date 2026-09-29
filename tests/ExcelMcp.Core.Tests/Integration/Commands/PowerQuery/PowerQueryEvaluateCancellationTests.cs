@@ -17,7 +17,7 @@ public sealed class PowerQueryEvaluateCancellationTests(
     PowerQueryTestsFixture fixture)
 {
     [Fact]
-    public void Evaluate_CancelledDuringRefresh_CleansUpTemporaryObjects()
+    public void Evaluate_CancellationRequestedDuringRefresh_CleansUpTemporaryObjects()
     {
         const string delayedMCode = """
             let
@@ -41,6 +41,12 @@ public sealed class PowerQueryEvaluateCancellationTests(
             commands.Evaluate(batch, delayedMCode));
         Assert.True(cancellation.IsCancellationRequested);
         Assert.Equal(initialState, GetObjectCounts(innerBatch));
+
+        var followUp = commands.Evaluate(
+            innerBatch,
+            "let Source = #table({\"Value\"}, {{42}}) in Source");
+        Assert.True(followUp.Success, followUp.ErrorMessage);
+        Assert.Equal(42d, Assert.Single(Assert.Single(followUp.Rows)));
     }
 
     private static (int Sheets, int Queries, int Connections) GetObjectCounts(
