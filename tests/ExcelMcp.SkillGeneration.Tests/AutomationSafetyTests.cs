@@ -92,6 +92,50 @@ public sealed class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public async Task AnalyticsOidc_SwitchesToSelectedTenantAndRestoresOriginalSubscription()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var target = Quote(Path.Combine(
+                RepoRoot,
+                "infrastructure",
+                "azure",
+                "configure-analytics-oidc.ps1"));
+            var calls = Path.Combine(root, "calls.txt");
+            var result = await RunAsync(root, $$"""
+                function az {
+                    $call = $args -join ' '
+                    Add-Content -LiteralPath '{{Quote(calls)}}' -Value $call
+                    $global:LASTEXITCODE = 0
+                    switch -Regex ($call) {
+                        '^account show --only-show-errors$' { '{"id":"original","tenantId":"tenant-a"}'; break }
+                        '^account show --subscription selected ' { '{"id":"selected","tenantId":"tenant-b"}'; break }
+                        '^monitor' { '{"id":"/subscriptions/selected/resourceGroups/fixture/workspaces/test"}'; break }
+                        '^ad app list' { '[{"appId":"application"}]'; break }
+                        '^ad sp list' { '[{"id":"principal"}]'; break }
+                        '^ad app federated-credential list' { '[{"name":"github-main-usage-analytics"}]'; break }
+                        '^role assignment list' { '[{"id":"assignment"}]'; break }
+                        default { '{}' }
+                    }
+                }
+                function gh { $global:LASTEXITCODE = 0 }
+                & '{{target}}' -SubscriptionId selected -Confirm:$false
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
+            var recorded = File.ReadAllLines(calls);
+            var selectTarget = Array.IndexOf(recorded, "account set --subscription selected");
+            var queryApplications = Array.FindIndex(
+                recorded,
+                call => call.StartsWith("ad app list", StringComparison.Ordinal));
+            Assert.True(selectTarget >= 0, "The selected subscription was not activated.");
+            Assert.True(queryApplications > selectTarget, "Tenant-scoped commands ran before the selected tenant was active.");
+            Assert.Equal("account set --subscription original", recorded[^1]);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Theory]
     [InlineData("Cli", "src/ExcelMcp.CLI/Program.cs")]
     [InlineData("Mcp", "src/ExcelMcp.McpServer/Program.cs")]

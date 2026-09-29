@@ -37,13 +37,37 @@ if ($Repository -notmatch "^[^/]+/[^/]+$") {
     throw "Repository must use owner/name format."
 }
 
-$subscriptionArgs = if ($SubscriptionId) { @('--subscription', $SubscriptionId) } else { @() }
-$account = az account show @subscriptionArgs --only-show-errors | ConvertFrom-Json
+$currentAccount = az account show --only-show-errors | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or -not $currentAccount.id -or -not $currentAccount.tenantId) {
+    throw "Unable to read the current Azure subscription. Authenticate with az login first."
+}
+
+$account = if ($SubscriptionId) {
+    az account show --subscription $SubscriptionId --only-show-errors |
+        ConvertFrom-Json
+}
+else {
+    $currentAccount
+}
 if ($LASTEXITCODE -ne 0 -or -not $account.id -or -not $account.tenantId) {
     throw "Unable to read the requested Azure subscription. Authenticate with az login first."
 }
 $SubscriptionId = $account.id
 
+if ($account.tenantId -ne $currentAccount.tenantId) {
+    if (-not $PSCmdlet.ShouldProcess(
+            $SubscriptionId,
+            "Temporarily select the Azure subscription for tenant-scoped identity commands")) {
+        return
+    }
+    az account set --subscription $SubscriptionId
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to select Azure subscription '$SubscriptionId'."
+    }
+    $restoreSubscriptionId = $currentAccount.id
+}
+
+try {
 $workspace = az monitor log-analytics workspace show `
     --resource-group $ResourceGroup `
     --workspace-name $WorkspaceName `
@@ -168,6 +192,15 @@ if ($existingAssignments.Count -eq 0) {
 Set-GitHubVariable -Name "AZURE_CLIENT_ID" -Value $application.appId
 Set-GitHubVariable -Name "AZURE_TENANT_ID" -Value $account.tenantId
 Set-GitHubVariable -Name "AZURE_SUBSCRIPTION_ID" -Value $account.id
+}
+finally {
+    if ($restoreSubscriptionId) {
+        az account set --subscription $restoreSubscriptionId
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to restore Azure subscription '$restoreSubscriptionId'."
+        }
+    }
+}
 
 if (-not $WhatIfPreference) {
     Write-Host "Configured read-only OIDC analytics access for $Repository."
