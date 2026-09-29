@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -29,89 +30,84 @@ public partial class PivotTableCommands
             dynamic? pivotCaches = null;
             dynamic? pivotCache = null;
             dynamic? pivotTable = null;
+            dynamic? sourceRows = null;
+            dynamic? tableRange2 = null;
 
-            // STEP 1: Validate source range has headers and data
-            sourceWorksheet = ctx.Book.Worksheets[sourceSheet];
-            sourceRangeObj = sourceWorksheet.Range[sourceRange];
-
-            if (sourceRangeObj.Rows.Count < 2)
-            {
-                throw new InvalidOperationException($"Source range must contain headers and at least one data row. Found {sourceRangeObj.Rows.Count} rows");
-            }
-
-            // STEP 2: Create PivotCache from source range
-            // VBA: Set pivot_cache = activeWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:="csv_data", Version:=xlPivotTableVersion14)
-            pivotCaches = ctx.Book.PivotCaches();
-            // Sheet names with spaces or special characters must be quoted: 'Sheet Name'!A1:D6
-            string sourceDataRef = $"'{sourceSheet}'!{sourceRange}";
-
-            // xlDatabase = 1, xlPivotTableVersion14 = 4
-            pivotCache = pivotCaches.Create(
-                SourceType: 1,
-                SourceData: sourceDataRef,
-                Version: 4
-            );
-
-            // STEP 3: Create PivotTable from cache
-            // VBA: Set pivot_table = pivot_cache.CreatePivotTable(TableDestination:=pivot_table_upper_left)
-            destWorksheet = ctx.Book.Worksheets[destinationSheet];
-            destRangeObj = destWorksheet.Range[destinationCell];
-
-            pivotTable = pivotCache.CreatePivotTable(
-                TableDestination: destRangeObj,
-                TableName: pivotTableName
-            );
-
-            // STEP 4: Refresh to materialize the PivotTable structure
-            pivotTable.RefreshTable();
-
-            // STEP 5: Get available fields from PivotTable (VBA pattern)
-            // VBA: Set pf_col_1 = pivot_table.PivotFields("col_1")
-            // STEP 5: Get available fields from source range headers
-            // These are the fields that CAN be added to the PivotTable
-            var availableFields = new List<string>();
-
-            dynamic? headerRow = null;
             try
             {
-                headerRow = sourceRangeObj.Rows[1];
-                object[,] headers = headerRow.Value2;
+                sourceWorksheet = ctx.Book.Worksheets[sourceSheet];
+                sourceRangeObj = sourceWorksheet.Range[sourceRange];
+                sourceRows = sourceRangeObj.Rows;
+                int sourceRowCount = sourceRows.Count;
 
-                for (int col = 1; col <= headers.GetLength(1); col++)
+                if (sourceRowCount < 2)
                 {
-                    var header = headers[1, col]?.ToString();
-                    if (!string.IsNullOrWhiteSpace(header))
+                    throw new InvalidOperationException($"Source range must contain headers and at least one data row. Found {sourceRowCount} rows");
+                }
+
+                pivotCaches = ctx.Book.PivotCaches();
+                string sourceDataRef = $"'{sourceSheet}'!{sourceRange}";
+
+                pivotCache = pivotCaches.Create(
+                    SourceType: 1,
+                    SourceData: sourceDataRef,
+                    Version: 4
+                );
+
+                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destRangeObj = destWorksheet.Range[destinationCell];
+
+                pivotTable = pivotCache.CreatePivotTable(
+                    TableDestination: destRangeObj,
+                    TableName: pivotTableName
+                );
+
+                pivotTable.RefreshTable();
+
+                var availableFields = new List<string>();
+
+                dynamic? headerRow = null;
+                try
+                {
+                    headerRow = sourceRows[1];
+                    var headerValues = ExcelValueNormalizer.Normalize(headerRow.Value2);
+
+                    foreach (var value in headerValues.Values[0])
                     {
-                        availableFields.Add(header);
+                        var header = value?.ToString();
+                        if (!string.IsNullOrWhiteSpace(header))
+                        {
+                            availableFields.Add(header);
+                        }
+                    }
+
+                    if (availableFields.Count == 0)
+                    {
+                        throw new InvalidOperationException($"No field headers found in source range. Header row has {headerValues.ColumnCount} columns.");
                     }
                 }
-
-                if (availableFields.Count == 0)
+                finally
                 {
-                    throw new InvalidOperationException($"No field headers found in source range. Header row has {headers.GetLength(1)} columns.");
+                    ComUtilities.Release(ref headerRow);
                 }
-            }
-            finally
-            {
-                ComUtilities.Release(ref headerRow);
-            }
 
-            try
-            {
+                tableRange2 = pivotTable.TableRange2;
                 return new PivotTableCreateResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
                     SheetName = destinationSheet,
-                    Range = pivotTable.TableRange2.Address,
+                    Range = tableRange2.Address,
                     SourceData = sourceDataRef,
-                    SourceRowCount = sourceRangeObj.Rows.Count - 1,
+                    SourceRowCount = sourceRowCount - 1,
                     AvailableFields = availableFields,
                     FilePath = batch.WorkbookPath
                 };
             }
             finally
             {
+                ComUtilities.Release(ref tableRange2);
+                ComUtilities.Release(ref sourceRows);
                 ComUtilities.Release(ref pivotTable);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivotCaches);
@@ -139,74 +135,73 @@ public partial class PivotTableCommands
             dynamic? pivotCaches = null;
             dynamic? pivotCache = null;
             dynamic? pivotTable = null;
-
-            // Find the table
-            dynamic? sheets = null;
-            bool tableFound = false;
+            dynamic? tableRange = null;
+            dynamic? tableRows = null;
+            dynamic? tableSheet = null;
+            dynamic? tableRange2 = null;
 
             try
             {
-                sheets = ctx.Book.Worksheets;
-                for (int i = 1; i <= sheets.Count; i++)
+                dynamic? sheets = null;
+                bool tableFound = false;
+
+                try
                 {
-                    dynamic? sheet = null;
-                    dynamic? listObjects = null;
-                    try
+                    sheets = ctx.Book.Worksheets;
+                    for (int i = 1; i <= sheets.Count; i++)
                     {
-                        sheet = sheets.Item(i);
-                        listObjects = sheet.ListObjects;
-
-                        for (int j = 1; j <= listObjects.Count; j++)
+                        dynamic? sheet = null;
+                        dynamic? listObjects = null;
+                        try
                         {
-                            dynamic? tbl = null;
-                            try
-                            {
-                                tbl = listObjects.Item(j);
-                                if (tbl.Name == tableName)
-                                {
-                                    table = tbl;
-                                    tableFound = true;
-                                    break;
-                                }
-                            }
-                            finally
-                            {
-                                if (tbl != null && tbl != table)
-                                {
-                                    ComUtilities.Release(ref tbl);
-                                }
-                            }
-                        }
+                            sheet = sheets.Item(i);
+                            listObjects = sheet.ListObjects;
 
-                        if (tableFound) break;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref listObjects);
-                        ComUtilities.Release(ref sheet);
+                            for (int j = 1; j <= listObjects.Count; j++)
+                            {
+                                dynamic? tbl = null;
+                                try
+                                {
+                                    tbl = listObjects.Item(j);
+                                    if (tbl.Name == tableName)
+                                    {
+                                        table = tbl;
+                                        tableFound = true;
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    if (tbl != null && tbl != table)
+                                    {
+                                        ComUtilities.Release(ref tbl);
+                                    }
+                                }
+                            }
+
+                            if (tableFound) break;
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref listObjects);
+                            ComUtilities.Release(ref sheet);
+                        }
                     }
                 }
-            }
-            finally
-            {
-                ComUtilities.Release(ref sheets);
-            }
+                finally
+                {
+                    ComUtilities.Release(ref sheets);
+                }
 
-            if (!tableFound || table == null)
-            {
-                throw new InvalidOperationException($"Table '{tableName}' not found in workbook");
-            }
+                if (!tableFound || table == null)
+                {
+                    throw new InvalidOperationException($"Table '{tableName}' not found in workbook");
+                }
 
-            // Get table range and headers
-            dynamic? tableRange = null;
-            dynamic? headerRow = null;
-            var headers = new List<string>();
-            int rowCount = 0;
-
-            try
-            {
                 tableRange = table.Range;
-                rowCount = tableRange.Rows.Count;
+                tableRows = tableRange.Rows;
+                int rowCount = tableRows.Count;
+                var headers = new List<string>();
 
                 if (rowCount < 2)
                 {
@@ -218,11 +213,11 @@ public partial class PivotTableCommands
                 try
                 {
                     headerRowCol = table.HeaderRowRange;
-                    object[,] headerValues = headerRowCol.Value2;
+                    var headerValues = ExcelValueNormalizer.Normalize(headerRowCol.Value2);
 
-                    for (int col = 1; col <= headerValues.GetLength(1); col++)
+                    foreach (var value in headerValues.Values[0])
                     {
-                        var header = headerValues[1, col]?.ToString();
+                        var header = value?.ToString();
                         if (!string.IsNullOrWhiteSpace(header))
                         {
                             headers.Add(header);
@@ -236,7 +231,8 @@ public partial class PivotTableCommands
 
                 // Create PivotCache from table
                 pivotCaches = ctx.Book.PivotCaches();
-                string sourceDataRef = $"{table.Parent.Name}!{table.Name}";
+                tableSheet = table.Parent;
+                string sourceDataRef = $"{tableSheet.Name}!{table.Name}";
 
                 // xlDatabase = 1
                 pivotCache = pivotCaches.Create(
@@ -256,34 +252,31 @@ public partial class PivotTableCommands
                 // Refresh to materialize layout
                 pivotTable.RefreshTable();
 
-                try
+                tableRange2 = pivotTable.TableRange2;
+                return new PivotTableCreateResult
                 {
-                    return new PivotTableCreateResult
-                    {
-                        Success = true,
-                        PivotTableName = pivotTableName,
-                        SheetName = destinationSheet,
-                        Range = pivotTable.TableRange2.Address,
-                        SourceData = sourceDataRef,
-                        SourceRowCount = rowCount - 1, // Exclude header
-                        AvailableFields = headers,
-                        FilePath = batch.WorkbookPath
-                    };
-                }
-                finally
-                {
-                    ComUtilities.Release(ref pivotTable);
-                    ComUtilities.Release(ref pivotCache);
-                    ComUtilities.Release(ref pivotCaches);
-                    ComUtilities.Release(ref destRangeObj);
-                    ComUtilities.Release(ref destWorksheet);
-                    ComUtilities.Release(ref table);
-                }
+                    Success = true,
+                    PivotTableName = pivotTableName,
+                    SheetName = destinationSheet,
+                    Range = tableRange2.Address,
+                    SourceData = sourceDataRef,
+                    SourceRowCount = rowCount - 1,
+                    AvailableFields = headers,
+                    FilePath = batch.WorkbookPath
+                };
             }
             finally
             {
-                ComUtilities.Release(ref headerRow);
+                ComUtilities.Release(ref tableRange2);
+                ComUtilities.Release(ref pivotTable);
+                ComUtilities.Release(ref pivotCache);
+                ComUtilities.Release(ref pivotCaches);
+                ComUtilities.Release(ref destRangeObj);
+                ComUtilities.Release(ref destWorksheet);
+                ComUtilities.Release(ref tableSheet);
+                ComUtilities.Release(ref tableRows);
                 ComUtilities.Release(ref tableRange);
+                ComUtilities.Release(ref table);
             }
         });
     }
@@ -306,132 +299,134 @@ public partial class PivotTableCommands
             dynamic? pivotCaches = null;
             dynamic? pivotCache = null;
             dynamic? pivotTable = null;
-
-            // STEP 1: Verify Data Model exists and find the table
-            // NOTE: Every workbook has a Model object, but it may be empty
-            model = ctx.Book.Model;
-
-            // Find the table in the Data Model
-            dynamic? modelTables = null;
-            bool tableFound = false;
-            try
-            {
-                modelTables = model.ModelTables;
-
-                // Check if Data Model has any tables
-                if (modelTables == null || modelTables.Count == 0)
-                {
-                    throw new InvalidOperationException("Data Model does not contain any tables");
-                }
-
-                for (int i = 1; i <= modelTables.Count; i++)
-                {
-                    dynamic? tbl = null;
-                    try
-                    {
-                        tbl = modelTables.Item(i);
-                        if (tbl.Name == tableName)
-                        {
-                            modelTable = tbl;
-                            tableFound = true;
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        if (tbl != null && tbl != modelTable)
-                        {
-                            ComUtilities.Release(ref tbl);
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                ComUtilities.Release(ref modelTables);
-            }
-
-            if (!tableFound || modelTable == null)
-            {
-                throw new InvalidOperationException($"Table '{tableName}' not found in Data Model");
-            }
-
-            // Get columns from the Data Model table
-            var headers = new List<string>();
-            int recordCount = 0;
+            dynamic? tableRange2 = null;
 
             try
             {
-                recordCount = ComUtilities.SafeGetInt(modelTable, "RecordCount");
+                // STEP 1: Verify Data Model exists and find the table
+                // NOTE: Every workbook has a Model object, but it may be empty
+                model = ctx.Book.Model;
 
-                // Get columns
-                dynamic? modelColumns = null;
+                // Find the table in the Data Model
+                dynamic? modelTables = null;
+                bool tableFound = false;
                 try
                 {
-                    modelColumns = modelTable.ModelTableColumns;
-                    for (int i = 1; i <= modelColumns.Count; i++)
+                    modelTables = model.ModelTables;
+
+                    // Check if Data Model has any tables
+                    if (modelTables == null || modelTables.Count == 0)
                     {
-                        dynamic? column = null;
+                        throw new InvalidOperationException("Data Model does not contain any tables");
+                    }
+
+                    for (int i = 1; i <= modelTables.Count; i++)
+                    {
+                        dynamic? tbl = null;
                         try
                         {
-                            column = modelColumns.Item(i);
-                            var colName = ComUtilities.SafeGetString(column, "Name");
-                            if (!string.IsNullOrWhiteSpace(colName))
+                            tbl = modelTables.Item(i);
+                            if (tbl.Name == tableName)
                             {
-                                headers.Add(colName);
+                                modelTable = tbl;
+                                tableFound = true;
+                                break;
                             }
                         }
                         finally
                         {
-                            ComUtilities.Release(ref column);
+                            if (tbl != null && tbl != modelTable)
+                            {
+                                ComUtilities.Release(ref tbl);
+                            }
                         }
                     }
                 }
                 finally
                 {
-                    ComUtilities.Release(ref modelColumns);
+                    ComUtilities.Release(ref modelTables);
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to read columns from Data Model table '{tableName}': {ex.Message}");
-            }
 
-            if (headers.Count == 0)
-            {
-                throw new InvalidOperationException($"Data Model table '{tableName}' has no columns");
-            }
+                if (!tableFound || modelTable == null)
+                {
+                    throw new InvalidOperationException($"Table '{tableName}' not found in Data Model");
+                }
 
-            // STEP 2: Create PivotCache from Data Model
-            // Using xlExternal (2) with "ThisWorkbookDataModel" connection
-            pivotCaches = ctx.Book.PivotCaches();
+                // Get columns from the Data Model table
+                var headers = new List<string>();
+                int recordCount = 0;
 
-            // xlExternal = 2
-            pivotCache = pivotCaches.Create(
-                SourceType: 2,
-                SourceData: "ThisWorkbookDataModel"
-            );
+                try
+                {
+                    recordCount = ComUtilities.SafeGetInt(modelTable, "RecordCount");
 
-            // STEP 3: Create PivotTable from cache
-            destWorksheet = ctx.Book.Worksheets[destinationSheet];
-            destRangeObj = destWorksheet.Range[destinationCell];
+                    // Get columns
+                    dynamic? modelColumns = null;
+                    try
+                    {
+                        modelColumns = modelTable.ModelTableColumns;
+                        for (int i = 1; i <= modelColumns.Count; i++)
+                        {
+                            dynamic? column = null;
+                            try
+                            {
+                                column = modelColumns.Item(i);
+                                var colName = ComUtilities.SafeGetString(column, "Name");
+                                if (!string.IsNullOrWhiteSpace(colName))
+                                {
+                                    headers.Add(colName);
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref column);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref modelColumns);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to read columns from Data Model table '{tableName}': {ex.Message}");
+                }
 
-            pivotTable = pivotCache.CreatePivotTable(
-                TableDestination: destRangeObj,
-                TableName: pivotTableName
-            );
+                if (headers.Count == 0)
+                {
+                    throw new InvalidOperationException($"Data Model table '{tableName}' has no columns");
+                }
 
-            // STEP 4: Refresh to materialize the PivotTable structure
-            pivotTable.RefreshTable();
+                // STEP 2: Create PivotCache from Data Model
+                // Using xlExternal (2) with "ThisWorkbookDataModel" connection
+                pivotCaches = ctx.Book.PivotCaches();
 
-            try
-            {
+                // xlExternal = 2
+                pivotCache = pivotCaches.Create(
+                    SourceType: 2,
+                    SourceData: "ThisWorkbookDataModel"
+                );
+
+                // STEP 3: Create PivotTable from cache
+                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destRangeObj = destWorksheet.Range[destinationCell];
+
+                pivotTable = pivotCache.CreatePivotTable(
+                    TableDestination: destRangeObj,
+                    TableName: pivotTableName
+                );
+
+                // STEP 4: Refresh to materialize the PivotTable structure
+                pivotTable.RefreshTable();
+
+                tableRange2 = pivotTable.TableRange2;
                 return new PivotTableCreateResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
                     SheetName = destinationSheet,
-                    Range = pivotTable.TableRange2.Address,
+                    Range = tableRange2.Address,
                     SourceData = $"ThisWorkbookDataModel[{tableName}]",
                     SourceRowCount = recordCount,
                     AvailableFields = headers,
@@ -440,6 +435,7 @@ public partial class PivotTableCommands
             }
             finally
             {
+                ComUtilities.Release(ref tableRange2);
                 ComUtilities.Release(ref pivotTable);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivotCaches);
@@ -451,6 +447,3 @@ public partial class PivotTableCommands
         });
     }
 }
-
-
-

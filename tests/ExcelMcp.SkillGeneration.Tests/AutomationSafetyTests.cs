@@ -12,7 +12,7 @@ public sealed class AutomationSafetyTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Theory]
-    [InlineData("check-com-leaks.ps1", "dynamic item = source.Item;")]
+    [InlineData("check-com-leaks.ps1", "var count = worksheet.Rows.Count;")]
     [InlineData("check-success-flag.ps1", "result.Success = true;\nresult.ErrorMessage = \"failure\";")]
     [InlineData("check-dynamic-casts.ps1", "var item = ((dynamic)source).Item;")]
     public async Task SourceGuards_RejectEmptyDiscoveryAndIgnoreGeneratedFiles(string script, string suspicious)
@@ -24,11 +24,12 @@ public sealed class AutomationSafetyTests
             File.Copy(Path.Combine(RepoRoot, "scripts", script), Path.Combine(scripts, script));
             Directory.CreateDirectory(Path.Combine(root, "src", "ExcelMcp.Core", "Commands"));
             Directory.CreateDirectory(Path.Combine(root, "src", "ExcelMcp.ComInterop"));
-            var command = $"& '{Quote(Path.Combine(scripts, script))}'";
+            var commands = Path.Combine(root, "src", "ExcelMcp.Core", "Commands");
+            var arguments = script == "check-com-leaks.ps1" ? $" -InputPath '{Quote(commands)}'" : "";
+            var command = $"& '{Quote(Path.Combine(scripts, script))}'{arguments}";
             var empty = await RunAsync(root, command);
             Assert.NotEqual(0, empty.ExitCode);
 
-            var commands = Path.Combine(root, "src", "ExcelMcp.Core", "Commands");
             var source = Path.Combine(commands, "Example.cs");
             File.WriteAllText(source, suspicious);
             File.WriteAllText(Path.Combine(root, "src", "ExcelMcp.ComInterop", "Example.cs"), "class Example {}");

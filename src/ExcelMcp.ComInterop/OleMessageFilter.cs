@@ -23,7 +23,19 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     private static nint _oldFilterPtr;
 
     [ThreadStatic]
+    private static nint _currentFilterPtr;
+
+    [ThreadStatic]
     private static bool _isRegistered;
+
+    [ThreadStatic]
+    internal static Func<object, nint>? CreateInterfacePointerForTests;
+
+    [ThreadStatic]
+    internal static Func<nint, (int Result, nint PreviousFilter)>? RegisterMessageFilterForTests;
+
+    [ThreadStatic]
+    internal static Action<nint>? ReleasePointerForTests;
 
     /// <summary>
     /// When true, the filter is in a long-running COM operation (e.g., Power Query refresh).
@@ -74,15 +86,29 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         }
 
         var newFilter = new OleMessageFilter();
-        nint newFilterPtr = s_comWrappers.GetOrCreateComInterfaceForObject(newFilter, CreateComInterfaceFlags.None);
-
-        int result = CoRegisterMessageFilter(newFilterPtr, out _oldFilterPtr);
-        if (result != 0)
+        nint newFilterPtr = CreateInterfacePointer(newFilter);
+        nint previousFilterPtr = 0;
+        try
         {
-            throw new InvalidOperationException($"Failed to register OLE message filter. HRESULT: 0x{result:X8}");
-        }
+            var registration = RegisterMessageFilter(newFilterPtr);
+            previousFilterPtr = registration.PreviousFilter;
+            if (registration.Result != 0)
+            {
+                ReleaseOwnedPointer(ref previousFilterPtr);
+                throw new InvalidOperationException($"Failed to register OLE message filter. HRESULT: 0x{registration.Result:X8}");
+            }
 
-        _isRegistered = true;
+            _oldFilterPtr = previousFilterPtr;
+            previousFilterPtr = 0;
+            _currentFilterPtr = newFilterPtr;
+            newFilterPtr = 0;
+            _isRegistered = true;
+        }
+        finally
+        {
+            ReleaseOwnedPointer(ref previousFilterPtr);
+            ReleaseOwnedPointer(ref newFilterPtr);
+        }
     }
 
     /// <summary>
@@ -101,14 +127,61 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
             return;
         }
 
-        int result = CoRegisterMessageFilter(_oldFilterPtr, out _);
-        if (result != 0)
+        var registration = RegisterMessageFilter(_oldFilterPtr);
+        nint currentFilterPtr = registration.PreviousFilter;
+        if (registration.Result != 0)
         {
-            throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{result:X8}");
+            ReleaseOwnedPointer(ref currentFilterPtr);
+            throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{registration.Result:X8}");
         }
 
-        _oldFilterPtr = 0;
+        ReleaseOwnedPointer(ref currentFilterPtr);
+        ReleaseOwnedPointer(ref _currentFilterPtr);
+        ReleaseOwnedPointer(ref _oldFilterPtr);
         _isRegistered = false;
+    }
+
+    internal static void ResetNativeHooksForTests()
+    {
+        CreateInterfacePointerForTests = null;
+        RegisterMessageFilterForTests = null;
+        ReleasePointerForTests = null;
+        _oldFilterPtr = 0;
+        _currentFilterPtr = 0;
+        _isRegistered = false;
+    }
+
+    private static nint CreateInterfacePointer(object filter) =>
+        CreateInterfacePointerForTests?.Invoke(filter)
+        ?? s_comWrappers.GetOrCreateComInterfaceForObject(filter, CreateComInterfaceFlags.None);
+
+    private static (int Result, nint PreviousFilter) RegisterMessageFilter(nint filterPointer)
+    {
+        if (RegisterMessageFilterForTests != null)
+        {
+            return RegisterMessageFilterForTests(filterPointer);
+        }
+
+        int result = CoRegisterMessageFilter(filterPointer, out nint previousFilter);
+        return (result, previousFilter);
+    }
+
+    private static void ReleaseOwnedPointer(ref nint pointer)
+    {
+        if (pointer == 0)
+        {
+            return;
+        }
+
+        var ownedPointer = pointer;
+        pointer = 0;
+        if (ReleasePointerForTests != null)
+        {
+            ReleasePointerForTests(ownedPointer);
+            return;
+        }
+
+        Marshal.Release(ownedPointer);
     }
 
     /// <summary>
@@ -302,5 +375,3 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         nint lpMessageFilter,
         out nint lplpMessageFilter);
 }
-
-

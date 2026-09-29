@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 
@@ -42,23 +43,10 @@ public partial class RangeCommands
                 range = sheet.UsedRange;
                 result.RangeAddress = range.Address;
 
-                // Get values as 2D array
-                object[,]? values = range.Value2;
-                if (values != null)
-                {
-                    result.RowCount = values.GetLength(0);
-                    result.ColumnCount = values.GetLength(1);
-
-                    for (int r = 1; r <= result.RowCount; r++)
-                    {
-                        var row = new List<object?>();
-                        for (int c = 1; c <= result.ColumnCount; c++)
-                        {
-                            row.Add(values[r, c]);
-                        }
-                        result.Values.Add(row);
-                    }
-                }
+                var values = ExcelValueNormalizer.Normalize(range.Value2);
+                result.RowCount = values.RowCount;
+                result.ColumnCount = values.ColumnCount;
+                result.Values.AddRange(values.Values);
 
                 result.Success = true;
                 return result;
@@ -96,23 +84,10 @@ public partial class RangeCommands
                 region = cell.CurrentRegion;
                 result.RangeAddress = region.Address;
 
-                // Get values as 2D array
-                object[,]? values = region.Value2;
-                if (values != null)
-                {
-                    result.RowCount = values.GetLength(0);
-                    result.ColumnCount = values.GetLength(1);
-
-                    for (int r = 1; r <= result.RowCount; r++)
-                    {
-                        var row = new List<object?>();
-                        for (int c = 1; c <= result.ColumnCount; c++)
-                        {
-                            row.Add(values[r, c]);
-                        }
-                        result.Values.Add(row);
-                    }
-                }
+                var values = ExcelValueNormalizer.Normalize(region.Value2);
+                result.RowCount = values.RowCount;
+                result.ColumnCount = values.ColumnCount;
+                result.Values.AddRange(values.Values);
 
                 result.Success = true;
                 return result;
@@ -166,5 +141,4 @@ public partial class RangeCommands
         });
     }
 }
-
 

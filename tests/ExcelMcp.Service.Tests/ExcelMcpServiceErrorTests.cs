@@ -346,6 +346,69 @@ public sealed class ExcelMcpServiceErrorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_ProcessWordInOrdinaryOperationError_PreservesHealthySession()
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            ExecuteException = new InvalidOperationException("Worksheet 'Processing' was not found.")
+        };
+        const string sessionId = "healthy-process-word";
+
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        Assert.NotEqual("ExcelProcessDied", response.ErrorCategory);
+        Assert.Contains("Processing", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(batch, GetPrivateField<SessionManager>(service, "_sessionManager").GetSession(sessionId));
+        Assert.Equal(0, batch.DisposeCalls);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_QueuedTimeout_PreservesUsableSession()
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            ExecuteException = new TimeoutException("Expired before the Excel thread started the operation.")
+        };
+        const string sessionId = "queued-timeout";
+
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("Timeout", response.ErrorCategory);
+        Assert.DoesNotContain("session has been closed", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(batch, GetPrivateField<SessionManager>(service, "_sessionManager").GetSession(sessionId));
+        Assert.Equal(0, batch.DisposeCalls);
+    }
+
+    [Fact]
+    public void FatalDisconnectClassification_DoesNotInferDeathFromMessageText()
+    {
+        var method = typeof(ExcelMcpService).GetMethod(
+            "TryGetFatalComHResult",
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        var error = new InvalidOperationException("RPC server is unavailable while validating input.");
+
+        var result = method.Invoke(null, [error]);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task ProcessAsync_SessionCloseSaveOnTimedOutSession_FailsFastBeforeSaving()
     {
         using var service = new ExcelMcpService();
@@ -463,6 +526,7 @@ public sealed class ExcelMcpServiceErrorTests
         public bool HasTimedOutOperation { get; init; }
         public bool IsAlive { get; private set; } = true;
         public bool IsAliveAfterSaveException { get; init; } = true;
+        public Exception? ExecuteException { get; init; }
         public Exception? SaveException { get; init; }
         public int ExecuteCalls { get; private set; }
         public int SaveCalls { get; private set; }
@@ -478,12 +542,22 @@ public sealed class ExcelMcpServiceErrorTests
         public void Execute(Action<ExcelContext, CancellationToken> operation, CancellationToken cancellationToken = default)
         {
             ExecuteCalls++;
+            if (ExecuteException != null)
+            {
+                throw ExecuteException;
+            }
+
             throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
         }
 
         public T Execute<T>(Func<ExcelContext, CancellationToken, T> operation, CancellationToken cancellationToken = default)
         {
             ExecuteCalls++;
+            if (ExecuteException != null)
+            {
+                throw ExecuteException;
+            }
+
             throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
         }
 

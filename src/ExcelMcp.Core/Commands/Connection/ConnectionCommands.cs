@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 
@@ -963,7 +964,7 @@ public partial class ConnectionCommands : IConnectionCommands
         }
 
         dynamic? queryTables = null;
-        dynamic? queryTable = null;
+        Excel.QueryTable? queryTable = null;
         dynamic? range = null;
 
         try
@@ -973,7 +974,7 @@ public partial class ConnectionCommands : IConnectionCommands
             queryTable = queryTables.Add(conn, range, commandText);
 
             queryTable.Name = options.Name.Replace(" ", "_");
-            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+            queryTable.RefreshStyle = Excel.XlCellInsertionMode.xlInsertDeleteCells;
             queryTable.BackgroundQuery = options.BackgroundQuery;
             queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
             queryTable.SavePassword = options.SavePassword;
@@ -985,15 +986,10 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 // Do NOT use EnterLongOperation here. Synchronous QueryTable refresh can depend on
                 // inbound Excel callbacks to complete, and rejecting them can deadlock the load.
-                OleMessageFilter.SetPendingCancellationToken(cancellationToken);
-                try
-                {
-                    queryTable.Refresh(false);
-                }
-                finally
-                {
-                    OleMessageFilter.ClearPendingCancellationToken();
-                }
+                QueryTableRefreshHelper.RefreshSynchronously(
+                    queryTable,
+                    cancellationToken,
+                    $"Connection load for '{options.Name}'");
             }
         }
         finally
@@ -1023,4 +1019,3 @@ internal sealed class ConnectionDefinition
     public bool? SavePassword { get; set; }
     public int? RefreshPeriod { get; set; }
 }
-

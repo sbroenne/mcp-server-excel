@@ -52,15 +52,21 @@ public partial class TableCommands
 
                 // Get region range
                 dynamic? regionRange = null;
+                dynamic? rows = null;
+                dynamic? columns = null;
                 try
                 {
                     regionRange = GetRegionRange(table, region, columnName);
                     result.RangeAddress = regionRange.Address;
-                    result.RowCount = regionRange.Rows.Count;
-                    result.ColumnCount = regionRange.Columns.Count;
+                    rows = regionRange.Rows;
+                    columns = regionRange.Columns;
+                    result.RowCount = rows.Count;
+                    result.ColumnCount = columns.Count;
                 }
                 finally
                 {
+                    ComUtilities.Release(ref columns);
+                    ComUtilities.Release(ref rows);
                     ComUtilities.Release(ref regionRange);
                 }
 
@@ -113,7 +119,7 @@ public partial class TableCommands
     /// </summary>
     private static dynamic GetRegionRange(dynamic table, TableRegion region, string? columnName)
     {
-        dynamic regionRange = region switch
+        dynamic? regionRange = region switch
         {
             TableRegion.All => table.Range,
             TableRegion.Data => table.DataBodyRange,
@@ -128,41 +134,47 @@ public partial class TableCommands
         {
             dynamic? columns = null;
             dynamic? column = null;
+            dynamic? columnRange = null;
+            dynamic? intersection = null;
             try
             {
                 columns = table.ListColumns;
                 column = columns.Item(columnName);
-                dynamic columnRange = column.Range;
+                columnRange = column.Range;
 
                 // Intersect with region range
                 dynamic? app = null;
-                dynamic? intersection = null;
                 try
                 {
                     app = table.Application;
                     intersection = app.Intersect(regionRange, columnRange);
-                    return intersection; // Return intersection
+                    dynamic result = intersection;
+                    intersection = null;
+                    return result;
                 }
                 catch (System.Runtime.InteropServices.COMException)
                 {
-                    // If intersection fails, return column range
-                    return columnRange;
+                    dynamic result = columnRange;
+                    columnRange = null;
+                    return result;
                 }
                 finally
                 {
                     ComUtilities.Release(ref app);
-                    // Don't release intersection here - caller will do it
                 }
             }
             finally
             {
+                ComUtilities.Release(ref intersection);
+                ComUtilities.Release(ref columnRange);
+                ComUtilities.Release(ref regionRange);
                 ComUtilities.Release(ref column);
                 ComUtilities.Release(ref columns);
             }
         }
 
-        return regionRange; // Return region range directly
+        dynamic transferredRange = regionRange!;
+        regionRange = null;
+        return transferredRange;
     }
 }
-
-

@@ -72,8 +72,9 @@ public sealed partial class PersistentServiceConnectionTests
     public void View_ExistingConnection_ReturnsDetails()
     {
         var connectionName = UniqueConnectionName("ViewTestConnection");
+        const string sensitiveCredential = "boundary-sensitive-user";
         const string connectionString =
-            @"ODBC;DSN=ViewTestDSN;DBQ=C:\temp\viewtest.xlsx";
+            $@"ODBC;DSN=ViewTestDSN;DBQ=C:\temp\viewtest.xlsx;UID={sensitiveCredential}";
 
         _connections.Create(
             _fixture.BatchToken,
@@ -85,6 +86,11 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
         Assert.Equal(connectionName, result.ConnectionName);
         Assert.NotNull(result.ConnectionString);
+        Assert.DoesNotContain(sensitiveCredential, result.ConnectionString, StringComparison.Ordinal);
+        Assert.Contains("(redacted)", result.ConnectionString, StringComparison.Ordinal);
+        Assert.NotNull(result.DefinitionJson);
+        Assert.DoesNotContain(sensitiveCredential, result.DefinitionJson, StringComparison.Ordinal);
+        Assert.Contains("(redacted)", result.DefinitionJson, StringComparison.Ordinal);
         Assert.NotNull(result.Type);
     }
 

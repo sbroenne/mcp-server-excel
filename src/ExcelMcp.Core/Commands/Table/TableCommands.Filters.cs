@@ -18,6 +18,7 @@ public partial class TableCommands
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
+            dynamic? filterRange = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -77,7 +78,8 @@ public partial class TableCommands
                 // Apply filter to specific field
                 // xlFilterValues = 7, xlAnd = 1
                 int xlFilterValues = 7;
-                autoFilter.Range.AutoFilter(
+                filterRange = autoFilter.Range;
+                filterRange.AutoFilter(
                     Field: columnIndex,
                     Criteria1: criteria,
                     Operator: xlFilterValues
@@ -87,6 +89,7 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref filterRange);
                 ComUtilities.Release(ref autoFilter);
                 ComUtilities.Release(ref table);
             }
@@ -102,6 +105,7 @@ public partial class TableCommands
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
+            dynamic? filterRange = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -161,7 +165,8 @@ public partial class TableCommands
                 // Apply filter with multiple values
                 // Convert List<string> to string array for COM interop
                 string[] valuesArray = values.ToArray();
-                autoFilter.Range.AutoFilter(
+                filterRange = autoFilter.Range;
+                filterRange.AutoFilter(
                     Field: columnIndex,
                     Criteria1: valuesArray,
                     Operator: 7 // xlFilterValues
@@ -171,6 +176,7 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref filterRange);
                 ComUtilities.Release(ref autoFilter);
                 ComUtilities.Release(ref table);
             }
@@ -299,5 +305,4 @@ public partial class TableCommands
         });
     }
 }
-
 
