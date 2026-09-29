@@ -64,25 +64,22 @@ excel-cli/
 
 ## CLI Tool Installation
 
-The **GitHub Copilot `excel-cli` plugin** installs the skill plus a runtime
-bootstrap wrapper. The wrapper downloads and caches the latest self-contained
-Windows CLI runtime on first use.
+The **GitHub Copilot `excel-cli` plugin** installs the skill plus an npx-first
+wrapper for the public `@sbroenne/excelcli` package.
 
 ### Via GitHub Copilot Plugin
 
-Plugin-driven flows use the plugin wrapper and keep runtime state under the
-host-provided `PLUGIN_DATA\runtime` directory. To make `excelcli` available on
-PATH for shell commands, run the optional global shim installer from the
-installed plugin folder:
+Use `npx -y @sbroenne/excelcli@latest` directly, or run the optional global shim
+installer from the installed plugin folder to make `excelcli` available on PATH:
 
 ```powershell
 pwsh -ExecutionPolicy Bypass -File `
   "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
 
-The global shim runs outside the plugin host, uses
-`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli`, and checks for updates
-at most once every 24 hours.
+The global shim uses npx first. If Node.js is unavailable, it falls back to the
+verified GitHub Release downloader and stores that runtime under
+`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli`.
 
 ### Via Skill Package
 

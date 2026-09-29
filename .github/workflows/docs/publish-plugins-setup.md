@@ -4,9 +4,11 @@ The source repository owns plugin templates, shared guidance, authored assets,
 generation, validation, and publication. `sbroenne/mcp-server-excel-plugins` is
 output-only: never fix generated files there by hand.
 
-The two plugins contain wrappers and complete skills, not bundled runtimes.
-Wrappers download the newest Windows runtime from the source repository's GitHub
-Releases, checking its exact `SHA256SUMS` entry before extraction.
+The two plugins contain launch configuration, fallback wrappers, and complete
+skills, not bundled runtimes. They use the public npm packages through `npx` by
+default. When npx is unavailable, the wrappers can download the newest Windows
+runtime from the source repository's GitHub Releases and verify its exact
+`SHA256SUMS` entry before extraction.
 
 ## Required secret
 
@@ -30,14 +32,15 @@ the extension and Claude bundle reuse the MCP executable. Complete skills are
 generated once for the package set and consumed by the skill ZIP, plugins, and
 extension.
 
-After GitHub Release assets exist, the release calls `publish-plugins.yml` as a
-reusable workflow with the exact tag, final release commit, version, and prepared
-plugin artifact name. The publisher verifies that these agree and checks out the
-exact tagged source for synchronization. It never searches for a tag on the
-workflow's original source commit or stamps current `main` with an older version.
+After GitHub Release assets and npm packages exist, the release calls
+`publish-plugins.yml` as a reusable workflow with the exact tag, final release
+commit, version, and prepared plugin artifact name. Waiting for npm ensures the
+plugins' default npx launch path is available when the marketplace update lands.
+The publisher verifies that the inputs agree and checks out the exact tagged
+source for synchronization. It never searches for a tag on the workflow's
+original source commit or stamps current `main` with an older version.
 
-Plugin publication does not depend on npm/NuGet propagation or MCP registry
-registration. Marketplace publication also reports its own result. A partial
+Marketplace publication does not depend on MCP registry registration. A partial
 publication failure stays visible and can be repaired independently.
 
 ## Manual repair

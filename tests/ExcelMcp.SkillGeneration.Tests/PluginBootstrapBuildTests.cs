@@ -579,8 +579,8 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             Assert.Contains("=== Build Complete ===", result.Stdout);
             Assert.Contains($"Version: {version}", result.Stdout);
             Assert.Contains($"Output:  {outputDir}", result.Stdout);
-            Assert.Contains("[ok] excel-mcp - bootstrap assets and skill", result.Stdout);
-            Assert.Contains("[ok] excel-cli - bootstrap assets and skill", result.Stdout);
+            Assert.Contains("[ok] excel-mcp - npx config, fallback assets, and skill", result.Stdout);
+            Assert.Contains("[ok] excel-cli - npx-first wrapper, fallback assets, and skill", result.Stdout);
             Assert.Contains($@"copilot plugin install {outputDir}\excel-mcp", result.Stdout);
             Assert.Contains($@"copilot plugin install {outputDir}\excel-cli", result.Stdout);
         }
@@ -2153,13 +2153,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             File.WriteAllText(
                 Path.Combine(pluginBinDirectory, "download.ps1"),
                 """
-                [CmdletBinding()]
-                param(
-                    [switch]$PassThru,
-                    [switch]$Quiet
-                )
-
-                Write-Output (Get-Command "cscript.exe").Source
+                throw "The release downloader must not run when npx is available."
                 """,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
@@ -2169,6 +2163,22 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                 """
                 WScript.StdOut.Write("pipeline-ok");
                 WScript.StdErr.Write("pipeline-error");
+                """,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            var fakeNpxPath = Path.Combine(sandbox, "npx.ps1");
+            File.WriteAllText(
+                fakeNpxPath,
+                """
+                [CmdletBinding()]
+                param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+
+                if ($Arguments[0] -ne "-y" -or $Arguments[1] -ne "@sbroenne/excelcli@latest") {
+                    throw "Unexpected npx arguments: $($Arguments -join ' ')"
+                }
+
+                & (Get-Command "cscript.exe").Source @($Arguments[2..($Arguments.Count - 1)])
+                exit $LASTEXITCODE
                 """,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
@@ -2182,9 +2192,13 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                     [string]$WrapperPath,
 
                     [Parameter(Mandatory = $true)]
-                    [string]$EchoScriptPath
+                    [string]$EchoScriptPath,
+
+                    [Parameter(Mandatory = $true)]
+                    [string]$NpxDirectory
                 )
 
+                $env:PATH = "$NpxDirectory;$env:PATH"
                 $captured = (& $WrapperPath //nologo $EchoScriptPath | Out-String).Trim()
                 Write-Output "captured=$captured"
                 """,
@@ -2194,7 +2208,8 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                 harnessPath,
                 [
                     "-WrapperPath", Path.Combine(pluginBinDirectory, "start-cli.ps1"),
-                    "-EchoScriptPath", echoScriptPath
+                    "-EchoScriptPath", echoScriptPath,
+                    "-NpxDirectory", sandbox
                 ]);
 
             Assert.Equal(0, result.ExitCode);
@@ -2301,11 +2316,13 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
 
         var server = root.GetProperty("mcpServers").GetProperty("excel-mcp");
         Assert.Equal("stdio", server.GetProperty("type").GetString());
-        Assert.Equal("powershell", server.GetProperty("command").GetString());
+        Assert.Equal("npx", server.GetProperty("command").GetString());
         Assert.DoesNotContain(' ', server.GetProperty("command").GetString()!);
 
         var args = server.GetProperty("args").EnumerateArray().Select(arg => arg.GetString()).ToArray();
-        Assert.Contains("${PLUGIN_ROOT}/bin/start-mcp.ps1", args);
+        Assert.Equal(2, args.Length);
+        Assert.Equal("-y", args[0]);
+        Assert.Equal("@sbroenne/mcp-server-excel@latest", args[1]);
         Assert.DoesNotContain(args, arg => arg?.Contains("{pluginDir}", StringComparison.Ordinal) == true);
     }
 

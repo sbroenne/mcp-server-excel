@@ -7,9 +7,8 @@
     source-owned root overlay content, writes the canonical marketplace manifest to
     .github/plugin/marketplace.json, and removes the legacy root marketplace.json.
 
-    The published repo is wrapper/bootstrap-only. Self-contained Windows runtimes
-    remain in the main repo GitHub Releases and are acquired by plugin-local
-    bootstrap logic on first invocation.
+    The published repo contains npx launch configuration, skills, and fallback
+    download wrappers. Self-contained Windows runtimes remain outside the plugin.
 #>
 param(
     [Parameter(Mandatory = $true)]

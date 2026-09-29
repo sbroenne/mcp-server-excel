@@ -2,7 +2,7 @@
 
 **Command-line Excel automation for coding agents — 64% more token-efficient than MCP Server**
 
-This plugin provides the `excel-cli` skill plus a lightweight runtime bootstrap for GitHub Copilot CLI agents. The skill guides agents to use `excelcli` commands for Power Query, DAX, PivotTables, Tables, Charts, VBA, and more — all through Windows Excel COM automation.
+This plugin provides the `excel-cli` skill plus an npx-first launcher for GitHub Copilot CLI agents. The skill guides agents to use `excelcli` commands for Power Query, DAX, PivotTables, Tables, Charts, VBA, and more — all through Windows Excel COM automation.
 
 **Best for:** Coding agents (GitHub Copilot, Cursor, Windsurf) that need Excel automation without loading large tool schemas into context.
 
@@ -11,6 +11,7 @@ This plugin provides the `excel-cli` skill plus a lightweight runtime bootstrap 
 ## Prerequisites
 
 - **Windows** with Microsoft Excel 2016 or later (COM interop required)
+- **Node.js 18 or later** with `npx`
 
 ---
 
@@ -34,18 +35,18 @@ pwsh -ExecutionPolicy Bypass -File `
 
 This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that directory to your user PATH if needed.
 
-### Step 3: First Use Bootstraps `excelcli`
+### Step 3: Run `excelcli` through npm
 
-The plugin ships **wrapper/download logic** instead of a bundled executable. On first real invocation it:
+The plugin does not bundle `excelcli.exe`. Its wrapper runs:
 
-1. Uses the host-managed persistent plugin data directory (`PLUGIN_DATA\runtime`) for its cache
-2. Queries the newest GitHub Release from `sbroenne/mcp-server-excel`
-3. Downloads the self-contained Windows CLI asset if needed
-4. Reuses that runtime for the rest of the chat session without repeated freshness checks
+```powershell
+npx -y @sbroenne/excelcli@latest --help
+```
 
-The optional global shim runs outside an Agent Plugins host and uses
-`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` as its standalone cache.
-Standalone shim use checks for updates at most once every 24 hours.
+If Node.js is unavailable, the wrapper falls back to the retained GitHub Release
+downloader. That fallback uses `PLUGIN_DATA\runtime` inside an Agent Plugins host
+or `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` for the optional global
+shim.
 
 You do **not** need a separate standalone install just to use the plugin.
 

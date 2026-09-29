@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "excel-mcp",
   "version": "0.0.0",
-  "description": "Windows-only Excel automation plugin that bootstraps the latest ExcelMcp MCP runtime on first use.",
+  "description": "Windows-only Excel automation plugin that runs the latest ExcelMcp MCP server through npx.",
   "author": {
     "name": "Stefan Brönner",
     "email": "3026464+sbroenne@users.noreply.github.com",

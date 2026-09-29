@@ -75,6 +75,7 @@ Write-Host "✅ ExcelMcp MCP server installed globally!" -ForegroundColor Green
 Write-Host "   Config:   $UserMcpConfig" -ForegroundColor Gray
 Write-Host "   Wrapper:  $WrapperPath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "The first real MCP invocation will auto-download the newest Windows runtime." -ForegroundColor Cyan
+Write-Host "MCP invocations use the latest npm package through npx when Node.js is available." -ForegroundColor Cyan
+Write-Host "The plugin release downloader remains available as a fallback." -ForegroundColor Cyan
 Write-Host "Verify installation:" -ForegroundColor Cyan
 Write-Host "   copilot mcp list" -ForegroundColor Gray

@@ -4,21 +4,21 @@
 
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
-       Render bootstrap scripts only in the output tree; source templates stay read-only.
+       Render fallback download scripts only in the output tree; source templates stay read-only.
     2. Strip any runtime payloads from plugin bin/ roots
     3. Update runtime-bootstrap metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
     RUNTIME BOOTSTRAP MODEL:
-    - Published plugins ship wrapper/download logic and metadata only
-    - Self-contained Windows runtimes are downloaded from the latest GitHub release on first use
+    - Published plugins use the public npm packages through npx by default
+    - Wrapper/download logic remains as a fallback when npx is unavailable
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
     OUTPUT:
     plugins/
-      excel-mcp/     → MCP plugin (wrapper/bootstrap assets + updated version + fresh skills)
-      excel-cli/     → CLI plugin (wrapper/bootstrap assets + updated version + fresh skills)
+      excel-mcp/     → MCP plugin (npx config + fallback assets + updated version + fresh skills)
+      excel-cli/     → CLI plugin (npx-first wrapper + fallback assets + updated version + fresh skills)
 
 .PARAMETER Version
     Plugin version. Required for distributable builds.
@@ -405,8 +405,8 @@ Write-Host "Version: $Version"
 Write-Host "Output:  $OutputDir"
 Write-Host ""
 Write-Host "Plugins:" -ForegroundColor Cyan
-Write-Host '  [ok] excel-mcp - bootstrap assets and skill' -ForegroundColor Green
-Write-Host '  [ok] excel-cli - bootstrap assets and skill' -ForegroundColor Green
+Write-Host '  [ok] excel-mcp - npx config, fallback assets, and skill' -ForegroundColor Green
+Write-Host '  [ok] excel-cli - npx-first wrapper, fallback assets, and skill' -ForegroundColor Green
 Write-Host ""
 Write-Host "Test locally:" -ForegroundColor Yellow
 Write-Host "  copilot plugin install $OutputDir\excel-mcp"

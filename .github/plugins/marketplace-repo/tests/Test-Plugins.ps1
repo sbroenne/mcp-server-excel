@@ -55,12 +55,13 @@ if ($mcpConfig.'$schema' -ne "https://agent-plugins.org/schemas/1.0.0/mcp.schema
 }
 
 $server = $mcpConfig.mcpServers.'excel-mcp'
-if ($server.type -ne "stdio" -or $server.command -match '\s') {
+if ($server.type -ne "stdio" -or $server.command -ne "npx") {
     throw "excel-mcp must use a stdio server with a single executable command token."
 }
 
-if ($server.args -notcontains '${PLUGIN_ROOT}/bin/start-mcp.ps1') {
-    throw "excel-mcp does not resolve its wrapper through PLUGIN_ROOT."
+if (@($server.args).Count -ne 2 -or $server.args[0] -ne "-y" -or
+    $server.args[1] -ne "@sbroenne/mcp-server-excel@latest") {
+    throw "excel-mcp must launch the latest published npm package through npx."
 }
 
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
@@ -114,6 +115,7 @@ $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
 $originalSessionId = $env:COPILOT_AGENT_SESSION_ID
 $originalPluginData = $env:PLUGIN_DATA
+$originalPath = $env:PATH
 
 try {
     Remove-Item Env:PLUGIN_DATA -ErrorAction SilentlyContinue
@@ -128,6 +130,18 @@ try {
     [IO.File]::WriteAllText(
         $echoScript,
         'WScript.StdOut.Write("pipeline-ok");',
+        [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText(
+        (Join-Path $tempProfile "npx.ps1"),
+        @'
+[CmdletBinding()]
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+if ($Arguments[0] -ne "-y" -or $Arguments[1] -ne "@sbroenne/excelcli@latest") {
+    throw "Unexpected npx arguments: $($Arguments -join ' ')"
+}
+& (Get-Command "cscript.exe").Source @($Arguments[2..($Arguments.Count - 1)])
+exit $LASTEXITCODE
+'@,
         [Text.UTF8Encoding]::new($false))
 
     $productVersion = ((Get-Item $fakeBinary).VersionInfo.ProductVersion -split '\+', 2)[0].Trim()
@@ -150,6 +164,7 @@ try {
     $env:USERPROFILE = $tempProfile
     $env:HOME = $tempProfile
     $env:COPILOT_AGENT_SESSION_ID = "plugin-test"
+    $env:PATH = "$tempProfile;$originalPath"
 
     $wrapper = Join-Path $repoRoot "plugins\excel-cli\bin\start-cli.ps1"
     $captured = (& $wrapper //nologo $echoScript | Out-String).Trim()
@@ -194,6 +209,7 @@ try {
     $env:HOME = $originalHome
     $env:COPILOT_AGENT_SESSION_ID = $originalSessionId
     $env:PLUGIN_DATA = $originalPluginData
+    $env:PATH = $originalPath
 
     if (Test-Path $tempProfile) {
         Remove-Item $tempProfile -Recurse -Force

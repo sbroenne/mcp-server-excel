@@ -7,10 +7,17 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+$npx = Get-Command "npx" -CommandType Application, ExternalScript -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if ($null -ne $npx) {
+    & $npx.Source -y "@sbroenne/excelcli@latest" @PassthroughArgs
+    exit $LASTEXITCODE
+}
+
 # Windows PowerShell rebuilds a command line when it invokes a native executable, and its
 # built-in quoting drops embedded double quotes. That silently corrupts JSON arguments such as
-# --values '[["Name","Amount"]]', which is the most common excelcli invocation. Build the command
-# line ourselves using the standard MSVCRT quoting rules and hand it to the process verbatim.
+# --values '[["Name","Amount"]]' when the fallback executable is used. Build the command line
+# using the standard MSVCRT quoting rules and hand it to the process verbatim.
 function ConvertTo-NativeArgument {
     param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value)
 
@@ -55,7 +62,7 @@ $downloadScript = Join-Path $PSScriptRoot "download.ps1"
 $binaryPath = & $downloadScript -PassThru -Quiet
 
 if ([string]::IsNullOrWhiteSpace($binaryPath) -or -not (Test-Path $binaryPath)) {
-    throw "excel-cli bootstrap did not resolve a usable excelcli.exe runtime."
+    throw "excel-cli could not run through npx or resolve a fallback excelcli.exe runtime."
 }
 
 if ($null -eq $PassthroughArgs) {
