@@ -11,6 +11,17 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.13] - 2026-09-29
+
+### Patch Changes
+
+- [#930](https://github.com/sbroenne/mcp-server-excel/pull/930) [`0710d45`](https://github.com/sbroenne/mcp-server-excel/commit/0710d457e9036f3aab72ce4afbfb2dee09960528) Thanks [@sbroenne](https://github.com/sbroenne)! - **Clearer VBA failure reporting**: Unsupported workbook formats, missing or
+  duplicate modules, and blocked VBA project access now retain distinct failure
+  categories. Macro execution remains independent of VBA project trust, and
+  Excel execution failures are no longer confused with prerequisites.
+
+- [#931](https://github.com/sbroenne/mcp-server-excel/pull/931) [`0c31783`](https://github.com/sbroenne/mcp-server-excel/commit/0c31783e17a303e6869f700222f2a47ce0ec2fdd) Thanks [@sbroenne](https://github.com/sbroenne)! - Package generation now preserves the original installation error when recovery also fails, reports retained recovery backups, and treats post-install backup cleanup failures as warnings. The Excel MCP calculation guidance now uses the real named MCP arguments.
+
 ## [2.0.12] - 2026-09-29
 
 ### Major Changes
