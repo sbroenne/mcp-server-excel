@@ -359,7 +359,7 @@ jobs:
 
   publish-mcp-registry:
     name: MCP Registry
-    needs: [version, create-tag, publish]
+    needs: [version, create-tag, create-release, publish]
     permissions:
       contents: read
       id-token: write

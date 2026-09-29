@@ -101,7 +101,7 @@ public sealed class ReleaseMetadataScriptTests
         var publishMcpRegistry = ExtractWorkflowJob(release, "publish-mcp-registry");
 
         Assert.Contains("uses: ./.github/workflows/publish-mcp-registry.yml", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.Contains("needs: [version, create-tag, publish]", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("needs: [version, create-tag, create-release, publish]", publishMcpRegistry, StringComparison.Ordinal);
         Assert.Contains("workflow_dispatch:", registry, StringComparison.Ordinal);
         Assert.Contains("git rev-parse \"refs/tags/$TAG^{commit}\"", registry, StringComparison.Ordinal);
         Assert.Contains("ref: ${{ github.sha }}", registry, StringComparison.Ordinal);
