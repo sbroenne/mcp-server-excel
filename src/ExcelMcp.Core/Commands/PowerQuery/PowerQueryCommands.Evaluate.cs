@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -86,18 +87,13 @@ public partial class PowerQueryCommands
                 // This path uses the same synchronous worksheet refresh mechanism as PowerQuery refresh/load.
                 // Do NOT use EnterLongOperation here: rejecting inbound COM callbacks can deadlock the
                 // MashupHost → Excel → STA callback chain that completes the synchronous refresh.
-                OleMessageFilter.SetPendingCancellationToken(ct);
                 try
                 {
-                    queryTable.Refresh(false); // false = synchronous
+                    QueryTableRefreshHelper.RefreshSynchronously(queryTable, ct, "Power Query evaluation");
                 }
                 catch (COMException ex) when (TryWrapPowerQueryException(ex, out var queryError))
                 {
                     throw queryError!;
-                }
-                finally
-                {
-                    OleMessageFilter.ClearPendingCancellationToken();
                 }
 
                 ct.ThrowIfCancellationRequested();

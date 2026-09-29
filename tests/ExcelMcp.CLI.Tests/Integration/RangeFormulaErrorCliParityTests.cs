@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -20,16 +19,10 @@ public sealed class RangeFormulaErrorCliParityTests : IDisposable
     [Fact]
     public async Task RangeReads_ReturnCanonicalFormulaErrorThroughCli()
     {
-        ExcelSession.CreateNew(
-            _testFile,
-            isMacroEnabled: false,
-            (ctx, ct) => 0,
-            CancellationToken.None);
-
-        var open = await CliProcessHelper.RunAsync(["session", "open", _testFile]);
-        Assert.Equal(0, open.ExitCode);
-        using var openDocument = JsonDocument.Parse(open.Stdout);
-        string? sessionId = openDocument.RootElement.GetProperty("sessionId").GetString();
+        var create = await CliProcessHelper.RunAsync(["session", "create", _testFile]);
+        Assert.Equal(0, create.ExitCode);
+        using var createDocument = JsonDocument.Parse(create.Stdout);
+        string? sessionId = createDocument.RootElement.GetProperty("sessionId").GetString();
         Assert.False(string.IsNullOrWhiteSpace(sessionId));
 
         try

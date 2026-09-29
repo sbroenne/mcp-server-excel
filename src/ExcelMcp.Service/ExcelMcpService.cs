@@ -825,49 +825,49 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (TimeoutException ex)
         {
-            // Operation timed out — Excel COM call is hung (IDispatch.Invoke stuck).
-            // Force-close the session to trigger the force-kill path in ExcelBatch.Dispose(),
-            // which will kill the hung Excel process and release the STA thread.
-            try
+            if (batch!.HasTimedOutOperation)
             {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
+                CleanupDeadSession(sessionId);
+                return Task.FromResult(new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "Timeout",
+                    ErrorMessage = $"Excel operation timed out after execution started and the session has been closed: {ex.Message} " +
+                                   "Please reopen the file with a new session.",
+                    ExceptionType = ex.GetType().Name
+                });
             }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Timeout",
-                ErrorMessage = $"Excel operation timed out and the session has been closed: {ex.Message} " +
-                               "Please reopen the file with a new session.",
+                ErrorMessage = ex.Message,
                 ExceptionType = ex.GetType().Name
             });
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Caller cancelled (e.g., VS Code cancelled the tool call) while a COM operation
-            // may still be running on the STA thread. ExcelBatch.Execute sets _operationTimedOut
-            // on cancellation, but nobody calls Dispose() — the session stays alive with a
-            // stuck STA thread, and all subsequent requests queue up and hang.
-            // Force-close the session to kill the hung Excel process and release the STA thread.
-            try
+            if (batch!.HasTimedOutOperation)
             {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
+                CleanupDeadSession(sessionId);
+                return Task.FromResult(new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "Cancelled",
+                    ErrorMessage = "Operation was cancelled after execution started and the session has been closed. " +
+                                   "The Excel COM thread may have been unresponsive. " +
+                                   "Please reopen the file with a new session.",
+                    ExceptionType = ex.GetType().Name
+                });
             }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "Cancelled",
-                ErrorMessage = $"Operation was cancelled and the session has been closed. " +
-                               "The Excel COM thread may have been unresponsive. " +
-                               "Please reopen the file with a new session.",
-                ExceptionType = nameof(OperationCanceledException)
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
             });
         }
         catch (COMException ex) when (
@@ -887,21 +887,6 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = $"0x{ex.HResult:X8}"
             });
         }
-        catch (InvalidOperationException ex) when (
-            ex.Message.Contains("no longer running", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("process", StringComparison.OrdinalIgnoreCase))
-        {
-            // Excel process detected as dead before COM call (ExcelBatch pre-check)
-            CleanupDeadSession(sessionId);
-            return Task.FromResult(new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = "ExcelProcessDied",
-                ErrorMessage = $"Excel process for session '{sessionId}' is no longer running. " +
-                               "Session has been cleaned up. Please reopen the file with a new session.",
-                ExceptionType = ex.GetType().Name
-            });
-        }
         catch (Exception ex)
         {
             if (IsFatalExcelDisconnect(ex))
@@ -915,6 +900,8 @@ public sealed class ExcelMcpService : IDisposable
             if (batch != null && !batch.IsExcelProcessAlive())
             {
                 CleanupDeadSession(sessionId);
+                return Task.FromResult(CreateExcelDisconnectedResponse(sessionId, ex,
+                    $"Excel process for session '{sessionId}' is no longer running. Session has been cleaned up. Please reopen the file with a new session."));
             }
 
             return Task.FromResult(CreateErrorResponse(ex));
@@ -963,15 +950,6 @@ public sealed class ExcelMcpService : IDisposable
                 return IsFatalComHResult(comEx.HResult) ? comEx.HResult : comEx.ErrorCode;
             }
 
-            if (current.Message.Contains("disconnected", StringComparison.OrdinalIgnoreCase))
-            {
-                return ResiliencePipelines.RPC_E_DISCONNECTED;
-            }
-
-            if (current.Message.Contains("RPC server is unavailable", StringComparison.OrdinalIgnoreCase))
-            {
-                return ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE;
-            }
         }
 
         return null;

@@ -5,7 +5,6 @@ using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Xunit;
 using Xunit.Abstractions;
@@ -649,13 +648,39 @@ in
         var sourceFile = Path.Join(_tempDir, "CopySource.xlsx");
         var targetFile = Path.Join(_tempDir, "CopyTarget.xlsx");
 
-        // Step 1: Create source file with a sheet (use CreateNew for new files)
+        // Step 1: Create source file with a sheet through the product entry point.
         _output.WriteLine("  1. Creating source file...");
-        ExcelSession.CreateNew(sourceFile, false, (ctx, ct) => true);
+        var createSource = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["path"] = sourceFile
+        });
+        AssertSuccess(createSource, "create source workbook");
+        var sourceSessionId = GetJsonProperty(createSource, "session_id");
+        Assert.NotNull(sourceSessionId);
+        AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "close",
+            ["session_id"] = sourceSessionId,
+            ["save"] = false
+        }), "close source workbook");
 
         // Step 2: Create target file (empty, will receive the copied sheet)
         _output.WriteLine("  2. Creating target file...");
-        ExcelSession.CreateNew(targetFile, false, (ctx, ct) => true);
+        var createTarget = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["path"] = targetFile
+        });
+        AssertSuccess(createTarget, "create target workbook");
+        var targetSessionId = GetJsonProperty(createTarget, "session_id");
+        Assert.NotNull(targetSessionId);
+        AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "close",
+            ["session_id"] = targetSessionId,
+            ["save"] = false
+        }), "close target workbook");
 
         // Step 3: Call worksheet copy-to-file WITHOUT session_id (ATOMIC OPERATION)
         // This is the CRITICAL TEST: the tool should accept this call without a session_id parameter

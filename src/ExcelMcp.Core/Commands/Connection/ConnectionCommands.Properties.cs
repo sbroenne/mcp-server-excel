@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
@@ -21,20 +22,28 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
+            Excel.WorkbookConnection? conn = null;
+            try
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
+
+                if (conn == null)
+                {
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                }
+
+                result.BackgroundQuery = GetBackgroundQuerySetting(conn);
+                result.RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn);
+                result.SavePassword = GetSavePasswordSetting(conn);
+                result.RefreshPeriod = GetRefreshPeriod(conn);
+
+                result.Success = true;
+                return result;
             }
-
-            result.BackgroundQuery = GetBackgroundQuerySetting(conn);
-            result.RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn);
-            result.SavePassword = GetSavePasswordSetting(conn);
-            result.RefreshPeriod = GetRefreshPeriod(conn);
-
-            result.Success = true;
-            return result;
+            finally
+            {
+                ComUtilities.Release(ref conn);
+            }
         });
     }
 
@@ -46,47 +55,50 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            Excel.WorkbookConnection? conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
-
-            if (conn == null)
-            {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
-            }
-
-            // Check if this is a Power Query connection
-            if (PowerQueryHelpers.IsPowerQueryConnection(conn))
-            {
-                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.");
-            }
-
-            // Build connection definition with specified properties
-            var definition = new ConnectionDefinition
-            {
-                ConnectionString = connectionString,
-                CommandText = commandText,
-                Description = description,
-                BackgroundQuery = backgroundQuery,
-                RefreshOnFileOpen = refreshOnFileOpen,
-                SavePassword = savePassword,
-                RefreshPeriod = refreshPeriod
-            };
-
-            // Use UpdateConnectionProperties to apply all changes
+            Excel.WorkbookConnection? conn = null;
             try
             {
-                UpdateConnectionProperties(conn, definition);
+                conn = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
+
+                if (conn == null)
+                {
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
+                }
+
+                if (PowerQueryHelpers.IsPowerQueryConnection(conn))
+                {
+                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.");
+                }
+
+                var definition = new ConnectionDefinition
+                {
+                    ConnectionString = connectionString,
+                    CommandText = commandText,
+                    Description = description,
+                    BackgroundQuery = backgroundQuery,
+                    RefreshOnFileOpen = refreshOnFileOpen,
+                    SavePassword = savePassword,
+                    RefreshPeriod = refreshPeriod
+                };
+
+                try
+                {
+                    UpdateConnectionProperties(conn, definition);
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("0x800A03EC") && !string.IsNullOrWhiteSpace(connectionString))
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot update connection string for connection '{connectionName}'. " +
+                        "Excel blocks connection string changes for ODC-imported connections (security restriction). " +
+                        "To change the data source, delete this connection and import a new ODC file, or create a new connection with connection create action.",
+                        ex);
+                }
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("0x800A03EC") && !string.IsNullOrWhiteSpace(connectionString))
+            finally
             {
-                // Excel blocks connection string updates for ODC-imported connections (security feature)
-                throw new InvalidOperationException(
-                    $"Cannot update connection string for connection '{connectionName}'. " +
-                    "Excel blocks connection string changes for ODC-imported connections (security restriction). " +
-                    "To change the data source, delete this connection and import a new ODC file, or create a new connection with connection create action.",
-                    ex);
+                ComUtilities.Release(ref conn);
             }
-            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 }
-

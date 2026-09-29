@@ -120,70 +120,70 @@ public partial class ChartCommands
     /// </summary>
     private static ChartFindResult FindChart(dynamic workbook, string chartName)
     {
-        dynamic worksheets = workbook.Worksheets;
-        int wsCount = Convert.ToInt32(worksheets.Count);
-
-        for (int i = 1; i <= wsCount; i++)
+        dynamic? worksheets = null;
+        try
         {
-            dynamic? worksheet = null;
-            dynamic? shapes = null;
+            worksheets = workbook.Worksheets;
+            int wsCount = Convert.ToInt32(worksheets.Count);
 
-            try
+            for (int i = 1; i <= wsCount; i++)
             {
-                worksheet = worksheets.Item(i);
-                string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
-                shapes = worksheet.Shapes;
-                int shapeCount = Convert.ToInt32(shapes.Count);
+                dynamic? worksheet = null;
+                dynamic? shapes = null;
 
-                for (int j = 1; j <= shapeCount; j++)
+                try
                 {
-                    dynamic? shape = null;
-                    dynamic? chart = null;
+                    worksheet = worksheets.Item(i);
+                    string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
+                    shapes = worksheet.Shapes;
+                    int shapeCount = Convert.ToInt32(shapes.Count);
 
-                    try
+                    for (int j = 1; j <= shapeCount; j++)
                     {
-                        shape = shapes.Item(j);
+                        dynamic? shape = null;
+                        dynamic? chart = null;
 
-                        // Check if this is a chart (msoChart = 3)
-                        if (Convert.ToInt32(shape.Type) != 3)
+                        try
                         {
-                            ComUtilities.Release(ref shape!);
-                            continue;
-                        }
+                            shape = shapes.Item(j);
 
-                        string shapeName = shape.Name?.ToString() ?? string.Empty;
-                        if (!shapeName.Equals(chartName, StringComparison.OrdinalIgnoreCase))
+                            if (Convert.ToInt32(shape.Type) != 3)
+                            {
+                                continue;
+                            }
+
+                            string shapeName = shape.Name?.ToString() ?? string.Empty;
+                            if (!shapeName.Equals(chartName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            chart = shape.Chart;
+                            var result = new ChartFindResult { Chart = chart, Shape = shape, SheetName = sheetName };
+                            chart = null;
+                            shape = null;
+                            return result;
+                        }
+                        finally
                         {
-                            ComUtilities.Release(ref shape!);
-                            continue;
+                            ComUtilities.Release(ref chart);
+                            ComUtilities.Release(ref shape);
                         }
-
-                        // Found it!
-                        chart = shape.Chart;
-                        ComUtilities.Release(ref shapes!);
-                        ComUtilities.Release(ref worksheet!);
-                        ComUtilities.Release(ref worksheets!);
-
-                        return new ChartFindResult { Chart = chart, Shape = shape, SheetName = sheetName }; // Caller must release both
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        ComUtilities.Release(ref chart!);
-                        ComUtilities.Release(ref shape!);
-                        throw;
                     }
                 }
+                finally
+                {
+                    ComUtilities.Release(ref shapes);
+                    ComUtilities.Release(ref worksheet);
+                }
             }
-            finally
-            {
-                ComUtilities.Release(ref shapes!);
-                ComUtilities.Release(ref worksheet!);
-            }
-        }
 
-        ComUtilities.Release(ref worksheets!);
-        return new ChartFindResult { Chart = null, Shape = null, SheetName = string.Empty };
+            return new ChartFindResult { Chart = null, Shape = null, SheetName = string.Empty };
+        }
+        finally
+        {
+            ComUtilities.Release(ref worksheets);
+        }
     }
 }
-
 

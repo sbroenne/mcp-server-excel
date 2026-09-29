@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -24,28 +25,15 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 tableRange = pivot.TableRange2;
 
-                // Get the data range
-                object[,] values = tableRange.Value2;
-
-                // Convert to List<List<object?>>
-                var dataList = new List<List<object?>>();
-                for (int row = 1; row <= values.GetLength(0); row++)
-                {
-                    var rowList = new List<object?>();
-                    for (int col = 1; col <= values.GetLength(1); col++)
-                    {
-                        rowList.Add(values[row, col]);
-                    }
-                    dataList.Add(rowList);
-                }
+                var values = ExcelValueNormalizer.Normalize(tableRange.Value2);
 
                 return new PivotTableDataResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
-                    Values = dataList,
-                    DataRowCount = values.GetLength(0),
-                    DataColumnCount = values.GetLength(1),
+                    Values = values.Values,
+                    DataRowCount = values.RowCount,
+                    DataColumnCount = values.ColumnCount,
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -73,6 +61,5 @@ public partial class PivotTableCommands
         => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath));
 }
-
 
 

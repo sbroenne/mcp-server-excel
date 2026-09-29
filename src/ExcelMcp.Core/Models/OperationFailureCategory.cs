@@ -16,5 +16,7 @@ public enum OperationFailureCategory
     /// <summary>The workbook lacks a required feature or data.</summary>
     Prerequisite,
     /// <summary>A required external component is unavailable.</summary>
-    DependencyUnavailable
+    DependencyUnavailable,
+    /// <summary>The operation was cancelled by Excel or an external provider.</summary>
+    Cancelled
 }

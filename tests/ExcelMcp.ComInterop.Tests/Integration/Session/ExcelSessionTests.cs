@@ -6,11 +6,10 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 
 /// <summary>
 /// Integration tests for ExcelSession - verifies public API and COM cleanup.
-/// Tests BeginBatch() and CreateNew() functionality.
+/// Tests BeginBatch() functionality.
 ///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test ExcelSession.BeginBatch() validation and batch creation
-/// - ✅ Test ExcelSession.CreateNew() file creation
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
 /// NOTE: ExcelSession methods use ExcelShutdownService for resilient cleanup.
@@ -105,94 +104,6 @@ public class ExcelSessionTests : IDisposable
         }
     }
 
-    [Fact]
-    public void CreateNew_CreatesNewWorkbook()
-    {
-        // Arrange
-        string testFile = Path.Join(Path.GetTempPath(), $"new-workbook-{Guid.NewGuid():N}.xlsx");
-
-        try
-        {
-            // Act
-            var result = ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
-            {
-                _output.WriteLine($"✓ Workbook created at: {ctx.WorkbookPath}");
-                return 0;
-            });
-
-            // Assert
-            Assert.True(File.Exists(testFile), "File should be created");
-            Assert.Equal(0, result);
-
-            // Verify we can open it with batch API
-            using (var batch = ExcelSession.BeginBatch(testFile))
-            {
-                batch.Execute((ctx, ct) =>
-                {
-                    Assert.NotNull(ctx.Book);
-                    _output.WriteLine("✓ Can open created workbook with batch API");
-                    return 0;
-                });
-            }
-        }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
-    }
-
-    [Fact]
-    public void CreateNew_WithMacroEnabled_CreatesXlsmFile()
-    {
-        // Arrange
-        string testFile = Path.Join(Path.GetTempPath(), $"new-macro-workbook-{Guid.NewGuid():N}.xlsm");
-
-        try
-        {
-            // Act
-            var result = ExcelSession.CreateNew(testFile, isMacroEnabled: true, (ctx, ct) =>
-            {
-                _output.WriteLine($"✓ Macro-enabled workbook created at: {ctx.WorkbookPath}");
-                return 0;
-            });
-
-            // Assert
-            Assert.True(File.Exists(testFile), "XLSM file should be created");
-            Assert.Equal(".xlsm", Path.GetExtension(testFile).ToLowerInvariant());
-            _output.WriteLine("✓ Correctly created .xlsm file");
-        }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
-    }
-
-    [Fact]
-    public void CreateNew_CreatesDirectoryIfNeeded()
-    {
-        // Arrange
-        string testDir = Path.Join(Path.GetTempPath(), $"testdir-{Guid.NewGuid():N}");
-        string testFile = Path.Join(testDir, "newfile.xlsx");
-
-        try
-        {
-            // Act
-            ExcelSession.CreateNew(testFile, isMacroEnabled: false, (ctx, ct) =>
-            {
-                return 0;
-            });
-
-            // Assert
-            Assert.True(Directory.Exists(testDir), "Directory should be created");
-            Assert.True(File.Exists(testFile), "File should be created in new directory");
-            _output.WriteLine("✓ Correctly created directory and file");
-        }
-        finally
-        {
-            if (Directory.Exists(testDir)) Directory.Delete(testDir, recursive: true);
-        }
-    }
-
     // Helper method
 
     /// <summary>
@@ -211,5 +122,4 @@ public class ExcelSessionTests : IDisposable
         File.Copy(TemplateFilePath, filePath);
     }
 }
-
 

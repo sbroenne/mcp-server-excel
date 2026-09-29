@@ -20,6 +20,9 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - `Success == true` requires an empty or null `ErrorMessage`.
+- MCP Server and `excelcli` are the only supported product entry points. Do not
+  preserve or add public Core/ComInterop compatibility APIs for hypothetical
+  external consumers when neither entry point uses them.
 - Keep customer/workbook data, credentials, connection strings, and private
   paths out of public artifacts. Keep temporary notes outside the repository.
 
@@ -53,8 +56,10 @@ Otherwise omit it. PRs record the root cause, affected contracts, and validation
 
 ## Git and release
 
-- Never commit directly or force-push to `main`, or bypass hooks. Report hook
-  blockers.
+- Never commit directly or force-push to `main`.
+- Never skip, disable, suppress, or bypass a Git hook for any reason, including
+  transient failures or previously passing validation. Fix the failure or
+  report the blocker, then rerun the normal hooked command.
 - Rewriting a feature branch's remote history requires explicit user
   authorization. Use `--force-with-lease` with the expected remote commit;
   never use plain `--force`. If the lease fails, stop and inspect the remote
@@ -62,6 +67,9 @@ Otherwise omit it. PRs record the root cause, affected contracts, and validation
 - Coding-agent assignments requesting repository changes authorize delivery
   commits and a PR. Otherwise ask before commit/push. Merging and publishing
   require separate authorization.
+- Before finalizing a PR, resolve every review thread after addressing it, or
+  dismiss it with a clear recorded reason when no change is appropriate. Never
+  leave review comments unanswered or unresolved.
 - User-visible changes require a changeset; internal/docs/tests/CI changes use
   the `skip-changelog` PR label. Versions and `CHANGELOG.md` are release-generated.
 - Plugin publication changes must follow

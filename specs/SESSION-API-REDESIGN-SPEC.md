@@ -60,27 +60,6 @@ var task4 = GetSession(session1).Execute(...);  // Queued after task3
 - Windows desktop machines have finite resources
 - **Recommendation:** Limit to 3-5 concurrent sessions for typical desktops
 
-### File Creation Must Be Sequential
-
-**File creation is automatically serialized by the implementation:**
-
-```csharp
-// ✅ This is now SAFE - internal lock serializes calls automatically
-var tasks = Enumerable.Range(1, 10).Select(i =>
-    ExcelSession.CreateNew($"file{i}.xlsx", false, ...));
-await Task.WhenAll(tasks);  // Executes sequentially despite Task.WhenAll!
-
-// ✅ This is also safe and more explicit
-for (int i = 1; i <= 10; i++)
-{
-    await ExcelSession.CreateNew($"file{i}.xlsx", false, ...);
-}
-```
-
-**How it works:** `ExcelSession` uses a static `SemaphoreSlim(1, 1)` to serialize all `CreateNew()` and `CreateNewAsync()` calls. Even if called in parallel, they queue and execute one at a time.
-
-**Why enforced:** Each `CreateNew()` temporarily creates an Excel instance, saves the file, then closes it. Without serialization, parallel creation would spawn many Excel processes simultaneously, causing memory exhaustion.
-
 ### SessionManager Prevents Same-File Conflicts
 
 ```csharp
@@ -446,31 +425,6 @@ await Task.WhenAll(
 ```
 
 **Why No Benefit:** Each session has one STA thread processing operations one at a time. `Task.WhenAll` doesn't change this - they still execute serially on the Excel COM thread.
-
-#### File Creation (Automatically Serialized)
-
-```csharp
-// ✅ This pattern works correctly - internal lock serializes calls
-var tasks = Enumerable.Range(1, 10).Select(i =>
-    ExcelSession.CreateNew($"report{i}.xlsx", false,
-        (ctx, ct) => {
-            ctx.Book.Worksheets[1].Name = $"Report {i}";
-            return 0;
-        }));
-await Task.WhenAll(tasks);  // Executes sequentially despite Task.WhenAll!
-
-// ✅ This explicit sequential pattern also works
-for (int i = 1; i <= 10; i++)
-{
-    await ExcelSession.CreateNew($"report{i}.xlsx", false, ...);
-}
-
-// Result: Files created one at a time - peak memory = 1 temporary Excel instance
-```
-
-**How it works:** `ExcelSession` uses a static `SemaphoreSlim(1, 1)` to serialize all `CreateNew()` and `CreateNewAsync()` calls. Even if called via `Task.WhenAll`, they queue and execute one at a time.
-
-**Why enforced:** Each `CreateNew()` temporarily spawns an Excel process. Without serialization, parallel calls would create N Excel processes simultaneously, causing memory exhaustion. The lock prevents this automatically.
 
 ### Code Simplification
 
