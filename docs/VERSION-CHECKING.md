@@ -116,8 +116,6 @@ When a new version is available:
    - `ExcelMcp-CLI-{version}-windows.zip` → `excelcli.exe`
    - `ExcelMcp-MCP-Server-{version}-macos-arm64.zip` → `mcp-excel`
    - `ExcelMcp-CLI-{version}-macos-arm64.zip` → `excelcli`
-   - `ExcelMcp-MCP-Server-{version}-macos-x64.zip` → `mcp-excel`
-   - `ExcelMcp-CLI-{version}-macos-x64.zip` → `excelcli`
 3. Replace the existing exe(s) in your installation directory
 4. Restart your MCP client
 

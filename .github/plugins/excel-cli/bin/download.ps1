@@ -18,19 +18,14 @@ $IsWindowsRuntime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
 $IsMacArm64Runtime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [Runtime.InteropServices.OSPlatform]::OSX) -and
     $HostArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64
-$IsMacX64Runtime = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
-    [Runtime.InteropServices.OSPlatform]::OSX) -and
-    $HostArchitecture -eq [Runtime.InteropServices.Architecture]::X64
-if (-not $IsWindowsRuntime -and -not $IsMacArm64Runtime -and -not $IsMacX64Runtime) {
-    throw "excel-cli supports Windows x64 and macOS x64/Arm64 only."
+if (-not $IsWindowsRuntime -and -not $IsMacArm64Runtime) {
+    throw "excel-cli supports Windows x64 and Apple Silicon macOS only."
 }
 $ExecutableName = if ($IsWindowsRuntime) { "excelcli.exe" } else { "excelcli" }
 $AssetPlatform = if ($IsWindowsRuntime) {
     "windows"
-} elseif ($IsMacArm64Runtime) {
-    "macos-arm64"
 } else {
-    "macos-x64"
+    "macos-arm64"
 }
 $RepoOwner = "sbroenne"
 $RepoName = "mcp-server-excel"

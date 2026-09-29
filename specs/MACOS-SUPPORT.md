@@ -1,6 +1,6 @@
 # macOS support
 
-**Status:** ExcelMcp ships capability-gated Apple Silicon and Intel macOS
+**Status:** ExcelMcp ships a capability-gated Apple Silicon macOS
 artifacts. Windows retains the complete COM backend. macOS combines a native
 Apple Events backend with optional Office.js and ScreenCaptureKit tiers.
 Unsupported or unproven actions fail with `PlatformNotSupported`; they never

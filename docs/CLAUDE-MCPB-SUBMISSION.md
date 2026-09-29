@@ -9,7 +9,7 @@ Submit Excel MCP Server to Anthropic’s Claude Directory as an MCPB bundle for 
 - Privacy page published
 
 ## Required Assets
-- MCPB bundles: Windows x64 and macOS x64/Arm64 GitHub Actions artifacts
+- MCPB bundles: Windows x64 and Apple Silicon macOS GitHub Actions artifacts
 - MCPB manifest: mcpb/manifest.json
 - Icon: mcpb/icon-512.png
 - Privacy page: https://excelmcpserver.dev/privacy/
@@ -29,14 +29,13 @@ Nearly all tools set Destructive = true, since Excel automation modifies live wo
 ## Submission Form Checklist
 Fill the Claude Directory submission form with:
 - Server name: Excel MCP Server
-- MCPB files: downloaded Windows x64 and macOS x64/Arm64 artifacts
+- MCPB files: downloaded Windows x64 and Apple Silicon macOS artifacts
 - Website: https://excelmcpserver.dev/
 - Privacy policy: https://excelmcpserver.dev/privacy/
 - Support or repo link: https://github.com/sbroenne/mcp-server-excel
 - Icon: mcpb/icon-512.png
-- Platform notes: Windows x64 uses the complete COM backend; macOS x64/Arm64
-  uses the documented capability-gated Apple Events backend. Intel packages
-  are cross-built and hardware-unverified
+- Platform notes: Windows x64 uses the complete COM backend; Apple Silicon macOS
+  uses the documented capability-gated Apple Events backend.
 
 ## Post-Submission
 - Record submission timestamp and form confirmation URL in the GitHub issue

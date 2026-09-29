@@ -4,8 +4,8 @@
 
 This plugin provides the `excel-mcp` skill and launches the published
 `@sbroenne/mcp-server-excel` npm package. Use natural language to automate Excel
-through the complete Windows COM backend or the capability-gated macOS
-x64/Arm64 backend.
+through the complete Windows COM backend or the capability-gated Apple Silicon
+macOS backend.
 
 **Best for:** Conversational AI workflows (GitHub Copilot Chat, Claude Desktop, Cursor) where rich tool schemas and persistent connections matter more than token efficiency.
 
@@ -13,8 +13,8 @@ x64/Arm64 backend.
 
 ## Prerequisites
 
-- **Windows x64** with Microsoft Excel 2016 or later, or **macOS x64/Arm64**
-  with Excel for Mac 16.112 or later (Intel hardware execution is unverified)
+- **Windows x64** with Microsoft Excel 2016 or later, or **Apple Silicon macOS**
+  with Excel for Mac 16.112 or later
 - **Node.js 18 or later** with optional dependencies enabled
 - **GitHub Copilot extension** or other MCP-compatible client
 
@@ -44,10 +44,8 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 The Agent Plugins 1.0 `mcp.json` runs
 `npx -y @sbroenne/mcp-server-excel`. npm installs exactly one optional runtime
 package for the current host: Windows uses
-`@sbroenne/mcp-server-excel-win32-x64`; macOS uses
-`@sbroenne/mcp-server-excel-darwin-arm64` or
-`@sbroenne/mcp-server-excel-darwin-x64`. Unsupported platforms fail closed;
-physical Intel Mac Excel execution remains unverified.
+`@sbroenne/mcp-server-excel-win32-x64`; Apple Silicon macOS uses
+`@sbroenne/mcp-server-excel-darwin-arm64`. Unsupported platforms fail closed.
 
 ---
 

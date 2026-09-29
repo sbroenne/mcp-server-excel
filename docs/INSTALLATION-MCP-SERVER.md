@@ -36,10 +36,8 @@ Use this order to avoid setup confusion:
 
 ### VS Code Extension (Easiest - One-Click Setup)
 
-The VS Code extension and MCPB bundle are available for Windows x64 and macOS
-x64/Arm64. Choose the platform-specific artifact when installing manually.
-Intel packages are cross-built and structurally validated; physical Intel Mac
-Excel execution remains unverified.
+The VS Code extension and MCPB bundle are available for Windows x64 and Apple
+Silicon macOS. Choose the platform-specific artifact when installing manually.
 
 1. **Install the Extension**
    - Open VS Code
@@ -64,7 +62,6 @@ Excel execution remains unverified.
 1. Download `excel-mcp-{version}-windows.mcpb` or
    `excel-mcp-{version}-macos-arm64.mcpb` from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-   (`excel-mcp-{version}-macos-x64.mcpb` on Intel Mac)
 2. Double-click the `.mcpb` file (or drag-and-drop onto Claude Desktop)
 3. Restart Claude Desktop
 
@@ -103,11 +100,10 @@ Run the self-contained server directly through npm:
 npx -y @sbroenne/mcp-server-excel --version
 ```
 
-The npm launcher installs `@sbroenne/mcp-server-excel-win32-x64` on Windows,
-`@sbroenne/mcp-server-excel-darwin-arm64` on Apple Silicon, or
-`@sbroenne/mcp-server-excel-darwin-x64` on Intel macOS, so it does not
+The npm launcher installs `@sbroenne/mcp-server-excel-win32-x64` on Windows or
+`@sbroenne/mcp-server-excel-darwin-arm64` on Apple Silicon, so it does not
 require .NET or a separate GitHub Release download. npm caches packages after
-the first run. Intel macOS never falls back to the ARM64 runtime.
+the first run.
 
 #### Option B: Standalone Executable
 
@@ -115,7 +111,6 @@ the first run. Intel macOS never falls back to the ARM64 runtime.
 2. Download the archive for your platform:
    - Windows: **`ExcelMcp-MCP-Server-{version}-windows.zip`**
    - Apple Silicon macOS: **`ExcelMcp-MCP-Server-{version}-macos-arm64.zip`**
-   - Intel macOS: **`ExcelMcp-MCP-Server-{version}-macos-x64.zip`**
 3. Extract it to a permanent location.
 
 ```powershell
@@ -359,7 +354,6 @@ the version after the package name.
 2. Download the new ZIP for your platform:
    - Windows: `ExcelMcp-MCP-Server-{version}-windows.zip`
    - Apple Silicon macOS: `ExcelMcp-MCP-Server-{version}-macos-arm64.zip`
-   - Intel macOS: `ExcelMcp-MCP-Server-{version}-macos-x64.zip`
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell

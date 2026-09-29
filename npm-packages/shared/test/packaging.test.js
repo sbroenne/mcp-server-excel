@@ -9,14 +9,31 @@ import test from 'node:test';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const version = '9.8.7-test.1';
 
+for (const packageName of ['excelcli', 'mcp-server-excel']) {
+  test(`${packageName} Apple Silicon runtime declares repository license metadata`, () => {
+    const runtimeName = `${packageName}-darwin-arm64`;
+    const manifest = JSON.parse(
+      readFileSync(join(repoRoot, 'npm-packages', runtimeName, 'package.json'), 'utf8')
+    );
+    const lock = JSON.parse(
+      readFileSync(join(repoRoot, 'npm-packages', packageName, 'package-lock.json'), 'utf8')
+    );
+
+    assert.equal(manifest.license, 'MIT');
+    assert.equal(manifest.repository.type, 'git');
+    assert.equal(manifest.repository.url, 'https://github.com/sbroenne/mcp-server-excel');
+    assert.equal(manifest.repository.directory, `npm-packages/${runtimeName}`);
+    assert.equal(lock.packages[`../${runtimeName}`].license, 'MIT');
+  });
+}
+
 for (const [component, packageName, commandName] of [
   ['McpServer', 'mcp-server-excel', 'mcp-excel'],
   ['Cli', 'excelcli', 'excelcli']
 ]) {
   for (const [runtimeIdentifier, runtimeSuffix, executableName, expectedOs, expectedCpu] of [
     ['win-x64', 'win32-x64', `${commandName}.exe`, ['win32'], ['x64', 'arm64']],
-    ['osx-arm64', 'darwin-arm64', commandName, ['darwin'], ['arm64']],
-    ['osx-x64', 'darwin-x64', commandName, ['darwin'], ['x64']]
+    ['osx-arm64', 'darwin-arm64', commandName, ['darwin'], ['arm64']]
   ]) {
   test(`${component} ${runtimeIdentifier} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
@@ -71,8 +88,7 @@ for (const [component, packageName, commandName] of [
         } else {
           assert.deepEqual(manifest.optionalDependencies, {
             [`@sbroenne/${packageName}-win32-x64`]: version,
-            [`@sbroenne/${packageName}-darwin-arm64`]: version,
-            [`@sbroenne/${packageName}-darwin-x64`]: version
+            [`@sbroenne/${packageName}-darwin-arm64`]: version
           });
           assert.equal(manifest.bin[commandName], `bin/${commandName}.js`);
           assert.match(readFileSync(join(root, manifest.bin[commandName]), 'utf8'), new RegExp(`packageName: '@sbroenne/${packageName}'`));

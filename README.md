@@ -22,7 +22,7 @@ Claude, ChatGPT, and other agents control Excel through natural-language
 requests—using either MCP or a token-efficient CLI.
 
 Unlike file-parser tools, ExcelMcp drives the **actual Excel application**.
-Windows uses the complete COM backend. macOS x64/Arm64 uses a capability-gated
+Windows uses the complete COM backend. Apple Silicon macOS uses a capability-gated
 Apple Events backend for session lifecycle, worksheet
 list/rename/delete, core range values/formulas/clears, and calculation.
 
@@ -33,8 +33,7 @@ list/rename/delete, core range values/formulas/clears, and calculation.
 > **Intel or Apple Silicon Mac with Excel for Mac 16.112+**. Windows provides all 326
 > operations; macOS supports the documented initial subset and returns
 > `PlatformNotSupported` for other actions. Linux and headless servers are not
-> supported. Intel artifacts are cross-built and structurally validated;
-> physical Intel Mac Excel execution remains unverified. See
+> supported. Intel Macs are not supported. See
 > [macOS support](specs/MACOS-SUPPORT.md).
 
 ## 🚀 Get Started

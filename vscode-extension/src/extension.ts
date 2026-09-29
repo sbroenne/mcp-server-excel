@@ -64,16 +64,9 @@ export function resolveBundledRuntime(
 		};
 	}
 
-	if (platform === 'darwin' && architecture === 'x64') {
-		return {
-			directory: 'darwin-x64',
-			executable: 'Sbroenne.ExcelMcp.McpServer'
-		};
-	}
-
 	throw new Error(
 		`Excel MCP Server does not include a runtime for ${platform}-${architecture}. ` +
-		'Supported platforms are Windows x64 and macOS x64/Arm64.'
+		'Supported platforms are Windows x64 and Apple Silicon macOS.'
 	);
 }
 

@@ -15,11 +15,9 @@ export function createLauncher({ packageName, commandName }) {
       runtimePackageName = `${packageName}-win32-x64`;
     } else if (platform === 'darwin' && arch === 'arm64') {
       runtimePackageName = `${packageName}-darwin-arm64`;
-    } else if (platform === 'darwin' && arch === 'x64') {
-      runtimePackageName = `${packageName}-darwin-x64`;
     } else {
       throw new Error(
-        `ExcelMcp supports Windows x64/Arm64 and macOS x64/Arm64; this Node.js process is ${platform}-${arch}.`
+        `ExcelMcp supports Windows x64/Arm64 and Apple Silicon macOS; this Node.js process is ${platform}-${arch}.`
       );
     }
 

@@ -19,7 +19,7 @@ mcpb/
 ## Prerequisites
 
 - .NET 10 SDK
-- Windows x64 or macOS x64/Arm64 to run matching executable verification
+- Windows x64 or Apple Silicon macOS to run matching executable verification
 
 The script can cross-compile either target, but it skips executable launch
 verification when the build host cannot run that target.

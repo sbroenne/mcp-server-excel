@@ -1,11 +1,11 @@
 # macOS distribution readiness
 
-ExcelMcp publishes self-contained CLI and MCP Server artifacts for `osx-arm64`
-and `osx-x64`. The same targets are used by GitHub Release ZIPs,
+ExcelMcp publishes self-contained CLI and MCP Server artifacts for `osx-arm64`.
+The same target is used by GitHub Release ZIPs,
 platform-targeted VSIX packages, Copilot plugin bootstrap downloads, and Claude
 Desktop MCPB bundles.
-The npm launchers select architecture-matched `darwin-arm64` or `darwin-x64`
-runtime packages; canonical Copilot plugins invoke those launchers through
+The npm launchers select the `darwin-arm64` runtime package; canonical Copilot
+plugins invoke those launchers through
 `npx`. Agent Skills contain guidance only and remain architecture-neutral.
 No launcher may silently fall back to a runtime for the wrong architecture.
 
@@ -14,12 +14,10 @@ No launcher may silently fall back to a runtime for the wrong architecture.
 | Target | Build | Package inspection | Clean-install launch | Excel E2E release gate |
 | --- | --- | --- | --- | --- |
 | macOS arm64 | Native | Mach-O architecture, executable mode, code signature, archive contents | Verified on Apple Silicon | Prompt-free CLI and MCP workflows run on the serialized Mac/Excel runner |
-| macOS x64 | Cross-published | Mach-O architecture, executable mode, code signature, archive contents | Not executed on Apple Silicon unless Rosetta is already available | Physical Intel Mac Excel evidence required |
 | Windows x64 | Cross-published or native | PE header and archive contents | Not executed on macOS | Covered separately on Windows with Excel |
 
-Intel artifacts are prepared for publication but remain explicitly
-hardware-unverified. Launchers, plugins, and extension runtime selection must
-select `darwin-x64` exactly and never select the Apple Silicon runtime.
+Intel Macs are unsupported. Launchers, plugins, and extension runtime selection
+must fail closed instead of selecting the Apple Silicon runtime on x64 macOS.
 
 ## Signing and notarization
 
@@ -67,6 +65,3 @@ On Apple Silicon macOS, build packages and inspect them with:
 
 The launch switch is intentionally restricted to the host's native Apple
 Silicon architecture. Windows artifacts receive structure-only inspection.
-Intel artifacts receive architecture/signature/package inspection on Apple
-Silicon. A Rosetta `--version` launch, when already available, is supplemental
-evidence and not a substitute for physical Intel Mac Excel validation.

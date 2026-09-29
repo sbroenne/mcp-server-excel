@@ -8,7 +8,7 @@ or a manual stdio configuration.
 - Windows 10 or later
 - Microsoft Excel 2016 or later (desktop version)
 
-The published Windows x64 and macOS x64/Arm64 packages are self-contained;
+The published Windows x64 and Apple Silicon macOS packages are self-contained;
 no .NET runtime is required.
 
 ## Recommended: MCPB Bundle

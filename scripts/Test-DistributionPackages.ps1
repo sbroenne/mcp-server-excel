@@ -8,7 +8,7 @@ param(
     [string]$ExecutableRelativePath,
 
     [Parameter(Mandatory)]
-    [ValidateSet("windows-x64", "macos-arm64", "macos-x64")]
+    [ValidateSet("windows-x64", "macos-arm64")]
     [string]$ExpectedArchitecture,
 
     [string[]]$ForbiddenExecutableRelativePath = @(),
@@ -79,7 +79,7 @@ try {
     }
     else {
         & /bin/chmod +x $executable
-        $architecture = if ($ExpectedArchitecture -eq "macos-arm64") { "arm64" } else { "x86_64" }
+        $architecture = "arm64"
         $reported = (& /usr/bin/lipo -archs $executable 2>&1).Trim()
         if ($LASTEXITCODE -ne 0 -or $reported -notmatch "(^|\s)$([regex]::Escape($architecture))(\s|$)") {
             throw "'$normalizedEntry' does not contain expected Mach-O architecture '$architecture' (reported: '$reported')."
@@ -110,7 +110,7 @@ try {
         }
 
         $hostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
-        $expectedHost = if ($ExpectedArchitecture -eq "macos-arm64") { "arm64" } else { "x64" }
+        $expectedHost = "arm64"
         if ($hostArchitecture -ne $expectedHost) {
             throw "Cannot launch $ExpectedArchitecture on $hostArchitecture without changing the verification claim."
         }

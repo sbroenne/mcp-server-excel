@@ -13,7 +13,7 @@ without Excel being installed. `openpyxl`, `ExcelJS`, `SheetJS`, `EPPlus`, and
 
 **Native Excel automation** launches the real Microsoft Excel application.
 ExcelMcp uses Excel's COM API on Windows and a capability-gated Apple Events
-backend on macOS x64/Arm64. Intel packages are cross-built and hardware-unverified.
+backend on Apple Silicon macOS. Intel Macs are not supported.
 
 ## What each can do
 
@@ -31,7 +31,7 @@ backend on macOS x64/Arm64. Intel packages are cross-built and hardware-unverifi
 | Run Python `=PY()` formulas | No | Yes |
 | Preserve unknown/complex workbook parts | Varies — some are dropped on rewrite | Yes, Excel owns the file |
 | Interactive authentication for protected sources | No | Yes |
-| Runs on Linux / macOS / containers | Yes | macOS x64/Arm64 subset; no Linux or containers |
+| Runs on Linux / macOS / containers | Yes | Apple Silicon macOS subset; no Linux or containers |
 | Runs without Excel installed | Yes | No |
 | Speed for bulk cell writes | Very fast | Slower (process boundary) |
 
@@ -89,9 +89,7 @@ ExcelMcp requires an interactive desktop: **Windows with Excel 2016+**, or an
 **Intel or Apple Silicon Mac with Excel 16.112+**. Windows provides the complete
 operation set. macOS currently supports session lifecycle, worksheet
 list/rename/delete, range values/formulas/clears, and calculation. If you need
-Linux, containers, or Excel-free processing, use a file parser. Intel artifacts
-are cross-built and structurally validated; physical Intel Mac Excel execution
-remains unverified.
+Linux, containers, Intel Macs, or Excel-free processing, use a file parser.
 
 ## Related
 

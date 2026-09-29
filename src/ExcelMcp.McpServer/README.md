@@ -21,7 +21,7 @@ Unlike file-parser libraries, ExcelMcp drives the **actual Excel application**. 
 
 **CLI also available:** `mcp-excel` (MCP Server) and `excelcli` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
 
-**Requirements:** Windows 10+ with Excel 2016+, or macOS x64/Arm64 with Excel for Mac 16.112+
+**Requirements:** Windows 10+ with Excel 2016+, or Apple Silicon macOS with Excel for Mac 16.112+
 
 ## 🚀 Installation
 
@@ -49,7 +49,6 @@ Configure MCP clients with `command: "npx"` and
 # Download from GitHub Releases:
 # Windows: ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
 # macOS ARM64: ExcelMcp-MCP-Server-{version}-macos-arm64.zip → extract mcp-excel
-# macOS x64: ExcelMcp-MCP-Server-{version}-macos-x64.zip → extract mcp-excel
 ```
 
 **Secondary — .NET Global Tool (requires .NET 10 runtime):**
@@ -114,7 +113,6 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
-**Platform:** Windows x64 (complete backend) and macOS x64/Arm64
-(capability-gated initial backend). Intel packages are cross-built and
-structurally validated; physical Intel Mac Excel execution remains unverified.
+**Platform:** Windows x64 (complete backend) and Apple Silicon macOS
+(capability-gated initial backend).
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

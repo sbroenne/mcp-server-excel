@@ -7,7 +7,7 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$Version,
 
-    [ValidateSet('win-x64', 'osx-arm64', 'osx-x64')]
+    [ValidateSet('win-x64', 'osx-arm64')]
     [string]$RuntimeIdentifier = 'win-x64',
 
     [Parameter(Mandatory)]
@@ -27,7 +27,6 @@ $packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel
 $commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
 $runtimePackageSuffix = switch ($RuntimeIdentifier) {
     'osx-arm64' { 'darwin-arm64' }
-    'osx-x64' { 'darwin-x64' }
     default { 'win32-x64' }
 }
 $runtimeFileName = if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal)) { $commandName } else { "$commandName.exe" }

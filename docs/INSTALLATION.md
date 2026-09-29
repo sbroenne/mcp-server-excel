@@ -8,14 +8,13 @@ ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistan
 | 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
 
 Both entry points support **Windows with Microsoft Excel 2016+** and
-**macOS x64/Arm64 with Excel for Mac 16.112+**. Windows provides the complete
+**Apple Silicon macOS with Excel for Mac 16.112+**. Windows provides the complete
 operation set; macOS provides the [documented capability-gated subset](../specs/MACOS-SUPPORT.md).
 The standalone distributions do not require a .NET runtime.
 
-Windows, Apple Silicon macOS, and Intel macOS use separate native archives; one
-executable file cannot be shared across PE/Windows and Mach-O/macOS. Intel
-packages are cross-built and structurally validated, but physical Intel Mac
-Excel execution remains unverified. See
+Windows and Apple Silicon macOS use separate native archives; one executable
+file cannot be shared across PE/Windows and Mach-O/macOS. Intel Macs are not
+supported. See
 [macOS distribution readiness](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-DISTRIBUTION.md)
 for package inspection, signing, and notarization details.
 

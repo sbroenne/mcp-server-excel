@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('osx-arm64', 'osx-x64')]
+    [ValidateSet('osx-arm64')]
     [string]$RuntimeIdentifier,
     [string]$OutputRoot = (Join-Path $PSScriptRoot '../artifacts/native')
 )
@@ -13,7 +13,7 @@ if (-not $IsMacOS) {
     throw 'The ScreenCaptureKit helper can only be built on macOS.'
 }
 
-$architecture = if ($RuntimeIdentifier -eq 'osx-arm64') { 'arm64' } else { 'x86_64' }
+$architecture = 'arm64'
 $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root 'src/ExcelMcp.MacScreenCapture/main.swift'
 $outputDirectory = Join-Path $OutputRoot "$RuntimeIdentifier/helpers"

@@ -12,8 +12,8 @@ PivotTables, Tables, Charts, VBA, and more through the matching platform backend
 
 ## Prerequisites
 
-- **Windows x64** with Microsoft Excel 2016 or later, or **macOS x64/Arm64**
-  with Excel for Mac 16.112 or later (Intel hardware execution is unverified)
+- **Windows x64** with Microsoft Excel 2016 or later, or **Apple Silicon macOS**
+  with Excel for Mac 16.112 or later
 - **Node.js 18 or later** with optional dependencies enabled
 
 ---
@@ -35,10 +35,8 @@ npx -y @sbroenne/excelcli --help
 
 For a persistent command on PATH, use
 `npm install --global @sbroenne/excelcli`. Windows installs
-`@sbroenne/excelcli-win32-x64`; macOS installs
-`@sbroenne/excelcli-darwin-arm64` or `@sbroenne/excelcli-darwin-x64`.
-Unsupported platforms fail closed; physical Intel Mac Excel execution remains
-unverified.
+`@sbroenne/excelcli-win32-x64`; Apple Silicon macOS installs
+`@sbroenne/excelcli-darwin-arm64`. Unsupported platforms fail closed.
 
 ### Step 3: Optional Standalone CLI Install
 

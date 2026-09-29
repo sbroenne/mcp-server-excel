@@ -1,6 +1,6 @@
 # ExcelMcp Copilot CLI Plugins
 
-GitHub Copilot CLI plugins for ExcelMcp on Windows x64 and macOS x64/Arm64.
+GitHub Copilot CLI plugins for ExcelMcp on Windows x64 and Apple Silicon macOS.
 
 This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel).
 
@@ -44,13 +44,13 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 
 Both plugins publish skills and compatibility bootstrap assets. `excel-mcp`
 launches `npx -y @sbroenne/mcp-server-excel`, which installs the matching
-self-contained Windows x64, Darwin ARM64, or Darwin x64 runtime package. Install
+self-contained Windows x64 or Darwin ARM64 runtime package. Install
 `@sbroenne/excelcli` globally when the `excel-cli` skill needs `excelcli` on
 `PATH`. Other unsupported operating systems and architectures fail closed.
 
 ## Notes
 
-- **Windows x64 or macOS x64/Arm64** — Microsoft Excel is required; the
+- **Windows x64 or Apple Silicon macOS** — Microsoft Excel is required; the
   supported operation surface depends on the host backend.
 - **excel-mcp** includes portable root `mcp.json` configuration plus plugin-local bootstrap helpers for the ExcelMcp MCP runtime.
 - **excel-cli** includes plugin-local bootstrap helpers for the Excel CLI runtime; separate PATH installation is optional, not required for plugin use.

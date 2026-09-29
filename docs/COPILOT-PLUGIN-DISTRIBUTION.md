@@ -46,15 +46,15 @@ plugins/excel-cli/
 └── skills/             # Behavioral guidance (excel-cli skill)
 ```
 
-Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields; any future Copilot-only files must live under `com.github.copilot/`. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows x64 or macOS x64/Arm64 compatibility.
+Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields; any future Copilot-only files must live under `com.github.copilot/`. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows x64 or Apple Silicon macOS compatibility.
 
 Each generated plugin receives an exact copy of its canonical skill directory, including every referenced file. This prevents stale published references and preserves skill-specific files such as `references/calculation.md`.
 
 Both plugins publish manifests, skills, and compatibility helpers — no runtime
 binaries are bundled in the plugin package. The MCP plugin config runs
 `npx -y @sbroenne/mcp-server-excel`; CLI guidance uses
-`npx -y @sbroenne/excelcli`. npm selects the Windows x64, Darwin ARM64, or
-Darwin x64 optional runtime package. Other unsupported operating systems and
+`npx -y @sbroenne/excelcli`. npm selects the Windows x64 or Darwin ARM64
+optional runtime package. Other unsupported operating systems and
 architectures fail closed. The publish workflow validates the npx
 configuration and rejects committed runtime payloads before syncing to the
 marketplace repo.
