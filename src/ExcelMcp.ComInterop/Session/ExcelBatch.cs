@@ -35,6 +35,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private readonly bool _openReadOnly; // Whether existing workbooks are opened read-only
     private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
     private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
+    private readonly TimeSpan _startupTimeout;
     private readonly TimeSpan _operationTimeout; // Timeout for individual operations
     private readonly ILogger<ExcelBatch> _logger;
     private readonly Channel<Func<Task>> _workQueue;
@@ -79,12 +80,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
     /// <param name="operationTimeout">Timeout for startup and individual operations. Default: 120 seconds.</param>
     /// <param name="openReadOnly">Whether existing workbooks are opened read-only.</param>
+    /// <param name="startupTimeout">Internal startup override used by timeout regression tests.</param>
     public ExcelBatch(
         string[] workbookPaths,
         ILogger<ExcelBatch>? logger = null,
         bool show = false,
         TimeSpan? operationTimeout = null,
-        bool openReadOnly = false)
+        bool openReadOnly = false,
+        TimeSpan? startupTimeout = null)
         : this(
             workbookPaths,
             logger,
@@ -92,7 +95,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             openReadOnly,
             createNewFile: false,
             isMacroEnabled: false,
-            operationTimeout: operationTimeout)
+            operationTimeout: operationTimeout,
+            startupTimeout: startupTimeout)
     {
     }
 
@@ -128,7 +132,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         bool openReadOnly,
         bool createNewFile,
         bool isMacroEnabled,
-        TimeSpan? operationTimeout = null)
+        TimeSpan? operationTimeout = null,
+        TimeSpan? startupTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -140,6 +145,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         _createNewFile = createNewFile;
         _isMacroEnabled = isMacroEnabled;
         _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
+        _startupTimeout = startupTimeout ?? _operationTimeout;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
@@ -581,7 +587,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             bool completedInTime;
             try
             {
-                completedInTime = started.Task.Wait(_operationTimeout);
+                completedInTime = started.Task.Wait(_startupTimeout);
             }
             catch (AggregateException)
             {
@@ -649,7 +655,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             : string.Empty;
 
         return
-            $"Excel startup timed out after {_operationTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
+            $"Excel startup timed out after {_startupTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
             "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
             $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
