@@ -15,14 +15,7 @@ public partial class VbaCommands
     {
         var result = new VbaListResult { FilePath = batch.WorkbookPath };
 
-        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
-        if (!isValid)
-        {
-            // For LLM-friendly behavior: .xlsx files don't support VBA, return empty list instead of error
-            result.Success = true;
-            result.Scripts = [];
-            return result;
-        }
+        EnsureVbaFile(batch.WorkbookPath);
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
@@ -119,11 +112,7 @@ public partial class VbaCommands
     {
         var result = new VbaViewResult { FilePath = batch.WorkbookPath, ModuleName = moduleName };
 
-        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
-        if (!isValid)
-        {
-            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
-        }
+        EnsureVbaFile(batch.WorkbookPath);
 
         if (string.IsNullOrWhiteSpace(moduleName))
         {
@@ -229,11 +218,7 @@ public partial class VbaCommands
     /// <inheritdoc />
     public OperationResult Import(IExcelBatch batch, string moduleName, string vbaCode)
     {
-        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
-        if (!isValid)
-        {
-            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
-        }
+        EnsureVbaFile(batch.WorkbookPath);
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
@@ -304,11 +289,7 @@ public partial class VbaCommands
     /// <inheritdoc />
     public OperationResult Update(IExcelBatch batch, string moduleName, string vbaCode)
     {
-        var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
-        if (!isValid)
-        {
-            throw new OperationFailureException(OperationFailureCategory.InvalidInput, validationError);
-        }
+        EnsureVbaFile(batch.WorkbookPath);
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
@@ -388,5 +369,4 @@ public partial class VbaCommands
         });
     }
 }
-
 

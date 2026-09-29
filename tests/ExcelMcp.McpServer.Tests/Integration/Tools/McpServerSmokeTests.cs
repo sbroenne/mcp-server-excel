@@ -537,8 +537,17 @@ in
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
-        AssertSuccess(listVbaResult, "List VBA modules");
-        _output.WriteLine("  ✓ vba: List passed");
+        using (var listVbaJson = JsonDocument.Parse(listVbaResult))
+        {
+            Assert.False(listVbaJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(
+                "InvalidInput",
+                listVbaJson.RootElement.GetProperty("errorCategory").GetString());
+            Assert.Contains(
+                "macro-enabled",
+                listVbaJson.RootElement.GetProperty("error").GetString());
+        }
+        _output.WriteLine("  ✓ vba: List rejected the unsupported .xlsx format");
 
         // =====================================================================
         // STEP 14: CLOSE SESSION (save changes)
