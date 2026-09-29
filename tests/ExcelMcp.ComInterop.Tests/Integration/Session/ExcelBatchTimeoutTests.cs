@@ -198,6 +198,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     {
         using var releaseFirst = new ManualResetEventSlim();
         using var firstStarted = new ManualResetEventSlim();
+        using var secondQueued = new ManualResetEventSlim();
         using var callerLifetime = new CancellationTokenSource();
         var batch = ExcelSession.BeginBatch(
             show: false,
@@ -212,26 +213,36 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         }, callerLifetime.Token));
         Assert.True(firstStarted.Wait(TimeSpan.FromSeconds(5)));
 
-        var queuedCallbackRan = false;
-        var queued = Task.Run(() => batch.Execute((_, _) =>
+        try
         {
-            queuedCallbackRan = true;
-            return 2;
-        }));
-        await Task.Delay(100);
+            ExcelBatch.WorkItemQueuedHookForTests = secondQueued.Set;
+            var queuedCallbackRan = false;
+            var queued = Task.Run(() => batch.Execute((_, _) =>
+            {
+                queuedCallbackRan = true;
+                return 2;
+            }));
+            Assert.True(secondQueued.Wait(TimeSpan.FromSeconds(5)));
 
-        var release = Task.Run(async () =>
+            var release = Task.Run(async () =>
+            {
+                await Task.Delay(100);
+                releaseFirst.Set();
+            });
+
+            batch.Dispose();
+            Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(5)));
+            await release.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await queued.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.False(queuedCallbackRan);
+        }
+        finally
         {
-            await Task.Delay(100);
+            ExcelBatch.WorkItemQueuedHookForTests = null;
             releaseFirst.Set();
-        });
-
-        batch.Dispose();
-        Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(5)));
-        await release.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.ThrowsAsync<ObjectDisposedException>(
-            async () => await queued.WaitAsync(TimeSpan.FromSeconds(5)));
-        Assert.False(queuedCallbackRan);
+            batch.Dispose();
+        }
     }
 
     /// <summary>

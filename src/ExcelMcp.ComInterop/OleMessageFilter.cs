@@ -127,23 +127,18 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
             return;
         }
 
-        nint currentFilterPtr = 0;
-        try
-        {
-            var registration = RegisterMessageFilter(_oldFilterPtr);
-            currentFilterPtr = registration.PreviousFilter;
-            if (registration.Result != 0)
-            {
-                throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{registration.Result:X8}");
-            }
-        }
-        finally
+        var registration = RegisterMessageFilter(_oldFilterPtr);
+        nint currentFilterPtr = registration.PreviousFilter;
+        if (registration.Result != 0)
         {
             ReleaseOwnedPointer(ref currentFilterPtr);
-            ReleaseOwnedPointer(ref _currentFilterPtr);
-            ReleaseOwnedPointer(ref _oldFilterPtr);
-            _isRegistered = false;
+            throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{registration.Result:X8}");
         }
+
+        ReleaseOwnedPointer(ref currentFilterPtr);
+        ReleaseOwnedPointer(ref _currentFilterPtr);
+        ReleaseOwnedPointer(ref _oldFilterPtr);
+        _isRegistered = false;
     }
 
     internal static void ResetNativeHooksForTests()

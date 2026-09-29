@@ -91,6 +91,52 @@ public class OleMessageFilterTests
     }
 
     [Fact]
+    public void Revoke_WhenNativeRestorationFails_PreservesStateForRetry()
+    {
+        var released = new List<nint>();
+        Exception? threadException = null;
+        var registrations = new Queue<(int Result, nint Previous)>(
+        [
+            (0, (nint)62),
+            (unchecked((int)0x80004005), (nint)63),
+            (0, (nint)64)
+        ]);
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                OleMessageFilter.CreateInterfacePointerForTests = _ => (nint)61;
+                OleMessageFilter.RegisterMessageFilterForTests = _ => registrations.Dequeue();
+                OleMessageFilter.ReleasePointerForTests = pointer => released.Add(pointer);
+
+                OleMessageFilter.Register();
+                Assert.Throws<InvalidOperationException>(OleMessageFilter.Revoke);
+                Assert.True(OleMessageFilter.IsRegistered);
+                Assert.Equal([(nint)63], released);
+
+                OleMessageFilter.Revoke();
+                Assert.False(OleMessageFilter.IsRegistered);
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+            finally
+            {
+                OleMessageFilter.ResetNativeHooksForTests();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        Assert.Null(threadException);
+        Assert.Equal([(nint)63, (nint)64, (nint)61, (nint)62], released);
+    }
+
+    [Fact]
     public void Register_OnStaThread_DoesNotThrow()
     {
         // Arrange & Act & Assert

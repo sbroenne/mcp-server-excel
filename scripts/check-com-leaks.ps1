@@ -11,7 +11,7 @@ $rootDir = Split-Path -Parent $PSScriptRoot
 $rules = @(
     @{
         Name = "chained COM property access"
-        Pattern = '\.(Rows|Columns|ListColumns|ListRows|Range|TableRange1|TableRange2|ChartArea|Parent|Application|Cells)\s*(?:\[[^\r\n]*\])?\s*\.(Count|Address|AutoFilter|Item|Range|Rows|Columns|Parent|Application|SeriesCollection|Formula|Name)\b'
+        Pattern = '\.(Rows|Columns|ListColumns|ListRows|Range|TableRange1|TableRange2|ChartArea|Parent|Application|Cells)\s*(?:\[[^\r\n]*\])?\s*\.(Count|Address|AutoFilter|Item|Range|Row|Rows|Column|Columns|Parent|Application|SeriesCollection|Formula|Name)\b'
         Guidance = "Capture each COM object in a local variable and release it in finally."
     },
     @{

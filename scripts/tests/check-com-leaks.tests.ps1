@@ -30,6 +30,8 @@ finally
     $unsafeFixture = Join-Path $fixtureDir "Unsafe.cs"
     @'
 int count = range.Rows.Count;
+int row = table.Range.Row;
+int column = table.Range.Column;
 namesCollection.Add("Example", "=Sheet1!A1");
 '@ | Set-Content -LiteralPath $unsafeFixture
 

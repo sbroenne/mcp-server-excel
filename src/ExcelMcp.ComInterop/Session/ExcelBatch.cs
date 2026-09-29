@@ -64,6 +64,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
+    internal static Action? WorkItemQueuedHookForTests { get; set; }
+
     // COM state (STA thread only)
     private Excel.Application? _excel;
     private Excel.Workbook? _workbook; // Primary workbook
@@ -892,6 +894,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             throw new ObjectDisposedException(nameof(ExcelBatch),
                 $"Session for '{Path.GetFileName(_workbookPath)}' was disposed while submitting an operation.");
         }
+        WorkItemQueuedHookForTests?.Invoke();
 
         // Wait for operation to complete with timeout.
         // When the caller provides a cancellation token (e.g., PowerQuery refresh with its own timeout),

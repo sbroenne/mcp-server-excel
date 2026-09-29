@@ -67,6 +67,9 @@ Otherwise omit it. PRs record the root cause, affected contracts, and validation
 - Coding-agent assignments requesting repository changes authorize delivery
   commits and a PR. Otherwise ask before commit/push. Merging and publishing
   require separate authorization.
+- Before finalizing a PR, resolve every review thread after addressing it, or
+  dismiss it with a clear recorded reason when no change is appropriate. Never
+  leave review comments unanswered or unresolved.
 - User-visible changes require a changeset; internal/docs/tests/CI changes use
   the `skip-changelog` PR label. Versions and `CHANGELOG.md` are release-generated.
 - Plugin publication changes must follow
