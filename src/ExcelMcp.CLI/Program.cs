@@ -13,6 +13,9 @@ internal sealed class Program
 {
     private static readonly string[] VersionFlags = ["--version", "-v"];
     private static readonly string[] QuietFlags = ["--quiet", "-q"];
+    private static readonly HashSet<string> StdinSentinelOptions = new(
+        ["--input", "-i", "--values", "--formulas", "--formats", "--rows"],
+        StringComparer.OrdinalIgnoreCase);
 
     private static async Task<int> Main(string[] args)
     {
@@ -178,16 +181,14 @@ internal sealed class Program
         }
     }
 
-    private static string[] NormalizeStandaloneDashOptionValues(string[] args)
+    internal static string[] NormalizeStandaloneDashOptionValues(string[] args)
     {
         var normalized = new List<string>(args.Length);
         for (var index = 0; index < args.Length; index++)
         {
             var argument = args[index];
             if (index + 1 < args.Length
-                && argument.Length > 1
-                && argument[0] == '-'
-                && !string.Equals(argument, "--", StringComparison.Ordinal)
+                && StdinSentinelOptions.Contains(argument)
                 && string.Equals(args[index + 1], "-", StringComparison.Ordinal))
             {
                 normalized.Add($"{argument}=-");

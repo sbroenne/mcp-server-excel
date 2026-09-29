@@ -173,6 +173,16 @@ public sealed class InProcessCliCommandTests
             request.Args);
     }
 
+    [Fact]
+    public void StandaloneDashForUnrelatedOption_IsNotRewritten()
+    {
+        var args = new[] { "service", "run", "--pipe-name", "-" };
+
+        var normalized = Program.NormalizeStandaloneDashOptionValues(args);
+
+        Assert.Equal(args, normalized);
+    }
+
     [Theory]
     [InlineData("open", false, "session.open")]
     [InlineData("open", true, "session.open")]

@@ -106,4 +106,3 @@ public sealed partial class PersistentServiceNamedRangeTests
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }
-

@@ -212,6 +212,22 @@ public partial class NamedRangeCommands
             or SafeArrayRankMismatchException
             or SafeArrayTypeMismatchException;
 
+    internal static object ParseWriteValue(string value)
+    {
+        if (double.TryParse(
+            value,
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out double numericValue))
+        {
+            return numericValue;
+        }
+
+        return bool.TryParse(value, out bool booleanValue)
+            ? booleanValue
+            : value;
+    }
+
     /// <inheritdoc />
     public OperationResult Write(IExcelBatch batch, string name, string value)
     {
@@ -240,23 +256,7 @@ public partial class NamedRangeCommands
                     calculationChanged = true;
                 }
 
-                // Try to parse as number, otherwise set as text
-                if (double.TryParse(
-                    value,
-                    NumberStyles.Float,
-                    CultureInfo.InvariantCulture,
-                    out double numValue))
-                {
-                    refersToRange.Value2 = numValue;
-                }
-                else if (bool.TryParse(value, out bool boolValue))
-                {
-                    refersToRange.Value2 = boolValue;
-                }
-                else
-                {
-                    refersToRange.Value2 = value;
-                }
+                refersToRange.Value2 = ParseWriteValue(value);
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
