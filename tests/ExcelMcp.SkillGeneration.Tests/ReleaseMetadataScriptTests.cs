@@ -52,6 +52,7 @@ public sealed class ReleaseMetadataScriptTests
             File.Copy(
                 Path.Combine(RepoRoot, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
                 manifestPath);
+            var fixtureVersion = ReadJsonProperty(manifestPath, "version");
             var runner = Path.Combine(sandbox, "run.ps1");
             File.WriteAllText(runner, $$"""
                 function Invoke-WebRequest {
@@ -67,27 +68,30 @@ public sealed class ReleaseMetadataScriptTests
                         }
                         return [pscustomobject]@{
                             id = 'Sbroenne.ExcelMcp.McpServer'
-                            version = '2.0.12'
+                            version = '{{fixtureVersion}}'
                         }
                     }
                     if ($Uri -like '*win32-x64*') {
-                        return [pscustomobject]@{ name = '@sbroenne/mcp-server-excel-win32-x64'; version = '2.0.12' }
+                        return [pscustomobject]@{ name = '@sbroenne/mcp-server-excel-win32-x64'; version = '{{fixtureVersion}}' }
                     }
                     return [pscustomobject]@{
                         name = '@sbroenne/mcp-server-excel'
-                        version = '2.0.12'
+                        version = '{{fixtureVersion}}'
                         mcpName = 'io.github.sbroenne/mcp-server-excel'
                     }
                 }
                 & '{{TestMcpRegistryPublicationScript.Replace("'", "''", StringComparison.Ordinal)}}' `
                     -ServerJsonPath '{{manifestPath.Replace("'", "''", StringComparison.Ordinal)}}' `
-                    -Version 2.0.12 -Attempts 1 -RetrySeconds 0
+                    -Version '{{fixtureVersion}}' -Attempts 1 -RetrySeconds 0
                 """);
 
             var result = await RunPowerShellScriptAsync(runner, [], sandbox);
 
             Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            Assert.Contains("Validated MCP Registry", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains(
+                $"Validated MCP Registry source, NuGet, and npm metadata for version {fixtureVersion}.",
+                result.Stdout,
+                StringComparison.Ordinal);
         }
         finally { Directory.Delete(sandbox, recursive: true); }
     }
