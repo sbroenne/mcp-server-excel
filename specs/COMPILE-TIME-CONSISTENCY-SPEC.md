@@ -303,7 +303,7 @@ private Task<ServiceResponse> DispatchSimpleAsync<TAction>(
 }
 ```
 
-**Testing strategy**: Pre-commit scripts verify coverage:
-- All enum actions have Core method implementations (`check-mcp-core-implementations.ps1`)
-- All CLI actions have handlers (`check-cli-action-coverage.ps1`)
-
+**Testing strategy**: `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts`
+checks the annotated interfaces against generated Service action lists, enum
+names, and CLI metadata, then exercises CLI validation and MCP tool/schema
+contracts. Empty discovery and missing or duplicate actions fail explicitly.

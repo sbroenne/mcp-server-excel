@@ -107,8 +107,7 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
 
         if (string.IsNullOrEmpty(ManifestPath) || !File.Exists(ManifestPath))
         {
-            Log.LogWarning($"Manifest file not found: {ManifestPath}. Skill will have no command reference.");
-            return model;
+            throw new InvalidDataException($"Required manifest file not found: {ManifestPath}.");
         }
 
         // Read the generated _SkillManifest.g.cs file and extract JSON
@@ -117,8 +116,7 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
 
         if (string.IsNullOrEmpty(json))
         {
-            Log.LogWarning($"Could not extract JSON from manifest: {ManifestPath}");
-            return model;
+            throw new InvalidDataException($"Could not extract JSON from required manifest: {ManifestPath}");
         }
 
         // Parse JSON
@@ -166,9 +164,13 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
         }
         catch (JsonException ex)
         {
-            Log.LogWarning($"Failed to parse manifest JSON: {ex.Message}");
+            throw new InvalidDataException($"Failed to parse manifest JSON: {ManifestPath}", ex);
         }
 
+        if (model.CliCommands == null || model.CliCommands.Count == 0 || model.ToolCount <= 0 || model.OperationCount <= 0)
+        {
+            throw new InvalidDataException($"Required manifest has no command surface: {ManifestPath}");
+        }
         return model;
     }
 

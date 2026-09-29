@@ -7,7 +7,7 @@
     for collecting usage analytics and crash reports from the MCP Server.
 
 .PARAMETER Location
-    Azure region for deployment. Default: westeurope
+    Azure region for deployment. Default: swedencentral
 
 .PARAMETER ParameterFile
     Path to the parameters JSON file. Default: appinsights.parameters.json
@@ -28,7 +28,9 @@ param(
     [string]$Location = "swedencentral",
 
     [Parameter()]
-    [string]$ParameterFile = "appinsights.parameters.json"
+    [string]$ParameterFile = "appinsights.parameters.json",
+
+    [string]$SubscriptionId
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,23 +49,23 @@ try {
 
     # Check Azure CLI
     $azVersion = az version 2>$null | ConvertFrom-Json
-    if (-not $azVersion) {
+    if ($LASTEXITCODE -ne 0 -or -not $azVersion.'azure-cli') {
         throw "Azure CLI not found. Install from: https://aka.ms/installazurecli"
     }
     Write-Host "  Azure CLI: $($azVersion.'azure-cli')" -ForegroundColor Green
 
     # Check logged in
-    $account = az account show 2>$null | ConvertFrom-Json
-    if (-not $account) {
-        Write-Host "  Not logged in. Running 'az login'..." -ForegroundColor Yellow
-        az login
-        $account = az account show | ConvertFrom-Json
+    $subscriptionArgs = if ($SubscriptionId) { @('--subscription', $SubscriptionId) } else { @() }
+    $account = az account show @subscriptionArgs --only-show-errors | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or -not $account.id) {
+        throw "Unable to read the requested Azure subscription. Authenticate with az login first."
     }
     Write-Host "  Subscription: $($account.name) ($($account.id))" -ForegroundColor Green
 
     # Validate template
     Write-Host "`nValidating Bicep template..." -ForegroundColor Yellow
     $validation = az deployment sub validate `
+        --subscription $account.id `
         --location $Location `
         --template-file "appinsights.bicep" `
         --parameters $ParameterFile `
@@ -75,18 +77,21 @@ try {
     Write-Host "  Template is valid" -ForegroundColor Green
 
     # Deploy
-    if ($WhatIf -or $PSCmdlet.ShouldProcess("Azure subscription", "Deploy Application Insights infrastructure")) {
+    if ($WhatIfPreference -or $PSCmdlet.ShouldProcess($account.id, "Deploy Application Insights infrastructure")) {
 
-        if ($WhatIf) {
+        if ($WhatIfPreference) {
             Write-Host "`nWhat-If deployment (no changes will be made)..." -ForegroundColor Yellow
             az deployment sub what-if `
+                --subscription $account.id `
                 --location $Location `
                 --template-file "appinsights.bicep" `
                 --parameters $ParameterFile
+            if ($LASTEXITCODE -ne 0) { throw "Azure deployment preview failed." }
         }
         else {
             Write-Host "`nDeploying resources..." -ForegroundColor Yellow
             $deployment = az deployment sub create `
+                --subscription $account.id `
                 --location $Location `
                 --template-file "appinsights.bicep" `
                 --parameters $ParameterFile `
@@ -103,22 +108,15 @@ try {
             $instrumentationKey = $outputs.appInsightsInstrumentationKey.value
             $resourceGroup = $outputs.resourceGroupName.value
             $appInsightsName = $outputs.appInsightsName.value
+            if (-not $connectionString -or -not $instrumentationKey -or -not $resourceGroup -or -not $appInsightsName) {
+                throw "Deployment response is missing required Application Insights outputs."
+            }
 
             Write-Host "`n=== Deployment Successful ===" -ForegroundColor Green
             Write-Host "Resource Group: $resourceGroup"
             Write-Host "Application Insights: $appInsightsName"
             Write-Host ""
-            Write-Host "Connection String (for embedding in code):" -ForegroundColor Cyan
-            Write-Host $connectionString -ForegroundColor White
-            Write-Host ""
-            Write-Host "Instrumentation Key (legacy):" -ForegroundColor Cyan
-            Write-Host $instrumentationKey -ForegroundColor White
-            Write-Host ""
-            Write-Host "=== Next Steps ===" -ForegroundColor Yellow
-            Write-Host "1. Copy the connection string above"
-            Write-Host "2. Add it to src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs"
-            Write-Host "3. Build and test the MCP Server"
-            Write-Host "4. View telemetry at: https://portal.azure.com/#@/resource/subscriptions/$($account.id)/resourceGroups/$resourceGroup/providers/Microsoft.Insights/components/$appInsightsName/overview"
+            Write-Host "View telemetry at: https://portal.azure.com/#@/resource/subscriptions/$($account.id)/resourceGroups/$resourceGroup/providers/Microsoft.Insights/components/$appInsightsName/overview"
             Write-Host ""
 
             # Save connection string to file for reference (gitignored)
@@ -131,7 +129,7 @@ try {
                 DeployedAt = (Get-Date).ToString("o")
             } | ConvertTo-Json | Out-File $secretsFile -Encoding utf8
 
-            Write-Host "Connection string saved to: $secretsFile (add to .gitignore!)" -ForegroundColor Yellow
+            Write-Host "Connection details saved to ignored local file: $secretsFile. Do not commit or publish it." -ForegroundColor Yellow
         }
     }
 }

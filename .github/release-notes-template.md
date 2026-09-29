@@ -40,7 +40,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 **Agent Skills** (for AI coding assistants)
 - VS Code Extension includes both skills automatically (excel-mcp + excel-cli)
-- Install via Skills CLI: `npx skills add sbroenne/mcp-server-excel --skill excel-cli` or `--skill excel-mcp`
+- Install via Skills CLI: `npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli` or `--skill excel-mcp`
 - Or download `excel-skills-v{{VERSION}}.zip`
 
 ### Requirements

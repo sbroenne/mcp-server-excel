@@ -46,8 +46,10 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 2. **Make changes**: Code, tests, documentation
 3. **Run the pre-commit hook**: follow the
    [pre-commit setup guide](PRE-COMMIT-SETUP.md), then let it run on every
-   commit. It checks COM cleanup, MCP/CLI parity, the Release build, packaging,
-   smoke tests, and other required gates. Never bypass it with `--no-verify`.
+   commit. Changed paths select the Release build, source-pattern guards,
+   contract tests, and required local Excel checks. The hook never builds or
+   installs distributable packages; PR CI owns package validation.
+   Never bypass it with `--no-verify`.
 4. **Push branch**: `git push origin feature/your-feature`
 5. **Create PR**: Use GitHub's PR template
 6. **Address review**: Investigate human and automated comments, fix verified defects, and explain why an incorrect or inapplicable suggestion was not applied. Do not make unrelated style changes simply because a bot suggested them.
@@ -110,6 +112,9 @@ Report an unavailable configured feed instead.
 
 NuGet publishing commands intentionally name the public publishing destination.
 That `dotnet nuget push --source` setting is not a restore-source override.
+Package-installation smoke checks use an isolated local-only feed to prove they
+installed the just-built artifact, not an existing public package. This does not
+change the user's NuGet configuration or solution restore sources.
 
 ### Code Style
 
@@ -257,7 +262,9 @@ first, then replace duplicate material with a link. Permanent guides belong in
 Temporary investigations belong in issue/PR discussions, not SUMMARY/FIX files.
 
 Use current declared action names and verify operation tables and category
-counts. Advertised totals are generated from code during the release.
+counts. After a Release build and explicit skill generation, run
+`scripts\check-doc-counts.ps1 -SkipBuild -Update` and include the reviewed count
+changes in the same PR. CI requires exact agreement.
 See the [website authoring guide](../gh-pages/README.md#publishing-canonical-documentation)
 for source maps, wrappers, navigation, and machine-readable outputs.
 
@@ -269,7 +276,7 @@ for source maps, wrappers, navigation, and machine-readable outputs.
 - [ ] Feature-scoped tests pass (`dotnet test --filter "Feature=<name>&RunType!=OnDemand"`)
 - [ ] Excel processes clean up properly
 - [ ] Added appropriate error handling (no suppressed exceptions)
-- [ ] Updated `docs/features/*.md` if category operations or behaviors changed (release automation refreshes advertised totals)
+- [ ] Updated `docs/features/*.md` and generated advertised counts if operations or behaviors changed
 - [ ] Pre-commit hook passes locally
 
 ### PR Description Template

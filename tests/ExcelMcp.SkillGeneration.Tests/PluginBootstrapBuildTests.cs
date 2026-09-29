@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 
@@ -17,9 +18,9 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// These exercise the real PowerShell build/sync scripts against canonical source templates
 /// and isolated output repositories without touching real user state.
 /// </summary>
-[Collection("Sequential")]
+[Collection("GeneratedAssets")]
 [Trait("RequiresExcel", "false")]
-public sealed class PluginBootstrapBuildTests
+public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
 {
     private const string AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
     private const string AgentPluginMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json";
@@ -27,6 +28,238 @@ public sealed class PluginBootstrapBuildTests
     private static readonly string BuildAgentSkillsScript = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     private static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    [Trait("Feature", "PluginInstallerSafety")]
+    public async Task DownloadBootstrap_RefusedLockCannotReadOrWriteCache(string pluginName)
+    {
+        var sandbox = CreateSandbox("refused-lock");
+        try
+        {
+            var script = File.ReadAllText(GetPluginScriptPath(pluginName, "download.ps1"));
+            var boundary = script.IndexOf("if ($env:OS -ne", StringComparison.Ordinal);
+            Assert.True(boundary > 0);
+            var probe = Path.Combine(sandbox, "probe.ps1");
+            File.WriteAllText(probe, script[..boundary] + """
+
+                function Get-RuntimeCacheMutex {
+                    $mutex = [pscustomobject]@{}
+                    $mutex | Add-Member ScriptMethod WaitOne { param($timeout) return $false }
+                    $mutex | Add-Member ScriptMethod ReleaseMutex { throw 'Released an unowned mutex' }
+                    $mutex | Add-Member ScriptMethod Dispose { Write-Output 'Disposed refused mutex' }
+                    return $mutex
+                }
+                function Get-State { throw 'Read cache before acquiring the lock' }
+                function Save-State { throw 'Wrote cache without the lock' }
+
+                """ + script[boundary..]);
+            var result = await RunPowerShellFileAsync(probe, [],
+                new Dictionary<string, string> { ["USERPROFILE"] = sandbox, ["PLUGIN_DATA"] = "" });
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Timed out waiting", result.Stderr, StringComparison.Ordinal);
+            Assert.Contains("Disposed refused mutex", result.Stdout, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(Path.Combine(sandbox, ".copilot")));
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Fact]
+    [Trait("Feature", "PluginInstallerSafety")]
+    public async Task InstallMcpGlobal_PreservesUnrelatedConfiguration()
+    {
+        var sandbox = CreateSandbox("mcp-config-preservation");
+        try
+        {
+            var configDir = Path.Combine(sandbox, ".copilot");
+            Directory.CreateDirectory(configDir);
+            var configPath = Path.Combine(configDir, "mcp-config.json");
+            File.WriteAllText(configPath, """{"preferences":{"theme":"dark"},"mcpServers":{"existing":{"command":"keep"}}}""");
+            var installer = Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "com.github.copilot", "bin", "install-global.ps1");
+            var result = await RunPowerShellFileAsync(installer, [],
+                new Dictionary<string, string> { ["USERPROFILE"] = sandbox });
+            Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
+            using var config = JsonDocument.Parse(File.ReadAllText(configPath));
+            Assert.Equal("dark", config.RootElement.GetProperty("preferences").GetProperty("theme").GetString());
+            Assert.Equal("keep", config.RootElement.GetProperty("mcpServers").GetProperty("existing").GetProperty("command").GetString());
+            Assert.Equal("powershell", config.RootElement.GetProperty("mcpServers").GetProperty("excel-mcp").GetProperty("command").GetString());
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    [Trait("Feature", "PluginInstallerSafety")]
+    public async Task DownloadBootstrap_ConcurrentUpdatesReadStateOnlyAfterAcquiringLock(string pluginName)
+    {
+        var sandbox = CreateSandbox("concurrent-state");
+        try
+        {
+            var source = File.ReadAllText(GetPluginScriptPath(pluginName, "download.ps1"));
+            var boundary = source.IndexOf("if ($env:OS -ne", StringComparison.Ordinal);
+            var probe = Path.Combine(sandbox, "concurrent-probe.ps1");
+            File.WriteAllText(probe, source[..boundary] + """
+
+                function Get-LatestReleaseMetadata {
+                    return [pscustomobject]@{ Tag='v1.2.3'; Version='1.2.3'; AssetName='fixture.zip'; AssetUrl='unused'; ExpectedSha256=('a'*64) }
+                }
+                function Ensure-LatestRuntime {
+                    param($State)
+                    if ($null -eq $State.PSObject.Properties['sequence']) {
+                        $State | Add-Member NoteProperty sequence 0
+                    }
+                    $sequence = $State.sequence
+                    Start-Sleep -Milliseconds 150
+                    $State.sequence = $sequence + 1
+                    return 'fixture-runtime'
+                }
+
+                """ + source[boundary..]);
+            var environment = new Dictionary<string, string>
+            {
+                ["USERPROFILE"] = sandbox,
+                ["COPILOT_AGENT_SESSION_ID"] = "concurrency-fixture"
+            };
+            var results = await Task.WhenAll(
+                RunPowerShellFileAsync(probe, ["-PassThru", "-Quiet"], environment),
+                RunPowerShellFileAsync(probe, ["-PassThru", "-Quiet"], environment));
+            Assert.All(results, result => Assert.True(result.ExitCode == 0, result.CombinedOutput));
+            using var state = JsonDocument.Parse(File.ReadAllText(GetBootstrapStatePath(sandbox, pluginName)));
+            Assert.Equal(2, state.RootElement.GetProperty("sequence").GetInt32());
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    [Trait("Feature", "PluginInstallerSafety")]
+    public async Task DownloadBootstrap_FailedStateReplacementPreservesPreviousState(string pluginName)
+    {
+        var sandbox = CreateSandbox("state-replacement");
+        try
+        {
+            var source = File.ReadAllText(GetPluginScriptPath(pluginName, "download.ps1"));
+            var boundary = source.IndexOf("if ($env:OS -ne", StringComparison.Ordinal);
+            var probe = Path.Combine(sandbox, "state-probe.ps1");
+            File.WriteAllText(probe, source[..boundary] + """
+
+                Ensure-Directory -Path $CacheRoot
+                Save-State -State (New-State)
+                $before = [IO.File]::ReadAllText($StatePath)
+                $lock = [IO.File]::Open($StatePath, 'Open', 'Read', 'Read')
+                try {
+                    $state = New-State
+                    $state.latestVersion = 'changed'
+                    try { Save-State -State $state; throw 'Replacement unexpectedly succeeded' }
+                    catch [System.Management.Automation.MethodInvocationException] {}
+                    if ([IO.File]::ReadAllText($StatePath) -cne $before) { throw 'Previous state changed' }
+                    if (@(Get-ChildItem -LiteralPath $CacheRoot -Filter '*.tmp').Count) { throw 'Temporary state was not removed' }
+                } finally { $lock.Dispose() }
+                """);
+            var result = await RunPowerShellFileAsync(probe, [],
+                new Dictionary<string, string> { ["USERPROFILE"] = sandbox });
+            Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Theory]
+    [InlineData("excelcli.cmd")]
+    [InlineData("excelcli.ps1")]
+    [Trait("Feature", "PluginInstallerSafety")]
+    public async Task InstallCliGlobal_RepairsMissingShimAndPreservesQuotedPaths(string existingShim)
+    {
+        var sandbox = CreateSandbox("cli-shims");
+        try
+        {
+            var plugin = Path.Combine(sandbox, "plugin owner's \u00e9");
+            var bin = Directory.CreateDirectory(Path.Combine(plugin, "bin")).FullName;
+            File.WriteAllText(Path.Combine(bin, "start-cli.ps1"), "Write-Output 'quoted-wrapper-ran'\n$global:LASTEXITCODE=0");
+            File.WriteAllText(Path.Combine(bin, "download.ps1"), "Write-Output \"$env:SystemRoot\\System32\\cmd.exe\"");
+            var installers = Directory.CreateDirectory(Path.Combine(plugin, "com.github.copilot", "bin")).FullName;
+            var installer = Path.Combine(installers, "install-global.ps1");
+            var userBin = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot", "bin")).FullName;
+            var source = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"))
+                .Replace("[Environment]::GetEnvironmentVariable(\"PATH\", \"User\")", "$env:TEST_USER_PATH", StringComparison.Ordinal)
+                .Replace("[Environment]::SetEnvironmentVariable(\"PATH\", $newUserPath, \"User\")", "throw 'Unexpected PATH mutation'", StringComparison.Ordinal);
+            File.WriteAllText(installer, source, new UTF8Encoding(true));
+            var existingPath = Path.Combine(userBin, existingShim);
+            File.WriteAllText(existingPath, "keep existing shim");
+            var environment = new Dictionary<string, string> { ["USERPROFILE"] = sandbox, ["TEST_USER_PATH"] = userBin };
+            var installed = await RunPowerShellFileAsync(installer, [], environment);
+            Assert.True(installed.ExitCode == 0, installed.Stdout + installed.Stderr);
+            Assert.Equal("keep existing shim", File.ReadAllText(existingPath));
+            Assert.True(File.Exists(Path.Combine(userBin, "excelcli.cmd")));
+            Assert.True(File.Exists(Path.Combine(userBin, "excelcli.ps1")));
+            var forced = await RunPowerShellFileAsync(installer, ["-Force"], environment);
+            Assert.True(forced.ExitCode == 0, forced.Stdout + forced.Stderr);
+            var launched = await RunPowerShellFileAsync(Path.Combine(userBin, "excelcli.ps1"), [], environment);
+            Assert.True(launched.ExitCode == 0, launched.Stdout + launched.Stderr);
+            Assert.Contains("quoted-wrapper-ran", launched.Stdout, StringComparison.Ordinal);
+            var cmdProbe = Path.Combine(sandbox, "cmd-probe.ps1");
+            File.WriteAllText(cmdProbe, $"& '{Path.Combine(userBin, "excelcli.cmd").Replace("'", "''", StringComparison.Ordinal)}' /c echo cmd-wrapper-ran\nexit $LASTEXITCODE");
+            var cmd = await RunPowerShellFileAsync(cmdProbe, [], environment);
+            Assert.True(cmd.ExitCode == 0, cmd.Stdout + cmd.Stderr + File.ReadAllText(Path.Combine(userBin, "excelcli.cmd")));
+            Assert.Contains("cmd-wrapper-ran", cmd.Stdout, StringComparison.Ordinal);
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Feature", "PluginInstallerSafety")]
+    public async Task InstallCliGlobal_FailedWritePreservesOriginalShimsOrRecoveryBackup(bool rollbackFails)
+    {
+        var sandbox = CreateSandbox("cli-write-failure");
+        try
+        {
+            var plugin = Path.Combine(sandbox, "plugin");
+            var bin = Directory.CreateDirectory(Path.Combine(plugin, "bin")).FullName;
+            File.WriteAllText(Path.Combine(bin, "start-cli.ps1"), "throw 'Must not launch runtime'");
+            File.WriteAllText(Path.Combine(bin, "download.ps1"), "throw 'Must not download runtime'");
+            var installers = Directory.CreateDirectory(Path.Combine(plugin, "com.github.copilot", "bin")).FullName;
+            var installer = Path.Combine(installers, "install-global.ps1");
+            var userBin = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot", "bin")).FullName;
+            File.WriteAllText(Path.Combine(userBin, "excelcli.cmd"), "original cmd");
+            File.WriteAllText(Path.Combine(userBin, "excelcli.ps1"), "original ps1");
+            var source = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"));
+            const string replacement = "[IO.File]::Replace($update.Temp, $update.Path, $update.Backup)";
+            Assert.Contains(replacement, source, StringComparison.Ordinal);
+            source = source.Replace(replacement,
+                "if ($update.Path -like '*.ps1') { throw 'fixture-install-failure' }; " + replacement, StringComparison.Ordinal);
+            if (rollbackFails)
+            {
+                const string rollback = "[IO.File]::Replace($update.Backup, $update.Path, [System.Management.Automation.Language.NullString]::Value)";
+                Assert.Contains(rollback, source, StringComparison.Ordinal);
+                source = source.Replace(rollback, "throw 'fixture-rollback-failure'", StringComparison.Ordinal);
+            }
+            source = source.Replace("[Environment]::SetEnvironmentVariable(\"PATH\", $newUserPath, \"User\")",
+                "throw 'Unexpected user PATH mutation'", StringComparison.Ordinal);
+            File.WriteAllText(installer, source, new UTF8Encoding(true));
+            var result = await RunPowerShellFileAsync(installer, ["-Force"],
+                new Dictionary<string, string> { ["USERPROFILE"] = sandbox });
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("fixture-install-failure", result.Stderr, StringComparison.Ordinal);
+            Assert.Equal("original ps1", File.ReadAllText(Path.Combine(userBin, "excelcli.ps1")));
+            Assert.Empty(Directory.GetFiles(userBin, "*.tmp"));
+            if (rollbackFails)
+            {
+                Assert.Contains("fixture-rollback-failure", result.Stderr, StringComparison.Ordinal);
+                var backup = Assert.Single(Directory.GetFiles(userBin, "*.bak"));
+                Assert.Equal("original cmd", File.ReadAllText(backup));
+            }
+            else
+            {
+                Assert.Equal("original cmd", File.ReadAllText(Path.Combine(userBin, "excelcli.cmd")));
+                Assert.Empty(Directory.GetFiles(userBin, "*.bak"));
+            }
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
 
     [Theory]
     [InlineData("excel-mcp")]
@@ -38,7 +271,12 @@ public sealed class PluginBootstrapBuildTests
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
 
         AssertAgentPluginManifest(pluginRoot, expectedVersion: "0.0.0");
-        AssertAgentSkill(Path.Combine(RepoRoot, "skills", pluginName), pluginName);
+        var readme = File.ReadAllText(Path.Combine(pluginRoot, "README.md"));
+        foreach (var section in new[] { "# Excel", "## Prerequisites", "## Installation" })
+        {
+            Assert.Contains(section, readme, StringComparison.Ordinal);
+        }
+        AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, pluginName), pluginName);
         Assert.True(File.Exists(Path.Combine(pluginRoot, "com.github.copilot", "bin", "install-global.ps1")));
         Assert.False(File.Exists(Path.Combine(pluginRoot, "bin", "install-global.ps1")));
     }
@@ -66,8 +304,8 @@ public sealed class PluginBootstrapBuildTests
         Assert.Contains(
             "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref",
             content);
-        Assert.Contains(@"skills-ref validate source\plugins\excel-mcp\skills\excel-mcp", content);
-        Assert.Contains(@"skills-ref validate source\plugins\excel-cli\skills\excel-cli", content);
+        Assert.Contains(@"skills-ref validate built-plugins\excel-mcp\skills\excel-mcp", content);
+        Assert.Contains(@"skills-ref validate built-plugins\excel-cli\skills\excel-cli", content);
     }
 
     [Fact]
@@ -92,8 +330,8 @@ public sealed class PluginBootstrapBuildTests
 
         Assert.Contains("SHA256SUMS", content, StringComparison.Ordinal);
         Assert.Contains("Get-FileHash", content, StringComparison.Ordinal);
-        Assert.Contains("artifacts/mcp-server-zip/*.zip", content, StringComparison.Ordinal);
-        Assert.Contains("artifacts/cli-zip/*.zip", content, StringComparison.Ordinal);
+        Assert.Contains("ExcelMcp-MCP-Server-$env:VERSION-windows.zip", content, StringComparison.Ordinal);
+        Assert.Contains("ExcelMcp-CLI-$env:VERSION-windows.zip", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -184,20 +422,20 @@ public sealed class PluginBootstrapBuildTests
             AssertAgentPluginManifest(Path.Combine(outputDir, "excel-cli"), version);
             AssertPortableMcpConfiguration(Path.Combine(outputDir, "excel-mcp"));
 
-            var sourceMcpSkill = File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-mcp", "SKILL.md"));
+            var sourceMcpSkill = File.ReadAllText(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp", "SKILL.md"));
             var builtMcpSkill = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp", "SKILL.md"));
             Assert.Equal(sourceMcpSkill, builtMcpSkill);
 
-            var sourceCliSkill = File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-cli", "SKILL.md"));
+            var sourceCliSkill = File.ReadAllText(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli", "SKILL.md"));
             var builtCliSkill = File.ReadAllText(Path.Combine(outputDir, "excel-cli", "skills", "excel-cli", "SKILL.md"));
             Assert.Equal(sourceCliSkill, builtCliSkill);
 
             AssertSkillDirectoryMatchesSource(
-                Path.Combine(RepoRoot, "skills", "excel-mcp"),
+                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp"),
                 Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp"),
                 version);
             AssertSkillDirectoryMatchesSource(
-                Path.Combine(RepoRoot, "skills", "excel-cli"),
+                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli"),
                 Path.Combine(outputDir, "excel-cli", "skills", "excel-cli"),
                 version);
             AssertLocalSkillLinksResolve(Path.Combine(outputDir, "excel-mcp", "skills", "excel-mcp"));
@@ -211,7 +449,7 @@ public sealed class PluginBootstrapBuildTests
             var builtCliBootstrap = File.ReadAllText(Path.Combine(outputDir, "excel-cli", "bin", "start-cli.ps1"));
             Assert.Equal(overlayCliBootstrap, builtCliBootstrap);
 
-            var overlayCliDownload = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "download.ps1"));
+            var overlayCliDownload = File.ReadAllText(Path.Combine(GeneratedAssetsFixture.BootstrapDirectory, "excel-cli", "bin", "download.ps1"));
             var builtCliDownload = File.ReadAllText(Path.Combine(outputDir, "excel-cli", "bin", "download.ps1"));
             Assert.Equal(overlayCliDownload, builtCliDownload);
 
@@ -223,7 +461,7 @@ public sealed class PluginBootstrapBuildTests
             var builtMcpInstallGlobal = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "com.github.copilot", "bin", "install-global.ps1"));
             Assert.Equal(overlayMcpInstallGlobal, builtMcpInstallGlobal);
 
-            var overlayMcpDownload = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "bin", "download.ps1"));
+            var overlayMcpDownload = File.ReadAllText(Path.Combine(GeneratedAssetsFixture.BootstrapDirectory, "excel-mcp", "bin", "download.ps1"));
             var builtMcpDownload = File.ReadAllText(Path.Combine(outputDir, "excel-mcp", "bin", "download.ps1"));
             Assert.Equal(overlayMcpDownload, builtMcpDownload);
         }
@@ -253,7 +491,7 @@ public sealed class PluginBootstrapBuildTests
 
             Assert.Equal(0, result.ExitCode);
 
-            var sourceReferencePath = Path.Combine(RepoRoot, "skills", "excel-cli", "references", "cli-commands.md");
+            var sourceReferencePath = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli", "references", "cli-commands.md");
             var builtReferencePath = Path.Combine(outputDir, "excel-cli", "skills", "excel-cli", "references", "cli-commands.md");
             var sourceSharedReferences = Directory.GetFiles(Path.Combine(RepoRoot, "skills", "shared"), "*.md");
 
@@ -524,7 +762,7 @@ public sealed class PluginBootstrapBuildTests
 
             Assert.Equal(1, ReadMockCallCount(userProfile, "rest"));
             Assert.Equal(1, ReadMockCallCount(userProfile, "checksum"));
-            Assert.Equal(1, ReadMockCallCount(userProfile, "web"));
+            Assert.True(ReadMockCallCount(userProfile, "web") == 1, result.Stdout + result.Stderr);
             Assert.Equal(1, ReadMockCallCount(userProfile, "expand"));
         }
         finally
@@ -1360,7 +1598,7 @@ public sealed class PluginBootstrapBuildTests
                 ],
                 environmentVariables: env);
 
-            Assert.Equal(0, immediateResult.ExitCode);
+            Assert.True(immediateResult.ExitCode == 0, immediateResult.Stdout + immediateResult.Stderr);
             Assert.Equal(0, ReadMockCallCount(userProfile, "rest"));
 
             // Age the recorded check past the staleness window.
@@ -1383,7 +1621,7 @@ public sealed class PluginBootstrapBuildTests
                 ],
                 environmentVariables: env);
 
-            Assert.Equal(0, agedResult.ExitCode);
+            Assert.True(agedResult.ExitCode == 0, agedResult.Stdout + agedResult.Stderr);
             Assert.Equal(1, ReadMockCallCount(userProfile, "rest"));
         }
         finally
@@ -1534,7 +1772,7 @@ public sealed class PluginBootstrapBuildTests
                     ],
                     environmentVariables: env);
 
-                Assert.Equal(0, lockedResult.ExitCode);
+                Assert.True(lockedResult.ExitCode == 0, lockedResult.Stdout + lockedResult.Stderr);
                 Assert.Equal(installedBinary, lockedResult.Stdout.Trim(), ignoreCase: true);
             }
 
@@ -1644,7 +1882,7 @@ public sealed class PluginBootstrapBuildTests
             Path.Combine(RepoRoot, ".github", "plugins", "excel-cli"),
             Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp"),
             Path.Combine(RepoRoot, "docs", "guides"),
-            Path.Combine(RepoRoot, "skills", "excel-mcp")
+            Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp")
         };
         var failures = new List<string>();
 
@@ -1673,10 +1911,10 @@ public sealed class PluginBootstrapBuildTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
-    public async Task BuildBootstrapScripts_CheckPassesForCommittedCopies()
+    public async Task BuildBootstrapScripts_CheckPassesForGeneratedCopies()
     {
         var scriptPath = Path.Combine(RepoRoot, "scripts", "Build-BootstrapScripts.ps1");
-        var result = await RunPowerShellFileAsync(scriptPath, ["-Check"]);
+        var result = await RunPowerShellFileAsync(scriptPath, ["-Check", "-OutputRoot", GeneratedAssetsFixture.BootstrapDirectory]);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("matching", result.Stdout, StringComparison.OrdinalIgnoreCase);
@@ -2198,7 +2436,7 @@ public sealed class PluginBootstrapBuildTests
 
     private static string CreateSandbox(string name)
     {
-        var sandbox = Path.Combine(RepoRoot, "scratch", "plugin-bootstrap-test", $"{name}-{Guid.NewGuid():N}");
+        var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcp-{name}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sandbox);
         return sandbox;
     }
@@ -2421,7 +2659,9 @@ public sealed class PluginBootstrapBuildTests
     }
 
     private static string GetPluginScriptPath(string pluginName, string fileName)
-        => Path.Combine(RepoRoot, ".github", "plugins", pluginName, "bin", fileName);
+        => fileName == "download.ps1"
+            ? Path.Combine(GeneratedAssetsFixture.BootstrapDirectory, pluginName, "bin", fileName)
+            : Path.Combine(RepoRoot, ".github", "plugins", pluginName, "bin", fileName);
 
     private static string GetBootstrapStatePath(string userProfile, string pluginName)
         => Path.Combine(userProfile, ".copilot", "plugin-runtime", "mcp-server-excel", pluginName, "bootstrap-state.json");
@@ -2459,12 +2699,16 @@ public sealed class PluginBootstrapBuildTests
         throw new DirectoryNotFoundException("Could not locate repository root from test output directory.");
     }
 
-    private static async Task<ProcessResult> RunPowerShellFileAsync(
+    private async Task<ProcessResult> RunPowerShellFileAsync(
         string scriptPath,
         IReadOnlyList<string> arguments,
         Dictionary<string, string>? environmentVariables = null,
         int timeoutMs = 30000)
     {
+        if (scriptPath == BuildPluginsScript || scriptPath == BuildAgentSkillsScript)
+        {
+            arguments = [.. arguments, "-SkillsDirectory", GeneratedAssetsFixture.SkillsDirectory];
+        }
         var escapedScriptPath = scriptPath.Replace("'", "''");
         var escapedArguments = arguments
             .Select(argument => argument.Length > 0 && argument[0] == '-'
@@ -2491,7 +2735,7 @@ public sealed class PluginBootstrapBuildTests
         // The bootstrap reads ambient environment. Scrub the variables it consults so that a
         // developer machine or CI runner which happens to define them cannot silently change
         // what these tests exercise; callers opt back in by passing them explicitly.
-        foreach (var ambientName in new[] { "COPILOT_AGENT_SESSION_ID", "GITHUB_TOKEN", "GH_TOKEN" })
+        foreach (var ambientName in new[] { "COPILOT_AGENT_SESSION_ID", "PLUGIN_DATA", "GITHUB_TOKEN", "GH_TOKEN" })
         {
             startInfo.Environment.Remove(ambientName);
         }
@@ -2536,10 +2780,13 @@ public sealed class PluginBootstrapBuildTests
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
             throw new TimeoutException($"PowerShell script '{scriptPath}' timed out after {timeoutMs}ms.");
         }
 
-        return new ProcessResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+        var result = new ProcessResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+        if (result.ExitCode != 0 || stderr.Length > 0) { output.WriteLine(result.CombinedOutput); }
+        return result;
     }
 
     private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr)

@@ -12,8 +12,8 @@ install both):
 
 | Skill | Component | Distribution | Best For |
 |-------|-----------|--------------|----------|
-| **[excel-cli](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-cli/SKILL.md)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
-| **[excel-mcp](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
+| **[excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
+| **[excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
 
 **Shared guidance:** `skills/shared/*.md` — source of truth for both skills (auto-copied to each skill's `references/` folder)
 
@@ -31,17 +31,22 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 **Direct skill extraction (for agents without plugin support):**
 ```powershell
 # Via npx (interactive — select excel-cli, excel-mcp, or both)
-npx skills add sbroenne/mcp-server-excel
+npx skills add sbroenne/mcp-server-excel-plugins
 
 # Or specify directly
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp
 ```
 
 **Via VS Code Extension (auto-installs excel-mcp):**
 Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) — it registers the `excel-mcp` skill via `chatSkills`. For the `excel-cli` skill, use the plugin or `npx skills` methods above.
 
 ## Maintaining skills and MCP prompts
+
+The source repository no longer contains installable generated skills. The old
+`npx skills add sbroenne/mcp-server-excel` command does not redirect. Existing
+installed skills remain installed; use the published location for new installs
+and updates.
 
 The installed `SKILL.md` files are generated. Fix their sources rather than
 editing output that the next build replaces.
@@ -54,7 +59,19 @@ editing output that the next build replaces.
 | Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
 | MCP prompt description overrides | `GenerateSkillPromptsClass` in the MCP Server project file |
 
-Release builds follow two related paths:
+Release builds generate the manifest and embedded MCP prompts. Complete
+installable skills are generated explicitly, outside the tracked source tree:
+
+```powershell
+dotnet build Sbroenne.ExcelMcp.sln -c Release
+.\scripts\Build-AgentSkills.ps1 -GenerateOnly
+```
+
+Output is `artifacts\generated-skills`. Templates and shared guidance remain
+under `skills`; unique READMEs and MCP-only references live in `skills\assets`.
+Plugin, ZIP and extension packaging all consume the same prepared output.
+
+Generation follows two related paths:
 
 ```text
 Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
@@ -66,7 +83,7 @@ skills/shared/*.md -> copied skill references
 
 To add a shared reference, create the Markdown under `shared/`. Review the MCP
 prompt description overrides if its automatic description is insufficient.
-Build the solution in Release, then inspect both skill references and the
+Build the solution in Release and generate the skills, then inspect both skill references and the
 generated prompt surface for the intended content. The extension packages a
 copy of the MCP skill; it is not another source.
 

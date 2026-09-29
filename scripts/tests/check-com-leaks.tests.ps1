@@ -47,3 +47,5 @@ finally {
         Remove-Item -LiteralPath $fixtureDir -Recurse -Force
     }
 }
+
+exit 0

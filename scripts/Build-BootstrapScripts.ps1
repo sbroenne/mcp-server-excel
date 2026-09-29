@@ -14,7 +14,7 @@ $TemplatePath = Join-Path $SharedDir "download.ps1.template"
 $TokenMapPath = Join-Path $SharedDir "bootstrap-tokens.json"
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
-    $OutputRoot = Join-Path $RepoRoot ".github\plugins"
+    $OutputRoot = Join-Path $RepoRoot "artifacts\generated-bootstrap"
 }
 
 $PluginNames = @("excel-cli", "excel-mcp")

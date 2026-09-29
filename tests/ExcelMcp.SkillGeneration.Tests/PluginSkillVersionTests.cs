@@ -17,7 +17,7 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// source instead of creating one. These tests fail if either regresses, and they are agnostic to how
 /// many skills a plugin ships so a future third skill is covered automatically.
 /// </remarks>
-[Collection("Sequential")]
+[Collection("GeneratedAssets")]
 [Trait("RequiresExcel", "false")]
 public sealed class PluginSkillVersionTests
 {
@@ -25,16 +25,31 @@ public sealed class PluginSkillVersionTests
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     private static readonly string BuildAgentSkillsScript = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
-    private static readonly string CopyVscodeSkillsScript = Path.Combine(RepoRoot, "scripts", "Copy-VscodeSkills.ps1");
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "SkillGeneration")]
+    public async Task GenerateSkills_RejectsMissingManifestWithoutWritingOutput()
+    {
+        var sandbox = CreateSandbox("missing-manifest");
+        try
+        {
+            var output = Path.Combine(sandbox, "output");
+            var result = await RunPowerShellFileAsync(BuildAgentSkillsScript,
+                ["-GenerateOnly", "-ManifestPath", Path.Combine(sandbox, "missing.cs"), "-OutputDir", output]);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Required manifest", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(output));
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
 
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginSkillVersion")]
     public async Task BuildPlugins_StampsVersionFileIntoEverySkillDirectory()
     {
-        using var mcpSource = File.Open(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "bin", "download.ps1"),
-            FileMode.Open, FileAccess.Read, FileShare.Read);
-        using var cliSource = File.Open(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "download.ps1"),
+        using var template = File.Open(Path.Combine(RepoRoot, ".github", "plugins", "_shared", "download.ps1.template"),
             FileMode.Open, FileAccess.Read, FileShare.Read);
         var sandbox = CreateSandbox("plugin-skill-version");
         try
@@ -85,7 +100,7 @@ public sealed class PluginSkillVersionTests
     public void CanonicalSkillSources_DoNotContainGeneratedVersionFiles()
     {
         var versionFiles = Directory
-            .GetDirectories(Path.Combine(RepoRoot, "skills"), "excel-*")
+            .GetDirectories(Path.Combine(RepoRoot, "skills", "assets"), "excel-*")
             .Select(skillDirectory => Path.Combine(skillDirectory, "VERSION"));
 
         Assert.All(
@@ -187,51 +202,27 @@ public sealed class PluginSkillVersionTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginSkillVersion")]
-    public async Task CopyVscodeSkills_CleansOutputAndStampsExtensionVersion()
+    public async Task BuildPlugins_FailedPreparationPreservesExistingOutput()
     {
-        var sandbox = CreateSandbox("vscode-skills-version");
-        var outputDir = Path.Combine(sandbox, "vscode-extension", "skills", "excel-mcp");
+        var sandbox = CreateSandbox("plugin-preserves-output");
+        var outputDir = Path.Combine(sandbox, "plugins");
         try
         {
-            Directory.CreateDirectory(Path.Combine(sandbox, "scripts"));
-            Directory.CreateDirectory(Path.Combine(sandbox, "skills"));
-            CopyDirectory(Path.Combine(RepoRoot, "skills", "excel-mcp"), Path.Combine(sandbox, "skills", "excel-mcp"));
-            File.Copy(CopyVscodeSkillsScript, Path.Combine(sandbox, "scripts", "Copy-VscodeSkills.ps1"));
             Directory.CreateDirectory(outputDir);
-            File.Copy(Path.Combine(RepoRoot, "vscode-extension", "package.json"),
-                Path.Combine(sandbox, "vscode-extension", "package.json"));
-            File.WriteAllText(Path.Combine(outputDir, "stale.txt"), "stale");
-
-            var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Copy-VscodeSkills.ps1"), []);
-
-            Assert.True(
-                result.ExitCode == 0,
-                $"Copy-VscodeSkills.ps1 failed with exit code {result.ExitCode}.{Environment.NewLine}{result.CombinedOutput}");
-
-            using var packageJson = JsonDocument.Parse(
-                File.ReadAllText(Path.Combine(RepoRoot, "vscode-extension", "package.json")));
-            var expectedVersion = packageJson.RootElement.GetProperty("version").GetString();
-
-            Assert.False(File.Exists(Path.Combine(outputDir, "stale.txt")));
-            Assert.True(File.Exists(Path.Combine(outputDir, "SKILL.md")));
-            Assert.Equal(expectedVersion, File.ReadAllText(Path.Combine(outputDir, "VERSION")).Trim());
+            var prior = Path.Combine(outputDir, "excel-cli");
+            Directory.CreateDirectory(prior);
+            File.WriteAllText(Path.Combine(prior, "prior.txt"), "last good");
+            File.WriteAllText(Path.Combine(outputDir, "unrelated.txt"), "keep");
+            var result = await RunPowerShellFileAsync(BuildPluginsScript,
+                ["-Version", TestVersion, "-OutputDir", outputDir, "-SkillsDirectory", Path.Combine(sandbox, "missing")]);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("missing", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Equal("last good", File.ReadAllText(Path.Combine(prior, "prior.txt")));
+            Assert.Equal("keep", File.ReadAllText(Path.Combine(outputDir, "unrelated.txt")));
         }
         finally
         {
             DeleteDirectoryIfExists(sandbox);
-        }
-    }
-
-    private static void CopyDirectory(string source, string destination)
-    {
-        Directory.CreateDirectory(destination);
-        foreach (var file in Directory.GetFiles(source))
-        {
-            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
-        }
-        foreach (var directory in Directory.GetDirectories(source))
-        {
-            CopyDirectory(directory, Path.Combine(destination, Path.GetFileName(directory)));
         }
     }
 
@@ -273,6 +264,12 @@ public sealed class PluginSkillVersionTests
         IReadOnlyList<string> arguments,
         int timeoutMs = 120000)
     {
+        if ((scriptPath == BuildPluginsScript || scriptPath == BuildAgentSkillsScript) &&
+            !arguments.Contains("-GenerateOnly", StringComparer.Ordinal) &&
+            !arguments.Contains("-SkillsDirectory", StringComparer.Ordinal))
+        {
+            arguments = [.. arguments, "-SkillsDirectory", GeneratedAssetsFixture.SkillsDirectory];
+        }
         var escapedScriptPath = scriptPath.Replace("'", "''");
         var escapedArguments = arguments
             .Select(argument => argument.Length > 0 && argument[0] == '-'

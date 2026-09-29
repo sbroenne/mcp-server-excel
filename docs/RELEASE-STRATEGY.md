@@ -10,7 +10,7 @@ All ExcelMcp components are released together with a single version tag:
 |-----------|---------------------|----------------------|-------------|
 | **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel` or `mcp-excel.exe` — no .NET runtime required |
 | **CLI** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/excelcli` or `excelcli.exe` — no .NET runtime required |
-| **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
+| **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server and its skill |
 | **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
 | **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with wrapper/bootstrap assets that fetch the latest runtime on first use |
 | **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
@@ -29,7 +29,7 @@ When you run the release workflow, all components are released together:
    - ZIP file (primary distribution)
    - NuGet package (secondary distribution)
 2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained exe ZIP [primary] + NuGet pack [secondary]
-3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
+3. **VS Code Extension** → Self-contained VSIX (bundles the MCP executable and skill) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
 6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
@@ -47,12 +47,13 @@ When you run the release workflow, all components are released together:
 | `@sbroenne/excelcli-win32-x64@{version}` | npm | npm registry (self-contained Windows CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
-| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs) |
+| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs and the prepared plugin ZIP) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
-| `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained with both exes + skills) |
+| `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (self-contained MCP executable and skill) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop bundle, self-contained) |
+| `excel-plugins-v{version}.zip` | ZIP | GitHub Release (prepared plugin payload for exact-release repairs) |
 
 ## Release Process
 
@@ -86,7 +87,7 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 The workflow will:
 1. Calculate the next version from the latest git tag
-2. Generate advertised tool and operation totals and compile pending changesets into the current release changelog
+2. Consume the counts reviewed in the source PR and compile pending changesets into the current release changelog
 3. Build all components (npm packages, standalone exes, and NuGet packages), packaging the generated documentation where applicable
 4. Commit the generated release metadata and create the git tag (`v1.5.7`) at that commit
 5. Publish to npm, NuGet.org, VS Code Marketplace, and MCP Registry
@@ -94,21 +95,20 @@ The workflow will:
 
 ### 3. Monitor Workflow
 
-The main release workflow runs automatically (11 jobs), then the plugin publish workflow runs automatically if the release succeeds:
+The release shares prepared inputs instead of repeating builds in each package job:
 
 1. **version** → Calculates the version from the latest tag and dispatch input
-2. **prepare-release** → Builds the generated surface, refreshes advertised counts, compiles changesets, and uploads the metadata used by packaging jobs
-3. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates and tests npm packages, ZIP, and NuGet pack
-4. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates and tests npm packages, ZIP, and NuGet pack
-5. **build-vscode** (5-8 min) → Builds the self-contained VSIX with the prepared changelog
-6. **build-mcpb** (3-5 min) → Builds the Claude Desktop bundle with the prepared changelog
-7. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package (for direct skill extraction via `npx skills add`)
-8. **create-tag** → Regenerates and verifies the changelog, applies the prepared count updates, commits release metadata to `main`, then tags that exact commit
-9. **publish-mcp-registry** (10-30 min) → Waits for NuGet and npm propagation, updates MCP Registry
-10. **publish** → Publishes to npm, NuGet.org, and VS Code Marketplace
-11. **create-release** → Creates the GitHub Release with all artifacts and the prepared release notes
+2. **prepare-release** → Compiles changesets once and uploads the exact metadata patch and notes
+3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, skill and plugin outputs
+4. **create-tag** → Applies the same patch, checks that `main` has not advanced, commits only allowed release metadata, then tags that commit
+5. **create-release** → Publishes GitHub assets, checksums and prepared notes
+6. **publish** → Publishes npm and NuGet packages
+7. **publish-vscode** → Publishes the already verified VSIX independently
+8. **publish-mcp-registry** → Waits for matching npm/NuGet metadata and registers the release
+9. **publish-plugins** → Calls the reusable publisher after GitHub assets exist, passing exact release identity and prepared plugins
 
-Afterward, **publish-plugins.yml** runs as a follow-on workflow and sync-gates republication of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed.
+Registry propagation failures do not suppress plugin publication or GitHub assets.
+Each distribution reports its own result; repair only the failed destination.
 
 ### 4. Verify Release
 
@@ -125,19 +125,19 @@ After workflow completes:
 ### 5. Agent Plugin Publishing (Automatic)
 
 **Workflow**: `.github/workflows/publish-plugins.yml`
-**Trigger**: Runs automatically after `release.yml` completes successfully, with a manual `workflow_dispatch` re-sync path for existing source release tags
+**Trigger**: Called by `release.yml` after GitHub assets exist, with a manual `workflow_dispatch` repair path for existing source release tags
 **Published Repo**: `sbroenne/mcp-server-excel-plugins` (the actual Copilot CLI marketplace repo)
 
-The `publish-plugins.yml` workflow automatically publishes updated plugins when the release workflow completes:
+The `publish-plugins.yml` workflow consumes prepared release plugins:
 
-1. **Extracts version** from the release tag created by `release.yml`
-2. **Runs a source-side sync gate** and skips the downstream publish when no plugin-published source files changed since the previous release tag
-3. **Builds plugins** via `scripts/Build-Plugins.ps1`:
-    - Copies validated plugin structure from the published marketplace repo
-    - Applies source-owned plugin overlays from `.github/plugins/` (overlay content only; not standalone plugin roots)
+1. **Verifies tag, commit and version** explicitly supplied by `release.yml`
+2. **Consumes prepared output**, or the exact requested release's payload for manual repair
+3. **Uses plugins assembled earlier** via `scripts/Build-Plugins.ps1`:
+    - Copies canonical plugin structure from this source repository
+    - Renders shared bootstrap templates from `.github/plugins/`
     - Strips committed runtime payloads from plugin bundles so the published repo stays wrapper/bootstrap-only
     - Updates version in plugin.json and version.txt for release-tag metadata, while runtime bootstrap still targets the newest GitHub Release at invocation time
-    - Refreshes skill content (always uses latest source) and stamps the explicit release-tag version into each packaged skill's generated `VERSION`
+    - Consumes complete generated skills from the released source and stamps the release version
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches
     - Rejects downgrade publishes
@@ -155,7 +155,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 - ✅ **Idempotent** — Safe to re-run on the same version
 - ✅ **Version-aligned** — Uses the exact version from the release
 - ✅ **No stale fallback** — Distributable builds require an explicit version; canonical skill sources contain no `VERSION` file
-- ✅ **Sync-gated** — skips downstream plugin republish when plugin install-surface inputs did not change since the prior release tag
+- ✅ **Output-compared** — identical prepared output does not create an empty commit
 - ✅ **Guarded replay** — downgrade syncs are rejected, automatic duplicates are skipped, and manual repair/replay runs must keep the requested tag aligned with the incoming plugin manifest/version
 - ✅ **Manual repair path** — maintainers keep a `workflow_dispatch` re-sync entry point for repair/replay scenarios
 - ⚠️ **Requires cross-repo token** — First-time setup needs a repository secret `PLUGINS_REPO_TOKEN` in the source repo. Use either a PAT with `public_repo` scope or an app token with `contents:write` on `sbroenne/mcp-server-excel-plugins` (see [Phase 3 Plugin Publishing docs](../.github/workflows/docs/publish-plugins-setup.md))
@@ -169,7 +169,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 - The current workflow and docs only claim a verified GitHub Copilot install flow; they do **not** claim automatic publication into VS Code or Claude-specific plugin marketplaces.
 
 **Hardening note:**
-- Automatic publication now passes through a source-side sync gate so unchanged plugin install surfaces do not produce redundant downstream publishes.
+- Publication uses explicit release identity and prepared output, not an incomplete source-path comparison.
 - The published-side sync path rejects downgrade attempts, rewrites the published repo to the canonical `.github/plugin/marketplace.json` layout, and keeps explicit repair/replay runs honest by requiring tag/version alignment.
 - Maintainers still have a manual `workflow_dispatch` re-sync entry point when a repair or replay is needed.
 
@@ -223,10 +223,9 @@ The release workflow injects the correct version from the tag.
 4. **Artifact builds** consume that prepared changelog, so packaged VS Code and MCPB changelog files include the version being released.
 5. **After all builds pass**, the `create-tag` job regenerates the metadata using the same release date and verifies it byte-for-byte against the prepared artifact. It commits `CHANGELOG.md`, synchronized version metadata, and consumed `.changeset/*.md` deletions to `main` through the Git Data API, then points the release tag at that exact commit.
 
-Advertised tool and operation totals are generated once, from code, by a
-dedicated workflow (`.github/workflows/doc-counts.yml`) that runs
-`scripts/check-doc-counts.ps1 -Update` on every push to `main` and commits any
-changes straight back. That writes the single canonical include file
+Advertised tool and operation totals are generated from code by running
+`scripts/check-doc-counts.ps1 -Update` and reviewed in the same PR as the code.
+Strict CI rejects stale counts before merge. The command writes the canonical include file
 `doc-counts.json` (repo root) plus every managed headline claim across the
 repository. Release automation and the website never derive or restate these
 numbers themselves — they read `doc-counts.json` or the headlines it already

@@ -30,7 +30,8 @@ This installs the test dependencies from `pyproject.toml`, including `pytest-ski
 ## Build MCP Server (Required)
 
 ```powershell
-dotnet build ..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj -c Release
+dotnet build ..\Sbroenne.ExcelMcp.sln -c Release
+& ..\scripts\Build-AgentSkills.ps1 -GenerateOnly
 ```
 
 ## Run Tests (Manual Only)

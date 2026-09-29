@@ -29,6 +29,15 @@ $RootOverlayDir = Join-Path $RepoRoot ".github\plugins\marketplace-repo"
 $PublishedRepoDir = (Resolve-Path $PublishedRepoDir).Path
 $BuiltPluginsDir = (Resolve-Path $BuiltPluginsDir).Path
 $AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+. (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
+Assert-PackageOutputPath -Path $PublishedRepoDir -RepoRoot $RepoRoot -Inputs @($BuiltPluginsDir)
+if (-not (Test-Path -LiteralPath $RootOverlayDir -PathType Container)) { throw "Published-repository overlay is missing: $RootOverlayDir" }
+foreach ($tree in @($PublishedRepoDir, $BuiltPluginsDir, $RootOverlayDir)) {
+    if (((Get-Item -LiteralPath $tree -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+        @(Get-ChildItem -LiteralPath $tree -Recurse -Force | Where-Object {
+        $_.Attributes -band [IO.FileAttributes]::ReparsePoint
+    }).Count) { throw "Publication paths must not contain links: $tree" }
+}
 
 function Copy-DirectoryFiles {
     param(
@@ -143,6 +152,16 @@ foreach ($pluginName in $builtPluginNames) {
         throw "$pluginJsonPath resolved version '$($pluginJson.version)' but expected '$Version'."
     }
 
+    $wrapper = if ($pluginName -eq 'excel-cli') { 'start-cli.ps1' } else { 'start-mcp.ps1' }
+    foreach ($required in @('README.md', 'version.txt', 'bin\download.ps1', "bin\$wrapper",
+        "skills\$pluginName\SKILL.md", "skills\$pluginName\VERSION", "skills\$pluginName\references\range.md")) {
+        if (-not (Test-Path -LiteralPath (Join-Path $sourcePluginDir $required) -PathType Leaf)) {
+            throw "Incomplete plugin payload: $pluginName is missing $required."
+        }
+    }
+    $skillVersion = (Get-Content -LiteralPath (Join-Path $sourcePluginDir "skills\$pluginName\VERSION") -Raw).Trim()
+    if ($skillVersion -ne $Version) { throw "Prepared $pluginName skill version must match $Version." }
+
     $legacyCopilotHelper = Join-Path $sourcePluginDir "bin\install-global.ps1"
     if (Test-Path $legacyCopilotHelper) {
         throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
@@ -184,11 +203,8 @@ foreach ($pluginName in $builtPluginNames) {
     $sourcePluginDir = Join-Path $BuiltPluginsDir $pluginName
     $destinationPluginDir = Join-Path $PublishedRepoDir "plugins\$pluginName"
 
-    if (Test-Path $destinationPluginDir) {
-        Remove-Item -Path $destinationPluginDir -Recurse -Force
-    }
-
-    Copy-Item -Path $sourcePluginDir -Destination $destinationPluginDir -Recurse -Force
+    New-Item -ItemType Directory -Path (Split-Path $destinationPluginDir -Parent) -Force | Out-Null
+    Install-PackageOutput -Source $sourcePluginDir -Destination $destinationPluginDir
 }
 
 $canonicalManifestPath = Join-Path $PublishedRepoDir ".github\plugin\marketplace.json"

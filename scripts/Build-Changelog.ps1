@@ -13,8 +13,8 @@
       3. Extracts the newly-inserted section body to a separate file so it can be
          used verbatim as GitHub Release notes.
 
-    Safe to run locally for a dry run: it mutates CHANGELOG.md, release metadata,
-    and deletes consumed fragments in .changeset/, same as the real release step.
+    This is NOT a dry run: it changes CHANGELOG.md and release metadata and
+    deletes consumed fragments in .changeset/. Use a disposable checkout for preview.
 
 .PARAMETER Version
     The version being released, e.g. "1.9.1" (no leading "v").
@@ -67,6 +67,7 @@ if (-not (Test-Path $updateReleaseVersionScript)) {
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Version '$Version' must be a plain semver value without a leading 'v' (e.g. 1.9.1)."
 }
+& $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version -ValidateOnly
 
 # --- Step 1: snapshot the changelog body (everything after the title line) before
 # changesets mutates the file. changesets always inserts its new section

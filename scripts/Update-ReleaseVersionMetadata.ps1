@@ -18,11 +18,14 @@ param(
     [ValidatePattern('^\d+\.\d+\.\d+$')]
     [string]$Version,
 
-    [string]$RepoRoot = (Split-Path $PSScriptRoot -Parent)
+    [string]$RepoRoot = (Split-Path $PSScriptRoot -Parent),
+
+    [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+$updates = [ordered]@{}
 
 function Get-RequiredJson {
     param([Parameter(Mandatory)][string]$Path)
@@ -49,14 +52,10 @@ function Set-RootJsonVersion {
     }
 
     $content = [regex]::new($pattern).Replace($content, "`${1}$Version`${2}", 1)
-    [System.IO.File]::WriteAllText(
-        $Path,
-        $content,
-        [System.Text.UTF8Encoding]::new($false))
-
-    if ((Get-RequiredJson -Path $Path).version -ne $Version) {
-        throw "Release metadata validation failed after stamping version '$Version': $Path"
+    if (($content | ConvertFrom-Json).version -ne $Version) {
+        throw "Prepared release metadata does not match version '$Version': $Path"
     }
+    $updates[$Path] = $content
 }
 
 function Set-PackageLockVersion {
@@ -81,16 +80,12 @@ function Set-PackageLockVersion {
     }
 
     $content = [regex]::new($pattern).Replace($content, "`${1}$Version`${2}", 2)
-    [System.IO.File]::WriteAllText(
-        $Path,
-        $content,
-        [System.Text.UTF8Encoding]::new($false))
-
-    $updatedJson = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable
+    $updatedJson = $content | ConvertFrom-Json -AsHashtable
     if ($updatedJson.version -ne $Version -or
         $updatedJson.packages[''].version -ne $Version) {
         throw "Package lock validation failed after stamping version '$Version': $Path"
     }
+    $updates[$Path] = $content
 }
 
 function Set-ProjectVersions {
@@ -116,10 +111,7 @@ function Set-ProjectVersions {
         $content = [regex]::Replace($content, $replacement.Key, $replacement.Value)
     }
 
-    [System.IO.File]::WriteAllText(
-        $Path,
-        $content,
-        [System.Text.UTF8Encoding]::new($false))
+    $updates[$Path] = $content
 }
 
 Set-RootJsonVersion -Path (Join-Path $RepoRoot 'package.json')
@@ -129,8 +121,14 @@ Set-RootJsonVersion -Path (Join-Path $RepoRoot 'mcpb' 'manifest.json')
 Set-RootJsonVersion -Path (Join-Path $RepoRoot 'vscode-extension' 'package.json')
 Set-PackageLockVersion -Path (Join-Path $RepoRoot 'vscode-extension' 'package-lock.json')
 
-& (Join-Path $PSScriptRoot 'Update-McpRegistryMetadata.ps1') `
-    -ServerJsonPath (Join-Path $RepoRoot 'src' 'ExcelMcp.McpServer' '.mcp' 'server.json') `
-    -Version $Version
+$registryScript = Join-Path $PSScriptRoot 'Update-McpRegistryMetadata.ps1'
+$registryPath = Join-Path $RepoRoot 'src' 'ExcelMcp.McpServer' '.mcp' 'server.json'
+& $registryScript -ServerJsonPath $registryPath -Version $Version -ValidateOnly
+if ($ValidateOnly) { return }
+
+foreach ($entry in $updates.GetEnumerator()) {
+    [IO.File]::WriteAllText($entry.Key, $entry.Value, [Text.UTF8Encoding]::new($false))
+}
+& $registryScript -ServerJsonPath $registryPath -Version $Version
 
 Write-Output "Synchronized persistent release metadata to version $Version."

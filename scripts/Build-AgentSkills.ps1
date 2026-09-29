@@ -5,23 +5,18 @@
 .DESCRIPTION
     Creates distributable artifacts for Agent Skills:
     - excel-skills-v{version}.zip: Combined skill package with both excel-mcp and excel-cli
-    - CLAUDE.md: Claude Code project instructions
-    - .cursorrules: Cursor project rules
-
-    MCP shared behavioral guidance from skills/shared/ is automatically copied
-    to excel-mcp/references/ during packaging. The excel-cli skill uses its
-    generated references/cli-commands.md file as the CLI-specific source of truth.
-
-    Users install with: npx skills add sbroenne/mcp-server-excel
+    GenerateOnly renders both skills and their complete references into ignored
+    output. Packaging consumes that prepared directory without regenerating it.
+    Users install with: npx skills add sbroenne/mcp-server-excel-plugins
 
 .PARAMETER OutputDir
     Output directory for artifacts. Default: artifacts/skills
 
 .PARAMETER Version
-    Package version. Required unless PopulateReferences is used.
+    Package version. Required unless GenerateOnly is used.
 
-.PARAMETER PopulateReferences
-    Copy MCP shared references and regenerate CLI command reference files for local development (without packaging).
+.PARAMETER GenerateOnly
+    Generate complete skill directories after the Release solution build, without packaging.
 
 .EXAMPLE
     ./Build-AgentSkills.ps1 -Version 1.2.0
@@ -30,18 +25,31 @@
     ./Build-AgentSkills.ps1 -OutputDir ./dist -Version 1.2.0
 
 .EXAMPLE
-    ./Build-AgentSkills.ps1 -PopulateReferences
+    ./Build-AgentSkills.ps1 -GenerateOnly
 #>
+[CmdletBinding()]
 param(
-    [string]$OutputDir = "artifacts/skills",
-    [string]$Version = $null,
-    [switch]$PopulateReferences
+    [string]$OutputDir,
+    [string]$Version,
+    [switch]$GenerateOnly,
+    [string]$SkillsDirectory,
+    [string]$ManifestPath,
+    [string]$CliExecutable
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SkillsDir = Join-Path $RepoRoot "skills"
 $SharedDir = Join-Path $SkillsDir "shared"
+. (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
+
+function ConvertTo-PlainHelpLines {
+    param([AllowEmptyCollection()][object[]]$Lines)
+
+    return @($Lines | ForEach-Object {
+        ([string]$_) -replace "`e\[[0-?]*[ -/]*[@-~]", ''
+    })
+}
 
 # Generate a complete reference from the built CLI so aliases and branch commands cannot drift.
 function Generate-CliReference {
@@ -54,8 +62,7 @@ function Generate-CliReference {
         $ExcelCliPath = Join-Path $RepoRoot "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
     }
     if ($env:OS -ne "Windows_NT" -and [System.IO.Path]::GetExtension($ExcelCliPath) -eq ".exe") {
-        Write-Warning "Skipping CLI reference generation because the Windows executable cannot run on this host"
-        return
+        throw "Complete CLI reference generation requires Windows."
     }
     if (-not (Test-Path $ExcelCliPath)) {
         throw "excelcli not found at $ExcelCliPath. Build it first with: dotnet build src/ExcelMcp.CLI -c Release"
@@ -184,7 +191,7 @@ function Generate-CliReference {
     }
 
     Write-Host "  Generating CLI command reference from excelcli..." -ForegroundColor Cyan
-    $mainHelp = @(& $ExcelCliPath --help 2>&1)
+    $mainHelp = ConvertTo-PlainHelpLines @(& $ExcelCliPath --help 2>&1)
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to run '$ExcelCliPath --help'."
     }
@@ -215,7 +222,7 @@ function Generate-CliReference {
     $commands = Get-HelpEntries -Lines $mainHelp -Header "COMMANDS:" -Kind Command
     foreach ($command in ($commands | Sort-Object { $_.Spec.Split(' ')[0] })) {
         $commandName = $command.Spec.Split(' ')[0]
-        $help = @(& $ExcelCliPath $commandName --help 2>&1)
+        $help = ConvertTo-PlainHelpLines @(& $ExcelCliPath $commandName --help 2>&1)
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to run '$ExcelCliPath $commandName --help'."
         }
@@ -254,7 +261,7 @@ function Generate-CliReference {
         if ($subcommands.Count -gt 0) {
             foreach ($subcommand in $subcommands) {
                 $subcommandName = $subcommand.Spec.Split(' ')[0]
-                $subcommandHelp = @(& $ExcelCliPath $commandName $subcommandName --help 2>&1)
+                $subcommandHelp = ConvertTo-PlainHelpLines @(& $ExcelCliPath $commandName $subcommandName --help 2>&1)
                 if ($LASTEXITCODE -ne 0) {
                     throw "Failed to run '$ExcelCliPath $commandName $subcommandName --help'."
                 }
@@ -301,6 +308,7 @@ function Copy-SharedReferences {
 
     if (Test-Path $SharedDir) {
         $FilesToCopy = @(Get-ChildItem -Path $SharedDir -File -Filter "*.md")
+        if ($FilesToCopy.Count -eq 0) { throw "No shared reference files found: $SharedDir" }
         $CopiedCount = 0
         foreach ($sourceFile in $FilesToCopy) {
             $destination = Join-Path $RefsDir $sourceFile.Name
@@ -316,171 +324,77 @@ function Copy-SharedReferences {
         }
         Write-Host "  Copied $CopiedCount shared references to $SkillName/references/" -ForegroundColor Green
     } else {
-        Write-Warning "Shared directory not found: $SharedDir"
+        throw "Required shared references not found: $SharedDir"
     }
 }
 
-# Handle -PopulateReferences mode (for development)
-if ($PopulateReferences) {
-    Write-Host "Populating references from shared/ for local development..." -ForegroundColor Cyan
-
-    # Copy to excel-mcp
-    $McpPath = Join-Path $SkillsDir "excel-mcp"
-    if (Test-Path $McpPath) {
-        Copy-SharedReferences -SkillPath $McpPath -SkillName "excel-mcp"
+if ($GenerateOnly) {
+    if (-not $ManifestPath) {
+        $ManifestPath = Join-Path $RepoRoot 'src\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs'
     }
-
-    # Copy to excel-cli
-    $CliPath = Join-Path $SkillsDir "excel-cli"
-    if (Test-Path $CliPath) {
-        Copy-SharedReferences -SkillPath $CliPath -SkillName "excel-cli"
-        # Generate CLI command reference from excelcli --help
-        Generate-CliReference -SkillPath $CliPath
-    }
-
-    Write-Host ""
-    Write-Host "Done! References populated for local development." -ForegroundColor Green
-    exit 0
+    if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Required manifest not found: $ManifestPath" }
+    if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
+    if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
 }
-
+elseif (-not $OutputDir) {
+    $OutputDir = 'artifacts\skills'
+}
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
 }
 $Version = $Version.Trim()
-
-Write-Host "Building Agent Skills package v$Version" -ForegroundColor Cyan
-Write-Host "Source: $SkillsDir"
-Write-Host "Output: $OutputDir"
-Write-Host ""
-
-# Create output directory
-$OutputPath = Join-Path $RepoRoot $OutputDir
-if (-not (Test-Path $OutputPath)) {
-    New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+$OutputPath = [IO.Path]::GetFullPath($OutputDir, $RepoRoot)
+Assert-PackageOutputPath -Path $OutputPath -RepoRoot $RepoRoot
+if ($OutputPath -eq [IO.Path]::GetPathRoot($OutputPath) -or
+    $OutputPath -eq $RepoRoot -or
+    $OutputPath.StartsWith("$SkillsDir$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::OrdinalIgnoreCase) -or
+    $OutputPath -eq $SkillsDir) {
+    throw "Skill output must not overlap source files: $OutputPath"
 }
-
-# Build combined skills package
-Write-Host "Building combined skills package..." -ForegroundColor Yellow
-
-# Create staging directory
-$StagingDir = Join-Path ([System.IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts\generated-skills' }
+$StagingDir = Join-Path ([IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
-
 try {
-    # Create skills/ subdirectory (the standard location for npx skills add)
     $SkillsStagingDir = Join-Path $StagingDir "skills"
     New-Item -ItemType Directory -Path $SkillsStagingDir -Force | Out-Null
-
-    # Copy excel-mcp skill
-    $McpSource = Join-Path $SkillsDir "excel-mcp"
-    if (Test-Path $McpSource) {
-        Copy-Item -Path $McpSource -Destination "$SkillsStagingDir/excel-mcp" -Recurse
-        Copy-SharedReferences -SkillPath "$SkillsStagingDir/excel-mcp" -SkillName "excel-mcp"
-        Set-Content -Path "$SkillsStagingDir/excel-mcp/VERSION" -Value $Version -Encoding UTF8 -NoNewline
-    } else {
-        Write-Warning "excel-mcp skill not found"
-    }
-
-    # Copy excel-cli skill
-    $CliSource = Join-Path $SkillsDir "excel-cli"
-    if (Test-Path $CliSource) {
-        Copy-Item -Path $CliSource -Destination "$SkillsStagingDir/excel-cli" -Recurse
-        Copy-SharedReferences -SkillPath "$SkillsStagingDir/excel-cli" -SkillName "excel-cli"
-        # Generate CLI command reference from excelcli --help
-        Generate-CliReference -SkillPath "$SkillsStagingDir/excel-cli"
-        Set-Content -Path "$SkillsStagingDir/excel-cli/VERSION" -Value $Version -Encoding UTF8 -NoNewline
-    } else {
-        Write-Warning "excel-cli skill not found"
-    }
-
-    # Copy skills README to root of package
-    $SkillsReadme = Join-Path $SkillsDir "README.md"
-    if (Test-Path $SkillsReadme) {
-        Copy-Item -Path $SkillsReadme -Destination $StagingDir
-    }
-
-    # Create ZIP archive
-    $ZipName = "excel-skills-v$Version.zip"
-    $ZipPath = Join-Path $OutputPath $ZipName
-
-    if (Test-Path $ZipPath) {
-        Remove-Item $ZipPath -Force
-    }
-
-    Compress-Archive -Path "$StagingDir\*" -DestinationPath $ZipPath -CompressionLevel Optimal
-    Write-Host "  Created: $ZipName" -ForegroundColor Green
-
-} finally {
-    if (Test-Path $StagingDir) {
-        Remove-Item $StagingDir -Recurse -Force
-    }
-}
-
-# Copy CLAUDE.md and .cursorrules
-Write-Host "Copying platform-specific files..." -ForegroundColor Yellow
-
-$ClaudeSrc = Join-Path $SkillsDir "CLAUDE.md"
-if (Test-Path $ClaudeSrc) {
-    Copy-Item -Path $ClaudeSrc -Destination $OutputPath
-    Write-Host "  Created: CLAUDE.md" -ForegroundColor Green
-}
-
-$CursorSrc = Join-Path $SkillsDir ".cursorrules"
-if (Test-Path $CursorSrc) {
-    Copy-Item -Path $CursorSrc -Destination $OutputPath
-    Write-Host "  Created: .cursorrules" -ForegroundColor Green
-}
-
-# Generate manifest
-$Manifest = @{
-    name = "excel-skills"
-    version = $Version
-    description = "Excel MCP Server Agent Skills for AI coding assistants"
-    platforms = @("github-copilot", "claude-code", "cursor", "windsurf", "gemini-cli", "goose", "codex", "opencode", "amp", "kilo", "roo", "trae")
-    skills = @(
-        @{
-            name = "excel-mcp"
-            path = "skills/excel-mcp"
-            description = "MCP Server skill - for conversational AI (Claude Desktop, VS Code Chat)"
-            target = "MCP Server"
+    foreach ($component in @('cli', 'mcp')) {
+        $name = "excel-$component"
+        $destination = Join-Path $SkillsStagingDir $name
+        if ($GenerateOnly) {
+            $assets = Join-Path $SkillsDir "assets\$name"
+            Copy-Item -LiteralPath $assets -Destination $destination -Recurse
+            $projectName = if ($component -eq 'cli') { 'CLI' } else { 'McpServer' }
+            $target = if ($component -eq 'cli') { 'GenerateCliSkill' } else { 'GenerateMcpSkill' }
+            dotnet msbuild (Join-Path $RepoRoot "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj") `
+                "-target:$target" -p:Configuration=Release "-p:SkillOutputRoot=$SkillsStagingDir" `
+                "-p:SkillManifestPath=$ManifestPath" -nodeReuse:false -verbosity:minimal
+            if ($LASTEXITCODE -ne 0) { throw "$name rendering failed with exit code $LASTEXITCODE." }
+            Copy-SharedReferences -SkillPath $destination -SkillName $name
+            if ($component -eq 'cli') { Generate-CliReference -SkillPath $destination -ExcelCliPath $CliExecutable }
         }
-        @{
-            name = "excel-cli"
-            path = "skills/excel-cli"
-            description = "CLI skill - for coding agents (Copilot, Cursor, Windsurf)"
-            target = "CLI Tool"
+        else {
+            Copy-Item -LiteralPath (Join-Path $SkillsDirectory $name) -Destination $destination -Recurse
         }
-    )
-    installation = @{
-        npx = "npx skills add sbroenne/mcp-server-excel"
-        selectSkill = "npx skills add sbroenne/mcp-server-excel --skill excel-cli"
-        installBoth = "npx skills add sbroenne/mcp-server-excel --skill '*'"
+        foreach ($required in @('SKILL.md', 'README.md', 'references\range.md')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $destination $required))) { throw "$name is missing $required." }
+        }
+        Set-Content (Join-Path $destination 'VERSION') $Version -Encoding utf8 -NoNewline
     }
-    files = @(
-        @{ name = "CLAUDE.md"; type = "config"; description = "Claude Code project instructions" }
-        @{ name = ".cursorrules"; type = "config"; description = "Cursor project rules" }
-    )
-    repository = "https://github.com/sbroenne/mcp-server-excel"
-    documentation = "https://excelmcpserver.dev/"
-    buildDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+    New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+    if ($GenerateOnly) {
+        foreach ($name in @('excel-cli', 'excel-mcp')) {
+            $destination = Join-Path $OutputPath $name
+            Install-PackageOutput -Source (Join-Path $SkillsStagingDir $name) -Destination $destination
+        }
+        Write-Host "Generated complete skills at $OutputPath"
+    }
+    else {
+        Copy-Item (Join-Path $SkillsDir 'README.md') $StagingDir
+        $zip = Join-Path $StagingDir "excel-skills-v$Version.zip"
+        Compress-Archive -LiteralPath $SkillsStagingDir,(Join-Path $StagingDir 'README.md') -DestinationPath $zip
+        Install-PackageOutput -Source $zip -Destination (Join-Path $OutputPath (Split-Path $zip -Leaf))
+        Write-Host "Created $OutputPath\excel-skills-v$Version.zip"
+    }
 }
-
-$ManifestPath = Join-Path $OutputPath "manifest.json"
-$Manifest | ConvertTo-Json -Depth 10 | Set-Content -Path $ManifestPath -Encoding UTF8
-Write-Host "  Created: manifest.json" -ForegroundColor Green
-
-Write-Host ""
-Write-Host "Build complete!" -ForegroundColor Green
-Write-Host ""
-Write-Host "Output files in: $OutputPath" -ForegroundColor Cyan
-Get-ChildItem $OutputPath | ForEach-Object {
-    $Size = if ($_.Length -gt 1MB) { "{0:N2} MB" -f ($_.Length / 1MB) }
-            elseif ($_.Length -gt 1KB) { "{0:N2} KB" -f ($_.Length / 1KB) }
-            else { "{0} bytes" -f $_.Length }
-    Write-Host "  $($_.Name) ($Size)"
-}
-
-Write-Host ""
-Write-Host "Installation:" -ForegroundColor Cyan
-Write-Host "  npx skills add sbroenne/mcp-server-excel" -ForegroundColor White
-Write-Host "  (users will be prompted to select excel-cli, excel-mcp, or both)"
+finally { Remove-Item -LiteralPath $StagingDir -Recurse -Force }
+$global:LASTEXITCODE = 0

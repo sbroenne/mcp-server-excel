@@ -10,6 +10,8 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 internal static class DaemonProcessTracker
 {
     private static readonly object TrackingFileLock = new();
+    private const int TrackingFileMoveAttempts = 5;
+    private static readonly TimeSpan TrackingFileMoveDelay = TimeSpan.FromMilliseconds(100);
 
     internal readonly record struct ProcessIdentity(int ProcessId, long StartedAtUtcFileTime);
     internal sealed record ProcessSnapshot(
@@ -545,7 +547,7 @@ internal static class DaemonProcessTracker
             File.WriteAllText(
                 temporaryFile,
                 JsonSerializer.Serialize(record, DaemonTrackingJson.Options));
-            File.Move(temporaryFile, trackingFile, overwrite: true);
+            MoveTrackingFile(temporaryFile, trackingFile);
             foreach (var legacyTrackingFile in GetTrackingFilePaths(pipeName)
                          .Where(path => !string.Equals(
                              path,
@@ -563,6 +565,24 @@ internal static class DaemonProcessTracker
             if (File.Exists(temporaryFile))
             {
                 File.Delete(temporaryFile);
+            }
+        }
+    }
+
+    private static void MoveTrackingFile(string temporaryFile, string trackingFile)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(temporaryFile, trackingFile, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (
+                ex is IOException or UnauthorizedAccessException
+                && attempt < TrackingFileMoveAttempts)
+            {
+                Thread.Sleep(TrackingFileMoveDelay);
             }
         }
     }

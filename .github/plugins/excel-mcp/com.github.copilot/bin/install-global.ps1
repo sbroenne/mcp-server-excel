@@ -29,14 +29,12 @@ $config = [pscustomobject]@{
 
 if (Test-Path $UserMcpConfig) {
     Write-Host "[Install] Loading existing user MCP config..." -ForegroundColor Yellow
-    $existingContent = Get-Content $UserMcpConfig -Raw | ConvertFrom-Json
-    $config = [pscustomobject]@{
-        mcpServers = if ($existingContent.mcpServers) {
-            $existingContent.mcpServers
-        } else {
-            [pscustomobject]@{}
-        }
+    $config = Get-Content $UserMcpConfig -Raw | ConvertFrom-Json
+    if ($config -isnot [pscustomobject]) { throw "User MCP config must be a JSON object." }
+    if ($null -eq $config.mcpServers) {
+        $config | Add-Member -MemberType NoteProperty -Name mcpServers -Value ([pscustomobject]@{}) -Force
     }
+    if ($config.mcpServers -isnot [pscustomobject]) { throw "mcpServers must be a JSON object." }
 }
 
 if ($config.mcpServers.PSObject.Properties.Name -contains "excel-mcp" -and -not $Force) {
@@ -59,7 +57,18 @@ $excelMcpConfig = @{
 }
 
 $config.mcpServers | Add-Member -MemberType NoteProperty -Name "excel-mcp" -Value $excelMcpConfig -Force
-$config | ConvertTo-Json -Depth 10 | Set-Content $UserMcpConfig -Encoding UTF8
+$temporaryConfig = "$UserMcpConfig.$([Guid]::NewGuid().ToString('N')).tmp"
+try {
+    $json = $config | ConvertTo-Json -Depth 100 -WarningAction Stop
+    [IO.File]::WriteAllText($temporaryConfig, $json, [Text.UTF8Encoding]::new($false))
+    if (Test-Path -LiteralPath $UserMcpConfig) {
+        [IO.File]::Replace($temporaryConfig, $UserMcpConfig, [System.Management.Automation.Language.NullString]::Value)
+    } else {
+        [IO.File]::Move($temporaryConfig, $UserMcpConfig)
+    }
+} finally {
+    if (Test-Path -LiteralPath $temporaryConfig) { Remove-Item -LiteralPath $temporaryConfig }
+}
 
 Write-Host ""
 Write-Host "✅ ExcelMcp MCP server installed globally!" -ForegroundColor Green

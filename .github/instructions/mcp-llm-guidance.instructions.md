@@ -13,8 +13,9 @@ excludeAgent: "code-review"
 | Skill rendering | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
 | MCP prompt description overrides | `GenerateSkillPromptsClass` in the MCP `.csproj` |
 
-Release builds generate both `skills/excel-*/SKILL.md` files from templates and
-the Core manifest, copy shared references, and generate/embed MCP prompts.
+Release builds generate the Core manifest and embed MCP prompts.
+`scripts\Build-AgentSkills.ps1 -GenerateOnly` then generates complete skills under
+`artifacts\generated-skills` from templates, authored `skills/assets`, and shared references.
 Never edit those outputs or the extension's packaged skill copy.
 
 Guidance should add only what an Excel-capable agent cannot infer from schemas:

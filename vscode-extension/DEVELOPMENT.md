@@ -23,8 +23,15 @@ vscode-extension/
 ```
 
 Do not edit files under `vscode-extension/skills/excel-mcp/` directly. The
-`copy:skills` script replaces that directory from the canonical
-`skills/excel-mcp/` source and stamps `VERSION` from `package.json`.
+shared package command copies the prepared MCP skill from
+`artifacts/generated-skills/` into an isolated extension staging directory.
+
+After a Release solution build, `npm run package` uses
+`scripts/Build-ReleasePackages.ps1 -Components Extension`. It publishes the MCP
+runtime once, generates complete skills, installs locked extension dependencies,
+and creates and inspects the VSIX under `artifacts/packages/`. It does not clean
+or overwrite this source directory. For an unpackaged debug session, open the
+prepared `extension` directory reported by that command.
 
 Do not edit `vscode-extension/CHANGELOG.md` directly. The build copies the
 generated root `CHANGELOG.md` into the extension package.
@@ -107,11 +114,13 @@ Packaging performs these steps automatically:
 4. Validates feature and Marketplace metadata.
 5. Compiles TypeScript and runs `vsce package`.
 
-To build only the bundled executable:
+To prepare and inspect the bundled executable through the shared package path,
+run these commands from the repository root:
 
 ```powershell
-npm run build:mcp-server
-.\bin\Sbroenne.ExcelMcp.McpServer.exe --version
+.\scripts\Build-AgentSkills.ps1 -GenerateOnly
+.\scripts\Build-ReleasePackages.ps1 -Components Extension -SkillsDirectory artifacts\generated-skills -OutputDirectory artifacts\extension-check
+.\artifacts\extension-check\runtimes\Mcp\Sbroenne.ExcelMcp.McpServer.exe --version
 ```
 
 ## Local testing
@@ -158,8 +167,9 @@ Run `npm ci` from `vscode-extension`.
 
 ### MCP Server is missing
 
-Run `npm run build:mcp-server`, then verify that
-`bin/Sbroenne.ExcelMcp.McpServer.exe --version` succeeds. The manifest provider
+Run the shared package commands above, then verify that
+`artifacts/extension-check/runtimes/Mcp/Sbroenne.ExcelMcp.McpServer.exe --version`
+succeeds. The manifest provider
 ID and the ID passed to `registerMcpServerDefinitionProvider` must both be
 `excel-mcp`.
 

@@ -32,6 +32,152 @@ public sealed class ReleaseMetadataScriptTests
         "workflows",
         "release.yml");
 
+    [Theory]
+    [InlineData("vscode-extension", "package-lock.json")]
+    [InlineData("src/ExcelMcp.McpServer/.mcp", "server.json")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task UpdateReleaseVersion_MissingMetadataCannotPartiallyStampOtherFiles(string directory, string file)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            CopyReleaseMetadataFiles(sandbox);
+            var before = File.ReadAllText(Path.Combine(sandbox, "package.json"));
+            File.Delete(Path.Combine(sandbox, directory, file));
+            var result = await RunPowerShellScriptAsync(UpdateReleaseVersionScript,
+                ["-RepoRoot", sandbox, "-Version", "9.8.7"]);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Equal(before, File.ReadAllText(Path.Combine(sandbox, "package.json")));
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void PluginPublication_UsesExplicitReleaseIdentityAndPreparedInputs()
+    {
+        var release = File.ReadAllText(ReleaseWorkflow);
+        var plugins = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml"));
+        Assert.DoesNotContain("workflow_run", plugins, StringComparison.Ordinal);
+        Assert.Contains("workflow_call:", plugins, StringComparison.Ordinal);
+        Assert.Contains("needs: [version, create-tag, create-release]", ExtractWorkflowJob(release, "publish-plugins"), StringComparison.Ordinal);
+        Assert.Contains("release_commit:", plugins, StringComparison.Ordinal);
+        Assert.Contains("plugin_artifact:", plugins, StringComparison.Ordinal);
+        Assert.Contains("ref: ${{ needs.resolve.outputs.commit }}", plugins, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("1.2.2", false, false, "1.2.3", false, true)]
+    [InlineData("1.2.3", true, false, "1.2.3", false, true)]
+    [InlineData("1.2.3", true, true, "1.2.3", false, true)]
+    [InlineData("1.2.4", false, false, "1.2.3", false, false)]
+    [InlineData("1.2.2", true, false, "1.2.3", false, false)]
+    [InlineData("1.2.2", false, false, "9.9.9", false, false)]
+    [InlineData("1.2.2", false, false, "1.2.3", true, false)]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task PluginPublication_ExercisesVersionRetryAndFailureDecisions(
+        string publishedVersion, bool tagExists, bool manualRepair, string payloadVersion, bool syncFails, bool succeeds)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var manifest = new { plugins = new[] { new { version = publishedVersion } } };
+            WriteFile(sandbox, Path.Combine("published-repo", "marketplace.json"), JsonSerializer.Serialize(manifest));
+            foreach (var name in new[] { "excel-cli", "excel-mcp" })
+            {
+                WriteFile(sandbox, Path.Combine("built-plugins", name, "plugin.json"),
+                    JsonSerializer.Serialize(new { name, version = payloadVersion }));
+                WriteFile(sandbox, Path.Combine("built-plugins", name, "version.txt"), "1.2.3");
+                WriteFile(sandbox, Path.Combine("built-plugins", name, "skills", name, "VERSION"), "1.2.3");
+            }
+            WriteFile(sandbox, Path.Combine("source", "scripts", "Sync-PublishedPluginRepo.ps1"),
+                syncFails ? "throw 'sync-root-cause'" : "'synced' | Set-Content sync.txt");
+            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml"));
+            var step = ExtractPowerShellStep(workflow, "Guard, synchronize and publish");
+            var runner = Path.Combine(sandbox, "run.ps1");
+            File.WriteAllText(runner, $$"""
+                $env:VERSION='1.2.3'
+                $env:TAG='v1.2.3'
+                $env:SOURCE_COMMIT='exact-released-commit'
+                $env:MANUAL_REPAIR='{{manualRepair.ToString().ToLowerInvariant()}}'
+                $env:GITHUB_STEP_SUMMARY=Join-Path $PWD summary.txt
+                function git {
+                    $global:LASTEXITCODE=0
+                    if ($args -contains '--list') {
+                        if ({{(tagExists ? "$true" : "$false")}}) { 'v1.2.3' }
+                        return
+                    }
+                    if ($args -contains 'diff') { 'plugins/example'; return }
+                    Add-Content git-calls.txt ($args -join ' ')
+                }
+                {{step}}
+                """);
+            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
+            Assert.True((result.ExitCode == 0) == succeeds, result.CombinedOutput);
+            if (!succeeds)
+            {
+                var expectedError = publishedVersion == "1.2.4" ? "Downgrade publish blocked"
+                    : tagExists ? "Existing tag conflicts"
+                    : payloadVersion != "1.2.3" ? "Wrong identity"
+                    : "sync-root-cause";
+                Assert.Contains(expectedError, result.Stderr, StringComparison.Ordinal);
+            }
+            var skipped = tagExists && !manualRepair && succeeds;
+            Assert.Equal(succeeds && !skipped, File.Exists(Path.Combine(sandbox, "sync.txt")));
+            var callsFile = Path.Combine(sandbox, "git-calls.txt");
+            if (succeeds && !skipped)
+            {
+                var calls = File.ReadAllText(callsFile);
+                Assert.Contains("Source release commit: exact-released-commit", calls, StringComparison.Ordinal);
+                Assert.Contains("push origin HEAD:main", calls, StringComparison.Ordinal);
+                Assert.Equal(!tagExists, calls.Contains("push origin v1.2.3", StringComparison.Ordinal));
+                Assert.DoesNotContain("--force", calls, StringComparison.Ordinal);
+            }
+            else { Assert.False(File.Exists(callsFile)); }
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task PluginRepair_VerifiesPayloadChecksumBeforeExtracting(bool validChecksum)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            WriteFile(sandbox, Path.Combine("payload", "release.txt"), "exact released payload");
+            Directory.CreateDirectory(Path.Combine(sandbox, "downloads"));
+            var zip = Path.Combine(sandbox, "downloads", "excel-plugins-v1.2.3.zip");
+            System.IO.Compression.ZipFile.CreateFromDirectory(Path.Combine(sandbox, "payload"), zip);
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(zip)));
+            WriteFile(sandbox, Path.Combine("downloads", "SHA256SUMS"),
+                $"{(validChecksum ? hash : new string('0', 64))}  excel-plugins-v1.2.3.zip\n");
+            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml"));
+            var step = ExtractPowerShellStep(workflow, "Recover or rebuild only the requested release");
+            var runner = Path.Combine(sandbox, "run.ps1");
+            File.WriteAllText(runner, $$"""
+                $env:VERSION='1.2.3'
+                $env:TAG='v1.2.3'
+                $env:GITHUB_REPOSITORY='fixture/source'
+                function gh {
+                    $global:LASTEXITCODE=0
+                    if ($args -notcontains 'v1.2.3') { throw 'Wrong release selected.' }
+                    if ($args -contains 'view') { '{"assets":[{"name":"excel-plugins-v1.2.3.zip"}]}'; return }
+                    if ($args -contains 'download') { Copy-Item downloads\* . -Force; return }
+                    throw "Unexpected remote command: $args"
+                }
+                {{step}}
+                """);
+            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
+            Assert.True((result.ExitCode == 0) == validChecksum, result.CombinedOutput);
+            Assert.Equal(validChecksum, File.Exists(Path.Combine(sandbox, "built-plugins", "release.txt")));
+            if (!validChecksum) { Assert.Contains("checksum", result.Stderr, StringComparison.OrdinalIgnoreCase); }
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
@@ -102,10 +248,8 @@ public sealed class ReleaseMetadataScriptTests
             StringComparison.Ordinal);
 
         var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
-        Assert.Contains(
-            @".\scripts\Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION",
-            releaseWorkflow,
-            StringComparison.Ordinal);
+        Assert.Contains("./scripts/Build-Changelog.ps1", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("git apply prepared-release/release-metadata.patch", releaseWorkflow, StringComparison.Ordinal);
         Assert.DoesNotContain(
             "$content = $content -replace '<Version>",
             releaseWorkflow,
@@ -145,26 +289,19 @@ public sealed class ReleaseMetadataScriptTests
     {
         var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
         var prepareRelease = ExtractWorkflowJob(releaseWorkflow, "prepare-release");
-        var buildVsCode = ExtractWorkflowJob(releaseWorkflow, "build-vscode");
-        var buildMcpb = ExtractWorkflowJob(releaseWorkflow, "build-mcpb");
+        var buildPackages = ExtractWorkflowJob(releaseWorkflow, "build-packages");
         var publishMcpRegistry = ExtractWorkflowJob(releaseWorkflow, "publish-mcp-registry");
         var createTag = ExtractWorkflowJob(releaseWorkflow, "create-tag");
         var createRelease = ExtractWorkflowJob(releaseWorkflow, "create-release");
 
         Assert.Contains("./scripts/Build-Changelog.ps1", prepareRelease, StringComparison.Ordinal);
         Assert.Contains("name: release-metadata", prepareRelease, StringComparison.Ordinal);
-        Assert.Contains("needs: [version, prepare-release]", buildVsCode, StringComparison.Ordinal);
-        Assert.Contains("name: release-metadata", buildVsCode, StringComparison.Ordinal);
-        Assert.Contains(
-            "Copy-Item \"prepared-release/CHANGELOG.md\" \"CHANGELOG.md\" -Force",
-            buildVsCode,
-            StringComparison.Ordinal);
-        Assert.Contains("needs: [version, prepare-release]", buildMcpb, StringComparison.Ordinal);
-        Assert.Contains("name: release-metadata", buildMcpb, StringComparison.Ordinal);
-        Assert.Contains(
-            "Copy-Item \"prepared-release/CHANGELOG.md\" \"CHANGELOG.md\" -Force",
-            buildMcpb,
-            StringComparison.Ordinal);
+        Assert.Contains("needs: [version, prepare-release]", buildPackages, StringComparison.Ordinal);
+        Assert.Contains("name: release-metadata", buildPackages, StringComparison.Ordinal);
+        Assert.Contains("git apply prepared-release/release-metadata.patch", buildPackages, StringComparison.Ordinal);
+        Assert.Contains("git apply prepared-release/release-metadata.patch", createTag, StringComparison.Ordinal);
+        Assert.Contains("Build-ReleasePackages.ps1", buildPackages, StringComparison.Ordinal);
+        Assert.DoesNotContain("dotnet publish", releaseWorkflow, StringComparison.Ordinal);
 
         var commitIndex = createTag.IndexOf("Commit Release Metadata Update", StringComparison.Ordinal);
         var tagIndex = createTag.IndexOf("Create and push tag", StringComparison.Ordinal);
@@ -183,8 +320,9 @@ public sealed class ReleaseMetadataScriptTests
         Assert.DoesNotContain("./scripts/Build-Changelog.ps1", createRelease, StringComparison.Ordinal);
         Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
         Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$version", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.Contains("$nugetReady -and $npmLauncherReady -and $npmRuntimeReady", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.Contains("$content = $response.Content", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$launcher.mcpName", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$runtime.version -ne $version", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("$readme -notmatch", publishMcpRegistry, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -193,46 +331,40 @@ public sealed class ReleaseMetadataScriptTests
     public void ReleaseFlow_BuildsTestsAndPublishesBothNpmDistributions()
     {
         var workflow = File.ReadAllText(ReleaseWorkflow);
-        var cli = ExtractWorkflowJob(workflow, "build-cli");
-        var mcp = ExtractWorkflowJob(workflow, "build-mcp-server");
+        var build = ExtractWorkflowJob(workflow, "build-packages");
         var publish = ExtractWorkflowJob(workflow, "publish");
 
-        Assert.Contains("actions/setup-node@", cli, StringComparison.Ordinal);
-        Assert.Contains("-Component Cli", cli, StringComparison.Ordinal);
-        Assert.Contains("Build-NpmPackages.ps1", cli, StringComparison.Ordinal);
-        Assert.Contains("Test-NpmPackages.ps1", cli, StringComparison.Ordinal);
-        Assert.Contains("name: cli-npm", cli, StringComparison.Ordinal);
-        Assert.Contains("Build-NpmPackages.ps1", mcp, StringComparison.Ordinal);
-        Assert.Contains("Test-NpmPackages.ps1", mcp, StringComparison.Ordinal);
-        Assert.Contains("npm test --prefix npm-packages/shared", mcp, StringComparison.Ordinal);
-        Assert.Contains("name: mcp-server-npm", mcp, StringComparison.Ordinal);
-        Assert.Contains("name: cli-npm", publish, StringComparison.Ordinal);
-        Assert.Contains("name: mcp-server-npm", publish, StringComparison.Ordinal);
+        Assert.Contains("actions/setup-node@", build, StringComparison.Ordinal);
+        Assert.Contains("Build-ReleasePackages.ps1", build, StringComparison.Ordinal);
+        Assert.Contains("name: release-packages", publish, StringComparison.Ordinal);
         Assert.Contains("Detect npm authentication mode", publish, StringComparison.Ordinal);
         Assert.Contains("if: steps.npm-auth.outputs.mode == 'token'", publish, StringComparison.Ordinal);
         Assert.Contains("if: steps.npm-auth.outputs.mode == 'oidc'", publish, StringComparison.Ordinal);
         Assert.Contains("NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
         Assert.Contains("$env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN", publish, StringComparison.Ordinal);
         Assert.DoesNotContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}", publish, StringComparison.Ordinal);
-        Assert.Contains("npm publish \"./$Tarball\" --access public", publish, StringComparison.Ordinal);
+        Assert.Contains("npm publish \"./artifacts/npm/sbroenne-$name-$env:VERSION.tgz\" --access public", publish, StringComparison.Ordinal);
 
         foreach (var packageName in new[] { "excelcli", "mcp-server-excel" })
         {
             var runtimeIndex = publish.IndexOf(
-                $"-PackageName \"@sbroenne/{packageName}-win32-x64\"",
+                $"'{packageName}-win32-x64'",
                 StringComparison.Ordinal);
             var launcherIndex = publish.IndexOf(
-                $"-PackageName \"@sbroenne/{packageName}\"",
+                $"'{packageName}'",
                 StringComparison.Ordinal);
             Assert.True(runtimeIndex >= 0);
             Assert.True(launcherIndex > runtimeIndex, "Publish the runtime before its launcher.");
         }
 
         var preCommit = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
-        Assert.Contains("-Component Cli", preCommit, StringComparison.Ordinal);
-        Assert.Contains("sbroenne-excelcli-win32-x64-$version.tgz", preCommit, StringComparison.Ordinal);
-        Assert.Contains("Join-Path $rootDir \"npm-packages/shared\"", preCommit, StringComparison.Ordinal);
-        Assert.Contains("npm test --prefix $npmTestDirectory", preCommit, StringComparison.Ordinal);
+        Assert.DoesNotContain("Build-NpmPackages.ps1", preCommit, StringComparison.Ordinal);
+        Assert.DoesNotContain("Test-NpmPackages.ps1", preCommit, StringComparison.Ordinal);
+        var packages = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Build-ReleasePackages.ps1"));
+        Assert.Contains("Build-NpmPackages.ps1", packages, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", packages, StringComparison.Ordinal);
+        var ci = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci.yml"));
+        Assert.Contains("Build-ReleasePackages.ps1", ci, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -246,13 +378,10 @@ public sealed class ReleaseMetadataScriptTests
         Assert.DoesNotContain("release-doc-counts.patch", releaseWorkflow, StringComparison.Ordinal);
         Assert.DoesNotContain("Apply Generated Documentation Counts", releaseWorkflow, StringComparison.Ordinal);
 
-        var docCountsWorkflow = File.ReadAllText(
-            Path.Combine(RepoRoot, ".github", "workflows", "doc-counts.yml"));
-
-        Assert.Contains("branches: [main]", docCountsWorkflow, StringComparison.Ordinal);
-        Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
-        Assert.Contains("contents: write", docCountsWorkflow, StringComparison.Ordinal);
-        Assert.Contains("git push origin HEAD:main", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, ".github", "workflows", "doc-counts.yml")));
+        var ci = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci.yml"));
+        Assert.Contains("check-doc-counts.ps1 -SkipBuild", ci, StringComparison.Ordinal);
+        Assert.DoesNotContain("-AllowStaleAdvertisedCounts", ci, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -548,7 +677,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("gh-pages", "hooks.py"),
             Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
             Path.Combine(".github", "plugins", "excel-cli", "README.md"),
-            Path.Combine("skills", "excel-mcp", "SKILL.md"),
+            Path.Combine("artifacts", "generated-skills", "excel-mcp", "SKILL.md"),
             Path.Combine("docs", "INSTALLATION-CLI.md"),
             Path.Combine("docs", "guides", "EXCEL-COM-VS-FILE-PARSERS.md"),
             Path.Combine("docs", "COPILOT-PLUGIN-DISTRIBUTION.md"),
@@ -722,6 +851,18 @@ public sealed class ReleaseMetadataScriptTests
         return end >= 0 ? workflow[start..end] : workflow[start..];
     }
 
+    private static string ExtractPowerShellStep(string workflow, string stepName)
+    {
+        var lines = workflow.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var start = Array.FindIndex(lines, line => line == $"      - name: {stepName}");
+        Assert.True(start >= 0, $"Step '{stepName}' was not found.");
+        var run = Array.FindIndex(lines, start, line => line == "        run: |");
+        Assert.True(run > start);
+        var script = lines.Skip(run + 1).TakeWhile(line => line.Length == 0 || line.StartsWith("          ", StringComparison.Ordinal))
+            .Select(line => line.Length == 0 ? "" : line[10..]);
+        return string.Join(Environment.NewLine, script);
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -768,7 +909,13 @@ public sealed class ReleaseMetadataScriptTests
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await process.WaitForExitAsync(timeout.Token);
+        try { await process.WaitForExitAsync(timeout.Token); }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            throw new TimeoutException("Release metadata regression exceeded 30 seconds.");
+        }
 
         return new ScriptResult(process.ExitCode, await stdout, await stderr);
     }

@@ -64,7 +64,10 @@ function Get-ScanFiles {
 Write-Host "Scanning high-risk Excel COM access patterns..." -ForegroundColor Yellow
 
 $findings = @()
-$files = @(Get-ScanFiles -RequestedPaths $InputPath | Sort-Object -Property FullName -Unique)
+$files = @(Get-ScanFiles -RequestedPaths $InputPath |
+    Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and $_.Name -notmatch '\.g\.cs$' } |
+    Sort-Object -Property FullName -Unique)
+if ($files.Count -eq 0) { throw 'No source files found for the high-risk COM access pattern guard.' }
 
 foreach ($file in $files) {
     $lineNumber = 0

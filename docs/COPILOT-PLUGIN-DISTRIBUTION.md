@@ -100,7 +100,7 @@ See [Plugin Publishing Workflow Setup](../.github/workflows/docs/publish-plugins
 
 Updates to plugins are handled automatically:
 
-1. **Skill updates** → Modify `skills/excel-mcp/` or `skills/excel-cli/` in this repo
+1. **Skill updates** → Modify `skills/templates/`, `skills/shared/`, or `skills/assets/`, then run `Build-AgentSkills.ps1 -GenerateOnly`
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
 3. **Sync to marketplace** → Next release runs `publish-plugins.yml` to update both plugins
 4. **No awesome-copilot PR needed** — Plugins are fetched from the published marketplace repo

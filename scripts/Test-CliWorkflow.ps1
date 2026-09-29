@@ -10,10 +10,10 @@
     3. List worksheets
     4. Format multiple ranges
     5. Add and inspect a conditional-format rule with typed arguments
-    6. Delete worksheet
+    6. Write a known value and create/delete a separate disposable worksheet
     7. Close session (with save)
     8. Reopen saved file (session open - exercises Workbooks.Open path)
-    9. List worksheets in reopened session
+    9. Read and verify the saved value in the reopened session
     10. Close reopened session
     11. Verify file exists
 
@@ -89,7 +89,10 @@ function Test-Step {
 
     Write-Host "`n[$Name]" -ForegroundColor Yellow
     try {
+        $global:LASTEXITCODE = 0
         $result = & $Action
+        if ($LASTEXITCODE -ne 0) { throw "Command failed with exit code $LASTEXITCODE. $($result | ConvertTo-Json -Depth 10)" }
+        if ($result.success -eq $false -or $result.errorMessage) { throw "Command reported failure: $($result | ConvertTo-Json -Depth 10)" }
         if ($Verify) {
             $verifyResult = & $Verify $result
             if (-not $verifyResult) {
@@ -125,7 +128,7 @@ $session = Test-Step "Create session (create file)" {
     & $cli -q session create $testFile | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.sessionId -and $r.success -ne $false
+    $r.sessionId -and $r.success -eq $true
 }
 
 if (-not $session.sessionId) {
@@ -150,7 +153,7 @@ $sheets = Test-Step "List worksheets" {
     & $cli -q sheet list --session $sessionId | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.success -eq $true -or $r.worksheets -ne $null
+    $r.success -eq $true -and $r.worksheets -ne $null
 }
 
 Write-Host "  Sheets: $(($sheets.worksheets | Measure-Object).Count)" -ForegroundColor Gray
@@ -181,9 +184,21 @@ $conditionalFormatRules = Test-Step "Inspect typed conditional-format rule" {
     $r.rules[0].top10.percent -eq $true
 }
 
-# 6. Delete worksheet
-Test-Step "Delete worksheet 'Data'" {
-    & $cli -q sheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
+# Keep Data for save/reopen verification; deletion uses a separate sheet.
+Test-Step "Write persisted value" {
+    & $cli -q range set-values --session $sessionId --sheet-name Data --range-address A1 --values '[[424242]]' | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true
+}
+Test-Step "Create disposable worksheet" {
+    & $cli -q sheet create --session $sessionId --sheet-name Disposable | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true
+}
+Test-Step "Delete disposable worksheet" {
+    & $cli -q sheet delete --session $sessionId --sheet-name Disposable | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
@@ -204,17 +219,17 @@ $reopenSession = Test-Step "Reopen saved file (session open)" {
     & $cli -q session open $testFile | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.sessionId -and $r.success -ne $false
+    $r.sessionId -and $r.success -eq $true
 }
 
 # 9. List worksheets in reopened session (proves the file loaded correctly)
 if ($reopenSession -and $reopenSession.sessionId) {
     $reopenSessionId = $reopenSession.sessionId
-    Test-Step "List worksheets in reopened session" {
-        & $cli -q sheet list --session $reopenSessionId | ConvertFrom-Json
+    Test-Step "Verify value survived save and reopen" {
+        & $cli -q range get-values --session $reopenSessionId --sheet-name Data --range-address A1 | ConvertFrom-Json
     } -Verify {
         param($r)
-        $r.success -eq $true -or $r.worksheets -ne $null
+        $r.success -eq $true -and $r.values.Count -eq 1 -and $r.values[0][0] -eq 424242
     }
 
     # 10. Close reopened session
@@ -251,10 +266,7 @@ Write-Host "Passed: $passed" -ForegroundColor Green
 Write-Host "Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "Green" })
 Write-Host "Test file: $testFile" -ForegroundColor Gray
 
-if (-not $KeepFile -and (Test-Path $testFile)) {
-    Remove-Item $testFile -Force
-    Write-Host "(Test file deleted)" -ForegroundColor Gray
-} elseif ($KeepFile) {
+if ($KeepFile) {
     Write-Host "(Test file kept for inspection)" -ForegroundColor Yellow
 }
 
@@ -267,7 +279,12 @@ if ($failed -gt 0) {
 }
 }
 finally {
-    $cleanupExitCode = Reset-CliWorkflowEnvironment
+    try { $cleanupExitCode = Reset-CliWorkflowEnvironment }
+    finally {
+        if (-not $KeepFile -and (Test-Path -LiteralPath $testFile)) {
+            Remove-Item -LiteralPath $testFile -Force
+        }
+    }
 }
 
 if ($cleanupExitCode -ne 0) {
