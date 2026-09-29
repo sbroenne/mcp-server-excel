@@ -173,6 +173,31 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task SyncPublishedPluginRepo_RejectsMcpPackageWithoutConfiguration()
+    {
+        var sandbox = CreateSandbox("sync-missing-mcp-config");
+        try
+        {
+            var builtDirectory = Path.Combine(sandbox, "built");
+            var publishedDirectory = Directory.CreateDirectory(Path.Combine(sandbox, "published")).FullName;
+            File.WriteAllText(Path.Combine(publishedDirectory, "marketplace.json"), "{}");
+
+            var build = await RunPowerShellFileAsync(
+                BuildPluginsScript, ["-Version", "9.9.11-test", "-OutputDir", builtDirectory]);
+            Assert.True(build.ExitCode == 0, build.CombinedOutput);
+            File.Delete(Path.Combine(builtDirectory, "excel-mcp", "mcp.json"));
+
+            var sync = await RunPowerShellFileAsync(
+                SyncPublishedRepoScript,
+                ["-PublishedRepoDir", publishedDirectory, "-BuiltPluginsDir", builtDirectory, "-Version", "9.9.11-test"]);
+
+            Assert.NotEqual(0, sync.ExitCode);
+            Assert.Contains("excel-mcp is missing mcp.json", sync.Stderr, StringComparison.Ordinal);
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Fact]
     [SupportedOSPlatform("windows")]
     public async Task StartCliWrapper_EscapesArgumentsSoTheyRoundTripThroughWin32Parsing()
     {

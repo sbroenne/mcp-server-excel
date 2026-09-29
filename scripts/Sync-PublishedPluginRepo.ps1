@@ -160,6 +160,8 @@ foreach ($pluginName in $builtPluginNames) {
     )
     if ($pluginName -eq 'excel-cli') {
         $requiredFiles += 'bin\start-cli.ps1'
+    } else {
+        $requiredFiles += 'mcp.json'
     }
     foreach ($required in $requiredFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $sourcePluginDir $required) -PathType Leaf)) {
