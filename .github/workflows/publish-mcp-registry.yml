@@ -40,27 +40,19 @@ jobs:
           fetch-depth: 0
       - name: Verify tag, commit, version and GitHub release
         id: release
+        shell: pwsh
         env:
           TAG: ${{ inputs.release_tag }}
           EXPECTED_COMMIT: ${{ inputs.release_commit }}
           EXPECTED_VERSION: ${{ inputs.release_version }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "::error::Invalid release tag"; exit 1; }
-          COMMIT=$(git rev-parse "refs/tags/$TAG^{commit}")
-          VERSION="${TAG#v}"
-          [ -z "$EXPECTED_COMMIT" ] || [ "$COMMIT" = "$EXPECTED_COMMIT" ] || { echo "::error::Release commit mismatch"; exit 1; }
-          [ -z "$EXPECTED_VERSION" ] || [ "$VERSION" = "$EXPECTED_VERSION" ] || { echo "::error::Release version mismatch"; exit 1; }
-          gh release view "$TAG" --json isDraft,tagName --jq 'select(.isDraft == false) | .tagName' | grep -Fx "$TAG"
-          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        run: ./scripts/Resolve-McpRegistryRelease.ps1 -Tag $env:TAG -ExpectedCommit $env:EXPECTED_COMMIT -ExpectedVersion $env:EXPECTED_VERSION
 
   publish:
     name: Publish Exact Release
     needs: resolve
     runs-on: windows-latest
+    environment: mcp-registry
     permissions:
       contents: read
       id-token: write

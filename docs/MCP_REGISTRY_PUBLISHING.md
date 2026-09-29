@@ -89,6 +89,9 @@ Uses **GitHub OIDC**:
 - No secrets required
 - Automatic authentication via `mcp-publisher login github-oidc`
 - Works for `io.github.*` namespaces
+- The publish job uses the protected `mcp-registry` environment. Repository
+  settings must keep its custom deployment branch policy restricted to `main`
+  and require approval from the repository owner before the OIDC token is issued.
 
 **Required Permissions:**
 The workflow has `id-token: write` permission enabled for OIDC authentication.
@@ -112,7 +115,8 @@ After release, verify publication:
 - Ensure repository is configured for GitHub OIDC
 - Resolve the failure, then manually run **Publish MCP Registry** with the exact
   existing release tag. The repair workflow validates that tag's immutable
-  source metadata and the existing NuGet and npm packages before publishing
+  source metadata, requires its commit to be reachable from protected `main`,
+  and validates the existing NuGet and npm packages before publishing
   only the MCP Registry entry. It does not rebuild or republish any package,
   GitHub release asset, extension, or plugin.
 

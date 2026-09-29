@@ -30,6 +30,10 @@ public sealed class ReleaseMetadataScriptTests
         RepoRoot,
         "scripts",
         "Test-McpRegistryPublication.ps1");
+    private static readonly string ResolveMcpRegistryReleaseScript = Path.Combine(
+        RepoRoot,
+        "scripts",
+        "Resolve-McpRegistryRelease.ps1");
     private static readonly string ReleaseWorkflow = Path.Combine(
         RepoRoot,
         ".github",
@@ -107,7 +111,8 @@ public sealed class ReleaseMetadataScriptTests
         Assert.Contains("uses: ./.github/workflows/publish-mcp-registry.yml", publishMcpRegistry, StringComparison.Ordinal);
         Assert.Contains("needs: [version, create-tag, create-release, publish]", publishMcpRegistry, StringComparison.Ordinal);
         Assert.Contains("workflow_dispatch:", registry, StringComparison.Ordinal);
-        Assert.Contains("git rev-parse \"refs/tags/$TAG^{commit}\"", registry, StringComparison.Ordinal);
+        Assert.Contains("environment: mcp-registry", registry, StringComparison.Ordinal);
+        Assert.Contains("./scripts/Resolve-McpRegistryRelease.ps1", registry, StringComparison.Ordinal);
         Assert.Contains("ref: ${{ github.sha }}", registry, StringComparison.Ordinal);
         Assert.Contains("ref: ${{ needs.resolve.outputs.commit }}", registry, StringComparison.Ordinal);
         Assert.Contains("./automation/scripts/Test-McpRegistryPublication.ps1", registry, StringComparison.Ordinal);
@@ -116,6 +121,61 @@ public sealed class ReleaseMetadataScriptTests
         Assert.DoesNotContain("npm publish", registry, StringComparison.Ordinal);
         Assert.DoesNotContain("gh release create", registry, StringComparison.Ordinal);
         Assert.DoesNotContain("gh release upload", registry, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task McpRegistryRepair_RequiresTagCommitOnMain(bool tagCommitOnMain)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var repository = Path.Combine(sandbox, "source");
+            var remote = Path.Combine(sandbox, "remote.git");
+            Directory.CreateDirectory(repository);
+            var runner = Path.Combine(sandbox, "run.ps1");
+            File.WriteAllText(runner, $$"""
+                $ErrorActionPreference = 'Stop'
+                git init --bare '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
+                git init '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
+                Set-Location '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
+                git config user.name fixture
+                git config user.email fixture@example.test
+                Set-Content release.txt base
+                git add release.txt
+                git commit -m base
+                git branch -M main
+                git remote add origin '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
+                git push -u origin main
+                if (-not ${{tagCommitOnMain.ToString().ToLowerInvariant()}}) {
+                    git checkout -b unmerged
+                    Set-Content release.txt unmerged
+                    git commit -am unmerged
+                }
+                git tag v1.2.3
+                $env:GITHUB_OUTPUT = Join-Path $PWD output.txt
+                function gh {
+                    [pscustomobject]@{ isDraft = $false; tagName = 'v1.2.3' } | ConvertTo-Json -Compress
+                }
+                & '{{ResolveMcpRegistryReleaseScript.Replace("'", "''", StringComparison.Ordinal)}}' -Tag v1.2.3
+                """);
+
+            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
+
+            Assert.Equal(tagCommitOnMain, result.ExitCode == 0);
+            if (tagCommitOnMain)
+            {
+                Assert.Contains("version=1.2.3", File.ReadAllText(Path.Combine(repository, "output.txt")), StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.Contains("not reachable from protected main", result.Stderr, StringComparison.Ordinal);
+                Assert.False(File.Exists(Path.Combine(repository, "output.txt")));
+            }
+        }
+        finally { DeleteGitSandbox(sandbox); }
     }
 
     [Theory]
@@ -834,6 +894,17 @@ public sealed class ReleaseMetadataScriptTests
         var path = Path.Combine(root, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
+    }
+
+    private static void DeleteGitSandbox(string path)
+    {
+        foreach (var entry in Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(value => value.Length))
+        {
+            File.SetAttributes(entry, FileAttributes.Normal);
+        }
+        File.SetAttributes(path, FileAttributes.Normal);
+        Directory.Delete(path, recursive: true);
     }
 
     private static void AssertReleaseVersions(string root, string expectedVersion)

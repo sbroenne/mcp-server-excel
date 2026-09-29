@@ -319,8 +319,12 @@ These smoke tests do not exercise Excel automation.
 - MCP Registry update uses GitHub OIDC
 - Manually run the **Publish MCP Registry** workflow with the exact existing
   release tag
-- The repair validates the tag, source manifest, and published NuGet and npm
-  metadata, then publishes only the MCP Registry entry
+- The repair requires owner approval through the protected `mcp-registry`
+  environment, rejects tag commits not reachable from protected `main`, and
+  validates the source manifest plus published NuGet and npm metadata
+- Repository settings for `mcp-registry` must retain a custom deployment branch
+  policy of exactly `main` and the repository owner as a required reviewer
+- The workflow publishes only the MCP Registry entry
 - Do not rerun the unified release to repair a registry-only failure
 
 ### Publish Plugins Fails
