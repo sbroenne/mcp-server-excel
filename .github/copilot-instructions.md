@@ -71,8 +71,11 @@ Otherwise omit it. PRs record the root cause, affected contracts, and validation
 - Before finalizing a PR, resolve every review thread after addressing it, or
   dismiss it with a clear recorded reason when no change is appropriate. Never
   leave review comments unanswered or unresolved.
-- User-visible changes require a changeset; internal/docs/tests/CI changes use
-  the `skip-changelog` PR label. Versions and `CHANGELOG.md` are release-generated.
+- User-visible changes require a `.changeset/*.md` fragment in the first pushed
+  commit. Before committing, verify it is staged with
+  `git diff --cached --name-only -- .changeset/*.md`; a local or unstaged file
+  does not satisfy the PR check. Internal/docs/tests/CI changes use the
+  `skip-changelog` PR label. Versions and `CHANGELOG.md` are release-generated.
 - Plugin publication changes must follow
   `.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates`;
   the published repository is output-only.
