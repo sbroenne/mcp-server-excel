@@ -31,6 +31,39 @@ public sealed class DataModelEvaluateComErrorTests(
     }
 
     [Fact]
+    public void Evaluate_CancelledDuringLargeResult_StopsExtraction()
+    {
+        using var innerBatch = ExcelSession.BeginBatch(fixture.TestFilePath);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(TimeSpan.FromSeconds(2));
+        using var batch = new InjectedCancellationBatch(
+            innerBatch,
+            cancellation.Token);
+        var commands = new DataModelCommands();
+
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            commands.Evaluate(
+                batch,
+                """
+                EVALUATE
+                CROSSJOIN(
+                    SELECTCOLUMNS('SalesTable', "A", 'SalesTable'[SalesID]),
+                    SELECTCOLUMNS('SalesTable', "B", 'SalesTable'[SalesID]),
+                    SELECTCOLUMNS('SalesTable', "C", 'SalesTable'[SalesID]),
+                    SELECTCOLUMNS('SalesTable', "D", 'SalesTable'[SalesID]),
+                    SELECTCOLUMNS('SalesTable', "E", 'SalesTable'[SalesID])
+                )
+                """));
+        Assert.True(cancellation.IsCancellationRequested);
+
+        var followUp = commands.Evaluate(
+            innerBatch,
+            "EVALUATE ROW(\"Probe\", 42)");
+        Assert.True(followUp.Success, followUp.ErrorMessage);
+        Assert.Equal(42m, Assert.Single(Assert.Single(followUp.Rows)));
+    }
+
+    [Fact]
     public void Evaluate_InvalidDax_PreservesComExceptionTopology()
     {
         using var batch = ExcelSession.BeginBatch(fixture.TestFilePath);

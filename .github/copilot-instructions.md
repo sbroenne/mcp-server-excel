@@ -35,6 +35,8 @@ dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
 
 Build with zero warnings. Use targeted tests; see
 [testing strategy](instructions/testing-strategy.instructions.md).
+Run every Excel-dependent test command sequentially; never overlap Excel test
+fixtures, test hosts, or E2E runs.
 Runtime changes in Core, ComInterop, Service, CLI, MCP, or their generators also
 require `scripts\Test-E2E.ps1` locally with Excel. Report it as not run when
 Excel is unavailable; build-only checks do not cover COM.
