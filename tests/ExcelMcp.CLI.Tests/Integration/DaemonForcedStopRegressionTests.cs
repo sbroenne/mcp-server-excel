@@ -288,6 +288,7 @@ public sealed class DaemonForcedStopRegressionTests
                     "Release",
                     "--disable-build-servers",
                     "-p:NuGetAudit=false",
+                    "-p:CI=false",
                     "-maxcpucount:1",
                     "-nodeReuse:false",
                     "--verbosity",
