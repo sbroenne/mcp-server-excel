@@ -16,6 +16,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Layer", "CLI")]
 [Trait("RequiresExcel", "false")]
 [Trait("AdapterTestKind", "System")]
+[Collection("Sequential")]
 public sealed class DaemonForcedStopRegressionTests
 {
     public static TheoryData<string> AdversarialPipeNames
@@ -583,6 +584,41 @@ public sealed class DaemonForcedStopRegressionTests
             StopIfRunning(oldDaemon);
             StopIfRunning(replacementDaemon);
             StopIfRunning(oldExcel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Fact]
+    public async Task RegisterProcess_TransientTrackingFileLock_RetriesAtomicReplacement()
+    {
+        var pipeName = $"excelmcp-tracking-retry-{Guid.NewGuid():N}";
+        var trackingFile = DaemonProcessTracker.GetTrackingFilePath(pipeName);
+        Directory.CreateDirectory(Path.GetDirectoryName(trackingFile)!);
+        await File.WriteAllTextAsync(trackingFile, "{}");
+        using var lockedFile = File.Open(trackingFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var releaseLock = Task.Run(async () =>
+        {
+            await Task.Delay(200);
+            lockedFile.Dispose();
+        });
+
+        try
+        {
+            using var current = Process.GetCurrentProcess();
+            var identity = DaemonProcessTracker.RegisterProcess(
+                pipeName,
+                current.Id,
+                current.StartTime.ToUniversalTime().ToFileTimeUtc());
+
+            await releaseLock;
+            Assert.Equal(current.Id, identity.ProcessId);
+            Assert.True(DaemonProcessTracker.TryGetProcessSnapshot(pipeName, out var snapshot));
+            Assert.Equal(current.Id, snapshot.DaemonProcess.ProcessId);
+        }
+        finally
+        {
+            lockedFile.Dispose();
+            await releaseLock;
             DaemonProcessTracker.Clear(pipeName);
         }
     }
