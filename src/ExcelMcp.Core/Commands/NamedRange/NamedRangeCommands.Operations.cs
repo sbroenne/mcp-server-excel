@@ -337,6 +337,7 @@ public partial class NamedRangeCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Name? existing = null;
+            Excel.Name? created = null;
             dynamic? namesCollection = null;
             try
             {
@@ -353,12 +354,13 @@ public partial class NamedRangeCommands
                 string formattedReference = reference.TrimStart('=');
                 // Add exactly one = prefix (required by Excel COM API)
                 formattedReference = $"={formattedReference}";
-                namesCollection.Add(name, formattedReference);
+                created = namesCollection.Add(name, formattedReference);
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
             finally
             {
+                ComUtilities.Release(ref created);
                 ComUtilities.Release(ref namesCollection);
                 ComUtilities.Release(ref existing);
             }

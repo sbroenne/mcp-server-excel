@@ -35,9 +35,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private readonly bool _openReadOnly; // Whether existing workbooks are opened read-only
     private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
     private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
+    private readonly TimeSpan _startupTimeout;
     private readonly TimeSpan _operationTimeout; // Timeout for individual operations
     private readonly ILogger<ExcelBatch> _logger;
-    private readonly Channel<Func<Task>> _workQueue;
+    private readonly Channel<IExcelWorkItem> _workQueue;
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
@@ -64,11 +65,77 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
+    internal static Action? WorkItemQueuedHookForTests { get; set; }
+
     // COM state (STA thread only)
     private Excel.Application? _excel;
     private Excel.Workbook? _workbook; // Primary workbook
     private Dictionary<string, Excel.Workbook>? _workbooks; // All workbooks keyed by normalized path
     private ExcelContext? _context;
+
+    private interface IExcelWorkItem
+    {
+        bool IsExecuting { get; }
+
+        bool TryExecute();
+
+        bool TryDiscard(Exception? exception = null);
+    }
+
+    private sealed class ExcelWorkItem<T>(
+        Func<T> operation,
+        TaskCompletionSource<T> completion) : IExcelWorkItem
+    {
+        private const int Queued = 0;
+        private const int Executing = 1;
+        private const int Completed = 2;
+        private const int Discarded = 3;
+        private int _state;
+
+        public bool IsExecuting => Volatile.Read(ref _state) == Executing;
+
+        public bool TryExecute()
+        {
+            if (Interlocked.CompareExchange(ref _state, Executing, Queued) != Queued)
+            {
+                return false;
+            }
+
+            try
+            {
+                var result = operation();
+                Volatile.Write(ref _state, Completed);
+                completion.TrySetResult(result);
+            }
+            catch (OperationCanceledException ex)
+            {
+                Volatile.Write(ref _state, Completed);
+                completion.TrySetCanceled(ex.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Volatile.Write(ref _state, Completed);
+                completion.TrySetException(ex);
+            }
+
+            return true;
+        }
+
+        public bool TryDiscard(Exception? exception = null)
+        {
+            if (Interlocked.CompareExchange(ref _state, Discarded, Queued) != Queued)
+            {
+                return false;
+            }
+
+            if (exception != null)
+            {
+                completion.TrySetException(exception);
+            }
+
+            return true;
+        }
+    }
 
     /// <summary>
     /// Creates a new ExcelBatch for one or more workbooks.
@@ -79,12 +146,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
     /// <param name="operationTimeout">Timeout for startup and individual operations. Default: 120 seconds.</param>
     /// <param name="openReadOnly">Whether existing workbooks are opened read-only.</param>
+    /// <param name="startupTimeout">Internal startup override used by timeout regression tests.</param>
     public ExcelBatch(
         string[] workbookPaths,
         ILogger<ExcelBatch>? logger = null,
         bool show = false,
         TimeSpan? operationTimeout = null,
-        bool openReadOnly = false)
+        bool openReadOnly = false,
+        TimeSpan? startupTimeout = null)
         : this(
             workbookPaths,
             logger,
@@ -92,7 +161,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             openReadOnly,
             createNewFile: false,
             isMacroEnabled: false,
-            operationTimeout: operationTimeout)
+            operationTimeout: operationTimeout,
+            startupTimeout: startupTimeout)
     {
     }
 
@@ -128,7 +198,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         bool openReadOnly,
         bool createNewFile,
         bool isMacroEnabled,
-        TimeSpan? operationTimeout = null)
+        TimeSpan? operationTimeout = null,
+        TimeSpan? startupTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -140,11 +211,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         _createNewFile = createNewFile;
         _isMacroEnabled = isMacroEnabled;
         _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
+        _startupTimeout = startupTimeout ?? _operationTimeout;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
         // Create unbounded channel for work items
-        _workQueue = Channel.CreateUnbounded<Func<Task>>(new UnboundedChannelOptions
+        _workQueue = Channel.CreateUnbounded<IExcelWorkItem>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false
@@ -355,13 +427,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 Notify: false,
                                 AddToMru: false);
                         }
-                        catch (COMException ex) when (
-                            !_openReadOnly &&
-                            ex.HResult == unchecked((int)0x800A03EC))
-                        {
-                            // Excel Error 1004 - File is already open or locked
-                            throw FileAccessValidator.CreateFileLockedError(path, ex);
-                        }
                         finally
                         {
                             ComUtilities.Release(ref workbooks);
@@ -419,34 +484,26 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                         // Drain all available work items before blocking again
                         while (_workQueue.Reader.TryRead(out var work))
                         {
-                            try
+                            if (_shutdownCts.IsCancellationRequested)
                             {
-                                work().GetAwaiter().GetResult();
+                                work.TryDiscard(new ObjectDisposedException(
+                                    nameof(ExcelBatch),
+                                    $"Session for '{Path.GetFileName(_workbookPath)}' was disposed before the queued operation started."));
+                                continue;
                             }
-                            catch (Exception)
-                            {
-                                // Individual work items may fail, but keep processing queue.
-                                // The exception is already captured in the TaskCompletionSource.
-                            }
+
+                            work.TryExecute();
                         }
                     }
                     catch (OperationCanceledException)
                     {
                         // Shutdown requested via _shutdownCts.
-                        // Drain any remaining work items so in-flight Execute() callers get their
-                        // results/exceptions promptly instead of waiting for the operation timeout.
-                        // This is safe: Excel COM objects are still alive (cleaned up in the finally
-                        // block below), and Writer.Complete() prevents new items from arriving.
+                        // Complete queued callers without invoking callbacks during shutdown.
                         while (_workQueue.Reader.TryRead(out var remainingWork))
                         {
-                            try
-                            {
-                                remainingWork().GetAwaiter().GetResult();
-                            }
-                            catch (Exception)
-                            {
-                                // Already captured in TaskCompletionSource
-                            }
+                            remainingWork.TryDiscard(new ObjectDisposedException(
+                                nameof(ExcelBatch),
+                                $"Session for '{Path.GetFileName(_workbookPath)}' was disposed before the queued operation started."));
                         }
 
                         _logger.LogDebug("Shutdown requested, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
@@ -581,7 +638,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             bool completedInTime;
             try
             {
-                completedInTime = started.Task.Wait(_operationTimeout);
+                completedInTime = started.Task.Wait(_startupTimeout);
             }
             catch (AggregateException)
             {
@@ -649,7 +706,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             : string.Empty;
 
         return
-            $"Excel startup timed out after {_operationTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
+            $"Excel startup timed out after {_startupTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
             "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
             $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
@@ -798,6 +855,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Fail fast if a previous operation timed out or was cancelled while the STA thread
         // was stuck in IDispatch.Invoke. The STA thread cannot process new work items until
@@ -820,60 +878,29 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 "Please close this session and create a new one.");
         }
 
-        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        // Post operation to STA thread synchronously
-        // RACE CONDITION NOTE: Dispose() may call Writer.Complete() between our _disposed check
-        // above and this WriteAsync() call. ChannelClosedException means the session is shutting
-        // down — convert to ObjectDisposedException for a clean caller experience.
-        try
+        var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var workItem = new ExcelWorkItem<T>(() =>
         {
-            var writeTask = _workQueue.Writer.WriteAsync(() =>
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
+
+            try
             {
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    // STRUCTURAL SAFETY: Suppress ScreenUpdating for every operation.
-                    // Restores on completion or exception. Reduces COM callbacks and
-                    // improves performance for bulk operations.
-                    using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
-
-                    var result = operation(_context!, cancellationToken);
-                    UpdateVisibilitySnapshot();
-                    tcs.SetResult(result);
-                }
-                catch (OperationCanceledException oce)
-                {
-                    UpdateVisibilitySnapshot();
-                    tcs.TrySetCanceled(oce.CancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    UpdateVisibilitySnapshot();
-                    tcs.TrySetException(ex);
-                }
-                return Task.CompletedTask;
-            }, cancellationToken);
-
-            // ValueTask is completed synchronously in normal case
-            if (writeTask.IsCompleted)
-            {
-                writeTask.GetAwaiter().GetResult();
+                return operation(_context!, cancellationToken);
             }
-            else
+            finally
             {
-                // Fallback: should not normally occur with unbounded channel
-                writeTask.AsTask().GetAwaiter().GetResult();
+                UpdateVisibilitySnapshot();
             }
-        }
-        catch (ChannelClosedException)
+        }, completion);
+
+        if (!_workQueue.Writer.TryWrite(workItem))
         {
-            // Dispose() completed the channel between our _disposed check and WriteAsync.
-            // The session is shutting down — report as disposed.
             throw new ObjectDisposedException(nameof(ExcelBatch),
                 $"Session for '{Path.GetFileName(_workbookPath)}' was disposed while submitting an operation.");
         }
+        WorkItemQueuedHookForTests?.Invoke();
 
         // Wait for operation to complete with timeout.
         // When the caller provides a cancellation token (e.g., PowerQuery refresh with its own timeout),
@@ -885,29 +912,54 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             if (cancellationToken.CanBeCanceled)
             {
                 // Caller controls the timeout — use their token exclusively
-                return tcs.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
+                return completion.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
             }
             else
             {
                 // No caller timeout — apply session-level operation timeout as safety net
                 using var timeoutCts = new CancellationTokenSource(_operationTimeout);
-                return tcs.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
+                return completion.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             // Session timeout occurred (not caller cancellation) — only happens in the else branch
-            _logger.LogError("Operation timed out after {Timeout} for {FileName}", _operationTimeout, Path.GetFileName(_workbookPath));
-            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
+            var expiredWhileQueued = workItem.TryDiscard();
+            if (!expiredWhileQueued && workItem.IsExecuting)
+            {
+                _operationTimedOut = true;
+            }
+
+            if (expiredWhileQueued)
+            {
+                _logger.LogError(
+                    "Queued operation expired after {Timeout} before execution for {FileName}",
+                    _operationTimeout,
+                    Path.GetFileName(_workbookPath));
+            }
+            else
+            {
+                _logger.LogError(
+                    "Operation timed out after {Timeout} for {FileName}",
+                    _operationTimeout,
+                    Path.GetFileName(_workbookPath));
+            }
             throw new TimeoutException(
-                $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
-                "Excel may be unresponsive or the operation is taking longer than expected. " +
-                "Consider increasing timeoutSeconds when opening the session.");
+                expiredWhileQueued
+                    ? $"Excel operation expired in the session queue after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}' and was not executed."
+                    : $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+                      "Excel may be unresponsive or the operation is taking longer than expected. " +
+                      "Consider increasing timeoutSeconds when opening the session.");
         }
         catch (OperationCanceledException)
         {
+            var cancelledWhileQueued = workItem.TryDiscard();
             _logger.LogDebug("Operation cancelled or timed out for {FileName}", Path.GetFileName(_workbookPath));
-            _operationTimedOut = true; // STA thread may still be blocked — session is unusable
+            if (!cancelledWhileQueued && workItem.IsExecuting)
+            {
+                _operationTimedOut = true;
+            }
+
             throw;
         }
     }

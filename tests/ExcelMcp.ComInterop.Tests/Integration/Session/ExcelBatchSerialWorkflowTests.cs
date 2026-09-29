@@ -99,9 +99,10 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
     public void SerialWorkflow_TimeoutInMiddle_LaterOperationsFailFast()
     {
         // Arrange
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         int? excelPid = batch.ExcelProcessId;
@@ -217,9 +218,10 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
         {
             // Session A: Timeout
             _output.WriteLine("Session A: Opening workbook (will timeout)");
-            using var sessionA = ExcelSession.BeginBatch(
+            using var sessionA = ExcelSession.BeginBatchWithTimeouts(
                 show: false,
                 operationTimeout: TimeSpan.FromSeconds(3),
+                startupTimeout: ComInteropConstants.DefaultOperationTimeout,
                 _testFileCopy!);
             sessionAPid = sessionA.ExcelProcessId;
             _output.WriteLine($"  Session A started, Excel PID: {sessionAPid}");
@@ -306,9 +308,10 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime
     public void SerialWorkflow_MultipleTimeouts_AllFollowUpOperationsFailFast()
     {
         // Arrange
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         _output.WriteLine("Warming up session...");

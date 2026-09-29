@@ -179,14 +179,28 @@ public class RegularChartStrategy : IChartStrategy
         }
 
         // Get source range
+        dynamic? chartArea = null;
+        dynamic? chartParent = null;
+        dynamic? sourceSeriesCollection = null;
+        dynamic? sourceSeries = null;
         try
         {
-            dynamic sourceData = chart.ChartArea.Parent.SeriesCollection(1).Formula;
-            info.SourceRange = sourceData?.ToString() ?? string.Empty;
+            chartArea = chart.ChartArea;
+            chartParent = chartArea.Parent;
+            sourceSeriesCollection = chartParent.SeriesCollection();
+            sourceSeries = sourceSeriesCollection.Item(1);
+            info.SourceRange = sourceSeries.Formula?.ToString() ?? string.Empty;
         }
         catch (COMException)
         {
             // No source range or no series - optional COM property, safe to ignore
+        }
+        finally
+        {
+            ComUtilities.Release(ref sourceSeries);
+            ComUtilities.Release(ref sourceSeriesCollection);
+            ComUtilities.Release(ref chartParent);
+            ComUtilities.Release(ref chartArea);
         }
 
         // Get series
@@ -230,22 +244,18 @@ public class RegularChartStrategy : IChartStrategy
     /// <inheritdoc />
     public void SetSourceRange(dynamic chart, string sourceRange)
     {
+        dynamic? app = null;
         dynamic? sourceRangeObj = null;
         try
         {
-            // Get workbook from chart
-            dynamic workbook = chart.Parent.Parent.Parent;
-
-            // Get the range object from the address string
-            sourceRangeObj = workbook.Application.Range(sourceRange);
+            app = chart.Application;
+            sourceRangeObj = app.Range(sourceRange);
             chart.SetSourceData(sourceRangeObj);
         }
         finally
         {
-            if (sourceRangeObj != null)
-            {
-                ComUtilities.Release(ref sourceRangeObj!);
-            }
+            ComUtilities.Release(ref sourceRangeObj);
+            ComUtilities.Release(ref app);
         }
     }
 
@@ -312,5 +322,4 @@ public class RegularChartStrategy : IChartStrategy
         }
     }
 }
-
 

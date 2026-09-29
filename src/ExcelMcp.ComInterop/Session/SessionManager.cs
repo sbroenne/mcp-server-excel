@@ -339,6 +339,25 @@ public sealed class SessionManager : IDisposable
     /// <para><b>Concurrency:</b> You can create multiple sessions for DIFFERENT files. Operations within each session execute serially.</para>
     /// </remarks>
     public string CreateSession(string filePath, bool show = false, TimeSpan? operationTimeout = null, SessionOrigin origin = SessionOrigin.Unknown)
+        => CreateSessionCore(filePath, show, operationTimeout, operationTimeout, origin);
+
+    /// <summary>
+    /// Test-only seam for operation timeout regressions that need a normal Excel startup allowance.
+    /// </summary>
+    internal string CreateSessionWithTimeouts(
+        string filePath,
+        bool show,
+        TimeSpan? operationTimeout,
+        TimeSpan? startupTimeout,
+        SessionOrigin origin = SessionOrigin.Unknown)
+        => CreateSessionCore(filePath, show, operationTimeout, startupTimeout, origin);
+
+    private string CreateSessionCore(
+        string filePath,
+        bool show,
+        TimeSpan? operationTimeout,
+        TimeSpan? startupTimeout,
+        SessionOrigin origin)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -372,7 +391,12 @@ public sealed class SessionManager : IDisposable
 
             // Create batch session using Core API with retry for transient COM failures
             // (e.g., CO_E_SERVER_EXEC_FAILURE when system resources are constrained)
-            batch = _sessionCreationPipeline.Execute(() => ExcelSession.BeginBatch(show, operationTimeout, filePath));
+            batch = _sessionCreationPipeline.Execute(
+                () => ExcelSession.BeginBatchWithTimeouts(
+                    show,
+                    operationTimeout,
+                    startupTimeout,
+                    filePath));
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))

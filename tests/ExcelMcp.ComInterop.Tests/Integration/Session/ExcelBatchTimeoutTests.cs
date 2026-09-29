@@ -90,6 +90,27 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public void BeginBatch_SeparateStartupTimeout_AllowsStartupLongerThanOperationTimeout()
+    {
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => Thread.Sleep(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            using var batch = ExcelSession.BeginBatchWithTimeouts(
+                show: false,
+                operationTimeout: TimeSpan.FromSeconds(1),
+                startupTimeout: ComInteropConstants.DefaultOperationTimeout,
+                _testFileCopy!);
+
+            Assert.Equal(TimeSpan.FromSeconds(1), batch.OperationTimeout);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+        }
+    }
+
+    [Fact]
     public void BeginBatch_StartupOpenBlocks_ThrowsTimeoutExceptionInsteadOfHanging()
     {
         using var startupBlocked = new ManualResetEventSlim(false);
@@ -158,6 +179,93 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task Execute_QueuedOperationExpiresWithoutExecutingOrPoisoningBatch()
+    {
+        using var releaseFirst = new ManualResetEventSlim();
+        using var firstStarted = new ManualResetEventSlim();
+        using var callerLifetime = new CancellationTokenSource();
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(15),
+            _testFileCopy!);
+
+        var first = Task.Run(() => batch.Execute((_, _) =>
+        {
+            firstStarted.Set();
+            Assert.True(releaseFirst.Wait(TimeSpan.FromSeconds(30)));
+            return 1;
+        }, callerLifetime.Token));
+        Assert.True(firstStarted.Wait(TimeSpan.FromSeconds(5)));
+
+        var expiredCallbackRan = false;
+        var timeout = Assert.Throws<TimeoutException>(() => batch.Execute((_, _) =>
+        {
+            expiredCallbackRan = true;
+            return 2;
+        }));
+
+        Assert.Contains("session queue", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(batch.HasTimedOutOperation);
+
+        releaseFirst.Set();
+        Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(expiredCallbackRan);
+        Assert.Equal(3, batch.Execute((_, _) => 3));
+    }
+
+    [Fact]
+    public async Task Dispose_DiscardsQueuedOperationWithoutExecutingCallback()
+    {
+        using var releaseFirst = new ManualResetEventSlim();
+        using var firstStarted = new ManualResetEventSlim();
+        using var secondQueued = new ManualResetEventSlim();
+        using var callerLifetime = new CancellationTokenSource();
+        var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(30),
+            _testFileCopy!);
+
+        var first = Task.Run(() => batch.Execute((_, _) =>
+        {
+            firstStarted.Set();
+            Assert.True(releaseFirst.Wait(TimeSpan.FromSeconds(10)));
+            return 1;
+        }, callerLifetime.Token));
+        Assert.True(firstStarted.Wait(TimeSpan.FromSeconds(5)));
+
+        try
+        {
+            ExcelBatch.WorkItemQueuedHookForTests = secondQueued.Set;
+            var queuedCallbackRan = false;
+            var queued = Task.Run(() => batch.Execute((_, _) =>
+            {
+                queuedCallbackRan = true;
+                return 2;
+            }));
+            Assert.True(secondQueued.Wait(TimeSpan.FromSeconds(5)));
+
+            var release = Task.Run(async () =>
+            {
+                await Task.Delay(100);
+                releaseFirst.Set();
+            });
+
+            batch.Dispose();
+            Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(5)));
+            await release.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await queued.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.False(queuedCallbackRan);
+        }
+        finally
+        {
+            ExcelBatch.WorkItemQueuedHookForTests = null;
+            releaseFirst.Set();
+            batch.Dispose();
+        }
+    }
+
     /// <summary>
     /// REGRESSION TEST: Execute() must throw TimeoutException when operation exceeds the configured timeout.
     /// Before Bug 8 fix, timeout existed but had no recovery — the caller got the exception but
@@ -167,9 +275,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Execute_OperationExceedsTimeout_ThrowsTimeoutException()
     {
         // Arrange — use a very short timeout (3 seconds) to trigger timeout quickly
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         // Warm up — ensure Excel is ready
@@ -221,9 +330,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         // Arrange
         using var owned = new OwnedExcelProcessScope();
 
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         // Get the Excel process ID before timeout
@@ -282,9 +392,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Dispose_AfterTimeout_CompletesWithinAggressiveTimeout()
     {
         // Arrange
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
@@ -388,9 +499,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Execute_AfterPreviousTimeout_FailsFastWithTimeoutException()
     {
         // Arrange — short timeout to trigger the first timeout quickly
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         // Warm up

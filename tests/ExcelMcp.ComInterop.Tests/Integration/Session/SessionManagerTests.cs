@@ -76,7 +76,7 @@ public class SessionManagerTests : IDisposable
 
         // PERFORMANCE OPTIMIZATION: Copy from template instead of spawning Excel.
         // This reduces test file creation from ~7-14 seconds to <10ms.
-        // Original approach using ExcelSession.CreateNew() spawned a full Excel process
+        // Copying the saved fixture avoids spawning a full Excel process
         // for each test file, causing 30+ second test execution times.
         File.Copy(TemplateFilePath, filePath);
 

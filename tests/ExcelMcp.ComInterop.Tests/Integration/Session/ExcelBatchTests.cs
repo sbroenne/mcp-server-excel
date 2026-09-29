@@ -481,6 +481,31 @@ public class ExcelBatchTests : IAsyncLifetime
     [Fact]
     [Trait("RunType", "OnDemand")]
     [Trait("RequiresExcel", "true")]
+    public void BeginBatch_GenericExcel1004_PreservesOriginalDiagnostic()
+    {
+#pragma warning disable CA2201 // A real COMException is required to exercise Excel HRESULT classification.
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
+            throw new COMException("Synthetic non-lock Excel failure", unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+
+        try
+        {
+            var exception = Assert.Throws<COMException>(
+                () => ExcelSession.BeginBatch(_testFileCopy!));
+
+            Assert.Equal(unchecked((int)0x800A03EC), exception.HResult);
+            Assert.Contains("Synthetic non-lock Excel failure", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("locked by another process", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+        }
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    [Trait("RequiresExcel", "true")]
     public void BeginBatch_StartupFailureWithUnconfirmedLiveIdentity_RetainsOwnership()
     {
         ExcelProcessIdentity? capturedIdentity = null;

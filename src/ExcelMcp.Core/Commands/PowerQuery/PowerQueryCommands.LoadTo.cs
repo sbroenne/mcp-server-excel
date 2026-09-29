@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -318,15 +319,10 @@ public partial class PowerQueryCommands
             // Refresh to materialize the table.
             // Do NOT use EnterLongOperation here: synchronous QueryTable refresh depends on inbound
             // Excel callbacks to complete. Rejecting those callbacks can deadlock the load.
-            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
-            try
-            {
-                queryTable.Refresh(false); // Synchronous refresh
-            }
-            finally
-            {
-                OleMessageFilter.ClearPendingCancellationToken();
-            }
+            QueryTableRefreshHelper.RefreshSynchronously(
+                queryTable,
+                cancellationToken,
+                $"Power Query load for '{queryName}'");
 
             // Name the table after the query for predictable M-code referencing.
             // Without this, Excel auto-assigns a generic name ("Table1", "Table2", etc.)
