@@ -182,7 +182,7 @@ Manage named ranges — ideal for driving workbook parameters that Power Query a
 **Operations:**
 - **List:** List visible user-defined named ranges with references; hidden/internal Excel names (including Power Query `ExternalData_*` and AutoFilter names) are omitted before value inspection, and large ranges return metadata without materializing values
 - **Read:** Get value of a named range
-- **Write:** Set value of a named range (ideal for parameter automation)
+- **Write:** Set a named-range value. Invariant numeric and Boolean strings become typed Excel values; identifiers such as `2.0.13` remain text.
 - **Create:** Create new named range
 - **Update:** Modify existing named range
 - **Delete:** Remove named range

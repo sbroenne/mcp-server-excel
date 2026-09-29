@@ -8,12 +8,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Named ranges for formulas/parameters.
 /// LIST: returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values.
 /// CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1').
-/// WRITE: value is data to store.
+/// WRITE: value is data to store; invariant numeric and Boolean strings become typed values, while other input remains text.
 /// TIP: use range get-values/set-values with the named range as the range address for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
-    Description = "Named ranges for formulas/parameters. LIST returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: value is data to store in the named range. TIP: Use range(rangeAddress=namedRangeName) for bulk data operations.")]
+    Description = "Named ranges for formulas/parameters. LIST returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: invariant numeric and Boolean strings become typed values; other input remains text. TIP: Use range(rangeAddress=namedRangeName) for bulk data operations.")]
 public interface INamedRangeCommands
 {
     /// <summary>
@@ -30,7 +30,7 @@ public interface INamedRangeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="name">Name of the named range</param>
-    /// <param name="value">Value to set</param>
+    /// <param name="value">Value to set. Invariant numeric and Boolean strings become typed values; other input remains text.</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("write")]
     OperationResult Write(
@@ -89,6 +89,5 @@ public interface INamedRangeCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name);
 }
-
 
 

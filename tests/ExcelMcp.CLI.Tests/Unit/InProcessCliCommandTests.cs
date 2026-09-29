@@ -109,6 +109,71 @@ public sealed class InProcessCliCommandTests
     }
 
     [Theory]
+    [InlineData("--input")]
+    [InlineData("-i")]
+    public async Task Batch_SeparateStdinSentinel_UsesInjectedInput(string inputOption)
+    {
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = """{"message":"stdin"}""" });
+        var output = new StringWriter();
+        var runtime = CreateRuntime(
+            factory,
+            output,
+            new StringWriter(),
+            """{"command":"diag.echo","args":{"message":"stdin"}}""");
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "batch", inputOption, "-"],
+            runtime);
+
+        Assert.Equal(0, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("diag.echo", request.Command);
+        Assert.Equal("""{"message":"stdin"}""", request.Args);
+    }
+
+    [Fact]
+    public async Task NestedCollection_SeparateStdinSentinel_DispatchesPipedJson()
+    {
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = """{"success":true}""" });
+        var output = new StringWriter();
+        var originalInput = Console.In;
+        Console.SetIn(new StringReader("""[["Release","Version"],["excelcli","2.0.13"]]"""));
+        try
+        {
+            var exitCode = await Program.RunAsync(
+                [
+                    "--quiet",
+                    "range",
+                    "set-values",
+                    "--session",
+                    "session-1",
+                    "--sheet-name",
+                    "Data",
+                    "--range-address",
+                    "A1:B2",
+                    "--values",
+                    "-"
+                ],
+                CreateRuntime(factory, output, new StringWriter()));
+
+            Assert.Equal(0, exitCode);
+        }
+        finally
+        {
+            Console.SetIn(originalInput);
+        }
+
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("range.set-values", request.Command);
+        Assert.Equal("session-1", request.SessionId);
+        Assert.Equal(
+            """{"sheetName":"Data","rangeAddress":"A1:B2","values":[["Release","Version"],["excelcli","2.0.13"]]}""",
+            request.Args);
+    }
+
+    [Theory]
     [InlineData("open", false, "session.open")]
     [InlineData("open", true, "session.open")]
     [InlineData("create", false, "session.create")]

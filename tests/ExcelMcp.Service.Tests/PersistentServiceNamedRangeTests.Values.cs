@@ -28,6 +28,48 @@ public sealed partial class PersistentServiceNamedRangeTests
         var namedRangeValue = _parameterCommands.Read(batch, paramName);
         Assert.Equal("TestValue", namedRangeValue.Value?.ToString());
     }
+
+    [Fact]
+    public void Write_DottedIdentifier_PreservesText()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var paramName = CreateUniqueNamedRangeName();
+        var cellRef = $"'{sheetName}'!A1";
+
+        _parameterCommands.Create(batch, paramName, cellRef);
+        _fixture.RegisterNamedRangeForCleanup(paramName);
+        _parameterCommands.Write(batch, paramName, "2.0.13");
+
+        var namedRangeValue = _parameterCommands.Read(batch, paramName);
+
+        Assert.Equal("2.0.13", namedRangeValue.Value);
+        Assert.Equal("String", namedRangeValue.ValueType);
+    }
+
+    [Theory]
+    [InlineData("123.45", 123.45, "Double")]
+    [InlineData("true", true, "Boolean")]
+    public void Write_InvariantScalar_StoresTypedValue(
+        string input,
+        object expectedValue,
+        string expectedType)
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var paramName = CreateUniqueNamedRangeName();
+        var cellRef = $"'{sheetName}'!A1";
+
+        _parameterCommands.Create(batch, paramName, cellRef);
+        _fixture.RegisterNamedRangeForCleanup(paramName);
+        _parameterCommands.Write(batch, paramName, input);
+
+        var namedRangeValue = _parameterCommands.Read(batch, paramName);
+
+        Assert.Equal(expectedValue, namedRangeValue.Value);
+        Assert.Equal(expectedType, namedRangeValue.ValueType);
+    }
+
     /// <inheritdoc/>
 
     [Fact]
@@ -64,6 +106,4 @@ public sealed partial class PersistentServiceNamedRangeTests
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }
-
-
 

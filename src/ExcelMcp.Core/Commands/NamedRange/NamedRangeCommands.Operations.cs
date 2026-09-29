@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
@@ -240,7 +241,11 @@ public partial class NamedRangeCommands
                 }
 
                 // Try to parse as number, otherwise set as text
-                if (double.TryParse(value, out double numValue))
+                if (double.TryParse(
+                    value,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out double numValue))
                 {
                     refersToRange.Value2 = numValue;
                 }
@@ -434,4 +439,3 @@ public partial class NamedRangeCommands
         });
     }
 }
-
