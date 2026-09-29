@@ -4,21 +4,19 @@
 
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
-       Render bootstrap scripts only in the output tree; source templates stay read-only.
     2. Strip any runtime payloads from plugin bin/ roots
     3. Update runtime-bootstrap metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
     RUNTIME BOOTSTRAP MODEL:
-    - Published plugins ship wrapper/download logic and metadata only
-    - Self-contained Windows runtimes are downloaded from the latest GitHub release on first use
+    - Published plugins use the public npm packages through npx
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
     OUTPUT:
     plugins/
-      excel-mcp/     → MCP plugin (wrapper/bootstrap assets + updated version + fresh skills)
-      excel-cli/     → CLI plugin (wrapper/bootstrap assets + updated version + fresh skills)
+      excel-mcp/     → MCP plugin (npx config + updated version + fresh skills)
+      excel-cli/     → CLI plugin (argument-safe npx wrapper + updated version + fresh skills)
 
 .PARAMETER Version
     Plugin version. Required for distributable builds.
@@ -47,11 +45,6 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
 }
 $Version = $Version.Trim()
-
-$BootstrapScriptPath = Join-Path $RepoRoot "scripts\Build-BootstrapScripts.ps1"
-if (-not (Test-Path $BootstrapScriptPath)) {
-    throw "Bootstrap generator script not found: $BootstrapScriptPath"
-}
 
 function Remove-PackagedRuntimePayload {
     param(
@@ -352,12 +345,6 @@ if (-not (Test-Path $TemplateCli)) {
 Write-Host "  Copying canonical plugin template..." -ForegroundColor Cyan
 Copy-Item -Path $TemplateCli -Destination $OutputCli -Recurse -Force
 
-Write-Host "Rendering packaged bootstrap scripts from the shared template..." -ForegroundColor Cyan
-& $BootstrapScriptPath -OutputRoot $OutputDir
-if ($LASTEXITCODE -ne 0) {
-    throw "Bootstrap script generation failed."
-}
-
 Assert-AgentPluginPackage -PluginName "excel-mcp" -PluginDir $OutputMcp -ExpectedVersion $Version
 Write-Host "✅ excel-mcp plugin built" -ForegroundColor Green
 
@@ -405,8 +392,8 @@ Write-Host "Version: $Version"
 Write-Host "Output:  $OutputDir"
 Write-Host ""
 Write-Host "Plugins:" -ForegroundColor Cyan
-Write-Host '  [ok] excel-mcp - bootstrap assets and skill' -ForegroundColor Green
-Write-Host '  [ok] excel-cli - bootstrap assets and skill' -ForegroundColor Green
+Write-Host '  [ok] excel-mcp - npx config and skill' -ForegroundColor Green
+Write-Host '  [ok] excel-cli - argument-safe npx wrapper and skill' -ForegroundColor Green
 Write-Host ""
 Write-Host "Test locally:" -ForegroundColor Yellow
 Write-Host "  copilot plugin install $OutputDir\excel-mcp"

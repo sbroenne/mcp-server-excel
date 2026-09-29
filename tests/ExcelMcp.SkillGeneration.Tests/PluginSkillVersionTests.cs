@@ -49,8 +49,6 @@ public sealed class PluginSkillVersionTests
     [Trait("Feature", "PluginSkillVersion")]
     public async Task BuildPlugins_StampsVersionFileIntoEverySkillDirectory()
     {
-        using var template = File.Open(Path.Combine(RepoRoot, ".github", "plugins", "_shared", "download.ps1.template"),
-            FileMode.Open, FileAccess.Read, FileShare.Read);
         var sandbox = CreateSandbox("plugin-skill-version");
         try
         {

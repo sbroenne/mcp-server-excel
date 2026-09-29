@@ -370,7 +370,7 @@ jobs:
       release_version: ${{ needs.version.outputs.version }}
 
   publish-plugins:
-    needs: [version, create-tag, create-release]
+    needs: [version, create-tag, create-release, publish]
     uses: ./.github/workflows/publish-plugins.yml
     with:
       release_tag: ${{ needs.version.outputs.tag }}

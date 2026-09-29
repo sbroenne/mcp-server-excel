@@ -21,7 +21,7 @@ public sealed class PreCommitScriptTests
     [InlineData("vscode-extension/src/extension.ts", false, false)]
     [InlineData("npm-packages/excelcli/package.json", false, false)]
     [InlineData("mcpb/Build-McpBundle.ps1", false, false)]
-    [InlineData(".github/plugins/_shared/download.ps1.template", false, false)]
+    [InlineData(".github/plugins/excel-cli/bin/start-cli.ps1", false, false)]
     [InlineData("scripts/Build-AgentSkills.ps1", true, false)]
     [InlineData("tests/ExcelMcp.Core.Tests/ExampleTests.cs", true, false)]
     [InlineData("scripts/pre-commit.ps1", true, false)]

@@ -3,13 +3,10 @@
   "mcpServers": {
     "excel-mcp": {
       "type": "stdio",
-      "command": "powershell",
+      "command": "npx",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${PLUGIN_ROOT}/bin/start-mcp.ps1"
+        "-y",
+        "@sbroenne/mcp-server-excel@latest"
       ]
     }
   }

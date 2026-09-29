@@ -33,7 +33,7 @@ function Get-ValidationPlan {
             '^npm-packages/shared/' { 'npm-packages'; break }
             '^\.github/plugins/|^\.github/workflows/publish-plugins\.yml$' { 'plugins'; break }
             '^scripts/Build-AgentSkills\.ps1$' { 'skills'; break }
-            '^scripts/(Build-Plugins|Build-BootstrapScripts|Sync-PublishedPluginRepo)\.ps1$' { 'plugins'; break }
+            '^scripts/(Build-Plugins|Sync-PublishedPluginRepo)\.ps1$' { 'plugins'; break }
             '^scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/release\.yml$' { 'packages'; break }
             '^scripts/(pre-commit|Get-ValidationPlan|Invoke-ExcelFreeTests|check-|Test-NpmLockfiles)' { 'tests'; break }
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }

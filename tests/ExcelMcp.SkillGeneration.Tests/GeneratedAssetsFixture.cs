@@ -10,19 +10,16 @@ public sealed class GeneratedAssetsFixture : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"ExcelMcpAssets-{Guid.NewGuid():N}");
     public static string SkillsDirectory { get; private set; } = "";
-    public static string BootstrapDirectory { get; private set; } = "";
 
     public GeneratedAssetsFixture()
     {
         SkillsDirectory = Path.Combine(_root, "skills");
-        BootstrapDirectory = Path.Combine(_root, "bootstrap");
         var repo = new DirectoryInfo(AppContext.BaseDirectory);
         while (repo != null && !File.Exists(Path.Combine(repo.FullName, "Sbroenne.ExcelMcp.sln"))) { repo = repo.Parent; }
         if (repo == null) { throw new DirectoryNotFoundException("Repository root not found."); }
         try
         {
             Run(repo.FullName, "Build-AgentSkills", "-GenerateOnly", "-OutputDir", SkillsDirectory);
-            Run(repo.FullName, "Build-BootstrapScripts", "-OutputRoot", BootstrapDirectory);
             foreach (var directory in new[] { "shared", "templates" })
             {
                 var output = Path.Combine(SkillsDirectory, directory);

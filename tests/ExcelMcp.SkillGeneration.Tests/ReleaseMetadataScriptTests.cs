@@ -206,7 +206,7 @@ public sealed class ReleaseMetadataScriptTests
         var plugins = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml"));
         Assert.DoesNotContain("workflow_run", plugins, StringComparison.Ordinal);
         Assert.Contains("workflow_call:", plugins, StringComparison.Ordinal);
-        Assert.Contains("needs: [version, create-tag, create-release]", ExtractWorkflowJob(release, "publish-plugins"), StringComparison.Ordinal);
+        Assert.Contains("needs: [version, create-tag, create-release, publish]", ExtractWorkflowJob(release, "publish-plugins"), StringComparison.Ordinal);
         Assert.Contains("release_commit:", plugins, StringComparison.Ordinal);
         Assert.Contains("plugin_artifact:", plugins, StringComparison.Ordinal);
         Assert.Contains("ref: ${{ needs.resolve.outputs.commit }}", plugins, StringComparison.Ordinal);
