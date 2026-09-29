@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 # Windows PowerShell rebuilds a command line when it invokes a native executable, and its
 # built-in quoting drops embedded double quotes. That silently corrupts JSON arguments such as
 # --values '[["Name","Amount"]]'. Build the command line using the standard MSVCRT quoting rules
-# and hand it to either Node's npx entry point or the fallback executable verbatim.
+# and hand it directly to Node's npx entry point.
 function ConvertTo-NativeArgument {
     param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value)
 
@@ -68,12 +68,7 @@ if ($null -ne $nodeCommand -and -not [string]::IsNullOrWhiteSpace($npxCliPath) -
     $binaryPath = $nodeCommand.Source
     $nativeArguments = @($npxCliPath, "-y", "@sbroenne/excelcli@latest") + @($PassthroughArgs)
 } else {
-    $downloadScript = Join-Path $PSScriptRoot "download.ps1"
-    $binaryPath = & $downloadScript -PassThru -Quiet
-    if ([string]::IsNullOrWhiteSpace($binaryPath) -or -not (Test-Path $binaryPath)) {
-        throw "excel-cli could not run through npx or resolve a fallback excelcli.exe runtime."
-    }
-    $nativeArguments = @($PassthroughArgs)
+    throw "excel-cli requires Node.js 18 or later with npm/npx available on PATH."
 }
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo

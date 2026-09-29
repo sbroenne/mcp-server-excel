@@ -4,11 +4,9 @@ The source repository owns plugin templates, shared guidance, authored assets,
 generation, validation, and publication. `sbroenne/mcp-server-excel-plugins` is
 output-only: never fix generated files there by hand.
 
-The two plugins contain launch configuration, fallback wrappers, and complete
-skills, not bundled runtimes. They use the public npm packages through `npx` by
-default. When npx is unavailable, the wrappers can download the newest Windows
-runtime from the source repository's GitHub Releases and verify its exact
-`SHA256SUMS` entry before extraction.
+The two plugins contain launch configuration, an argument-safe CLI wrapper, and
+complete skills, not bundled runtimes. They use the public npm packages through
+`npx` and require Node.js 18 or later.
 
 ## Required secret
 

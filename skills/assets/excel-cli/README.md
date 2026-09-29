@@ -77,9 +77,8 @@ pwsh -ExecutionPolicy Bypass -File `
   "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
 
-The global shim uses npx first. If Node.js is unavailable, it falls back to the
-verified GitHub Release downloader and stores that runtime under
-`~\.copilot\plugin-runtime\mcp-server-excel\excel-cli`.
+The global shim uses npx and preserves embedded quotes in JSON arguments from
+Windows PowerShell.
 
 ### Via Skill Package
 

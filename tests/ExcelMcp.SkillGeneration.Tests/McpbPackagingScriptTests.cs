@@ -262,16 +262,21 @@ public sealed class McpbPackagingScriptTests
                 var plugin = Directory.CreateDirectory(Path.Combine(built, name)).FullName;
                 var manifest = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", name, "plugin.json"));
                 File.WriteAllText(Path.Combine(plugin, "plugin.json"), manifest.Replace("0.0.0", "1.2.3", StringComparison.Ordinal));
-                var wrapper = name == "excel-cli" ? "start-cli.ps1" : "start-mcp.ps1";
                 foreach (var file in new[]
                 {
                     "README.md", "version.txt", $"skills/{name}/SKILL.md", $"skills/{name}/VERSION",
-                    $"skills/{name}/references/range.md", "bin/download.ps1", $"bin/{wrapper}",
+                    $"skills/{name}/references/range.md",
                 })
                 {
                     var destination = Path.Combine(plugin, file);
                     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
                     File.WriteAllText(destination, "1.2.3");
+                }
+                if (name == "excel-cli")
+                {
+                    var wrapper = Path.Combine(plugin, "bin", "start-cli.ps1");
+                    Directory.CreateDirectory(Path.GetDirectoryName(wrapper)!);
+                    File.WriteAllText(wrapper, "1.2.3");
                 }
             }
             File.Delete(Path.Combine(built, "excel-cli", missingFile));

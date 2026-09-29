@@ -42,15 +42,14 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-Both plugins use the public npm packages through `npx` by default. The published
-fallback wrappers can still fetch a verified self-contained runtime from the main
-GitHub Releases feed when Node.js is unavailable.
+Both plugins use the public npm packages through `npx`. Node.js 18 or later is
+required.
 
 ## Notes
 
 - **Windows only** — ExcelMcp depends on Microsoft Excel COM automation.
 - **excel-mcp** includes portable root `mcp.json` configuration that launches `@sbroenne/mcp-server-excel`.
-- **excel-cli** includes an npx-first wrapper for `@sbroenne/excelcli`; separate PATH installation is optional.
+- **excel-cli** includes an argument-safe npx wrapper for `@sbroenne/excelcli`; separate PATH installation is optional.
 - Both root `plugin.json` manifests target `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills are discovered from the fixed `skills/` directory.
 
 ## Source and Support

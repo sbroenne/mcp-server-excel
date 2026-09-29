@@ -44,10 +44,8 @@ launches the public npm package directly:
 npx -y @sbroenne/mcp-server-excel@latest
 ```
 
-The optional global helper uses an npx-first PowerShell wrapper. If Node.js is
-not available, that wrapper falls back to the retained GitHub Release downloader
-and stores the verified runtime under
-`~\.copilot\plugin-runtime\mcp-server-excel\excel-mcp`.
+The optional global helper writes the same npx command to
+`~/.copilot/mcp-config.json`.
 
 If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
 

@@ -4,18 +4,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$PluginDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$WrapperPath = Join-Path $PluginDir "bin\start-mcp.ps1"
 $UserMcpConfig = Join-Path $env:USERPROFILE ".copilot\mcp-config.json"
 
 Write-Host "ExcelMcp Global Install Helper" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 Write-Host ""
-
-if (-not (Test-Path $WrapperPath)) {
-    Write-Error "❌ Plugin wrapper not found at $WrapperPath"
-    exit 1
-}
 
 $CopilotDir = Join-Path $env:USERPROFILE ".copilot"
 if (-not (Test-Path $CopilotDir)) {
@@ -40,19 +33,17 @@ if (Test-Path $UserMcpConfig) {
 if ($config.mcpServers.PSObject.Properties.Name -contains "excel-mcp" -and -not $Force) {
     Write-Host "✅ excel-mcp server is already configured in user MCP config" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Run again with -Force to rewrite the wrapper path." -ForegroundColor Yellow
+    Write-Host "Run again with -Force to rewrite the npx configuration." -ForegroundColor Yellow
     exit 0
 }
 
 Write-Host "[Install] Adding excel-mcp to user MCP config..." -ForegroundColor Yellow
 
 $excelMcpConfig = @{
-    command = "powershell"
+    command = "npx"
     args = @(
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        $WrapperPath
+        "-y",
+        "@sbroenne/mcp-server-excel@latest"
     )
 }
 
@@ -73,9 +64,7 @@ try {
 Write-Host ""
 Write-Host "✅ ExcelMcp MCP server installed globally!" -ForegroundColor Green
 Write-Host "   Config:   $UserMcpConfig" -ForegroundColor Gray
-Write-Host "   Wrapper:  $WrapperPath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "MCP invocations use the latest npm package through npx when Node.js is available." -ForegroundColor Cyan
-Write-Host "The plugin release downloader remains available as a fallback." -ForegroundColor Cyan
+Write-Host "MCP invocations use the latest npm package through npx." -ForegroundColor Cyan
 Write-Host "Verify installation:" -ForegroundColor Cyan
 Write-Host "   copilot mcp list" -ForegroundColor Gray

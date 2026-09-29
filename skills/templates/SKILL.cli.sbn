@@ -21,8 +21,8 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, Node.js 18+, and
   `excelcli` for readability; replace that token with the npx command unless `excelcli`
   already resolves on PATH.
 - The optional `com.github.copilot\bin\install-global.ps1` helper creates
-  `excelcli.cmd` / `excelcli.ps1` shims in `~\.copilot\bin`. Those shims use npx first
-  and retain the verified GitHub Release downloader only as a fallback when Node.js is absent.
+  `excelcli.cmd` / `excelcli.ps1` shims in `~\.copilot\bin`. The PowerShell shim
+  preserves embedded quotes in JSON arguments.
 
 ## Workflow Checklist
 

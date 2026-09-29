@@ -7,8 +7,8 @@
     source-owned root overlay content, writes the canonical marketplace manifest to
     .github/plugin/marketplace.json, and removes the legacy root marketplace.json.
 
-    The published repo contains npx launch configuration, skills, and fallback
-    download wrappers. Self-contained Windows runtimes remain outside the plugin.
+    The published repo contains npx launch configuration, an argument-safe CLI
+    wrapper, and skills. Self-contained Windows runtimes remain outside the plugin.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -151,9 +151,17 @@ foreach ($pluginName in $builtPluginNames) {
         throw "$pluginJsonPath resolved version '$($pluginJson.version)' but expected '$Version'."
     }
 
-    $wrapper = if ($pluginName -eq 'excel-cli') { 'start-cli.ps1' } else { 'start-mcp.ps1' }
-    foreach ($required in @('README.md', 'version.txt', 'bin\download.ps1', "bin\$wrapper",
-        "skills\$pluginName\SKILL.md", "skills\$pluginName\VERSION", "skills\$pluginName\references\range.md")) {
+    $requiredFiles = @(
+        'README.md',
+        'version.txt',
+        "skills\$pluginName\SKILL.md",
+        "skills\$pluginName\VERSION",
+        "skills\$pluginName\references\range.md"
+    )
+    if ($pluginName -eq 'excel-cli') {
+        $requiredFiles += 'bin\start-cli.ps1'
+    }
+    foreach ($required in $requiredFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $sourcePluginDir $required) -PathType Leaf)) {
             throw "Incomplete plugin payload: $pluginName is missing $required."
         }

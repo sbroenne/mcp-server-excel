@@ -113,20 +113,12 @@ foreach ($script in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File
 $tempProfile = Join-Path ([IO.Path]::GetTempPath()) ("excel-plugin-test-" + [Guid]::NewGuid().ToString("N"))
 $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
-$originalSessionId = $env:COPILOT_AGENT_SESSION_ID
-$originalPluginData = $env:PLUGIN_DATA
 $originalPath = $env:PATH
 
 try {
-    Remove-Item Env:PLUGIN_DATA -ErrorAction SilentlyContinue
+    $echoScript = Join-Path $tempProfile "echo-argument.js"
 
-    $runtimeRoot = Join-Path $tempProfile ".copilot\plugin-runtime\mcp-server-excel\excel-cli"
-    $releaseRoot = Join-Path $runtimeRoot "releases\test"
-    $fakeBinary = Join-Path $releaseRoot "excelcli.exe"
-    $echoScript = Join-Path $releaseRoot "echo-argument.js"
-
-    New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
-    Copy-Item (Get-Command "cscript.exe").Source $fakeBinary
+    New-Item -ItemType Directory -Path $tempProfile -Force | Out-Null
     [IO.File]::WriteAllText(
         $echoScript,
         'WScript.StdOut.Write("pipeline-ok");',
@@ -155,26 +147,8 @@ process.exit(child.status ?? 1);
 '@,
         [Text.UTF8Encoding]::new($false))
 
-    $productVersion = ((Get-Item $fakeBinary).VersionInfo.ProductVersion -split '\+', 2)[0].Trim()
-    $state = [ordered]@{
-        checkedSessionId = "plugin-test"
-        checkedAtUtc = [DateTime]::UtcNow.ToString("o")
-        latestTag = "test"
-        latestVersion = $productVersion
-        assetName = "unused.zip"
-        assetUrl = "https://example.invalid/unused.zip"
-        expectedSha256 = "0" * 64
-        cachedReleaseTag = "test"
-        binaryPath = $fakeBinary
-    }
-    [IO.File]::WriteAllText(
-        (Join-Path $runtimeRoot "bootstrap-state.json"),
-        (($state | ConvertTo-Json -Depth 4) + "`n"),
-        [Text.UTF8Encoding]::new($false))
-
     $env:USERPROFILE = $tempProfile
     $env:HOME = $tempProfile
-    $env:COPILOT_AGENT_SESSION_ID = "plugin-test"
     $env:PATH = "$tempProfile;$originalPath"
 
     $wrapper = Join-Path $repoRoot "plugins\excel-cli\bin\start-cli.ps1"
@@ -184,42 +158,9 @@ process.exit(child.status ?? 1);
         throw "CLI wrapper pipeline capture failed. Expected 'pipeline-ok', got '$captured'."
     }
 
-    $pluginData = Join-Path $tempProfile "plugin-data"
-    $mcpRuntimeRoot = Join-Path $pluginData "runtime"
-    $mcpReleaseRoot = Join-Path $mcpRuntimeRoot "releases\test"
-    $fakeMcpBinary = Join-Path $mcpReleaseRoot "mcp-excel.exe"
-    New-Item -ItemType Directory -Path $mcpReleaseRoot -Force | Out-Null
-    Copy-Item (Get-Command "cscript.exe").Source $fakeMcpBinary
-
-    $mcpProductVersion = ((Get-Item $fakeMcpBinary).VersionInfo.ProductVersion -split '\+', 2)[0].Trim()
-    $mcpState = [ordered]@{
-        checkedSessionId = "plugin-test"
-        checkedAtUtc = [DateTime]::UtcNow.ToString("o")
-        latestTag = "test"
-        latestVersion = $mcpProductVersion
-        assetName = "unused.zip"
-        assetUrl = "https://example.invalid/unused.zip"
-        expectedSha256 = "0" * 64
-        cachedReleaseTag = "test"
-        binaryPath = $fakeMcpBinary
-    }
-    [IO.File]::WriteAllText(
-        (Join-Path $mcpRuntimeRoot "bootstrap-state.json"),
-        (($mcpState | ConvertTo-Json -Depth 4) + "`n"),
-        [Text.UTF8Encoding]::new($false))
-
-    $env:PLUGIN_DATA = $pluginData
-    $downloadScript = Join-Path $repoRoot "plugins\excel-mcp\bin\download.ps1"
-    $resolvedMcpBinary = & $downloadScript -PassThru -Quiet
-
-    if ($resolvedMcpBinary -ne $fakeMcpBinary) {
-        throw "MCP bootstrap did not use the Agent Plugins PLUGIN_DATA cache."
-    }
 } finally {
     $env:USERPROFILE = $originalUserProfile
     $env:HOME = $originalHome
-    $env:COPILOT_AGENT_SESSION_ID = $originalSessionId
-    $env:PLUGIN_DATA = $originalPluginData
     $env:PATH = $originalPath
 
     if (Test-Path $tempProfile) {

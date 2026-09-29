@@ -43,10 +43,8 @@ The plugin does not bundle `excelcli.exe`. Its wrapper runs:
 npx -y @sbroenne/excelcli@latest --help
 ```
 
-If Node.js is unavailable, the wrapper falls back to the retained GitHub Release
-downloader. That fallback uses `PLUGIN_DATA\runtime` inside an Agent Plugins host
-or `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` for the optional global
-shim.
+Node.js and npx are required. The optional global shim preserves quoted JSON
+arguments when invoked from Windows PowerShell.
 
 You do **not** need a separate standalone install just to use the plugin.
 
