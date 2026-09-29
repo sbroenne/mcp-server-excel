@@ -132,15 +132,26 @@ try {
         'WScript.StdOut.Write("pipeline-ok");',
         [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText(
-        (Join-Path $tempProfile "npx.ps1"),
+        (Join-Path $tempProfile "npx.cmd"),
+        "@echo off`r`n",
+        [Text.Encoding]::ASCII)
+    $npmBin = Join-Path $tempProfile "node_modules\npm\bin"
+    New-Item -ItemType Directory -Path $npmBin -Force | Out-Null
+    [IO.File]::WriteAllText(
+        (Join-Path $npmBin "npx-cli.js"),
         @'
-[CmdletBinding()]
-param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
-if ($Arguments[0] -ne "-y" -or $Arguments[1] -ne "@sbroenne/excelcli@latest") {
-    throw "Unexpected npx arguments: $($Arguments -join ' ')"
+const { spawnSync } = require("node:child_process");
+if (process.argv[2] !== "-y" || process.argv[3] !== "@sbroenne/excelcli@latest") {
+    throw new Error(`Unexpected npx arguments: ${process.argv.slice(2).join(" ")}`);
 }
-& (Get-Command "cscript.exe").Source @($Arguments[2..($Arguments.Count - 1)])
-exit $LASTEXITCODE
+const child = spawnSync(
+    `${process.env.SystemRoot}\\System32\\cscript.exe`,
+    process.argv.slice(4),
+    { stdio: "inherit" });
+if (child.error) {
+    throw child.error;
+}
+process.exit(child.status ?? 1);
 '@,
         [Text.UTF8Encoding]::new($false))
 
