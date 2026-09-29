@@ -36,10 +36,10 @@ Provides {{ operationcount }} Excel operations via Model Context Protocol. The M
 Use `calculation_mode` for **bulk write performance optimization**. When writing many values or formulas, disable auto-recalc to avoid recalculating after every cell:
 
 ```
-1. calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
+1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual') -> Disable auto-recalc
 2. Perform all writes (range set-values, set-formulas)
-3. calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once
-4. calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
+3. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook') -> Recalculate once
+4. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic') -> Restore default
 ```
 
 **Note:** You do NOT need manual mode to read formulas - `range get-formulas` returns formula text regardless of calculation mode.

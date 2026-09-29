@@ -60,7 +60,8 @@ The npm package at `npm-packages/mcp-server-excel/package.json` contains:
 
 ## Publishing Workflow
 
-The publishing process is automated as `publish-mcp-registry` job in `.github/workflows/release.yml`:
+The publishing process is automated by `.github/workflows/publish-mcp-registry.yml`,
+which the unified release workflow calls after NuGet and npm publication:
 
 ### 1. Version Update
 The workflow:
@@ -71,6 +72,8 @@ The workflow:
 - The MCP Registry offers both NuGet and npm deployment mechanisms
 - The job waits for the NuGet README and npm `mcpName` metadata to propagate
 - Polls up to 3 times with 10-minute intervals
+- Decodes the NuGet README response as UTF-8 when NuGet returns
+  `application/octet-stream`
 
 ### 3. MCP Registry Publishing
 - Downloads the MCP Publisher CLI tool
@@ -86,6 +89,9 @@ Uses **GitHub OIDC**:
 - No secrets required
 - Automatic authentication via `mcp-publisher login github-oidc`
 - Works for `io.github.*` namespaces
+- The publish job uses the protected `mcp-registry` environment. Repository
+  settings must keep its custom deployment branch policy restricted to `main`
+  and require approval from the repository owner before the OIDC token is issued.
 
 **Required Permissions:**
 The workflow has `id-token: write` permission enabled for OIDC authentication.
@@ -107,7 +113,12 @@ After release, verify publication:
 **Solution**: 
 - Verify `id-token: write` permission is set in the workflow job
 - Ensure repository is configured for GitHub OIDC
-- Resolve the failure and rerun the workflow after confirming the registry state
+- Resolve the failure, then manually run **Publish MCP Registry** with the exact
+  existing release tag. The repair workflow validates that tag's immutable
+  source metadata, requires its commit to be reachable from protected `main`,
+  and validates the existing NuGet and npm packages before publishing
+  only the MCP Registry entry. It does not rebuild or republish any package,
+  GitHub release asset, extension, or plugin.
 
 ### Version Not Updated
 

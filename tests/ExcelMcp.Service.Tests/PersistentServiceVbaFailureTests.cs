@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -21,68 +22,92 @@ public sealed class PersistentServiceVbaFailureTests :
     }
 
     [Fact]
-    public void Import_ExistingModuleName_ThrowsInvalidOperationException()
+    public async Task Import_ExistingModuleName_HasConflictCategory()
     {
         const string moduleName = "DuplicateModule";
         const string vbaCode = "Sub Test()\nEnd Sub";
         _vba.Import(_fixture.BatchToken, moduleName, vbaCode);
         _fixture.RegisterVbaModuleForCleanup(moduleName);
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => _vba.Import(_fixture.BatchToken, moduleName, vbaCode));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.import",
+            new { moduleName, vbaCode });
 
-        Assert.Contains("already exists", exception.Message);
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal(OperationFailureCategory.Conflict.ToString(), response.ErrorCategory);
+        Assert.Contains("already exists", response.ErrorMessage);
     }
 
     [Fact]
-    public void Delete_MissingModule_ThrowsInvalidOperationException()
+    public async Task Delete_MissingModule_HasNotFoundCategory()
     {
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => _vba.Delete(_fixture.BatchToken, "NonExistentModule"));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.delete",
+            new { moduleName = "NonExistentModule" });
 
-        Assert.Contains("not found", exception.Message);
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal(OperationFailureCategory.NotFound.ToString(), response.ErrorCategory);
+        Assert.Contains("not found", response.ErrorMessage);
     }
 
     [Fact]
-    public void View_MissingModule_ThrowsInvalidOperationException()
+    public async Task View_MissingModule_HasNotFoundCategory()
     {
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => _vba.View(_fixture.BatchToken, "NonExistentModule"));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.view",
+            new { moduleName = "NonExistentModule" });
 
-        Assert.Contains("not found", exception.Message);
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal(OperationFailureCategory.NotFound.ToString(), response.ErrorCategory);
+        Assert.Contains("not found", response.ErrorMessage);
     }
 
     [Fact]
-    public void Run_MissingProcedure_ThrowsComException()
+    public async Task Run_MissingProcedure_RemainsComInteropFailure()
     {
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => _vba.Run(
-                _fixture.BatchToken,
-                "NonExistentModule.NonExistentProc",
-                null));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.run",
+            new
+            {
+                procedureName = "NonExistentModule.NonExistentProc",
+                timeout = (int?)null,
+                parameters = Array.Empty<string>()
+            });
 
-        Assert.Contains("COMException", exception.Message);
+        Assert.Equal("ComInterop", response.ErrorCategory);
         Assert.Contains(
             "nonexistent",
-            exception.Message,
+            response.ErrorMessage,
             StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Run_EmptyProcedureName_ThrowsArgumentException()
+    public async Task Run_EmptyProcedureName_HasInvalidInputCategory()
     {
-        Assert.Throws<ArgumentException>(
-            () => _vba.Run(_fixture.BatchToken, string.Empty, null));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.run",
+            new
+            {
+                procedureName = string.Empty,
+                timeout = (int?)null,
+                parameters = Array.Empty<string>()
+            });
+
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
     }
 
     [Fact]
-    public void Import_EmptyModuleName_ThrowsArgumentException()
+    public async Task Import_EmptyModuleName_HasInvalidInputCategory()
     {
-        Assert.Throws<ArgumentException>(
-            () => _vba.Import(
-                _fixture.BatchToken,
-                string.Empty,
-                "Sub Test()\nEnd Sub"));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.import",
+            new
+            {
+                moduleName = string.Empty,
+                vbaCode = "Sub Test()\nEnd Sub"
+            });
+
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
     }
 }
 
@@ -95,24 +120,37 @@ public sealed class PersistentServiceVbaUnsupportedFormatTests :
     PersistentServiceWorkbookTestBase,
     IClassFixture<PersistentServiceWorkbookFixture>
 {
-    private readonly IPersistentVbaCommands _vba;
-
     public PersistentServiceVbaUnsupportedFormatTests(
         PersistentServiceWorkbookFixture fixture) :
         base(fixture)
     {
-        _vba = fixture.CreateCommands<IPersistentVbaCommands>();
     }
 
     [Fact]
-    public void Import_UnsupportedFormat_ThrowsInvalidOperationException()
+    public async Task Import_UnsupportedFormat_HasInvalidInputCategory()
     {
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => _vba.Import(
-                _fixture.BatchToken,
-                "TestModule",
-                "Sub Test()\nEnd Sub"));
+        var response = await _fixture.SendForFailureAsync(
+            "vba.import",
+            new
+            {
+                moduleName = "TestModule",
+                vbaCode = "Sub Test()\nEnd Sub"
+            });
 
-        Assert.Contains("macro-enabled", exception.Message);
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
+        Assert.Contains("macro-enabled", response.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task List_UnsupportedFormat_HasInvalidInputCategory()
+    {
+        var response = await _fixture.SendForFailureAsync(
+            "vba.list",
+            new { });
+
+        Assert.Equal("OperationFailureException", response.ExceptionType);
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
+        Assert.Contains("macro-enabled", response.ErrorMessage);
     }
 }

@@ -20,7 +20,8 @@ View, import, edit, and run VBA code in `.xlsm` workbooks.
 
 **Notes:**
 - Procedural/module-focused VBA support for `.xlsm` workbooks.
-- Requires the manual VBA trust prerequisite in Excel (no trust-configuration command).
+- Listing or changing VBA modules requires manual VBA project trust in Excel;
+  running an existing macro does not (there is no trust-configuration command).
 - Import creates standard modules; list/view also cover class, form, and document components.
 
 **CLI example:**
