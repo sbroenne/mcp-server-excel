@@ -98,6 +98,8 @@ public partial class PowerQueryCommands
 
                 ct.ThrowIfCancellationRequested();
 
+                ct.ThrowIfCancellationRequested();
+
                 // STEP 5: Read the results from the worksheet
                 // Get the data range from the ListObject
                 dynamic? dataBodyRange = null;
