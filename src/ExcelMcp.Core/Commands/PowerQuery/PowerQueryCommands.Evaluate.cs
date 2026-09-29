@@ -32,7 +32,9 @@ public partial class PowerQueryCommands
         var tempQueryName = $"__pq_eval_{uniqueId}";
         var tempSheetName = $"__pq_eval_{uniqueId}";
 
-        return batch.Execute((ctx, ct) =>
+        using var timeoutCts = new CancellationTokenSource(batch.OperationTimeout);
+
+        PowerQueryEvaluateResult Execute() => batch.Execute((ctx, ct) =>
         {
             Excel.Queries? queriesCollection = null;
             Excel.WorkbookQuery? query = null;
@@ -47,6 +49,8 @@ public partial class PowerQueryCommands
 
             try
             {
+                ct.ThrowIfCancellationRequested();
+
                 // STEP 1: Create temporary query with the M code
                 queriesCollection = ctx.Book.Queries;
                 query = queriesCollection.Add(tempQueryName, mCode);
@@ -96,6 +100,8 @@ public partial class PowerQueryCommands
                     OleMessageFilter.ClearPendingCancellationToken();
                 }
 
+                ct.ThrowIfCancellationRequested();
+
                 // STEP 5: Read the results from the worksheet
                 // Get the data range from the ListObject
                 dynamic? dataBodyRange = null;
@@ -113,6 +119,7 @@ public partial class PowerQueryCommands
                             {
                                 for (int col = 1; col <= headers2D.GetLength(1); col++)
                                 {
+                                    ct.ThrowIfCancellationRequested();
                                     result.Columns.Add(headers2D[1, col]?.ToString() ?? $"Column{col}");
                                 }
                             }
@@ -120,6 +127,7 @@ public partial class PowerQueryCommands
                             {
                                 for (int i = 0; i < headers1D.Length; i++)
                                 {
+                                    ct.ThrowIfCancellationRequested();
                                     result.Columns.Add(headers1D[i]?.ToString() ?? $"Column{i + 1}");
                                 }
                             }
@@ -146,6 +154,7 @@ public partial class PowerQueryCommands
 
                                 for (int row = 1; row <= rowCount; row++)
                                 {
+                                    ct.ThrowIfCancellationRequested();
                                     var rowData = new List<object?>();
                                     for (int col = 1; col <= colCount; col++)
                                     {
@@ -160,6 +169,7 @@ public partial class PowerQueryCommands
                                 var rowData = new List<object?>();
                                 foreach (var val in data1D)
                                 {
+                                    ct.ThrowIfCancellationRequested();
                                     rowData.Add(ConvertCellValue(val));
                                 }
                                 result.Rows.Add(rowData);
@@ -293,7 +303,18 @@ public partial class PowerQueryCommands
 
             result.Success = true;
             return result;
-        });
+        }, timeoutCts.Token);
+
+        try
+        {
+            return Execute();
+        }
+        catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Power Query evaluate timed out after {batch.OperationTimeout.TotalSeconds} seconds.",
+                ex);
+        }
     }
 
     /// <summary>
