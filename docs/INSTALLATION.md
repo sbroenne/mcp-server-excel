@@ -21,28 +21,32 @@ The VS Code extension auto-installs the `excel-mcp` skill only. Plugins and skil
 
 ```powershell
 # CLI skill (for coding agents - token-efficient workflows)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli
 
 # MCP skill (for conversational AI - rich tool schemas)
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp
 
 # Interactive install - prompts to select excel-cli, excel-mcp, or both
-npx skills add sbroenne/mcp-server-excel
+npx skills add sbroenne/mcp-server-excel-plugins
 
 # Install for specific agents
-npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli -a cursor
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp -a claude-code
 
 # Install both skills
-npx skills add sbroenne/mcp-server-excel --skill '*'
+npx skills add sbroenne/mcp-server-excel-plugins --skill '*'
 
 # Install globally (user-wide)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
+npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli --global
 ```
 
 **Supports 43+ agents** including claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, cline, continue, replit, and more.
 
 **Manual Installation:**
+
+Existing skills remain installed. The old source-repository installation command
+does not redirect; use `sbroenne/mcp-server-excel-plugins` for future installs and updates.
+
 1. Download `excel-skills-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. The package contains both skills:
    - `skills/excel-cli/` - for coding agents (Copilot, Cursor, Windsurf)

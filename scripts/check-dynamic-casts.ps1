@@ -50,7 +50,9 @@ $violations = @()
 $checkedFiles = 0
 
 foreach ($dir in $searchDirs) {
-    $csFiles = Get-ChildItem -Path $dir -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
+    $csFiles = @(Get-ChildItem -LiteralPath $dir -File -Filter "*.cs" -Recurse |
+        Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and $_.Name -notmatch '\.g\.cs$' })
+    if ($csFiles.Count -eq 0) { throw "No source files found for the dynamic cast guard: $dir" }
     foreach ($file in $csFiles) {
         if ($excludeFiles -contains $file.Name) {
             if ($Verbose) { Write-Host "   Skipped (infrastructure): $($file.Name)" -ForegroundColor Gray }
@@ -58,7 +60,7 @@ foreach ($dir in $searchDirs) {
         }
 
         $checkedFiles++
-        $lines = Get-Content $file.FullName
+        $lines = @(Get-Content -LiteralPath $file.FullName)
         for ($i = 0; $i -lt $lines.Count; $i++) {
             $line = $lines[$i]
 
@@ -99,6 +101,7 @@ foreach ($dir in $searchDirs) {
 }
 
 Write-Host "Checked $checkedFiles C# files for undocumented ((dynamic)) casts" -ForegroundColor Cyan
+if ($checkedFiles -eq 0) { throw 'No eligible source files examined by the dynamic cast guard.' }
 
 if ($violations.Count -eq 0) {
     Write-Host "All ((dynamic)) casts are documented" -ForegroundColor Green

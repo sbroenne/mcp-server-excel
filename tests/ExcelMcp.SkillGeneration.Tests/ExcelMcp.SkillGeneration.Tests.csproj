@@ -32,9 +32,4 @@
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Make skills folder available for testing -->
-  <ItemGroup>
-    <None Include="..\..\skills\**\*" LinkBase="skills" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

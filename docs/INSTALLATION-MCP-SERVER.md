@@ -486,7 +486,7 @@ After installation:
 2. **Explore features:** See the [Feature Reference](../FEATURES.md) for the complete tool list
 3. **Read the guides:**
    - [CLI Installation Guide](INSTALLATION-CLI.md) - for scripting, RPA, and CI/CD
-   - [Agent Skills](../skills/excel-mcp/SKILL.md) - cross-platform AI guidance
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp) - cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

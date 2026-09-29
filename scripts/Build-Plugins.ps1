@@ -31,12 +31,14 @@
 #>
 param(
     [string]$Version = $null,
-    [string]$OutputDir = "plugins"
+    [string]$OutputDir = "plugins",
+    [string]$SkillsDirectory
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$SkillsDir = Join-Path $RepoRoot "skills"
+. (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
+$SkillsDir = if ($SkillsDirectory) { [IO.Path]::GetFullPath($SkillsDirectory, $RepoRoot) } else { Join-Path $RepoRoot 'artifacts\generated-skills' }
 $PluginSourceDir = Join-Path $RepoRoot ".github\plugins"
 $AgentPluginSchema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 $AgentPluginMcpSchema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
@@ -280,12 +282,25 @@ Write-Host "Source:   $RepoRoot"
 Write-Host "Templates: $PluginSourceDir"
 Write-Host "Output:   $OutputDir`n"
 
-# Clean output
-if (Test-Path $OutputDir) {
-    Write-Host "Cleaning output: $OutputDir" -ForegroundColor Yellow
-    Remove-Item -Path $OutputDir -Recurse -Force
+$FinalOutput = [IO.Path]::GetFullPath($OutputDir, $RepoRoot)
+Assert-PackageOutputPath -Path $FinalOutput -RepoRoot $RepoRoot -Inputs @($SkillsDir)
+if ($FinalOutput -eq [IO.Path]::GetPathRoot($FinalOutput) -or $FinalOutput -eq $RepoRoot -or
+    ($FinalOutput.StartsWith("$RepoRoot\", [StringComparison]::OrdinalIgnoreCase) -and
+     -not $FinalOutput.StartsWith("$RepoRoot\artifacts\", [StringComparison]::OrdinalIgnoreCase) -and
+     $FinalOutput -ne "$RepoRoot\plugins")) {
+    throw "Unsafe plugin output directory: $FinalOutput"
 }
-New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+$ancestor = $FinalOutput
+while ($ancestor) {
+    if ((Test-Path -LiteralPath $ancestor) -and
+        ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Plugin output must not traverse a link: $ancestor"
+    }
+    $ancestor = Split-Path $ancestor -Parent
+}
+$OutputDir = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpPlugins-$([Guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $OutputDir | Out-Null
+try {
 
 # =============================================================================
 # Build: excel-mcp Plugin
@@ -364,6 +379,22 @@ Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Versio
 
 Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
+
+New-Item -ItemType Directory -Path $FinalOutput -Force | Out-Null
+foreach ($name in @('excel-cli', 'excel-mcp')) {
+    $destination = Join-Path $FinalOutput $name
+    if ((Test-Path -LiteralPath $destination) -and
+        ((Get-Item -LiteralPath $destination -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Plugin destination must not be a link: $destination"
+    }
+}
+foreach ($name in @('excel-cli', 'excel-mcp')) {
+    $destination = Join-Path $FinalOutput $name
+    Install-PackageOutput -Source (Join-Path $OutputDir $name) -Destination $destination
+}
+}
+finally { Remove-Item -LiteralPath $OutputDir -Recurse -Force }
+$OutputDir = $FinalOutput
 
 # =============================================================================
 # Summary

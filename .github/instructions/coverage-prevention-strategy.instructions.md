@@ -10,7 +10,6 @@ CLI options, batch JSON dispatch, Service routing, and MCP schemas. Names,
 aliases, defaults, validation, results, and timeouts must agree. Hand-written MCP
 tools may still own atomic no-session behavior, cancellation, or extra metadata.
 
-Run `audit-core-coverage.ps1 -CheckNaming -FailOnGaps`,
-`check-mcp-core-implementations.ps1`, and
-`check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts` under
+Run `Invoke-ExcelFreeTests.ps1 -Local -Contracts` and
+`check-doc-counts.ps1 -SkipBuild` under
 `scripts` after that build. Compilation alone does not detect missing routes.

@@ -60,6 +60,7 @@ jobs:
               - '.github/codeql/**'
             javascript-typescript:
               - 'vscode-extension/**'
+              - 'npm-packages/**'
               - 'videos/**/*.mjs'
               - 'videos/**/*.cjs'
               - 'videos/**/*.js'

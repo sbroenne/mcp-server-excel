@@ -26,9 +26,11 @@ Write-Host ""
 
 $violations = @()
 
-# Scan all Core Commands files
-Get-ChildItem -Path "$rootDir\src\ExcelMcp.Core\Commands" -Filter "*.cs" -Recurse | ForEach-Object {
-    $lines = Get-Content $_.FullName
+$files = @(Get-ChildItem -LiteralPath "$rootDir\src\ExcelMcp.Core\Commands" -File -Filter "*.cs" -Recurse |
+    Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and $_.Name -notmatch '\.g\.cs$' })
+if ($files.Count -eq 0) { throw 'No command source files found for the success flag pattern guard.' }
+$files | ForEach-Object {
+    $lines = @(Get-Content -LiteralPath $_.FullName)
     
     for ($i = 0; $i -lt $lines.Count; $i++) {
         # Look for Success = true
@@ -77,7 +79,7 @@ Get-ChildItem -Path "$rootDir\src\ExcelMcp.Core\Commands" -Filter "*.cs" -Recurs
 
 # Report results
 if ($violations.Count -eq 0) {
-    Write-Host "No violations found - all Success flags match reality!" -ForegroundColor Green
+    Write-Host "No nearby conflicting Success/ErrorMessage assignments found; this pattern check is not control-flow analysis." -ForegroundColor Green
     exit 0
 }
 

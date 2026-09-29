@@ -4,21 +4,17 @@
     Updates or validates tool/operation counts from the authoritative code-derived counts.
 
 .DESCRIPTION
-    A workflow that runs on every push to `main` uses -Update to compute the canonical
-    counts once and write them to the single generated include file `doc-counts.json`
-    (repo root) and to every managed headline claim. Nothing else derives or restates
-    these numbers: gh-pages, release notes, and every managed doc read `doc-counts.json`
-    or the headline text it wrote. Development CI (pull requests) uses
-    -AllowStaleAdvertisedCounts so feature-section totals and the count derivation
-    remain guarded without requiring `main`'s already-current headlines to be
-    re-updated on every feature branch.
+    Contributors use -Update after code changes to write the canonical counts to
+    doc-counts.json and every managed headline. Include those changes in the same
+    PR. CI validates strictly; it never updates main after merge. Website and
+    release consumers read the reviewed doc-counts.json instead of re-deriving it.
 
     THE PROBLEM IT PREVENTS
     -----------------------
     The MCP server and the CLI expose DIFFERENT internal surfaces, and several docs used to
     hard-code counts from memory. That drifted (docs said 232, the generated SKILL.md said 229,
     the canonical feature references summed to 231). This script computes the ONE canonical answer
-    from code. Release automation writes that answer into every managed claim.
+    from code. The author-run update writes that answer into every managed claim.
 
     HOW THE CANONICAL NUMBERS ARE DERIVED
     -------------------------------------
@@ -67,7 +63,8 @@
 param(
     [switch]$SkipBuild,
     [switch]$Update,
-    [switch]$AllowStaleAdvertisedCounts
+    [switch]$AllowStaleAdvertisedCounts,
+    [string]$SkillsDirectory
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,18 +76,19 @@ if ($Update -and $AllowStaleAdvertisedCounts) {
 
 if (-not $SkipBuild) {
     Write-Host "Refreshing generated Release count metadata..." -ForegroundColor Cyan
-    & dotnet build (Join-Path $rootDir "src\ExcelMcp.Core\ExcelMcp.Core.csproj") --configuration Release --no-restore -p:NuGetAudit=false --verbosity minimal
+    & dotnet build (Join-Path $rootDir "Sbroenne.ExcelMcp.sln") --configuration Release --no-restore -p:NuGetAudit=false --verbosity minimal
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Core Release build failed. Run dotnet restore, then retry this check." -ForegroundColor Red
         exit 1
     }
 
-    & dotnet build (Join-Path $rootDir "src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj") --configuration Release --no-restore -p:NuGetAudit=false --verbosity minimal
+    & (Join-Path $PSScriptRoot 'Build-AgentSkills.ps1') -GenerateOnly
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: MCP Server Release build failed. Run dotnet restore, then retry this check." -ForegroundColor Red
         exit 1
     }
 }
+if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $rootDir 'artifacts\generated-skills' }
 
 $errors = [System.Collections.Generic.List[string]]::new()
 function Add-Failure([string]$message) { $script:errors.Add($message) }
@@ -220,12 +218,18 @@ $checks = @(
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = '\| (?<t>\d+) tool schemas loaded into context \|' }
-    @{ File = "skills\excel-mcp\SKILL.md";              Pattern = 'Provides (?<o>\d+) Excel operations' }
     @{ File = "gh-pages\docs\faq.md";                   Pattern = 'same (?<o>\d+) operations' }
     @{ File = "docs\INSTALLATION-CLI.md";               Pattern = 'all (?<t>\d+) feature command categories' }
     @{ File = "docs\guides\EXCEL-COM-VS-FILE-PARSERS.md"; Pattern = '(?<o>\d+)\s+operations across (?<t>\d+) tools' }
     @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<t>\d+) tools \((?<o>\d+) operations\)' }
 )
+$generatedSkill = Join-Path $SkillsDirectory 'excel-mcp\SKILL.md'
+if (-not (Test-Path -LiteralPath $generatedSkill)) {
+    Add-Failure 'Generated MCP skill is missing. Run scripts\Build-AgentSkills.ps1 -GenerateOnly after the Release build.'
+}
+elseif ((Get-Content -LiteralPath $generatedSkill -Raw) -notmatch "Provides $canonicalOps Excel operations") {
+    Add-Failure 'Generated MCP skill counts are stale. Regenerate the skill; do not edit its output.'
+}
 
 # The website feature overview includes FEATURES.md; audit_site.py enforces
 # that wrapper contract instead of requiring a second handwritten headline.

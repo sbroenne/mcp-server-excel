@@ -1,685 +1,78 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, CLI workflow, MCP Server functionality, and release deliverables
-
-.DESCRIPTION
-    Runs checks before allowing commits:
-    0. Process cleanup - kills stale Excel, excelcli, and MCP server processes to prevent file locks
-    1. COM leak checker - ensures no Excel COM objects are leaked
-    2. Coverage and naming audit - ensures 100% Core Commands are exposed via MCP Server with aligned action names
-    3. MCP-Core implementation audit - ensures every MCP action still has a Core implementation
-    4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
-    5. Release solution build - generates Release binaries and skill outputs used by downstream packaging (skipped for docs-only commits)
-    6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
-    7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
-    8. CLI release packaging - validates npm + NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
-    9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs/validation-only commits)
-    10. VS Code extension packaging - validates the VSIX release packaging path (skipped for docs/validation-only commits)
-    11. MCPB bundle packaging - validates the Claude Desktop bundle artifact (skipped for docs/validation-only commits)
-    12. Agent skills packaging - validates the ZIP deliverable (skipped for docs/validation-only commits)
-    13. Plugin README validation - ensures overlays are complete and not stub content
-    14. Dynamic cast audit - ensures ((dynamic)) casts are documented
-    15. Npm lockfile portability - rejects fixed download URLs in staged lockfiles
-
-    Ensures code quality and prevents regression.
-
-.EXAMPLE
-    .\pre-commit.ps1
-
-.NOTES
-    This script is called by the Git pre-commit hook.
-    To install: Copy .git/hooks/pre-commit (bash) or configure Git to use this PowerShell version.
+    Validates staged source and local Excel behavior. Never creates release packages.
 #>
-
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
-$preCommitArtifactsDir = Join-Path $rootDir "artifacts\pre-commit"
-$version = $null
-$isWindowsHost = [System.OperatingSystem]::IsWindows()
-$localBuildArguments = @("-p:ExcelMcpSkipCleanup=true")
-if (-not $isWindowsHost) {
-    $localBuildArguments += "-p:EnableWindowsTargeting=true"
+. (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
+
+function Invoke-Check {
+    param([string]$Name, [scriptblock]$Action)
+    Write-Host $Name -ForegroundColor Cyan
+    $global:LASTEXITCODE = 0
+    & $Action
+    if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
 }
 
-function Invoke-ValidationStep {
-    param(
-        [string]$Heading,
-        [scriptblock]$Action,
-        [string]$FailureSummary,
-        [string]$SuccessSummary
-    )
+function Read-Git {
+    param([string[]]$Arguments)
+    $output = & git @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "Cannot inspect Git state: git $($Arguments -join ' ')." }
+    return $output
+}
 
-    Write-Host ""
-    Write-Host $Heading -ForegroundColor Cyan
+Push-Location $rootDir
+try {
+    $branch = Read-Git @('branch', '--show-current')
+    if ($branch -eq 'main') { throw "Cannot commit directly to main. Use a feature branch and a pull request." }
+    $mergeHead = & git rev-parse --verify --quiet MERGE_HEAD 2>$null
+    $base = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { 'HEAD' }
+    $paths = @(Read-Git @('-c', 'core.quotepath=false', 'diff', '--cached', '--name-only', '--no-renames', $base))
+    $plan = Get-ValidationPlan -Paths $paths
+    $plan.Reasons | ForEach-Object { Write-Host "  $_" }
 
-    # Keep output as it arrives: assignment from a pipeline is lost if it throws.
-    $output = [System.Collections.Generic.List[object]]::new()
-    try {
-        & $Action 2>&1 | ForEach-Object { $output.Add($_) }
-        $exitCode = $LASTEXITCODE
-
-        if ($exitCode -ne 0) {
-            Write-Host ""
-            Write-Host $FailureSummary -ForegroundColor Red
-            if ($output.Count -gt 0) {
-                Write-Host ""
-                Write-Host ($output | Out-String) -ForegroundColor Gray
-            }
-            exit 1
+    Invoke-Check 'Checking staged npm lockfiles' {
+        & (Join-Path $PSScriptRoot 'check-npm-lockfiles.ps1') -Staged
+    }
+    if ($plan.Build -or $plan.SourceChecks) {
+        $workingPaths = @(
+            Read-Git @('-c', 'core.quotepath=false', 'diff', '--name-only', '--no-renames')
+            Read-Git @('-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard')
+        )
+        $inputs = @($workingPaths | Where-Object {
+            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
+        })
+        if ($inputs.Count -gt 0) {
+            throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
         }
-
-        Write-Host $SuccessSummary -ForegroundColor Green
     }
-    catch {
-        Write-Host ""
-        Write-Host "$FailureSummary $($_.Exception.Message)" -ForegroundColor Red
-        if ($output.Count -gt 0) {
-            Write-Host ($output | Out-String) -ForegroundColor Gray
+    if ($plan.Excel -and -not [OperatingSystem]::IsWindows()) {
+        throw 'Required Excel validation needs Windows with desktop Excel; it cannot be reported as passed on this host.'
+    }
+    if ($plan.SourceChecks) {
+        foreach ($script in @('check-com-leaks', 'check-success-flag', 'check-dynamic-casts', 'check-workbook-package-access')) {
+            Invoke-Check $script { & (Join-Path $PSScriptRoot "$script.ps1") }
         }
-        exit 1
     }
-}
-
-function Reset-Directory {
-    param([string]$Path)
-
-    if (Test-Path $Path) {
-        Remove-Item $Path -Recurse -Force
+    if ($plan.Build) {
+        Invoke-Check 'Building Release solution' {
+            dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
+        }
+        Invoke-Check 'Running focused non-packaging tests' {
+            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -ChangedPaths $paths
+        }
     }
-
-    New-Item -ItemType Directory -Path $Path -Force | Out-Null
+    if ($plan.Excel) {
+        Invoke-Check 'Running Excel-dependent E2E tests' {
+            & (Join-Path $PSScriptRoot 'Test-E2E.ps1') -SkipBuild
+        }
+    }
+    Write-Host 'All selected pre-commit checks passed. Package validation belongs to PR CI.' -ForegroundColor Green
 }
-
-function Stop-DotNetBuildServers {
-    dotnet build-server shutdown *> $null
-}
-
-# Determine whether this commit touches actual code (as opposed to docs/changeset-only
-# changes). The Release build, smoke tests and release packaging gates all exercise
-# compiled binaries and are slow (minutes) - they add no value for pure documentation
-# changes, including edits to the gh-pages documentation website, its star-history
-# generation workflow, and the doc-counts workflow. These files do not affect the
-# shipped Excel binaries. Cheap
-# source-level guards still run for every commit.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))|(^\.github/workflows/(deploy-gh-pages|doc-counts)\.yml$)|(^scripts/(pre-commit|check-doc-counts|(Update|Restore|Persist|Test)-StarHistory)\.ps1$)'
-$mergeHead = git rev-parse --verify --quiet MERGE_HEAD 2>$null
-$validationBase = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { "HEAD" }
-$stagedFiles = git diff --cached --name-only $validationBase 2>&1 | Where-Object { $_ }
-$codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
-$hasCodeChanges = @($codeChangedFiles).Count -gt 0
-
-# Validation changes still build, but do not change release artifacts.
-# Unrecognized paths continue to require packaging.
-$validationOnlyPattern = '(^tests/)|(^\.github/workflows/ci\.yml$)'
-$packagingChangedFiles = $codeChangedFiles | Where-Object { $_ -notmatch $validationOnlyPattern }
-$requiresReleasePackaging = @($packagingChangedFiles).Count -gt 0
-
-# Excel-dependent E2E validates the runtime path only. Include the COM and service
-# layers plus source generators because their changes flow into Core, CLI, or MCP.
-$excelE2EPattern = '(^src/ExcelMcp\.(CLI|ComInterop|Core|McpServer|Service)/)|(^src/ExcelMcp\.Generators(\.[^/]+)?/)|(^scripts/Test-E2E\.ps1$)'
-$excelE2EChangedFiles = $stagedFiles | Where-Object { $_ -match $excelE2EPattern }
-$requiresExcelE2E = @($excelE2EChangedFiles).Count -gt 0
-
-# CRITICAL: Check branch FIRST - never commit directly to main (Rule 6)
-Write-Host "Checking current branch..." -ForegroundColor Cyan
-$currentBranch = git branch --show-current
-
-if ($currentBranch -eq "main") {
-    Write-Host ""
-    Write-Host "BLOCKED: Cannot commit directly to 'main' branch!" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "   Rule 6: All Changes Via Pull Requests" -ForegroundColor Yellow
-    Write-Host "   'Never commit to main. Create feature branch -> PR -> CI/CD + review -> merge.'" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "   To fix:" -ForegroundColor Cyan
-    Write-Host "   1. git stash                                    # Save your changes" -ForegroundColor White
-    Write-Host "   2. git checkout -b feature/your-feature-name    # Create feature branch" -ForegroundColor White
-    Write-Host "   3. git stash pop                                # Restore changes" -ForegroundColor White
-    Write-Host "   4. git add <files>                              # Stage changes" -ForegroundColor White
-    Write-Host "   5. git commit -m 'your message'                 # Commit to feature branch" -ForegroundColor White
-    Write-Host ""
+catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }
-
-Write-Host "Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
-Write-Host ""
-
-Invoke-ValidationStep `
-    -Heading "Checking staged npm lockfile portability..." `
-    -FailureSummary "Npm lockfiles contain fixed download URLs or could not be checked." `
-    -SuccessSummary "Staged npm lockfile portability check passed" `
-    -Action {
-        & (Join-Path $PSScriptRoot "check-npm-lockfiles.ps1") -Staged
-    }
-
-# Stop only processes owned by the selected CLI pipe before touching Release binaries.
-Write-Host "Stopping pipe-owned ExcelMCP processes..." -ForegroundColor Cyan
-$ownedCleanupScript = Join-Path $PSScriptRoot "Stop-ExcelMcpProcesses.ps1"
-& $ownedCleanupScript -Verbose
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Pipe-owned cleanup failed with exit code $LASTEXITCODE." -ForegroundColor Red
-    exit 1
-}
-
-Stop-DotNetBuildServers
-
-Write-Host "Process cleanup done" -ForegroundColor Green
-Write-Host ""
-
-Reset-Directory -Path $preCommitArtifactsDir
-
-try {
-    $propsPath = Join-Path $rootDir "Directory.Build.props"
-    $propsXml = [xml](Get-Content $propsPath)
-    $version = $propsXml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-}
-catch {
-    Write-Host "Warning: Could not read version from Directory.Build.props ($($_.Exception.Message))" -ForegroundColor Yellow
-    $version = "local"
-}
-
-Write-Host "Checking for COM object leaks..." -ForegroundColor Cyan
-
-try {
-    $leakCheckScript = Join-Path $rootDir "scripts\check-com-leaks.ps1"
-    & $leakCheckScript
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "COM object leaks detected! Fix them before committing." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "COM leak check passed" -ForegroundColor Green
-}
-catch {
-    Write-Host "Error running COM leak check: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "   Continuing with coverage audit..." -ForegroundColor Gray
-}
-
-Write-Host ""
-Write-Host "Checking for direct workbook package XML access..." -ForegroundColor Cyan
-
-try {
-    $packageAccessScript = Join-Path $rootDir "scripts\check-workbook-package-access.ps1"
-    & $packageAccessScript
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "Direct workbook package XML access detected!" -ForegroundColor Red
-        Write-Host "   Production code must access workbook contents through Excel COM." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "Workbook package access check passed" -ForegroundColor Green
-}
-catch {
-    Write-Host ""
-    Write-Host "Error running workbook package access check: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host ""
-Write-Host "Checking Core Commands coverage and naming..." -ForegroundColor Cyan
-
-try {
-    $auditScript = Join-Path $rootDir "scripts\audit-core-coverage.ps1"
-    & $auditScript -CheckNaming -FailOnGaps
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "Coverage or naming issues detected!" -ForegroundColor Red
-        Write-Host "   All Core methods must be exposed via MCP Server with matching names." -ForegroundColor Red
-        Write-Host "   Fix the issues before committing (add/rename enum values and mappings)." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "Coverage and naming checks passed - 100% coverage with consistent names" -ForegroundColor Green
-}
-catch {
-    Write-Host ""
-    Write-Host "Error running coverage audit: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host ""
-Write-Host "Checking MCP actions have Core implementations..." -ForegroundColor Cyan
-
-try {
-    $mcpCoreScript = Join-Path $rootDir "scripts\check-mcp-core-implementations.ps1"
-    & $mcpCoreScript
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "MCP actions without Core implementations detected!" -ForegroundColor Red
-        Write-Host "   All enum actions must have matching Core Command methods." -ForegroundColor Red
-        Write-Host "   Fix the issues before committing (remove enum or implement method)." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "MCP-Core implementation check passed" -ForegroundColor Green
-}
-catch {
-    Write-Host ""
-    Write-Host "Error running MCP-Core implementation check: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host ""
-Write-Host "Checking Success flag violations (Rule 0)..." -ForegroundColor Cyan
-
-try {
-    $successFlagScript = Join-Path $rootDir "scripts\check-success-flag.ps1"
-    & $successFlagScript
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "Success flag violations detected!" -ForegroundColor Red
-        Write-Host "   CRITICAL: Success=true with ErrorMessage confuses LLMs and causes data corruption." -ForegroundColor Red
-        Write-Host "   Fix the violations before committing (add Success=false in catch blocks)." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "Success flag check passed - all flags match reality" -ForegroundColor Green
-}
-catch {
-    Write-Host ""
-    Write-Host "Error running success flag check: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
-
-Invoke-ValidationStep `
-    -Heading "Checking shared plugin bootstrap template drift..." `
-    -FailureSummary "Plugin bootstrap drift detected. Regenerate the source-copied download.ps1 files with scripts/Build-BootstrapScripts.ps1." `
-    -SuccessSummary "Shared bootstrap template check passed - the canonical render matches both committed copies" `
-    -Action {
-        $bootstrapScript = Join-Path $rootDir "scripts\Build-BootstrapScripts.ps1"
-        & $bootstrapScript -Check
-    }
-
-# NOTE: CLI coverage checks removed - commands are now auto-generated by Roslyn source generators
-# The CLI generator produces all command classes and registration from Core interfaces
-# Validation is handled by:
-# - Build-time generator errors if interfaces are malformed
-# - CLI workflow smoke test below (end-to-end validation)
-
-# Validation-only changes need a build and count checks, but not release packaging.
-# Pure documentation changes keep the existing fast path.
-if ($hasCodeChanges) {
-
-if (-not $isWindowsHost) {
-    Write-Host ""
-    Write-Host "Non-Windows host: enabling Windows targeting for cross-platform validation." -ForegroundColor Yellow
-}
-
-Invoke-ValidationStep `
-    -Heading "Building Release solution..." `
-    -FailureSummary "Release solution build failed!" `
-    -SuccessSummary "Release solution build passed - Release binaries and generated skill docs are up to date" `
-    -Action {
-        Push-Location $rootDir
-        try {
-            dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal $localBuildArguments
-        }
-        finally {
-            Pop-Location
-        }
-    }
-
-Write-Host ""
-Write-Host "Auto-staging generated SKILL.md files..." -ForegroundColor Cyan
-
-try {
-    # SKILL.md + references are generated during the Release solution build above.
-    # Auto-stage all of them so developers never have to think about it.
-    $skillPaths = @(
-        "skills/excel-mcp/SKILL.md",
-        "skills/excel-cli/SKILL.md",
-        "skills/excel-mcp/references/",
-        "skills/excel-cli/references/"
-    )
-    $skillDiff = git diff --name-only -- @skillPaths 2>&1
-    $untrackedSkills = git ls-files --others --exclude-standard -- @skillPaths 2>&1
-
-    $allChanges = @()
-    if ($skillDiff) { $allChanges += $skillDiff }
-    if ($untrackedSkills) { $allChanges += $untrackedSkills }
-
-    if ($allChanges.Count -gt 0) {
-        git add -- @skillPaths
-        Write-Host "Skill files were regenerated and auto-staged ($($allChanges.Count) files)" -ForegroundColor Green
-        $allChanges | ForEach-Object { Write-Host "   + $_" -ForegroundColor DarkGray }
-    } else {
-        Write-Host "Skill files are already up to date" -ForegroundColor Green
-    }
-}
-catch {
-    Write-Host "Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
-}
-
-if ($requiresExcelE2E -and $isWindowsHost) {
-    Invoke-ValidationStep `
-        -Heading "Running Excel-dependent E2E tests..." `
-        -FailureSummary "Excel-dependent E2E tests failed! Both the CLI workflow and MCP all-tools smoke tests must pass." `
-        -SuccessSummary "Excel-dependent E2E tests passed" `
-        -Action {
-            $e2eScript = Join-Path $rootDir "scripts\Test-E2E.ps1"
-            & $e2eScript -SkipBuild
-        }
-} elseif ($requiresExcelE2E) {
-    Write-Host ""
-    Write-Host "Skipping Excel-dependent E2E tests (requires Windows with desktop Excel)" -ForegroundColor Yellow
-} else {
-    Write-Host ""
-    Write-Host "Skipping Excel-dependent E2E tests (no staged changes affect Core, CLI, or MCP runtime paths)" -ForegroundColor Yellow
-}
-
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping Release build and smoke tests (docs-only commit - no compiled surface changed)" -ForegroundColor Yellow
-}
-
-if ($requiresReleasePackaging) {
-
-Invoke-ValidationStep `
-    -Heading "Building CLI release deliverables..." `
-    -FailureSummary "CLI release deliverable validation failed!" `
-    -SuccessSummary "CLI release deliverables passed - npm, NuGet, and standalone ZIP packages were built locally" `
-    -Action {
-        $cliNupkgDir = Join-Path $preCommitArtifactsDir "cli-nupkg"
-        $cliNpmDir = Join-Path $preCommitArtifactsDir "cli-npm"
-        $cliPublishDir = Join-Path $preCommitArtifactsDir "cli-publish"
-        $cliReleaseDir = Join-Path $preCommitArtifactsDir "cli-release"
-        $cliZipPath = Join-Path $preCommitArtifactsDir "ExcelMcp-CLI-$version-windows.zip"
-
-        Reset-Directory -Path $cliNupkgDir
-        Reset-Directory -Path $cliNpmDir
-        Reset-Directory -Path $cliPublishDir
-        Reset-Directory -Path $cliReleaseDir
-
-        Stop-DotNetBuildServers
-
-        Push-Location $rootDir
-        try {
-            dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --no-restore --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false $localBuildArguments
-            if ($LASTEXITCODE -ne 0) {
-                throw "dotnet pack (CLI) failed with exit code $LASTEXITCODE."
-            }
-            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir $localBuildArguments
-            if ($LASTEXITCODE -ne 0) {
-                throw "dotnet publish (CLI) failed with exit code $LASTEXITCODE."
-            }
-
-            .\scripts\Build-NpmPackages.ps1 `
-                -Component Cli `
-                -Version $version `
-                -RuntimeExecutable (Join-Path $cliPublishDir "excelcli.exe") `
-                -OutputDirectory $cliNpmDir
-            if ($isWindowsHost) {
-                .\scripts\Test-NpmPackages.ps1 `
-                    -Component Cli `
-                    -LauncherPackage (Join-Path $cliNpmDir "sbroenne-excelcli-$version.tgz") `
-                    -RuntimePackage (Join-Path $cliNpmDir "sbroenne-excelcli-win32-x64-$version.tgz")
-            }
-            else {
-                Write-Output "Skipping CLI npm runtime smoke test (requires Windows)."
-            }
-
-            if ((Get-ChildItem $cliNpmDir -Filter "*.tgz" -ErrorAction Stop).Count -ne 2) {
-                throw "CLI npm packages were not created."
-            }
-
-            Copy-Item (Join-Path $cliPublishDir "excelcli.exe") $cliReleaseDir
-            Copy-Item "README.md" $cliReleaseDir
-            Copy-Item "LICENSE" $cliReleaseDir
-
-            if (Test-Path $cliZipPath) {
-                Remove-Item $cliZipPath -Force
-            }
-
-            Compress-Archive -Path (Join-Path $cliReleaseDir "*") -DestinationPath $cliZipPath
-
-            if (-not (Get-ChildItem $cliNupkgDir -Filter "*.nupkg" -ErrorAction Stop)) {
-                throw "CLI NuGet package was not created."
-            }
-
-            if (-not (Test-Path $cliZipPath)) {
-                throw "CLI ZIP artifact was not created."
-            }
-        }
-        finally {
-            Pop-Location
-        }
-    }
-
-Invoke-ValidationStep `
-    -Heading "Building MCP Server release deliverables..." `
-    -FailureSummary "MCP Server release deliverable validation failed!" `
-    -SuccessSummary "MCP Server release deliverables passed - npm, NuGet, and standalone ZIP packages were built locally" `
-    -Action {
-        $mcpNupkgDir = Join-Path $preCommitArtifactsDir "mcp-server-nupkg"
-        $mcpNpmDir = Join-Path $preCommitArtifactsDir "mcp-server-npm"
-        $mcpPublishDir = Join-Path $preCommitArtifactsDir "mcp-server-publish"
-        $mcpReleaseDir = Join-Path $preCommitArtifactsDir "mcp-server-release"
-        $mcpZipPath = Join-Path $preCommitArtifactsDir "ExcelMcp-MCP-Server-$version-windows.zip"
-
-        Reset-Directory -Path $mcpNupkgDir
-        Reset-Directory -Path $mcpNpmDir
-        Reset-Directory -Path $mcpPublishDir
-        Reset-Directory -Path $mcpReleaseDir
-
-        Stop-DotNetBuildServers
-
-        Push-Location $rootDir
-        try {
-            dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --no-restore --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false $localBuildArguments
-            if ($LASTEXITCODE -ne 0) {
-                throw "dotnet pack (MCP Server) failed with exit code $LASTEXITCODE."
-            }
-            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir $localBuildArguments
-            if ($LASTEXITCODE -ne 0) {
-                throw "dotnet publish (MCP Server) failed with exit code $LASTEXITCODE."
-            }
-
-            $publishedExe = Join-Path $mcpPublishDir "Sbroenne.ExcelMcp.McpServer.exe"
-            $renamedExe = Join-Path $mcpPublishDir "mcp-excel.exe"
-            if (-not (Test-Path $publishedExe)) {
-                throw "Published MCP Server executable was not created."
-            }
-
-            if (Test-Path $renamedExe) {
-                Remove-Item $renamedExe -Force
-            }
-
-            Rename-Item $publishedExe "mcp-excel.exe"
-
-            $npmTestDirectory = Join-Path $rootDir "npm-packages/shared"
-            npm ci --prefix $npmTestDirectory --ignore-scripts
-            if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
-            npm test --prefix $npmTestDirectory
-            if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
-            .\scripts\Build-NpmPackages.ps1 `
-                -Version $version `
-                -RuntimeExecutable $renamedExe `
-                -OutputDirectory $mcpNpmDir
-            if ($isWindowsHost) {
-                .\scripts\Test-NpmPackages.ps1 `
-                    -LauncherPackage (Join-Path $mcpNpmDir "sbroenne-mcp-server-excel-$version.tgz") `
-                    -RuntimePackage (Join-Path $mcpNpmDir "sbroenne-mcp-server-excel-win32-x64-$version.tgz")
-            }
-            else {
-                Write-Output "Skipping MCP Server npm runtime smoke test (requires Windows)."
-            }
-
-            Copy-Item (Join-Path $mcpPublishDir "mcp-excel.exe") $mcpReleaseDir
-            Copy-Item "README.md" $mcpReleaseDir
-            Copy-Item "LICENSE" $mcpReleaseDir
-
-            if (Test-Path $mcpZipPath) {
-                Remove-Item $mcpZipPath -Force
-            }
-
-            Compress-Archive -Path (Join-Path $mcpReleaseDir "*") -DestinationPath $mcpZipPath
-
-            if (-not (Get-ChildItem $mcpNupkgDir -Filter "*.nupkg" -ErrorAction Stop)) {
-                throw "MCP Server NuGet package was not created."
-            }
-
-            if ((Get-ChildItem $mcpNpmDir -Filter "*.tgz" -ErrorAction Stop).Count -ne 2) {
-                throw "MCP Server npm packages were not created."
-            }
-
-            if (-not (Test-Path $mcpZipPath)) {
-                throw "MCP Server ZIP artifact was not created."
-            }
-        }
-        finally {
-            Pop-Location
-        }
-    }
-
-if ($isWindowsHost) {
-Invoke-ValidationStep `
-    -Heading "Running VS Code extension package validation..." `
-    -FailureSummary "VS Code extension package validation failed! Fix the extension build or manifest mismatch before committing." `
-    -SuccessSummary "VS Code extension package validation passed" `
-    -Action {
-        $extensionDir = Join-Path $rootDir "vscode-extension"
-        $packageLog = Join-Path $preCommitArtifactsDir "vscode-package.log"
-        Push-Location $extensionDir
-        try {
-            npm ci --ignore-scripts *> $packageLog
-            if ($LASTEXITCODE -ne 0) {
-                Get-Content -LiteralPath $packageLog
-                throw "npm ci failed with exit code $LASTEXITCODE"
-            }
-
-            npm run package *> $packageLog
-            $packageExitCode = $LASTEXITCODE
-            if ($packageExitCode -ne 0) {
-                Get-Content -LiteralPath $packageLog
-                throw "npm run package failed with exit code $packageExitCode"
-            }
-        }
-        finally {
-            Pop-Location
-        }
-    }
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping VS Code extension package validation (package targets Windows)." -ForegroundColor Yellow
-}
-
-if ($isWindowsHost) {
-Invoke-ValidationStep `
-    -Heading "Building MCPB bundle deliverable..." `
-    -FailureSummary "MCPB bundle validation failed!" `
-    -SuccessSummary "MCPB bundle validation passed - Claude Desktop bundle was built locally" `
-    -Action {
-        $mcpbOutputRelative = "..\artifacts\pre-commit\mcpb"
-        $mcpbOutputDir = Join-Path $preCommitArtifactsDir "mcpb"
-        Reset-Directory -Path $mcpbOutputDir
-
-        $mcpbDir = Join-Path $rootDir "mcpb"
-        Push-Location $mcpbDir
-        try {
-            .\Build-McpBundle.ps1 -Version $version -OutputDir $mcpbOutputRelative
-            if ($LASTEXITCODE -ne 0) {
-                throw "Build-McpBundle.ps1 failed with exit code $LASTEXITCODE."
-            }
-
-            if (-not (Get-ChildItem $mcpbOutputDir -Filter "*.mcpb" -ErrorAction Stop)) {
-                throw "MCPB artifact was not created."
-            }
-        }
-        finally {
-            Pop-Location
-        }
-    }
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping MCPB bundle validation (requires Windows Desktop targeting pack)." -ForegroundColor Yellow
-}
-
-Invoke-ValidationStep `
-    -Heading "Building agent skills deliverables..." `
-    -FailureSummary "Agent skills deliverable validation failed!" `
-    -SuccessSummary "Agent skills deliverables passed - ZIP package was built locally" `
-    -Action {
-        $skillsOutputDir = Join-Path $preCommitArtifactsDir "skills"
-        Reset-Directory -Path $skillsOutputDir
-
-        Push-Location $rootDir
-        try {
-            .\scripts\Build-AgentSkills.ps1 -OutputDir "artifacts/pre-commit/skills" -Version $version
-            if ($LASTEXITCODE -ne 0) {
-                throw "Build-AgentSkills.ps1 failed with exit code $LASTEXITCODE."
-            }
-
-            if (-not (Get-ChildItem $skillsOutputDir -Filter "excel-skills-v*.zip" -ErrorAction Stop)) {
-                throw "Agent skills ZIP artifact was not created."
-            }
-        }
-        finally {
-            Pop-Location
-        }
-    }
-
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping release packaging gates (docs/validation-only commit - no shipped artifacts changed)" -ForegroundColor Yellow
-}
-
-Write-Host ""
-Write-Host "Validating plugin README overlays..." -ForegroundColor Cyan
-
-try {
-    $pluginReadmeScript = Join-Path $rootDir "scripts\check-plugin-readmes.ps1"
-    & $pluginReadmeScript
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "Plugin README validation failed!" -ForegroundColor Red
-        Write-Host "   Thin/stub README overlays would overwrite richer published templates." -ForegroundColor Red
-        Write-Host "   Enrich the overlay or remove it to use the published template." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "Plugin README validation passed - overlays are complete" -ForegroundColor Green
-}
-catch {
-    Write-Host "Error running plugin README check: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "   Continuing..." -ForegroundColor Gray
-}
-
-Write-Host ""
-Write-Host "Checking for undocumented ((dynamic)) casts..." -ForegroundColor Cyan
-
-try {
-    $dynamicCastScript = Join-Path $rootDir "scripts\check-dynamic-casts.ps1"
-    & $dynamicCastScript
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "Undocumented ((dynamic)) casts detected!" -ForegroundColor Red
-        Write-Host "   Add a justification comment (// PIA gap:, // TODO:, or // Reason:) before each cast." -ForegroundColor Red
-        Write-Host "   See docs/PIA-COVERAGE.md for guidance." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "Dynamic cast check passed - all casts are documented" -ForegroundColor Green
-}
-catch {
-    Write-Host "Error running dynamic cast check: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "   Continuing..." -ForegroundColor Gray
-}
-
-Write-Host ""
-Write-Host "All pre-commit checks passed!" -ForegroundColor Green
+finally { Pop-Location }
 exit 0

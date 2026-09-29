@@ -6,7 +6,9 @@ param(
 
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string]$Version
+    [string]$Version,
+
+    [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,6 +51,7 @@ foreach ($packageId in $mcpServerPackageIds) {
 }
 
 $content = ($server | ConvertTo-Json -Depth 20) -replace "`r?`n", "`n"
+if ($ValidateOnly) { return }
 [System.IO.File]::WriteAllText(
     $ServerJsonPath,
     "$content`n",

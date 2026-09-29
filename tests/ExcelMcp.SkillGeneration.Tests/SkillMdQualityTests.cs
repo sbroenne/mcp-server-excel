@@ -9,10 +9,10 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 /// make skills less useful for LLMs.
 /// </summary>
 [Trait("RequiresExcel", "false")]
+[Collection("GeneratedAssets")]
 public class SkillMdQualityTests
 {
-    private static readonly string SkillsFolder = Path.Combine(
-        AppContext.BaseDirectory, "skills");
+    private static string SkillsFolder => GeneratedAssetsFixture.SkillsDirectory;
 
     [Fact]
     [Trait("Category", "Unit")]

@@ -1,6 +1,9 @@
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Analysis;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
@@ -21,6 +24,41 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class GeneratedActionContractTests
 {
+    [Fact]
+    public void AnnotatedCategories_MatchGeneratedServiceAndCliActions()
+    {
+        var contracts = typeof(IPowerQueryCommands).Assembly.GetTypes()
+            .Where(type => type.IsInterface && type.GetCustomAttribute<ServiceCategoryAttribute>() != null)
+            .ToArray();
+        Assert.NotEmpty(contracts);
+        var generated = typeof(ServiceRegistry).GetNestedTypes(BindingFlags.Public)
+            .Where(type => type.GetField("ValidActions") != null).ToArray();
+        Assert.Equal(contracts.Length, generated.Length);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var contract in contracts)
+        {
+            var category = contract.GetCustomAttribute<ServiceCategoryAttribute>()!;
+            var name = category.PascalName ?? char.ToUpperInvariant(category.Category[0]) + category.Category[1..];
+            Assert.True(names.Add(name), $"Duplicate generated category: {name}");
+            var registry = Assert.Single(generated, type => type.Name == name);
+            var expected = contract.GetMethods().Select(method =>
+                method.GetCustomAttribute<ServiceActionAttribute>()?.Action ??
+                Regex.Replace(method.Name, "(?<!^)[A-Z]", "-$0").ToLowerInvariant()).ToArray();
+            Assert.NotEmpty(expected);
+            Assert.Equal(expected.Length, expected.Distinct(StringComparer.Ordinal).Count());
+            var actual = Assert.IsType<string[]>(registry.GetField("ValidActions")!.GetValue(null));
+            Assert.Equal(expected.Order(StringComparer.Ordinal), actual.Order(StringComparer.Ordinal));
+            var cliName = Assert.IsType<string>(registry.GetField("CliCommandName")!.GetRawConstantValue());
+            Assert.True(_CliCategoryMetadata.ValidActionsByCommand.TryGetValue(cliName, out var cliActions), cliName);
+            Assert.Equal(expected.Order(StringComparer.Ordinal), cliActions.Order(StringComparer.Ordinal));
+            var enumType = contract.Assembly.GetType($"Sbroenne.ExcelMcp.Generated.{name}Action");
+            Assert.NotNull(enumType);
+            var enumActions = enumType.GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Select(field => field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name).ToArray();
+            Assert.Equal(expected.Order(StringComparer.Ordinal), enumActions.Order(StringComparer.Ordinal));
+        }
+    }
+
     [Theory]
     [InlineData("worksheet", PowerQueryLoadMode.LoadToTable)]
     [InlineData("TABLE", PowerQueryLoadMode.LoadToTable)]

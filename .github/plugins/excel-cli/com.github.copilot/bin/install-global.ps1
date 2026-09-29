@@ -31,7 +31,9 @@ if (-not (Test-Path $CopilotBinDir)) {
     New-Item -ItemType Directory -Path $CopilotBinDir -Force | Out-Null
 }
 
-$escapedDownloadPath = $DownloadScriptPath.Replace('"', '""')
+$escapedDownloadPath = $DownloadScriptPath.Replace("'", "''")
+$bootstrapCommand = "[Console]::OutputEncoding = [Text.UTF8Encoding]::new(`$false); & '$escapedDownloadPath' -PassThru -Quiet"
+$encodedBootstrap = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($bootstrapCommand))
 # Resolve the runtime first, then invoke it with cmd's verbatim %*. Routing arguments through
 # "powershell -File" would strip embedded double quotes and corrupt JSON arguments such as
 # --values '[["Name","Amount"]]', so the executable is called directly instead.
@@ -39,7 +41,10 @@ $cmdShim = @"
 @echo off
 setlocal
 set "EXCELCLI_EXE="
-for /f "usebackq delims=" %%i in (``powershell -NoProfile -ExecutionPolicy Bypass -File "$escapedDownloadPath" -PassThru -Quiet``) do set "EXCELCLI_EXE=%%i"
+for /f "tokens=2 delims=:" %%i in ('chcp') do set "EXCELCLI_CODEPAGE=%%i"
+chcp 65001 >nul
+for /f "usebackq delims=" %%i in (``powershell -NoProfile -OutputFormat Text -ExecutionPolicy Bypass -EncodedCommand "$encodedBootstrap"``) do set "EXCELCLI_EXE=%%i"
+chcp %EXCELCLI_CODEPAGE% >nul
 if not defined EXCELCLI_EXE (
     echo excel-cli bootstrap did not resolve a usable excelcli.exe runtime. 1>&2
     exit /b 1
@@ -48,18 +53,62 @@ if not defined EXCELCLI_EXE (
 exit /b %ERRORLEVEL%
 "@
 
+$escapedWrapperPath = $WrapperPath.Replace("'", "''")
 $ps1Shim = @"
-& '$WrapperPath' @args
+& '$escapedWrapperPath' @args
 exit `$LASTEXITCODE
 "@
 
-if (((Test-Path $ShimCmdPath) -or (Test-Path $ShimPs1Path)) -and -not $Force) {
-    Write-Host "✅ CLI shims already exist in $CopilotBinDir" -ForegroundColor Green
-    Write-Host "Run again with -Force to overwrite them." -ForegroundColor Yellow
-} else {
-    Write-Host "[Install] Writing CLI shims..." -ForegroundColor Yellow
-    Set-Content -Path $ShimCmdPath -Value $cmdShim -Encoding ASCII
-    Set-Content -Path $ShimPs1Path -Value $ps1Shim -Encoding UTF8
+$updates = @(
+    @{ Path = $ShimCmdPath; Content = $cmdShim; Encoding = [Text.Encoding]::ASCII },
+    @{ Path = $ShimPs1Path; Content = $ps1Shim; Encoding = [Text.UTF8Encoding]::new($true) }
+) | Where-Object { $Force -or -not (Test-Path -LiteralPath $_.Path) }
+$prepared = [Collections.Generic.List[object]]::new()
+$installationSucceeded = $false
+try {
+    foreach ($update in $updates) {
+        $update.Temp = "$($update.Path).$([Guid]::NewGuid().ToString('N')).tmp"
+        $update.Backup = "$($update.Temp).bak"
+        $update.Installed = $false
+        $prepared.Add($update)
+        [IO.File]::WriteAllText($update.Temp, $update.Content, $update.Encoding)
+    }
+    foreach ($update in $prepared) {
+        if (Test-Path -LiteralPath $update.Path) {
+            [IO.File]::Replace($update.Temp, $update.Path, $update.Backup)
+        } else {
+            [IO.File]::Move($update.Temp, $update.Path)
+        }
+        $update.Installed = $true
+    }
+    $installationSucceeded = $true
+} catch {
+    $installationError = $_
+    $rollbackErrors = [Collections.Generic.List[string]]::new()
+    foreach ($update in $prepared) {
+        if (-not $update.Installed) { continue }
+        try {
+            if (Test-Path -LiteralPath $update.Backup) {
+                [IO.File]::Replace($update.Backup, $update.Path, [System.Management.Automation.Language.NullString]::Value)
+            } else {
+                Remove-Item -LiteralPath $update.Path
+            }
+        } catch {
+            $rollbackErrors.Add($_.Exception.Message)
+        }
+    }
+    if ($rollbackErrors.Count) {
+        throw "Launcher installation failed: $($installationError.Exception.Message). Rollback also failed: $($rollbackErrors -join '; '). Original launcher backups have been retained."
+    }
+    throw $installationError
+} finally {
+    foreach ($update in $prepared) {
+        $cleanupPaths = @($update.Temp)
+        if ($installationSucceeded) { $cleanupPaths += $update.Backup }
+        foreach ($path in $cleanupPaths) {
+            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
+        }
+    }
 }
 
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")

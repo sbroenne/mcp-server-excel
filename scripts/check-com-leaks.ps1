@@ -1,16 +1,18 @@
 #!/usr/bin/env pwsh
-# COM Object Leak Detection Script
-# Run this before every commit to catch COM leaks
+# Suspicious dynamic-object pattern guard, not proof of COM lifetime safety.
 
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
-Write-Host "Scanning for COM object leaks..." -ForegroundColor Yellow
+Write-Host "Scanning source for dynamic object access without a cleanup call..." -ForegroundColor Yellow
 
 $leakFiles = @()
 $cleanFiles = @()
 
-Get-ChildItem -Path (Join-Path $rootDir "src") -Recurse -Filter "*.cs" | ForEach-Object {
+$files = @(Get-ChildItem -LiteralPath (Join-Path $rootDir "src") -Recurse -File -Filter "*.cs" |
+    Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and $_.Name -notmatch '\.g\.cs$' })
+if ($files.Count -eq 0) { throw 'No source files found for the dynamic cleanup pattern guard.' }
+$files | ForEach-Object {
     $content = Get-Content $_.FullName -Raw
     $hasDynamic = $content -match "dynamic\s+\w+\s*=.*\."
     $hasRelease = $content -match "ComUtilities\.Release"
@@ -23,7 +25,7 @@ Get-ChildItem -Path (Join-Path $rootDir "src") -Recurse -Filter "*.cs" | ForEach
         Write-Host "$relativePath - HAS COM objects but NO cleanup" -ForegroundColor Red
     } elseif ($hasDynamic -and $hasRelease) {
         $cleanFiles += $_
-        Write-Host "$relativePath - Proper COM cleanup" -ForegroundColor Green
+        Write-Host "$relativePath - Cleanup call present (not a lifetime proof)" -ForegroundColor Green
     }
 }
 
@@ -43,6 +45,6 @@ if ($leakFiles.Count -gt 0) {
     exit 1
 } else {
     Write-Host ""
-    Write-Host "No COM object leaks detected!" -ForegroundColor Green
+    Write-Host "No suspicious dynamic cleanup patterns found; COM lifetime tests are still required." -ForegroundColor Green
     exit 0
 }

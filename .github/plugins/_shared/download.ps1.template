@@ -214,7 +214,28 @@ function Save-State {
 
     Ensure-Directory -Path $CacheRoot
     $json = $State | ConvertTo-Json -Depth 6
-    [System.IO.File]::WriteAllText($StatePath, "$json`n", [System.Text.UTF8Encoding]::new($false))
+    $temporaryState = "$StatePath.$([Guid]::NewGuid().ToString('N')).tmp"
+    try {
+        [IO.File]::WriteAllText($temporaryState, "$json`n", [Text.UTF8Encoding]::new($false))
+        if (Test-Path -LiteralPath $StatePath) {
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+                try {
+                    [IO.File]::Replace($temporaryState, $StatePath, [System.Management.Automation.Language.NullString]::Value)
+                    break
+                } catch [IO.IOException] {
+                    # Windows scanners can briefly prevent deletion during an atomic replacement.
+                    $code = $_.Exception.GetBaseException().HResult -band 0xffff
+                    if ($attempt -eq 5 -or $code -notin @(32, 33, 1175)) { throw }
+                    Write-StatusError "[{{PLUGIN_NAME}}] Cache state is temporarily locked; retrying the atomic update."
+                    Start-Sleep -Milliseconds 100
+                }
+            }
+        } else {
+            [IO.File]::Move($temporaryState, $StatePath)
+        }
+    } finally {
+        if (Test-Path -LiteralPath $temporaryState) { Remove-Item -LiteralPath $temporaryState }
+    }
 }
 
 function Get-ExpectedSha256 {
@@ -497,19 +518,6 @@ function Ensure-LatestRuntime {
     $downloadZipPath = Join-Path $DownloadsDir $State.assetName
     $releaseDir = Join-Path $ReleasesDir $State.latestVersion
 
-    # Serialize installs across concurrent sessions. Without this, two bootstraps race on the same
-    # zip path and release directory, and each can observe the other's partially written files.
-    $mutex = Get-RuntimeCacheMutex
-    $acquired = $false
-
-    try {
-        try {
-            $acquired = $mutex.WaitOne([TimeSpan]::FromMinutes(10))
-        } catch [System.Threading.AbandonedMutexException] {
-            # The previous holder died mid-install. We now own the lock and re-validate below.
-            $acquired = $true
-        }
-
         # Another session may have completed the install while this one waited for the lock. This
         # deliberately looks only inside the target release directory rather than trusting the
         # recorded binaryPath, which still points at the previous release during an upgrade.
@@ -518,7 +526,6 @@ function Ensure-LatestRuntime {
             if (-not [string]::IsNullOrWhiteSpace($installedBinary) -and (Test-Path $installedBinary)) {
                 $State.cachedReleaseTag = $State.latestTag
                 $State.binaryPath = $installedBinary
-                Save-State -State $State
                 return $installedBinary
             }
         }
@@ -552,8 +559,6 @@ function Ensure-LatestRuntime {
                 }
 
                 $State.binaryPath = $result.Path
-                Save-State -State $State
-
                 return $result.Path
             } catch {
                 $lastError = $_
@@ -572,18 +577,22 @@ function Ensure-LatestRuntime {
         }
 
         throw $lastError
-    } finally {
-        if ($acquired) {
-            $mutex.ReleaseMutex()
-        }
-
-        $mutex.Dispose()
-    }
 }
 
 if ($env:OS -ne "Windows_NT") {
     throw "{{PLUGIN_NAME}} plugin bootstrap is Windows-only."
 }
+
+# State and runtime replacement share one lock, including freshness checks.
+$mutex = Get-RuntimeCacheMutex
+$acquired = $false
+try {
+    try {
+        $acquired = $mutex.WaitOne([TimeSpan]::FromMinutes(10))
+    } catch [System.Threading.AbandonedMutexException] {
+        $acquired = $true
+    }
+    if (-not $acquired) { throw "Timed out waiting for the {{PLUGIN_NAME}} runtime cache lock. Try again after the other installation finishes." }
 
 $state = Get-State
 $sessionNeedsFreshnessCheck = $Force -or
@@ -648,3 +657,8 @@ Write-Status "{{READY_MESSAGE}}" "Green"
 Write-Status "   Release: $($state.latestTag)" "Gray"
 Write-Status "   Binary:  $binaryPath" "Gray"
 Write-Status "   Size:    $([math]::Round($binaryInfo.Length / 1MB, 2)) MB" "Gray"
+}
+finally {
+    if ($acquired) { $mutex.ReleaseMutex() }
+    $mutex.Dispose()
+}

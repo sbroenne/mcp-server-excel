@@ -226,12 +226,18 @@ def excel_cli_servers() -> dict[str, Any]:
 
 @pytest.fixture(scope="session")
 def excel_mcp_skill_dir() -> str:
-    return str((REPO_ROOT / "skills/excel-mcp").resolve())
+    skill = REPO_ROOT / "artifacts" / "generated-skills" / "excel-mcp"
+    if not (skill / "SKILL.md").is_file():
+        pytest.fail("Generate skills first: pwsh scripts\\Build-AgentSkills.ps1 -GenerateOnly")
+    return str(skill.resolve())
 
 
 @pytest.fixture(scope="session")
 def excel_cli_skill_dir() -> str:
-    return str((REPO_ROOT / "skills/excel-cli").resolve())
+    skill = REPO_ROOT / "artifacts" / "generated-skills" / "excel-cli"
+    if not (skill / "SKILL.md").is_file():
+        pytest.fail("Generate skills first: pwsh scripts\\Build-AgentSkills.ps1 -GenerateOnly")
+    return str(skill.resolve())
 
 
 def build_excel_mcp_eval(

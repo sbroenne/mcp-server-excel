@@ -1,3 +1,11 @@
+<#
+.SYNOPSIS
+    Captures demo-only Excel evidence without changing the supplied workbook.
+.DESCRIPTION
+    Use only the public demo workbook on a desktop suitable for recording.
+    The workbook is opened read-only, macros are disabled, and changes are never saved.
+    This manual capture is not a commit or CI check.
+#>
 param([string]$Workbook = "$PSScriptRoot\assets\sales-workbook.xlsx")
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -13,12 +21,14 @@ $objects = [System.Collections.Generic.List[object]]::new()
 function Keep($value) { $objects.Add($value); return ,$value }
 $excel = $null
 $book = $null
+$failure = $null
 try {
     $excel = Keep (New-Object -ComObject Excel.Application)
     $excel.Visible = $true
     $excel.DisplayAlerts = $false
+    $excel.AutomationSecurity = 3
     $books = Keep $excel.Workbooks
-    $book = Keep ($books.Open($Workbook, 0, $false))
+    $book = Keep ($books.Open($Workbook, 0, $true))
     $sheets = Keep $book.Worksheets
     $window = Keep $excel.ActiveWindow
     $excel.WindowState = -4143
@@ -51,14 +61,22 @@ try {
     $report = Keep ($sheets.Item('Report'))
     $total = Keep ($report.Range('B3'))
     if ([double]$total.Value2 -ne 584000) { throw 'Persisted revenue differs from expected total.' }
-    $book.Save()
-    Write-Output 'Captured Sales, Report, CleanSales. Persisted formula total verified: 584000.'
+    Write-Output 'Captured Sales, Report, CleanSales. Formula total verified: 584000. Source workbook left unchanged.'
+} catch {
+    $failure = $_
 } finally {
-    if ($book) { $book.Close($false) }
-    if ($excel) { $excel.Quit() }
+    $cleanupFailures = [Collections.Generic.List[string]]::new()
+    try { if ($book) { $book.Close($false) } }
+    catch { $cleanupFailures.Add("Workbook close failed: $_") }
+    try { if ($excel) { $excel.Quit() } }
+    catch { $cleanupFailures.Add("Excel quit failed: $_") }
     for ($i=$objects.Count-1; $i -ge 0; $i--) {
-        if ([System.Runtime.InteropServices.Marshal]::IsComObject($objects[$i])) {
-            [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($objects[$i]) | Out-Null
-        }
+        try {
+            if ([System.Runtime.InteropServices.Marshal]::IsComObject($objects[$i])) {
+                [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($objects[$i]) | Out-Null
+            }
+        } catch { $cleanupFailures.Add("COM reference release failed: $_") }
     }
+    if ($cleanupFailures.Count) { throw "$failure`n$($cleanupFailures -join "`n")" }
 }
+if ($failure) { throw $failure }

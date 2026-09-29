@@ -1,181 +1,100 @@
-# Pre-Commit Hook Setup
+# Pre-commit checks
 
-This repository includes automated pre-commit checks to prevent code quality issues, release-time surprises, and coverage regression.
+The hook validates the proposed commit. It never creates release packages,
+installs packaging dependencies, automatically stages generated files, or
+stashes your work. Required PR checks build and inspect affected packages.
 
-## What Gets Checked
+## Install and run
 
-1. **Branch Protection** - Blocks direct commits to `main` branch (Rule 6)
-2. **COM Object Leaks** - Ensures all dynamic COM objects are properly released
-3. **Core Commands Coverage and Naming** - Verifies 100% of Core methods are exposed via MCP Server and action names stay aligned
-4. **MCP-Core Implementation** - Verifies every MCP action still has a Core implementation
-5. **Success Flag Violations** - Ensures Success=true never paired with ErrorMessage (Rule 1)
-6. **Release Solution Build** - Builds the solution in Release so generated skill docs and downstream packaging inputs are fresh
-7. **CLI Workflow Smoke Test** - Validates the end-to-end CLI workflow
-8. **MCP Server Smoke Test** - Validates the all-tools MCP smoke workflow
-9. **CLI Release Deliverables** - Builds and tests the CLI npm packages, NuGet package, and standalone ZIP locally
-10. **MCP Server Release Deliverables** - Builds and tests the MCP Server npm packages, NuGet package, and standalone ZIP locally
-11. **VS Code Extension Packaging** - Runs the VSIX release packaging path (`npm run package`)
-12. **MCPB Bundle Packaging** - Builds the Claude Desktop `.mcpb` bundle locally
-13. **Agent Skills Deliverables** - Builds the skills ZIP locally
-14. **Dynamic Cast Documentation** - Ensures `((dynamic))` casts carry a justification comment
+From the repository root, create the Git hook wrapper using PowerShell 7:
 
-### Which changes trigger expensive checks
-
-The hook selects checks from staged paths. During a merge, it compares against
-the incoming parent so already-validated imported changes do not trigger
-unrelated Excel tests.
-
-| Changes | Release build | Excel E2E | Release packaging |
-|---|---|---|---|
-| Documentation and website content, including website build scripts | No | No | No |
-| `scripts/check-doc-counts.ps1` only | No | No | No |
-| Tests or `.github/workflows/ci.yml` only | Yes | No | No |
-| Runtime code in Core, COM, Service, CLI, MCP, or source generators | Yes | Yes | Yes |
-| Other build or release inputs | Yes | Only when the runtime/E2E path filter matches | Yes |
-
-Mixed commits use the stricter applicable checks. Unrecognized paths still
-require packaging. The exact path rules live in `scripts/pre-commit.ps1`.
-
-## Setup Instructions
-
-### Option 1: Git Bash (Recommended for cross-platform)
-
-The bash hook at `.git/hooks/pre-commit` works automatically if you have Git Bash installed (default with Git for Windows).
-
-**Test it:**
 ```powershell
-bash .git/hooks/pre-commit
-```
-
-### Option 2: PowerShell (Windows-specific, more reliable output)
-
-Use the PowerShell script for better formatting and error messages on Windows:
-
-**Manual execution:**
-```powershell
-.\scripts\pre-commit.ps1
-```
-
-**Configure Git to use PowerShell hook:**
-```powershell
-# Create a wrapper in .git/hooks/pre-commit
-@"
+$hook = git rev-parse --git-path hooks/pre-commit
+@'
 #!/bin/sh
-pwsh -ExecutionPolicy Bypass -File "scripts/pre-commit.ps1"
-"@ | Out-File -FilePath .git/hooks/pre-commit -Encoding ASCII
+exec pwsh -NoProfile -File scripts/pre-commit.ps1
+'@ | Set-Content -LiteralPath $hook -Encoding utf8NoBOM
 ```
 
-## What Happens on Failure
+This uses Git's resolved hooks directory, including in a worktree. If your
+installation has a custom `core.hooksPath`, install the wrapper there instead.
+Do not replace an existing hook without preserving its other checks.
 
-### Branch Protection Violation
-```
-❌ BLOCKED: Cannot commit directly to 'main' branch!
-
-   Rule 6: All Changes Via Pull Requests
-   'Never commit to main. Create feature branch → PR → CI/CD + review → merge.'
-
-   To fix:
-   1. git stash                                    # Save your changes
-   2. git checkout -b feature/your-feature-name    # Create feature branch
-   3. git stash pop                                # Restore changes
-   4. git add <files>                              # Stage changes
-   5. git commit -m 'your message'                 # Commit to feature branch
-```
-
-**Fix:** Follow the 5 steps above to move your work to a feature branch.
-
-### COM Leak Detected
-```
-❌ COM object leaks detected! Fix them before committing.
-```
-
-**Fix:** Run `.\scripts\check-com-leaks.ps1` to see which files have leaks, then add proper `finally` blocks with `ComUtilities.Release(ref obj!)` calls.
-
-### Coverage Gap Detected
-```
-❌ Coverage gaps detected! All Core methods must be exposed via MCP Server.
-   Fix the gaps before committing (add enum values and mappings).
-```
-
-**Fix:** Follow the 5-step process:
-1. Add enum values to `ToolActions.cs`
-2. Add `ToActionString` mappings to `ActionExtensions.cs`
-3. Add switch cases to appropriate MCP Tool
-4. Implement MCP methods
-5. Build and verify
-
-See `.github/instructions/coverage-prevention-strategy.instructions.md` for details.
-
-### Packaging failure
-
-The hook stops at the failed packaging command and prints its exit code and
-captured output. It also preserves earlier output if a later file operation
-throws. Diagnose the first reported build or packaging error rather than
-treating a missing executable as the root cause.
-
-Do not bypass the hook. If the environment prevents a check from completing,
-stop and report the specific blocker before changing the environment or checks.
-
-## Testing the Hook
-
-Run manually before committing:
+Run the same checks manually:
 
 ```powershell
-# PowerShell
-.\scripts\pre-commit.ps1
-
-# Git Bash
-bash .git/hooks/pre-commit
+& .\scripts\pre-commit.ps1
 ```
 
-Release deliverable validation writes scratch outputs under `artifacts\pre-commit\` so the hook can verify the same artifact shapes the release workflow publishes without touching release tags or publication steps.
+## What runs locally
 
-The hook's path selection and error reporting have isolated tests that do not
-build release packages or start Excel:
+Every commit is checked for direct commits to `main` and nonportable staged
+npm lockfiles. Further checks are selected from staged paths by
+`scripts\Get-ValidationPlan.ps1`.
+
+| Changed inputs | Release build | Local Excel E2E | Package creation |
+|---|---|---|---|
+| Documentation, website, videos, Azure or analytics maintenance | No | No | Never |
+| Extension, npm wrappers, or Claude bundle inputs | No | No | Never |
+| Tests, hook, CI policy, analyzer settings, or skill templates | Yes | No | Never |
+| Core, COM, Service, Cleanup, either entry point, runtime generators | Yes | Yes | Never |
+| Central build/dependency settings or embedded shared skill guidance | Yes | Yes | Never |
+| Unknown inputs | Yes | Yes | Never |
+
+Mixed commits combine the applicable checks. During a merge, selection compares
+against the incoming parent so imported changes do not trigger unrelated work.
+The hook prints its reasons before running expensive checks.
+
+Runtime changes run the retained source-pattern guards, a Release build,
+focused generated-contract checks, and the complete `Test-E2E.ps1` sequence.
+The guards flag suspicious patterns; they do not prove every COM lifetime or
+error-result path is correct. Local build cleanup remains pipe-scoped and must
+not stop another worktree's sessions.
+
+Changed test projects run their normal Excel-free tests. Hook regressions never
+build packages. Package tests belong to CI or explicit manual validation.
+Feature-specific Excel tests remain the author's responsibility; the E2E
+sequence is not the full feature suite.
+
+## Failures and partial staging
+
+Before build-based checks, relevant source, test, skill, script and central
+configuration inputs must match the Git index. Unstaged or untracked inputs
+that would change the build stop validation. Stage or set aside those changes
+explicitly; the hook never changes the index for you. Unrelated documentation
+edits are left alone.
+
+A failing command stops the hook and retains its output and exit code.
+Windows with desktop Excel is required when Excel checks are selected.
+An unavailable prerequisite is not reported as a pass. Report the blocker
+rather than bypassing the hook.
+
+Fix generated-contract failures in the annotated interfaces or generators,
+not in generated enum or adapter files.
+
+## PR and manual package checks
+
+`CI Gate` remains present on every PR. It builds Release, runs normal
+`RequiresExcel=false` selections sequentially with deadlines, runs the source
+guards and npm launcher tests, and creates and checks the affected packages.
+`Docs Site` builds and audits the website separately.
+
+GitHub-hosted runners do not have Excel. Record local E2E and feature-specific
+results in the PR; CI does not replace them.
+
+Explicit manual package validation uses the same command as PR CI:
+
+```powershell
+& .\scripts\Build-ReleasePackages.ps1
+& .\scripts\Build-ReleasePackages.ps1 -Components Extension,Mcpb
+```
+
+The command writes a new directory under `artifacts\packages`, checks installed
+npm launchers and archive contents, and never publishes packages or creates
+tags. The extension and Claude bundle reuse the prepared MCP executable.
+
+Isolated hook regressions:
 
 ```powershell
 dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PreCommit" --blame-hang-timeout 60s
 ```
-
-## Troubleshooting
-
-### PowerShell not found
-Install PowerShell 7+ from https://github.com/PowerShell/PowerShell/releases
-
-### Scripts disabled on Windows
-Run once as Administrator:
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
-```
-
-### Hook not running automatically
-Verify the file is executable:
-```powershell
-chmod +x .git/hooks/pre-commit
-```
-
-## Continuous Integration
-
-The Excel-free subset of these checks runs in CI/CD (GitHub-hosted runners have no Excel):
-- `ci.yml` (**CI Gate**) runs a Release build, then the Excel-free audits
-  (`check-com-leaks.ps1`, `audit-core-coverage.ps1`, `check-mcp-core-implementations.ps1`,
-  `check-success-flag.ps1`, `check-doc-counts.ps1 -AllowStaleAdvertisedCounts`,
-  `check-dynamic-casts.ps1`, `check-plugin-readmes.ps1`)
-  plus the hook regression tests on every PR to `main`
-- Excel-dependent gates (CLI/MCP runtime smoke, integration tests) run **local-only** via the pre-commit hook
-
-**Pipeline enforcement ensures:**
-- Pre-commit hook provides **instant local feedback**
-- CI/CD provides a **safety net** when the local hook is not installed
-- **Double protection** against coverage regression
-
- When shipping inputs change, the hook validates every locally buildable release artifact before commit publication:
- - CLI npm packages + NuGet package + standalone ZIP
- - MCP Server npm packages + NuGet package + standalone ZIP
- - VS Code VSIX
- - Claude Desktop MCPB bundle
- - Agent skills ZIP
-
-If the CLI workflow smoke test fails, the hook stops before those packaging gates can be trusted. Treat that as a hard blocker for publication work, not something to bypass.
-
-The pre-commit hook gives you **instant feedback** before pushing to remote.

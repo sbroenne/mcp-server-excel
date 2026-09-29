@@ -52,8 +52,7 @@ If YES, verify all steps completed:
 
 - [ ] Updated the annotated Core Commands interface and implementation
 - [ ] Built Release so source generators refreshed Service, CLI, and MCP surfaces
-- [ ] Ran `scripts\audit-core-coverage.ps1 -CheckNaming -FailOnGaps`
-- [ ] Ran `scripts\check-mcp-core-implementations.ps1`
+- [ ] Ran `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts`
 - [ ] Verified CLI and MCP names, parameters, defaults, validation, and results match
 - [ ] Updated focused integration tests for the affected entry points
 - [ ] Updated canonical guidance in `skills/shared` and user documentation when behavior changed

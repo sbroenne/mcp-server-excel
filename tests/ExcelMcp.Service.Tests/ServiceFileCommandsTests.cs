@@ -25,7 +25,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Files")]
 [Trait("RequiresExcel", "true")]
-[Collection("Sequential")]
+[Collection("ServiceWorkflow")]
 public sealed partial class ServiceFileCommandsTests :
     IClassFixture<ServiceFileTestFixture>
 {

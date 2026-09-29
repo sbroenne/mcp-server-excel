@@ -1,236 +1,72 @@
 <#
 .SYNOPSIS
-    Creates the MCPB (MCP Bundle) package for Claude Desktop.
-
+    Packages a prepared Windows MCP server for Claude Desktop.
 .DESCRIPTION
-    This script builds the MCP Server as a self-contained Windows x64 executable
-    and packages it as an .mcpb file for one-click installation in Claude Desktop.
-
-.PARAMETER Version
-    The version number for the package (e.g., "1.0.0"). If not specified,
-    reads from Directory.Build.props.
-
-.PARAMETER OutputDir
-    The output directory for the MCPB package. Defaults to ./artifacts
-
-.EXAMPLE
-    .\Build-McpBundle.ps1
-    Creates MCPB package with version from Directory.Build.props
-
-.EXAMPLE
-    .\Build-McpBundle.ps1 -Version "1.2.0"
-    Creates MCPB package with specified version
-
-.NOTES
-    Requirements:
-    - .NET 10 SDK
-    - Windows to execute the packaged server verification; other platforms cross-compile it
-
-    Output:
-    mcpb/artifacts/excel-mcp-{version}.mcpb
-
-    Contents:
-    ├── manifest.json
-    ├── icon-512.png
-    ├── README.md
-    ├── LICENSE
-    ├── CHANGELOG.md
-    └── server/
-        └── excel-mcp-server.exe
+    Pass RuntimeExecutable to reuse a published server. Without it, this explicit
+    manual command publishes the server first. Never runs from pre-commit.
 #>
-
 [CmdletBinding()]
 param(
-    [Parameter()]
     [string]$Version,
-
-    [Parameter()]
-    [string]$OutputDir = "./artifacts"
+    [string]$OutputDir = './artifacts',
+    [string]$RuntimeExecutable
 )
-
-$ErrorActionPreference = "Stop"
-. (Join-Path $PSScriptRoot "McpbPackaging.ps1")
-
-# Get script and project directories
-$McpbDir = $PSScriptRoot
-$RootDir = Split-Path $McpbDir -Parent
-$McpServerDir = Join-Path $RootDir "src/ExcelMcp.McpServer"
-
-Write-Host "🏗️  Building MCPB (MCP Bundle) package..." -ForegroundColor Cyan
-Write-Host ""
-
-# Determine version
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'McpbPackaging.ps1')
+$root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $root 'scripts\PackageHelpers.ps1')
 if (-not $Version) {
-    $PropsFile = Join-Path $RootDir "Directory.Build.props"
-    if (Test-Path $PropsFile) {
-        $xml = [xml](Get-Content $PropsFile)
-        $Version = $xml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+    [xml]$props = Get-Content (Join-Path $root 'Directory.Build.props')
+    $Version = $props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+}
+if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'A valid package version is required.' }
+$output = [IO.Path]::GetFullPath($OutputDir, $PSScriptRoot)
+Assert-PackageOutputPath -Path $output -RepoRoot $root -Inputs @($RuntimeExecutable)
+if ($output -eq [IO.Path]::GetPathRoot($output) -or $output -eq $root -or $output -eq $PSScriptRoot) {
+    throw "Unsafe package output directory: $output"
+}
+$ancestor = $output
+while ($ancestor) {
+    if ((Test-Path -LiteralPath $ancestor) -and
+        ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Package output must not traverse a link: $ancestor"
     }
-    if (-not $Version) {
-        $Version = "1.0.0"
-    }
+    $ancestor = Split-Path $ancestor -Parent
 }
-Write-Host "📋 Version: $Version" -ForegroundColor Green
-
-# Create output directory (relative to mcpb directory)
-$OutputDir = Join-Path $McpbDir $OutputDir
-if (Test-Path $OutputDir) {
-    Remove-Item -Recurse -Force $OutputDir
-}
-New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-
-# Create temp staging directory
-$StagingDir = Join-Path $OutputDir "staging"
-New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
-
-Write-Host ""
-Write-Host "📦 Publishing self-contained executable..." -ForegroundColor Yellow
-
-# Build self-contained executable with inline publish settings
-# Note: ReadyToRun=false keeps exe small (~15 MB vs 100+ MB)
-# Note: NuGetAudit=false avoids network failures during vulnerability check
-$PublishArgs = @(
-    "publish"
-    "$McpServerDir/ExcelMcp.McpServer.csproj"
-    "-c", "Release"
-    "-r", "win-x64"
-    "--self-contained", "true"
-    "-p:PublishSingleFile=true"
-    "-p:IncludeNativeLibrariesForSelfExtract=true"
-    "-p:PublishTrimmed=false"
-    "-p:PublishReadyToRun=false"
-    "-p:NuGetAudit=false"
-    "-p:Version=$Version"
-    "-o", $StagingDir
-    "--verbosity", "quiet"
-)
-
-& dotnet @PublishArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Publish failed!" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "   ✓ Built Sbroenne.ExcelMcp.McpServer.exe" -ForegroundColor Green
-
-# Create server subdirectory and rename exe to match manifest
-$ServerDir = Join-Path $StagingDir "server"
-New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
-$FinalExePath = Join-Path $ServerDir "excel-mcp-server.exe"
-Move-Item (Join-Path $StagingDir "Sbroenne.ExcelMcp.McpServer.exe") $FinalExePath -Force
-Write-Host "   ✓ Renamed to server/excel-mcp-server.exe" -ForegroundColor Green
-
-# Verify the Windows executable when the host can run it.
-if ($env:OS -eq "Windows_NT") {
-    $VersionOutput = & $FinalExePath --version 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Executable verification failed!" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "   ✓ Verified: $VersionOutput" -ForegroundColor Green
-}
-else {
-    Write-Host "   ✓ Skipped executable launch verification on non-Windows host" -ForegroundColor Green
-}
-
-# Copy manifest.json and update version
-$ManifestSrc = Join-Path $McpbDir "manifest.json"
-$ManifestDst = Join-Path $StagingDir "manifest.json"
-$ManifestContent = Get-Content $ManifestSrc -Raw
-# Update all version fields in manifest
-$ManifestContent = $ManifestContent -replace '"version":\s*"[\d\.]+"', "`"version`": `"$Version`""
-Set-Content $ManifestDst $ManifestContent -NoNewline
-Write-Host "   ✓ Copied manifest.json (version: $Version)" -ForegroundColor Green
-
-# Copy icon from mcpb directory
-$IconSrc = Join-Path $McpbDir "icon-512.png"
-$IconDst = Join-Path $StagingDir "icon-512.png"
-Copy-Item $IconSrc $IconDst -Force
-Write-Host "   ✓ Copied icon-512.png" -ForegroundColor Green
-
-# Copy README.md from mcpb directory (end-user documentation)
-$ReadmeSrc = Join-Path $McpbDir "README.md"
-$ReadmeDst = Join-Path $StagingDir "README.md"
-Copy-Item $ReadmeSrc $ReadmeDst -Force
-Write-Host "   ✓ Copied README.md" -ForegroundColor Green
-
-# Copy LICENSE from root directory (required for MCPB submission)
-$LicenseSrc = Join-Path $RootDir "LICENSE"
-$LicenseDst = Join-Path $StagingDir "LICENSE"
-Copy-Item $LicenseSrc $LicenseDst -Force
-Write-Host "   ✓ Copied LICENSE" -ForegroundColor Green
-
-# Copy CHANGELOG.md from root directory (recommended for MCPB submission)
-$ChangelogSrc = Join-Path $RootDir "CHANGELOG.md"
-$ChangelogDst = Join-Path $StagingDir "CHANGELOG.md"
-Copy-Item $ChangelogSrc $ChangelogDst -Force
-Write-Host "   ✓ Copied CHANGELOG.md" -ForegroundColor Green
-
-# Note: Agent Skills are NOT included in MCPB bundle - Claude Desktop doesn't use them.
-# Skills are only bundled with the VS Code extension (via chatSkills contribution point).
-
-# Create mcpb file (zip with .mcpb extension)
-$McpbFileName = "excel-mcp-$Version.mcpb"
-$McpbPath = Join-Path $OutputDir $McpbFileName
-
-Write-Host ""
-Write-Host "📦 Creating MCPB bundle..." -ForegroundColor Yellow
-
-# Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe)
-$FilesToZip = @(
-    (Join-Path $StagingDir "manifest.json"),
-    (Join-Path $StagingDir "icon-512.png"),
-    (Join-Path $StagingDir "README.md"),
-    (Join-Path $StagingDir "LICENSE"),
-    (Join-Path $StagingDir "CHANGELOG.md"),
-    (Join-Path $StagingDir "server")
-)
-
-# Remove .mcp directory if it exists (MCP registry metadata not needed in MCPB bundle)
-$McpMetaDir = Join-Path $StagingDir ".mcp"
-if (Test-Path $McpMetaDir) {
-    Remove-Item -Recurse -Force $McpMetaDir
-    Write-Host "   ✓ Removed .mcp directory (not needed in MCPB)" -ForegroundColor DarkGray
-}
-
-Compress-Archive -Path $FilesToZip -DestinationPath $McpbPath -Force
-Write-Host "   ✓ Created $McpbFileName" -ForegroundColor Green
-
-# Copy manifest to output dir for verification
-Copy-Item $ManifestDst (Join-Path $OutputDir "manifest.json") -Force
-
-# Clean up staging
-Remove-McpbStagingDirectory -Path $StagingDir
-
-# Show results
-$McpbSize = (Get-Item $McpbPath).Length / 1MB
-Write-Host ""
-Write-Host "✅ MCPB bundle created successfully!" -ForegroundColor Green
-Write-Host ""
-Write-Host "📁 Output:" -ForegroundColor Cyan
-Write-Host "   $McpbPath" -ForegroundColor White
-Write-Host "   Size: $([math]::Round($McpbSize, 1)) MB" -ForegroundColor White
-Write-Host ""
-Write-Host "📋 Contents:" -ForegroundColor Cyan
-
-# List mcpb contents
-$McpbContents = [System.IO.Compression.ZipFile]::OpenRead($McpbPath)
+$stage = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpMcpb-$([Guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path (Join-Path $stage 'server') -Force | Out-Null
 try {
-    foreach ($entry in $McpbContents.Entries) {
-        $sizeKB = [math]::Round($entry.Length / 1KB, 1)
-        Write-Host "   - $($entry.FullName) ($sizeKB KB)" -ForegroundColor White
+    if (-not $RuntimeExecutable) {
+        $publish = Join-Path $stage 'publish'
+        Publish-PackageRuntime -Component Mcp -RepoRoot $root -Version $Version -OutputDirectory $publish
+        $RuntimeExecutable = Join-Path $publish 'Sbroenne.ExcelMcp.McpServer.exe'
     }
-} finally {
-    $McpbContents.Dispose()
+    $exe = Join-Path $stage 'server\excel-mcp-server.exe'
+    Copy-Item -LiteralPath $RuntimeExecutable -Destination $exe
+    if ($IsWindows) {
+        $reportedVersion = & $exe --version 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0 -or $reportedVersion -notmatch [regex]::Escape($Version)) {
+            throw "Prepared MCP server does not report package version $Version. $reportedVersion"
+        }
+    }
+    $manifest = Get-Content (Join-Path $PSScriptRoot 'manifest.json') -Raw | ConvertFrom-Json
+    $manifest.version = $Version
+    $manifest | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $stage 'manifest.json') -Encoding utf8
+    foreach ($name in @('icon-512.png', 'README.md')) { Copy-Item (Join-Path $PSScriptRoot $name) $stage }
+    foreach ($name in @('LICENSE', 'CHANGELOG.md')) { Copy-Item (Join-Path $root $name) $stage }
+    $entries = @('manifest.json', 'icon-512.png', 'README.md', 'LICENSE', 'CHANGELOG.md', 'server') |
+        ForEach-Object { Join-Path $stage $_ }
+    $archive = Join-Path $stage 'package.zip'
+    Compress-Archive -LiteralPath $entries -DestinationPath $archive -CompressionLevel Optimal
+    $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+    try {
+        if (-not $zip.GetEntry('server/excel-mcp-server.exe')) { throw 'MCPB is missing its server executable.' }
+    }
+    finally { $zip.Dispose() }
+    New-Item -ItemType Directory -Path $output -Force | Out-Null
+    $destination = Join-Path $output "excel-mcp-$Version.mcpb"
+    Install-PackageOutput -Source $archive -Destination $destination
+    Install-PackageOutput -Source (Join-Path $stage 'manifest.json') -Destination (Join-Path $output 'manifest.json')
+    Write-Host "Created $destination"
 }
-
-Write-Host ""
-Write-Host "🚀 Installation:" -ForegroundColor Cyan
-Write-Host "   Double-click the .mcpb file to install in Claude Desktop" -ForegroundColor White
-Write-Host "   Or drag-and-drop onto Claude Desktop window" -ForegroundColor White
-Write-Host ""
-Write-Host "📤 Distribution:" -ForegroundColor Cyan
-Write-Host "   1. Upload $McpbFileName to GitHub release" -ForegroundColor White
-Write-Host "   2. Users can download and double-click to install" -ForegroundColor White
-Write-Host "   3. Submit to Anthropic Directory for discoverability" -ForegroundColor White
-Write-Host ""
+finally { Remove-McpbStagingDirectory -Path $stage }

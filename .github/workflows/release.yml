@@ -1,1050 +1,413 @@
 name: Release All Components
 
-# Unified release workflow for all ExcelMcp components:
-# - MCP Server (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
-# - CLI (npm + standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
-# - VS Code Extension (VSIX + Marketplace)
-# - MCPB (Claude Desktop bundle)
-# - Agent Skills (ZIP package)
-#
-# All components are released with the same version.
-# Trigger: workflow_dispatch with version bump (major/minor/patch) or custom version.
-# The workflow auto-calculates the next version from the latest git tag,
-# creates the git tag after successful builds, then creates the GitHub release.
-#
-# Required GitHub Secrets:
-# - NUGET_USER: Your NuGet.org username (profile name, NOT email)
-# - NPM_TOKEN: Granular npm publish token used to bootstrap new packages; trusted publishing takes precedence once configured
-# - VSCE_TOKEN: VS Code Marketplace PAT
-# - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
-#
 on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: 'Version bump type'
+        description: Version bump type
         required: true
         type: choice
-        default: 'patch'
-        options:
-          - major
-          - minor
-          - patch
+        default: patch
+        options: [major, minor, patch]
       custom_version:
-        description: 'Custom version (e.g., 1.2.3, overrides version_bump)'
+        description: Custom version (overrides version_bump)
         required: false
         type: string
 
-env:
-  DOTNET_VERSION: '10.0.x'
-  NODE_VERSION: '22'
+permissions:
+  contents: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
+env:
+  NODE_VERSION: '22'
+
 jobs:
-  # =============================================================================
-  # Job 0: Calculate Version
-  # =============================================================================
   version:
     name: Calculate Version
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.calculate_version.outputs.version }}
-      tag: ${{ steps.calculate_version.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0  # Fetch all history and tags
-
-      - name: Calculate version
-        id: calculate_version
-        env:
-          CUSTOM_VERSION: ${{ inputs.custom_version }}
-          VERSION_BUMP: ${{ inputs.version_bump }}
-        run: |
-          # If custom version is provided, use it
-          if [[ -n "$CUSTOM_VERSION" ]]; then
-            if ! [[ "$CUSTOM_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-              echo "::error::Custom version must be three numeric parts without leading zeroes (for example, 1.2.3)."
-              exit 1
-            fi
-
-            VERSION="$CUSTOM_VERSION"
-            echo "Using custom version: ${VERSION}"
-          else
-            # Get the latest tag
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            echo "Latest tag: ${LATEST_TAG}"
-
-            # Remove 'v' prefix if present
-            CURRENT_VERSION="${LATEST_TAG#v}"
-            echo "Current version: ${CURRENT_VERSION}"
-
-            # Parse version components
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-            # Increment based on bump type
-            case "$VERSION_BUMP" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-              *)
-                echo "::error::Unsupported version bump type."
-                exit 1
-                ;;
-            esac
-
-            VERSION="${MAJOR}.${MINOR}.${PATCH}"
-            echo "New version: ${VERSION}"
-          fi
-
-          TAG="v${VERSION}"
-
-          # Check if tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "::error::Tag $TAG already exists"
-            exit 1
-          fi
-
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-  # =============================================================================
-  # Job 1: Prepare generated release metadata before packaging
-  # =============================================================================
-  # Advertised tool/operation counts are NOT generated here. The "Update
-  # Documentation Counts" workflow (.github/workflows/doc-counts.yml) keeps
-  # `main` current on every push, so every job below packages counts that are
-  # already correct straight from checkout.
-  prepare-release:
-    name: Prepare Release Metadata
-    needs: [version]
-    runs-on: windows-latest
-    permissions:
-      contents: read
-      pull-requests: read
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Setup Node.js
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-
-    - name: Install changesets CLI
-      run: npm ci
-
-    - name: Compile changesets into CHANGELOG.md
-      shell: pwsh
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        $releaseDate = Get-Date -AsUTC -Format 'yyyy-MM-dd'
-        Set-Content -Path release_date.txt -Value $releaseDate -NoNewline
-        ./scripts/Build-Changelog.ps1 -Version "${{ needs.version.outputs.version }}" -Date $releaseDate
-
-    - name: Upload Prepared Release Metadata
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-      with:
-        name: release-metadata
-        path: |
-          CHANGELOG.md
-          release_notes_body.md
-          release_date.txt
-
-  # =============================================================================
-  # Job 2: Build CLI (standalone exe — primary + NuGet pack — secondary)
-  # =============================================================================
-  build-cli:
-    name: CLI
-    needs: [version]
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Setup Node.js
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        registry-url: https://registry.npmjs.org
-        package-manager-cache: false
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-      shell: pwsh
-
-    - name: Restore
-      run: dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
-
-    - name: Build CLI
-      run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}.0 -p:FileVersion=${{ env.VERSION }}.0
-      env:
-        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
-
-    - name: Pack CLI NuGet (secondary distribution)
-      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./cli-nupkg -p:Version=${{ env.VERSION }}
-
-    - name: Publish CLI (standalone exe — primary distribution)
-      run: |
-        dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj `
-          --configuration Release `
-          --runtime win-x64 `
-          --self-contained true `
-          -p:PublishSingleFile=true `
-          -p:IncludeNativeLibrariesForSelfExtract=true `
-          -p:PublishTrimmed=false `
-          -p:PublishReadyToRun=false `
-          -p:Version=${{ env.VERSION }} `
-          -p:AssemblyVersion=${{ env.VERSION }}.0 `
-          -p:FileVersion=${{ env.VERSION }}.0 `
-          -p:NuGetAudit=false `
-          --output ./cli-publish
-      shell: pwsh
-      env:
-        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
-
-    - name: Build and Test CLI npm Packages
-      run: |
-        .\scripts\Build-NpmPackages.ps1 `
-          -Component Cli `
-          -Version $env:VERSION `
-          -RuntimeExecutable "cli-publish\excelcli.exe" `
-          -OutputDirectory "cli-npm-artifacts"
-
-        .\scripts\Test-NpmPackages.ps1 `
-          -Component Cli `
-          -LauncherPackage "cli-npm-artifacts\sbroenne-excelcli-$env:VERSION.tgz" `
-          -RuntimePackage "cli-npm-artifacts\sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
-      shell: pwsh
-
-    - name: Upload CLI npm Artifacts
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-      with:
-        name: cli-npm
-        path: cli-npm-artifacts/*.tgz
-
-    - name: Create CLI ZIP
-      run: |
-        $version = $env:VERSION
-        New-Item -ItemType Directory -Path "cli-release" -Force
-        Copy-Item "cli-publish/excelcli.exe" "cli-release/"
-        Copy-Item "README.md" "cli-release/"
-        Copy-Item "LICENSE" "cli-release/"
-        Compress-Archive -Path "cli-release/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
-      shell: pwsh
-
-    - name: Upload CLI ZIP Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: cli-zip
-        path: ExcelMcp-CLI-*-windows.zip
-
-    - name: Upload CLI NuGet Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: cli-nupkg
-        path: cli-nupkg/*.nupkg
-
-    - name: Upload CLI Build Output (for other jobs)
-      uses: actions/upload-artifact@v7
-      with:
-        name: cli-build
-        path: cli-publish/
-
-  # =============================================================================
-  # Job 2: Build MCP Server (standalone exe — primary + NuGet pack — secondary)
-  # =============================================================================
-  build-mcp-server:
-    name: MCP Server
-    needs: [version]
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Setup Node.js
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        registry-url: https://registry.npmjs.org
-        package-manager-cache: false
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-        Write-Output "Version: $version"
-      shell: pwsh
-
-    - name: Update Project Versions
-      run: |
-        .\scripts\Update-McpRegistryMetadata.ps1 `
-          -ServerJsonPath "src\ExcelMcp.McpServer\.mcp\server.json" `
-          -Version $env:VERSION
-      shell: pwsh
-
-    - name: Restore
-      run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
-
-    - name: Build
-      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}.0 -p:FileVersion=${{ env.VERSION }}.0
-      env:
-        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
-
-    - name: Pack NuGet (secondary distribution)
-      run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg -p:Version=${{ env.VERSION }}
-
-    - name: Publish MCP Server (standalone exe)
-      run: |
-        dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
-          --configuration Release `
-          --runtime win-x64 `
-          --self-contained true `
-          -p:PublishSingleFile=true `
-          -p:IncludeNativeLibrariesForSelfExtract=true `
-          -p:PublishTrimmed=false `
-          -p:PublishReadyToRun=false `
-          -p:Version=${{ env.VERSION }} `
-          -p:AssemblyVersion=${{ env.VERSION }}.0 `
-          -p:FileVersion=${{ env.VERSION }}.0 `
-          -p:NuGetAudit=false `
-          --output ./mcp-server-publish
-      shell: pwsh
-      env:
-        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
-
-    - name: Rename exe to mcp-excel.exe
-      run: |
-        $expectedExe = "mcp-server-publish/Sbroenne.ExcelMcp.McpServer.exe"
-        if (Test-Path $expectedExe) {
-          Rename-Item $expectedExe "mcp-excel.exe"
-        } else {
-          Write-Error "Expected executable not found at: $expectedExe"
-          Write-Host "Contents of mcp-server-publish/:"
-          Get-ChildItem "mcp-server-publish/" | Select-Object Name
-          exit 1
-        }
-      shell: pwsh
-
-    - name: Create Release Package
-      run: |
-        $version = $env:VERSION
-        New-Item -ItemType Directory -Path "mcp-server-release" -Force
-        Copy-Item "mcp-server-publish/mcp-excel.exe" "mcp-server-release/"
-        Copy-Item "README.md" "mcp-server-release/"
-        Copy-Item "LICENSE" "mcp-server-release/"
-        Compress-Archive -Path "mcp-server-release/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
-      shell: pwsh
-
-    - name: Test npm Launchers and Packaging
-      run: |
-        npm ci --prefix npm-packages/shared --ignore-scripts
-        if ($LASTEXITCODE -ne 0) { throw "npm test dependency installation failed." }
-        npm test --prefix npm-packages/shared
-        if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
-      shell: pwsh
-
-    - name: Build and Test npm Packages
-      run: |
-        .\scripts\Build-NpmPackages.ps1 `
-          -Version $env:VERSION `
-          -RuntimeExecutable "mcp-server-publish\mcp-excel.exe" `
-          -OutputDirectory "npm-artifacts"
-
-        .\scripts\Test-NpmPackages.ps1 `
-          -LauncherPackage "npm-artifacts\sbroenne-mcp-server-excel-$env:VERSION.tgz" `
-          -RuntimePackage "npm-artifacts\sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
-      shell: pwsh
-
-    - name: Upload ZIP Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: mcp-server-zip
-        path: ExcelMcp-MCP-Server-*-windows.zip
-
-    - name: Upload NuGet Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: mcp-server-nupkg
-        path: nupkg/*.nupkg
-
-    - name: Upload npm Artifacts
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-      with:
-        name: mcp-server-npm
-        path: npm-artifacts/*.tgz
-
-  # =============================================================================
-  # Job 3: Build and Publish VS Code Extension
-  # =============================================================================
-  build-vscode:
-    name: VS Code Extension
-    needs: [version, prepare-release]
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
-      with:
-        name: release-metadata
-        path: prepared-release
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-      shell: pwsh
-
-    - name: Synchronize Release Metadata
-      run: |
-        .\scripts\Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
-      shell: pwsh
-
-    - name: Sync Prepared Changelog
-      run: |
-        Copy-Item "prepared-release/CHANGELOG.md" "CHANGELOG.md" -Force
-      shell: pwsh
-
-    - name: Install Dependencies
-      run: |
-        cd vscode-extension
-        npm install
-
-    - name: Build and Package
-      run: |
-        cd vscode-extension
-        npm run package
-      env:
-        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
-
-    - name: Rename VSIX
-      run: |
-        $version = $env:VERSION
-        cd vscode-extension
-        $vsix = Get-ChildItem -Filter "*.vsix" | Select-Object -First 1
-        $targetName = "excelmcp-$version.vsix"
-        if ($vsix.Name -ne $targetName) {
-          Rename-Item $vsix.FullName -NewName $targetName
-        }
-      shell: pwsh
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: vscode-vsix
-        path: vscode-extension/excelmcp-*.vsix
-
-  # =============================================================================
-  # Job 4: Build MCPB (Claude Desktop Bundle)
-  # =============================================================================
-  build-mcpb:
-    name: MCPB Bundle
-    needs: [version, prepare-release]
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Download Prepared Release Metadata
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
-      with:
-        name: release-metadata
-        path: prepared-release
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-      shell: pwsh
-
-    - name: Sync Prepared Changelog
-      run: Copy-Item "prepared-release/CHANGELOG.md" "CHANGELOG.md" -Force
-      shell: pwsh
-
-    - name: Build MCPB Bundle
-      run: |
-        cd mcpb
-        .\Build-McpBundle.ps1 -Version $env:VERSION
-      shell: pwsh
-      env:
-        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: mcpb-bundle
-        path: mcpb/artifacts/excel-mcp-*.mcpb
-
-  # =============================================================================
-  # Job 5: Build Agent Skills Packages
-  # =============================================================================
-  build-agent-skills:
-    name: Agent Skills
-    needs: [version]
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        global-json-file: global.json
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-      shell: pwsh
-
-    - name: Build Solution (generates SKILL.md and copies references)
-      run: dotnet build -c Release
-      shell: pwsh
-
-    - name: Create Skills Package
-      run: |
-        & .\scripts\Build-AgentSkills.ps1 -OutputDir "artifacts/skills" -Version $env:VERSION
-      shell: pwsh
-
-    - name: Upload Skills Artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: agent-skills
-        path: artifacts/skills/excel-skills-*.zip
-
-  # =============================================================================
-  # Job 6: Wait for Package Propagation + MCP Registry
-  # =============================================================================
-  publish-mcp-registry:
-    name: MCP Registry
-    needs: [version, publish]
-    runs-on: windows-latest
-    permissions:
-      id-token: write
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-      shell: pwsh
-
-    - name: Update server.json Version
-      run: |
-        .\scripts\Update-McpRegistryMetadata.ps1 `
-          -ServerJsonPath "src\ExcelMcp.McpServer\.mcp\server.json" `
-          -Version $env:VERSION
-      shell: pwsh
-
-    - name: Wait for NuGet and npm Propagation
-      run: |
-        $version = $env:VERSION
-        $nugetPackageId = "sbroenne.excelmcp.mcpserver"
-        $nugetReadmeUrl = "https://api.nuget.org/v3-flatcontainer/$nugetPackageId/$version/readme"
-        $npmLauncherPackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
-        $npmRuntimePackageUrl = "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-x64/$version"
-
-        Write-Output "Waiting for NuGet and npm propagation..."
-        $maxAttempts = 3
-        $pollInterval = 600  # 10 minutes
-
-        for ($i = 1; $i -le $maxAttempts; $i++) {
-          Write-Output "Attempt $i of $maxAttempts..."
-          $nugetReady = $false
-          $npmLauncherReady = $false
-          $npmRuntimeReady = $false
-
-          try {
-            $response = Invoke-WebRequest -Uri $nugetReadmeUrl -UseBasicParsing -ErrorAction Stop
-            $content = $response.Content
-            $nugetReady = $response.StatusCode -eq 200 -and
-              $content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel"
-          } catch {
-            Write-Output "NuGet README not yet available"
-          }
-
-          try {
-            $npmLauncherPackage = Invoke-RestMethod -Uri $npmLauncherPackageUrl -ErrorAction Stop
-            $npmLauncherReady = $npmLauncherPackage.mcpName -eq "io.github.sbroenne/mcp-server-excel"
-          } catch {
-            Write-Output "npm launcher package not yet available"
-          }
-
-          try {
-            $npmRuntimePackage = Invoke-RestMethod -Uri $npmRuntimePackageUrl -ErrorAction Stop
-            $npmRuntimeReady = $npmRuntimePackage.name -eq "@sbroenne/mcp-server-excel-win32-x64" -and
-              $npmRuntimePackage.version -eq $version
-          } catch {
-            Write-Output "npm runtime package not yet available"
-          }
-
-          if ($nugetReady -and $npmLauncherReady -and $npmRuntimeReady) {
-            Write-Output "NuGet and npm metadata propagated successfully"
-            break
-          }
-
-          if ($i -eq $maxAttempts) {
-            if (-not $nugetReady) {
-              throw "NuGet package metadata did not propagate after $maxAttempts attempts."
-            }
-            if (-not $npmLauncherReady) {
-              throw "npm launcher package metadata did not propagate after $maxAttempts attempts."
-            }
-            if (-not $npmRuntimeReady) {
-              throw "npm runtime package metadata did not propagate after $maxAttempts attempts."
-            }
-          }
-
-          if ($i -lt $maxAttempts) {
-            Write-Output "Waiting $pollInterval seconds before retry..."
-            Start-Sleep -Seconds $pollInterval
-          }
-        }
-      shell: pwsh
-
-    - name: Install MCP Publisher
-      run: |
-        $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
-        Invoke-WebRequest -Uri "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile "mcp-publisher.tar.gz"
-        tar xf mcp-publisher.tar.gz mcp-publisher.exe
-      shell: pwsh
-
-    - name: Publish to MCP Registry
-      run: |
-        ./mcp-publisher.exe login github-oidc
-        Set-Location src/ExcelMcp.McpServer/.mcp
-        ../../../mcp-publisher.exe publish --verbose
-      shell: pwsh
-
-  # =============================================================================
-  # Job 7: Create Git Tag
-  # =============================================================================
-  create-tag:
-    name: Create Git Tag
-    needs: [version, prepare-release, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Resolve version at the requested source commit
+        id: version
+        env:
+          CUSTOM_VERSION: ${{ inputs.custom_version }}
+          VERSION_BUMP: ${{ inputs.version_bump }}
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Release from main only."; exit 1; }
+          VERSION="$CUSTOM_VERSION"
+          if [ -z "$VERSION" ]; then
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "${LATEST_TAG#v}"
+            case "$VERSION_BUMP" in
+              major) VERSION="$((MAJOR + 1)).0.0";;
+              minor) VERSION="$MAJOR.$((MINOR + 1)).0";;
+              patch) VERSION="$MAJOR.$MINOR.$((PATCH + 1))";;
+              *) exit 1;;
+            esac
+          fi
+          [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "::error::Invalid version."; exit 1; }
+          TAG="v$VERSION"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then echo "::error::Tag exists."; exit 1; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+  prepare-release:
+    name: Prepare Release Metadata
+    needs: version
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      - name: Prepare metadata once in this disposable checkout
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          ./scripts/Build-Changelog.ps1 -Version $env:VERSION -Date (Get-Date -AsUTC -Format yyyy-MM-dd)
+          git diff --binary --output=release-metadata.patch -- CHANGELOG.md package.json package-lock.json Directory.Build.props mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json vscode-extension/package.json vscode-extension/package-lock.json .changeset
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-metadata
+          path: |
+            release-metadata.patch
+            CHANGELOG.md
+            release_notes_body.md
+          if-no-files-found: error
 
-      - name: Install changesets CLI
-        run: npm ci
-
-      - name: Download Prepared Release Metadata
-        uses: actions/download-artifact@v8
+  build-packages:
+    name: Build and Verify All Packages
+    needs: [version, prepare-release]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v8
         with:
           name: release-metadata
           path: prepared-release
-
-      - name: Compile and Verify Release Metadata
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build exact prepared source and all deliverables
         shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+          APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
         run: |
-          $releaseDate = Get-Content -Raw prepared-release/release_date.txt
-          ./scripts/Build-Changelog.ps1 -Version "${{ needs.version.outputs.version }}" -Date $releaseDate
+          $PSNativeCommandUseErrorActionPreference = $true
+          git apply --check prepared-release/release-metadata.patch
+          git apply prepared-release/release-metadata.patch
+          dotnet restore Sbroenne.ExcelMcp.sln
+          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore -p:NuGetAudit=false
+          .\scripts\Build-ReleasePackages.ps1 -Version $env:VERSION -OutputDirectory artifacts\release
+      - name: Upload verified packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-packages
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.vsix
+            artifacts/release/nuget/*.nupkg
+            artifacts/release/npm/*.tgz
+            artifacts/release/mcpb/*.mcpb
+            artifacts/release/skills/*.zip
+          if-no-files-found: error
+      - name: Upload prepared plugin payload
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-plugins
+          path: artifacts/release/plugins/
+          include-hidden-files: true
+          if-no-files-found: error
 
-          $generatedChangelog = (Get-FileHash CHANGELOG.md -Algorithm SHA256).Hash
-          $preparedChangelog = (Get-FileHash prepared-release/CHANGELOG.md -Algorithm SHA256).Hash
-          if ($generatedChangelog -ne $preparedChangelog) {
-            throw 'Generated CHANGELOG.md differs from the changelog used to build release artifacts.'
-          }
-
-          $generatedNotes = (Get-FileHash release_notes_body.md -Algorithm SHA256).Hash
-          $preparedNotes = (Get-FileHash prepared-release/release_notes_body.md -Algorithm SHA256).Hash
-          if ($generatedNotes -ne $preparedNotes) {
-            throw 'Generated release notes differ from the notes prepared before artifact builds.'
-          }
-
+  create-tag:
+    name: Create Git Tag
+    needs: [version, prepare-release, build-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.release_commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-metadata
+          path: prepared-release
+      - name: Apply exactly the packaged metadata
+        run: |
+          git apply --check prepared-release/release-metadata.patch
+          git apply prepared-release/release-metadata.patch
       - name: Commit Release Metadata Update
         id: release_commit
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
           SOURCE_SHA: ${{ github.sha }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
-
-          VERSION=${{ needs.version.outputs.version }}
-          REPO="${{ github.repository }}"
-
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so release metadata can be committed back to main."
-            exit 1
-          fi
-
-          BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
-          if [ "$BASE_SHA" != "$SOURCE_SHA" ]; then
-            echo "::error::main advanced from release source $SOURCE_SHA to $BASE_SHA. Start a new release so metadata and artifacts are generated from the current tip."
-            exit 1
-          fi
-
-          # Stage exactly the files generated by the release preparation scripts.
+          REPO="$GITHUB_REPOSITORY"
+          [ -n "$GH_TOKEN" ] || { echo "::error::RELEASE_PAT is required for release metadata."; exit 1; }
           git add -A CHANGELOG.md package.json package-lock.json Directory.Build.props \
             mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json \
             vscode-extension/package.json vscode-extension/package-lock.json .changeset
-
+          BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
+          if [ "$BASE_SHA" != "$SOURCE_SHA" ]; then
+            git fetch origin main
+            if [ "$(git rev-parse "$BASE_SHA^")" = "$SOURCE_SHA" ] &&
+               [ "$(git rev-parse "$BASE_SHA^{tree}")" = "$(git write-tree)" ]; then
+              echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::main advanced. Start a new release from its current tip."
+            exit 1
+          fi
           if git diff --cached --quiet; then
-            echo "No release metadata changes to commit; tagging main@$BASE_SHA."
             echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          # The main-tip check above guarantees that generated metadata and built
-          # artifacts all came from this exact source tree.
           BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
-          echo "Basing release metadata commit on main@$BASE_SHA"
-
           tree_entries='[]'
           while IFS=$'\t' read -r status path; do
-            [ -z "$path" ] && continue
-            if [ "$status" = "D" ]; then
-              echo "  delete  $path"
-              entry=$(jq -n --arg path "$path" '{path:$path, mode:"100644", type:"blob", sha:null}')
+            if [ "$status" = D ]; then
+              entry=$(jq -n --arg path "$path" '{path:$path,mode:"100644",type:"blob",sha:null}')
             else
-              echo "  write   $path"
               git show ":$path" | base64 -w0 > blob.b64
-              blob_sha=$(gh api "repos/$REPO/git/blobs" --method POST \
-                -f encoding=base64 -F content=@blob.b64 --jq '.sha')
-              rm -f blob.b64
-              staged_sha=$(git rev-parse ":$path")
-              if [ "$blob_sha" != "$staged_sha" ]; then
-                echo "::error::Uploaded blob for $path does not match the staged content."
-                exit 1
-              fi
-              entry=$(jq -n --arg path "$path" --arg sha "$blob_sha" \
-                '{path:$path, mode:"100644", type:"blob", sha:$sha}')
+              blob_sha=$(gh api "repos/$REPO/git/blobs" --method POST -f encoding=base64 -F content=@blob.b64 --jq '.sha')
+              rm blob.b64
+              [ "$blob_sha" = "$(git rev-parse ":$path")" ] || { echo "::error::Uploaded metadata differs."; exit 1; }
+              entry=$(jq -n --arg path "$path" --arg sha "$blob_sha" '{path:$path,mode:"100644",type:"blob",sha:$sha}')
             fi
-            tree_entries=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$tree_entries")
+            tree_entries=$(jq -c --argjson e "$entry" '. + [$e]' <<< "$tree_entries")
           done < <(git diff --cached --name-status)
-
-          new_tree=$(jq -n --arg base "$BASE_TREE" --argjson tree "$tree_entries" \
-            '{base_tree:$base, tree:$tree}' \
+          new_tree=$(jq -n --arg base "$BASE_TREE" --argjson tree "$tree_entries" '{base_tree:$base,tree:$tree}' \
             | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
-
-          new_commit=$(jq -n \
-            --arg msg "chore: update release metadata for v${VERSION}" \
-            --arg tree "$new_tree" --arg parent "$BASE_SHA" \
-            '{message:$msg, tree:$tree, parents:[$parent]}' \
+          new_commit=$(jq -n --arg msg "chore: update release metadata for v${VERSION}" \
+            --arg tree "$new_tree" --arg parent "$BASE_SHA" '{message:$msg,tree:$tree,parents:[$parent]}' \
             | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
-
-          gh api "repos/$REPO/git/refs/heads/main" --method PATCH \
-            -f sha="$new_commit" -F force=false >/dev/null
+          gh api "repos/$REPO/git/refs/heads/main" --method PATCH -f sha="$new_commit" -F force=false >/dev/null
           echo "sha=$new_commit" >> "$GITHUB_OUTPUT"
-          echo "Committed release metadata for v${VERSION} to main@$new_commit."
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Create and push tag
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          RELEASE_COMMIT: ${{ steps.release_commit.outputs.sha }}
         run: |
-          TAG="${{ needs.version.outputs.tag }}"
-          RELEASE_COMMIT="${{ steps.release_commit.outputs.sha }}"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git fetch origin main
-          echo "Creating tag $TAG at release metadata commit $RELEASE_COMMIT"
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            [ "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$RELEASE_COMMIT" ] || exit 1
+            exit 0
+          fi
           git tag -a "$TAG" "$RELEASE_COMMIT" -m "Release $TAG"
           git push origin "$TAG"
 
-  # =============================================================================
-  # Job 8: Publish to External Registries (after all builds succeed)
-  # =============================================================================
+  create-release:
+    name: Create GitHub Release
+    needs: [version, prepare-release, create-tag]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.create-tag.outputs.commit }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-metadata
+          path: artifacts/release-metadata
+      - name: Render notes and release payload checksums
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $template = Get-Content '.github/release-notes-template.md' -Raw
+          $body = Get-Content 'artifacts/release-metadata/release_notes_body.md' -Raw
+          Set-Content release_notes.md ($template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $body.Trim())) -NoNewline
+          $names = @("ExcelMcp-MCP-Server-$env:VERSION-windows.zip", "ExcelMcp-CLI-$env:VERSION-windows.zip", "excel-plugins-v$env:VERSION.zip")
+          $lines = foreach ($name in $names) {
+            $hash = (Get-FileHash (Join-Path artifacts $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $name"
+          }
+          [IO.File]::WriteAllLines((Join-Path $PWD SHA256SUMS), $lines, [Text.UTF8Encoding]::new($false))
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/*.zip artifacts/*.vsix artifacts/mcpb/*.mcpb artifacts/skills/*.zip SHA256SUMS --clobber
+          else
+            gh release create "$TAG" artifacts/*.zip artifacts/*.vsix artifacts/mcpb/*.mcpb artifacts/skills/*.zip SHA256SUMS \
+              --title "ExcelMcp $VERSION" --notes-file release_notes.md
+          fi
+
   publish:
-    name: Publish to Registries
+    name: Publish NuGet and npm
     needs: [version, create-tag]
     runs-on: windows-latest
     permissions:
       contents: read
-      id-token: write  # Required for NuGet and npm OIDC
-
+      id-token: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
-    - uses: actions/checkout@v7
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Detect npm authentication mode
-      id: npm-auth
-      shell: pwsh
-      env:
-        NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
-      run: |
-        $mode = if ([string]::IsNullOrEmpty($env:NPM_BOOTSTRAP_TOKEN)) { "oidc" } else { "token" }
-        "mode=$mode" >> $env:GITHUB_OUTPUT
-
-    - name: Setup Node.js with bootstrap token
-      if: steps.npm-auth.outputs.mode == 'token'
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        registry-url: https://registry.npmjs.org
-        package-manager-cache: false
-
-    - name: Setup Node.js with trusted publishing
-      if: steps.npm-auth.outputs.mode == 'oidc'
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        package-manager-cache: false
-
-    - name: Set Version
-      run: |
-        $version = "${{ needs.version.outputs.version }}"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
-      shell: pwsh
-
-    - name: Download NuGet Package
-      uses: actions/download-artifact@v8
-      with:
-        name: mcp-server-nupkg
-        path: nupkg
-
-    - name: Download CLI NuGet Package
-      uses: actions/download-artifact@v8
-      with:
-        name: cli-nupkg
-        path: cli-nupkg
-
-    - name: Download npm Packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
-      with:
-        name: mcp-server-npm
-        path: npm-packages
-
-    - name: Download CLI npm Packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
-      with:
-        name: cli-npm
-        path: npm-packages
-
-    - name: Download VS Code VSIX
-      uses: actions/download-artifact@v8
-      with:
-        name: vscode-vsix
-        path: vscode-vsix
-
-    - name: NuGet Login (OIDC)
-      uses: NuGet/login@v1
-      id: nuget-login
-      with:
-        user: ${{ secrets.NUGET_USER }}
-
-    - name: Publish to NuGet.org (secondary distribution)
-      run: |
-        $version = $env:VERSION
-        dotnet nuget push "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg" `
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
-          --source https://api.nuget.org/v3/index.json `
-          --skip-duplicate
-        Write-Output "Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
-
-        dotnet nuget push "cli-nupkg/Sbroenne.ExcelMcp.CLI.$version.nupkg" `
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
-          --source https://api.nuget.org/v3/index.json `
-          --skip-duplicate
-        Write-Output "Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
-      shell: pwsh
-
-    - name: Publish to npm
-      run: |
-        if ([string]::IsNullOrEmpty($env:NPM_BOOTSTRAP_TOKEN)) {
-          Remove-Item Env:NODE_AUTH_TOKEN -ErrorAction SilentlyContinue
-        } else {
-          $env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN
-        }
-
-        npm install --global npm@11
-
-        function Publish-NpmPackage {
-          param(
-            [string]$PackageName,
-            [string]$Tarball
-          )
-
-          npm view "$PackageName@$env:VERSION" version --json 2>$null | Out-Null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Output "$PackageName@$env:VERSION is already published; skipping."
-            return
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.create-tag.outputs.commit }}
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Detect npm authentication mode
+        id: npm-auth
+        shell: pwsh
+        env:
+          NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          $mode = if ($env:NPM_BOOTSTRAP_TOKEN) { 'token' } else { 'oidc' }
+          "mode=$mode" >> $env:GITHUB_OUTPUT
+      - if: steps.npm-auth.outputs.mode == 'token'
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - if: steps.npm-auth.outputs.mode == 'oidc'
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts
+      - uses: NuGet/login@v1
+        id: nuget
+        with:
+          user: ${{ secrets.NUGET_USER }}
+      - name: Publish NuGet
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ steps.nuget.outputs.NUGET_API_KEY }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          foreach ($name in @('CLI', 'McpServer')) {
+            dotnet nuget push "artifacts/nuget/Sbroenne.ExcelMcp.$name.$env:VERSION.nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
+      - name: Publish npm runtimes before launchers
+        shell: pwsh
+        env:
+          NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:NPM_BOOTSTRAP_TOKEN) { $env:NODE_AUTH_TOKEN = $env:NPM_BOOTSTRAP_TOKEN }
+          else { Remove-Item Env:NODE_AUTH_TOKEN -ErrorAction SilentlyContinue }
+          npm install --global npm@11
+          if ($LASTEXITCODE -ne 0) { throw 'npm setup failed.' }
+          foreach ($name in @('excelcli-win32-x64', 'mcp-server-excel-win32-x64', 'excelcli', 'mcp-server-excel')) {
+            npm view "@sbroenne/$name@$env:VERSION" version --json 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) { continue }
+            npm publish "./artifacts/npm/sbroenne-$name-$env:VERSION.tgz" --access public
+            if ($LASTEXITCODE -ne 0) { throw "npm publication failed for $name." }
           }
 
-          npm publish "./$Tarball" --access public
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to publish $PackageName@$env:VERSION."
-          }
-        }
-
-        Publish-NpmPackage `
-          -PackageName "@sbroenne/mcp-server-excel-win32-x64" `
-          -Tarball "npm-packages/sbroenne-mcp-server-excel-win32-x64-$env:VERSION.tgz"
-        Publish-NpmPackage `
-          -PackageName "@sbroenne/mcp-server-excel" `
-          -Tarball "npm-packages/sbroenne-mcp-server-excel-$env:VERSION.tgz"
-        Publish-NpmPackage `
-          -PackageName "@sbroenne/excelcli-win32-x64" `
-          -Tarball "npm-packages/sbroenne-excelcli-win32-x64-$env:VERSION.tgz"
-        Publish-NpmPackage `
-          -PackageName "@sbroenne/excelcli" `
-          -Tarball "npm-packages/sbroenne-excelcli-$env:VERSION.tgz"
-      shell: pwsh
-      env:
-        NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-    - name: Publish to VS Code Marketplace
-      uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
-      with:
-        pat: ${{ secrets.VSCE_TOKEN }}
-        registryUrl: https://marketplace.visualstudio.com
-        extensionFile: vscode-vsix/excelmcp-${{ env.VERSION }}.vsix
-      continue-on-error: true
-
-  # =============================================================================
-  # Job 9: Create Unified GitHub Release
-  # =============================================================================
-  create-release:
-    name: Create GitHub Release
-    needs: [version, prepare-release, create-tag, publish]
+  publish-vscode:
+    name: Publish VS Code Marketplace
+    needs: [version, create-tag]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-    - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts
+      - uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
+        with:
+          pat: ${{ secrets.VSCE_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: artifacts/excel-mcp-${{ needs.version.outputs.version }}.vsix
 
-    - name: Set Version
-      run: |
-        echo "VERSION=${{ needs.version.outputs.version }}" >> $GITHUB_ENV
-
-    - name: Download All Artifacts
-      uses: actions/download-artifact@v8
-      with:
-        path: artifacts
-
-    - name: List Artifacts
-      run: |
-        echo "Downloaded artifacts:"
-        find artifacts -type f -name "*" | head -20
-
-    - name: Render Release Notes
-      shell: pwsh
-      run: |
-        $template = Get-Content -Raw '.github/release-notes-template.md'
-        $changelogBody = Get-Content -Raw artifacts/release-metadata/release_notes_body.md
-        $notes = $template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $changelogBody.Trim())
-        Set-Content -Path release_notes.md -Value $notes -NoNewline
-
-    - name: Generate SHA-256 checksums
-      shell: pwsh
-      run: |
-        $expectedArchives = @(
-          "ExcelMcp-MCP-Server-${{ env.VERSION }}-windows.zip"
-          "ExcelMcp-CLI-${{ env.VERSION }}-windows.zip"
-        )
-        $archivePaths = @(
-          Get-ChildItem -Path artifacts/mcp-server-zip -Filter *.zip -File
-          Get-ChildItem -Path artifacts/cli-zip -Filter *.zip -File
-        )
-
-        $actualNames = @($archivePaths | ForEach-Object Name)
-        foreach ($expectedArchive in $expectedArchives) {
-          if ($expectedArchive -notin $actualNames) {
-            throw "Cannot publish checksums: expected runtime archive '$expectedArchive' was not downloaded."
+  publish-mcp-registry:
+    name: MCP Registry
+    needs: [version, create-tag, publish]
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.create-tag.outputs.commit }}
+      - name: Wait for matching NuGet and npm metadata
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:VERSION
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+              $readme = (Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/sbroenne.excelmcp.mcpserver/$version/readme").Content
+              $launcher = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
+              $runtime = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-x64/$version"
+              if ($readme -notmatch 'mcp-name:\s+io\.github\.sbroenne/mcp-server-excel' -or
+                  $launcher.mcpName -ne 'io.github.sbroenne/mcp-server-excel' -or
+                  $runtime.version -ne $version) { throw 'Published package metadata is not ready.' }
+              break
+            } catch {
+              if ($attempt -eq 3) { throw }
+              Write-Warning "Package propagation pending: $_"
+              Start-Sleep -Seconds 600
+            }
           }
-        }
-        if ($archivePaths.Count -ne $expectedArchives.Count) {
-          throw "Cannot publish checksums: expected exactly $($expectedArchives.Count) runtime archives, found $($archivePaths.Count)."
-        }
+      - name: Publish MCP registry entry
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $arch = if ([Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq 'Arm64') { 'arm64' } else { 'amd64' }
+          Invoke-WebRequest "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile mcp-publisher.tar.gz
+          tar xf mcp-publisher.tar.gz mcp-publisher.exe
+          ./mcp-publisher.exe login github-oidc
+          Set-Location src/ExcelMcp.McpServer/.mcp
+          ../../../mcp-publisher.exe publish --verbose
 
-        $checksumLines = foreach ($archivePath in ($archivePaths | Sort-Object Name)) {
-          $hash = (Get-FileHash -Path $archivePath.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $($archivePath.Name)"
-        }
-        [System.IO.File]::WriteAllLines(
-          (Join-Path $PWD "SHA256SUMS"),
-          $checksumLines,
-          [System.Text.UTF8Encoding]::new($false))
-
-    - name: Create Release
-      run: |
-        VERSION=${{ env.VERSION }}
-        TAG=${{ needs.version.outputs.tag }}
-
-        # Collect all artifacts
-        ARTIFACTS=""
-        for f in artifacts/mcp-server-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        ARTIFACTS="$ARTIFACTS SHA256SUMS"
-
-        echo "Creating release with artifacts:$ARTIFACTS"
-
-        gh release create "$TAG" $ARTIFACTS \
-          --title "ExcelMcp $VERSION" \
-          --notes-file release_notes.md
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  publish-plugins:
+    needs: [version, create-tag, create-release]
+    uses: ./.github/workflows/publish-plugins.yml
+    with:
+      release_tag: ${{ needs.version.outputs.tag }}
+      release_commit: ${{ needs.create-tag.outputs.commit }}
+      release_version: ${{ needs.version.outputs.version }}
+      plugin_artifact: release-plugins
+    secrets:
+      PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
