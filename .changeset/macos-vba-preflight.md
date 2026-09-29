@@ -27,3 +27,10 @@ worksheet/connection-only behavior with exact loaded-cell checks across saved
 reopens, keeps unconfirmed opens/closes for recovery, verifies gated Data Model
 variants, and emits validation-only receipts that cannot be mistaken for
 runtime proof.
+
+Add an opaque signed-helper packaging workflow for the planned prebuilt macOS
+VBA add-in. It requires an explicit Windows Excel signature verification,
+rejects private-key material and invalid SelfCert profiles, and records
+whole-file hashes, reviewed source versions, source commit, certificate
+identity, fingerprint, and validity. ExcelMcp never signs, opens, trusts, or
+modifies the helper during packaging.

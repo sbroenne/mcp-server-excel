@@ -18,23 +18,62 @@ only meaningful to Excel's VBA host.
     project-model implementations remain gated until each method passes real
     CLI and MCP evidence with the required user-managed trust.
 
-## Optional macOS helper setup (preview)
+## Optional signed macOS helper setup (preview)
 
-The packaged `helpers/ExcelMcpHelper.bas` is repository-owned source for a fixed,
-allowlisted dispatcher. It is not installed automatically, and ExcelMcp never
-imports it into a user workbook or changes either VBA security setting.
+The intended helper is a prebuilt, Excel-authored `ExcelMcpHelper.xlam` with a
+VBA project signed in Windows Excel by a dedicated SelfCert certificate. The
+repository-owned `helpers/ExcelMcpHelper.bas` remains the reviewable source for
+its fixed, allowlisted dispatcher. The signed `.xlam` is not yet a published
+release asset, so helper-backed production actions remain gated. Do not build a
+local unsigned add-in and treat it as a released helper.
 
-To prepare the helper for later capability probes:
+SelfCert verifies that the helper has not changed since signing, but it does not
+provide CA-validated publisher identity. When a signed package is published:
 
-1. Review `helpers/ExcelMcpHelper.bas` from the same ExcelMcp build you installed.
-2. In Excel for Mac, create a new blank workbook and open the Visual Basic
-   Editor.
-3. Import the reviewed `.bas` file as a standard module.
-4. In Excel, save that new workbook as an Excel add-in named exactly
-   `ExcelMcpHelper.xlam`. Do not manufacture or replace `vbaProject.bin`.
+1. Obtain the `.xlam`, `.bas`, public `.cer`, and JSON manifest from the same
+   release.
+2. Compare the SHA-256 hashes of all three files with the manifest and compare
+   the manifest's certificate fingerprint with the independently published
+   release fingerprint.
+3. Inspect the public certificate's subject and expiry, then import and trust
+   it manually in the current user's macOS Keychain. Never import a private key.
+4. Open the exact `.xlam` in Excel and verify that Excel displays the expected
+   signed VBA project before enabling the add-in.
 5. Enable that exact add-in through Excel's add-in manager.
 6. Set `EXCELMCP_MAC_VBA_HELPER_PATH` for the process that starts ExcelMcp to
    the add-in's exact absolute path.
+
+ExcelMcp never installs the helper, imports or trusts its certificate, opens
+Keychain, or changes either VBA security setting.
+
+### Maintainer packaging
+
+The helper must be created and signed on a controlled Windows host because
+Office for Mac cannot sign VBA projects. Create the dedicated SelfCert
+certificate, import the reviewed `.bas` into a blank workbook, save it exactly
+as `ExcelMcpHelper.xlam`, sign the VBA project in the Visual Basic Editor, then
+save, close, reopen, and verify the signature in Excel. Export only the public
+certificate; the private key must remain on that signing host.
+
+After that manual verification, stage the opaque artifact and provenance:
+
+```powershell
+pwsh ./scripts/Build-MacVbaHelperPackage.ps1 `
+  -HelperPath 'C:\absolute\path\ExcelMcpHelper.xlam' `
+  -SourcePath './src/ExcelMcp.Service/Mac/ExcelMcpHelper.bas' `
+  -PublicCertificatePath 'C:\absolute\path\ExcelMcpHelper.cer' `
+  -OutputDirectory './artifacts/mac-vba-helper' `
+  -SourceCommit '<exact-source-commit>' `
+  -ExcelSignatureVerifiedConfirmed `
+  -SelfCertTrustModelConfirmed
+```
+
+The packager never opens or inspects workbook package contents. It rejects
+private-key material and invalid certificate profiles, then records whole-file
+hashes, source commit, helper/protocol versions, certificate identity,
+fingerprint, thumbprint, and validity in the manifest. The explicit signature
+confirmation records the maintainer's Excel check; it is not a replacement for
+that check.
 
 The configured file name, open add-in `FullName`, helper version, protocol
 version, request correlation, target workbook `FullName`, action, and argument
@@ -118,8 +157,15 @@ Excel or another client's daemon.
 Macro execution and VBA project access are separate settings. Do not enable all
 macros globally to install the helper. Enable only the trust your reviewed
 workflow requires. To remove the helper, disable it in Excel's add-in manager,
-close only that exact add-in if it is open, delete the `.xlam` if desired, and
-remove `EXCELMCP_MAC_VBA_HELPER_PATH`.
+close only that exact add-in if it is open, delete the `.xlam` if desired,
+remove `EXCELMCP_MAC_VBA_HELPER_PATH`, and remove that public certificate from
+the user's Keychain if no retained helper still depends on it.
+
+For certificate rotation, verify and trust the replacement certificate and
+signed helper before replacing the existing add-in. After the replacement is
+working, distrust/remove the old certificate. An expired, distrusted, or
+unexpected certificate is not silently accepted; restore trust only after
+checking the independently published fingerprint.
 
 ## One-time setup: enable VBA trust
 

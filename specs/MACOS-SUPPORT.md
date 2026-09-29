@@ -154,6 +154,39 @@ with `RECOVERY_REQUIRED`; they are never guessed closed or deleted.
 ExcelMcp never changes macro-security preferences or VBA project-model trust.
 The user installs, trusts, upgrades, and removes the helper.
 
+The intended release artifact is an Excel-authored `ExcelMcpHelper.xlam` whose
+VBA project is signed in Windows Excel with a dedicated SelfCert certificate.
+Office for Mac cannot sign the VBA project. The SelfCert private key remains
+only on the controlled Windows signing host; releases contain the opaque
+`.xlam`, reviewed `.bas` source, public certificate, and provenance manifest.
+SelfCert provides post-signing integrity, not CA-validated publisher identity,
+so every user must compare the published SHA-256 certificate fingerprint and
+manually trust that public certificate on each machine. ExcelMcp never imports
+the certificate or changes certificate, macro, or project-model trust.
+
+Maintainers stage a signed artifact only after reopening it in Windows Excel and
+verifying that Excel displays the expected VBA signature:
+
+```powershell
+pwsh ./scripts/Build-MacVbaHelperPackage.ps1 `
+  -HelperPath 'C:\absolute\path\ExcelMcpHelper.xlam' `
+  -SourcePath './src/ExcelMcp.Service/Mac/ExcelMcpHelper.bas' `
+  -PublicCertificatePath 'C:\absolute\path\ExcelMcpHelper.cer' `
+  -OutputDirectory './artifacts/mac-vba-helper' `
+  -SourceCommit '<exact-source-commit>' `
+  -ExcelSignatureVerifiedConfirmed `
+  -SelfCertTrustModelConfirmed
+```
+
+The packager treats the `.xlam` as an opaque whole file. It rejects private-key
+material, non-self-signed certificates, certificates without Code Signing
+usage, expired/not-yet-valid certificates, and missing explicit confirmations.
+The manifest records helper/protocol versions from the reviewed `.bas`, source
+commit, whole-file hashes, certificate subject, SHA-256 fingerprint,
+thumbprint, and validity dates. Packaging never signs, opens, modifies, or
+trusts the helper. Until this signed package is produced and separately
+accepted, helper-backed production methods remain gated.
+
 Helper protocol version 1 uses:
 
 - helper version `1.4.0`;
@@ -207,6 +240,12 @@ pwsh ./scripts/Test-MacHelperAcceptance.ps1 `
 Public VBA acceptance is separately guarded by
 `scripts/Test-MacVbaPublicAcceptance.ps1`. A helper-engine pass does not enable
 public VBA actions.
+
+Certificate rotation uses a newly signed helper and new manifest. Users verify
+and trust the new certificate before replacing the helper, then remove the old
+certificate only after no retained helper depends on it. Removal disables the
+exact add-in, removes `EXCELMCP_MAC_VBA_HELPER_PATH`, deletes the helper if
+desired, and removes its public certificate from the user's trust store.
 
 ## Optional Office.js tier
 
