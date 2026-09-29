@@ -360,46 +360,14 @@ jobs:
   publish-mcp-registry:
     name: MCP Registry
     needs: [version, create-tag, publish]
-    runs-on: windows-latest
     permissions:
       contents: read
       id-token: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.create-tag.outputs.commit }}
-      - name: Wait for matching NuGet and npm metadata
-        shell: pwsh
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $version = $env:VERSION
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            try {
-              $readme = (Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/sbroenne.excelmcp.mcpserver/$version/readme").Content
-              $launcher = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$version"
-              $runtime = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-x64/$version"
-              if ($readme -notmatch 'mcp-name:\s+io\.github\.sbroenne/mcp-server-excel' -or
-                  $launcher.mcpName -ne 'io.github.sbroenne/mcp-server-excel' -or
-                  $runtime.version -ne $version) { throw 'Published package metadata is not ready.' }
-              break
-            } catch {
-              if ($attempt -eq 3) { throw }
-              Write-Warning "Package propagation pending: $_"
-              Start-Sleep -Seconds 600
-            }
-          }
-      - name: Publish MCP registry entry
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          $arch = if ([Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq 'Arm64') { 'arm64' } else { 'amd64' }
-          Invoke-WebRequest "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile mcp-publisher.tar.gz
-          tar xf mcp-publisher.tar.gz mcp-publisher.exe
-          ./mcp-publisher.exe login github-oidc
-          Set-Location src/ExcelMcp.McpServer/.mcp
-          ../../../mcp-publisher.exe publish --verbose
+    uses: ./.github/workflows/publish-mcp-registry.yml
+    with:
+      release_tag: ${{ needs.version.outputs.tag }}
+      release_commit: ${{ needs.create-tag.outputs.commit }}
+      release_version: ${{ needs.version.outputs.version }}
 
   publish-plugins:
     needs: [version, create-tag, create-release]

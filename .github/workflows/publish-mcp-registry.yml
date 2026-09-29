@@ -1,0 +1,93 @@
+name: Publish MCP Registry
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      release_commit:
+        required: true
+        type: string
+      release_version:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing exact release tag to register (for example, v2.0.12)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-mcp-registry
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve Exact Release
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify tag, commit, version and GitHub release
+        id: release
+        env:
+          TAG: ${{ inputs.release_tag }}
+          EXPECTED_COMMIT: ${{ inputs.release_commit }}
+          EXPECTED_VERSION: ${{ inputs.release_version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "::error::Invalid release tag"; exit 1; }
+          COMMIT=$(git rev-parse "refs/tags/$TAG^{commit}")
+          VERSION="${TAG#v}"
+          [ -z "$EXPECTED_COMMIT" ] || [ "$COMMIT" = "$EXPECTED_COMMIT" ] || { echo "::error::Release commit mismatch"; exit 1; }
+          [ -z "$EXPECTED_VERSION" ] || [ "$VERSION" = "$EXPECTED_VERSION" ] || { echo "::error::Release version mismatch"; exit 1; }
+          gh release view "$TAG" --json isDraft,tagName --jq 'select(.isDraft == false) | .tagName' | grep -Fx "$TAG"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish Exact Release
+    needs: resolve
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout registry publication automation
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: automation
+      - name: Checkout exact released source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+          path: source
+      - name: Validate source and published package metadata
+        shell: pwsh
+        run: |
+          ./automation/scripts/Test-McpRegistryPublication.ps1 `
+            -ServerJsonPath source/src/ExcelMcp.McpServer/.mcp/server.json `
+            -Version '${{ needs.resolve.outputs.version }}'
+      - name: Publish MCP registry entry
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $arch = if ([Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq 'Arm64') { 'arm64' } else { 'amd64' }
+          Invoke-WebRequest "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile mcp-publisher.tar.gz
+          tar xf mcp-publisher.tar.gz mcp-publisher.exe
+          ./mcp-publisher.exe login github-oidc
+          Set-Location source/src/ExcelMcp.McpServer/.mcp
+          ../../../../mcp-publisher.exe publish --verbose

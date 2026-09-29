@@ -317,8 +317,11 @@ These smoke tests do not exercise Excel automation.
 ### MCP Registry Update Fails
 
 - MCP Registry update uses GitHub OIDC
-- Failures don't block the release (marked continue-on-error)
-- Can be retried manually via MCP publisher tool
+- Manually run the **Publish MCP Registry** workflow with the exact existing
+  release tag
+- The repair validates the tag, source manifest, and published NuGet and npm
+  metadata, then publishes only the MCP Registry entry
+- Do not rerun the unified release to repair a registry-only failure
 
 ### Publish Plugins Fails
 

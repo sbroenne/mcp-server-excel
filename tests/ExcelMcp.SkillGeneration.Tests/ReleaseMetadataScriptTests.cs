@@ -26,11 +26,93 @@ public sealed class ReleaseMetadataScriptTests
         RepoRoot,
         "scripts",
         "Build-Changelog.ps1");
+    private static readonly string TestMcpRegistryPublicationScript = Path.Combine(
+        RepoRoot,
+        "scripts",
+        "Test-McpRegistryPublication.ps1");
     private static readonly string ReleaseWorkflow = Path.Combine(
         RepoRoot,
         ".github",
         "workflows",
         "release.yml");
+    private static readonly string McpRegistryWorkflow = Path.Combine(
+        RepoRoot,
+        ".github",
+        "workflows",
+        "publish-mcp-registry.yml");
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task McpRegistryValidation_DecodesNuGetReadmeByteContent()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var manifestPath = Path.Combine(sandbox, "server.json");
+            File.Copy(
+                Path.Combine(RepoRoot, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
+                manifestPath);
+            var runner = Path.Combine(sandbox, "run.ps1");
+            File.WriteAllText(runner, $$"""
+                function Invoke-WebRequest {
+                    [pscustomobject]@{
+                        Content = [Text.Encoding]::UTF8.GetBytes('<!-- mcp-name: io.github.sbroenne/mcp-server-excel -->')
+                    }
+                }
+                function Invoke-RestMethod {
+                    param([string]$Uri)
+                    if ($Uri -like '*nuget.org*') {
+                        if ($Uri -like '*registration5-semver1*') {
+                            return [pscustomobject]@{ catalogEntry = 'https://api.nuget.org/v3/catalog0/fixture.json' }
+                        }
+                        return [pscustomobject]@{
+                            id = 'Sbroenne.ExcelMcp.McpServer'
+                            version = '2.0.12'
+                        }
+                    }
+                    if ($Uri -like '*win32-x64*') {
+                        return [pscustomobject]@{ name = '@sbroenne/mcp-server-excel-win32-x64'; version = '2.0.12' }
+                    }
+                    return [pscustomobject]@{
+                        name = '@sbroenne/mcp-server-excel'
+                        version = '2.0.12'
+                        mcpName = 'io.github.sbroenne/mcp-server-excel'
+                    }
+                }
+                & '{{TestMcpRegistryPublicationScript.Replace("'", "''", StringComparison.Ordinal)}}' `
+                    -ServerJsonPath '{{manifestPath.Replace("'", "''", StringComparison.Ordinal)}}' `
+                    -Version 2.0.12 -Attempts 1 -RetrySeconds 0
+                """);
+
+            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
+
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            Assert.Contains("Validated MCP Registry", result.Stdout, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void McpRegistryRepair_UsesOnlyExactExistingRelease()
+    {
+        var release = File.ReadAllText(ReleaseWorkflow);
+        var registry = File.ReadAllText(McpRegistryWorkflow);
+        var publishMcpRegistry = ExtractWorkflowJob(release, "publish-mcp-registry");
+
+        Assert.Contains("uses: ./.github/workflows/publish-mcp-registry.yml", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("needs: [version, create-tag, publish]", publishMcpRegistry, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", registry, StringComparison.Ordinal);
+        Assert.Contains("git rev-parse \"refs/tags/$TAG^{commit}\"", registry, StringComparison.Ordinal);
+        Assert.Contains("ref: ${{ github.sha }}", registry, StringComparison.Ordinal);
+        Assert.Contains("ref: ${{ needs.resolve.outputs.commit }}", registry, StringComparison.Ordinal);
+        Assert.Contains("./automation/scripts/Test-McpRegistryPublication.ps1", registry, StringComparison.Ordinal);
+        Assert.Contains("source/src/ExcelMcp.McpServer/.mcp/server.json", registry, StringComparison.Ordinal);
+        Assert.DoesNotContain("dotnet build", registry, StringComparison.Ordinal);
+        Assert.DoesNotContain("npm publish", registry, StringComparison.Ordinal);
+        Assert.DoesNotContain("gh release create", registry, StringComparison.Ordinal);
+        Assert.DoesNotContain("gh release upload", registry, StringComparison.Ordinal);
+    }
 
     [Theory]
     [InlineData("vscode-extension", "package-lock.json")]
@@ -290,7 +372,6 @@ public sealed class ReleaseMetadataScriptTests
         var releaseWorkflow = File.ReadAllText(ReleaseWorkflow);
         var prepareRelease = ExtractWorkflowJob(releaseWorkflow, "prepare-release");
         var buildPackages = ExtractWorkflowJob(releaseWorkflow, "build-packages");
-        var publishMcpRegistry = ExtractWorkflowJob(releaseWorkflow, "publish-mcp-registry");
         var createTag = ExtractWorkflowJob(releaseWorkflow, "create-tag");
         var createRelease = ExtractWorkflowJob(releaseWorkflow, "create-release");
 
@@ -319,10 +400,11 @@ public sealed class ReleaseMetadataScriptTests
             StringComparison.Ordinal);
         Assert.DoesNotContain("./scripts/Build-Changelog.ps1", createRelease, StringComparison.Ordinal);
         Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
-        Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$version", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.Contains("$launcher.mcpName", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.Contains("$runtime.version -ne $version", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.Contains("$readme -notmatch", publishMcpRegistry, StringComparison.Ordinal);
+        var registryValidation = File.ReadAllText(TestMcpRegistryPublicationScript);
+        Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$Version", registryValidation, StringComparison.Ordinal);
+        Assert.Contains("$launcher.mcpName", registryValidation, StringComparison.Ordinal);
+        Assert.Contains("$runtime.version -ne $Version", registryValidation, StringComparison.Ordinal);
+        Assert.Contains("$readme -notmatch", registryValidation, StringComparison.Ordinal);
     }
 
     [Fact]
