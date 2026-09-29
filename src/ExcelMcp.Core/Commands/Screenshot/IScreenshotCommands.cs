@@ -53,7 +53,7 @@ public class ScreenshotResult : OperationResult
 ///
 /// ACTIONS:
 /// - capture: Capture a specific range as an image
-/// - capture-sheet: Capture the worksheet's used cell range. For chart-only sheets or charts beyond used cells, use capture with an explicit range.
+/// - capture-sheet: Capture the worksheet's used cell range and embedded charts.
 ///
 /// REQUIREMENTS: Excel is briefly shown and brought to the front, so an interactive desktop session
 /// is required. Capture fails on a locked desktop or a disconnected Remote Desktop session.
@@ -84,7 +84,7 @@ public interface IScreenshotCommands
     ScreenshotResult CaptureRange(IExcelBatch batch, string? sheetName = null, string rangeAddress = "A1:Z30", ScreenshotQuality quality = ScreenshotQuality.Medium);
 
     /// <summary>
-    /// Captures the entire used area of a worksheet as an image.
+    /// Captures the used cell area of a worksheet plus its embedded charts as an image.
     /// For CLI: use --output &lt;path&gt; to save the image directly to a PNG/JPEG file.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
