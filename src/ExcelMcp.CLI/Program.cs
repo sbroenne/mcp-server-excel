@@ -13,6 +13,9 @@ internal sealed class Program
 {
     private static readonly string[] VersionFlags = ["--version", "-v"];
     private static readonly string[] QuietFlags = ["--quiet", "-q"];
+    private static readonly HashSet<string> StdinSentinelOptions = new(
+        ["--input", "-i", "--values", "--formulas", "--formats", "--rows"],
+        StringComparer.OrdinalIgnoreCase);
 
     private static async Task<int> Main(string[] args)
     {
@@ -46,8 +49,9 @@ internal sealed class Program
         var showBanner = !isQuiet && !isPiped;
         var jsonOutputMode = isQuiet || isPiped;
 
-        // Remove --quiet/-q from args before passing to Spectre.Console.Cli
-        var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
+        // Remove quiet flags and normalize standalone dash option values before Spectre parsing.
+        var filteredArgs = NormalizeStandaloneDashOptionValues(
+            args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray());
 
         if (filteredArgs.Length == 0)
         {
@@ -175,6 +179,27 @@ internal sealed class Program
             }
             return 1;
         }
+    }
+
+    internal static string[] NormalizeStandaloneDashOptionValues(string[] args)
+    {
+        var normalized = new List<string>(args.Length);
+        for (var index = 0; index < args.Length; index++)
+        {
+            var argument = args[index];
+            if (index + 1 < args.Length
+                && StdinSentinelOptions.Contains(argument)
+                && string.Equals(args[index + 1], "-", StringComparison.Ordinal))
+            {
+                normalized.Add($"{argument}=-");
+                index++;
+                continue;
+            }
+
+            normalized.Add(argument);
+        }
+
+        return [.. normalized];
     }
 
     private static void RenderHeader()
