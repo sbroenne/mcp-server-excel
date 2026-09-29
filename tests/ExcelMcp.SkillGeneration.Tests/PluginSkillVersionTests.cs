@@ -201,6 +201,11 @@ public sealed class PluginSkillVersionTests
             File.Copy(Path.Combine(RepoRoot, "vscode-extension", "package.json"),
                 Path.Combine(sandbox, "vscode-extension", "package.json"));
             File.WriteAllText(Path.Combine(outputDir, "stale.txt"), "stale");
+            File.WriteAllText(Path.Combine(outputDir, "SKILL.md"), "macOS x64/Arm64");
+            Directory.CreateDirectory(Path.Combine(outputDir, "references"));
+            File.WriteAllText(
+                Path.Combine(outputDir, "references", "claude-desktop.md"),
+                "Intel packages are cross-built.");
 
             var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Copy-VscodeSkills.ps1"), []);
 
@@ -213,7 +218,12 @@ public sealed class PluginSkillVersionTests
             var expectedVersion = packageJson.RootElement.GetProperty("version").GetString();
 
             Assert.False(File.Exists(Path.Combine(outputDir, "stale.txt")));
-            Assert.True(File.Exists(Path.Combine(outputDir, "SKILL.md")));
+            Assert.Equal(
+                File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-mcp", "SKILL.md")),
+                File.ReadAllText(Path.Combine(outputDir, "SKILL.md")));
+            Assert.Equal(
+                File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-mcp", "references", "claude-desktop.md")),
+                File.ReadAllText(Path.Combine(outputDir, "references", "claude-desktop.md")));
             Assert.Equal(expectedVersion, File.ReadAllText(Path.Combine(outputDir, "VERSION")).Trim());
         }
         finally
