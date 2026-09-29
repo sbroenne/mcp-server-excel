@@ -23,10 +23,10 @@ Use `calculation_mode` to optimize performance when:
 Always follow this 4-step pattern for bulk operations:
 
 ```
-1. calculation_mode(action: 'set-mode', mode: 'manual')   → Disable auto-recalc
+1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual') -> Disable auto-recalc
 2. Perform all data writes (range set-values, set-formulas)
-3. calculation_mode(action: 'calculate', scope: 'workbook') → Recalculate once at end
-4. calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
+3. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook') -> Recalculate once at end
+4. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic') -> Restore default
 ```
 
 **Why this pattern:**
@@ -41,7 +41,7 @@ Always follow this 4-step pattern for bulk operations:
 |--------|---------|-----------|
 | `get-mode` | Check current calculation mode | None |
 | `set-mode` | Switch between automatic/manual/semi-automatic | `mode: "automatic"` or `"manual"` or `"semi-automatic"` |
-| `calculate` | Trigger recalculation | `scope: "workbook"` (all formulas) or `"sheet"` (with `sheetName`) or `"range"` (with `sheetName` + `rangeAddress`) |
+| `calculate` | Trigger recalculation | `scope: "workbook"` (all formulas), `scope: "sheet"` with `sheet_name`, or `scope: "range"` with `sheet_name` and `range_address` |
 
 ## Common Scenarios
 
@@ -50,11 +50,11 @@ Always follow this 4-step pattern for bulk operations:
 Task: Add 100 rows of product data with unit price, quantity, and total formulas.
 
 ```
-1. calculation_mode set-mode manual
-2. range set-values (add 100 rows: columns A-C values)
-3. range set-formulas (add 100 total formulas in column D)
-4. calculation_mode calculate workbook  (calculates all 100 formulas at once)
-5. calculation_mode set-mode automatic
+1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual')
+2. range(action: 'set-values', session_id: '<session-id>', sheet_name: 'Sales', range_address: 'A2:C101', values: <100 rows>)
+3. range(action: 'set-formulas', session_id: '<session-id>', sheet_name: 'Sales', range_address: 'D2:D101', formulas: <100 formulas>)
+4. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook')
+5. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic')
 ```
 
 **Performance:** ~2-3 seconds total (vs ~30+ seconds if automatic after every cell)
@@ -64,14 +64,12 @@ Task: Add 100 rows of product data with unit price, quantity, and total formulas
 Task: Create 5 sections with headers, data, and subtotal formulas.
 
 ```
-1. calculation_mode set-mode manual
-2. Section 1: set-values + set-formulas
-3. Section 2: set-values + set-formulas
-4. Section 3: set-values + set-formulas
-5. Section 4: set-values + set-formulas
-6. Section 5: set-values + set-formulas
-7. calculation_mode calculate workbook  (all 5 sections recalc together)
-8. calculation_mode set-mode automatic
+1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual')
+2. range(action: 'set-values', session_id: '<session-id>', sheet_name: 'Dashboard', range_address: '<section-1-range>', values: <section-1-values>)
+3. range(action: 'set-formulas', session_id: '<session-id>', sheet_name: 'Dashboard', range_address: '<section-1-formula-range>', formulas: <section-1-formulas>)
+4. Repeat the named range calls for sections 2-5.
+5. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook')
+6. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic')
 ```
 
 ## Best Practices
