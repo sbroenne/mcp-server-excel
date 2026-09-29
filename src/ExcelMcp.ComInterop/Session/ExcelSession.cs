@@ -66,6 +66,17 @@ public static class ExcelSession
         bool show,
         TimeSpan? operationTimeout,
         params string[] filePaths)
+        => BeginBatchWithTimeouts(show, operationTimeout, operationTimeout, filePaths);
+
+    /// <summary>
+    /// Test-only seam that preserves the production timeout contract while allowing
+    /// operation timeout regressions to use the normal Excel startup allowance.
+    /// </summary>
+    internal static IExcelBatch BeginBatchWithTimeouts(
+        bool show,
+        TimeSpan? operationTimeout,
+        TimeSpan? startupTimeout,
+        params string[] filePaths)
     {
         if (filePaths == null || filePaths.Length == 0)
             throw new ArgumentException("At least one file path is required", nameof(filePaths));
@@ -92,7 +103,12 @@ public static class ExcelSession
         }
 
         // Create batch - it will create Excel/workbook on its own STA thread
-        return new ExcelBatch(fullPaths, logger: null, show: show, operationTimeout: operationTimeout);
+        return new ExcelBatch(
+            fullPaths,
+            logger: null,
+            show: show,
+            operationTimeout: operationTimeout,
+            startupTimeout: startupTimeout);
     }
 
     /// <summary>
@@ -275,4 +291,3 @@ public static class ExcelSession
         thread.Join(TimeSpan.FromSeconds(10));
     }
 }
-

@@ -106,7 +106,11 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         var testFile = CreateTestFile(nameof(SerialWorkflow_GetSessionAfterTimeout_ReturnsNullOrFailsFast));
         using var manager = new SessionManager();
 
-        var sessionId = manager.CreateSession(testFile, operationTimeout: TimeSpan.FromSeconds(3));
+        var sessionId = manager.CreateSessionWithTimeouts(
+            testFile,
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout);
         _output.WriteLine($"Created session: {sessionId}");
 
         var batch = manager.GetSession(sessionId);
@@ -190,7 +194,11 @@ public class SessionManagerSerialWorkflowTests : IDisposable
 
         // Session A: Timeout and force close
         _output.WriteLine("Session A: Creating and timing out...");
-        var sessionAId = manager.CreateSession(testFile, operationTimeout: TimeSpan.FromSeconds(3));
+        var sessionAId = manager.CreateSessionWithTimeouts(
+            testFile,
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout);
         var sessionA = manager.GetSession(sessionAId)!;
 
         sessionA.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
@@ -274,7 +282,11 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         Assert.Equal(0, manager.ActiveSessionCount);
 
         // Create session
-        var sessionId = manager.CreateSession(testFile, operationTimeout: TimeSpan.FromSeconds(3));
+        var sessionId = manager.CreateSessionWithTimeouts(
+            testFile,
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout);
         _output.WriteLine($"Session created: {sessionId}");
         Assert.Equal(1, manager.ActiveSessionCount);
 
@@ -354,7 +366,11 @@ public class SessionManagerSerialWorkflowTests : IDisposable
 
         // Session B: Short timeout (will timeout)
         _output.WriteLine("Session B: Creating (file B, short timeout)");
-        var sessionBId = manager.CreateSession(fileB, operationTimeout: TimeSpan.FromSeconds(3));
+        var sessionBId = manager.CreateSessionWithTimeouts(
+            fileB,
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout);
         var sessionB = manager.GetSession(sessionBId)!;
         sessionB.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; }); // warmup
 

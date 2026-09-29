@@ -82,7 +82,11 @@ public class SessionManagerTimeoutTests : IDisposable
         using var manager = new SessionManager();
 
         // Create session with very short timeout
-        var sessionId = manager.CreateSession(testFile, operationTimeout: TimeSpan.FromSeconds(3));
+        var sessionId = manager.CreateSessionWithTimeouts(
+            testFile,
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout);
         _output.WriteLine($"Session created: {sessionId}");
 
         var batch = manager.GetSession(sessionId);
@@ -125,7 +129,11 @@ public class SessionManagerTimeoutTests : IDisposable
         var testFile = CreateTestFile(nameof(CloseSession_AfterTimeout_ExcelProcessIsTerminated));
         using var manager = new SessionManager();
 
-        var sessionId = manager.CreateSession(testFile, operationTimeout: TimeSpan.FromSeconds(3));
+        var sessionId = manager.CreateSessionWithTimeouts(
+            testFile,
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout);
         var batch = manager.GetSession(sessionId)!;
         int? excelPid = batch.ExcelProcessId;
         _output.WriteLine($"Session {sessionId}, Excel PID: {excelPid}");

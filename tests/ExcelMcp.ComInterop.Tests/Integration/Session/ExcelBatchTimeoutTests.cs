@@ -90,6 +90,27 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public void BeginBatch_SeparateStartupTimeout_AllowsStartupLongerThanOperationTimeout()
+    {
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => Thread.Sleep(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            using var batch = ExcelSession.BeginBatchWithTimeouts(
+                show: false,
+                operationTimeout: TimeSpan.FromSeconds(1),
+                startupTimeout: ComInteropConstants.DefaultOperationTimeout,
+                _testFileCopy!);
+
+            Assert.Equal(TimeSpan.FromSeconds(1), batch.OperationTimeout);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+        }
+    }
+
+    [Fact]
     public void BeginBatch_StartupOpenBlocks_ThrowsTimeoutExceptionInsteadOfHanging()
     {
         using var startupBlocked = new ManualResetEventSlim(false);
@@ -167,9 +188,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Execute_OperationExceedsTimeout_ThrowsTimeoutException()
     {
         // Arrange — use a very short timeout (3 seconds) to trigger timeout quickly
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         // Warm up — ensure Excel is ready
@@ -221,9 +243,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         // Arrange
         using var owned = new OwnedExcelProcessScope();
 
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         // Get the Excel process ID before timeout
@@ -282,9 +305,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Dispose_AfterTimeout_CompletesWithinAggressiveTimeout()
     {
         // Arrange
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
@@ -388,9 +412,10 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     public void Execute_AfterPreviousTimeout_FailsFastWithTimeoutException()
     {
         // Arrange — short timeout to trigger the first timeout quickly
-        var batch = ExcelSession.BeginBatch(
+        var batch = ExcelSession.BeginBatchWithTimeouts(
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
             _testFileCopy!);
 
         // Warm up
