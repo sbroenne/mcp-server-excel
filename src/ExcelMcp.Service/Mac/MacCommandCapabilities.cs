@@ -22,7 +22,12 @@ internal sealed record MacCommandCapability(
     string ImplementationStatus,
     string Evidence,
     string ExcelApiVersion,
-    string Blocker);
+    string Blocker,
+    string PlannedTier,
+    string AcceptanceFixture,
+    string AcceptanceCommand,
+    string RecoveryRule,
+    string EvidenceCriteria);
 
 internal static class MacCommandCapabilities
 {
@@ -79,7 +84,12 @@ internal static class MacCommandCapabilities
             "NotTested",
             "The command is absent from the generated public action inventory.",
             "Unverified.",
-            "a capability that is not supported by the macOS Excel backend");
+            "a capability that is not supported by the macOS Excel backend",
+            "MacLimitationCandidate",
+            "No generated acceptance fixture exists.",
+            "Add the command to the generated inventory before acceptance.",
+            "Do not mutate an unknown command.",
+            "A generated contract and exact CLI/MCP evidence are required.");
     }
 
     private static MacCommandCapability ToCapability(MacActionInventoryItem item)
@@ -103,6 +113,11 @@ internal static class MacCommandCapabilities
             item.ImplementationStatus,
             item.Evidence,
             item.ExcelApiVersion,
-            item.Blocker);
+            item.Blocker,
+            item.PlannedTier,
+            item.AcceptanceFixture,
+            item.AcceptanceCommand,
+            item.RecoveryRule,
+            item.EvidenceCriteria);
     }
 }

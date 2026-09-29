@@ -383,6 +383,11 @@ public sealed class MacCommandCapabilitiesTests
             if (!item.IsAvailable)
             {
                 Assert.False(string.IsNullOrWhiteSpace(item.Blocker));
+                Assert.False(string.IsNullOrWhiteSpace(item.PlannedTier));
+                Assert.False(string.IsNullOrWhiteSpace(item.AcceptanceFixture));
+                Assert.False(string.IsNullOrWhiteSpace(item.AcceptanceCommand));
+                Assert.False(string.IsNullOrWhiteSpace(item.RecoveryRule));
+                Assert.False(string.IsNullOrWhiteSpace(item.EvidenceCriteria));
             }
         });
     }
@@ -399,6 +404,27 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
+    public void GeneratedMachineReadableInventory_ClassifiesEveryGatedActionForExecution()
+    {
+        using var inventory = JsonDocument.Parse(MacCommandCapabilities.InventoryJson);
+
+        foreach (var action in inventory.RootElement.EnumerateArray()
+                     .Where(item => !item.GetProperty("isAvailable").GetBoolean()))
+        {
+            Assert.False(string.IsNullOrWhiteSpace(
+                action.GetProperty("plannedTier").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(
+                action.GetProperty("acceptanceFixture").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(
+                action.GetProperty("acceptanceCommand").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(
+                action.GetProperty("recoveryRule").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(
+                action.GetProperty("evidenceCriteria").GetString()));
+        }
+    }
+
+    [Fact]
     public void GeneratedRepositoryInventories_AreCurrent()
     {
         var root = FindRepository();
@@ -410,6 +436,7 @@ public sealed class MacCommandCapabilitiesTests
         var markdown = File.ReadAllText(
             Path.Combine(root, "docs", "MACOS-ACTION-INVENTORY.md"));
         Assert.Contains("Do not edit this table directly", markdown, StringComparison.Ordinal);
+        Assert.Contains("**Planned tiers for gated actions:**", markdown, StringComparison.Ordinal);
         Assert.Equal(
             MacCommandCapabilities.Inventory.Count,
             markdown.Split('\n').Count(line => line.StartsWith("| `", StringComparison.Ordinal)));

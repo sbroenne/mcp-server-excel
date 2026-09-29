@@ -1422,7 +1422,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    string ImplementationStatus,");
         sb.AppendLine("    string Evidence,");
         sb.AppendLine("    string ExcelApiVersion,");
-        sb.AppendLine("    string Blocker);");
+        sb.AppendLine("    string Blocker,");
+        sb.AppendLine("    string PlannedTier,");
+        sb.AppendLine("    string AcceptanceFixture,");
+        sb.AppendLine("    string AcceptanceCommand,");
+        sb.AppendLine("    string RecoveryRule,");
+        sb.AppendLine("    string EvidenceCriteria);");
         sb.AppendLine();
         sb.AppendLine("public static class MacActionInventory");
         sb.AppendLine("{");
@@ -1430,6 +1435,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    [");
         foreach (var action in actions)
         {
+            var acceptance = BuildMacAcceptancePlan(action.Command, action.Capability);
             sb.AppendLine("        new(");
             sb.AppendLine($"            \"{EscapeStringLiteral(action.Command)}\",");
             sb.AppendLine($"            \"{EscapeStringLiteral(action.WindowsSemantics)}\",");
@@ -1439,7 +1445,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine($"            \"{EscapeStringLiteral(action.Capability.Status)}\",");
             sb.AppendLine($"            \"{EscapeStringLiteral(action.Capability.Evidence)}\",");
             sb.AppendLine($"            \"{EscapeStringLiteral(action.Capability.ExcelApiVersion)}\",");
-            sb.AppendLine($"            \"{EscapeStringLiteral(action.Capability.Blocker)}\"),");
+            sb.AppendLine($"            \"{EscapeStringLiteral(action.Capability.Blocker)}\",");
+            sb.AppendLine($"            \"{EscapeStringLiteral(acceptance.PlannedTier)}\",");
+            sb.AppendLine($"            \"{EscapeStringLiteral(acceptance.Fixture)}\",");
+            sb.AppendLine($"            \"{EscapeStringLiteral(acceptance.Command)}\",");
+            sb.AppendLine($"            \"{EscapeStringLiteral(acceptance.RecoveryRule)}\",");
+            sb.AppendLine($"            \"{EscapeStringLiteral(acceptance.EvidenceCriteria)}\"),");
         }
         sb.AppendLine("    ];");
         sb.AppendLine();
@@ -1455,6 +1466,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         for (var index = 0; index < actions.Count; index++)
         {
             var action = actions[index];
+            var acceptance = BuildMacAcceptancePlan(action.Command, action.Capability);
             sb.AppendLine("  {");
             sb.AppendLine($"    \"command\": \"{EscapeJson(action.Command)}\",");
             sb.AppendLine($"    \"windowsSemantics\": \"{EscapeJson(action.WindowsSemantics)}\",");
@@ -1470,11 +1482,78 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine($"    \"implementationStatus\": \"{EscapeJson(action.Capability.Status)}\",");
             sb.AppendLine($"    \"evidence\": \"{EscapeJson(action.Capability.Evidence)}\",");
             sb.AppendLine($"    \"excelApiVersion\": \"{EscapeJson(action.Capability.ExcelApiVersion)}\",");
-            sb.AppendLine($"    \"blocker\": \"{EscapeJson(action.Capability.Blocker)}\"");
+            sb.AppendLine($"    \"blocker\": \"{EscapeJson(action.Capability.Blocker)}\",");
+            sb.AppendLine($"    \"plannedTier\": \"{EscapeJson(acceptance.PlannedTier)}\",");
+            sb.AppendLine($"    \"acceptanceFixture\": \"{EscapeJson(acceptance.Fixture)}\",");
+            sb.AppendLine($"    \"acceptanceCommand\": \"{EscapeJson(acceptance.Command)}\",");
+            sb.AppendLine($"    \"recoveryRule\": \"{EscapeJson(acceptance.RecoveryRule)}\",");
+            sb.AppendLine($"    \"evidenceCriteria\": \"{EscapeJson(acceptance.EvidenceCriteria)}\"");
             sb.AppendLine(index + 1 < actions.Count ? "  }," : "  }");
         }
         sb.AppendLine("]");
         return sb.ToString();
+    }
+
+    private static MacAcceptancePlan BuildMacAcceptancePlan(
+        string command,
+        MacCapabilityInfo capability)
+    {
+        var family = command.Split('.')[0];
+        if (capability.IsAvailable)
+        {
+            return new MacAcceptancePlan(
+                capability.Tier,
+                "Existing repository-owned desktop regression fixture.",
+                "pwsh ./scripts/Test-MacE2E.ps1 -SkipBuild with the applicable accepted capability slice.",
+                "Close only the confirmed session-owned workbook; preserve uncertain state and never terminate shared Excel.",
+                "Existing prompt-free CLI and MCP evidence must continue to pass with exact results, workbook effects, and final empty inventory.");
+        }
+
+        return capability.Tier switch
+        {
+            "MacroHelper" when family == "powerquery" => new MacAcceptancePlan(
+                "MacroHelper",
+                "Signed helper 1.4.0 plus a dedicated Excel-authored .xlsx containing zero existing queries.",
+                "pwsh ./scripts/Test-MacPowerQueryPublicAcceptance.ps1 with all confirmation switches and an exact per-action candidate allowlist.",
+                "Use separate opaque CLI/MCP copies; on uncertain open or mutation retain the copy as RECOVERY_REQUIRED and do not retry.",
+                "Both public entry points must prove exact M, identity, load metadata, worksheet values, errors, cleanup, and saved close/reopen persistence."),
+            "MacroHelper" => new MacAcceptancePlan(
+                "MacroHelper",
+                "Signed helper 1.4.0 plus a dedicated Excel-authored workbook for the command family.",
+                "Extend the guarded public helper acceptance slice, then run the exact action through both excelcli and MCP.",
+                "Invalidate the session after timeout or uncertain completion; close only a confirmed owned workbook and never retry through another tier.",
+                "Both public entry points must return the exact contract and prove observable workbook effects, errors, cleanup, and persistence where applicable."),
+            "VbaProjectModel" => new MacAcceptancePlan(
+                "VbaProjectModel",
+                "Signed helper 1.4.0 plus a dedicated Excel-authored .xlsm marker workbook.",
+                "pwsh ./scripts/Test-MacVbaPublicAcceptance.ps1 with explicit macro approval, project-model trust, and per-action candidate allowlist.",
+                "Never save implicitly; after timeout or uncertain completion invalidate the session and preserve the workbook for reconciliation.",
+                "CLI and MCP must prove exact source lifecycle or workbook-qualified execution, trust-disabled failures, errors, observable effects, and persistence."),
+            "OfficeAddIn" => new MacAcceptancePlan(
+                "OfficeAddIn",
+                $"Dedicated saved Excel-authored {family} workbook bound to the authenticated task pane for the exact session.",
+                "Extend and run ./scripts/Test-MacOfficeJsAcceptance.ps1 with only the batch's exact enabledActions allowlist.",
+                "Restore health-only configuration after the run; cancel pending work and invalidate the session after uncertain dispatched mutations.",
+                "CLI and MCP must prove exact workbook identity, requirement sets, results, effects, failures, cancellation, save/discard, and persistence."),
+            "OptionalNativeHelper" => new MacAcceptancePlan(
+                "OptionalNativeHelper",
+                "Dedicated Excel-authored screenshot workbook with visible cells and embedded charts, plus explicit Screen Recording permission.",
+                "Add and run a guarded public CLI/MCP screenshot acceptance slice for the exact action.",
+                "Capture only the verified Excel window; restore view state and preserve the workbook/session after any uncertain geometry or capture result.",
+                "CLI and MCP must prove exact PID/window identity, geometry, scale, image contents, chart inclusion, restoration, and exclusion of other windows."),
+            "Native" => new MacAcceptancePlan(
+                "Native",
+                $"Dedicated Excel-authored {family} workbook with reversible literals and unrelated sentinel content.",
+                "Add the action to a guarded Test-MacE2E capability slice and execute it through both excelcli and MCP.",
+                "Close only a confirmed session-owned workbook; preserve uncertain copies and never change unrecoverable shared Excel global state.",
+                "CLI and MCP must prove exact validation, result shape, workbook effect, failure behavior, sentinel isolation, and save/reopen persistence when relevant."),
+            _ => new MacAcceptancePlan(
+                "MacLimitationCandidate",
+                $"Dedicated Excel-authored {family} workbook suitable for a bounded read-only capability probe.",
+                "Add an action-specific probe and public CLI/MCP acceptance case only after selecting a faithful supported tier.",
+                "Begin read-only; do not mutate until ownership and recovery are defined. Preserve uncertain files and never approximate or retry across tiers.",
+                "Record the exact Excel/macOS version, API result, user impact, alternatives considered, and either full CLI/MCP parity or accepted limitation evidence.")
+        };
     }
 
     private static string FormatWindowsVariant(ParameterInfo parameter)
@@ -1540,6 +1619,29 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         public string WindowsSemantics { get; }
         public string[] WindowsVariants { get; }
         public MacCapabilityInfo Capability { get; }
+    }
+
+    private sealed class MacAcceptancePlan
+    {
+        public MacAcceptancePlan(
+            string plannedTier,
+            string fixture,
+            string command,
+            string recoveryRule,
+            string evidenceCriteria)
+        {
+            PlannedTier = plannedTier;
+            Fixture = fixture;
+            Command = command;
+            RecoveryRule = recoveryRule;
+            EvidenceCriteria = evidenceCriteria;
+        }
+
+        public string PlannedTier { get; }
+        public string Fixture { get; }
+        public string Command { get; }
+        public string RecoveryRule { get; }
+        public string EvidenceCriteria { get; }
     }
 
     private static string GenerateCliManifest(List<ServiceInfo> categories)

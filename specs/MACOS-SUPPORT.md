@@ -71,6 +71,21 @@ The generated action inventory is authoritative:
 available only after exact public CLI and MCP acceptance updates its Core
 capability annotation.
 
+Each generated record also carries the remaining-work execution plan:
+
+- `plannedTier`: the tier to prove next, or `MacLimitationCandidate` when no
+  faithful route has been selected;
+- `acceptanceFixture`: the required Excel-authored, opaque test asset;
+- `acceptanceCommand`: the guarded public CLI/MCP runner or the action-specific
+  extension that must be added;
+- `recoveryRule`: the ownership and uncertain-outcome behavior for that proof;
+- `evidenceCriteria`: the minimum result, effect, failure, cleanup, and
+  persistence evidence needed to enable or limitation-classify the action.
+
+The human-readable inventory derives enabled, gated, status, and planned-tier
+counts from those generated records. These fields organize work; they do not
+enable an action or replace real Excel evidence.
+
 Verified native coverage includes:
 
 - exact workbook create/open/close and owned-session cleanup;

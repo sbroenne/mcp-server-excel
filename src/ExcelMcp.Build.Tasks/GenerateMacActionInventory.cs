@@ -87,8 +87,32 @@ public sealed class GenerateMacActionInventory : Microsoft.Build.Utilities.Task
             "`Unsupported` with status `NotTested` means no verified macOS tier has been selected; " +
             "it is not evidence that Excel for Mac lacks the underlying feature.");
         builder.AppendLine();
-        builder.AppendLine("| Action | Windows semantics and variants | Mac tier | Status | Evidence / version | Blocker |");
-        builder.AppendLine("| --- | --- | --- | --- | --- | --- |");
+        var enabledCount = actions.Count(action => action.IsAvailable);
+        builder.AppendLine(
+            $"**Progress:** {enabledCount}/{actions.Count} enabled; " +
+            $"{actions.Count - enabledCount} gated.");
+        builder.AppendLine();
+        builder.AppendLine(
+            "**Statuses:** " +
+            string.Join(
+                "; ",
+                actions.GroupBy(action => action.ImplementationStatus)
+                    .OrderBy(group => group.Key, StringComparer.Ordinal)
+                    .Select(group => $"{group.Key}: {group.Count()}")) +
+            ".");
+        builder.AppendLine();
+        builder.AppendLine(
+            "**Planned tiers for gated actions:** " +
+            string.Join(
+                "; ",
+                actions.Where(action => !action.IsAvailable)
+                    .GroupBy(action => action.PlannedTier)
+                    .OrderBy(group => group.Key, StringComparer.Ordinal)
+                    .Select(group => $"{group.Key}: {group.Count()}")) +
+            ".");
+        builder.AppendLine();
+        builder.AppendLine("| Action | Windows semantics and variants | Mac tier | Status | Evidence / version | Blocker | Planned tier | Acceptance fixture / command | Recovery / evidence gate |");
+        builder.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
         foreach (var action in actions)
         {
             var semanticsAndVariants = new[] { action.WindowsSemantics }
@@ -110,6 +134,12 @@ public sealed class GenerateMacActionInventory : Microsoft.Build.Utilities.Task
                 .Append(EscapeMarkdown($"{action.Evidence} {action.ExcelApiVersion}"))
                 .Append(" | ")
                 .Append(EscapeMarkdown(string.IsNullOrWhiteSpace(action.Blocker) ? "None." : action.Blocker))
+                .Append(" | ")
+                .Append(EscapeMarkdown(action.PlannedTier))
+                .Append(" | ")
+                .Append(EscapeMarkdown($"{action.AcceptanceFixture} {action.AcceptanceCommand}"))
+                .Append(" | ")
+                .Append(EscapeMarkdown($"{action.RecoveryRule} {action.EvidenceCriteria}"))
                 .AppendLine(" |");
         }
 
@@ -133,5 +163,10 @@ public sealed class GenerateMacActionInventory : Microsoft.Build.Utilities.Task
         public string Evidence { get; set; } = string.Empty;
         public string ExcelApiVersion { get; set; } = string.Empty;
         public string Blocker { get; set; } = string.Empty;
+        public string PlannedTier { get; set; } = string.Empty;
+        public string AcceptanceFixture { get; set; } = string.Empty;
+        public string AcceptanceCommand { get; set; } = string.Empty;
+        public string RecoveryRule { get; set; } = string.Empty;
+        public string EvidenceCriteria { get; set; } = string.Empty;
     }
 }
