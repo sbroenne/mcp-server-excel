@@ -7,10 +7,6 @@ public enum MacCapabilityTier
     Native,
     /// <summary>Optional Office.js add-in.</summary>
     OfficeAddIn,
-    /// <summary>Optional macro execution helper.</summary>
-    MacroHelper,
-    /// <summary>Optional trusted VBA project object-model helper.</summary>
-    VbaProjectModel,
     /// <summary>No selected macOS implementation tier.</summary>
     Unsupported,
     /// <summary>Optional native window-capture helper with explicit screen permission.</summary>

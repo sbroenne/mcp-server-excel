@@ -42,7 +42,6 @@ public static class MacAutomationHost
             {
                 "sheet.create" or "sheet.delete" => MutateWorksheet(args[1], arguments),
                 "namedrange.create" or "namedrange.delete" => MutateNamedRange(args[1], arguments),
-                "helper.dispatch" => DispatchHelper(arguments),
                 _ => MacOsaScriptRuntime.Execute(reader.ReadToEnd(), args[1], arguments)
             };
             Console.Out.Write(result);
@@ -176,66 +175,6 @@ public static class MacAutomationHost
             end tell
             """;
         return MacOsaScriptRuntime.ExecuteAppleScript(script);
-    }
-
-    private static string DispatchHelper(string arguments)
-    {
-        using var document = JsonDocument.Parse(arguments);
-        var requestJson = document.RootElement.GetProperty("requestJson").GetString();
-        var helperPath = document.RootElement.GetProperty("helperPath").GetString();
-        ArgumentException.ThrowIfNullOrWhiteSpace(requestJson);
-        ArgumentException.ThrowIfNullOrWhiteSpace(helperPath);
-        _ = MacVbaHelperProtocol.ParseRequest(requestJson);
-        var responseJson = MacOsaScriptRuntime.ExecuteAppleScript(
-            CreateHelperDispatchScript(helperPath, requestJson));
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            errorMessage = "",
-            responseJson
-        }, ServiceProtocol.JsonOptions);
-    }
-
-    internal static string CreateHelperDispatchScriptForTests(
-        string helperPath,
-        string requestJson) =>
-        CreateHelperDispatchScript(helperPath, requestJson);
-
-    private static string CreateHelperDispatchScript(string helperPath, string requestJson)
-    {
-        var canonicalHelperPath = Path.GetFullPath(helperPath);
-        if (!string.Equals(
-                Path.GetFileName(canonicalHelperPath),
-                "ExcelMcpHelper.xlam",
-                StringComparison.Ordinal))
-        {
-            throw new ArgumentException(
-                "The configured helper path must end with 'ExcelMcpHelper.xlam'.",
-                nameof(helperPath));
-        }
-
-        return $$"""
-            set helperPath to "{{EscapeAppleScript(canonicalHelperPath)}}"
-            set requestJson to "{{EscapeAppleScript(requestJson)}}"
-            tell application "Microsoft Excel"
-                set helperWorkbookIndex to 0
-                set helperWorkbookCount to 0
-                repeat with workbookIndex from 1 to count of workbooks
-                    if (name of workbook workbookIndex as text) is "ExcelMcpHelper.xlam" then
-                        set helperWorkbookCount to helperWorkbookCount + 1
-                        if (full name of workbook workbookIndex as text) is not helperPath then
-                            error "A different ExcelMcpHelper.xlam is open."
-                        end if
-                    end if
-                    if (full name of workbook workbookIndex as text) is helperPath then
-                        set helperWorkbookIndex to workbookIndex
-                    end if
-                end repeat
-                if helperWorkbookCount is not 1 then error "Exactly one ExcelMcpHelper.xlam must be open."
-                if helperWorkbookIndex is 0 then error "The configured ExcelMcp helper add-in is not open."
-                return run VB macro "ExcelMcpHelper.xlam!ExcelMcpDispatch" arg1 requestJson
-            end tell
-            """;
     }
 
     private static string EscapeAppleScript(string value) =>

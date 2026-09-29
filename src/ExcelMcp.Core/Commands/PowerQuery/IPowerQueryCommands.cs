@@ -33,10 +33,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [MacCapability(
-    MacCapabilityTier.MacroHelper,
+    MacCapabilityTier.Unsupported,
     MacImplementationStatus.Blocked,
     false,
-    Blocker = "the trusted helper action has not passed exact public CLI and MCP acceptance")]
+    Evidence = "Excel for Mac 16.113.1 Apple Events exposes no Workbook.Queries surface, and Office.js exposes no equivalent Power Query lifecycle API.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js API review.",
+    Blocker = "no supported local macOS API can satisfy the Power Query public contract; ExcelMcp does not ship a VBA helper or inspect workbook package internals")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
     Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. READS: list returns compact metadata, exact load state, and an M preview of at most 80 characters; use view for one query's full M code. IDENTITY: Load detection, refresh, unload, and delete use the exact case-insensitive mashup Location, so prefix names remain isolated. EVALUATE: Temporary query, sheet, table, and connection cleanup is verified; cleanup failures return an error with recovery guidance. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. Values are case-insensitive and unknown values are rejected. M-CODE: Preserved exactly by default. Set formatMCode=true only with user consent; it sends M code to powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
 public interface IPowerQueryCommands

@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Analysis;
@@ -39,18 +36,6 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly MacExcelBackend? _macBackend;
     private readonly MacExcelSessionManager? _macSessionManager;
-    private readonly MacVbaHelperClient? _macVbaHelperClient;
-    private readonly MacPowerQueryHelperDispatcher? _macPowerQueryHelperDispatcher;
-    private readonly MacVbaHelperDispatcher? _macVbaHelperDispatcher;
-    private readonly Func<string, TimeSpan, Task<JsonElement>>? _getMacHelperCapabilities;
-    private readonly IReadOnlySet<string> _macPowerQueryCandidateActions =
-        new HashSet<string>(StringComparer.Ordinal);
-    private readonly IReadOnlySet<string> _macVbaCandidateActions =
-        new HashSet<string>(StringComparer.Ordinal);
-    private readonly MacVbaPreflightResult _macVbaPreflight =
-        new(
-            MacMacroExecutionAvailability.Unknown,
-            MacVbaProjectModelAccess.Unknown);
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly DaemonHost _daemonHost;
     private readonly DateTime _startTime = DateTime.UtcNow;
@@ -87,50 +72,18 @@ public sealed class ExcelMcpService : IDisposable
         _daemonHost = new DaemonHost(
             ProcessAsync,
             () => _sessionManager.GetActiveSessions().Count);
-        _macPowerQueryHelperDispatcher = null;
-        _getMacHelperCapabilities = null;
         if (OperatingSystem.IsMacOS())
         {
             _macBackend = new MacExcelBackend();
             _macSessionManager = new MacExcelSessionManager(_macBackend);
-            var helperClient = new MacVbaHelperClient(_macBackend);
-            _macVbaHelperClient = helperClient;
-            _getMacHelperCapabilities = helperClient.GetCapabilitiesAsync;
-            _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
-                helperClient.DispatchAsync);
-            _macPowerQueryCandidateActions =
-                MacPowerQueryHelperCapabilities.GetExplicitOptIn();
-            _macVbaHelperDispatcher = new MacVbaHelperDispatcher(
-                helperClient.DispatchAsync);
-            _macVbaCandidateActions = MacVbaHelperCapabilities.GetExplicitOptIn();
-            _macVbaPreflight = MacVbaPreflight.Check();
         }
     }
 
-    internal ExcelMcpService(
-        MacExcelBackend macBackend,
-        Func<string, TimeSpan, Task<JsonElement>> getMacHelperCapabilities,
-        MacPowerQueryHelperDispatch macPowerQueryHelperDispatch,
-        IReadOnlySet<string>? macPowerQueryCandidateActions = null,
-        IReadOnlySet<string>? macVbaCandidateActions = null,
-        MacVbaPreflightResult? macVbaPreflight = null)
+    internal ExcelMcpService(MacExcelBackend macBackend)
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _macBackend = macBackend;
         _macSessionManager = new MacExcelSessionManager(macBackend);
-        _getMacHelperCapabilities = getMacHelperCapabilities;
-        _macPowerQueryHelperDispatcher = new MacPowerQueryHelperDispatcher(
-            macPowerQueryHelperDispatch);
-        _macPowerQueryCandidateActions = macPowerQueryCandidateActions
-            ?? new HashSet<string>(StringComparer.Ordinal);
-        _macVbaHelperDispatcher = new MacVbaHelperDispatcher(
-            macPowerQueryHelperDispatch);
-        _macVbaCandidateActions = macVbaCandidateActions
-            ?? new HashSet<string>(StringComparer.Ordinal);
-        _macVbaPreflight = macVbaPreflight
-            ?? new(
-                MacMacroExecutionAvailability.Unknown,
-                MacVbaProjectModelAccess.Unknown);
         _daemonHost = new DaemonHost(
             ProcessAsync,
             () => _sessionManager.GetActiveSessions().Count);
@@ -478,17 +431,9 @@ public sealed class ExcelMcpService : IDisposable
             officeCandidateEnabled: officeCandidateEnabled);
         var scenarioAcceptance = CanUseScenarioForAcceptance(
             command,
-            Environment.GetEnvironmentVariable("EXCELMCP_MAC_SCENARIO_E2E"),
-            MacVbaHelperClient.GetInstallation());
-        // Query variants are gated by helper proof before dispatch, not static inventory availability.
-        var powerQueryRouteSelection = category == "powerquery"
-            && ServiceRegistry.PowerQuery.TryParseAction(action, out _);
-        var vbaRouteSelection = category == "vba"
-            && ServiceRegistry.Vba.TryParseAction(action, out _);
+            Environment.GetEnvironmentVariable("EXCELMCP_MAC_SCENARIO_E2E"));
         if (!capability.IsAvailable
-            && !scenarioAcceptance
-            && !powerQueryRouteSelection
-            && !vbaRouteSelection)
+            && !scenarioAcceptance)
         {
             return new ServiceResponse
             {
@@ -537,32 +482,6 @@ public sealed class ExcelMcpService : IDisposable
                     }
                 }
 
-                if (category == "powerquery")
-                {
-                    return await DispatchMacPowerQueryAsync(action, request, session);
-                }
-                if (category == "vba")
-                {
-                    return await DispatchMacVbaAsync(action, arguments, session);
-                }
-
-                if (IsScenarioHelperCommand(command))
-                {
-                    var helperResult = await _macVbaHelperClient!.DispatchAsync(
-                        session.FilePath,
-                        command,
-                        arguments,
-                        session.OperationTimeout);
-                    var helperResponse = JsonNode.Parse(helperResult.GetRawText())?.AsObject()
-                        ?? new JsonObject();
-                    helperResponse["success"] = true;
-                    return new ServiceResponse
-                    {
-                        Success = true,
-                        Result = helperResponse.ToJsonString(ServiceProtocol.JsonOptions)
-                    };
-                }
-
                 if (category == "pythoninexcel")
                 {
                     MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
@@ -598,21 +517,6 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "SessionNotFound",
-                ErrorMessage = ex.Message,
-                ExceptionType = ex.GetType().Name
-            };
-        }
-        catch (MacVbaHelperException ex)
-        {
-            if (string.Equals(ex.Category, "RecoveryRequired", StringComparison.Ordinal)
-                || string.Equals(ex.Code, "rollback_failed", StringComparison.Ordinal))
-            {
-                await InvalidateMacSessionAsync(request.SessionId);
-            }
-            return new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = ex.Category,
                 ErrorMessage = ex.Message,
                 ExceptionType = ex.GetType().Name
             };
@@ -706,16 +610,13 @@ public sealed class ExcelMcpService : IDisposable
 
     internal static bool CanUseScenarioForAcceptance(
         string command,
-        string? e2eMode,
-        MacVbaHelperInstallation installation)
+        string? e2eMode)
     {
         if (!string.Equals(e2eMode, "1", StringComparison.Ordinal))
         {
             return false;
         }
-        return IsNativeScenarioCommand(command)
-            || IsScenarioHelperCommand(command)
-                && installation is { IsConfigured: true, SourceExists: true };
+        return IsNativeScenarioCommand(command);
     }
 
     private static bool IsNativeScenarioCommand(string command) =>
@@ -723,278 +624,6 @@ public sealed class ExcelMcpService : IDisposable
             or "analysis.update-scenario"
             or "analysis.delete-scenario"
             or "analysis.create-scenario-summary";
-
-    private static bool IsScenarioHelperCommand(string command) =>
-        command is "analysis.create-scenario" or "analysis.show-scenario";
-
-    private async Task<ServiceResponse> DispatchMacPowerQueryAsync(
-        string action,
-        ServiceRequest request,
-        MacExcelSession session)
-    {
-        var arguments = string.IsNullOrWhiteSpace(request.Args)
-            ? new JsonObject()
-            : JsonNode.Parse(request.Args)?.AsObject()
-                ?? throw new ArgumentException($"Power Query {action} arguments must be an object.");
-        NormalizeMacPowerQueryArguments(action, arguments);
-        var route = MacPowerQueryRouteSelector.Select(
-            action,
-            arguments,
-            new HashSet<string>(StringComparer.Ordinal));
-        TimeSpan? helperTimeout = null;
-        long helperStartedAt = 0;
-        if (route.Kind == MacPowerQueryRouteKind.Unsupported
-            && _macPowerQueryHelperDispatcher is not null
-            && _getMacHelperCapabilities is not null)
-        {
-            helperTimeout = GetMacPowerQueryTimeout(
-                action,
-                arguments,
-                session.OperationTimeout);
-            helperStartedAt = Stopwatch.GetTimestamp();
-            var capabilities = await _getMacHelperCapabilities(
-                session.FilePath,
-                helperTimeout.Value);
-            route = MacPowerQueryRouteSelector.Select(
-                action,
-                arguments,
-                MacPowerQueryHelperCapabilities.Parse(
-                    capabilities,
-                    _macPowerQueryCandidateActions));
-        }
-        if (route.Kind == MacPowerQueryRouteKind.Unsupported)
-        {
-            throw UnsupportedMacPowerQueryVariant(
-                $"powerquery.{action}",
-                route.UnavailableReason ?? "the selected helper method is unavailable");
-        }
-        await FormatMacPowerQueryMCodeAsync(action, arguments, route);
-        if (route.Kind == MacPowerQueryRouteKind.Helper)
-        {
-            var result = await _macPowerQueryHelperDispatcher!.DispatchAsync(
-                route,
-                session.FilePath,
-                RemainingMacPowerQueryTimeout(
-                    helperStartedAt,
-                    helperTimeout
-                        ?? GetMacPowerQueryTimeout(
-                            action,
-                            arguments,
-                            session.OperationTimeout)),
-                action,
-                arguments);
-            return new ServiceResponse
-            {
-                Success = true,
-                Result = result.GetRawText()
-            };
-        }
-
-        throw new InvalidOperationException(
-            $"Unhandled macOS Power Query route '{route.Kind}' for action '{action}'.");
-    }
-
-    private async Task<ServiceResponse> DispatchMacVbaAsync(
-        string action,
-        JsonObject arguments,
-        MacExcelSession session)
-    {
-        var isMacroWorkbook = string.Equals(
-            Path.GetExtension(session.FilePath),
-            ".xlsm",
-            StringComparison.OrdinalIgnoreCase);
-        if (!isMacroWorkbook)
-        {
-            if (action == "list")
-            {
-                return new ServiceResponse
-                {
-                    Success = true,
-                    Result = JsonSerializer.Serialize(
-                        new
-                        {
-                            success = true,
-                            filePath = session.FilePath,
-                            scripts = Array.Empty<object>()
-                        },
-                        ServiceProtocol.JsonOptions)
-                };
-            }
-            throw new ArgumentException(
-                "VBA operations require a macro-enabled workbook (.xlsm).");
-        }
-
-        var initialRoute = MacVbaRouteSelector.Select(
-            action,
-            arguments,
-            capabilities: null,
-            _macVbaPreflight);
-        if (!initialRoute.IsAvailable)
-        {
-            throw UnsupportedMacVbaVariant(
-                $"vba.{action}",
-                initialRoute.UnavailableReason
-                    ?? "the selected helper method is unavailable");
-        }
-
-        var timeout = GetMacVbaTimeout(action, arguments, session.OperationTimeout);
-        var startedAt = Stopwatch.GetTimestamp();
-        var capabilityResult = await _getMacHelperCapabilities!(
-            session.FilePath,
-            timeout);
-        var route = MacVbaRouteSelector.Select(
-            action,
-            arguments,
-            MacVbaHelperCapabilities.Parse(
-                capabilityResult,
-                _macVbaCandidateActions),
-            _macVbaPreflight);
-        if (!route.IsAvailable)
-        {
-            throw UnsupportedMacVbaVariant(
-                $"vba.{action}",
-                route.UnavailableReason
-                    ?? "the selected helper method is unavailable");
-        }
-
-        var result = await _macVbaHelperDispatcher!.DispatchAsync(
-            route,
-            session.FilePath,
-            RemainingMacHelperTimeout(startedAt, timeout, "VBA"),
-            action);
-        return new ServiceResponse
-        {
-            Success = true,
-            Result = result.GetRawText()
-        };
-    }
-
-    private static void NormalizeMacPowerQueryArguments(
-        string action,
-        JsonObject arguments)
-    {
-        if (action is not ("create" or "update" or "evaluate"))
-        {
-            return;
-        }
-
-        var mCode = ParameterTransforms.ResolveFileOrValue(
-            arguments["mCode"]?.GetValue<string>(),
-            arguments["mCodeFile"]?.GetValue<string>(),
-            "mCode");
-        if (string.IsNullOrWhiteSpace(mCode))
-        {
-            throw new ArgumentException(
-                action == "evaluate"
-                    ? "M code is required for evaluate action."
-                    : "M code cannot be empty.");
-        }
-        arguments["mCode"] = mCode;
-        arguments.Remove("mCodeFile");
-    }
-
-    private static async Task FormatMacPowerQueryMCodeAsync(
-        string action,
-        JsonObject arguments,
-        MacPowerQueryRoute route)
-    {
-        if (action is not ("create" or "update")
-            || arguments["formatMCode"]?.GetValue<bool>() != true)
-        {
-            return;
-        }
-
-        var formattedMCode = await MCodeFormatter.FormatAsync(
-            arguments["mCode"]!.GetValue<string>());
-        arguments["mCode"] = formattedMCode;
-        if (route.Kind == MacPowerQueryRouteKind.Helper)
-        {
-            route.HelperArguments!["formula"] = formattedMCode;
-        }
-    }
-
-    private static TimeSpan GetMacPowerQueryTimeout(
-        string action,
-        JsonObject arguments,
-        TimeSpan sessionTimeout)
-    {
-        if (action is "refresh" or "refresh-all")
-        {
-            var seconds = arguments["timeout"]?.GetValue<double>() ?? 0;
-            return seconds > 0
-                ? TimeSpan.FromSeconds(seconds)
-                : ComInteropConstants.DataOperationTimeout;
-        }
-        return action is "create" or "load-to" or "evaluate"
-            ? ComInteropConstants.DataOperationTimeout
-            : sessionTimeout;
-    }
-
-    private static TimeSpan RemainingMacPowerQueryTimeout(
-        long startedAt,
-        TimeSpan timeout)
-        => RemainingMacHelperTimeout(startedAt, timeout, "Power Query");
-
-    private static TimeSpan RemainingMacHelperTimeout(
-        long startedAt,
-        TimeSpan timeout,
-        string feature)
-    {
-        if (timeout == Timeout.InfiniteTimeSpan)
-        {
-            return timeout;
-        }
-
-        var remaining = timeout - Stopwatch.GetElapsedTime(startedAt);
-        if (remaining <= TimeSpan.Zero)
-        {
-            throw new TimeoutException(
-                $"The macOS {feature} helper operation exceeded its shared " +
-                "capability-and-dispatch deadline. The workbook session is no longer safe to use.");
-        }
-        return remaining;
-    }
-
-    private static TimeSpan GetMacVbaTimeout(
-        string action,
-        JsonObject arguments,
-        TimeSpan sessionTimeout)
-    {
-        if (action != "run" || arguments["timeout"] is null)
-        {
-            return sessionTimeout;
-        }
-        if (arguments["timeout"] is not JsonValue value
-            || !value.TryGetValue<double>(out var seconds)
-            || !double.IsInteger(seconds)
-            || seconds <= 0
-            || seconds > int.MaxValue / 1000d)
-        {
-            throw new ArgumentException(
-                "timeout must be a positive whole number of seconds.");
-        }
-        return TimeSpan.FromSeconds(seconds);
-    }
-
-    private static MacExcelOperationException UnsupportedMacPowerQueryVariant(
-        string command,
-        string reason) =>
-        new(
-            "PlatformNotSupported",
-            $"Command '{command}' cannot run on macOS because {reason}. " +
-            "ExcelMcp does not inspect or mutate workbook package internals. " +
-            "The trusted helper remains disabled until exact public CLI and MCP " +
-            "acceptance has proven this action; " +
-            "the complete action remains available on Windows.");
-
-    private static MacExcelOperationException UnsupportedMacVbaVariant(
-        string command,
-        string reason) =>
-        new(
-            "PlatformNotSupported",
-            $"Command '{command}' cannot run on macOS because {reason}. " +
-            "The optional helper remains disabled by default until exact public " +
-            "CLI and MCP acceptance has proven this action.");
 
     private static void ResolveMacFileArguments(
         string category,
@@ -1009,17 +638,6 @@ public sealed class ExcelMcpService : IDisposable
                 ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows"),
                 ServiceProtocol.JsonOptions);
             arguments.Remove("rowsFile");
-            return;
-        }
-
-        if (category == "vba" && action is "import" or "update")
-        {
-            arguments["source"] = ParameterTransforms.ResolveFileOrValue(
-                arguments["vbaCode"]?.GetValue<string>(),
-                arguments["vbaCodeFile"]?.GetValue<string>(),
-                "vbaCode");
-            arguments.Remove("vbaCode");
-            arguments.Remove("vbaCodeFile");
             return;
         }
 

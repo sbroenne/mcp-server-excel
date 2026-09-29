@@ -5,9 +5,8 @@ Tests the experimental macOS workbook slice through the real CLI and MCP process
 .DESCRIPTION
 Requires running desktop Excel and existing Automation consent. Uses ordinary
 temporary fixtures and LaunchServices; never requests permission or accesses
-Excel's container. Power Query and VBA remain helper-gated unless their explicit
-acceptance runners pass.
-Scenario acceptance requires -IncludeScenarios and an already configured trusted helper.
+Excel's container. Power Query and VBA are explicit macOS limitations because
+Excel exposes no supported local API that satisfies their public contracts.
 Named-range acceptance adds two public entry-point cases with -IncludeNamedRanges.
 #>
 [CmdletBinding()]
@@ -16,7 +15,6 @@ param(
     [string]$PipeName,
     [switch]$IncludePythonInExcel,
     [switch]$IncludeRangeExpansion,
-    [switch]$IncludeScenarios,
     [switch]$IncludeNamedRanges
 )
 
@@ -96,7 +94,6 @@ $environment = @{
     DOTNET_ROOT = $dotnetRoot
     EXCELMCP_MAC_PYTHON_E2E = if ($IncludePythonInExcel) { '1' } else { '0' }
     EXCELMCP_MAC_RANGE_EXPANSION_E2E = if ($IncludeRangeExpansion) { '1' } else { '0' }
-    EXCELMCP_MAC_SCENARIO_E2E = if ($IncludeScenarios) { '1' } else { '0' }
     EXCELMCP_MAC_NAMED_RANGE_E2E = if ($IncludeNamedRanges) { '1' } else { '0' }
 }
 try {
@@ -128,5 +125,5 @@ finally {
         }
     }
 }
-Write-Host 'macOS CLI/MCP workbook slice passed. Helper-gated and Windows COM features remain separate acceptance gates.'
+Write-Host 'macOS CLI/MCP workbook slice passed. Power Query, VBA, and Windows COM features remain separate.'
 $global:LASTEXITCODE = 0

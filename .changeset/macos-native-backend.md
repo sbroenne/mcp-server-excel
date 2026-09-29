@@ -15,8 +15,8 @@ modal dialog. Mac daemon output is isolated from CLI command output, and MCP
 path errors use platform-appropriate wording. macOS ARM64 CLI and MCP archives
 are included in releases, along with separate native Windows and Apple Silicon
 macOS Claude Desktop MCPB bundles. Power Query mutations and VBA remain
-capability-gated while transactional workbook orchestration and the optional
-macro/VBA trust tiers are implemented.
+available through Windows COM only because Excel's supported macOS automation
+surfaces cannot satisfy their public contracts.
 
 Correct the guarded screenshot process lookup to load AppKit and normalize
 Objective-C collection counts before selecting the exact Excel process.
@@ -39,14 +39,9 @@ confirmed. Preserve newly created workbooks instead of deleting them while
 Excel may still open them. Reject queued operations and avoid automatic close
 on uncertain sessions.
 
-Preserve complete helper Power Query view and load-configuration results in the
-shared Mac response serializer, including M code, query identity and load
-destination, instead of returning only base success and file-path fields.
-
 Fix daemon startup when invoking `dotnet excelcli.dll`: the child process now
 receives the CLI assembly path instead of attempting to execute `dotnet service`.
-Use a macOS-compatible private pipe name and bounded native CLI shutdown in the
-Power Query acceptance runner rather than Windows-only cleanup discovery.
+Use a macOS-compatible private pipe name and bounded native CLI shutdown.
 
-Treat workbook files as opaque and route Power Query only through the optional
-trusted helper.
+Treat workbook files as opaque and report Power Query and VBA as explicit macOS
+limitations rather than inspecting packages or requiring a trusted VBA add-in.

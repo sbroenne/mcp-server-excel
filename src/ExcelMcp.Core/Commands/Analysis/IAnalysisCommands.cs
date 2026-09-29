@@ -48,12 +48,12 @@ public interface IAnalysisCommands
     /// </summary>
     [ServiceAction("create-scenario")]
     [MacCapability(
-        MacCapabilityTier.MacroHelper,
-        MacImplementationStatus.NotTested,
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
         false,
-        Evidence = "The version 1 helper advertises analysis.create-scenario, but provenMethods.scenarioCreateShow remains false.",
-        ExcelApiVersion = "Excel for Mac 16.113.1; ExcelMcpDispatch protocol 1.",
-        Blocker = "helper availability is not runtime parity; exact values, defaults, limits, and workbook effects require prompt-free CLI and MCP Excel tests")]
+        Evidence = "Excel for Mac 16.113.1 Apple Events exposes scenario elements but no scenario creation command, and Office.js exposes no Scenario API.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js API review.",
+        Blocker = "no supported local macOS API can create a scenario; ExcelMcp does not ship a VBA helper")]
     OperationResult CreateScenario(
         IExcelBatch batch,
         string sheetName,
@@ -87,12 +87,12 @@ public interface IAnalysisCommands
     /// </summary>
     [ServiceAction("show-scenario")]
     [MacCapability(
-        MacCapabilityTier.MacroHelper,
-        MacImplementationStatus.NotTested,
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
         false,
-        Evidence = "The version 1 helper advertises analysis.show-scenario, but provenMethods.scenarioCreateShow remains false.",
-        ExcelApiVersion = "Excel for Mac 16.113.1; ExcelMcpDispatch protocol 1.",
-        Blocker = "helper availability is not runtime parity; exact worksheet effects require prompt-free CLI and MCP Excel tests")]
+        Evidence = "Excel for Mac 16.113.1 Apple Events exposes scenario metadata and change/delete/summary commands but no show-scenario command, and Office.js exposes no Scenario API.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js API review.",
+        Blocker = "no supported local macOS API can apply stored scenario values; ExcelMcp does not ship a VBA helper")]
     OperationResult ShowScenario(
         IExcelBatch batch,
         string sheetName,

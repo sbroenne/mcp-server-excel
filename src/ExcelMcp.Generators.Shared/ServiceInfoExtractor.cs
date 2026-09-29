@@ -199,28 +199,6 @@ public static class ServiceInfoExtractor
                 "the optional Office.js add-in tier, which is not installed in this release");
         }
 
-        if (tier == "MacroHelper")
-        {
-            return new MacCapabilityInfo(
-                tier,
-                "Blocked",
-                false,
-                "The Excel Apple Events dictionary exposes run VB macro, but prompt-free execution is not proven.",
-                "Excel for Mac 16.112.3 Apple Events dictionary.",
-                "the optional macro helper tier, which requires the user to enable macros");
-        }
-
-        if (tier == "VbaProjectModel")
-        {
-            return new MacCapabilityInfo(
-                tier,
-                "Blocked",
-                false,
-                "The installed Excel dictionary exposes no VBProject, VBComponents, or CodeModule surface.",
-                "Excel for Mac 16.112.3 Apple Events dictionary.",
-                "the optional VBA project object model tier, which requires explicit user trust");
-        }
-
         return new MacCapabilityInfo(
             "Unsupported",
             "NotTested",

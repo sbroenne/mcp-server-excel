@@ -174,10 +174,7 @@ public sealed class MacExcelBackendTests
         });
         try
         {
-            using var service = new ExcelMcpService(
-                backend,
-                (_, _) => throw new InvalidOperationException("Helper must not be probed."),
-                (_, _, _, _) => throw new InvalidOperationException("Helper must not be invoked."));
+            using var service = new ExcelMcpService(backend);
             var response = await service.ProcessAsync(new ServiceRequest
             {
                 Command = $"session.{action}",

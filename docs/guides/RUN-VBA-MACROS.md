@@ -1,193 +1,39 @@
 # Run VBA Macros from an AI Agent
 
-Many Excel workbooks carry decades of VBA. ExcelMcp lets an AI assistant read,
-write, and **execute** that code inside the real Excel application — so existing
-macros keep working instead of being rewritten.
+Many Excel workbooks carry decades of VBA. On Windows, ExcelMcp lets an AI
+assistant read, write, and execute that code inside the real Excel application,
+so existing macros keep working instead of being rewritten.
 
-This is something file-parser libraries cannot do at all: `.xlsm` macro code is
-only meaningful to Excel's VBA host.
+This is something file-parser libraries cannot do: `.xlsm` macro code is only
+meaningful to Excel's VBA host.
 
 !!! note "Platform availability"
-    These commands currently run through the Windows COM backend. On macOS,
-    ExcelMcp checks the existing Office macro and VBA project-model preferences
-    without prompting or changing them, then returns an explicit capability
-    error. Macro execution remains gated until a repository-owned `.xlsm`
-    fixture proves unattended workbook-qualified execution through both CLI and
-    MCP. The Mac distribution includes reviewable source for an optional,
-    versioned helper add-in. Its fixed Power Query lifecycle and VBA
-    project-model implementations remain gated until each method passes real
-    CLI and MCP evidence with the required user-managed trust.
+    VBA commands require the Windows COM backend. They are unsupported on
+    macOS because Apple Events exposes no VBA project object model and
+    Office.js exposes no equivalent API. ExcelMcp does not ship a VBA helper
+    add-in, request macro approval, or change macro or VBA project-model trust.
 
-## Optional signed macOS helper setup (preview)
+## One-time setup: enable VBA trust on Windows
 
-The intended helper is a prebuilt, Excel-authored `ExcelMcpHelper.xlam` with a
-VBA project signed in Windows Excel by a dedicated SelfCert certificate. The
-repository-owned `helpers/ExcelMcpHelper.bas` remains the reviewable source for
-its fixed, allowlisted dispatcher. The signed `.xlam` is not yet a published
-release asset, so helper-backed production actions remain gated. Do not build a
-local unsigned add-in and treat it as a released helper.
-
-SelfCert verifies that the helper has not changed since signing, but it does not
-provide CA-validated publisher identity. When a signed package is published:
-
-1. Obtain the `.xlam`, `.bas`, public `.cer`, and JSON manifest from the same
-   release.
-2. Compare the SHA-256 hashes of all three files with the manifest and compare
-   the manifest's certificate fingerprint with the independently published
-   release fingerprint.
-3. Inspect the public certificate's subject and expiry, then import and trust
-   it manually in the current user's macOS Keychain. Never import a private key.
-4. Open the exact `.xlam` in Excel and verify that Excel displays the expected
-   signed VBA project before enabling the add-in.
-5. Enable that exact add-in through Excel's add-in manager.
-6. Set `EXCELMCP_MAC_VBA_HELPER_PATH` for the process that starts ExcelMcp to
-   the add-in's exact absolute path.
-
-ExcelMcp never installs the helper, imports or trusts its certificate, opens
-Keychain, or changes either VBA security setting.
-
-### Maintainer packaging
-
-The helper must be created and signed on a controlled Windows host because
-Office for Mac cannot sign VBA projects. Create the dedicated SelfCert
-certificate, import the reviewed `.bas` into a blank workbook, save it exactly
-as `ExcelMcpHelper.xlam`, sign the VBA project in the Visual Basic Editor, then
-save, close, reopen, and verify the signature in Excel. Export only the public
-certificate; the private key must remain on that signing host.
-
-After that manual verification, stage the opaque artifact and provenance:
-
-```powershell
-pwsh ./scripts/Build-MacVbaHelperPackage.ps1 `
-  -HelperPath 'C:\absolute\path\ExcelMcpHelper.xlam' `
-  -SourcePath './src/ExcelMcp.Service/Mac/ExcelMcpHelper.bas' `
-  -PublicCertificatePath 'C:\absolute\path\ExcelMcpHelper.cer' `
-  -OutputDirectory './artifacts/mac-vba-helper' `
-  -SourceCommit '<exact-source-commit>' `
-  -ExcelSignatureVerifiedConfirmed `
-  -SelfCertTrustModelConfirmed
-```
-
-The packager never opens or inspects workbook package contents. It rejects
-private-key material and invalid certificate profiles, then records whole-file
-hashes, source commit, helper/protocol versions, certificate identity,
-fingerprint, thumbprint, and validity in the manifest. The explicit signature
-confirmation records the maintainer's Excel check; it is not a replacement for
-that check.
-
-The configured file name, open add-in `FullName`, helper version, protocol
-version, request correlation, target workbook `FullName`, action, and argument
-shape are all checked before a helper operation. Requests and responses are
-bounded to 262,144 UTF-8 bytes and the dispatcher has no arbitrary evaluation
-of VBA or AppleScript. Its run action accepts only a validated
-`Module.Procedure` identity in the exact target workbook and at most 30 string
-parameters. The gated Power Query actions do accept M source for query
-authoring and temporary evaluation. Installation
-alone does not enable a command: production actions stay gated until their
-individual methods have real-Excel evidence.
-
-Helper version `1.4.0` adds fixed Power Query create/update/refresh/refresh-all,
-load-to/unload, and temporary-query evaluation candidates. They support only
-connection-only or one exact worksheet-table destination; Data Model and
-multi-destination variants fail explicitly. The source implements rollback and
-temporary-artifact cleanup, but every corresponding proof flag remains false
-until prompt-free real-Excel CLI and MCP acceptance succeeds.
-
-Helper 1.4.0 also has source-complete candidate routes for VBA `list`, `view`,
-`import`, `update`, and `delete`, plus exact workbook-qualified `run`. They
-remain unavailable by default. Maintainers may enable only named actions with
-`EXCELMCP_MAC_VBA_CANDIDATE_ACTIONS` while running the guarded public
-acceptance workflow. This opt-in collects evidence; helper presence and
-permissive trust settings never enable actions on their own.
-
-The guarded workflow is `scripts/Test-MacVbaPublicAcceptance.ps1`. It requires
-an existing Excel-authored `.xlsm` containing a repository-owned marker
-procedure that writes its one string argument to a dedicated cell. It performs
-source lifecycle, marker execution, and public range verification through both
-CLI and MCP, then closes without saving. Do not treat `-ValidateOnly` as Excel
-evidence.
-
-Maintainers running bounded candidate acceptance may set
-`EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS` to a comma-separated list of exact
-actions such as `powerquery.create,powerquery.delete`. This opt-in enables only
-listed actions that the matching helper version also advertises; unknown names
-are rejected, and it never enables another Power Query method implicitly.
-Remove the variable after the acceptance run.
-
-The same version adds a read-only `helper.inspect-engines` probe for the
-late-bound `Workbook.XmlMaps` and `Workbook.Model` object paths. It reports only
-the observation made against the exact target workbook: `accessible`,
-`unavailable`, `error`, or `unknown`, plus a fixed reason code and optional
-object count. A zero-table workbook model is `unknown`, not evidence that the
-engine is unavailable. An accessible XML Maps collection proves only object
-model access, not XML import, export, schema, or XPath behavior.
-
-The first installed-helper validation must also exercise the VBA parser itself,
-not only the host DTOs: a protocol version such as `1.4`, malformed JSON,
-unknown/duplicate properties, and mismatched correlation must be rejected
-before any mutation, followed by one read-only capability request through both
-CLI and MCP.
-
-After direct helper-engine validation, run the separately guarded public Power
-Query lifecycle workflow only with an exclusive desktop Excel slot:
-
-```powershell
-pwsh ./scripts/Test-MacPowerQueryPublicAcceptance.ps1 `
-  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
-  -WorkbookPath '/absolute/path/ExcelMcpPowerQueryAcceptance.xlsx' `
-  -HelperInstalledTrustedConfirmed `
-  -ExcelAuthoredWorkbookConfirmed `
-  -DedicatedWorkbookConfirmed `
-  -ExcelSlotConfirmed
-```
-
-The workbook must be an Excel-authored dedicated workbook with no existing
-Power Queries. The workflow uses only public CLI and MCP commands, literal
-credential-free `#table` M, separate disposable working copies, and an exact
-per-action candidate allowlist scoped to child processes. It verifies supported
-worksheet and connection-only lifecycle behavior, exact loaded `A1:A2` values
-through public range reads after saved reopen checkpoints, plus continued
-rejection of Data Model and combined destinations. `-ValidateOnly` checks the
-plan and emits a non-proof receipt; it does not launch Excel or prove a public
-method.
-The CLI working copy uses a short unique daemon pipe. Cleanup invokes bounded
-`service stop` on that same pipe, verifies its result, and never targets shared
-Excel or another client's daemon.
-
-Macro execution and VBA project access are separate settings. Do not enable all
-macros globally to install the helper. Enable only the trust your reviewed
-workflow requires. To remove the helper, disable it in Excel's add-in manager,
-close only that exact add-in if it is open, delete the `.xlam` if desired,
-remove `EXCELMCP_MAC_VBA_HELPER_PATH`, and remove that public certificate from
-the user's Keychain if no retained helper still depends on it.
-
-For certificate rotation, verify and trust the replacement certificate and
-signed helper before replacing the existing add-in. After the replacement is
-working, distrust/remove the old certificate. An expired, distrusted, or
-unexpected certificate is not silently accepted; restore trust only after
-checking the independently published fingerprint.
-
-## One-time setup: enable VBA trust
-
-Excel blocks all programmatic access to the VBA project by default. **You must
-enable it manually** — ExcelMcp never changes this setting for you, because doing
-so silently would be a security problem.
+Excel blocks programmatic access to the VBA project by default. **You must
+enable it manually**. ExcelMcp never changes this setting because doing so
+silently would be a security problem.
 
 The setting enables source inspection and mutation; it is not required merely
 to invoke an already trusted macro. Macro execution is governed separately by
 Excel's macro security and per-workbook trust.
 
-On Windows, use **File → Options → Trust Center → Trust Center Settings →
-Macro Settings**. On Mac, use Excel's corresponding **Security** preferences.
-Enable **Trust access to the VBA project object model**, then restart Excel.
+Use **File -> Options -> Trust Center -> Trust Center Settings -> Macro
+Settings**. Enable **Trust access to the VBA project object model**, then
+restart Excel.
 
-Without it, every VBA operation fails with an access error. This is a per-machine,
-per-Office-install setting, so remote and CI machines need it too.
+Without it, VBA source operations fail with an access error. This is a
+per-machine, per-Office-install setting, so remote and CI machines need it too.
 
 !!! warning "Security implication"
     Enabling VBA trust allows any program on the machine to read and modify VBA
-    code in workbooks you open. Enable it only if you actually need VBA
-    automation, and only on machines you control.
+    code in workbooks you open. Enable it only if you need VBA automation and
+    only on machines you control.
 
 ## What you ask for
 
@@ -216,8 +62,8 @@ excelcli -q vba run --session $session --procedure-name "Module1.GenerateReport"
 The procedure name uses `Module.Procedure` form. Pass arguments with
 `--parameters` when the macro takes them.
 
-Set a timeout that matches the work. A macro that waits on a dialog will otherwise
-hold the session until the default limit expires.
+Set a timeout that matches the work. A macro that waits on a dialog will
+otherwise hold the session until the default limit expires.
 
 ## Add or update code
 
@@ -231,8 +77,9 @@ file. `delete` removes a module.
 
 ## Save to the right file format
 
-Macro-enabled workbooks must be `.xlsm` (or `.xlsb`). Saving VBA into an `.xlsx`
-silently discards it. If you are adding VBA to an `.xlsx`, save-as `.xlsm` first.
+Macro-enabled workbooks must be `.xlsm` (or `.xlsb`). Saving VBA into an
+`.xlsx` silently discards it. If you are adding VBA to an `.xlsx`, save as
+`.xlsm` first.
 
 ## Verify
 
@@ -245,25 +92,16 @@ excelcli -q screenshot capture-sheet --session $session --sheet Summary
 
 ## Known gotchas
 
-**Access denied on every VBA action** means the trust setting above is off. It is
-by far the most common cause of VBA failures.
+**Access denied on every VBA action** means project-model trust is off. It is
+the most common cause of VBA failures.
 
 **Macros can display dialogs.** A `MsgBox` inside a macro blocks execution until
 someone dismisses it. Prefer macros that write results to cells over ones that
 prompt. Always pass a timeout.
 
 **Macros run with full user privileges.** A macro can touch the file system,
-network, and other applications. Review code before running it, especially code an
-assistant generated or a workbook you did not author.
+network, and other applications. Review code before running it, especially code
+an assistant generated or a workbook you did not author.
 
 **Line continuations and quoting.** When passing VBA source on a command line,
-prefer `import` from a `.bas` file — it avoids shell-escaping problems entirely.
-
-**Excel must be installed.** VBA execution is not emulated; it runs in Excel's own
-VBA host.
-
-## Related
-
-- [Advanced automation operations](../features/AUTOMATION-ADVANCED.md)
-- [CLI installation and setup](../INSTALLATION-CLI.md)
-- [Security policy](../../SECURITY.md)
+prefer `import` from a `.bas` file to avoid shell-escaping problems.

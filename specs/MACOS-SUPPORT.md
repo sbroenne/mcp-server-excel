@@ -2,9 +2,9 @@
 
 **Status:** ExcelMcp ships capability-gated Apple Silicon and Intel macOS
 artifacts. Windows retains the complete COM backend. macOS combines a native
-Apple Events backend with optional, explicitly trusted helpers. Unsupported or
-unproven actions fail with `PlatformNotSupported`; they never return
-success-shaped approximations.
+Apple Events backend with optional Office.js and ScreenCaptureKit tiers.
+Unsupported or unproven actions fail with `PlatformNotSupported`; they never
+return success-shaped approximations.
 
 ## Non-negotiable workbook boundary
 
@@ -15,8 +15,7 @@ Excel workbook files are opaque.
 - This prohibition applies to production code, tests, fixtures, scripts, and
   indirect use through package or Open XML libraries.
 - An intact workbook authored by Excel may be copied as an opaque whole file.
-- Workbook content changes must use Excel-supported object models or a trusted
-  helper operating through Excel.
+- Workbook content changes must use supported Excel object models.
 - If neither route can satisfy the public contract, report the operation as
   unsupported.
 
@@ -113,149 +112,40 @@ the dictionary omits fields required by their public contracts. List, refresh,
 refresh-status, cancel, and delete remain native candidates for an original
 Excel-authored fixture.
 
-## Power Query
+## Power Query and VBA limitations
 
-All macOS Power Query operations use the optional trusted VBA helper. There is
-no saved-package fallback.
+Power Query lifecycle operations are unsupported on macOS. Excel 16.113.1
+Apple Events exposes no `Workbook.Queries` surface, and Office.js exposes no
+equivalent Power Query authoring, M inspection, load-state, or refresh API.
+ExcelMcp does not inspect `DataMashup` or any other workbook package content and
+does not ship a VBA add-in to bridge the missing API. The complete Power Query
+contract remains available on Windows.
 
-The current helper source supports fixed actions for:
+VBA source operations are also unsupported on macOS. Apple Events exposes no
+`VBProject`, `VBComponents`, or `CodeModule` surface, and Office.js exposes no
+VBA project API. Although Excel's dictionary declares `run VB macro`, it cannot
+provide the exact-workbook qualification, bounded argument behavior,
+prompt-free trust state, and timeout reconciliation required by the public
+`vba.run` contract without workbook-resident helper code. ExcelMcp therefore
+does not install an add-in, request macro approval, or change VBA project-model
+trust. The complete VBA contract remains available on Windows.
 
-- `list`, `view`, and `get-load-config` through `Workbook.Queries`, exact
-  worksheet `ListObject.QueryTable` identity, and Excel's connection/model
-  state;
-- `create`, `update`, `rename`, and `delete`;
-- synchronous `refresh` and `refresh-all`;
-- worksheet-table and connection-only `load-to`/`unload` transitions;
-- temporary-query `evaluate` with bounded result data and verified cleanup.
+Scenario create/show share the same limitation: Apple Events exposes existing
+scenario elements and selected mutation commands but no create or show command,
+while Office.js exposes no Scenario API. Native list/update/delete/summary
+candidates require a separately Excel-authored scenario fixture.
 
-List results contain an M preview of at most 80 characters, formula character
-count, exact load mode, target sheet when applicable, connection-only state,
-and Data Model state. View returns the complete M formula. The Service validates
-all helper fields and cross-field load-state consistency. Missing, malformed,
-inconsistent, or mismatched query metadata fails the action.
+These actions use the `Unsupported` tier with `Blocked` evidence and generated
+`MacLimitationCandidate` execution plans. They fail before workbook dispatch;
+there is no environment-variable opt-in or hidden helper route.
 
-Every Power Query action remains production-blocked by default. A method is
-eligible for enablement only after a prompt-free run through both public entry
-points proves its exact result, persistence, error, timeout, destination, and
-cleanup behavior. Candidate opt-in is scoped to exact action names through
-`EXCELMCP_MAC_POWERQUERY_CANDIDATE_ACTIONS`; there is no helper-wide enable
-switch.
+## Removed VBA helper design
 
-The guarded public acceptance runner is:
-
-```powershell
-pwsh ./scripts/Test-MacPowerQueryPublicAcceptance.ps1 `
-  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
-  -WorkbookPath '/absolute/path/ExcelMcpPowerQueryAcceptance.xlsx' `
-  -HelperInstalledTrustedConfirmed `
-  -ExcelAuthoredWorkbookConfirmed `
-  -DedicatedWorkbookConfirmed `
-  -ExcelSlotConfirmed
-```
-
-The workbook must be Excel-authored, dedicated to acceptance, and contain no
-existing Power Queries. The runner uses separate opaque working copies for CLI
-and MCP, literal credential-free M, public actions only, exact worksheet value
-checks, and saved close/reopen checkpoints. Uncertain workbooks are retained
-with `RECOVERY_REQUIRED`; they are never guessed closed or deleted.
-
-## VBA and the trusted helper
-
-ExcelMcp never changes macro-security preferences or VBA project-model trust.
-The user installs, trusts, upgrades, and removes the helper.
-
-The intended release artifact is an Excel-authored `ExcelMcpHelper.xlam` whose
-VBA project is signed in Windows Excel with a dedicated SelfCert certificate.
-Office for Mac cannot sign the VBA project. The SelfCert private key remains
-only on the controlled Windows signing host; releases contain the opaque
-`.xlam`, reviewed `.bas` source, public certificate, and provenance manifest.
-SelfCert provides post-signing integrity, not CA-validated publisher identity,
-so every user must compare the published SHA-256 certificate fingerprint and
-manually trust that public certificate on each machine. ExcelMcp never imports
-the certificate or changes certificate, macro, or project-model trust.
-
-Maintainers stage a signed artifact only after reopening it in Windows Excel and
-verifying that Excel displays the expected VBA signature:
-
-```powershell
-pwsh ./scripts/Build-MacVbaHelperPackage.ps1 `
-  -HelperPath 'C:\absolute\path\ExcelMcpHelper.xlam' `
-  -SourcePath './src/ExcelMcp.Service/Mac/ExcelMcpHelper.bas' `
-  -PublicCertificatePath 'C:\absolute\path\ExcelMcpHelper.cer' `
-  -OutputDirectory './artifacts/mac-vba-helper' `
-  -SourceCommit '<exact-source-commit>' `
-  -ExcelSignatureVerifiedConfirmed `
-  -SelfCertTrustModelConfirmed
-```
-
-The packager treats the `.xlam` as an opaque whole file. It rejects private-key
-material, non-self-signed certificates, certificates without Code Signing
-usage, expired/not-yet-valid certificates, and missing explicit confirmations.
-The manifest records helper/protocol versions from the reviewed `.bas`, source
-commit, whole-file hashes, certificate subject, SHA-256 fingerprint,
-thumbprint, and validity dates. Packaging never signs, opens, modifies, or
-trusts the helper. Until this signed package is produced and separately
-accepted, helper-backed production methods remain gated.
-
-Helper protocol version 1 uses:
-
-- helper version `1.4.0`;
-- a 262,144-byte UTF-8 request and response limit;
-- request envelope
-  `{version,requestId,workbookPath,action,arguments}`;
-- response envelope `{version,requestId,success,result,error}`;
-- a 32-character lowercase hexadecimal request ID;
-- exact `Workbook.FullName` target resolution;
-- strict action and argument allowlists.
-
-Version 1.4.0 adds complete Power Query read metadata. Older helper versions are
-rejected so partial list/view responses cannot be mistaken for parity.
-
-The helper exposes only fixed Power Query, scenario, and VBA lifecycle actions.
-It has no caller-selected macro entry point, arbitrary expression evaluator,
-general VBA source execution, or AppleScript execution action. Unknown,
-duplicate, malformed, over-depth, oversized, or uncorrelated messages fail
-before dispatch.
-
-Capability output separates:
-
-- static API availability;
-- current user-managed trust readiness;
-- per-method `provenMethods`.
-
-All proof flags begin false. Static API presence and trust readiness are not
-runtime proof.
-
-Before VBA dispatch, ExcelMcp performs a bounded, non-prompting read of the
-effective Office macro preferences. It distinguishes disabled macros,
-per-workbook approval, unattended execution configuration, and indeterminate
-state. Project source operations separately report whether user-managed
-project-model trust is enabled.
-
-The helper's VBA source actions are restricted to exact workbook-qualified
-standard modules and bounded string parameters. Signed or locked projects are
-not mutated, and no action saves the target workbook implicitly.
-
-Direct helper-engine acceptance:
-
-```powershell
-pwsh ./scripts/Test-MacHelperAcceptance.ps1 `
-  -HelperPath '/absolute/path/ExcelMcpHelper.xlam' `
-  -WorkbookPath '/absolute/path/ExcelMcpHelperAcceptance.xlsm' `
-  -MacroApprovalConfirmed `
-  -VbaProjectTrustConfirmed `
-  -ExcelAuthoredWorkbookConfirmed
-```
-
-Public VBA acceptance is separately guarded by
-`scripts/Test-MacVbaPublicAcceptance.ps1`. A helper-engine pass does not enable
-public VBA actions.
-
-Certificate rotation uses a newly signed helper and new manifest. Users verify
-and trust the new certificate before replacing the helper, then remove the old
-certificate only after no retained helper depends on it. Removal disables the
-exact add-in, removes `EXCELMCP_MAC_VBA_HELPER_PATH`, deletes the helper if
-desired, and removes its public certificate from the user's trust store.
+The spike evaluated a signed `.xlam` bridge, but rejected it as a product
+architecture because it would require per-machine macro and certificate trust,
+Windows-only signing, helper upgrades, and VBA project-model security changes.
+The helper source, protocol, runtime routing, packaging, acceptance scripts, and
+trust instructions are not part of the macOS product.
 
 ## Optional Office.js tier
 
@@ -278,7 +168,7 @@ Excel. ExcelMcp does not:
 - grant file-access prompts;
 - click macro, trust, privacy, or repair dialogs;
 - treat Excel repair/recovery as acceptance;
-- install or trust a helper automatically.
+- install VBA add-ins or change macro or certificate trust.
 
 Diagnostic UI interaction, when explicitly authorized, must verify exactly one
 Excel dialog, the exact workbook name, and expected text. Unknown, privacy, or
@@ -301,8 +191,8 @@ pwsh ./scripts/Test-MacE2E.ps1
 ```
 
 Optional switches add only their named, already prepared capability slices.
-Power Query and VBA use their dedicated guarded runners rather than generated
-workbook fixtures.
+Power Query and VBA are explicit API limitations and have no macOS acceptance
+runner.
 
 Release evidence must record:
 
@@ -314,7 +204,7 @@ Release evidence must record:
 - retained recovery paths;
 - build, portable tests, repository audits, and unavailable Windows COM checks.
 
-No build-only or static helper test is desktop Excel acceptance.
+No build-only or static route test is desktop Excel acceptance.
 
 ## Parity direction
 
@@ -324,6 +214,6 @@ Power Query and VBA remain primary parity workstreams. A blocked action is not
 considered implemented, and an untested action is not classified as an Excel
 platform limitation.
 
-Future work must continue through Excel-supported APIs, the fixed trusted
-helper, or another explicit user-approved capability tier. Direct workbook
-package access is not an implementation option.
+Future work must continue through Excel-supported APIs or another explicit
+user-approved capability tier. Direct workbook package access is not an
+implementation option.

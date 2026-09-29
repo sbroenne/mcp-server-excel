@@ -147,27 +147,16 @@ public sealed class MacCommandCapabilitiesTests
     [Theory]
     [InlineData("analysis.create-scenario")]
     [InlineData("analysis.show-scenario")]
-    public void UnverifiedScenarioMutations_RecordMacroHelperTier(string command)
+    public void ScenarioMutationsWithoutSupportedApis_ReportMacLimitation(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.Equal("NotTested", capability.ImplementationStatus);
-        Assert.Contains("scenarioCreateShow", capability.Evidence, StringComparison.Ordinal);
-        Assert.Contains("runtime parity", capability.Blocker, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Theory]
-    [InlineData("analysis.create-scenario")]
-    [InlineData("analysis.show-scenario")]
-    public void ScenarioCommandsMissingFromNativeDictionary_ReportMacroHelperTier(string command)
-    {
-        var capability = MacCommandCapabilities.Get(command);
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.Contains("helper", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Contains("no Scenario API", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("does not ship a VBA helper", capability.Blocker, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -292,55 +281,11 @@ public sealed class MacCommandCapabilitiesTests
         Assert.Empty(capability.UnavailableMessage);
     }
 
-    [Fact]
-    public void VbaRun_RemainsGatedWithoutRepositoryFixtureEvidence()
-    {
-        var capability = MacCommandCapabilities.Get(
-            "vba.run",
-            new MacVbaPreflightResult(
-                MacMacroExecutionAvailability.Available,
-                MacVbaProjectModelAccess.Disabled));
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.DoesNotContain("project object model", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("repository-owned", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("unattended", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Theory]
-    [InlineData("Disabled", "disabled")]
-    [InlineData("UserApprovalRequired", "approval")]
-    [InlineData("Unknown", "could not")]
-    public void VbaRun_ReportsNonPromptingMacroPreflight(
-        string availabilityName,
-        string expectedMessage)
-    {
-        var availability = Enum.Parse<MacMacroExecutionAvailability>(availabilityName);
-        var capability = MacCommandCapabilities.Get(
-            "vba.run",
-            new MacVbaPreflightResult(availability, MacVbaProjectModelAccess.Disabled));
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.Contains(expectedMessage, capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-    }
-
     [Theory]
     [InlineData("powerquery.list")]
     [InlineData("powerquery.view")]
     [InlineData("powerquery.get-load-config")]
     [InlineData("powerquery.update")]
-    public void PowerQueryReadCommands_RemainUnprovenInHelperTier(string command)
-    {
-        var capability = MacCommandCapabilities.Get(command);
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.NotEmpty(capability.UnavailableMessage);
-    }
-
-    [Theory]
     [InlineData("powerquery.refresh")]
     [InlineData("powerquery.refresh-all")]
     [InlineData("powerquery.create")]
@@ -349,13 +294,16 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("powerquery.load-to")]
     [InlineData("powerquery.unload")]
     [InlineData("powerquery.evaluate")]
-    public void PowerQueryHelperCommands_RemainUnprovenInInventory(string command)
+    public void PowerQueryCommands_ReportSupportedApiLimitation(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.MacroHelper, capability.RequiredTier);
-        Assert.NotEmpty(capability.UnavailableMessage);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Contains("no Workbook.Queries", capability.Evidence, StringComparison.Ordinal);
+        Assert.Contains("does not ship a VBA helper", capability.Blocker, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -364,34 +312,16 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("vba.import")]
     [InlineData("vba.update")]
     [InlineData("vba.delete")]
-    public void VbaSourceCommands_ReportMissingTrustAndScriptingRoute(string command)
+    [InlineData("vba.run")]
+    public void VbaCommands_ReportSupportedApiLimitation(string command)
     {
-        var capability = MacCommandCapabilities.Get(
-            command,
-            new MacVbaPreflightResult(
-                MacMacroExecutionAvailability.Available,
-                MacVbaProjectModelAccess.Disabled));
+        var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.VbaProjectModel, capability.RequiredTier);
-        Assert.Contains("project object model", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("disabled", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("scripting", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void VbaSourceCommands_StayGatedWhenProjectModelTrustIsEnabled()
-    {
-        var capability = MacCommandCapabilities.Get(
-            "vba.list",
-            new MacVbaPreflightResult(
-                MacMacroExecutionAvailability.Available,
-                MacVbaProjectModelAccess.Enabled));
-
-        Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.VbaProjectModel, capability.RequiredTier);
-        Assert.Contains("enabled", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("scripting", capability.UnavailableMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
+        Assert.Equal("MacLimitationCandidate", capability.PlannedTier);
+        Assert.Contains("does not ship a VBA helper", capability.Blocker, StringComparison.Ordinal);
     }
 
     [Fact]

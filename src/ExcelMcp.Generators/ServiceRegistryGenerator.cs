@@ -1511,24 +1511,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         return capability.Tier switch
         {
-            "MacroHelper" when family == "powerquery" => new MacAcceptancePlan(
-                "MacroHelper",
-                "Signed helper 1.4.0 plus a dedicated Excel-authored .xlsx containing zero existing queries.",
-                "pwsh ./scripts/Test-MacPowerQueryPublicAcceptance.ps1 with all confirmation switches and an exact per-action candidate allowlist.",
-                "Use separate opaque CLI/MCP copies; on uncertain open or mutation retain the copy as RECOVERY_REQUIRED and do not retry.",
-                "Both public entry points must prove exact M, identity, load metadata, worksheet values, errors, cleanup, and saved close/reopen persistence."),
-            "MacroHelper" => new MacAcceptancePlan(
-                "MacroHelper",
-                "Signed helper 1.4.0 plus a dedicated Excel-authored workbook for the command family.",
-                "Extend the guarded public helper acceptance slice, then run the exact action through both excelcli and MCP.",
-                "Invalidate the session after timeout or uncertain completion; close only a confirmed owned workbook and never retry through another tier.",
-                "Both public entry points must return the exact contract and prove observable workbook effects, errors, cleanup, and persistence where applicable."),
-            "VbaProjectModel" => new MacAcceptancePlan(
-                "VbaProjectModel",
-                "Signed helper 1.4.0 plus a dedicated Excel-authored .xlsm marker workbook.",
-                "pwsh ./scripts/Test-MacVbaPublicAcceptance.ps1 with explicit macro approval, project-model trust, and per-action candidate allowlist.",
-                "Never save implicitly; after timeout or uncertain completion invalidate the session and preserve the workbook for reconciliation.",
-                "CLI and MCP must prove exact source lifecycle or workbook-qualified execution, trust-disabled failures, errors, observable effects, and persistence."),
             "OfficeAddIn" => new MacAcceptancePlan(
                 "OfficeAddIn",
                 $"Dedicated saved Excel-authored {family} workbook bound to the authenticated task pane for the exact session.",

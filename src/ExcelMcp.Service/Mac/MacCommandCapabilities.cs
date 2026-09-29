@@ -6,8 +6,6 @@ internal enum MacCapabilityTier
 {
     Native,
     OfficeAddIn,
-    MacroHelper,
-    VbaProjectModel,
     OptionalNativeHelper,
     Unsupported
 }
@@ -43,7 +41,6 @@ internal static class MacCommandCapabilities
 
     public static MacCommandCapability Get(
         string command,
-        MacVbaPreflightResult? vbaPreflight = null,
         bool officeCandidateEnabled = false)
     {
         if (ByCommand.TryGetValue(command, out var capability))
@@ -55,20 +52,6 @@ internal static class MacCommandCapabilities
                     IsAvailable = true,
                     RequiredTier = MacCapabilityTier.OfficeAddIn,
                     UnavailableMessage = string.Empty
-                };
-            }
-            if (!capability.IsAvailable && command.StartsWith("vba.", StringComparison.Ordinal))
-            {
-                vbaPreflight ??= MacVbaPreflight.Check();
-                var readiness = command == "vba.run"
-                    ? MacVbaPreflight.DescribeMacroExecution(vbaPreflight.MacroExecution)
-                    : MacVbaPreflight.DescribeProjectModel(vbaPreflight.ProjectModelAccess);
-                var evidence = command == "vba.run"
-                    ? "A repository-owned fixture has not yet proven unattended workbook-qualified execution through CLI and MCP."
-                    : "Apple Events scripting exposes no project-model route; the optional helper requires separate execution evidence.";
-                return capability with
-                {
-                    UnavailableMessage = $"{capability.UnavailableMessage} Preflight reports that {readiness}. {evidence}"
                 };
             }
             return capability;
