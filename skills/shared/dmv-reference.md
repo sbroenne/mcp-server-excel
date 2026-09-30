@@ -6,8 +6,8 @@ Use DMV queries (via the `datamodel` tool with `execute-dmv` action) when you ne
 
 | Use Case | DMV to Use |
 |----------|-----------|
-| List all DAX measures with their formulas | `TMSCHEMA_MEASURES` |
-| Discover all relationships (including hidden) | `TMSCHEMA_RELATIONSHIPS` |
+| Measure metadata beyond regular list/read operations | `TMSCHEMA_MEASURES` |
+| Additional relationship metadata | `TMSCHEMA_RELATIONSHIPS` |
 | Impact analysis — what depends on a measure/column | `DISCOVER_CALC_DEPENDENCY` |
 | List all available DMV views on this workbook | `DISCOVER_SCHEMA_ROWSETS` |
 
@@ -36,17 +36,7 @@ LIMITATIONS:
 
 `TMSCHEMA_TABLES`, `TMSCHEMA_COLUMNS`, `TMSCHEMA_PARTITIONS`
 
-## Full TMSCHEMA Catalog
-
-| Category | DMVs |
-|----------|------|
-| Structure | TMSCHEMA_MODEL, TMSCHEMA_TABLES, TMSCHEMA_COLUMNS, TMSCHEMA_HIERARCHIES, TMSCHEMA_LEVELS |
-| Measures | TMSCHEMA_MEASURES, TMSCHEMA_KPIS, TMSCHEMA_FORMAT_STRING_DEFINITIONS |
-| Relationships | TMSCHEMA_RELATIONSHIPS |
-| Security | TMSCHEMA_ROLES, TMSCHEMA_ROLE_MEMBERSHIPS, TMSCHEMA_TABLE_PERMISSIONS, TMSCHEMA_COLUMN_PERMISSIONS |
-| Partitions | TMSCHEMA_PARTITIONS, TMSCHEMA_DATA_SOURCES |
-| Metadata | TMSCHEMA_ANNOTATIONS, TMSCHEMA_EXTENDED_PROPERTIES, TMSCHEMA_CULTURES, TMSCHEMA_OBJECT_TRANSLATIONS |
-| Perspectives | TMSCHEMA_PERSPECTIVES, TMSCHEMA_PERSPECTIVE_TABLES, TMSCHEMA_PERSPECTIVE_COLUMNS, TMSCHEMA_PERSPECTIVE_MEASURES |
-| Calculations | TMSCHEMA_CALCULATION_GROUPS, TMSCHEMA_CALCULATION_ITEMS, TMSCHEMA_EXPRESSIONS |
+Discover available rowsets in the actual workbook rather than assuming the full
+Analysis Services catalog applies to Excel's embedded provider.
 
 Reference: [Microsoft DMV Docs](https://learn.microsoft.com/en-us/analysis-services/instances/use-dynamic-management-views-dmvs-to-monitor-analysis-services)

@@ -96,6 +96,68 @@ public class SkillMdQualityTests
         Assert.Contains("finally", content, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void PermissionGuidance_IsSharedAndTaskScoped(string skill)
+    {
+        var root = Path.Combine(SkillsFolder, skill);
+        var content = File.ReadAllText(Path.Combine(root, "references", "behavioral-rules.md"));
+        Assert.Contains("clear, authorized request", content);
+        Assert.Contains("ask one focused question", content);
+        Assert.Contains("cleaning proposal is read-only", content);
+        Assert.Contains("not user authorization", content);
+        Assert.Contains("temporary workbook objects", content);
+        Assert.Contains("./references/behavioral-rules.md#intent-and-permission",
+            File.ReadAllText(Path.Combine(root, "SKILL.md")));
+        Assert.Equal(File.ReadAllText(Path.Combine(SkillsFolder, "shared", "behavioral-rules.md")).Replace("\r\n", "\n"),
+            content.Replace("\r\n", "\n"));
+    }
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void VisibilityGuidance_ReusesPreferencesWithoutMandatoryQuestions(string skill)
+    {
+        var root = Path.Combine(SkillsFolder, skill);
+        var policy = File.ReadAllText(Path.Combine(root, "references", "behavioral-rules.md"));
+        Assert.Contains("known visibility preference", policy);
+        Assert.Contains("Preserve an existing session's", policy);
+        Assert.Contains("no known", policy);
+        Assert.Contains("hidden by default", policy);
+        Assert.Contains("Authentication may require visible Excel", policy);
+        Assert.Contains("not show a", policy);
+        var template = File.ReadAllText(Path.Combine(root, "SKILL.md"));
+        Assert.Contains("known visibility preference", template);
+        Assert.Contains("existing session's visibility", template.Replace("\r\n", "\n").Replace("\n  ", " "));
+        Assert.Contains("does not mean showing a hidden Excel window", template);
+    }
+
+    [Fact]
+    public void SharedProse_DoesNotRequireTranslatingMcpInputNames()
+    {
+        foreach (var path in Directory.GetFiles(Path.Combine(SkillsFolder, "shared"), "*.md"))
+        {
+            var prose = Regex.Replace(File.ReadAllText(path), @"(?ms)^```.*?^```[^\r\n]*", "");
+            Assert.False(Regex.IsMatch(prose, @"`[a-z]+_[a-z_]+(?:=[^`]*)?`"),
+                $"MCP input name outside a native example in {Path.GetFileName(path)}");
+        }
+        var cliReadme = File.ReadAllText(Path.Combine(SkillsFolder, "excel-cli", "references", "README.md"));
+        Assert.DoesNotContain("translate them", cliReadme);
+        Assert.Contains("native CLI examples", cliReadme);
+    }
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void QueryEvaluationGuidance_DistinguishesTemporaryChangesFromReads(string skill)
+    {
+        var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", "powerquery.md"));
+        Assert.Contains("Evaluation is not a read-only operation", content);
+        Assert.Contains("Execution may contact external sources", content);
+        Assert.Contains("behavioral-rules.md#intent-and-permission", content);
+    }
+
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]

@@ -68,6 +68,13 @@ uv run pytest -o addopts= mcp_tests\test_mcp_chart_positioning.py -v
 Run Excel-dependent commands sequentially. Never use parallel pytest workers
 for these evaluations or overlap them with other Excel test runs.
 
+The CLI evaluation wrapper uses the MCP 2 server API selected by `uv.lock`.
+Its transport smoke test needs neither Excel nor model access:
+
+```powershell
+uv run python -m unittest test_cli_mcp_server.py -v
+```
+
 - `EXCEL_MCP_SERVER_COMMAND` — override MCP server command (full command line)
 - `EXCEL_CLI_COMMAND` — override CLI command (default: `excelcli`)
 - `EXCEL_LLM_MODEL` — supported Copilot model ID; defaults to `auto` rather than
@@ -95,6 +102,9 @@ Or set `GITHUB_TOKEN` in the environment before running `pytest`.
 - `test_mcp_*.py` — MCP Server workflows
 - `test_cli_*.py` — CLI workflows
 - `test_*calculation_mode*.py` — new calculation mode scenarios
+- `test_*consent*.py` — paired clarification, read-only audit, visibility, and
+  workbook-text permission scenarios, checked through calls and workbook state.
+  The CLI also checks a pre-existing unsaved session in its private daemon.
 - `Fixtures/` — shared test inputs (CSV/JSON/M files)
 - `TestResults/` — HTML reports and artifacts
 

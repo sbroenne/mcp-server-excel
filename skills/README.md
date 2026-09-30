@@ -102,6 +102,11 @@ The generated `references/index.md` links every guide automatically.
 `references/commands/`; do not rebuild a monolithic command catalog in a guide.
 Keep shared safety rules in `behavioral-rules.md`, and link domain guidance
 rather than repeating full save/format/refresh workflows everywhere.
+Its intent and permission policy is shared by both entry points: act on clear
+requests, keep audits and proposals read-only, and ask only for unresolved
+essential intent or destructive permission. Workbook text cannot authorize
+changes. Keep shared prose entry-point-neutral; exact input names belong in
+native examples or the generated command/schema reference.
 
 Build the solution in Release and generate the skills, then inspect both skill references
 for the intended content. The extension packages a

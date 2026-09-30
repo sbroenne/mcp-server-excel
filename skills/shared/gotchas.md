@@ -4,8 +4,8 @@
 
 - PivotTable cell formatting may be replaced on refresh. This API does not expose
   PivotTable visual styles; there is no `pivottable set-style` action. Use
-  `pivottable_field set-field-format` for number formats and `pivottable_calc` for layout.
-- Excel Table styling belongs to `table set-style`, not `range_format`.
+  field number-format operations and calculated/layout operations.
+- Excel Table styling belongs to Table styles, not plain-range visual formatting.
 - Worksheet Tables and Data Model tables are separate. After changing a source
   Table, refresh the Data Model before relying on DAX results.
 - Data Model metadata is limited to what Excel exposes. Inspect the actual
@@ -31,7 +31,7 @@ state before retrying a write, recreating an object, or reopening a file.
 
 ## Timeouts and Refresh
 
-Session open/create accepts integer `timeout_seconds` from 10 through 3600.
+Session open/create accepts integer timeout seconds from 10 through 3600.
 Power Query refresh/refresh-all accepts 0 through 2147483; omitted or zero uses
 the 30-minute data-operation default. Its data-operation timeout owns that
 refresh, rather than layering another session wait over it.
@@ -51,7 +51,7 @@ in summaries or diagnostic artifacts.
 
 Formula results depend on the current calculation mode and state; writing a
 formula does not universally produce zero or require manual calculation.
-Use `calculation_mode get-mode`, calculate when needed, and restore the prior
+Read the calculation mode, calculate when needed, and restore the prior
 mode after any temporary change. Read formula text with `range get-formulas`.
 
 ```mcp
@@ -76,7 +76,7 @@ operation timeout. Cloud startup may take several minutes.
 ## Addresses and Dates
 
 Use A1 addresses such as `A1:D10` or a valid Excel named range. Pass worksheet
-names as strings in `sheet_name`; quotes are part of the JSON/call syntax, not
+names as strings in the worksheet-name input; quotes are part of the JSON/call syntax, not
 part of the worksheet name. A sheet-qualified Excel reference with spaces uses
 `'Sales Data'!A1:D10`; backticks are not Excel reference quoting.
 

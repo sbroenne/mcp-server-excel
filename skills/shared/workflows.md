@@ -29,37 +29,33 @@ filter context. Refresh source data when it changes before relying on DAX result
 ## Tool Sequencing
 
 ### Data Model Prerequisites
-```
-1. Load table (powerquery load-to with `load_destination="data-model"`)
-2. THEN create relationships (datamodel_relationship with create-relationship action)
-3. THEN create measures (datamodel create-measure)
-```
-Skipping step 1 causes "table not found" errors.
+
+Load the required tables into the Data Model, or add existing worksheet Tables
+to it, before creating measures. Add relationships only when a calculation needs
+cross-table filtering; a measure over one table does not need a relationship.
+Discover existing model tables and relationships before creating new ones.
+See [Data Model guidance](datamodel.md) for native examples.
 
 ### Power Query Development Lifecycle
-```
-1. powerquery evaluate (test M code without persisting - catches errors early)
-2. powerquery create (stores and loads the selected destination) or update (refreshes by default)
-3. load-to if changing destinations; refresh when loaded data needs updating
-```
-Prefer evaluate for new or changed code; trivial or already-validated code with
+For authorized query development, evaluate new logic, then create or update the
+intended query. Create loads its chosen destination; update refreshes by default.
+Use load-to when changing destinations and refresh when loaded data needs updating.
+Prefer evaluation for new or changed code; trivial or already-validated code with
 unchanged dependencies does not need redundant evaluation. Persisting untested
-code can leave a broken query in the workbook.
+code can leave a broken query in the workbook. Evaluation uses temporary workbook
+objects and executes M code; it is not a read-only audit operation.
+See [Power Query](powerquery.md).
 
 ### Parameter Setup for Power Query
-```
-1. worksheet create (e.g., "_Setup")
-2. range set-values (parameter values)
-3. namedrange create (named reference)
-```
+When parameter setup is requested, reuse the intended cells and named reference.
+Create a setup sheet only if needed, write the parameter values, and create a
+named reference to those cells.
 Power Query reads via `Excel.CurrentWorkbook(){[Name = "..."]}`
 
 ## Verification Commands
 
-```
-After Power Query: powerquery list, powerquery view
-After refresh:     datamodel list-tables
-After measure:     datamodel list-measures, datamodel evaluate
-After relationship: datamodel_relationship list-relationships
-After chart/layout: chart read and overlap warnings; screenshot when an interactive desktop is available
-```
+Use query list/view for stored definitions and load configuration; those do not
+prove loaded values are current. Read the affected loaded data when that is the
+requested result. Inspect actual model query results for measures, relationship
+metadata for relationships, and chart series/bounds for charts. Screenshots are
+useful for layout when an interactive desktop is available, not for every task.
