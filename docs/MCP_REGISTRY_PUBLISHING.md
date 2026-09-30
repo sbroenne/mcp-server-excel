@@ -70,7 +70,17 @@ The workflow:
 
 ### 2. Wait for NuGet and npm Propagation
 - The MCP Registry offers both NuGet and npm deployment mechanisms
-- The job waits for the NuGet README and npm `mcpName` metadata to propagate
+- `scripts/Test-McpRegistryPublication.ps1` verifies the source `server.json`
+  identity and release version, including its NuGet and npm package entries
+- The job waits for the NuGet README's `mcp-name:` marker, NuGet package identity
+  and version, and the npm launcher's identity, version, and `mcpName` metadata
+- It also checks each required npm runtime's published identity and version,
+  and requires the launcher's corresponding `optionalDependencies` entry to
+  match the release version
+- Required runtimes come from the exact released source's launcher manifest,
+  passed through `-NpmLauncherManifestPath`: x64 is required, and ARM64 is
+  required when declared. Historical x64-only releases can therefore still be
+  repaired without requiring an ARM64 package that did not exist
 - Polls up to 3 times with 10-minute intervals
 - Decodes the NuGet README response as UTF-8 when NuGet returns
   `application/octet-stream`
@@ -105,6 +115,21 @@ After release, verify publication:
 - **GitHub Release**: https://github.com/sbroenne/mcp-server-excel/releases
 
 ## Troubleshooting
+
+### Package Metadata Is Not Ready
+
+**Issue**: The validation gate reports `Published package metadata is not ready`
+or `Published x64/arm64 npm runtime metadata is not ready`.
+
+**Solution**:
+- Check that the NuGet package and npm launcher have the requested release
+  version and ownership metadata described above
+- Check that each runtime required by that release's launcher manifest is
+  published at the same version, and that the published launcher's matching
+  `optionalDependencies` entries reference that version
+- Allow package metadata to propagate before retrying the repair workflow with
+  the exact existing release tag. Do not substitute the current branch's
+  launcher manifest when repairing an older release
 
 ### MCP Registry Publishing Fails
 

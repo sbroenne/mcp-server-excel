@@ -35,8 +35,11 @@ excelcli --version
 ```
 
 Requires Node.js 18+. Keep optional dependencies enabled so npm installs the
-matching Windows runtime. CLI arguments follow the package name when using
-`npx`, for example `npx -y @sbroenne/excelcli -q session list`.
+matching Windows runtime. ARM64 Node.js selects the native ARM64 package;
+x64 Node.js selects the x64 package, which runs through emulation on ARM64
+Windows. A missing matching runtime fails with reinstall guidance rather than
+falling back to another architecture. CLI arguments follow the package name
+when using `npx`, for example `npx -y @sbroenne/excelcli -q session list`.
 
 ### Primary Installation: Standalone Executable
 
@@ -72,7 +75,7 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 ## ⚙️ System Requirements
 
 - **Windows OS** (Windows 10/11 or Server 2016+) + **Microsoft Excel 2016 or later** — COM interop is Windows-specific and requires Excel to be installed
-- **Node.js 18+** only if using npm; Windows x64 and Arm64 (x64 emulation) are supported
+- **Node.js 18+** only if using npm; Windows x64 and ARM64 are supported, with the runtime selected by Node.js architecture
 - **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for npm or the standalone exe)
 
 📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
