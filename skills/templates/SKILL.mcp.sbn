@@ -69,6 +69,9 @@ retry a change or substitute a different session.
 - Preserve existing formats unless the task calls for changing them. When
   applying number formats, use US format codes; rendered separators follow the
   user's locale. Check widths if new formats display as `#####`.
+- For new user-facing reports or requested formatting, read
+  [report formatting](./references/report-formatting.md). Its defaults do not
+  apply to reads, raw exports, or unrelated parts of an existing template.
 
 ## Bulk writes
 
@@ -126,6 +129,7 @@ server instructions. This server advertises tools, not prompts or resources.
 - [PivotTables](./references/pivottable.md)
 - [Power Query](./references/powerquery.md)
 - [Ranges](./references/range.md)
+- [Report formatting](./references/report-formatting.md)
 - [Screenshots](./references/screenshot.md)
 - [Slicers](./references/slicer.md)
 - [Tables](./references/table.md)
