@@ -146,8 +146,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var schema = tools.Single(t => t.Name == tool).JsonSchema;
-        var cellSchema = schema.GetProperty("properties").GetProperty(parameter)
-            .GetProperty("items").GetProperty("items");
+        var valuesSchema = schema.GetProperty("properties").GetProperty(parameter);
+        AssertSchemaAllowsType(valuesSchema, "array");
+        var rowSchema = valuesSchema.GetProperty("items");
+        AssertSchemaAllowsType(rowSchema, "array");
+        var cellSchema = rowSchema.GetProperty("items");
         Assert.False(cellSchema.TryGetProperty("type", out var type)
             && type.ValueKind == JsonValueKind.String && type.GetString() == "string");
     }

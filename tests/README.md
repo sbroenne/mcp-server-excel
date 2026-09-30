@@ -103,29 +103,6 @@ The quick groups are not acceptance gates. Complete normal validation still
 uses `RunType!=OnDemand`, including the separately classified real Excel,
 process, deadline, crash, rebuild, and ownership cases below.
 
-### Published MCP contract snapshot
-
-`McpToolContractSnapshotTests` compares the real server's `tools/list` response
-with the reviewed `tests\ExcelMcp.McpServer.Tests\TestData\mcp-tool-contract.json`.
-It covers every tool name, description, input schema, and output schema, including
-nested types, enums, required fields, and defaults. Object property ordering and
-whitespace are normalized; this is a client-neutral change check, not a claim
-that a particular model provider accepts the definitions.
-
-After a Release build, run:
-
-```powershell
-dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ToolContractSnapshot' --blame-hang-timeout 5m
-```
-
-The test always writes `mcp-tool-contract.actual.json` beside the copied snapshot
-in the test output's `TestData` directory. A missing or changed baseline fails;
-tests never update the source snapshot automatically. For an intentional change,
-compare the two files, review compatibility and the related entry-point tests,
-then explicitly copy the generated file over the source snapshot and commit it
-with the contract change. Rebuild and rerun the test after updating the baseline.
-The snapshot check runs in CI and the local `-Contracts` selection without Excel.
-
 ### Parallel collections
 
 Each project allows up to four xUnit collection workers, but only
