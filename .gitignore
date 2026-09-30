@@ -49,8 +49,6 @@ artifacts/
 # Installable skills and download scripts are generated, not source.
 /skills/excel-cli/
 /skills/excel-mcp/
-/.github/plugins/excel-cli/bin/download.ps1
-/.github/plugins/excel-mcp/bin/download.ps1
 
 # Files built by Visual Studio
 *_i.c

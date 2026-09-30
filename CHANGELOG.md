@@ -11,6 +11,17 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.0.14] - 2026-09-29
+
+### Patch Changes
+
+- [#932](https://github.com/sbroenne/mcp-server-excel/pull/932) [`efbd1d5`](https://github.com/sbroenne/mcp-server-excel/commit/efbd1d5b1ab1757205af62ae4177dcf7999bb8d6) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reliable CLI pipelines and named-range text**: CLI options now accept the
+  documented standalone `-` stdin marker, including `--values -` and `--input -`.
+  Named-range writes also preserve dotted identifiers such as `2.0.13` as text
+  instead of interpreting them with the machine's regional number format.
+
+- [#933](https://github.com/sbroenne/mcp-server-excel/pull/933) [`741114f`](https://github.com/sbroenne/mcp-server-excel/commit/741114f06587ce90d00a69dfc9d792bf49635796) Thanks [@sbroenne](https://github.com/sbroenne)! - **Simpler plugin startup:** The Excel MCP and CLI plugins now use the published npm packages through `npx`. Node.js 18 or later is required, and the old GitHub Release downloader has been removed.
+
 ## [2.0.13] - 2026-09-29
 
 ### Patch Changes

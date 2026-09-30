@@ -6,7 +6,6 @@ $ErrorActionPreference = "Stop"
 
 $PluginDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $WrapperPath = Join-Path $PluginDir "bin\start-cli.ps1"
-$DownloadScriptPath = Join-Path $PluginDir "bin\download.ps1"
 $CopilotDir = Join-Path $env:USERPROFILE ".copilot"
 $CopilotBinDir = Join-Path $CopilotDir "bin"
 $ShimCmdPath = Join-Path $CopilotBinDir "excelcli.cmd"
@@ -21,35 +20,14 @@ if (-not (Test-Path $WrapperPath)) {
     exit 1
 }
 
-if (-not (Test-Path $DownloadScriptPath)) {
-    Write-Error "❌ Plugin bootstrap script not found at $DownloadScriptPath"
-    exit 1
-}
-
 if (-not (Test-Path $CopilotBinDir)) {
     Write-Host "[Install] Creating $CopilotBinDir ..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $CopilotBinDir -Force | Out-Null
 }
 
-$escapedDownloadPath = $DownloadScriptPath.Replace("'", "''")
-$bootstrapCommand = "[Console]::OutputEncoding = [Text.UTF8Encoding]::new(`$false); & '$escapedDownloadPath' -PassThru -Quiet"
-$encodedBootstrap = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($bootstrapCommand))
-# Resolve the runtime first, then invoke it with cmd's verbatim %*. Routing arguments through
-# "powershell -File" would strip embedded double quotes and corrupt JSON arguments such as
-# --values '[["Name","Amount"]]', so the executable is called directly instead.
 $cmdShim = @"
 @echo off
-setlocal
-set "EXCELCLI_EXE="
-for /f "tokens=2 delims=:" %%i in ('chcp') do set "EXCELCLI_CODEPAGE=%%i"
-chcp 65001 >nul
-for /f "usebackq delims=" %%i in (``powershell -NoProfile -OutputFormat Text -ExecutionPolicy Bypass -EncodedCommand "$encodedBootstrap"``) do set "EXCELCLI_EXE=%%i"
-chcp %EXCELCLI_CODEPAGE% >nul
-if not defined EXCELCLI_EXE (
-    echo excel-cli bootstrap did not resolve a usable excelcli.exe runtime. 1>&2
-    exit /b 1
-)
-"%EXCELCLI_EXE%" %*
+call npx.cmd -y @sbroenne/excelcli@latest %*
 exit /b %ERRORLEVEL%
 "@
 
@@ -134,7 +112,7 @@ Write-Host "✅ excelcli shims are installed." -ForegroundColor Green
 Write-Host "   Wrapper: $WrapperPath" -ForegroundColor Gray
 Write-Host "   Shim dir: $CopilotBinDir" -ForegroundColor Gray
 Write-Host ""
-Write-Host "The first real 'excelcli' invocation will auto-download the newest Windows runtime." -ForegroundColor Cyan
+Write-Host "'excelcli' uses the latest npm package through npx." -ForegroundColor Cyan
 Write-Host "Verify installation:" -ForegroundColor Cyan
 Write-Host "   excelcli --version" -ForegroundColor Gray
 Write-Host "   excelcli --help" -ForegroundColor Gray

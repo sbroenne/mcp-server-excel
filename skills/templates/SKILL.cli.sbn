@@ -8,7 +8,7 @@ description: >
   VBA, Data Models, screenshots, and formatting. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows, Microsoft Excel 2016 or later, and network access for first-run runtime download.
+compatibility: Requires Windows, Microsoft Excel 2016 or later, Node.js 18+, and network access for npx.
 ---
 
 # Excel Automation with excelcli
@@ -17,17 +17,12 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 - Windows host with Microsoft Excel installed (2016+)
 - Uses COM interop — does NOT work on macOS or Linux
-- **Every command below invokes `excelcli` directly, so it must resolve on PATH.**
-  Installing the `excel-cli` plugin does *not* put it there — the global shim is opt-in. Run
-  `com.github.copilot\bin\install-global.ps1` from the installed plugin folder once (it writes
-  `excelcli.cmd` / `excelcli.ps1` into `~\.copilot\bin` and adds that to your user PATH), or
-  install the runtime independently via the standalone release zip or
-  `dotnet tool install --global Sbroenne.ExcelMcp.CLI`.
-  If `excelcli` is not found, report that and stop — do not guess at a path.
-- In an Agent Plugins host, the runtime is downloaded and cached under
-  `PLUGIN_DATA\runtime`; release freshness is checked once per Copilot session. The optional
-  global shim falls back to `~\.copilot\plugin-runtime\mcp-server-excel\excel-cli` and checks
-  for updates at most once every 24 hours.
+- **Use `npx -y @sbroenne/excelcli@latest` by default.** The examples below use
+  `excelcli` for readability; replace that token with the npx command unless `excelcli`
+  already resolves on PATH.
+- The optional `com.github.copilot\bin\install-global.ps1` helper creates
+  `excelcli.cmd` / `excelcli.ps1` shims in `~\.copilot\bin`. The PowerShell shim
+  preserves embedded quotes in JSON arguments.
 
 ## Workflow Checklist
 
