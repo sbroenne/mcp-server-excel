@@ -95,6 +95,13 @@ The npm package includes the Windows server, so it does not require .NET or a
 separate download from GitHub Releases. npm caches the package after the first
 run.
 
+Windows x64 and ARM64 are supported. ARM64 Node.js selects
+`@sbroenne/mcp-server-excel-win32-arm64`; x64 Node.js selects
+`@sbroenne/mcp-server-excel-win32-x64`, including through emulation on ARM64
+Windows. Keep optional dependencies enabled; do not use `--omit=optional`.
+If the matching runtime is missing, the launcher reports an error rather than
+falling back to another architecture.
+
 #### Option B: Standalone Executable
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)

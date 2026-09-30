@@ -8,6 +8,9 @@ npx -y @sbroenne/mcp-server-excel
 
 The package is Windows-only and requires Microsoft Excel 2016 or later. It does
 not require the .NET SDK or a separately installed .NET runtime.
+ARM64 Node.js selects the native ARM64 runtime; x64 Node.js selects x64,
+including on ARM64 Windows. Keep optional dependencies enabled. A missing
+matching package is an error, not a fallback to another architecture.
 
 The Node.js entry point only launches the packaged .NET server. MCP tools and
 Excel automation continue to run in the existing ExcelMcp implementation.

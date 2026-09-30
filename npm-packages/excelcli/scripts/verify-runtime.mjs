@@ -7,7 +7,7 @@ if (!launcherPath) {
   throw new Error('Usage: node verify-runtime.mjs <launcher-path>');
 }
 
-const runtime = createRequire(launcherPath).resolve('@sbroenne/excelcli-win32-x64');
+const runtime = createRequire(launcherPath).resolve(`@sbroenne/excelcli-win32-${process.arch}`);
 for (const args of [['--version'], ['--help'], ['session', '--help'], ['--invalid-npm-smoke-option']]) {
   const options = { encoding: 'utf8', timeout: 30_000, windowsHide: true };
   const direct = spawnSync(runtime, args, options);

@@ -95,6 +95,7 @@ try {
             $exeName = if ($component -eq 'Cli') { 'excelcli.exe' } else { 'Sbroenne.ExcelMcp.McpServer.exe' }
             $prepared[$component] = Join-Path $runtimeDir $exeName
         }
+        Assert-PackageRuntimeArchitecture -Path $prepared[$component] -Architecture x64
         $productVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($prepared[$component]).ProductVersion
         if (($productVersion -split '\+')[0] -ne $Version) { throw "$component runtime version $productVersion does not match $Version." }
         Invoke-PackageStep "$component runtime version" { & $prepared[$component] --version }
@@ -102,14 +103,28 @@ try {
         $npmComponent = if ($component -eq 'Cli') { 'Cli' } else { 'McpServer' }
         $packageName = if ($component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
         $npmDir = Join-Path $OutputDirectory 'npm'
-        Invoke-PackageStep "$component npm packages" {
-            & (Join-Path $PSScriptRoot 'Build-NpmPackages.ps1') -Component $npmComponent -Version $Version `
-                -RuntimeExecutable $prepared[$component] -OutputDirectory $npmDir
-        }
-        Invoke-PackageStep "$component installed npm package" {
-            & (Join-Path $PSScriptRoot 'Test-NpmPackages.ps1') -Component $npmComponent `
-                -LauncherPackage (Join-Path $npmDir "sbroenne-$packageName-$Version.tgz") `
-                -RuntimePackage (Join-Path $npmDir "sbroenne-$packageName-win32-x64-$Version.tgz")
+        foreach ($architecture in @('x64', 'arm64')) {
+            $npmRuntime = $prepared[$component]
+            if ($architecture -eq 'arm64') {
+                $armRuntimeDir = Join-Path $runtimeRoot "$component-arm64"
+                Invoke-PackageStep "$component ARM64 npm runtime" {
+                    Publish-PackageRuntime -Component $component -RepoRoot $root -Version $Version `
+                        -Architecture arm64 -OutputDirectory $armRuntimeDir
+                }
+                $exeName = if ($component -eq 'Cli') { 'excelcli.exe' } else { 'Sbroenne.ExcelMcp.McpServer.exe' }
+                $npmRuntime = Join-Path $armRuntimeDir $exeName
+                $armVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($npmRuntime).ProductVersion
+                if (($armVersion -split '\+')[0] -ne $Version) { throw "$component ARM64 runtime version $armVersion does not match $Version." }
+            }
+            Invoke-PackageStep "$component $architecture npm packages" {
+                & (Join-Path $PSScriptRoot 'Build-NpmPackages.ps1') -Component $npmComponent -Version $Version `
+                    -Architecture $architecture -RuntimeExecutable $npmRuntime -OutputDirectory $npmDir
+            }
+            Invoke-PackageStep "$component $architecture installed npm package" {
+                & (Join-Path $PSScriptRoot 'Test-NpmPackages.ps1') -Component $npmComponent -Architecture $architecture `
+                    -LauncherPackage (Join-Path $npmDir "sbroenne-$packageName-$Version.tgz") `
+                    -RuntimePackage (Join-Path $npmDir "sbroenne-$packageName-win32-$architecture-$Version.tgz")
+            }
         }
         $zipStage = Join-Path $OutputDirectory "zip-$component"
         New-Item -ItemType Directory -Path $zipStage | Out-Null

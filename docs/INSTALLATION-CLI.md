@@ -11,8 +11,8 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 > **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
 
 The npm option also requires **Node.js 18 or later**. Install the current LTS
-with `winget install OpenJS.NodeJS.LTS`. Windows x64 and Arm64 (via x64
-emulation) are supported.
+with `winget install OpenJS.NodeJS.LTS`. Windows x64 and ARM64 are supported;
+ARM64 Node.js uses a native ARM64 executable.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -50,8 +50,11 @@ npm install --global @sbroenne/excelcli
 excelcli --version
 ```
 
-The launcher installs the matching `@sbroenne/excelcli-win32-x64` runtime as an
-optional dependency. Do not use `--omit=optional`. It forwards arguments,
+The launcher installs `@sbroenne/excelcli-win32-x64` or
+`@sbroenne/excelcli-win32-arm64` as an optional dependency, matching the Node.js
+process architecture. x64 Node.js on ARM64 Windows still uses x64 emulation.
+There is no automatic fallback if the matching runtime is missing.
+Do not use `--omit=optional`. It forwards arguments,
 standard input/output, and exit codes to the same `excelcli.exe`; session
 management and Excel behavior are unchanged.
 
@@ -195,7 +198,8 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 
 ### npm Runtime Package Missing
 
-If the launcher cannot find `@sbroenne/excelcli-win32-x64`, reinstall with
+If the launcher cannot find `@sbroenne/excelcli-win32-x64` or
+`@sbroenne/excelcli-win32-arm64`, reinstall with
 optional dependencies enabled:
 
 ```powershell

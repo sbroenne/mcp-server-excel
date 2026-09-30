@@ -45,9 +45,14 @@ public sealed class ReleaseMetadataScriptTests
         "workflows",
         "publish-mcp-registry.yml");
 
-    [Fact]
+    [Theory]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
     [Trait("Feature", "ReleaseMetadata")]
-    public async Task McpRegistryValidation_DecodesNuGetReadmeByteContent()
+    public async Task McpRegistryValidation_ChecksDeclaredRuntimesAndDecodesNuGetReadme(
+        bool sourceHasArm64, bool publishedHasArm64, bool wrongArm64Version)
     {
         var sandbox = CreateSandbox();
         try
@@ -57,6 +62,14 @@ public sealed class ReleaseMetadataScriptTests
                 Path.Combine(RepoRoot, "src", "ExcelMcp.McpServer", ".mcp", "server.json"),
                 manifestPath);
             var fixtureVersion = ReadJsonProperty(manifestPath, "version");
+            var launcherManifestPath = Path.Combine(sandbox, "package.json");
+            var launcherManifest = JsonNode.Parse(File.ReadAllText(
+                Path.Combine(RepoRoot, "npm-packages", "mcp-server-excel", "package.json")))!.AsObject();
+            if (!sourceHasArm64)
+            {
+                launcherManifest["optionalDependencies"]!.AsObject().Remove("@sbroenne/mcp-server-excel-win32-arm64");
+            }
+            File.WriteAllText(launcherManifestPath, launcherManifest.ToJsonString());
             var runner = Path.Combine(sandbox, "run.ps1");
             File.WriteAllText(runner, $$"""
                 function Invoke-WebRequest {
@@ -75,27 +88,43 @@ public sealed class ReleaseMetadataScriptTests
                             version = '{{fixtureVersion}}'
                         }
                     }
-                    if ($Uri -like '*win32-x64*') {
-                        return [pscustomobject]@{ name = '@sbroenne/mcp-server-excel-win32-x64'; version = '{{fixtureVersion}}' }
+                    if ($Uri -like '*win32-*') {
+                        $arch = if ($Uri -like '*win32-arm64*') { 'arm64' } else { 'x64' }
+                        $runtimeVersion = if ($arch -eq 'arm64' -and ${{wrongArm64Version.ToString().ToLowerInvariant()}}) { '0.0.0' } else { '{{fixtureVersion}}' }
+                        return [pscustomobject]@{ name = "@sbroenne/mcp-server-excel-win32-$arch"; version = $runtimeVersion }
+                    }
+                    $dependencies = @{ '@sbroenne/mcp-server-excel-win32-x64' = '{{fixtureVersion}}' }
+                    if (${{publishedHasArm64.ToString().ToLowerInvariant()}}) {
+                        $dependencies['@sbroenne/mcp-server-excel-win32-arm64'] = '{{fixtureVersion}}'
                     }
                     return [pscustomobject]@{
                         name = '@sbroenne/mcp-server-excel'
                         version = '{{fixtureVersion}}'
                         mcpName = 'io.github.sbroenne/mcp-server-excel'
+                        optionalDependencies = [pscustomobject]$dependencies
                     }
                 }
                 & '{{TestMcpRegistryPublicationScript.Replace("'", "''", StringComparison.Ordinal)}}' `
                     -ServerJsonPath '{{manifestPath.Replace("'", "''", StringComparison.Ordinal)}}' `
+                    -NpmLauncherManifestPath '{{launcherManifestPath.Replace("'", "''", StringComparison.Ordinal)}}' `
                     -Version '{{fixtureVersion}}' -Attempts 1 -RetrySeconds 0
                 """);
 
             var result = await RunPowerShellScriptAsync(runner, [], sandbox);
 
-            Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            Assert.Contains(
-                $"Validated MCP Registry source, NuGet, and npm metadata for version {fixtureVersion}.",
-                result.Stdout,
-                StringComparison.Ordinal);
+            if (sourceHasArm64 && (!publishedHasArm64 || wrongArm64Version))
+            {
+                Assert.NotEqual(0, result.ExitCode);
+                Assert.Contains("Published arm64 npm runtime metadata is not ready.", result.CombinedOutput, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.True(result.ExitCode == 0, result.CombinedOutput);
+                Assert.Contains(
+                    $"Validated MCP Registry source, NuGet, and npm metadata for version {fixtureVersion}.",
+                    result.Stdout,
+                    StringComparison.Ordinal);
+            }
         }
         finally { Directory.Delete(sandbox, recursive: true); }
     }
@@ -465,7 +494,9 @@ public sealed class ReleaseMetadataScriptTests
         Assert.DoesNotContain("./scripts/Build-Changelog.ps1", createRelease, StringComparison.Ordinal);
         Assert.DoesNotContain("Commit Release Metadata Update", createRelease, StringComparison.Ordinal);
         var registryValidation = File.ReadAllText(TestMcpRegistryPublicationScript);
-        Assert.Contains("@sbroenne%2fmcp-server-excel-win32-x64/$Version", registryValidation, StringComparison.Ordinal);
+        Assert.Contains("@sbroenne%2fmcp-server-excel-win32-$architecture/$Version", registryValidation, StringComparison.Ordinal);
+        Assert.Contains("$sourceLauncher.optionalDependencies", registryValidation, StringComparison.Ordinal);
+        Assert.Contains("$launcher.optionalDependencies.$runtimeName -ne $Version", registryValidation, StringComparison.Ordinal);
         Assert.Contains("$launcher.mcpName", registryValidation, StringComparison.Ordinal);
         Assert.Contains("$runtime.version -ne $Version", registryValidation, StringComparison.Ordinal);
         Assert.Contains("$readme -notmatch", registryValidation, StringComparison.Ordinal);
@@ -493,14 +524,17 @@ public sealed class ReleaseMetadataScriptTests
 
         foreach (var packageName in new[] { "excelcli", "mcp-server-excel" })
         {
-            var runtimeIndex = publish.IndexOf(
-                $"'{packageName}-win32-x64'",
-                StringComparison.Ordinal);
             var launcherIndex = publish.IndexOf(
                 $"'{packageName}'",
                 StringComparison.Ordinal);
-            Assert.True(runtimeIndex >= 0);
-            Assert.True(launcherIndex > runtimeIndex, "Publish the runtime before its launcher.");
+            foreach (var architecture in new[] { "x64", "arm64" })
+            {
+                var runtimeIndex = publish.IndexOf(
+                    $"'{packageName}-win32-{architecture}'",
+                    StringComparison.Ordinal);
+                Assert.True(runtimeIndex >= 0);
+                Assert.True(launcherIndex > runtimeIndex, "Publish both runtimes before their launcher.");
+            }
         }
 
         var preCommit = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
