@@ -1,3 +1,4 @@
+using System.Reflection;
 using Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 using Xunit;
 
@@ -29,6 +30,8 @@ public sealed class GeneratedMcpParameterTests
     {
         var parameter = GeneratedToolContract.GetParameter(tool, parameterName);
         Assert.Equal(typeof(List<List<object?>>), parameter.ParameterType);
+        var nullability = new NullabilityInfoContext().Create(parameter);
+        Assert.Equal(NullabilityState.Nullable, nullability.GenericTypeArguments[0].GenericTypeArguments[0].ReadState);
         Assert.True(parameter.IsOptional);
         Assert.Null(parameter.DefaultValue);
     }
