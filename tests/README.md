@@ -103,6 +103,11 @@ The quick groups are not acceptance gates. Complete normal validation still
 uses `RunType!=OnDemand`, including the separately classified real Excel,
 process, deadline, crash, rebuild, and ownership cases below.
 
+Generated MCP parameter tests inspect our emitted method declarations directly.
+Protocol checks cover our names, descriptions, selected output fields, and
+request handling, not the SDK's primitive JSON Schema type encoding or
+provider-specific schema restrictions.
+
 ### Parallel collections
 
 Each project allows up to four xUnit collection workers, but only
