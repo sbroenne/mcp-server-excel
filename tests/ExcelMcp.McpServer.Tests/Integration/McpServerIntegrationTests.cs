@@ -2,17 +2,11 @@
 // Licensed under the MIT License.
 
 using System.IO.Pipelines;
-using Microsoft.ApplicationInsights;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Sbroenne.ExcelMcp.McpServer.Tools;
+using Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 using Xunit;
 using Xunit.Abstractions;
-
-// Avoid namespace conflict: McpServer is both a type and namespace
-using Server = ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 
@@ -38,9 +32,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     private readonly Pipe _clientToServerPipe = new();
     private readonly Pipe _serverToClientPipe = new();
     private readonly CancellationTokenSource _cts = new();
-    private Server.McpServer? _server;
     private McpClient? _client;
-    private IServiceProvider? _serviceProvider;
     private Task? _serverTask;
 
     /// <summary>
@@ -98,46 +90,8 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// </summary>
     public async Task InitializeAsync()
     {
-        // Build the server with DI - same pattern as Program.cs
-        var services = new ServiceCollection();
-        services.AddLogging(builder => builder.AddDebug().SetMinimumLevel(LogLevel.Debug));
-
-        // Configure telemetry (disabled for tests)
-        services.AddApplicationInsightsTelemetryWorkerService(options =>
-        {
-            options.ConnectionString = null;
-            options.EnableQuickPulseMetricStream = false;
-            options.EnablePerformanceCounterCollectionModule = false;
-            options.EnableDependencyTrackingTelemetryModule = false;
-        });
-        // Add MCP server with tools (same as Program.cs) using stream transport for testing
-        services
-            .AddMcpServer(options =>
-            {
-                options.ServerInfo = new() { Name = "ExcelMcp-Test", Version = "1.0.0" };
-                options.ServerInstructions = "Test server for integration tests";
-            })
-            .WithStreamServerTransport(
-                _clientToServerPipe.Reader.AsStream(),
-                _serverToClientPipe.Writer.AsStream())
-            .WithToolsFromAssembly(typeof(ExcelFileTool).Assembly);
-
-        _serviceProvider = services.BuildServiceProvider(validateScopes: true);
-
-        // Get the server and start it
-        _server = _serviceProvider.GetRequiredService<Server.McpServer>();
-        _serverTask = _server.RunAsync(_cts.Token);
-
-        // Create client connected to the server via pipes
-        _client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                serverInput: _clientToServerPipe.Writer.AsStream(),
-                serverOutput: _serverToClientPipe.Reader.AsStream()),
-            clientOptions: new McpClientOptions
-            {
-                ClientInfo = new() { Name = "TestClient", Version = "1.0.0" }
-            },
-            cancellationToken: _cts.Token);
+        (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
+            _clientToServerPipe, _serverToClientPipe, _cts.Token, "ProtocolDiscoveryClient");
 
         output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
     }
@@ -156,37 +110,8 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
 
     private async Task DisposeAsyncCore()
     {
-        await _cts.CancelAsync();
-
-        _clientToServerPipe.Writer.Complete();
-        _serverToClientPipe.Writer.Complete();
-
-        if (_client != null)
-        {
-            await _client.DisposeAsync();
-        }
-
-        if (_serverTask != null)
-        {
-            try
-            {
-                await _serverTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected during shutdown
-            }
-        }
-
-        if (_serviceProvider is IAsyncDisposable asyncDisposable)
-        {
-            await asyncDisposable.DisposeAsync();
-        }
-        else if (_serviceProvider is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-
+        await ProgramTransportTestHost.StopAsync(
+            _client, _clientToServerPipe, _serverToClientPipe, _serverTask, output, _cts);
         _cts.Dispose();
     }
 
@@ -327,9 +252,9 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
 
         // Assert
         Assert.NotNull(serverInfo);
-        Assert.Equal("ExcelMcp-Test", serverInfo.Name);
-        Assert.Equal("1.0.0", serverInfo.Version);
-        Assert.Equal("Test server for integration tests", serverInstructions);
+        Assert.Equal("excel-mcp", serverInfo.Name);
+        Assert.False(string.IsNullOrWhiteSpace(serverInfo.Version));
+        Assert.False(string.IsNullOrWhiteSpace(serverInstructions));
 
         output.WriteLine($"Server Name: {serverInfo.Name}");
         output.WriteLine($"Server Version: {serverInfo.Version}");
@@ -340,23 +265,19 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that telemetry services are properly registered in DI.
+    /// Confirms native registration does not advertise injected host services.
     /// </summary>
     [Fact]
-    public void DI_TelemetryServicesRegistered()
+    public async Task DI_HostServicesAreNotAdvertisedAsToolArguments()
     {
         output.WriteLine("=== TELEMETRY DI REGISTRATION ===\n");
 
-        Assert.NotNull(_serviceProvider);
-
-        // Act - Verify telemetry services are available
-        var telemetryClient = _serviceProvider.GetService<TelemetryClient>();
-        Assert.NotNull(telemetryClient);
-
-        output.WriteLine("✓ TelemetryClient registered");
-        output.WriteLine("✓ Telemetry client available through DI");
-
-        output.WriteLine("\n✓ Telemetry services correctly registered in DI");
+        foreach (var tool in await _client!.ListToolsAsync())
+        {
+            var properties = tool.JsonSchema.GetProperty("properties");
+            Assert.False(properties.TryGetProperty("bridge", out _));
+            Assert.False(properties.TryGetProperty("cancellationToken", out _));
+        }
     }
 
     /// <summary>

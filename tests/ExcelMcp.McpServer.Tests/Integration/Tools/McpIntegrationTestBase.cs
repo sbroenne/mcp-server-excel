@@ -44,15 +44,14 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        ServiceBridge.ServiceBridge.SetServiceFactoryForTests(_ownedExcelProcesses.CreateBackend);
-
         try
         {
             (Client, _serverTask) = await ProgramTransportTestHost.StartAsync(
                 _clientToServerPipe,
                 _serverToClientPipe,
                 TestCancellationToken,
-                _clientName);
+                _clientName,
+                _ownedExcelProcesses.CreateBackend);
 
             await InitializeTestAsync();
         }

@@ -41,7 +41,8 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 - Operations inside one session run in order on one Excel thread.
 - Different sessions can run independently, but the same workbook cannot be opened in multiple sessions.
 - A timeout can leave Excel busy after the caller stops waiting. Such a session is no longer safe for additional work and must be closed.
-- Workbook changes are not automatically saved when a batch or session is disposed. Saving is an explicit operation.
+- Ordinary operations change the in-memory workbook. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown attempts to save remaining sessions before disposal. Bare batch disposal, crashes, and forced cancellation cleanup do not guarantee saving.
+- MCP uses the official SDK for registration, transport, argument binding, and protocol errors. The host owns its injected Service bridge; cancelled startup reclaims only the eventual session. Session publication is coordinated with shutdown.
 
 ## Sources of truth
 

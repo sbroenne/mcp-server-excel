@@ -1,97 +1,46 @@
-# worksheet - Worksheet Operations
+# Worksheets
 
-## Same-File Session Operations
+Same-workbook lifecycle operations create, list, rename, copy, move, and delete
+sheets. Always use the captured session. Rename requires the old and new names,
+not the source/target parameters used for copying.
 
-Use session-based actions for worksheet lifecycle within the same workbook:
-
-| Action | Parameters |
-|--------|------------|
-| `create` | `sheet_name` |
-| `rename` | `old_name`, `new_name` |
-| `delete` | `sheet_name` |
-| `move` | `sheet_name`, `before_sheet`/`after_sheet` |
-| `copy` | `source_name`, `target_name` |
-
-**Rename example:**
-```
-action: rename
-old_name: Sheet1
-new_name: Summary
+```mcp
+worksheet(action: 'rename', session_id: sessionId, old_name: 'Sheet1', new_name: 'Summary')
 ```
 
-Rename requires `old_name` + `new_name`.
-
-## Atomic Cross-File Operations
-
-**copy-to-file** and **move-to-file** are the simplest way to transfer sheets between files.
-
-| Action | Description | Key Parameters |
-|--------|-------------|----------------|
-| `copy-to-file` | Copy sheet to another file | `source_file`, `source_sheet`, `target_file` |
-| `move-to-file` | Move sheet to another file | `source_file`, `source_sheet`, `target_file` |
-
-**Benefits:**
-- No session management required
-- Files are opened, modified, saved, and closed automatically
-- Single atomic operation - no cleanup needed
-
-**Example - Copy sheet to another file:**
-```
-action: copy-to-file
-source_file: C:\Reports\Q1.xlsx
-source_sheet: Summary
-target_file: C:\Reports\Annual.xlsx
-target_sheet_name: Q1 Summary  # Optional: rename during copy
+```cli
+excelcli -q sheet rename --session $sessionId --old-name Sheet1 --new-name Summary
 ```
 
-**Example - Move sheet to another file:**
+For ordering, specify before **or** after another sheet, not both. Inspect names
+and dependencies before deleting or replacing anything.
+
+## Cross-file operations
+
+Copy-to-file and move-to-file manage opening, saving, and closing files in one
+call without a supplied session. Use the exact user-provided source and target
+paths. Do not apply them to files already open in unrelated sessions.
+
+```mcp
+worksheet(action: 'copy-to-file', source_file: sourcePath, source_sheet: 'Summary', target_file: targetPath, target_sheet_name: 'Q1 Summary')
 ```
-action: move-to-file
-source_file: C:\Drafts\Data.xlsx
-source_sheet: FinalData
-target_file: C:\Published\Report.xlsx
-before_sheet: Sheet1  # Optional: position in target
+
+```cli
+excelcli -q sheet copy-to-file --source-file $sourcePath --source-sheet Summary --target-file $targetPath --target-sheet-name 'Q1 Summary'
 ```
 
-## Positioning Parameters
+Cross-file copy can rename the copied sheet. Both transfer operations support
+positioning relative to a target sheet. Same-file copying uses the ordinary copy
+action instead. Do not assume a failure rolls back every file; inspect both
+files before retrying a transfer.
 
-Use `before_sheet` OR `after_sheet` (not both) to control where the sheet appears in the target file:
+## Styling and outlines
 
-- `before_sheet: "Sheet1"` - Insert before Sheet1
-- `after_sheet: "Sheet1"` - Insert after Sheet1
-- Neither specified - Append to end
+Worksheet-style operations own tab colors, visibility, protection, page setup,
+legacy notes, and row/column grouping. Legacy notes are not threaded comments;
+use range-link operations for threaded comments.
 
-## When to Use Session-Based Operations
-
-For same-file operations (copy within same workbook, rename, delete, tab colors, visibility, protection, legacy cell notes, images, shapes, and page setup), use session-based actions with `session_id`. The worksheet-style `set-comment`, `get-comment`, and `clear-comment` actions operate on legacy notes, not threaded comments.
-
-## Row and Column Outlines
-
-Use `worksheet_style` for grouping and outline controls:
-
-| Action | Purpose | Key Parameters |
-|--------|---------|----------------|
-| `group` | Group complete rows or columns | `sheet_name`, `range_address`, `axis` (`Rows`/`Columns`) |
-| `ungroup` | Remove one grouping level | `sheet_name`, `range_address`, `axis` |
-| `get-outline-info` | Read outline level, hidden state, and settings | `sheet_name`, `range_address`, `axis` |
-| `set-outline-settings` | Configure summary positions and automatic styles | `summary_row`, `summary_column`, `automatic_styles` |
-| `show-outline-levels` | Expand/collapse to selected levels | `row_levels`, `column_levels` |
-| `clear-outline` | Remove all row and column groups | `sheet_name` |
-
-Use row ranges such as `2:10` with `axis: Rows` and column ranges such as `B:F` with `axis: Columns`. Summary rows accept `above` or `below`; summary columns accept `left` or `right`.
-
-## Rename Parameters
-
-For `rename`, use `old_name` and `new_name`.
-
-- MCP rename requires `old_name` + `new_name`
-- CLI uses `--old-name` + `--new-name`
-- Copy and cross-file parameters such as `sheet_name`, `source_name`, `source_sheet`, `target_name`, and `target_sheet_name` are not rename aliases
-
-## Common Errors
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Source and target files must be different" | Same file for both | Use `copy` action instead |
-| "Source file not found" | File doesn't exist | Verify file path |
-| "Sheet not found" | Typo in sheet name | Use `list` action to see available sheets |
+Group complete rows such as `2:10` with axis Rows, or columns such as `B:F` with
+axis Columns. Summary rows use above/below and summary columns left/right.
+Read outline information before changing it, use show-outline-levels to
+expand/collapse, ungroup to remove a level, and clear-outline to remove all groups.

@@ -28,38 +28,39 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, Node.js 18+, and
 
 | Step | Command | When |
 |------|---------|------|
-| 1. Session | `session create/open` | Always first |
+| 1. Session | `session create/open` | Reuse the matching session first |
 | 2. Sheets | `sheet create/rename` | If needed |
 | 3. Write data | See below | If writing values |
-| 4. Save & close | `session close --save` | Always last |
+| 4. Save & close | `session close --save` | When authorized and operations have finished; keep open if requested |
 
-> **10+ commands?** Use `excelcli -q batch --input commands.json` — sends all commands in one process with automatic session management. See Rule 8.
+For multiple commands, use the failure-aware batch workflow in Rule 8. A batch is
+not a transaction: earlier writes are not undone when a later command fails.
 
 **Writing Data (Step 3):**
 - `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
-- Write **one row at a time** for reliability: `--range A1:B1 --values '[["Name","Age"]]'`
+- Write rectangular blocks in one call; use `--values-file` for large datasets.
 - Strings MUST be double-quoted in JSON: `"text"`. Numbers are bare: `42`
 - Always wrap the entire JSON value in single quotes to protect special characters
 
-## CRITICAL RULES (MUST FOLLOW)
+## Working Rules
 
-> **⚡ Building dashboards or bulk operations?** Skip to **Rule 8: Batch Mode** — it eliminates per-command process overhead and auto-manages session IDs.
+### Rule 1: Discover the Intended Workbook
 
-### Rule 1: NEVER Ask Clarifying Questions
+Use commands to discover existing state:
 
-Execute commands to discover the answer instead:
-
-| DON'T ASK | DO THIS INSTEAD |
+| Discover | Command |
 |-----------|-----------------|
 | "Which file should I use?" | `excelcli -q session list` |
 | "What table should I use?" | `excelcli -q table list --session <id>` |
 | "Which sheet has the data?" | `excelcli -q sheet list --session <id>` |
 
-**You have commands to answer your own questions. USE THEM.**
+Match the user's intended workbook; do not choose an unrelated session or invent
+a path. Ask when the target or a destructive change remains unclear.
 
-### Rule 2: Always End With a Text Summary
+### Rule 2: Stay Within the Request
 
-**NEVER end your turn with only a command execution.** After completing all operations, always provide a brief text message confirming what was done. Silent command-only responses are incomplete.
+Reading data does not require writes, formatting, Tables, charts, or PivotTables.
+Preserve existing structures and formats unless the task calls for changing them.
 
 ### Rule 3: Session Lifecycle
 
@@ -72,9 +73,10 @@ excelcli -q session create C:\path\newfile.xlsx  # Creates file + returns sessio
 excelcli -q session open C:\path\existing.xlsx   # Opens file + returns session ID
 ```
 
-**CRITICAL: Use `session create` for new files. `session open` on non-existent files will fail!**
+Use `session create` for new files. `session open` requires an existing file.
 
-**CRITICAL: ALWAYS use the session ID returned by `session create` or `session open` in subsequent commands. NEVER guess or hardcode session IDs. The session ID is in the JSON output (e.g., `{"sessionId":"abc123"}`). Parse it and use it.**
+Use the session ID returned by `session create` or `session open`, not an invented ID.
+The JSON output uses `sessionId`; parse it and pass it to subsequent commands.
 
 ```powershell
 # Example: capture session ID from output, then use it
@@ -84,6 +86,12 @@ excelcli -q session close --session <returned-session-id> --save
 ```
 
 **Unclosed sessions leave Excel processes running, locking files.**
+
+Explicit close defaults to discarding edits; use `--save` to keep them. Normal
+daemon shutdown attempts to save remaining sessions, but crashes, timeouts, and
+forced cleanup may lose edits. Cancellation is not undo.
+After an error or cancellation, inspect `session list` and the affected state
+before retrying. Confirm before closing a visible window unless already authorized.
 
 ### Rule 4: Data Model Prerequisites
 
@@ -96,90 +104,122 @@ excelcli -q datamodel create-measure --session <id> ...               # Step 2 -
 
 ### Rule 5: Power Query Development Lifecycle
 
-**BEST PRACTICE: Test M code before creating permanent queries**
+Prefer `evaluate` for new or materially changed M code before persisting it.
+Already-validated code and trivial literal tables do not need a redundant evaluation.
 
 ```powershell
-# Step 1: Create/open a session and capture the session ID
-$session = excelcli -q session create C:\path\file.xlsx | ConvertFrom-Json
-$sessionId = $session.sessionId
-
-# Step 2: Test M code without persisting (catches errors early)
+# The session is already open; query.m is a known readable source file.
 excelcli -q powerquery evaluate --session $sessionId --m-code-file query.m
+if ($LASTEXITCODE -ne 0) { throw "Evaluation failed; correct the query before persisting." }
 
-# Step 3: Create permanent query with validated code
-excelcli -q powerquery create --session $sessionId --query-name Q1 --m-code-file query.m
+# Q1 must not already exist. Inspect the query list first.
+excelcli -q powerquery create --session $sessionId --query-name Q1 --m-code-file query.m --load-destination connection-only
+if ($LASTEXITCODE -ne 0) { throw "Creation failed; inspect surviving query state before retrying." }
 
-# Step 4: Load data to destination
-excelcli -q powerquery refresh --session $sessionId --query-name Q1
-
-# Step 5: Close session
-excelcli -q session close --session $sessionId --save
+excelcli -q powerquery load-to --session $sessionId --query-name Q1 --load-destination worksheet --target-sheet Results
+if ($LASTEXITCODE -ne 0) { throw "Loading failed; inspect the query and destination before saving." }
 ```
+
+After failure, update a surviving query rather than blindly repeating create.
+See [Power Query recovery](./references/powerquery.md#recovering-a-failed-create).
+Use the session lifecycle below to save only a successful job and clean up failures.
 
 ### Rule 6: Report File Errors Immediately
 
-If you see "File not found" or "Path not found" - STOP and report to user. Don't retry.
+Report missing files or paths. Check the supplied path and available evidence;
+retry only after correcting the cause. Do not invent a different location.
 
 ### Rule 7: Use Calculation Mode for Bulk Writes
 
-When writing many values/formulas (10+ cells), disable auto-recalc for performance:
+For bulk writes where repeated recalculation is costly, remember the current mode,
+use manual mode, calculate, then restore the prior mode in a `finally` block.
+Do not change modes for reads or when intermediate calculated results are needed.
 
 ```powershell
-# 1. Create/open a session and capture the session ID
-$session = excelcli -q session create C:\path\file.xlsx | ConvertFrom-Json
-$sessionId = $session.sessionId
-
-# 2. Set manual mode
-excelcli -q calculationmode set-mode --session $sessionId --mode manual
-
-# 3. Write data row by row for reliability
-excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A1:B1 --values '[["Name","Amount"]]'
-excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A2:B2 --values '[["Salary",5000]]'
-
-# 4. Recalculate once at end
-excelcli -q calculationmode calculate --session $sessionId --scope workbook
-
-# 5. Restore automatic mode
-excelcli -q calculationmode set-mode --session $sessionId --mode automatic
-
-# 6. Close session
-excelcli -q session close --session $sessionId --save
+# $sessionId is the ID from a successful open/create or a matching session list entry.
+$previous = excelcli -q calculationmode get-mode --session $sessionId | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or -not $previous.success) { throw "Cannot read calculation mode." }
+try {
+    excelcli -q calculationmode set-mode --session $sessionId --mode manual
+    if ($LASTEXITCODE -ne 0) { throw "Cannot set calculation mode." }
+    excelcli -q range set-values --session $sessionId --sheet Sheet1 --range A1:B2 --values '[["Name","Amount"],["Salary",5000]]'
+    if ($LASTEXITCODE -ne 0) { throw "Write failed; inspect the workbook before retrying." }
+    excelcli -q calculationmode calculate --session $sessionId --scope workbook
+    if ($LASTEXITCODE -ne 0) { throw "Calculation failed." }
+}
+finally {
+    excelcli -q calculationmode set-mode --session $sessionId --mode $previous.mode
+    if ($LASTEXITCODE -ne 0) { Write-Error "Could not restore calculation mode; inspect the session." -ErrorAction Continue }
+}
 ```
 
-### Rule 8: Use Batch Mode for Bulk Operations (10+ commands)
+### Rule 8: Batch Mode for Multiple Operations
 
-When executing 10+ commands on the same file, use `excelcli batch` to send all commands in a single process launch. This avoids per-process startup overhead and terminal buffer saturation.
+Use `excelcli batch` for a known sequence on the same file to avoid repeated process startup.
+Use individual commands when later steps depend on inspecting earlier results.
+Check every command's exit status and result before continuing.
 
 ```powershell
-# Create a JSON file with all commands
+# $path is the user's existing workbook path. It must not already be open.
+# Keep session management outside the batch so a failure cannot skip cleanup.
+$path = [IO.Path]::GetFullPath($path)
+$listed = excelcli -q session list | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw "Cannot inspect existing sessions." }
+if ($listed.sessions | Where-Object { $_.filePath -eq $path }) {
+    throw "Workbook already has a session; do not discard its unsaved work."
+}
+
 @'
 [
-  {"command": "session.open", "args": {"filePath": "C:\\path\\file.xlsx"}},
   {"command": "range.set-values", "args": {"sheetName": "Sheet1", "rangeAddress": "A1", "values": [["Hello"]]}},
-  {"command": "range.set-values", "args": {"sheetName": "Sheet1", "rangeAddress": "A2", "values": [["World"]]}},
-  {"command": "session.close", "args": {"save": true}}
+  {"command": "range.set-values", "args": {"sheetName": "Sheet1", "rangeAddress": "A2", "values": [["World"]]}}
 ]
 '@ | Set-Content commands.json
 
-# Execute all commands at once
-excelcli -q batch --input commands.json
+$opened = excelcli -q session open $path | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or -not $opened.sessionId) { throw "Open failed." }
+$sessionId = $opened.sessionId
+$save = $false
+try {
+    $output = @(excelcli -q batch --session $sessionId --input commands.json --stop-on-error)
+    $exit = $LASTEXITCODE
+    $results = @($output | ConvertFrom-Json)
+    if ($exit -ne 0 -or $results.Count -ne 2 -or ($results | Where-Object { -not $_.success })) {
+        throw "Batch failed; discarding this job's unsaved changes. Results: $($output -join ' ')"
+    }
+    $save = $true
+}
+finally {
+    $listed = excelcli -q session list | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw "Cannot verify cleanup state; inspect the session before shutdown." }
+    $owned = $listed.sessions | Where-Object { $_.sessionId -eq $sessionId }
+    if (-not $owned -or -not $owned.canClose) {
+        throw "Session is missing or busy; inspect it before retrying or shutting down."
+    }
+    $close = @('-q', 'session', 'close', '--session', $sessionId)
+    if ($save) { $close += '--save' }
+    excelcli @close
+    if ($LASTEXITCODE -ne 0) { throw "Close failed; inspect the surviving session before shutdown." }
+}
 ```
 
 **Key features:**
-- **Session auto-capture**: `session.open`/`create` result sessionId auto-injected into subsequent commands — no need to parse and pass session IDs
+- **Session auto-capture** is available for in-batch open/create, but stop-on-error
+  can skip an in-batch close. Prefer an owned session and cleanup outside the batch.
 - **NDJSON output**: One JSON result per line: `{"index": 0, "command": "...", "success": true, "result": {...}}`
 - **`--stop-on-error`**: Exit on first failure (default: continue all)
 - **`--session <id>`**: Pre-set session ID for all commands (skip session.open)
 
-**Input formats:**
-- JSON array from file: `excelcli -q batch --input commands.json`
-- NDJSON from stdin: `Get-Content commands.ndjson | excelcli -q batch`
+The expected result count must match the job's command count. Do not include a
+save/close command in this batch. For a reused user session, stop and report
+partial changes instead of discarding unrelated unsaved work. Normal daemon
+shutdown may save remaining sessions; it is not failure cleanup.
 
 ## CLI Command Reference
 
 **Full reference:** See [CLI command reference and common pitfalls](./references/cli-commands.md), or run `excelcli <command> --help` for live help from the installed runtime.
 
-**Syntax rule:** CLI commands use `excelcli -q <command> <action> --session <id> --kebab-case-flags ...`. Do not use MCP call syntax such as `range(action: ...)`, snake_case parameters, or underscore tool names. The CLI command names remove MCP underscores: `calculation_mode` becomes `calculationmode`, `range_format` becomes `rangeformat`, `chart_config` becomes `chartconfig`, and `data_model` becomes `datamodel`.
+**Syntax rule:** CLI commands use `excelcli -q <command> <action> --session <id> --kebab-case-flags ...`. Do not use MCP function-call notation or snake_case parameters. Use the exact command names from help. Batch JSON uses the shared Service's camelCase argument names, not CLI flags or MCP names.
 
 Available command groups:
 
@@ -197,6 +237,7 @@ See [CLI command reference and common pitfalls](./references/cli-commands.md#com
 
 ## Reference Documentation
 
+- [All task guides](./references/index.md)
 - [CLI command reference and common pitfalls](./references/cli-commands.md)
 - [Behavioral rules](./references/behavioral-rules.md)
 - [Anti-patterns](./references/anti-patterns.md)

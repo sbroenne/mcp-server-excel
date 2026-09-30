@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
-using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -11,31 +9,25 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
 /// <summary>
 /// Tests for ExcelFileTool action methods.
-/// These tests call the tool methods directly without MCP transport.
+/// These tests use production registration and MCP transport.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "File")]
-[Collection("Sequential")]
+[Collection("ProgramTransport")]
 [Trait("RequiresExcel", "false")]
-public class ExcelFileToolTests(ITestOutputHelper output)
+public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBase(output, "FileValidationClient")
 {
     [Fact]
-    public void Create_MissingDirectory_ReturnsJsonError()
+    public async Task Create_MissingDirectory_ReturnsJsonError()
     {
         var missingDirectory = Path.Join(Path.GetTempPath(), $"Missing_{Guid.NewGuid():N}");
         var invalidPath = Path.Join(missingDirectory, "test.xlsx");
 
-        var result = ExcelFileTool.ExcelFile(
-            FileAction.Create,
-            path: invalidPath,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 300);
+        var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = invalidPath, ["timeout_seconds"] = 300 });
 
-        output.WriteLine($"Result: {result}");
+        Output.WriteLine($"Result: {result}");
 
         Assert.NotNull(result);
         var json = JsonDocument.Parse(result).RootElement;
@@ -47,19 +39,13 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Create_RelativePath_ReturnsJsonError()
+    public async Task Create_RelativePath_ReturnsJsonError()
     {
         const string invalidPath = @"relative\test.xlsx";
 
-        var result = ExcelFileTool.ExcelFile(
-            FileAction.Create,
-            path: invalidPath,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 300);
+        var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = invalidPath, ["timeout_seconds"] = 300 });
 
-        output.WriteLine($"Result: {result}");
+        Output.WriteLine($"Result: {result}");
 
         Assert.NotNull(result);
         var json = JsonDocument.Parse(result).RootElement;
@@ -71,18 +57,12 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Create_NullPath_ReturnsJsonError()
+    public async Task Create_NullPath_ReturnsJsonError()
     {
         // Act - null path should be caught and returned as JSON error
-        var result = ExcelFileTool.ExcelFile(
-            FileAction.Create,
-            path: null,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 300);
+        var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = null, ["timeout_seconds"] = 300 });
 
-        output.WriteLine($"Result: {result}");
+        Output.WriteLine($"Result: {result}");
 
         // Assert - should return JSON error (ExecuteToolAction wraps exceptions)
         Assert.NotNull(result);
@@ -95,21 +75,15 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Test_NonExistentFile_ReturnsNotFound()
+    public async Task Test_NonExistentFile_ReturnsNotFound()
     {
         // Arrange
         var fakePath = @"C:\NonExistent\fake.xlsx";
 
         // Act
-        var result = ExcelFileTool.ExcelFile(
-            FileAction.Test,
-            path: fakePath,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 300);
+        var result = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = fakePath, ["timeout_seconds"] = 300 });
 
-        output.WriteLine($"Result: {result}");
+        Output.WriteLine($"Result: {result}");
 
         // Assert
         Assert.NotNull(result);
@@ -121,7 +95,7 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     [Theory]
     [InlineData("\tDRMDataSpace")]
     [InlineData("DRMEncryptedDataSpace")]
-    public void Test_IrmDataSpaceFile_ReturnsIrmMetadata(string dataSpaceName)
+    public async Task Test_IrmDataSpaceFile_ReturnsIrmMetadata(string dataSpaceName)
     {
         // Arrange
         var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileTool_Irm_{Guid.NewGuid():N}.xlsx");
@@ -133,15 +107,9 @@ public class ExcelFileToolTests(ITestOutputHelper output)
                 dataSpaceName);
 
             // Act
-            var result = ExcelFileTool.ExcelFile(
-                FileAction.Test,
-                path: tempPath,
-                session_id: null,
-                save: false,
-                show: false,
-                timeout_seconds: 300);
+            var result = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = tempPath, ["timeout_seconds"] = 300 });
 
-            output.WriteLine($"Result: {result}");
+            Output.WriteLine($"Result: {result}");
 
             // Assert
             var json = JsonDocument.Parse(result).RootElement;
@@ -172,10 +140,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
 [Trait("Feature", "File")]
 [Collection("ProgramTransport")]
 [Trait("RequiresExcel", "true")]
-public sealed class ExcelFileToolExcelTests(ITestOutputHelper output)
+public sealed class ExcelFileToolExcelTests(ITestOutputHelper output) : McpIntegrationTestBase(output, "FileCreationClient")
 {
     [Fact]
-    public void Create_ValidPath_ReturnsSuccessWithSessionId()
+    public async Task Create_ValidPath_ReturnsSuccessWithSessionId()
     {
         var tempPath = Path.Join(
             Path.GetTempPath(),
@@ -184,15 +152,9 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output)
 
         try
         {
-            var result = ExcelFileTool.ExcelFile(
-                FileAction.Create,
-                path: tempPath,
-                session_id: null,
-                save: false,
-                show: false,
-                timeout_seconds: 300);
+            var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = tempPath, ["timeout_seconds"] = 300 });
 
-            output.WriteLine($"Result: {result}");
+            Output.WriteLine($"Result: {result}");
 
             Assert.NotNull(result);
             var json = JsonDocument.Parse(result).RootElement;
@@ -206,13 +168,7 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output)
         {
             if (!string.IsNullOrEmpty(sessionId))
             {
-                ExcelFileTool.ExcelFile(
-                    FileAction.Close,
-                    path: null,
-                    session_id: sessionId,
-                    save: false,
-                    show: false,
-                    timeout_seconds: 300);
+                await CloseSessionAsync(sessionId, save: false);
             }
 
             if (File.Exists(tempPath))

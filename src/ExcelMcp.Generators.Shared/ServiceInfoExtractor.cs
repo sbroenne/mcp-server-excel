@@ -99,6 +99,7 @@ public static class ServiceInfoExtractor
                     method.Name,
                     actionName,
                     TypeNameHelper.GetTypeName(method.ReturnType),
+                    method.ReturnType,
                     methodMcpTool ?? category,
                     parameters,
                     xmlDoc?.Summary,

@@ -18,6 +18,12 @@ cleanup. Implementation guidance is excluded from review; retain these checks:
 - Core contracts must agree across generated Service, CLI options/batch JSON,
   MCP schemas, and manual tool exceptions, including defaults and timeouts.
 - MCP stdout, including bootstrap output, is JSON-RPC only.
+- Agent-facing descriptions, server instructions, skills, and recovery messages
+  must agree with actual defaults and advertised capabilities. Flag stale input
+  names, nonexistent actions, missing parameter documentation, emojis, forced
+  unrequested work, and screenshots required without an interactive desktop.
+  Consent advice is not proof that server-side elicitation is implemented.
+  Distinguish MCP input names from nested JSON keys, outputs, and CLI batch keys.
 - Tests establish actual Excel state and returned fields, not only `Success`.
   Generated artifacts must change through their source; use code-derived counts
   rather than copied literals.

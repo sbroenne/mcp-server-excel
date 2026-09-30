@@ -45,8 +45,6 @@ public sealed class FileToolRecordingContractTests(
             {
                 ["action"] = "test",
                 ["path"] = path,
-                ["save"] = false,
-                ["show"] = false,
                 ["timeout_seconds"] = 45
             },
             response,
@@ -87,20 +85,12 @@ public sealed class FileToolRecordingContractTests(
                     filePath = path
                 }, ServiceProtocol.JsonOptions)
             };
-            var expectedArgs = action == "create"
-                ? JsonSerializer.Serialize(new
-                {
-                    filePath = path,
-                    macroEnabled = false,
-                    show = false,
-                    timeoutSeconds = 120
-                }, ServiceProtocol.JsonOptions)
-                : JsonSerializer.Serialize(new
-                {
-                    filePath = path,
-                    show = false,
-                    timeoutSeconds = 120
-                }, ServiceProtocol.JsonOptions);
+            var expectedArgs = JsonSerializer.Serialize(new
+            {
+                filePath = path,
+                show = false,
+                timeoutSeconds = 120
+            }, ServiceProtocol.JsonOptions);
 
             var call = await _fixture.CallToolAsync(
                 "file",
@@ -108,7 +98,6 @@ public sealed class FileToolRecordingContractTests(
                 {
                     ["action"] = action,
                     ["path"] = path,
-                    ["save"] = false,
                     ["show"] = false,
                     ["timeout_seconds"] = 120
                 },
@@ -146,10 +135,7 @@ public sealed class FileToolRecordingContractTests(
             "file",
             new Dictionary<string, object?>
             {
-                ["action"] = "list",
-                ["save"] = false,
-                ["show"] = false,
-                ["timeout_seconds"] = 120
+                ["action"] = "list"
             },
             response,
             "session.list",
@@ -192,10 +178,7 @@ public sealed class FileToolRecordingContractTests(
             "file",
             new Dictionary<string, object?>
             {
-                ["action"] = "list",
-                ["save"] = false,
-                ["show"] = false,
-                ["timeout_seconds"] = 120
+                ["action"] = "list"
             },
             response,
             "session.list",
@@ -222,9 +205,7 @@ public sealed class FileToolRecordingContractTests(
             {
                 ["action"] = "close",
                 ["session_id"] = "session-close",
-                ["save"] = false,
-                ["show"] = false,
-                ["timeout_seconds"] = 120
+                ["save"] = false
             },
             new ServiceResponse
             {
@@ -253,9 +234,7 @@ public sealed class FileToolRecordingContractTests(
             {
                 ["action"] = "close",
                 ["session_id"] = "missing-session",
-                ["save"] = false,
-                ["show"] = false,
-                ["timeout_seconds"] = 120
+                ["save"] = false
             },
             new ServiceResponse
             {
@@ -295,7 +274,6 @@ public sealed class FileToolRecordingContractTests(
         {
             ["action"] = "open",
             ["path"] = path,
-            ["save"] = false,
             ["show"] = false,
             ["timeout_seconds"] = 120
         };

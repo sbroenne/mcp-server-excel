@@ -1,80 +1,48 @@
-# calculation_mode - Bulk Write Performance Optimization
+# Calculation Mode
 
-## Tool
+`calculation_mode` controls automatic, manual, and semi-automatic recalculation
+(automatic except data tables). All actions require `session_id`.
 
-- **`calculation_mode`**: Control Excel's automatic recalculation behavior
+Use manual mode for bulk writes when repeated recalculation is costly. There is
+no universal cell-count threshold: one rectangular write is already batched.
+Reading formula text does not require changing the mode. Keep calculation
+available when intermediate formula results are needed.
 
-## When to Use
+## Preserve the Workbook's Mode
 
-Use `calculation_mode` to optimize performance when:
-- Writing 10+ cells of data/formulas in a single operation
-- Creating tables with multiple rows and calculated columns
-- Performance matters more than immediate feedback (no need to wait for each formula to recalculate)
+1. Call `get-mode` and remember the returned `mode`.
+2. Call `set-mode` with `mode: 'manual'`.
+3. Write the requested values/formulas in rectangular blocks.
+4. Call `calculate` with the appropriate scope.
+5. Restore the prior mode, not necessarily `automatic`.
 
-## When NOT Needed
+Treat restoration like a `finally` block: attempt it after success or failure.
+If cancellation or a timeout removed the session, inspect `file list` first and
+report that restoration could not be completed. Do not blindly reopen or repeat
+writes; cancellation is not undo.
 
-- Small edits (1-5 cells)
-- When you need immediate calculation results to verify data
-- Reading formulas (use `range get-formulas` — works in any mode)
-- Single worksheet operations without bulk writes
-
-## Workflow
-
-Always follow this 4-step pattern for bulk operations:
-
+```text
+previous = calculation_mode(action: 'get-mode', session_id: id).mode
+try:
+    calculation_mode(action: 'set-mode', session_id: id, mode: 'manual')
+    range(action: 'set-values', session_id: id, sheet_name: 'Sales',
+          range_address: 'A1:B2', values: [['Name', 'Amount'], ['Salary', 5000]])
+    calculation_mode(action: 'calculate', session_id: id, scope: 'workbook')
+finally:
+    calculation_mode(action: 'set-mode', session_id: id, mode: previous)
 ```
-1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual') -> Disable auto-recalc
-2. Perform all data writes (range set-values, set-formulas)
-3. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook') -> Recalculate once at end
-4. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic') -> Restore default
-```
 
-**Why this pattern:**
-- Step 1: Prevents Excel from recalculating after EVERY cell write (10+ recalcs → 1 recalc)
-- Step 2: All writes happen at normal speed
-- Step 3: Single recalculation computes all formulas together
-- Step 4: Restores default Excel behavior so subsequent edits auto-recalc
+The example is workflow notation, not executable code. Check each result before
+continuing and surface both the original failure and any restoration failure.
 
 ## Actions
 
-| Action | Purpose | Parameters |
-|--------|---------|-----------|
-| `get-mode` | Check current calculation mode | None |
-| `set-mode` | Switch between automatic/manual/semi-automatic | `mode: "automatic"` or `"manual"` or `"semi-automatic"` |
-| `calculate` | Trigger recalculation | `scope: "workbook"` (all formulas), `scope: "sheet"` with `sheet_name`, or `scope: "range"` with `sheet_name` and `range_address` |
+| Action | Purpose | Additional inputs |
+|--------|---------|-------------------|
+| `get-mode` | Read current mode and calculation state | None |
+| `set-mode` | Change the mode | `mode`: `automatic`, `manual`, or `semi-automatic` |
+| `calculate` | Recalculate formulas | `scope`: `workbook`, `sheet`, or `range` |
 
-## Common Scenarios
-
-### Scenario: Create Sales Table with Formulas
-
-Task: Add 100 rows of product data with unit price, quantity, and total formulas.
-
-```
-1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual')
-2. range(action: 'set-values', session_id: '<session-id>', sheet_name: 'Sales', range_address: 'A2:C101', values: <100 rows>)
-3. range(action: 'set-formulas', session_id: '<session-id>', sheet_name: 'Sales', range_address: 'D2:D101', formulas: <100 formulas>)
-4. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook')
-5. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic')
-```
-
-**Performance:** ~2-3 seconds total (vs ~30+ seconds if automatic after every cell)
-
-### Scenario: Dashboard with Multiple Sections
-
-Task: Create 5 sections with headers, data, and subtotal formulas.
-
-```
-1. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'manual')
-2. range(action: 'set-values', session_id: '<session-id>', sheet_name: 'Dashboard', range_address: '<section-1-range>', values: <section-1-values>)
-3. range(action: 'set-formulas', session_id: '<session-id>', sheet_name: 'Dashboard', range_address: '<section-1-formula-range>', formulas: <section-1-formulas>)
-4. Repeat the named range calls for sections 2-5.
-5. calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook')
-6. calculation_mode(action: 'set-mode', session_id: '<session-id>', mode: 'automatic')
-```
-
-## Best Practices
-
-1. **Always restore automatic mode** - Never leave manual mode enabled, users expect auto-recalc
-2. **Use workbook scope for calculate** - Simplest and fastest
-3. **Verify calculation completed** - After step 3, data should show final calculated values
-4. **Test with smaller dataset first** - If building a large operation, test with 10 rows first
+Sheet scope requires `sheet_name`. Range scope also requires `range_address`.
+Choose workbook scope when dependencies cross sheets; inspect calculated values
+when they are part of the requested result.

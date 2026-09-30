@@ -17,16 +17,27 @@ Use `xmlmap` for Excel XML maps and in-memory XML import/export.
 
 Use an existing map when XPath mappings already exist:
 
-```text
-xmlmap(import-xml, map_name='CustomerMap', xml_data='<customer>...</customer>')
+```mcp
+xmlmap(action: 'import-xml', session_id: sessionId, map_name: 'CustomerMap', xml_data_file: 'customers.xml')
+```
+
+```cli
+excelcli -q xmlmap import-xml --session $sessionId --map-name CustomerMap --xml-data-file customers.xml
 ```
 
 Omit `map_name` to let Excel infer a schema, create a map, and create an XML
 table at a destination:
 
-```text
-xmlmap(import-xml, sheet_name='Sheet1', start_cell='B2', xml_data='<customers>...</customers>')
+```mcp
+xmlmap(action: 'import-xml', session_id: sessionId, sheet_name: 'Sheet1', start_cell: 'B2', xml_data_file: 'customers.xml')
 ```
+
+```cli
+excelcli -q xmlmap import-xml --session $sessionId --sheet Sheet1 --start-cell B2 --xml-data-file customers.xml
+```
+
+These alternatives assume a captured session and a known readable XML file.
+Inspect the existing map or empty destination cells before choosing one.
 
 ## Security and Determinism
 

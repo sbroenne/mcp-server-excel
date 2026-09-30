@@ -161,25 +161,24 @@ internal static class ChartPositionHelpers
 
     /// <summary>
     /// Formats chart positioning feedback for the result message.
-    /// Always includes a screenshot verification reminder.
-    /// When collisions are detected, includes overlap warnings with remediation guidance.
-    /// When multiple charts exist on the sheet, uses stronger language to ensure screenshot verification.
+    /// Includes overlap warnings and verification options appropriate to the available desktop.
     /// </summary>
     /// <param name="warnings">Collision warnings (empty if no overlaps detected)</param>
     /// <param name="chartCount">Number of charts on the worksheet (including the one just created/moved)</param>
     internal static string FormatCollisionWarnings(List<string> warnings, int chartCount = 1)
     {
+        const string verification = "Inspect bounds with chart read; use screenshot capture-sheet for visual verification when an interactive desktop is available.";
         if (warnings.Count > 0)
         {
-            return $"OVERLAP WARNING: {string.Join("; ", warnings)}. Use chart move or fit-to-range to reposition, then screenshot(capture-sheet) to verify layout.";
+            return $"OVERLAP WARNING: {string.Join("; ", warnings)}. Use chart move or fit-to-range to reposition. {verification}";
         }
 
         if (chartCount >= 2)
         {
-            return $"IMPORTANT: {chartCount} charts now on this sheet. You MUST take a screenshot(capture-sheet) to verify no charts overlap each other or the data.";
+            return $"{chartCount} charts now on this sheet. {verification}";
         }
 
-        return "IMPORTANT: You MUST take a screenshot(capture-sheet) to verify the chart does not overlap the data.";
+        return verification;
     }
 
     private static void CheckUsedRangeCollision(

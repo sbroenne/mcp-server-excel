@@ -276,10 +276,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        /// <summary>");
         sb.AppendLine("        /// Routes an action to the appropriate forward method.");
         sb.AppendLine("        /// </summary>");
-        sb.AppendLine($"        public static string RouteAction(");
+        sb.AppendLine($"        public static TResult RouteAction<TResult>(");
         sb.AppendLine($"            {info.CategoryPascal}Action action,");
         sb.AppendLine($"            string sessionId,");
-        sb.AppendLine($"            System.Func<string, string, object?, string> forwardToService,");
+        sb.AppendLine($"            System.Func<string, string, object?, TResult> forwardToService,");
 
         // Collect all unique exposed parameters across all methods
         var allExposedParams = GetAllExposedParameters(info);
@@ -851,7 +851,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        /// <summary>Forward method for {method.ActionName} action</summary>");
 
         // Build parameter list - Core params might need transforms
-        var methodParams = new List<string> { "string sessionId", "System.Func<string, string, object?, string> forwardToService" };
+        var methodParams = new List<string> { "string sessionId", "System.Func<string, string, object?, TResult> forwardToService" };
 
         foreach (var p in method.Parameters)
         {
@@ -882,7 +882,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
         }
 
-        sb.AppendLine($"        public static string Forward{method.MethodName}({string.Join(", ", methodParams)})");
+        sb.AppendLine($"        public static TResult Forward{method.MethodName}<TResult>({string.Join(", ", methodParams)})");
         sb.AppendLine("        {");
 
         // FromString enum parameters are passed as-is to the service (service does parsing).
@@ -1304,6 +1304,29 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("public static partial class ServiceRegistry");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>Validates supplied MCP names using the generated action contracts.</summary>");
+        sb.AppendLine("    public static void ValidateMcpActionParameters(string tool, string action, System.Collections.Generic.IEnumerable<string> names)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        switch (tool)");
+        sb.AppendLine("        {");
+        foreach (var category in categories.OrderBy(c => c.McpToolName, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"            case \"{category.McpToolName}\":");
+            sb.AppendLine($"                {category.CategoryPascal}.ValidateActionParameters(action, names.Select(name => name switch");
+            sb.AppendLine("                {");
+            foreach (var parameter in ServiceInfoExtractor.GetAllExposedParameters(category))
+            {
+                var name = parameter.TypeName.Contains("TimeSpan") ? parameter.Name + "Seconds" : parameter.Name;
+                sb.AppendLine($"                    \"{StringHelper.ToSnakeCase(name)}\" => \"{parameter.Name}\",");
+            }
+            sb.AppendLine("                    _ => name");
+            sb.AppendLine("                }), allowFileParameters: true);");
+            sb.AppendLine("                return;");
+        }
+        sb.AppendLine("            default: throw new System.ArgumentException($\"Unknown tool: {tool}\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
         sb.AppendLine("    /// <summary>Validates a generated service command before transport dispatch.</summary>");
         sb.AppendLine("    public static void ValidateCommandArguments(string command, string? argsJson)");
         sb.AppendLine("    {");

@@ -1,10 +1,7 @@
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
-using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
-using ExcelServiceBridge = Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -109,14 +106,13 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
     public async Task FileTest_UsesTheSharedServiceResultShape()
     {
         var path = Path.Join(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.xlsx");
-        var serviceResponse = await ExcelServiceBridge.TestFileAsync(path);
-        var toolResult = ExcelFileTool.ExcelFile(
-            FileAction.Test,
-            path,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 120);
+        using var service = new Service.ExcelMcpService();
+        var serviceResponse = await service.ProcessAsync(new Service.ServiceRequest
+        {
+            Command = "session.test",
+            Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 120 })
+        });
+        var toolResult = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = path });
 
         Assert.True(serviceResponse.Success);
         Assert.NotNull(serviceResponse.Result);
@@ -131,14 +127,13 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
     public async Task FileTest_RelativePath_UsesSharedValidationError()
     {
         const string path = @"relative\book.xlsx";
-        var serviceResponse = await ExcelServiceBridge.TestFileAsync(path);
-        var toolResult = ExcelFileTool.ExcelFile(
-            FileAction.Test,
-            path,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 120);
+        using var service = new Service.ExcelMcpService();
+        var serviceResponse = await service.ProcessAsync(new Service.ServiceRequest
+        {
+            Command = "session.test",
+            Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 120 })
+        });
+        var toolResult = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = path });
 
         Assert.False(serviceResponse.Success);
         Assert.Contains("absolute Windows path", serviceResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);

@@ -125,13 +125,18 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
                 {
                     var namedArgument = Regex.Match(
                         argument,
-                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*['""](?<value>[^'""]+)['""]$");
+                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*(?:['""](?<value>[^'""]+)['""]|(?<variable>[a-zA-Z_][a-zA-Z0-9_]*))$");
                     Assert.True(
                         namedArgument.Success,
                         $"Use named MCP arguments in `{example.Value}` from {sourcePath}.");
 
                     var parameterName = namedArgument.Groups["name"].Value;
                     Assert.Contains(parameterName, schemaParameterNames);
+                    if (namedArgument.Groups["variable"].Success)
+                    {
+                        Assert.True(parameterName is "session_id" or "mode",
+                            $"Only session_id and a remembered mode may use workflow variables: {argument}");
+                    }
                     parameterNames.Add(parameterName);
                     if (parameterName == "action")
                     {

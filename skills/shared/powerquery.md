@@ -1,13 +1,13 @@
 # powerquery - Server Quirks
 
-## RECOMMENDED DEVELOPMENT WORKFLOW (ALWAYS USE THIS)
+## Test New or Changed Queries
 
 **Test BEFORE persisting - avoid polluting workbooks with broken queries:**
 
 ```
 Step 1: evaluate → Test M code, verify results (catches syntax errors, missing sources)
-Step 2: create/update → Store VALIDATED query in workbook
-Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
+Step 2: create/update → Store the validated query; create also loads its chosen destination
+Step 3: load-to if created connection-only; refresh when loaded data needs updating
 ```
 
 **Why this workflow:**
@@ -16,9 +16,34 @@ Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
 - Better error messages than COM exceptions from create/update
 - Temporary queries, sheets, tables, and mashup connections are deleted by exact
   `Location`; cleanup failures return an error instead of success
-- Skip evaluate only for trivial literal tables (`#table` with hardcoded values)
+- Skip redundant evaluation for trivial literal tables or already-validated code
+  with unchanged sources and dependencies
 
-**IF CREATE/UPDATE FAILS**: Use `evaluate` to get detailed Power Query error message, fix code, retry.
+## Recovering a failed create
+
+Creation adds the query before loading. A failed load can leave the query and
+load objects behind. Inspect `list`, `view`, and `get-load-config` first. Evaluate
+corrected code, then **update if the query survived**; create only if it is absent.
+Do not delete surviving objects blindly.
+
+For an existing query `SalesQuery`, with corrected code in a known readable
+`query.m` file and the current session already captured:
+
+```mcp
+powerquery(action: 'evaluate', session_id: sessionId, m_code_file: 'query.m')
+powerquery(action: 'update', session_id: sessionId, query_name: 'SalesQuery', m_code_file: 'query.m', refresh: false)
+powerquery(action: 'get-load-config', session_id: sessionId, query_name: 'SalesQuery')
+```
+
+```cli
+excelcli -q powerquery evaluate --session $sessionId --m-code-file query.m
+excelcli -q powerquery update --session $sessionId --query-name SalesQuery --m-code-file query.m --refresh false
+excelcli -q powerquery get-load-config --session $sessionId --query-name SalesQuery
+```
+
+Check each result. Refresh a surviving intended load, or use `load-to` for the
+required destination after inspecting sheet content. A successful evaluation does
+not prove that loading onto a particular sheet will succeed.
 
 **Additional evaluate use cases:**
 - Execute one-off queries without creating permanent queries
@@ -31,7 +56,6 @@ Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
 
 - Create and Update preserve M code exactly by default and do not call remote services
 - Set `format_m_code=true` only with explicit user consent; it sends M code to powerqueryformatter.com
-- Remote formatting adds ~100-500ms network latency per call
 - Graceful fallback: saves original M code if the formatting service is unavailable
 - `list` returns compact metadata, exact load mode, character count, and at most
   80 characters of `formulaPreview`; it never returns full M code
@@ -59,9 +83,9 @@ Alternative path (for existing worksheet tables):
 
 **Action disambiguation**:
 
-- **evaluate**: **CRITICAL - USE THIS FIRST** - Execute M code directly, return results WITHOUT creating a permanent query (test before create/update!)
+- evaluate: Execute M code and return results without keeping a permanent query
 - create: Import NEW query using inline `m_code` (FAILS if query already exists - use update instead)
-- update: Update EXISTING query M code + refresh data (use this if query exists)
+- update: Update an existing query; refresh defaults to true and can be disabled
 - rename: Change query name (requires both `old_name` and `new_name`)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
@@ -82,7 +106,7 @@ Alternative path (for existing worksheet tables):
 - Query doesn't exist? → Use create
 - Query already exists? → Use update (create will error "already exists")
 - Not sure? → Check with list action first, then use update if exists or create if new
-- **ALWAYS evaluate M code FIRST** to catch errors before persisting
+- Prefer evaluate for new or changed code to catch errors before persisting
 
 **List/view load state**:
 
@@ -98,7 +122,7 @@ Alternative path (for existing worksheet tables):
 **Inline M code**:
 
 - Provide raw M code directly via `m_code`
-- Keep `.pq` files only for GIT workflows
+- Use `m_code_file` for a readable file containing longer M code; do not also pass `m_code`
 
 **Create/LoadTo with existing sheets**:
 
@@ -110,12 +134,12 @@ Alternative path (for existing worksheet tables):
 
 **Common mistakes**:
 
-- **WARNING: Skipping evaluate** → Create/update with untested M code (ERROR: pollutes workbook with broken queries)
+- Persisting untested code can leave a broken query; prefer evaluate for new logic
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
-- Calling LoadTo without checking if sheet exists (will error if sheet exists)
+- Loading onto populated sheets without a suitable `target_cell_address` or into overlapping content
 - Assuming unload only removes worksheet data → Also removes Data Model connections
-- Calling rename without trimming `new_name` → Server trims automatically, " Query " becomes "Query"
+- Assuming rename preserves outer whitespace; the server trims " Query " to "Query"
 - Renaming to conflicting name → Check list first if unsure about existing names
 - Passing an option from another action (for example `m_code` on delete or `timeout_seconds` on load-to) → ERROR; category-wide schemas expose the union of options, but each action validates its own subset
 
@@ -167,9 +191,8 @@ Reference other queries by name directly: `Source = OtherQueryName`
 
 ### Source Control Pattern
 
-1. Store M code in `.pq` files
-2. `powerquery create` or `update` with inline `m_code`
-3. `refresh` to validate
-4. File name MUST match query name
+1. Store M code in a readable `.pq` or `.m` file.
+2. Evaluate new/changed code with `m_code_file`.
+3. Use create or update with `m_code_file` and the intended `query_name`.
 
-Query naming: File name MUST match Excel query name exactly.
+The source filename does not need to match the Excel query name.

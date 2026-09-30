@@ -18,11 +18,10 @@ internal static class ProgramTransportTestHost
         Pipe clientToServerPipe,
         Pipe serverToClientPipe,
         CancellationToken cancellationToken,
-        string clientName)
+        string clientName,
+        Func<ServiceBridge.IServiceBridgeBackend>? serviceFactory = null)
     {
-        Program.ConfigureTestTransport(clientToServerPipe, serverToClientPipe);
-
-        var serverTask = Program.Main([]);
+        var serverTask = Program.RunAsync([], clientToServerPipe, serverToClientPipe, cancellationToken, serviceFactory);
         var client = await ConnectClientWithRetryAsync(clientToServerPipe, serverToClientPipe, cancellationToken, clientName);
 
         return (client, serverTask);
@@ -54,11 +53,11 @@ internal static class ProgramTransportTestHost
             await TryCompleteAsync(serverToClientPipe.Reader, output, nameof(serverToClientPipe) + ".Reader");
             await TryCompleteAsync(clientToServerPipe.Reader, output, nameof(clientToServerPipe) + ".Reader");
             await TryCompleteAsync(serverToClientPipe.Writer, output, nameof(serverToClientPipe) + ".Writer");
-            Program.ResetTestTransport();
             return;
         }
 
-        Program.RequestTestTransportShutdown();
+        if (cancellationTokenSource is not null)
+            await cancellationTokenSource.CancelAsync();
         await TryCompleteAsync(clientToServerPipe.Writer, output, nameof(clientToServerPipe) + ".Writer");
         await TryCompleteAsync(serverToClientPipe.Reader, output, nameof(serverToClientPipe) + ".Reader");
 
@@ -105,7 +104,6 @@ internal static class ProgramTransportTestHost
             throw new TimeoutException("MCP test host did not stop after shutdown, forced cancellation, and pipe completion.");
         }
 
-        Program.ResetTestTransport();
     }
 
     private static async Task TryCompleteAsync(PipeWriter writer, ITestOutputHelper output, string pipeName)

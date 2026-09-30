@@ -300,42 +300,64 @@ routing only when a tool owns additional metadata or atomic operations that do
 not require a session. MCP calls the shared service in-process; it does not
 connect to the CLI daemon.
 
-For a manual tool, scope the SDK cancellation token, enter the shared execution
-boundary, and delegate to the generated route. For example, this helper lists
+The official SDK registers tools with `WithToolsFromAssembly` and supplies
+dependencies and cancellation tokens. For a manual tool, enter the shared async
+execution boundary and delegate to the generated route. For example, this helper lists
 worksheets through the existing Sheet route:
 
 ```csharp
-public static string ListWorksheets(
+public static Task<CallToolResult> ListWorksheets(
+    ServiceBridge.ServiceBridge bridge,
     string session_id,
     CancellationToken cancellationToken = default)
 {
-    using var cancellationScope =
-        ExcelToolsBase.PushCancellationToken(cancellationToken);
-
-    return ExcelToolsBase.ExecuteToolAction(
+    return ExcelToolsBase.ExecuteToolActionAsync(
         "worksheet",
         ServiceRegistry.Sheet.ToActionString(SheetAction.List),
         () => ServiceRegistry.Sheet.RouteAction(
             SheetAction.List,
             session_id,
-            ExcelToolsBase.ForwardToServiceFunc));
+            (command, id, args) =>
+                ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken)),
+        cancellationToken);
 }
 ```
 
-`ExecuteToolAction` supplies common telemetry and error handling. Use shared
-`JsonOptions` for additional payloads. Tool execution failures return structured
-JSON with `success: false` and `isError: true`; preserve Service categories,
-HRESULTs, inner context, and retry information. Invalid input or unknown actions
-may use the established argument/protocol exception path.
+`ExecuteToolActionAsync` supplies common telemetry and result conversion. Use shared
+`JsonOptions` for additional payloads. Tool failures set the actual SDK
+`CallToolResult.IsError` and return structured JSON as well as JSON text; preserve
+Service categories, HRESULTs, inner context, and retry information. Unexpected
+exceptions and cancellation propagate to the SDK. Request filters reject unknown,
+misspelled, and action-inapplicable arguments, including explicitly supplied nulls
+and defaults; the SDK still owns binding and injected parameters.
+
+Each host owns its bridge through dependency injection. Ordinary shutdown attempts
+to save remaining sessions. Explicit `file close` defaults to `save:false` and
+discards edits. A cancelled open/create reclaims its eventual workbook without
+resetting unrelated sessions. Cancellation is not a transaction or undo.
+
+Protocol cancellation tests send `notifications/cancelled` explicitly and verify
+the server's cleanup. Cancelling an SDK client's local wait alone does not prove
+that it sent this notification: the 2.2.0 client was observed to stop waiting
+without sending it. Keep this client-side limitation separate from server cleanup
+and do not replace the SDK's server cancellation handling with a custom protocol.
 
 Tool and parameter descriptions should explain server-specific behavior,
 constraints, and differences between overlapping tools. Types and enum values
 already appear in the schema. Keep destructive/read-only metadata accurate.
+Core XML documentation is passed to the MCP generator as an MSBuild additional
+file so compiled interface references retain their parameter descriptions.
+Known top-level parameter names are rendered in MCP snake_case; nested JSON
+keys and enum values keep their contract spelling. Do not delete Core XML
+documentation before downstream builds. Published MCP output still excludes it.
 All MCP stdio diagnostics, including bootstrap/startup output, go to stderr;
 stdout is reserved for JSON-RPC.
 
-For generated skill and prompt content, see
-[Maintaining skills and MCP prompts](../skills/README.md#maintaining-skills-and-mcp-prompts).
+The server exposes tools, not prompts or resources, and sends no MCP elicitation
+requests. Consent advice in descriptions and instructions must be handled by
+the client; it is not an enforced server dialog. For generated
+skills and minimal server instructions, see
+[Maintaining skills and server guidance](../skills/README.md#maintaining-skills-and-server-guidance).
 
 ## 📋 **MCP Registry Manifest**
 

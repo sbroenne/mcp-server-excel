@@ -1,194 +1,79 @@
-# range - Number Formats and Cell Formatting
+# Ranges and formatting
 
-**IMPORTANT: Always use US format codes.** The server automatically translates to the user's locale.
+Values, formulas, and per-cell number formats use rectangular **2D arrays**.
+Even a single value is `[[value]]`. Read before overwriting. Use content-only
+clearing to preserve formats, and target only the changed cells.
 
-**Discoverability note:** number display formats live on `range`; visual styling and auto-fit live on `range_format`.
+Number display formats belong to range operations. Visual styles, validation,
+merge/unmerge, widths, heights, and auto-fit belong to range-format operations.
+For an existing `Sales` worksheet and a captured session:
 
-## Formatting Split Across Two Tools
-
-| Use | Tool | Action | When |
-|-----|------|--------|------|
-| Semantic status / document hierarchy | `range_format` | `set-style` | `Good`/`Bad`/`Neutral` (have fills, theme-aware); `Heading 1/2/3`; `Normal` to reset |
-| Coloured header rows / custom branding | `range_format` | `format-range` | Any fill colour, custom font colour, alignment — Heading styles have NO fill |
-| Repeated shared styling across disjoint ranges | `range_format` | `format-ranges` | Same worksheet, same formatting payload, fewer round-trips |
-| Number display format | `range` | `set-number-format` / `set-number-formats` | Dates, currency, percentages, text display |
-| Auto-fit layout | `range_format` | `auto-fit-columns` / `auto-fit-rows` | After writing variable-width data or wrapped text |
-
-If you are looking for percentage, currency, date, or text display formatting, use `range`, not `range_format`.
-If you are looking for auto-fit, width, height, borders, fill, or font styling, use `range_format`.
-If you need the same styling on multiple non-contiguous ranges, use `format-ranges` instead of repeating `format-range`.
-
-## Formula Compatibility
-
-Both CLI and MCP check `Range.Formula2` support with a read-only probe once per
-session. Supported Excel keeps modern dynamic-array behavior. Older Excel uses
-`Range.Formula` for formula reads and writes, including formulas passed through
-`set-values` and formula details in `get-values` errors.
-
-The legacy path uses implicit intersection: a formula that refers to several
-cells may resolve to one value rather than spill, including inside tables.
-It does not add newer functions or dynamic arrays to Excel 2016/2019. Use
-formulas supported by the installed Excel version. Invalid formulas and
-protected-cell write errors still fail; they do not trigger a legacy retry.
-
-## Formula Errors in Range Reads
-
-`get-values` and `get-formulas` return formula errors in their `values` arrays as
-canonical Excel names such as `#REF!`, `#N/A`, and `#DIV/0!`, not raw negative
-COM integers. Both results also include cell error details with the affected
-cell, full formula text when Excel exposes it, raw error code, explanation,
-and suggested fix.
-
-Excel COM does not reliably identify the exact broken part of a reference.
-Use the returned cell address and full formula rather than inferring a
-sub-reference that Excel did not provide.
-
-## Quick Pattern: Write, Format, Auto-Fit
-
-```
-range(action: 'set-values', range_address: 'A1:D4', values: [[...], [...]])
-range(action: 'set-number-format', range_address: 'C2:D4', format_code: '$#,##0.00')
-range_format(action: 'auto-fit-columns', range_address: 'A:D')
+```mcp
+range(action: 'set-values', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B2', values: [['Product','Amount'],['Widget',1250]])
+range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Sales', range_address: 'B2', format_code: '$#,##0.00')
+range_format(action: 'format-range', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B1', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
+range_format(action: 'auto-fit-columns', session_id: sessionId, sheet_name: 'Sales', range_address: 'A:B')
 ```
 
-## Writes to Merged Cells
-
-`set-values` and `set-formulas` reject writes that include merged cells unless the target is only the merged range's top-left cell. The error lists the affected merged ranges. Write to that top-left cell when changing one merged value, or unmerge the range before writing a larger grid.
-
-## Quick Pattern: Repeated Section Headers
-
-Use `format-ranges` when the same header or section style repeats across disjoint ranges on one sheet:
-
-```
-range_format(action: 'format-ranges',
-    range_addresses: ['A1:G1', 'A12:G12', 'A24:G24'],
-    bold: true,
-    fill_color: '#243F60',
-    font_color: '#FFFFFF',
-    horizontal_alignment: 'center')
+```cli
+excelcli -q range set-values --session $sessionId --sheet Sales --range A1:B2 --values '[["Product","Amount"],["Widget",1250]]'
+excelcli -q range set-number-format --session $sessionId --sheet Sales --range B2 --format-code '$#,##0.00'
+excelcli -q rangeformat format-range --session $sessionId --sheet Sales --range A1:B1 --bold true --fill-color '#4472C4' --font-color '#FFFFFF'
+excelcli -q rangeformat auto-fit-columns --session $sessionId --sheet Sales --range A:B
 ```
 
-All target ranges are validated before formatting begins. If any target range is invalid, nothing is formatted.
+Check each result before continuing. The header example is for plain cells, not
+an Excel Table. Use [Table styles](table.md) for Table headers/data. Combine all
+visual properties in one call; use shared `format-ranges` for disjoint ranges on
+one sheet. All target ranges are validated before that operation starts.
 
-## Quick Pattern: Header Row With Fill Colour
+## Number formats and layout
 
-`set-style('Heading 1')` does **not** apply a fill — use `format-range` for coloured headers.
-Pass ALL properties in **one call**:
+| Meaning | US format code |
+|---------|----------------|
+| Number | `#,##0.00` |
+| USD | `$#,##0.00` |
+| Percentage | `0.00%` |
+| Date | `yyyy-mm-dd` |
+| Time | `hh:mm:ss` |
+| Text | `@` |
 
-```
-range_format(action: 'format-range', range_address: 'A1:D1',
-    bold: true,
-    fill_color: '#4472C4',
-    font_color: '#FFFFFF',
-    horizontal_alignment: 'center')
-```
+Always supply US format codes. Excel translates separators and date codes for the
+user's locale; different screenshot separators are not an error. Do not promise
+a literal en-US rendering. After formatting, widen columns if values show
+`#####`, while preserving intentional fixed layouts. Auto-fit rows for wrapped
+text when needed.
 
-## Quick Pattern: Semantic Status Cells
+`Good`, `Bad`, and `Neutral` are theme-aware styles with fills. Heading styles
+provide hierarchy but no fill; use explicit visual formatting for colored
+headers. `Normal` resets formatting.
 
-Use `set-style` when the meaning (Good/Bad/Neutral) matters and theme-awareness is useful:
+## Formulas and merged cells
 
-```
-range_format(action: 'set-style', range_address: 'B2:B10', style_name: 'Good')
-range_format(action: 'set-style', range_address: 'C2:C10', style_name: 'Bad')
-```
+The server probes modern `Formula2` support once per session. Older Excel uses
+`Formula`, with implicit intersection instead of dynamic-array spill behavior.
+This does not add newer functions to Excel 2016/2019. Invalid formulas and
+protected-cell errors fail rather than triggering a legacy retry.
 
-## format-range Properties
+Reads return canonical errors such as `#REF!` and `#DIV/0!`, with affected cells
+and full formulas where available. Excel cannot reliably identify the precise
+broken sub-reference; do not invent one.
 
-| Property | Type | Example |
-|----------|------|---------|
-| `bold` | bool | `true` |
-| `italic` | bool | `true` |
-| `underline` | bool | `true` |
-| `font_size` | number | `14` |
-| `font_name` | string | `"Calibri"` |
-| `font_color` | hex color | `"#FFFFFF"` |
-| `fill_color` | hex color | `"#4472C4"` |
-| `horizontal_alignment` | string | `"center"`, `"left"`, `"right"` |
-| `vertical_alignment` | string | `"middle"`, `"top"`, `"bottom"` |
-| `wrap_text` | bool | `true` |
-| `border_style` | string | `"thin"`, `"medium"`, `"thick"` |
-| `border_color` | hex color | `"#000000"` |
-| `orientation` | int | `-90` to `90` (degrees) |
+Writes intersecting merged cells fail unless the target is just the merged
+range's top-left cell. Write there for one merged value, or explicitly unmerge
+before writing a grid.
 
-## set-style Presets
+## Links, comments, and names
 
-Built-in style names: `Normal`, `Heading 1`, `Heading 2`, `Heading 3`, `Heading 4`, `Title`, `Good`, `Bad`, `Neutral`, `Currency`, `Percent`, `Comma`
+Range-link actions manage external and internal hyperlinks. An internal target
+uses a sub-address such as `'Summary'!A1`; removing a link preserves cell content.
+On partial updates, omitted properties remain unchanged; an empty string clears
+the URL, sub-address, or tooltip.
 
-```
-range_format(action: 'set-style', range_address: 'A1:D1', style_name: 'Heading 1')
-```
+Threaded comments require a desktop Excel build exposing them. Local comment
+text, author, dates, and replies are available; cloud mentions, assignments,
+reactions, presence, sharing, and coauthoring are not.
 
-## Format Codes
-
-| Type | Code | Example (en-US) |
-|------|------|-----------------|
-| Number | `#,##0.00` | 1,234.56 |
-| Dollar | `$#,##0.00` | $1,234.56 |
-| Euro | `€#,##0.00` | €1,234.56 |
-| Pound | `£#,##0.00` | £1,234.56 |
-| Yen | `¥#,##0` | ¥1,235 |
-| Percent | `0.00%` | 12.34% |
-| Date (ISO) | `yyyy-mm-dd` | 2023-03-15 |
-| Date (US) | `mm/dd/yyyy` | 03/15/2023 |
-| Date (EU) | `dd/mm/yyyy` | 15/03/2023 |
-| Time | `h:mm AM/PM` | 2:30 PM |
-| Time (24h) | `hh:mm:ss` | 14:30:00 |
-| Text | `@` | (as-is) |
-
-All format codes are auto-translated to the user's locale. Use US codes (d/m/y for dates, . for decimal, , for thousands).
-
-**The `Example` column assumes en-US regional settings — rendering is locale-dependent.** Excel
-interprets the `,` and `.` in a format code according to the user's locale, and the same is true of
-the `d`/`m`/`y` date codes. So `$#,##0.00` displays as `$1,234.56` on en-US but `$1.234,56` on de-DE,
-and `mm/dd/yyyy` follows the locale's date separator. This is correct behaviour, not a bug — do not
-rewrite a format code because a screenshot shows swapped separators, and do not tell the user a
-literal rendering without accounting for their regional settings.
-
-After applying a number format, run `range_format auto-fit-columns` — formatted values are wider
-than raw ones and will render as `#####` at the default column width.
-
-## Actions
-
-**SetNumberFormat**: Apply one format to entire range.
-
-- `format_code`: Format code from table above
-
-**SetNumberFormats**: Apply different formats per cell.
-
-- `formats`: 2D array matching range dimensions
-- Example: `[["$#,##0.00", "0.00%"], ["mm/dd/yyyy", "General"]]`
-
-## Threaded Comments (`range_link`)
-
-Use modern threaded comments only when the installed desktop Excel build exposes them:
-
-```text
-range_link(action: 'add-threaded-comment', sheet_name: 'Review', cell_address: 'B2', text: 'Check this value')
-range_link(action: 'add-threaded-comment-reply', sheet_name: 'Review', cell_address: 'B2', text: 'Confirmed')
-range_link(action: 'list-threaded-comments', sheet_name: 'Review', cell_address: 'B2')
-range_link(action: 'delete-threaded-comment', sheet_name: 'Review', cell_address: 'B2')
-```
-
-These actions expose local Excel PIA comment text, author, date, and replies. Microsoft 365 service features such as @mentions, assignments, reactions, presence, sharing, and coauthoring state are not available through local Excel COM.
-
-## Related `range_format` Actions
-
-- `auto-fit-columns`: Fit column widths to content after writing data
-- `auto-fit-rows`: Fit row heights to wrapped or multi-line content
-- `format-range`: Apply fills, fonts, borders, and alignment
-- `format-ranges`: Apply one shared formatting payload to multiple ranges on the same worksheet
-- `set-style`: Apply named Excel styles such as `Good`, `Bad`, or `Heading 1`
-
-## Hyperlink Lifecycle
-
-Use `range_link` for cell hyperlinks:
-
-| Action | Purpose |
-|--------|---------|
-| `add-hyperlink` | Add an external URL/file link or an internal workbook target |
-| `update-hyperlink` | Change an existing target, display text, or tooltip |
-| `get-hyperlink` | Read the hyperlink in one cell |
-| `list-hyperlinks` | List all hyperlinks on a worksheet |
-| `remove-hyperlink` | Remove hyperlinks while preserving cell content |
-
-For an internal link, omit `url` and pass a `sub_address` such as `'Summary'!A1`. For partial updates, omitted values remain unchanged; pass an empty string to clear the URL, sub-address, or tooltip.
+Named ranges refer to cells, not literal values. Create the reference first,
+then write its value. Listings omit hidden/internal names and avoid loading large
+value previews; use a targeted read when values are required.

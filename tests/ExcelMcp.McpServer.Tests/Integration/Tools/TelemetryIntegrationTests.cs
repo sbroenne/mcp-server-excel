@@ -101,28 +101,30 @@ public class TelemetryIntegrationTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void ToolInvocation_ExecutesWithTelemetry()
+    public async Task ToolInvocation_ExecutesWithTelemetry()
     {
         output.WriteLine("=== TOOL INVOCATION TEST ===\n");
 
         // Act - call a tool method that uses ExecuteToolAction
         // Using Test action since it doesn't require an actual file
-        var result = ExcelFileTool.ExcelFile(
+        using var bridge = new ServiceBridge.ServiceBridge(() => new ServiceBridge.ExcelMcpServiceBackend(new Service.ExcelMcpService()));
+        var result = await ExcelFileTool.ExcelFile(
             FileAction.Test,
+            bridge,
             path: "C:\\fake\\test.xlsx",
             session_id: null,
             save: false,
             show: false,
             timeout_seconds: 300);
 
-        output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
+        var text = Assert.Single(result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>()).Text;
+        output.WriteLine($"Tool result: {text[..Math.Min(200, text.Length)]}...\n");
 
         // Assert - tool executed (telemetry is tracked internally)
         Assert.NotNull(result);
-        Assert.Contains("success", result.ToLowerInvariant());
+        Assert.Contains("success", text, StringComparison.OrdinalIgnoreCase);
     }
 }
-
 
 
 

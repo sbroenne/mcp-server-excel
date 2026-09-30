@@ -1,6 +1,5 @@
 using Xunit;
 using Xunit.Abstractions;
-using ExcelServiceBridge = Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
@@ -405,7 +404,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         {
             var tool = Assert.Single(tools, candidate => candidate.Name == toolName);
             var timeout = tool.JsonSchema.GetProperty("properties").GetProperty("timeout_seconds");
-            Assert.Equal("integer", timeout.GetProperty("type").GetString());
+            Assert.Contains("integer", timeout.GetProperty("type").EnumerateArray().Select(value => value.GetString()));
             Assert.Contains("seconds", timeout.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
         }
 
@@ -423,7 +422,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             foreach (var alias in aliases)
             {
                 var property = properties.GetProperty(alias);
-                Assert.Equal("string", property.GetProperty("type").GetString());
+                Assert.Contains("string", property.GetProperty("type").EnumerateArray().Select(value => value.GetString()));
                 Assert.Contains("readable", property.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
             }
         }
@@ -437,15 +436,4 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         Assert.DoesNotContain("required for", parametersDescription, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void CreateSessionBridge_DoesNotDefaultMacroEnabledToFalse()
-    {
-        var method = typeof(ExcelServiceBridge).GetMethod(nameof(ExcelServiceBridge.CreateSessionAsync));
-        Assert.NotNull(method);
-        var macroEnabled = Assert.Single(
-            method.GetParameters(),
-            parameter => parameter.Name == "macroEnabled");
-
-        Assert.Null(macroEnabled.DefaultValue);
-    }
 }

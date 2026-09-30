@@ -7,13 +7,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Named ranges for formulas/parameters.
 /// LIST: returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values.
-/// CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1').
+/// CREATE/UPDATE: reference is a cell reference (e.g., 'Sheet1!$A$1').
 /// WRITE: value is data to store; invariant numeric and Boolean strings become typed values, while other input remains text.
 /// TIP: use range get-values/set-values with the named range as the range address for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
-    Description = "Named ranges for formulas/parameters. LIST returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: invariant numeric and Boolean strings become typed values; other input remains text. TIP: Use range(rangeAddress=namedRangeName) for bulk data operations.")]
+    Description = "Named ranges for formulas/parameters. List returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. Create/update use reference for the cell reference (e.g., Sheet1!$A$1). Write uses value: invariant numeric and Boolean strings become typed values; other input remains text. For bulk data operations, use range with the named range as range_address.")]
 public interface INamedRangeCommands
 {
     /// <summary>
@@ -89,5 +89,4 @@ public interface INamedRangeCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name);
 }
-
 

@@ -218,6 +218,9 @@ function Generate-CliReference {
     $content.Add("")
     $content.Add("> Auto-generated from the built ``excelcli`` runtime. Use these exact command and parameter names.")
     $content.Add("")
+    $index = $content
+    $commandsDir = Join-Path $SkillPath "references\commands"
+    New-Item -ItemType Directory -Path $commandsDir -Force | Out-Null
 
     $commands = Get-HelpEntries -Lines $mainHelp -Header "COMMANDS:" -Kind Command
     foreach ($command in ($commands | Sort-Object { $_.Spec.Split(' ')[0] })) {
@@ -240,6 +243,8 @@ function Generate-CliReference {
         }
         $actions = @()
 
+        $index.Add("- [$commandName](commands/$commandName.md)")
+        $content = [System.Collections.Generic.List[string]]::new()
         $content.Add("### $commandName")
         $content.Add("")
         $content.Add($description)
@@ -274,8 +279,11 @@ function Generate-CliReference {
         } else {
             Add-ParameterTable -Markdown $content -HelpLines $help -KnownTokens $actions
         }
+        $content -join "`n" | Set-Content -LiteralPath (Join-Path $commandsDir "$commandName.md") -Encoding UTF8 -NoNewline
     }
 
+    $content = $index
+    $content.Add("")
     $content.Add("## Common Pitfalls")
     $content.Add("")
     $content.Add("- ``--values-file`` requires an existing JSON or CSV file; use ``--values`` for inline JSON.")
@@ -312,14 +320,15 @@ function Copy-SharedReferences {
         $CopiedCount = 0
         foreach ($sourceFile in $FilesToCopy) {
             $destination = Join-Path $RefsDir $sourceFile.Name
-            if ($SkillName -eq "excel-cli") {
-                $cliSyntaxNotice = "> **CLI syntax note:** This shared domain guide may use MCP-style ``tool(action: ...)`` examples as conceptual shorthand. Do not translate or paste those calls mechanically. Use the exact commands and kebab-case options in [cli-commands.md](./cli-commands.md) or live ``--help``; notably, MCP ``file`` open/close maps to CLI ``session`` open/close, and MCP ``worksheet`` maps to CLI ``sheet``."
-                $sourceContent = (Get-Content -Path $sourceFile.FullName -Raw) -replace "`r`n?", "`n"
-                $adaptedContent = "$cliSyntaxNotice`n`n$sourceContent"
-                Set-Content -Path $destination -Value $adaptedContent -Encoding UTF8 -NoNewline
-            } else {
-                Copy-Item -Path $sourceFile.FullName -Destination $destination -Force
-            }
+            $surface = $SkillName -replace '^excel-', ''
+            $sourceContent = (Get-Content -LiteralPath $sourceFile.FullName -Raw) -replace "`r`n?", "`n"
+            $rendered = [regex]::Replace($sourceContent, '(?ms)^```(?<surface>cli|mcp)\n(?<body>.*?)^```[ \t]*(?:\n|$)', {
+                param($match)
+                if ($match.Groups['surface'].Value -ne $surface) { return '' }
+                $language = if ($surface -eq 'cli') { 'powershell' } else { 'text' }
+                return '```' + $language + "`n" + $match.Groups['body'].Value + '```' + "`n"
+            })
+            Set-Content -LiteralPath $destination -Value $rendered -Encoding UTF8 -NoNewline
             $CopiedCount++
         }
         Write-Host "  Copied $CopiedCount shared references to $SkillName/references/" -ForegroundColor Green
@@ -371,6 +380,13 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "$name rendering failed with exit code $LASTEXITCODE." }
             Copy-SharedReferences -SkillPath $destination -SkillName $name
             if ($component -eq 'cli') { Generate-CliReference -SkillPath $destination -ExcelCliPath $CliExecutable }
+            $references = Join-Path $destination 'references'
+            $index = @('# Reference index', '', 'Read the guide for the task at hand; command details are discovered from the installed runtime.', '')
+            foreach ($reference in (Get-ChildItem -LiteralPath $references -Filter '*.md' -File | Sort-Object Name)) {
+                $title = (Get-Content -LiteralPath $reference.FullName -TotalCount 1) -replace '^#+\s*', ''
+                $index += "- [$title]($($reference.Name))"
+            }
+            Set-Content -LiteralPath (Join-Path $references 'index.md') -Value ($index -join "`n") -Encoding UTF8
         }
         else {
             Copy-Item -LiteralPath (Join-Path $SkillsDirectory $name) -Destination $destination -Recurse

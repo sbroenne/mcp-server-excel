@@ -14,7 +14,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 ///
 /// COLLISION DETECTION: All create/move/fit-to-range operations automatically check for overlaps
 /// with data and other charts. Warnings are returned in the result message if collisions are detected.
-/// Always verify layout with screenshot(capture) and an explicit range that includes the chart.
+/// Inspect bounds and warnings; verify visually when an interactive desktop is available.
 ///
 /// CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter.
 ///

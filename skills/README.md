@@ -15,7 +15,8 @@ install both):
 | **[excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
 | **[excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
 
-**Shared guidance:** `skills/shared/*.md` — source of truth for both skills (auto-copied to each skill's `references/` folder)
+**Shared guidance:** `skills/shared/*.md` is the source of shared explanations.
+Generation selects the authored examples for each entry point.
 
 > **Note:** Legacy npm packages (`excel-cli-skill`, `excel-mcp-skill`) are no longer published. Use the methods below instead.
 
@@ -41,7 +42,7 @@ npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp
 **Via VS Code Extension (auto-installs excel-mcp):**
 Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) — it registers the `excel-mcp` skill via `chatSkills`. For the `excel-cli` skill, use the plugin or `npx skills` methods above.
 
-## Maintaining skills and MCP prompts
+## Maintaining skills and server guidance
 
 The source repository no longer contains installable generated skills. The old
 `npx skills add sbroenne/mcp-server-excel` command does not redirect. Existing
@@ -56,10 +57,13 @@ editing output that the next build replaces.
 | Tool or parameter description | Command interface XML documentation and attributes under `src/ExcelMcp.Core` |
 | Skill prose and tool-selection rules | `skills/templates/SKILL.cli.sbn` and `skills/templates/SKILL.mcp.sbn` |
 | Shared workflows, examples, and limitations | `skills/shared/*.md` |
+| MCP-only references, such as calculation mode | `skills/assets/excel-mcp/references/*.md` |
 | Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
-| MCP prompt description overrides | `GenerateSkillPromptsClass` in `src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj` |
+| Minimal MCP server instructions | `src/ExcelMcp.McpServer/Program.cs` |
 
-Release builds generate the manifest and embedded MCP prompts. Complete
+Release builds generate the manifest. Shared guides are no longer advertised as
+MCP prompts: prompts are optional, user-selected templates, not automatic server
+instructions. The guides remain available as installed skill references. Complete
 installable skills are generated explicitly, outside the tracked source tree:
 
 ```powershell
@@ -77,21 +81,50 @@ Generation follows two related paths:
 Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
   -> GenerateSkillFile + Scriban templates -> both SKILL.md files
 
-skills/shared/*.md -> copied skill references
-  -> embedded MCP prompt content + generated ExcelSkillPrompts.g.cs
+skills/shared/*.md -> entry-point-specific references + linked guide index
+excelcli --help -> compact command index + individual command reference pages
+
+Core XML documentation + interface attributes -> McpToolGenerator
+  -> official SDK tool/parameter descriptions and schemas
 ```
 
-To add a shared reference, create the Markdown under `skills/shared/`. Review the MCP
-prompt description overrides if its automatic description is insufficient.
-Build the solution in Release and generate the skills, then inspect both skill references and the
-generated prompt surface for the intended content. The extension packages a
+To add a shared reference, create the Markdown under `skills/shared/`.
+Keep general explanations outside code fences. Put native command examples in
+fences labeled `cli` and corresponding MCP calls in fences labeled `mcp`.
+Generation includes only the matching block, rendered as PowerShell or text;
+ordinary language examples such as M, DAX, SQL, and JSON remain shared.
+This is explicit selection, not automatic translation of parameter names.
+Include required inputs, describe prerequisites, and use a returned session ID.
+Do not put entry-point-specific calls in unmarked prose or generic code fences.
+
+The generated `references/index.md` links every guide automatically.
+`references/cli-commands.md` is a short index of live-generated pages under
+`references/commands/`; do not rebuild a monolithic command catalog in a guide.
+Keep shared safety rules in `behavioral-rules.md`, and link domain guidance
+rather than repeating full save/format/refresh workflows everywhere.
+
+Build the solution in Release and generate the skills, then inspect both skill references
+for the intended content. The extension packages a
 copy of the MCP skill; it is not another source.
+Keep Core XML documentation available during downstream builds; it is stripped
+from published MCP binaries, not deleted before tool generation. The generator
+translates known top-level parameter names to MCP snake_case, leaving nested
+JSON fields and enum values unchanged.
+
+The server exposes tools, not prompts or resources, and does not request
+confirmation through MCP elicitation. Consent instructions apply to the client
+conversation; they are not server-enforced dialogs. Source updates do not change
+installed skills until the normal packaging, publication, and update process.
 
 Write for an agent that already knows Excel and can read tool schemas. Explain
 which overlapping tool to choose, non-obvious load/save/refresh semantics,
 destructive effects, and recovery from predictable errors. Add concrete examples
 when schemas alone cannot explain a workflow, not to duplicate enum catalogs or
 CLI help.
+Check guidance across both templates, references, live descriptions, and returned
+recovery messages. Avoid emojis, invented parameter/action names, unconditional
+mode resets, or requirements for unrelated formatting and screenshots on
+unattended desktops.
 
 If a tool is misunderstood in an evaluation, fix the relevant source above,
 rebuild, and rerun the affected scenario. See the

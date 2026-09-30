@@ -16,7 +16,7 @@ To analyze worksheet data with DAX measures:
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use `visible_only=true` for filtered data)
 - rename: Rename an existing table
-- delete: Remove table (keeps data, removes table formatting)
+- delete: Convert the table to an ordinary range (keeps data; formatting may remain)
 - resize: Change table range (expand/contract)
 - set-style: Change table visual style (TableStyleLight1-21, TableStyleMedium1-28, TableStyleDark1-11). Default is TableStyleMedium2.
 - toggle-totals: Show or hide the totals row (`show_totals: true/false`)
@@ -29,12 +29,13 @@ To analyze worksheet data with DAX measures:
 
 **Table styling — always use table styles, not range_format**:
 
-Excel Tables manage their own header/row/totals formatting through table styles. Never use `range_format(action: 'format-range')` on table header rows — it conflicts with the table style and produces inconsistent formatting.
+Excel Tables manage their own header/row/totals formatting through table styles.
+Do not override Table headers with plain-range formatting.
 
 | Goal | Correct approach |
 |------|-----------------|
-| Style a table | `table(action: 'set-style', table_style: 'TableStyleMedium2')` |
-| Style at creation | `table(action: 'create', table_style: 'TableStyleMedium2', ...)` |
+| Style a table | Table `set-style` with the intended style name |
+| Style at creation | Supply the Table style when creating it |
 | Custom branding on table | Use a Medium/Dark table style that matches your palette — avoid overriding individual cells |
 
 Common table style choices:
@@ -42,6 +43,18 @@ Common table style choices:
 - `TableStyleMedium9` — orange accent
 - `TableStyleLight1` — minimal borders, no header fill
 - `TableStyleDark1` — dark header with white text
+
+For a captured session and existing `Sales` Table:
+
+```mcp
+table(action: 'set-style', session_id: sessionId, table_name: 'Sales', table_style: 'TableStyleMedium2')
+table(action: 'get-data', session_id: sessionId, table_name: 'Sales', visible_only: true)
+```
+
+```cli
+excelcli -q table set-style --session $sessionId --table-name Sales --table-style TableStyleMedium2
+excelcli -q table get-data --session $sessionId --table-name Sales --visible-only true
+```
 
 **DAX-backed tables** (NEW):
 
@@ -88,7 +101,7 @@ Example DAX queries for create-from-dax:
 
 **Server-specific quirks**:
 
-- Style parameter is overloaded: table style name OR total function (context-dependent)
+- Table style and totals-row function use separate parameters; do not interchange them
 - Use `rows` for inline 2D data or `rows_file` for JSON/CSV input when appending
 - `visible_only` only applies to the get-data action
 - Table names must be unique within workbook (Excel requirement)

@@ -110,6 +110,17 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void BuildAgentSkills_UsesPortableNewlinesForSurfaceExamples()
+    {
+        var script = File.ReadAllText(BuildAgentSkillsScript);
+
+        Assert.Contains("-replace \"`r`n?\", \"`n\"", script, StringComparison.Ordinal);
+        Assert.Contains("(?<surface>cli|mcp)", script, StringComparison.Ordinal);
+        Assert.Contains("$match.Groups['body'].Value + '```' + \"`n\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("CLI syntax note", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BuildPlugins_ProducesNpxOnlyPackages()
     {
         var sandbox = CreateSandbox("build");
@@ -328,6 +339,12 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
         Assert.Equal(sourceFiles, builtFiles);
+        foreach (var path in sourceFiles)
+        {
+            Assert.Equal(
+                File.ReadAllBytes(Path.Combine(sourceRoot, path)),
+                File.ReadAllBytes(Path.Combine(builtRoot, path)));
+        }
         Assert.Equal(expectedVersion, File.ReadAllText(Path.Combine(builtRoot, "VERSION")).Trim());
     }
 

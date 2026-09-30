@@ -1,23 +1,35 @@
 ---
-applyTo: "src/ExcelMcp.McpServer/**/*.cs"
+applyTo: "src/ExcelMcp.McpServer/**/*.cs,src/ExcelMcp.Generators.Mcp/**/*.cs"
 excludeAgent: "code-review"
 ---
 
 # MCP boundaries
 
-- Tool methods are static and synchronous. Use generated `ServiceRegistry`
-  routes; hand-written branches are for special metadata or atomic no-session
-  behavior, not duplicate dispatch.
-- Scope the SDK cancellation token with `ExcelToolsBase.PushCancellationToken`;
-  use `ExecuteToolAction` for telemetry/error handling and shared `JsonOptions`.
-- Execution failures return structured JSON with `success: false` and
-  `isError: true`. Invalid input/unknown actions may use established argument
-  or protocol exceptions. Preserve Service error context rather than throwing
-  a second generic exception.
+- Register with the SDK's `WithToolsFromAssembly`; it owns schemas, dependency
+  injection, binding, transport, cancellation, and unexpected protocol errors.
+  Do not introduce replacement registration or client-specific schema rewriting.
+- Tool methods return `Task<CallToolResult>`. Inject the host-owned Service
+  bridge and pass the SDK cancellation token explicitly through generated routes.
+  Core commands remain synchronous on the owning Excel thread.
+- Use `ExecuteToolActionAsync` for result conversion and telemetry. Execution
+  failures set the actual SDK `CallToolResult.IsError`, not just a JSON field.
+  Preserve structured Service error context and matching JSON text/structured
+  content. Unexpected exceptions and cancellation propagate to the SDK.
+- Request filters validate supplied action parameters and session identity
+  before SDK binding. Generate action applicability from Core contracts.
+- Ordinary shutdown saves remaining sessions. Explicit no-save close discards
+  edits; cancellation is not undo and must not close unrelated workbooks.
 - Stdio stdout is JSON-RPC only, including startup/bootstrap paths; diagnostics
   go to stderr.
 - Descriptions add server-specific constraints and tool-selection hints, not
   types/enums already in the schema. No emojis in generated guidance/XML docs.
   Keep destructive/read-only metadata accurate.
+- Server instructions stay minimal and task-focused. Shared skill guides are
+  not MCP prompts; do not advertise optional guides as required instructions.
+- Prompts, resources, and MCP elicitation are not implemented. The client must
+  obtain any needed consent; description text does not enforce confirmation.
+- Preserve Core XML documentation as a generator input. Render known top-level
+  input names in snake_case without changing nested JSON keys or enum values.
+  Verify emitted descriptions through SDK discovery, not only source strings.
 
 Manual routing example and explanation: `docs/DEVELOPMENT.md`.

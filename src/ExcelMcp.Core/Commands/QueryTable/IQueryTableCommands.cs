@@ -18,6 +18,9 @@ public interface IQueryTableCommands
     QueryTableListResult List(IExcelBatch batch);
 
     /// <summary>Views one QueryTable and source-specific configuration.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the QueryTable</param>
+    /// <param name="queryTableName">Name of the QueryTable</param>
     [ServiceAction("view")]
     QueryTableViewResult View(
         IExcelBatch batch,
@@ -29,6 +32,15 @@ public interface IQueryTableCommands
     /// Delimiter must be one character; encoding is a Windows code page such as 65001 for UTF-8.
     /// textQualifier: double-quote, single-quote, or none.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryTableName">Name for the new QueryTable</param>
+    /// <param name="sourcePath">Full path to a readable local text or CSV file</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="destinationAddress">Top-left cell for the imported data</param>
+    /// <param name="delimiter">Single-character field separator; defaults to comma</param>
+    /// <param name="textQualifier">Text quoting: double-quote, single-quote, or none</param>
+    /// <param name="encoding">Windows code page; 65001 is UTF-8</param>
+    /// <param name="hasHeaders">Whether the first row contains column headings</param>
     [ServiceAction("create-text")]
     OperationResult CreateText(
         IExcelBatch batch,
@@ -46,6 +58,14 @@ public interface IQueryTableCommands
     /// selectionType: entire-page, all-tables, or specified-tables.
     /// formatting: none, rich-text, or all.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryTableName">Name for the new QueryTable</param>
+    /// <param name="url">URL of the legacy HTML web source</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="destinationAddress">Top-left cell for the imported data</param>
+    /// <param name="selectionType">Web selection: entire-page, all-tables, or specified-tables</param>
+    /// <param name="webTables">Comma-separated table names or indices for specified-tables selection</param>
+    /// <param name="formatting">Imported web formatting: none, rich-text, or all</param>
     [ServiceAction("create-web")]
     OperationResult CreateWeb(
         IExcelBatch batch,
@@ -58,6 +78,14 @@ public interface IQueryTableCommands
         string formatting = "none");
 
     /// <summary>Updates common QueryTable refresh and formatting settings.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the QueryTable</param>
+    /// <param name="queryTableName">Existing QueryTable name</param>
+    /// <param name="backgroundQuery">Enable or disable background refresh</param>
+    /// <param name="refreshOnFileOpen">Refresh automatically when the workbook opens</param>
+    /// <param name="refreshPeriod">Automatic refresh interval in minutes; zero disables timed refresh</param>
+    /// <param name="adjustColumnWidth">Resize columns to fit refreshed data</param>
+    /// <param name="preserveFormatting">Preserve cell formatting when refreshing</param>
     [ServiceAction("set-properties")]
     OperationResult SetProperties(
         IExcelBatch batch,

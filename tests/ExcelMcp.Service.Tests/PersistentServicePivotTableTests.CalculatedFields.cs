@@ -1,3 +1,5 @@
+using System.Globalization;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -10,6 +12,37 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServicePivotTableTests
 {
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void CalculatedField_AddAndSetSum_ReturnsNumericTotals()
+    {
+        var batch = _fixture.BatchToken;
+        var created = _pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "CalculatedTotals");
+        Assert.True(created.Success, created.ErrorMessage);
+        var row = _pivotCommands.AddRowField(batch, "CalculatedTotals", "Region");
+        Assert.True(row.Success, row.ErrorMessage);
+        var calculated = _pivotCommands.CreateCalculatedField(
+            batch, "CalculatedTotals", "DoubleSales", "=Sales*2");
+        Assert.True(calculated.Success, calculated.ErrorMessage);
+
+        var added = _pivotCommands.AddValueField(batch, "CalculatedTotals", "DoubleSales");
+        Assert.True(added.Success, added.ErrorMessage);
+        Assert.Equal("Number", added.DataType);
+        var configured = _pivotCommands.SetFieldFunction(
+            batch, "CalculatedTotals", "DoubleSales", AggregationFunction.Sum);
+        Assert.True(configured.Success, configured.ErrorMessage);
+        var refreshed = _pivotCommands.Refresh(batch, "CalculatedTotals");
+        Assert.True(refreshed.Success, refreshed.ErrorMessage);
+
+        var data = _pivotCommands.GetData(batch, "CalculatedTotals");
+        Assert.True(data.Success, data.ErrorMessage);
+        Assert.Equal(1300d, Convert.ToDouble(data.Values[^1][^1], CultureInfo.InvariantCulture));
+        var fields = _pivotCommands.ListFields(batch, "CalculatedTotals");
+        Assert.True(fields.Success, fields.ErrorMessage);
+        Assert.Equal("Number", Assert.Single(fields.Fields, field => field.Name == "DoubleSales").DataType);
+    }
+
     [Fact]
     [Trait("Speed", "Medium")]
     public void CreateCalculatedField_MultiplicationFormula_CreatesField()
@@ -235,7 +268,5 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Contains("not found", result.ErrorMessage);
     }
 }
-
-
 
 

@@ -1,6 +1,17 @@
 # Workbook Lifecycle
 
-Use the `workbook` tool or CLI command group for workbook-level metadata, file variants, publishing, and external links. Use `file` only for opening, creating, listing, and closing sessions.
+Use workbook operations for metadata, file variants, publishing, and external
+links. Session lifecycle is separate.
+
+```mcp
+workbook(action: 'get-info', session_id: sessionId)
+workbook(action: 'list-external-links', session_id: sessionId)
+```
+
+```cli
+excelcli -q workbook get-info --session $sessionId
+excelcli -q workbook list-external-links --session $sessionId
+```
 
 ## Metadata and document properties
 

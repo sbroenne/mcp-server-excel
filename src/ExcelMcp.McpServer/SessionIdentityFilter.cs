@@ -60,11 +60,7 @@ internal static class SessionIdentityFilter
                     // hidden by an optional tool-level session_id.
                     var error = ExcelToolsBase.SerializeToolError(
                         "tools/call", null, new ArgumentException(validationError));
-                    return ValueTask.FromResult(new CallToolResult
-                    {
-                        IsError = true,
-                        Content = [new TextContentBlock { Text = error }]
-                    });
+                    return ValueTask.FromResult(ExcelToolsBase.CreateToolResult(error, isError: true));
                 }
             }
 

@@ -22,6 +22,9 @@ public interface IWorkbookCommands
     WorkbookInfoResult GetInfo(IExcelBatch batch);
 
     /// <summary>Lists built-in and/or custom workbook document properties.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="includeBuiltIn">Include built-in document properties</param>
+    /// <param name="includeCustom">Include custom document properties</param>
     [ServiceAction("list-document-properties")]
     DocumentPropertyListResult ListDocumentProperties(
         IExcelBatch batch,
@@ -74,6 +77,16 @@ public interface IWorkbookCommands
         bool overwrite = false);
 
     /// <summary>Exports the workbook to PDF or XPS using Excel's fixed-format renderer.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="targetPath">Absolute output path in an existing directory</param>
+    /// <param name="formatType">Fixed-format output: Pdf or Xps</param>
+    /// <param name="quality">Export quality: Standard or Minimum</param>
+    /// <param name="includeDocumentProperties">Include document metadata in the exported file</param>
+    /// <param name="ignorePrintAreas">Export without restricting output to configured print areas</param>
+    /// <param name="fromPage">First page to export, 1-based; omit to start at the beginning</param>
+    /// <param name="toPage">Last page to export, inclusive; omit to export through the end</param>
+    /// <param name="openAfterPublish">Open the exported file in its associated viewer</param>
+    /// <param name="overwrite">Whether an existing output file may be replaced</param>
     [ServiceAction("export-fixed-format")]
     OperationResult ExportFixedFormat(
         IExcelBatch batch,
@@ -92,6 +105,8 @@ public interface IWorkbookCommands
     ExternalLinkListResult ListExternalLinks(IExcelBatch batch);
 
     /// <summary>Updates one external Excel workbook link from its source.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="linkSource">Exact source identifier returned by list-external-links</param>
     [ServiceAction("update-external-link")]
     OperationResult UpdateExternalLink(IExcelBatch batch, [RequiredParameter] string linkSource);
 
@@ -100,6 +115,9 @@ public interface IWorkbookCommands
     OperationResult BreakExternalLink(IExcelBatch batch, [RequiredParameter] string linkSource);
 
     /// <summary>Protects or unprotects the workbook structure.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="isProtected">True to protect workbook structure, false to unprotect it</param>
+    /// <param name="password">Optional protection password; required to unprotect password-protected structure</param>
     [ServiceAction("set-protection")]
     OperationResult SetProtection(
         IExcelBatch batch,
@@ -111,6 +129,9 @@ public interface IWorkbookCommands
     WorkbookProtectionResult GetProtection(IExcelBatch batch);
 
     /// <summary>Sets workbook display options such as gridlines and headings.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="displayGridlines">Show or hide gridlines; omit to leave unchanged</param>
+    /// <param name="displayHeadings">Show or hide row/column headings; omit to leave unchanged</param>
     [ServiceAction("set-view-options")]
     OperationResult SetViewOptions(
         IExcelBatch batch,

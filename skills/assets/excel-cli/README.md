@@ -15,11 +15,13 @@ Agent Skill for AI coding assistants using the Excel CLI tool (`excelcli`).
 Modern coding agents increasingly favor CLI-based workflows:
 
 ```powershell
-# Token-efficient: No schema overhead
-excelcli -q session open C:\Data\Report.xlsx
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello"]]'
-excelcli -q session close --session 1 --save
+# Discover a session rather than inventing an ID.
+excelcli -q session list
+excelcli -q range get-values --session $sessionId --sheet Sheet1 --range A1
 ```
+
+Here `$sessionId` is the returned ID for the intended workbook. For writes and
+batch jobs, use the failure-aware lifecycle in [SKILL.md](SKILL.md).
 
 ## Installation
 

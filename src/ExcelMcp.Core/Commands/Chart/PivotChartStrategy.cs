@@ -228,7 +228,7 @@ public class PivotChartStrategy : IChartStrategy
         throw new NotSupportedException(
             "Cannot add series directly to PivotChart. " +
             "PivotCharts automatically sync with PivotTable fields. " +
-            "Use pivottable tool with 'add-value-field' action to add data series.");
+            "Use pivottable_field (CLI: pivottablefield) with 'add-value-field' to add data series.");
     }
 
     /// <inheritdoc />
@@ -237,8 +237,7 @@ public class PivotChartStrategy : IChartStrategy
         throw new NotSupportedException(
             "Cannot remove series directly from PivotChart. " +
             "PivotCharts automatically sync with PivotTable fields. " +
-            "Use pivottable tool with 'remove-field' action to remove data series.");
+            "Use pivottable_field (CLI: pivottablefield) with 'remove-field' to remove data series.");
     }
 }
-
 

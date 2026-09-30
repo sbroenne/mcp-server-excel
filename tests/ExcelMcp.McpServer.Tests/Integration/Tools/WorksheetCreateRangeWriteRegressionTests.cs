@@ -53,7 +53,6 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
         var setValuesJson = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["path"] = _testExcelFile,
             ["session_id"] = _sessionId,
             ["sheet_name"] = sheetName,
             ["range_address"] = "A3:G10",
@@ -64,7 +63,6 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
         var getValuesJson = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["path"] = _testExcelFile,
             ["session_id"] = _sessionId,
             ["sheet_name"] = sheetName,
             ["range_address"] = "A3:G10"
@@ -88,7 +86,6 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
         var a1Json = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["path"] = _testExcelFile,
             ["session_id"] = _sessionId,
             ["sheet_name"] = sheetName,
             ["range_address"] = "A1"
