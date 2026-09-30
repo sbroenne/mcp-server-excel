@@ -351,11 +351,18 @@ jobs:
         with:
           name: release-packages
           path: artifacts
-      - uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
+      - name: Publish Windows x64 extension
+        uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
         with:
           pat: ${{ secrets.VSCE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
           extensionFile: artifacts/excel-mcp-${{ needs.version.outputs.version }}.vsix
+      - name: Publish Windows ARM64 extension
+        uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
+        with:
+          pat: ${{ secrets.VSCE_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: artifacts/excel-mcp-${{ needs.version.outputs.version }}-win32-arm64.vsix
 
   publish-mcp-registry:
     name: MCP Registry

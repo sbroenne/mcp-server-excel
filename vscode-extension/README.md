@@ -1,19 +1,25 @@
-# Excel MCP Server - AI-Powered Excel Automation
+# ExcelMcp - Real Excel Automation for VS Code
 
 [![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
-**Control Microsoft Excel with AI through GitHub Copilot - just ask in natural language!**
+**Automate real Microsoft Excel from VS Code with GitHub Copilot.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
+Ask Copilot to refresh Power Query, calculate formulas, create PivotTables and
+charts, work with DAX measures, or run VBA. This extension includes the MCP
+server and its Excel guidance skill in one installation.
 
 **⚡ Powered by the real Excel engine** - ExcelMcp automates the **actual Excel application** through its official COM API — the same engine Excel itself uses. That unlocks what spreadsheets are really for:
 
 - **Runs live Excel operations** - Refresh Power Query to pull and reshape fresh data, recalculate with Excel's own engine, refresh PivotTables and the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real, *computed results* land right in your workbook.
 - **Edits your existing files safely** - Excel opens and saves the workbook itself, so every formula, PivotTable, chart, macro, the Data Model and all your formatting stay exactly as they were.
 
-Other tools (openpyxl-based MCP servers and Agent Skills, including Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which can quietly drop PivotTables, charts, and macros, and can't run Power Query, the Data Model, or DAX at all. Here, Excel does the work. Watch it live: just say *"Show me Excel while you work."*
+File-parser tools cannot run Excel's calculation, Power Query, or Data Model
+engines. ExcelMcp uses Excel itself, so you can inspect results live and keep
+editing the workbook normally. Just say *"Show me Excel while you work."*
+
+[![A sales table, regional summary, and chart created in real Microsoft Excel](https://excelmcpserver.dev/assets/images/excel-demo-table-chart.png)](https://excelmcpserver.dev/use-cases/)
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
@@ -41,6 +47,9 @@ This extension includes an **Agent Skill** following the [agentskills.io](https:
 
 The skill is registered automatically through VS Code's `chatSkills`
 contribution point. No separate skill installation or preview setting is needed.
+Copilot loads relevant guidance as needed. You can also type `/excel-mcp` in
+chat to load the existing skill explicitly; ordinary natural-language requests
+work without remembering a command.
 
 
 ## 💬 Example Prompts
@@ -63,20 +72,41 @@ contribution point. No separate skill installation or preview setting is needed.
 
 ## Quick Start
 
-1. **Install this extension** (you just did!)
-2. **Ask Copilot** in the chat panel:
-   - "List all Power Query queries in workbook.xlsx"
-   - "Create a DAX measure for year-over-year revenue growth"
-   - "Export all Power Queries and VBA modules to .vba files for version control"
+1. **Install the extension** on your Windows desktop with Excel installed.
+2. **Open a Copilot chat that can use tools.** Run **MCP: List Servers** from
+   the Command Palette, select **excel-mcp**, and start it. Approve the server
+   and tool use when VS Code asks.
+3. **Ask about a workbook**, using a file available on your Windows machine:
+   - "List the Power Query queries in my sales workbook."
+   - "Create a PivotTable showing revenue by region, then add a column chart."
+   - "Export my Power Query M code and VBA modules for version control."
 
-**That's it!** The extension includes a self-contained MCP server - no .NET runtime or SDK needed.
+The extension includes a self-contained MCP server - **no separate .NET,
+Node.js, CLI, or skill installation is needed**.
+
+Close a workbook in Excel before asking Copilot to open it: ExcelMcp needs
+exclusive access while automating it.
 
 ➡️ **[Learn more and see examples](https://excelmcpserver.dev/)**
 
 ## Requirements
 
-- **Windows OS** - Excel COM automation requires Windows
-- **Microsoft Excel 2016+** - Must be installed on your system
+- **Windows x64 or Windows ARM64** with an interactive desktop. On ARM64,
+  the bundled x64 server runs through Windows' x64 emulation.
+- **Microsoft Excel 2016 or later**, installed and able to open normally.
+  Some features, such as Python in Excel, require a supported Excel edition.
+- **VS Code 1.125 or later** and GitHub Copilot chat with tool support.
+
+This extension is not for macOS, Linux, browser-only VS Code, Windows services,
+or unattended server-side processing. It bundles the MCP server, not `excelcli`.
+
+### Remote workspaces
+
+Excel runs on your **local Windows desktop**, even when VS Code is connected
+to WSL, SSH, a container, or a Codespace. A remote workspace path is not a local
+Excel file path. Copy or synchronize the workbook to your Windows machine
+before opening it with ExcelMcp. Remote connections do not add Linux or
+server-side Excel support.
 
 ## Potential Issues
 
@@ -90,14 +120,31 @@ contribution point. No separate skill installation or preview setting is needed.
 - Check "Trust access to the VBA project object model"
 
 **Copilot doesn't see Excel tools:**
-- Restart VS Code after installing the extension
+- Run **MCP: List Servers**, choose **excel-mcp**, and start it.
+- Check that Excel tools are enabled in your Copilot chat.
+- Accept the server trust prompt if you want to use this bundled server.
+- After an extension update, refresh the tools when VS Code prompts you.
+
+**"Bundled server is missing or unreadable" error:**
+- Check that security software has not blocked the bundled executable.
+- Check file permissions or reinstall the extension.
+
+**"Could not check Excel registration" or a registration timeout:**
+- Verify Windows PowerShell and desktop Excel open normally.
+- Retry; repair Microsoft Office if Excel's installation is damaged.
 
 ### Troubleshooting
 
-- Check Output panel → "Excel MCP Server" for connection status
+- **Server logs:** run **MCP: List Servers**, choose **excel-mcp**, then
+  **Show Output**.
+- **Extension setup diagnostics:** open the Output panel and choose
+  **ExcelMcp**, or select **Show Setup Output** in a setup error notification.
+- Startup checks read Excel's registration; they do not start Excel, open a
+  workbook, or verify that every Excel feature is available.
 
 ## Documentation & Support
 
+- **[User guides](https://excelmcpserver.dev/guides/)** - Practical walkthroughs for using ExcelMcp; also opened by Getting Started
 - **[Complete Documentation](https://excelmcpserver.dev/)** - Full guides and examples
 - **[Report Issues](https://github.com/sbroenne/mcp-server-excel/issues)** - Bug reports and feature requests
 

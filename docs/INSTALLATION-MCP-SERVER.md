@@ -23,7 +23,7 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 Use this order to avoid setup confusion:
 
 1. **Choose one primary setup path**:
-   - **VS Code Extension** (GitHub Copilot users) — auto-configures everything
+   - **VS Code Extension** (GitHub Copilot users) — bundles the server and Excel skill
    - **Claude Desktop MCPB** — one-click MCP installation
    - **GitHub Copilot Plugin** (Copilot CLI users) — marketplace installation
    - **npm package** (other MCP clients) — runs the self-contained server through `npx`
@@ -39,11 +39,22 @@ Use this order to avoid setup confusion:
    - Search for **"ExcelMcp"**
    - Click **Install**
 
-2. **That's It!**
-   - Bundles a self-contained MCP server (no .NET runtime needed) — the CLI is not included; install it separately if needed
-   - Auto-configures GitHub Copilot
-   - Registers the `excel-mcp` agent skill via `chatSkills`
-   - Shows quick start guide on first launch
+2. **Start the bundled server**
+   - Open a GitHub Copilot chat that can use tools.
+   - Open the Command Palette, run **MCP: List Servers**, select
+     **excel-mcp**, and start it.
+   - Approve the server and tool use when VS Code asks.
+
+3. **Ask Copilot to work with Excel**
+   - Use a workbook path available on your Windows desktop.
+   - Try: "Create an empty Excel file called test.xlsx."
+   - The bundled `excel-mcp` skill supplies Excel guidance automatically.
+     You can also load it explicitly with `/excel-mcp`.
+
+The extension includes a self-contained MCP server and its Excel skill.
+No separate .NET, Node.js, CLI, or skill installation is needed. The CLI is
+not included; install it separately if needed. Installing the extension does
+not start an Excel workbook or approve server access for you.
 
 **Marketplace Link:** [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 

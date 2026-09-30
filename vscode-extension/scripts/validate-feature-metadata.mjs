@@ -25,6 +25,8 @@ assertText(manifest.description, 'Extension description must be declared.');
 assertText(manifest.publisher, 'Extension publisher must be declared.');
 assertText(manifest.version, 'Extension version must be declared.');
 assertText(manifest.engines?.vscode, 'Minimum VS Code engine version must be declared.');
+assert.deepEqual(manifest.os, ['win32'], 'Excel automation requires Windows.');
+assert.deepEqual(manifest.extensionKind, ['ui'], 'Excel automation must run on the local desktop.');
 assert.ok(manifest.categories?.length > 0, 'At least one Marketplace category must be declared.');
 assert.ok(manifest.keywords?.length > 0, 'At least one Marketplace keyword must be declared.');
 
