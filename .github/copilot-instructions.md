@@ -16,6 +16,9 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Keep agent-facing metadata, server instructions, skills, and recovery messages
   consistent with implemented behavior. Follow `mcp-llm-guidance.instructions.md`
   for guidance changes; do not edit generated or installed skill copies.
+- Preserve exact tool, action, parameter, and flag names in agent guidance.
+  When MCP and CLI spellings differ, show both explicitly or use native examples;
+  do not replace identifiers with vague descriptions.
 - Production code must access workbook contents through Excel COM. Never open
   an Excel file as a ZIP/OOXML package or parse/modify its internal XML outside
   tests. Pre-open binary container detection may read only IRM/AIP protection

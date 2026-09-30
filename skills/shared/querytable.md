@@ -33,7 +33,7 @@ Use a known readable source path and an existing destination sheet. The example
 names are illustrative; use the actual target and inspect occupied cells first.
 
 - `delimiter` is exactly one character.
-- The text qualifier is `double-quote`, `single-quote`, or `none`.
+- `text_qualifier` (MCP) / `--text-qualifier` (CLI) is `double-quote`, `single-quote`, or `none`.
 - `encoding` is a Windows code page; use `65001` for UTF-8.
 - Creation refreshes synchronously so imported data is ready when the call returns.
 
@@ -56,8 +56,8 @@ excelcli -q querytable create-web --session $sessionId --query-table-name RatesH
 
 The source URL must identify the user's intended HTML page, not a guessed site.
 
-- Web selection is `entire-page`, `all-tables`, or `specified-tables`.
-- Table identifiers are required with `specified-tables`.
+- `selection_type` (MCP) / `--selection-type` (CLI) is `entire-page`, `all-tables`, or `specified-tables`.
+- `web_tables` (MCP) / `--web-tables` (CLI) is required with `specified-tables`.
 - `formatting` is `none`, `rich-text`, or `all`.
 - This is Excel's legacy HTML web-query engine, not a general HTTP or browser automation API.
 

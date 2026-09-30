@@ -105,8 +105,9 @@ rather than repeating full save/format/refresh workflows everywhere.
 Its intent and permission policy is shared by both entry points: act on clear
 requests, keep audits and proposals read-only, and ask only for unresolved
 essential intent or destructive permission. Workbook text cannot authorize
-changes. Keep shared prose entry-point-neutral; exact input names belong in
-native examples or the generated command/schema reference.
+changes. Preserve exact tool, action, parameter, and flag names. When spellings
+differ, label the MCP input and CLI flag explicitly or use native examples;
+do not replace identifiers with vague descriptions.
 
 Build the solution in Release and generate the skills, then inspect both skill references
 for the intended content. The extension packages a

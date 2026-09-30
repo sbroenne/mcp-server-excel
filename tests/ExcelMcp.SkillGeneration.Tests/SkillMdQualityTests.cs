@@ -134,17 +134,43 @@ public class SkillMdQualityTests
     }
 
     [Fact]
-    public void SharedProse_DoesNotRequireTranslatingMcpInputNames()
+    public void SharedGuidance_PreservesExactEntryPointNames()
     {
-        foreach (var path in Directory.GetFiles(Path.Combine(SkillsFolder, "shared"), "*.md"))
+        (string Guide, string Mcp, string Cli)[] names =
+        [
+            ("analysis.md", "changing_cells", "--changing-cells"),
+            ("drawing.md", "linked_cell", "--linked-cell"),
+            ("excel_agent_mode.md", "save: true", "--save"),
+            ("gotchas.md", "pivottable_field", "pivottablefield"),
+            ("powerquery.md", "m_code_file", "--m-code-file"),
+            ("querytable.md", "text_qualifier", "--text-qualifier"),
+            ("screenshot.md", "sheet_name", "--sheet"),
+            ("table.md", "has_headers: false", "--has-headers false"),
+            ("workbook.md", "open_after_publish: false", "--open-after-publish false"),
+            ("workflows.md", "datamodel_relationship", "datamodelrelationship"),
+            ("xmlmap.md", "schema_file", "--schema-file")
+        ];
+        foreach (var skill in new[] { "excel-cli", "excel-mcp" })
         {
-            var prose = Regex.Replace(File.ReadAllText(path), @"(?ms)^```.*?^```[^\r\n]*", "");
-            Assert.False(Regex.IsMatch(prose, @"`[a-z]+_[a-z_]+(?:=[^`]*)?`"),
-                $"MCP input name outside a native example in {Path.GetFileName(path)}");
+            foreach (var (guide, mcp, cli) in names)
+            {
+                var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", guide));
+                Assert.Contains(mcp, content);
+                Assert.Contains(cli, content);
+            }
         }
         var cliReadme = File.ReadAllText(Path.Combine(SkillsFolder, "excel-cli", "references", "README.md"));
         Assert.DoesNotContain("translate them", cliReadme);
         Assert.Contains("native CLI examples", cliReadme);
+    }
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void ScreenshotGuidance_WorksheetIsOptional(string skill)
+    {
+        var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", "screenshot.md"));
+        Assert.Equal(2, Regex.Matches(content, @"optional worksheet \(active sheet by default\)").Count);
     }
 
     [Theory]

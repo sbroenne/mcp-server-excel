@@ -9,7 +9,8 @@ It does not change which workbook operations are available.
 Reuse the user's known visibility preference; do not ask again. Preserve an
 existing session's visibility unless the user requests a change. A new session
 defaults to hidden when no preference is known, regardless of the number of steps.
-Use the open/create visibility option or the window `show` action when requested.
+Use `show: true` (MCP) / `--show` (CLI) on open/create, or `window show` for an
+existing session, when requested.
 Follow the shared [visibility policy](behavioral-rules.md#visibility).
 IRM/AIP authentication may require a visible session even for otherwise hidden
 work; explain that requirement rather than bypassing it.
@@ -59,4 +60,4 @@ Use the returned truncation message to tell whether the entire area was captured
 Do not tell users to inspect an Excel window unless it is visible. Confirm
 before closing a visible window unless already authorized, and wait until no
 operations are active. Explicit close defaults to discarding unsaved changes;
-request saving when changes should be kept.
+use `save: true` (MCP) / `--save` (CLI) when changes should be kept.

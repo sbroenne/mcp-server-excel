@@ -69,10 +69,10 @@ Run Excel-dependent commands sequentially. Never use parallel pytest workers
 for these evaluations or overlap them with other Excel test runs.
 
 The CLI evaluation wrapper uses the MCP 2 server API selected by `uv.lock`.
-Its transport smoke test needs neither Excel nor model access:
+Its transport smoke test and consent-assertion regressions need neither Excel nor model access:
 
 ```powershell
-uv run python -m unittest test_cli_mcp_server.py -v
+uv run python -m unittest test_cli_mcp_server.py test_consent_scenarios.py -v
 ```
 
 - `EXCEL_MCP_SERVER_COMMAND` — override MCP server command (full command line)

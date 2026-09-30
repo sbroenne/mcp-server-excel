@@ -18,7 +18,8 @@ Goal Seek changes the workbook immediately. Read both cells afterward when the e
 
 ## Scenarios
 
-Scenario values must contain exactly one value per changing cell, in range order.
+Scenario values must contain exactly one value per cell in `changing_cells`
+(MCP) / `--changing-cells` (CLI), in range order.
 Showing a scenario replaces those inputs; listing scenarios does not authorize
 showing one during an audit.
 
@@ -33,15 +34,16 @@ excelcli -q analysis show-scenario --session $sessionId --sheet Model --scenario
 ```
 
 Use `create-scenario-summary` when a summary is requested after defining the
-scenarios. Choose a normal report sheet or a Scenario PivotTable as appropriate.
-The result cells should identify formulas that depend on the changing cells.
+scenarios. Use `report_type` (MCP) / `--report-type` (CLI): `summary` for a
+normal report sheet or `pivot-table` for a Scenario PivotTable.
+Use `result_cells` (MCP) / `--result-cells` (CLI) to identify formulas that depend on the changing cells.
 
 ## Data Tables
 
 Prepare the worksheet layout first, including the formula in the table's corner and the input values along its first row or column.
 
-- One-variable row table: provide the row input cell.
-- One-variable column table: provide the column input cell.
+- One-variable row table: provide `row_input_cell` (MCP) / `--row-input-cell` (CLI).
+- One-variable column table: provide `column_input_cell` (MCP) / `--column-input-cell` (CLI).
 - Two-variable table: provide both.
 
 ```mcp
@@ -52,7 +54,8 @@ analysis(action: 'create-data-table', session_id: sessionId, sheet_name: 'Model'
 excelcli -q analysis create-data-table --session $sessionId --sheet Model --table-range A1:B11 --column-input-cell D1
 ```
 
-Data tables can be calculation-intensive. Follow the shared
+Data tables can be calculation-intensive. Use `calculation_mode` (MCP) /
+`calculationmode` (CLI) and follow the shared
 [calculation-mode rules](behavioral-rules.md#changes-and-formatting) when
 controlling recalculation around larger workbook edits.
 
