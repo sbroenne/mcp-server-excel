@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
 /// <summary>
 /// Guards against invalid empty-string enum sentinels in generated MCP tool schemas.
-/// Strict clients like Gemini reject schemas when any enum member is "".
+/// Published enums must contain meaningful values rather than empty-string sentinels.
 /// </summary>
 [Collection("ProgramTransport")]
 [Trait("Category", "Integration")]
