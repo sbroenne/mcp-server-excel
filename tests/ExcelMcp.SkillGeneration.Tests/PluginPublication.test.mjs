@@ -6,12 +6,13 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-    compareTrees, publicationDecision, validatePublication, canonicalJson,
+    compareTrees, publicationDecision, validatePublication, canonicalJson, hash,
 } from '../../scripts/PluginContent.mjs';
 import {
     planListings, parseState, stateMarker, assertListingPatch, assertAllowedPaths,
 } from '../../scripts/AwesomeCopilotPolicy.mjs';
 import { validateRequest, writesEnabled, submit, assertTemplate } from '../../scripts/Update-AwesomeCopilot.mjs';
+import * as updater from '../../scripts/Update-AwesomeCopilot.mjs';
 
 const sha1 = '1'.repeat(40), sha2 = '2'.repeat(40), sha3 = '3'.repeat(40), sha4 = '4'.repeat(40);
 function listings() {
@@ -34,7 +35,7 @@ function plan(candidate = payload('2.3.0'), extras = {}) {
 }
 
 function pending(result, extras = {}) {
-    const state = { ...result.state, head: sha3, base: sha1 };
+    const state = { ...result.state, head: sha3, base: sha1, bodyFingerprint: hash('') };
     return {
         number: 42, state: 'open', merged_at: null, body: stateMarker(state),
         user: { login: 'sbroenne' },
@@ -223,7 +224,7 @@ test('both changed plugins produce one combined proposal; relevant manifest meta
     assert.equal(result.action, 'create');
     assert.deepEqual(result.changedPlugins, ['excel-cli', 'excel-mcp']);
     assert.equal(result.state.entries['excel-mcp'].entry.description, 'excel-mcp new metadata');
-    assert.equal(parseState(stateMarker(result.state)).proposalFingerprint, result.state.proposalFingerprint);
+    assert.equal(parseState(pending(result).body).proposalFingerprint, result.state.proposalFingerprint);
 });
 
 test('pending equivalent proposals do not write, even when candidate stamps differ', () => {
@@ -267,6 +268,155 @@ test('human changes, duplicate owned PRs, wrong ownership and declined identical
     const bodyState = parseState(prior.body);
     bodyState.bodyFingerprint = '0'.repeat(64);
     assert.throws(() => parseState('Human changes\n' + stateMarker(bodyState)), /body changed/);
+});
+
+test('owned bodies cannot bypass protection by removing or corrupting their fingerprint', () => {
+    const candidate = payload('2.3.0');
+    edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
+    const prior = pending(plan(candidate));
+    for (const value of [undefined, null, 'invalid']) {
+        const state = parseState(prior.body);
+        if (value === undefined) delete state.bodyFingerprint;
+        else state.bodyFingerprint = value;
+        assert.throws(() => plan(candidate, { pulls: [{ ...prior, body: 'Human edits\n' + stateMarker(state) }] }), /fingerprint/);
+    }
+});
+
+test('an orphan from an older proposal blocks a different create branch but associated closed heads do not', () => {
+    const candidate = payload('2.3.0');
+    edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
+    const proposed = plan(candidate);
+    const oldBranch = 'excel-plugin-updates-123456abcdef';
+    const heads = `${sha3}\trefs/heads/${oldBranch}\n`;
+    assert.throws(() => updater.assertForkHeads(proposed, heads, []), /orphan/);
+    assert.doesNotThrow(() => updater.assertForkHeads(proposed, heads, [pending(proposed, { state: 'closed' })]));
+    assert.throws(() => updater.assertForkHeads(proposed, 'invalid API data', []), /Invalid fork/);
+});
+
+test('orphan association includes paginated open and historical closed PR data', () => {
+    const candidate = payload('2.3.0');
+    edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
+    const proposed = plan(candidate);
+    const visited = [];
+    const pulls = updater.allPulls(endpoint => {
+        visited.push(endpoint);
+        if (endpoint.includes('state=open')) {
+            if (endpoint.endsWith('page=2')) return [];
+            return Array.from({ length: 100 }, (_, i) => ({
+                number: i + 1, state: 'open', body: null, user: { login: 'another-user' },
+            }));
+        }
+        if (endpoint.includes('state=closed')) return [];
+        if (endpoint.startsWith('search/issues?')) {
+            const last = endpoint.endsWith('page=2');
+            return { incomplete_results: false, total_count: 101,
+                items: Array.from({ length: last ? 1 : 100 }, (_, i) => ({ number: 1001 + i + (last ? 100 : 0) })) };
+        }
+        const number = Number(endpoint.split('/').at(-1));
+        return pending(proposed, { number, state: 'closed', merged_at: '2026-01-01T00:00:00Z' });
+    });
+    assert.equal(pulls.length, 201);
+    assert.ok(visited.some(endpoint => endpoint.includes('state=open') && endpoint.endsWith('page=2')));
+    assert.ok(visited.some(endpoint => endpoint.startsWith('search/issues?') && endpoint.endsWith('page=2')));
+    assert.ok(pulls.some(pr => pr.number === 1101));
+    assert.doesNotThrow(() => updater.assertForkHeads(proposed, `${sha3}\trefs/heads/excel-plugin-updates-123456abcdef\n`, pulls));
+});
+
+test('missing search pages or invalid counts cannot silently omit historical owned PRs', () => {
+    for (const response of [
+        { incomplete_results: false, total_count: -1, items: [] },
+        { incomplete_results: false, total_count: 1, items: [] },
+        { incomplete_results: false, total_count: 101, items: [] },
+    ]) {
+        assert.throws(() => updater.allPulls(endpoint =>
+            endpoint.startsWith('search/issues?') ? response : []), /API data|Truncated/);
+    }
+});
+
+test('same-PR refresh tolerates head propagation and reconciles a body write whose response was lost', () => {
+    const before = 'Original protected body';
+    const after = 'New protected body';
+    const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
+    const observations = [
+        { state: 'open', head: { sha: sha1 }, body: before },
+        { state: 'open', head: { sha: sha2 }, body: before },
+        { state: 'open', head: { sha: sha2 }, body: after, html_url: 'https://github.com/github/awesome-copilot/pull/42' },
+    ];
+    let writes = 0, waits = 0;
+    const result = updater.refreshPullAfterPush(proposed, sha2, after, {
+        readPull: () => observations.shift(), readHead: () => sha2,
+        writeBody: () => { writes++; throw new Error('Lost response'); }, wait: () => { waits++; },
+    });
+    assert.equal(result.body, after);
+    assert.equal(writes, 1);
+    assert.equal(waits, 2);
+});
+
+test('post-push refresh rejects unrelated edits and stops after bounded propagation retries', () => {
+    const before = 'Protected body';
+    const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
+    for (const live of [
+        { state: 'closed', head: { sha: sha2 }, body: before },
+        { state: 'open', head: { sha: sha4 }, body: before },
+        { state: 'open', head: { sha: sha2 }, body: 'Human edit' },
+    ]) {
+        assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, 'New body', {
+            readPull: () => live, readHead: () => sha2, writeBody: () => assert.fail('No write allowed'), wait: () => {},
+        }), /changed after push/);
+    }
+    let reads = 0;
+    assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, 'New body', {
+        readPull: () => { reads++; return { state: 'open', head: { sha: sha1 }, body: before }; },
+        readHead: () => sha2, writeBody: () => assert.fail('No premature write'), wait: () => {},
+    }), /reconciliation/);
+    assert.equal(reads, 8);
+    assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, 'New body', {
+        readPull: () => assert.fail('No API write/read after foreign push'), readHead: () => sha4,
+        writeBody: () => assert.fail('No overwrite'), wait: () => {},
+    }), /Fork head changed/);
+});
+
+test('a partial body-write failure retries only the same protected transition', () => {
+    const before = 'Original protected body', after = 'Verified new body';
+    const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
+    let writes = 0;
+    const result = updater.refreshPullAfterPush(proposed, sha2, after, {
+        readPull: () => ({ state: 'open', head: { sha: sha2 }, body: before }),
+        readHead: () => sha2, wait: () => {},
+        writeBody: () => {
+            if (++writes === 1) throw new Error('Transient API failure');
+            return { state: 'open', head: { sha: sha2 }, body: after };
+        },
+    });
+    assert.equal(result.body, after);
+    assert.equal(writes, 2);
+});
+
+test('refresh cannot report success after the fork changes during a body write', () => {
+    const before = 'Protected body', after = 'New body';
+    const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
+    let head = sha2;
+    assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, after, {
+        readPull: () => ({ state: 'open', head: { sha: sha2 }, body: before }),
+        readHead: () => head, wait: () => {},
+        writeBody: () => {
+            head = sha4;
+            return { state: 'open', head: { sha: sha2 }, body: after };
+        },
+    }), /Fork head changed/);
+});
+
+test('submission receipt records only the exact transition and public proposal, never credentials', () => {
+    const files = { 'plugins/external.json': '[]\n' };
+    const proposed = { action: 'update', state: { base: sha1 }, branch: 'excel-plugin-updates-123456abcdef',
+        pullNumber: 42, expectedHead: sha2, expectedBody: hash('Original body'), files,
+        token: 'must-not-be-copied', env: { AWESOME_COPILOT_PR_TOKEN: 'must-not-be-copied' } };
+    const receipt = updater.createSubmissionReceipt(proposed, sha3, 'Exact new body');
+    assert.deepEqual(receipt, { schema: 1, status: 'prepared', action: 'update',
+        upstream: 'github/awesome-copilot', fork: 'sbroenne/awesome-copilot', base: sha1,
+        branch: proposed.branch, pullNumber: 42, previousHead: sha2,
+        expectedBody: proposed.expectedBody, head: sha3, body: 'Exact new body', files });
+    assert.ok(!JSON.stringify(receipt).includes('must-not-be-copied'));
 });
 
 test('invalid API/listing/tag data and listing/pending downgrades fail instead of no-change', () => {
@@ -361,6 +511,18 @@ test('automatic updater requires a meaningful publication handoff and product re
     assert.equal(release.slice(0, release.indexOf('\n  publish-plugins:')).includes('needs: publish-plugins'), false);
 });
 
+test('plugin-only hook plans build and select publication regressions without requiring Excel', () => {
+    const script = ". .\\scripts\\Get-ValidationPlan.ps1; @('scripts/Publish-PreparedPlugins.ps1','scripts/PluginContent.mjs','.github/workflows/update-awesome-copilot.md','.github/workflows/publish-plugins.yml') | ForEach-Object { Get-ValidationPlan -Paths @($_) } | ConvertTo-Json -Compress";
+    const plans = JSON.parse(command('pwsh', ['-NoProfile', '-Command', script], repoRoot));
+    for (const result of plans) {
+        assert.equal(result.Build, true);
+        assert.equal(result.Plugins, true);
+        assert.equal(result.Excel, false);
+    }
+    const runner = fs.readFileSync(path.join(repoRoot, 'scripts', 'Invoke-ExcelFreeTests.ps1'), 'utf8');
+    assert.match(runner, /publish-plugins/);
+});
+
 const gitLocalVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], {
     cwd: repoRoot, encoding: 'utf8', windowsHide: true,
 }).trim().split(/\r?\n/);
@@ -412,7 +574,7 @@ function writeTree(directory, files) {
 
 function publicationFixture({
     staleOverlay = false, currentVersion = '2.0.1', candidateVersion = '2.3.0',
-    payloadVersion = candidateVersion, syncFails = false, candidateTagExists = false,
+    payloadVersion = candidateVersion, syncFails = false, candidateTagExists = false, ignoredNames = false,
 } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-publication-'));
     const source = path.join(root, 'source'), output = path.join(root, 'output'), built = path.join(root, 'built');
@@ -438,6 +600,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../.github/plugins/marketplace-
     const originalSource = commit(source, 'Original source');
     command('git', ['tag', `v${currentVersion}`], source);
     writeTree(output, payload(currentVersion));
+    if (ignoredNames) fs.writeFileSync(path.join(output, '.gitignore'), '*.test.md\n*.log\ntemp/\n');
     if (staleOverlay) fs.writeFileSync(path.join(output, 'stale.txt'), 'Old owned file');
     const original = commit(output, 'Original publication');
     command('git', ['tag', `v${currentVersion}`], output);
@@ -537,6 +700,25 @@ test('real publication after skipped versions pushes and tags only a disposable 
         assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
         assert.equal(command('git', [`--git-dir=${remote}`, 'rev-parse', 'v2.3.0^{commit}'], fixture.root).trim(),
             command('git', ['rev-parse', 'HEAD'], fixture.output).trim());
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('publication includes ignored-name additions and commits the exact prepared distributed tree', () => {
+    const fixture = publicationFixture({ ignoredNames: true });
+    try {
+        const remote = path.join(fixture.root, 'remote.git');
+        command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
+        command('git', ['remote', 'add', 'origin', remote], fixture.output);
+        const name = 'plugins/excel-cli/skills/excel-cli/references/guide.test.md';
+        const content = 'Required functional content\r\n';
+        fs.writeFileSync(path.join(fixture.built, name.slice('plugins/'.length)), content);
+        fs.writeFileSync(path.join(fixture.output, 'private.log'), 'Unrelated local note');
+        const result = publishFixture(fixture);
+        assert.match(result, /"status": "published"/);
+        assert.equal(command('git', ['show', `v2.3.0:${name}`], fixture.output), 'Required functional content\n');
+        assert.equal(command('git', [`--git-dir=${remote}`, 'show', `v2.3.0:${name}`], fixture.root), 'Required functional content\n');
+        assert.equal(command('git', ['ls-tree', '--name-only', 'v2.3.0', '--', 'private.log'], fixture.output), '');
+        assert.equal(fs.readFileSync(path.join(fixture.output, 'private.log'), 'utf8'), 'Unrelated local note');
     } finally { fs.rmSync(fixture.root, { recursive: true }); }
 });
 

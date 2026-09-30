@@ -34,17 +34,17 @@ export function api(endpoint, { method = 'GET', body, token } = {}) {
     return parseJson(Buffer.from(text));
 }
 
-function allPulls() {
+export function allPulls(read = api) {
     const result = [];
     for (let page = 1; ; page++) {
-        const batch = api(`repos/${upstreamRepo}/pulls?state=open&per_page=100&page=${page}`);
+        const batch = read(`repos/${upstreamRepo}/pulls?state=open&per_page=100&page=${page}`);
         if (!Array.isArray(batch)) throw new Error('Invalid paginated PR API data.');
         result.push(...batch);
         if (batch.length < 100) break;
     }
     // REST covers recently closed PRs before the search index catches up.
     for (let page = 1; ; page++) {
-        const batch = api(`repos/${upstreamRepo}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
+        const batch = read(`repos/${upstreamRepo}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
         if (!Array.isArray(batch)) throw new Error('Invalid recently closed PR API data.');
         result.push(...batch);
         if (batch.some(pr => !Number.isFinite(Date.parse(pr.updated_at)))) throw new Error('Missing PR update timestamp.');
@@ -52,15 +52,18 @@ function allPulls() {
     }
     const query = encodeURIComponent('repo:github/awesome-copilot is:pr is:closed author:sbroenne "excel-plugin-update-state" in:body');
     for (let page = 1; ; page++) {
-        const search = api(`search/issues?q=${query}&per_page=100&page=${page}`);
+        const search = read(`search/issues?q=${query}&per_page=100&page=${page}`);
         if (search.incomplete_results !== false || !Number.isSafeInteger(search.total_count) ||
-            search.total_count > 1000 || !Array.isArray(search.items)) throw new Error('Incomplete declined-PR search API data.');
+            search.total_count < 0 || search.total_count > 1000 || !Array.isArray(search.items)) {
+            throw new Error('Incomplete declined-PR search API data.');
+        }
+        const remaining = search.total_count - (page - 1) * 100;
+        if (remaining < 0 || search.items.length !== Math.min(100, remaining)) throw new Error('Truncated declined-PR search.');
         for (const item of search.items) {
             if (!Number.isSafeInteger(item.number)) throw new Error('Invalid closed PR search result.');
-            result.push(api(`repos/${upstreamRepo}/pulls/${item.number}`));
+            result.push(read(`repos/${upstreamRepo}/pulls/${item.number}`));
         }
         if (page * 100 >= search.total_count) break;
-        if (search.items.length !== 100) throw new Error('Truncated declined-PR search.');
     }
     return [...new Map(result.map(pr => [pr.number, pr])).values()];
 }
@@ -77,6 +80,34 @@ function listedFile(directory, commit) {
 function checkout(directory, commit) {
     git(directory, ['-c', 'core.autocrlf=false', 'checkout', '--quiet', '--detach', commit]);
     git(directory, ['config', 'core.autocrlf', 'false']);
+}
+
+function forkHeads(text) {
+    if (typeof text !== 'string') throw new Error('Invalid fork head response.');
+    return text.trim().split(/\r?\n/).filter(Boolean).map(line => {
+        const match = /^([a-f0-9]{40})\trefs\/heads\/(excel-plugin-updates-[a-f0-9]{12})$/.exec(line);
+        if (!match) throw new Error('Invalid fork head response.');
+        return { sha: match[1], branch: match[2] };
+    });
+}
+
+function readForkHeads() {
+    return run('git', ['ls-remote', '--heads', `https://github.com/${forkRepo}.git`, 'refs/heads/excel-plugin-updates-*']);
+}
+
+export function assertForkHeads(plan, text, pulls) {
+    const heads = forkHeads(text);
+    if (plan.action === 'create') {
+        const associated = new Set(ownedPulls(pulls).map(pr => pr.head.ref));
+        if (heads.some(head => !associated.has(head.branch))) {
+            throw new Error('An owned-prefix orphan branch exists; reconcile it before creating any new proposal.');
+        }
+        if (heads.some(head => head.branch === plan.branch)) {
+            throw new Error('Proposed branch already exists; no replacement or overwrite is allowed.');
+        }
+    } else if (heads.find(head => head.branch === plan.branch)?.sha !== plan.expectedHead) {
+        throw new Error('Fork branch head changed.');
+    }
 }
 
 export function assertPendingTree(directory, plan) {
@@ -152,9 +183,7 @@ export function prepare({ tag, workDirectory }) {
         git(upstream, ['fetch', '--quiet', `https://github.com/${forkRepo}.git`, plan.expectedHead]);
         assertPendingTree(upstream, plan);
     }
-    const remoteHeads = run('git', ['ls-remote', '--heads', `https://github.com/${forkRepo}.git`, `refs/heads/${plan.branch}`]).trim();
-    if (plan.action === 'create' && remoteHeads) throw new Error('Proposed branch already exists; no replacement or overwrite is allowed.');
-    if (plan.action === 'update' && remoteHeads.split(/\s/)[0] !== plan.expectedHead) throw new Error('Fork branch head changed.');
+    assertForkHeads(plan, readForkHeads(), pulls);
     checkout(upstream, plan.expectedHead ?? upstreamCommit);
     plan.files = patch(upstream, plan);
     plan.state.base = plan.previousState?.base ?? upstreamCommit;
@@ -201,7 +230,8 @@ export function assertTemplate(template, body) {
 }
 
 function verifyLive(plan) {
-    const owned = ownedPulls(allPulls()).filter(pr => pr.state === 'open');
+    const pulls = allPulls();
+    const owned = ownedPulls(pulls).filter(pr => pr.state === 'open');
     if (plan.action === 'create') {
         if (owned.length) throw new Error('Another automated PR appeared; no duplicate will be created.');
     } else {
@@ -211,8 +241,58 @@ function verifyLive(plan) {
             throw new Error('PR state/head changed; refusing to overwrite or replace.');
         }
     }
-    const head = run('git', ['ls-remote', '--heads', `https://github.com/${forkRepo}.git`, `refs/heads/${plan.branch}`]).trim();
-    if (plan.action === 'create' ? !!head : head.split(/\s/)[0] !== plan.expectedHead) throw new Error('Fork head changed immediately before writing.');
+    assertForkHeads(plan, readForkHeads(), pulls);
+}
+
+export function refreshPullAfterPush(plan, head, body, { readPull, readHead, writeBody,
+    wait = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000) }) {
+    const assertHead = () => {
+        if (readHead() !== head) throw new Error('Fork head changed after push; manual reconciliation required.');
+    };
+    let lastError;
+    for (let attempt = 0; attempt < 8; attempt++) {
+        assertHead();
+        let live;
+        try { live = readPull(); }
+        catch (error) { lastError = error; }
+        if (live) {
+            if (live.state !== 'open' || typeof live.body !== 'string' || ![plan.expectedHead, head].includes(live.head?.sha) ||
+                (hash(live.body) !== plan.expectedBody && live.body !== body)) {
+                throw new Error('PR changed after push; manual reconciliation required, no replacement PR.');
+            }
+            if (live.head.sha === head && live.body === body) {
+                assertHead();
+                return live;
+            }
+            if (live.head.sha === head) {
+                let response;
+                try {
+                    response = writeBody();
+                }
+                catch (error) { lastError = error; }
+                if (response?.head?.sha === head && response.body === body && response.state === 'open') {
+                    assertHead();
+                    return response;
+                }
+                if (response) lastError = new Error('PR update response not yet consistent; rechecking the exact transition.');
+            }
+        }
+        if (attempt < 7) {
+            console.error(`PR propagation/update retry ${attempt + 1}/8; expected fork head and body remain protected.`);
+            wait();
+        }
+    }
+    throw new Error('PR propagation/body update did not complete; use the submission receipt for manual reconciliation. No replacement PR.', {
+        cause: lastError,
+    });
+}
+
+export function createSubmissionReceipt(plan, head, body) {
+    return {
+        schema: 1, status: 'prepared', action: plan.action, upstream: upstreamRepo, fork: forkRepo, base: plan.state.base,
+        branch: plan.branch, pullNumber: plan.pullNumber, previousHead: plan.expectedHead,
+        expectedBody: plan.expectedBody, head, body, files: plan.files,
+    };
 }
 
 export function submit({ trustedPlan, output, workDirectory, env = process.env }) {
@@ -240,11 +320,17 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
     const state = { ...fresh.state, head, bodyFingerprint: hash(request.body.trimEnd()) };
     const body = `${request.body.trimEnd()}\n\n${stateMarker(state)}`;
     verifyLive(fresh);
+    const receipt = createSubmissionReceipt(fresh, head, body);
+    const receiptFile = path.join(workDirectory, 'submission-receipt.json');
+    const saveReceipt = () => fs.writeFileSync(receiptFile, `${JSON.stringify(receipt, null, 2)}\n`);
+    saveReceipt();
     const auth = Buffer.from(`x-access-token:${token}`).toString('base64');
     run('git', ['push', `https://github.com/${forkRepo}.git`, `HEAD:refs/heads/${fresh.branch}`], upstream, {
         ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${auth}`, GIT_TERMINAL_PROMPT: '0',
     });
+    receipt.status = 'pushed';
+    saveReceipt();
     let response;
     if (fresh.action === 'create') {
         // No fallback issue, alternate branch, replacement PR or upstream labels.
@@ -254,13 +340,16 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
             body: { title: 'Update Excel plugin listings', body, head: `sbroenne:${fresh.branch}`, base: 'main', maintainer_can_modify: true },
         });
     } else {
-        const live = api(`repos/${upstreamRepo}/pulls/${fresh.pullNumber}`);
-        if (live.state !== 'open' || live.head?.sha !== head || hash(live.body) !== fresh.expectedBody) {
-            throw new Error('PR changed after push; manual reconciliation required, no replacement PR.');
-        }
-        response = api(`repos/${upstreamRepo}/pulls/${fresh.pullNumber}`, { method: 'PATCH', token, body: { body } });
+        response = refreshPullAfterPush(fresh, head, body, {
+            readPull: () => api(`repos/${upstreamRepo}/pulls/${fresh.pullNumber}`),
+            readHead: () => forkHeads(readForkHeads()).find(item => item.branch === fresh.branch)?.sha,
+            writeBody: () => api(`repos/${upstreamRepo}/pulls/${fresh.pullNumber}`, { method: 'PATCH', token, body: { body } }),
+        });
     }
     if (!response?.html_url || response.head?.sha !== head) throw new Error('Invalid PR write response; inspect the existing branch/PR before retrying.');
+    receipt.status = 'completed';
+    receipt.pullNumber = response.number;
+    saveReceipt();
     return { status: fresh.action === 'create' ? 'created' : 'updated', url: response.html_url, number: response.number, head };
 }
 

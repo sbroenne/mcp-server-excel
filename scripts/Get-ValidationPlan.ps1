@@ -55,7 +55,7 @@ function Get-ValidationPlan {
         if ($kind -in @('extension', 'skills', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown')) { $plan.Extension = $true }
         if ($kind -in @('mcpb', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown')) { $plan.Mcpb = $true }
         if ($kind -in @('plugins', 'skills', 'packages', 'pipeline', 'runtime', 'cli', 'mcp', 'unknown')) { $plan.Plugins = $true }
-        if ($kind -in @('build', 'tests', 'skills', 'pipeline')) { $plan.Build = $true }
+        if ($kind -in @('build', 'tests', 'skills', 'plugins', 'pipeline')) { $plan.Build = $true }
         if ($kind -in @('tests', 'pipeline')) { $plan.HookTests = $true }
     }
     [pscustomobject]$plan

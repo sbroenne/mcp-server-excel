@@ -67,6 +67,10 @@ helpers, README files, skills, references, assets, modes and added/removed files
 all matter. No general version-number stripping or documentation exclusions.
 Ordinary Git text clean conversion determines distributed bytes, not a blanket
 documentation/newline exclusion.
+Destination staging uses the same conversion rules, forces only the exact
+prepared/removed paths, and verifies its staged Git tree equals the validated
+candidate before any commit or tag. Legitimate ignored-name files are included;
+unrelated ignored local files are not staged.
 
 Root overlay files under `.github/plugins/marketplace-repo` are included.
 Previously source-owned overlay files are removed from the candidate when

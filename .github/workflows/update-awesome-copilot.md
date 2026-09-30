@@ -123,6 +123,13 @@ safe-outputs:
             PREVIEW: ${{ inputs.preview }}
           run: |
             node scripts/Update-AwesomeCopilot.mjs submit unused "$RUNNER_TEMP/plugin-submit" "$RUNNER_TEMP/trusted-precheck/plugin-update-plan.json"
+        - name: Preserve exact submission transition for authorized recovery
+          if: always()
+          uses: actions/upload-artifact@v7
+          with:
+            name: awesome-copilot-submission-${{ github.run_id }}
+            path: ${{ runner.temp }}/plugin-submit/submission-receipt.json
+            if-no-files-found: ignore
 ---
 
 # Update the already listed Excel plugins

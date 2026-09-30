@@ -154,6 +154,8 @@ branch, title or body is written, even if its release stamps changed. New
 meaningful content refreshes the **same** PR and preserves its other proposed
 plugin. The marker records the expected head, original upstream base, proposed
 entries and normalized fingerprints.
+Every owned PR must also have a valid fingerprint of its visible body; removing
+or corrupting that field does not bypass protection.
 
 The custom gh-aw safe output is deliberate: the built-in create handler's
 non-fast-forward fallback is not this workflow's policy. The released
@@ -172,12 +174,52 @@ unrelated fork-main changes. A human branch/body change, conflicted upstream
 listing, existing orphan branch, multiple owned open PRs, closed/merged race, or
 blocked push stops visibly. No replacement PR, force push, auto-close, auto-merge,
 fallback issue, failure issue, or edits to another person's PR.
+Creation checks all owned-prefix fork heads, not just the current proposal's
+branch. A head associated with a historical merged/closed owned PR is not an
+orphan; both open and historical PR lookups are paginated.
 
 An identical proposal closed without merge is blocked rather than resubmitted.
 Upstream rejection needs a human decision. The workflow does not remove its
 marker, reopen it or invent a new submission issue. If a push succeeded but
 PR creation/body update failed, inspect that branch/PR manually; the next run
 will protect the orphan/unrecorded head rather than overwrite it.
+
+### Interrupted submission recovery
+
+A refresh checks the fork's exact pushed head and unchanged upstream body while
+allowing up to eight API propagation/update attempts, separated by two seconds.
+It accepts only the recorded old-to-new head transition. A lost API response
+can be reconciled within that same job if the next read shows the exact intended
+body and head; unrelated commits, body edits or PR closure stop immediately.
+
+The safe-output job preserves `awesome-copilot-submission-<run-id>` even on
+failure. Its receipt records the old head/body fingerprint, exact pushed head,
+intended body (including its state marker), allowed file contents and whether
+the push completed. It contains no credentials. It is evidence, **not** authority
+to accept a changed branch or to bypass the next precheck.
+
+If all attempts fail, separately authorized human reconciliation is required:
+
+1. Download the receipt from the authentic source workflow run, not a PR comment
+   or user-provided replacement. Confirm `status=pushed`, the fixed upstream/
+   fork, existing open PR number, and its owned branch/author/base.
+2. Verify the fork and PR still point exactly to the receipt's new head, whose
+   sole parent is its recorded old head. Compare the two allowed files byte for
+   byte with the receipt and confirm no other paths changed. A different head,
+   additional commit or file change is not an accepted transition.
+3. Verify the complete existing PR body's SHA-256 equals `expectedBody`. If it
+   changed, stop rather than overwriting human edits. If both head and body are
+   unchanged as required, update **only that same PR's body** to the receipt's
+   exact body through the operator's normal GitHub interface. Do not change its
+   branch, title, other plugin proposal or open/closed state.
+4. Run a fresh no-write catch-up preview; it must validate the new marker/head/
+   body and pending published locators before any further automated submission.
+
+For push-success/PR-create-failure, the receipt has no existing PR number. Do not
+automatically create another branch: the orphan guard blocks all new proposals.
+An authorized operator must inspect the recorded branch/content and decide its
+disposition. Neither retries nor receipts reopen declined PRs or accept arbitrary
+human commits.
 
 ## Local checks and workflow compilation
 

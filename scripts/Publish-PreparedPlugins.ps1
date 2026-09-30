@@ -41,6 +41,7 @@ if (-not $currentTagExists -and -not ($ManualRepair -and $current -eq $Version))
 }
 $candidate = Join-Path ([IO.Path]::GetTempPath()) "excel-plugin-publication-$([Guid]::NewGuid().ToString('N'))"
 $archive = "$candidate.zip"
+$pathspecFile = "$candidate.paths"
 New-Item -ItemType Directory -Path $candidate | Out-Null
 try {
     git -C $published archive --format=zip "--output=$archive" HEAD
@@ -74,8 +75,8 @@ try {
         if ((git -C $published rev-parse HEAD) -ne $baselineCommit -or @(git -C $published status --porcelain).Count) {
             throw 'Published checkout changed while preparing output.'
         }
-        $candidateFiles = @(git -C $candidate ls-tree -r --name-only $tree)
-        $baselineFiles = @(git -C $published ls-tree -r --name-only HEAD)
+        $candidateFiles = @(git -C $candidate -c core.quotepath=false ls-tree -r --name-only $tree)
+        $baselineFiles = @(git -C $published -c core.quotepath=false ls-tree -r --name-only HEAD)
         foreach ($file in $baselineFiles | Where-Object { $_ -cnotin $candidateFiles }) {
             Remove-Item -LiteralPath (Join-Path $published $file.Replace('/', [IO.Path]::DirectorySeparatorChar))
         }
@@ -87,7 +88,12 @@ try {
         }
         git -C $published config user.name 'ExcelMcp Publisher Bot'
         git -C $published config user.email 'excelmcp-publisher[bot]@users.noreply.github.com'
-        git -C $published add -A
+        $paths = @($baselineFiles + $candidateFiles | Sort-Object -Unique)
+        [IO.File]::WriteAllText($pathspecFile, ($paths -join "`0") + "`0", [Text.UTF8Encoding]::new($false))
+        git --literal-pathspecs -C $published -c core.autocrlf=true add --all --force "--pathspec-from-file=$pathspecFile" --pathspec-file-nul
+        if ((git -C $published write-tree) -ne $tree) {
+            throw 'Destination staged tree differs from the validated prepared publication; commit/push/tag blocked.'
+        }
         if (@(git -C $published diff --cached --name-only).Count) {
             git -C $published commit -m "Release $tag" -m "Source release commit: $SourceCommit"
             git -C $published push origin HEAD:main
@@ -127,5 +133,6 @@ try {
 }
 finally {
     if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive }
+    if (Test-Path -LiteralPath $pathspecFile) { Remove-Item -LiteralPath $pathspecFile }
     Remove-Item -LiteralPath $candidate -Recurse -Force
 }

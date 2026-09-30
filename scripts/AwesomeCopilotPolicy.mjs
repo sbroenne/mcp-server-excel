@@ -27,8 +27,10 @@ export function parseState(body) {
         if (!/^[a-f0-9]{64}$/.test(proposed.fingerprint)) throw new Error('Invalid proposal fingerprint.');
     }
     if (state.proposalFingerprint !== proposalFingerprint(state.entries)) throw new Error('Invalid combined proposal fingerprint.');
-    if (state.bodyFingerprint !== undefined &&
-        state.bodyFingerprint !== hash(body.replace(/<!-- excel-plugin-update-state:.*? -->/gs, '').trimEnd())) {
+    if (!/^[a-f0-9]{64}$/.test(state.bodyFingerprint ?? '')) {
+        throw new Error('Missing or invalid PR body fingerprint; human edits are protected.');
+    }
+    if (state.bodyFingerprint !== hash(body.replace(/<!-- excel-plugin-update-state:.*? -->/gs, '').trimEnd())) {
         throw new Error('PR body changed since the last automated write; human edits are protected.');
     }
     return state;
