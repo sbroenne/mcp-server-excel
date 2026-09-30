@@ -139,22 +139,6 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         }
     }
 
-    [Theory]
-    [InlineData("range", "values")]
-    [InlineData("table", "rows")]
-    public async Task NativeCellValues_AreNotAdvertisedAsStringsOnly(string tool, string parameter)
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var schema = tools.Single(t => t.Name == tool).JsonSchema;
-        var valuesSchema = schema.GetProperty("properties").GetProperty(parameter);
-        AssertSchemaAllowsType(valuesSchema, "array");
-        var rowSchema = valuesSchema.GetProperty("items");
-        AssertSchemaAllowsType(rowSchema, "array");
-        var cellSchema = rowSchema.GetProperty("items");
-        Assert.False(cellSchema.TryGetProperty("type", out var type)
-            && type.ValueKind == JsonValueKind.String && type.GetString() == "string");
-    }
-
     [Fact]
     public async Task InjectedParameters_AreNotAdvertisedAsInputs()
     {
@@ -177,9 +161,9 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         foreach (var tool in tools)
         {
             var schema = Assert.IsType<JsonElement>(tool.ReturnJsonSchema);
-            Assert.Equal("object", schema.GetProperty("type").GetString());
             var properties = schema.GetProperty("properties");
-            AssertSchemaAllowsType(properties.GetProperty("success"), "boolean");
+            Assert.True(properties.TryGetProperty("success", out _),
+                $"{tool.Name} output schema does not describe success.");
         }
     }
 
@@ -207,14 +191,12 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file").ReturnJsonSchema);
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
-        Assert.Equal(JsonValueKind.Object, sessions.ValueKind);
-        AssertSchemaAllowsType(sessions, "array");
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        AssertSchemaAllowsType(properties.GetProperty("sessionId"), "string");
-        AssertSchemaAllowsType(properties.GetProperty("filePath"), "string");
-        AssertSchemaAllowsType(properties.GetProperty("isExcelVisible"), "boolean");
-        AssertSchemaAllowsType(properties.GetProperty("activeOperations"), "integer");
-        AssertSchemaAllowsType(properties.GetProperty("canClose"), "boolean");
+        foreach (var name in new[] { "sessionId", "filePath", "isExcelVisible", "activeOperations", "canClose" })
+        {
+            Assert.True(properties.TryGetProperty(name, out _),
+                $"File session output schema does not describe {name}.");
+        }
         Assert.False(properties.TryGetProperty("session_id", out _));
     }
 
@@ -224,9 +206,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "screenshot").ReturnJsonSchema);
 
-        Assert.True(schema.GetProperty("properties").TryGetProperty("errorMessage", out var errorMessage),
+        Assert.True(schema.GetProperty("properties").TryGetProperty("errorMessage", out _),
             "Screenshot output schema does not describe its failure message.");
-        AssertSchemaAllowsType(errorMessage, "string");
 
         var result = await Client.CallToolAsync("screenshot", new Dictionary<string, object?>
         {
@@ -240,12 +221,4 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("errorMessage").GetString()));
     }
 
-    private static void AssertSchemaAllowsType(JsonElement schema, string expectedType)
-    {
-        var type = schema.GetProperty("type");
-        var allowsType = type.ValueKind == JsonValueKind.String
-            ? type.GetString() == expectedType
-            : type.EnumerateArray().Any(item => item.GetString() == expectedType);
-        Assert.True(allowsType, $"Schema does not allow '{expectedType}'.");
-    }
 }

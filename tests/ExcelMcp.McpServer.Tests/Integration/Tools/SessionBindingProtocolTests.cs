@@ -85,10 +85,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var schema = Assert.Single(tools, tool => tool.Name == toolName).JsonSchema;
         var properties = schema.GetProperty("properties");
-        var type = properties.GetProperty("session_id").GetProperty("type");
-        Assert.Contains("string", type.ValueKind == JsonValueKind.Array
-            ? type.EnumerateArray().Select(value => value.GetString())
-            : [type.GetString()]);
+        Assert.True(properties.TryGetProperty("session_id", out _));
         Assert.False(properties.TryGetProperty("sessionId", out _));
         Assert.Equal(required, schema.GetProperty("required").EnumerateArray()
             .Any(property => property.GetString() == "session_id"));

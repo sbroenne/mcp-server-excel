@@ -13,7 +13,7 @@ if ($Local) {
     if ($Contracts) {
         $selections['Core'] = 'Feature=GeneratedContracts'
         $selections['CLI'] = 'FullyQualifiedName~GeneratedActionContractCliTests'
-        $selections['McpServer'] = 'FullyQualifiedName~CoreCommandsCoverageTests|FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~GeneratedToolSchemaEnumRegressionTests'
+        $selections['McpServer'] = 'FullyQualifiedName~CoreCommandsCoverageTests|FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests'
     }
     foreach ($path in $ChangedPaths) {
         if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service)\.Tests[/\\]') {

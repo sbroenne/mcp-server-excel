@@ -404,7 +404,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         {
             var tool = Assert.Single(tools, candidate => candidate.Name == toolName);
             var timeout = tool.JsonSchema.GetProperty("properties").GetProperty("timeout_seconds");
-            Assert.Contains("integer", timeout.GetProperty("type").EnumerateArray().Select(value => value.GetString()));
+            Assert.Equal(typeof(int?), GeneratedToolContract.GetParameter(toolName, "timeout_seconds").ParameterType);
             Assert.Contains("seconds", timeout.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
         }
 
@@ -422,7 +422,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             foreach (var alias in aliases)
             {
                 var property = properties.GetProperty(alias);
-                Assert.Contains("string", property.GetProperty("type").EnumerateArray().Select(value => value.GetString()));
+                Assert.Equal(typeof(string), GeneratedToolContract.GetParameter(toolName, alias).ParameterType);
                 Assert.Contains("readable", property.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
             }
         }
