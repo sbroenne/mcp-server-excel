@@ -369,6 +369,9 @@ function command(executable, args, cwd, inherited = process.env) {
     const env = { ...inherited, GITHUB_OUTPUT: '', GITHUB_STEP_SUMMARY: '' };
     // Git hooks export source-repository context; fixtures must use their own Git state.
     for (const name of gitLocalVariables) delete env[name];
+    for (const name of Object.keys(env)) {
+        if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
+    }
     return execFileSync(executable, args, { cwd, encoding: 'utf8', windowsHide: true,
         env });
 }
@@ -379,8 +382,10 @@ test('disposable Git commands cannot inherit a hook repository, worktree or inde
     fs.writeFileSync(foreignIndex, 'Do not touch');
     try {
         const inherited = { ...process.env, GIT_DIR: path.join(root, 'foreign.git'),
-            GIT_WORK_TREE: path.join(root, 'foreign-worktree'), GIT_INDEX_FILE: foreignIndex };
+            GIT_WORK_TREE: path.join(root, 'foreign-worktree'), GIT_INDEX_FILE: foreignIndex,
+            GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.bare', GIT_CONFIG_VALUE_0: 'true' };
         command('git', ['init', '--quiet'], root, inherited);
+        assert.equal(command(process.execPath, ['-p', "Object.hasOwn(process.env, 'GIT_CONFIG_KEY_0')"], root, inherited).trim(), 'false');
         assert.ok(fs.existsSync(path.join(root, '.git')));
         assert.equal(fs.readFileSync(foreignIndex, 'utf8'), 'Do not touch');
         assert.equal(fs.existsSync(inherited.GIT_DIR), false);
