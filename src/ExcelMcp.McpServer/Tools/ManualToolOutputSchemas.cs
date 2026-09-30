@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -25,7 +24,7 @@ internal sealed class FileToolOutputSchema
     public int? Count { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonElement? Sessions { get; set; }
+    public List<FileSessionOutputSchema>? Sessions { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? CanOpen { get; set; }
@@ -38,6 +37,15 @@ internal sealed class FileToolOutputSchema
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? RequiresVisibleSession { get; set; }
+}
+
+internal sealed class FileSessionOutputSchema
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string FilePath { get; set; } = string.Empty;
+    public bool IsExcelVisible { get; set; }
+    public int ActiveOperations { get; set; }
+    public bool CanClose { get; set; }
 }
 
 internal sealed class WorksheetToolOutputSchema
@@ -63,6 +71,9 @@ internal sealed class WorksheetToolOutputSchema
 internal sealed class ScreenshotToolOutputSchema
 {
     public bool Success { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ErrorMessage { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Message { get; set; }

@@ -197,6 +197,46 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             $"{toolName} output schema does not describe '{propertyName}'.");
     }
 
+    [Fact]
+    public async Task FileListOutputSchema_DescribesSessionEntries()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file").ReturnJsonSchema);
+        var sessions = schema.GetProperty("properties").GetProperty("sessions");
+
+        Assert.Equal(JsonValueKind.Object, sessions.ValueKind);
+        AssertSchemaAllowsType(sessions, "array");
+        var properties = sessions.GetProperty("items").GetProperty("properties");
+        AssertSchemaAllowsType(properties.GetProperty("sessionId"), "string");
+        AssertSchemaAllowsType(properties.GetProperty("filePath"), "string");
+        AssertSchemaAllowsType(properties.GetProperty("isExcelVisible"), "boolean");
+        AssertSchemaAllowsType(properties.GetProperty("activeOperations"), "integer");
+        AssertSchemaAllowsType(properties.GetProperty("canClose"), "boolean");
+        Assert.False(properties.TryGetProperty("session_id", out _));
+    }
+
+    [Fact]
+    public async Task ScreenshotOutputSchema_DescribesFailureMessage()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "screenshot").ReturnJsonSchema);
+
+        Assert.True(schema.GetProperty("properties").TryGetProperty("errorMessage", out var errorMessage),
+            "Screenshot output schema does not describe its failure message.");
+        AssertSchemaAllowsType(errorMessage, "string");
+
+        var result = await Client.CallToolAsync("screenshot", new Dictionary<string, object?>
+        {
+            ["action"] = "capture",
+            ["session_id"] = "unknown-screenshot-schema-session"
+        }, cancellationToken: TestCancellationToken);
+
+        Assert.True(result.IsError);
+        var content = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.False(content.GetProperty("success").GetBoolean());
+        Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("errorMessage").GetString()));
+    }
+
     private static void AssertSchemaAllowsType(JsonElement schema, string expectedType)
     {
         var type = schema.GetProperty("type");

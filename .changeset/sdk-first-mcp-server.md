@@ -5,8 +5,9 @@
 **More reliable MCP tools**: Use the official SDK for registration, schemas,
 injected services, and asynchronous calls. Tool failures now set the real MCP
 error flag and provide structured results. Every tool now advertises an output
-schema generated from its action result contracts, so clients can understand
-the returned fields without parsing prose. Unknown, misspelled, wrongly typed,
+schema generated from its action result contracts, including typed session-list
+entries and screenshot failure messages, so clients can understand the returned
+fields without parsing prose. Unknown, misspelled, wrongly typed,
 and action-inapplicable arguments are rejected rather than silently ignored.
 
 Cancellation now reaches workbook startup and reclaims its eventual session
