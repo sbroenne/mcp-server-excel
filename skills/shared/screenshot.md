@@ -29,8 +29,8 @@ truncation, use a smaller range rather than claiming the whole area was checked.
 MCP returns native image content and structured capture metadata. CLI can save
 an image directly; use a matching quality and extension:
 
-```powershell
-excelcli screenshot capture --session <id> --sheet <name> --range A1:M25 --quality High --output screenshot.png
+```cli
+excelcli -q screenshot capture --session $sessionId --sheet Sales --range A1:M25 --quality High --output screenshot.png
 ```
 
 ## Layout Checks
@@ -39,12 +39,17 @@ For a requested chart, inspect the used range, create or move the chart, and
 check returned overlap warnings. `target_range` makes explicit layouts easier;
 omitting both it and point coordinates uses supported automatic positioning.
 
-```text
-chart(action: 'create-from-range', session_id: id, sheet_name: 'Sales',
+```mcp
+chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Sales',
       source_range_address: 'A1:D20', chart_type: 'ColumnClustered',
       target_range: 'F2:K15')
-screenshot(action: 'capture', session_id: id, sheet_name: 'Sales',
+screenshot(action: 'capture', session_id: sessionId, sheet_name: 'Sales',
            range_address: 'A1:M25')
+```
+
+```cli
+excelcli -q chart create-from-range --session $sessionId --sheet Sales --source-range-address A1:D20 --chart-type ColumnClustered --target-range F2:K15
+excelcli -q screenshot capture --session $sessionId --sheet Sales --range A1:M25 --quality High --output screenshot.png
 ```
 
 Use `pivottable_field` to add row/value fields and refresh the PivotTable before

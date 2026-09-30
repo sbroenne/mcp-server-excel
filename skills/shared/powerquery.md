@@ -19,7 +19,31 @@ Step 3: load-to if created connection-only; refresh when loaded data needs updat
 - Skip redundant evaluation for trivial literal tables or already-validated code
   with unchanged sources and dependencies
 
-**IF CREATE/UPDATE FAILS**: Use `evaluate` to get detailed Power Query error message, fix code, retry.
+## Recovering a failed create
+
+Creation adds the query before loading. A failed load can leave the query and
+load objects behind. Inspect `list`, `view`, and `get-load-config` first. Evaluate
+corrected code, then **update if the query survived**; create only if it is absent.
+Do not delete surviving objects blindly.
+
+For an existing query `SalesQuery`, with corrected code in a known readable
+`query.m` file and the current session already captured:
+
+```mcp
+powerquery(action: 'evaluate', session_id: sessionId, m_code_file: 'query.m')
+powerquery(action: 'update', session_id: sessionId, query_name: 'SalesQuery', m_code_file: 'query.m', refresh: false)
+powerquery(action: 'get-load-config', session_id: sessionId, query_name: 'SalesQuery')
+```
+
+```cli
+excelcli -q powerquery evaluate --session $sessionId --m-code-file query.m
+excelcli -q powerquery update --session $sessionId --query-name SalesQuery --m-code-file query.m --refresh false
+excelcli -q powerquery get-load-config --session $sessionId --query-name SalesQuery
+```
+
+Check each result. Refresh a surviving intended load, or use `load-to` for the
+required destination after inspecting sheet content. A successful evaluation does
+not prove that loading onto a particular sheet will succeed.
 
 **Additional evaluate use cases:**
 - Execute one-off queries without creating permanent queries

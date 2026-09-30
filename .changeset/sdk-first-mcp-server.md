@@ -24,3 +24,11 @@ input names, query-loading guidance, and stale skill examples. Bulk-write guidan
 preserves the previous calculation mode, and chart feedback no longer requires
 screenshots on unavailable desktops. Consent guidance now distinguishes client
 confirmation from server-side elicitation, which is not implemented.
+
+Regular PivotTable calculated fields are now recognized as numeric, allowing
+them to be added to Values with Sum. Skills distinguish aggregate calculations
+from per-row revenue, require complete slicer inputs, and explain recovery when
+a failed Power Query load leaves its query behind. The CLI batch example stops
+on failure and explicitly discards only the failed job's own unsaved changes.
+Both skills now include native examples, a complete guide index, and less
+repeated guidance; the CLI command catalog is split into smaller linked pages.

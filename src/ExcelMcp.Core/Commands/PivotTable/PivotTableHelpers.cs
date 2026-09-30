@@ -179,6 +179,10 @@ internal static class PivotTableHelpers
     {
         try
         {
+            // Excel reports calculated fields as text even though their results are numeric.
+            if (((Microsoft.Office.Interop.Excel.PivotField)field).IsCalculated)
+                return "Number";
+
             int dataType = Convert.ToInt32(field.DataType);
             return dataType switch
             {
@@ -236,5 +240,4 @@ internal static class PivotTableHelpers
         return values;
     }
 }
-
 

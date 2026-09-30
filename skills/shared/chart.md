@@ -1,194 +1,57 @@
-# Excel Charts Reference
+# Charts
 
-## Tools
+Chart lifecycle operations create, list, read, move, fit, and delete charts.
+Chart-configuration operations manage series, titles, axes, labels, styles, and
+trendlines. Reuse the returned chart name rather than assuming Excel's default.
 
-- **`chart`**: Create charts, manage positioning and data sources
-- **`chart_config`**: Configure chart appearance, formatting, and analysis features
+## Create and position
 
-## Chart Creation
+Choose the source deliberately: a range, an Excel Table, or a PivotTable. The
+PivotTable action verifies a live PivotChart link; it fails rather than returning
+a static chart if Excel cannot establish it.
 
-### From Range
-```
-chart(create-from-range, chart_type, source_range_address, sheet_name)
-```
-Best for: Simple data in worksheet ranges
+For monthly labels in A1:A6 and numeric series in B1:C6 on `Sheet1`:
 
-### From PivotTable (PivotChart)
-```
-chart(create-from-pivottable, pivot_table_name)
-```
-Best for: Interactive PivotTable and Data Model visuals. The action creates a live
-PivotChart, verifies its `PivotLayout` link to the requested PivotTable, and fails
-instead of returning a regular chart if Excel cannot create that link.
-
-### From Table
-```
-chart(create-from-table, table_name, chart_type)
-```
-Best for: Excel Tables with structured references
-
-## Chart Types
-
-Common types: `ColumnClustered`, `Line`, `Pie`, `Bar`, `Area`, `XYScatter`, `Doughnut`
-
-Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histogram`, `Pareto`
-
-## Configuration Actions (chart_config)
-
-### Series Management
-- `add-series`: Add data series with `values_range` and optional `category_range`
-- `remove-series`: Remove series by index (1-based)
-- `set-source-range`: Replace entire chart data source
-- `set-series-chart-type`: Assign a chart type to one regular-chart series for combo charts
-
-### Plot Behavior
-- `get-plot-options`: Read row/column orientation, blank-cell display, and hidden-cell plotting
-- `set-plot-options`: Configure `plot_by`, `display_blanks_as`, and `plot_visible_only`
-
-### Titles and Labels
-- `set-title`: Set chart title (empty string hides)
-- `set-axis-title`: Set axis labels (Category, Value, CategorySecondary, ValueSecondary)
-- `set-data-labels`: Configure data labels (`label_position`, `show_value`, `show_category_name`, `show_percentage`, and `show_series_name`)
-
-### Axis Formatting
-- `get-axis-scale`: Get min, max, majorUnit, minorUnit, and auto flags
-- `set-axis-scale`: Configure scale properties
-- `get-axis-number-format`: Get current tick label format
-- `set-axis-number-format`: Format axis numbers (e.g., `"$#,##0,,\"M\""` for millions)
-
-### Gridlines
-- `get-gridlines`: Check visibility state
-- `set-gridlines`: Show/hide major/minor gridlines
-
-### Series Formatting
-- `set-series-format`: Configure markers plus material fill, transparency, line color, and line weight
-
-### Trendlines
-- `list-trendlines`: View all trendlines on a series
-- `add-trendline`: Add Linear, Exponential, Logarithmic, Polynomial, Power, or MovingAverage trendline
-- `delete-trendline`: Remove trendline by index
-- `set-trendline`: Configure display (equation, R² value) and forecasting (forward, backward periods)
-
-### Styling
-- `show-legend`: Control legend visibility and position (Bottom, Corner, Top, Right, Left)
-- `set-style`: Apply Excel chart styles (1-48)
-- `set-area-format`: Format the chart area or plot area fill and border
-- `set-placement`: Configure cell anchoring plus print, lock, and rounded-corner behavior
-
-## Trendline Details
-
-### Types
-| Type | Use Case | Requirements |
-|------|----------|--------------|
-| Linear | Straight-line trends | None |
-| Exponential | Growth/decay patterns | Positive values |
-| Logarithmic | Rapid initial change | Positive values |
-| Polynomial | Curves with peaks/valleys | Order parameter (2-6) |
-| Power | Accelerating rates | Positive values |
-| MovingAverage | Smooth fluctuations | Period parameter (2+) |
-
-### Parameters
-- **order**: Required for Polynomial (2-6, default 2)
-- **period**: Required for MovingAverage (2+, default 2)
-- **forward/backward**: Forecast periods ahead/behind data
-- **intercept**: Force trend through specific Y value
-- **display_equation**: Show formula on chart
-- **display_r_squared**: Show R² goodness-of-fit value
-
-## Common Workflows
-
-### Create Chart with Formatting
-```
-1. chart(create-from-range) → chartName
-2. chart_config(set-title, title="Monthly Sales")
-3. chart_config(set-axis-title, axis="Value", title="Revenue ($)")
-4. chart_config(set-axis-number-format, axis="Value", number_format="$#,##0")
-5. chart_config(set-data-labels, label_position="OutsideEnd", show_value=true)
+```mcp
+chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Sheet1', source_range_address: 'A1:C6', chart_type: 'ColumnClustered', chart_name: 'MonthlySales', target_range: 'A8:H22')
+chart_config(action: 'set-title', session_id: sessionId, chart_name: 'MonthlySales', title: 'Monthly sales')
+chart(action: 'read', session_id: sessionId, chart_name: 'MonthlySales')
 ```
 
-### Add Analysis
-```
-1. chart_config(add-trendline, trendline_type="Linear", display_equation=true, display_r_squared=true)
-2. chart_config(set-trendline, forward=3) # Forecast 3 periods ahead
-```
-
-## Best Practices
-
-1. **PivotCharts for Data Model**: Use `create-from-pivottable`; it preserves live field and refresh updates
-2. **Format numbers**: Set axis number format for readability
-3. **Use gridlines sparingly**: Minor gridlines often add clutter
-4. **Trendlines for insights**: Add R² to show fit quality
-5. **Data labels placement**: `OutsideEnd` for bar charts, `Center` for pie charts
-
-## Chart Positioning
-
-Charts support three positioning modes, listed in order of preference:
-
-### 1. `target_range` (PREFERRED - One Step)
-```
-chart(create-from-range, source_range_address='A1:B10', chart_type='Line', target_range='F2:K15')
-```
-Creates chart AND positions it to the cell range in one call. No point math needed.
-
-### 2. Auto-Positioning (No Position Specified)
-When you omit both `target_range` and `left`/`top`, the chart is automatically placed below all existing content (data ranges + other charts) with 10pt padding. This prevents overlap automatically.
-```
-chart(create-from-range, source_range_address='A1:B10', chart_type='Line')
-# → Chart auto-positioned below the used range and any existing charts
+```cli
+excelcli -q chart create-from-range --session $sessionId --sheet Sheet1 --source-range-address A1:C6 --chart-type ColumnClustered --chart-name MonthlySales --target-range A8:H22
+excelcli -q chartconfig set-title --session $sessionId --chart-name MonthlySales --title 'Monthly sales'
+excelcli -q chart read --session $sessionId --chart-name MonthlySales
 ```
 
-### 3. Manual Coordinates
-```
-chart(create-from-range, source_range_address='A1:B10', left=360, top=20)
-# left/top in points (72 points = 1 inch)
-```
+Check each result. Prefer a target cell range for an exact placement. Omit both
+target range and coordinates to auto-place below used cells and existing charts
+with padding. Manual coordinates use points (72 per inch); row and column sizes
+vary, so do not assume a fixed conversion from cells.
 
-### Collision Detection (Automatic)
-All chart create, move, and fit-to-range operations automatically check for overlaps with data and other charts. If collisions are detected, the result includes an `OVERLAP WARNING` message. **Always check the result message and fix overlaps before proceeding.**
+Creation, move, and fit operations warn about overlapping data/charts. An
+`OVERLAP WARNING` can accompany success: fix the placement and check again.
+Use a [screenshot](screenshot.md) when appearance matters and an interactive
+desktop is available; otherwise inspect bounds and state the visual limitation.
 
-```
-Result example with collision warning:
-{
-  "success": true,
-  "chartName": "Chart 1",
-  "message": "OVERLAP WARNING: Chart overlaps data area $A$1:$D$20. Use chart fit-to-range to reposition, then screenshot capture with an explicit range to verify layout."
-}
-```
+## Configuration
 
-**If you see an overlap warning:**
-1. Use `chart(fit-to-range, chart_name, range_address='F2:K15')` to reposition
-2. Or use `chart(move, chart_name, left=..., top=...)` to adjust
-3. When an interactive desktop is available, use `screenshot(capture, range_address='A1:M25')` to verify the layout; otherwise inspect bounds and report that visual verification was unavailable
+- Series indices are 1-based. Adding a series requires a values range; supply its
+  category range when the axis labels are not implicit.
+- Replacing the source range can change all series. Verify names, values, and
+  categories afterward.
+- Set per-series chart types for regular combo charts. Use plot options for
+  row/column orientation, blanks, and whether hidden cells are plotted.
+- Axis titles distinguish Category, Value, and secondary axes. Use US number
+  formats for currency/percentage labels.
+- Built-in chart styles are 1-48. Area formatting controls chart/plot backgrounds;
+  series formatting controls fills, lines, and markers.
+- Placement 1 moves and sizes with cells, 2 moves only, 3 is free floating.
+- Trendlines include Linear, Exponential, Logarithmic, Polynomial, Power, and
+  MovingAverage. Polynomial order is 2-6; moving-average period is at least 2.
+  Respect Excel's data/domain requirements for the selected fit.
 
-### Position Estimates
-- Rows: ~15 points per row (varies with row height)
-- Columns: ~60 points per column (varies with column width)
-- Default chart: 400×300 points
-
-### Positioning Workflow
-1. **Explicit placement**: Use `target_range='F2:K15'` in the create call, choosing cells clear of other content
-2. **Alternative**: Omit position — auto-positioning places chart below content
-3. **Manual**: `get-used-range` → calculate coordinates → specify left/top
-4. **Verify**: Check returned bounds and warnings; use a screenshot when appearance matters and the desktop is available
-
-## Multi-Chart Layout
-
-Use explicit placement for a grid layout. Automatic positioning is also supported
-and stacks charts below existing content.
-
-### Grid Layout Pattern
-```
-Data at A1:D10. Place 4 charts in a 2×2 grid below data:
-
-chart(create-from-range, ..., target_range='A12:F25')   # Top-left
-chart(create-from-range, ..., target_range='G12:L25')   # Top-right
-chart(create-from-range, ..., target_range='A27:F40')   # Bottom-left
-chart(create-from-range, ..., target_range='G27:L40')   # Bottom-right
-screenshot(capture, range_address='A1:M40') → Verify no overlaps
-```
-
-### Rules
-- Use `target_range` when a particular grid layout is needed
-- Leave at least 1-2 rows/columns gap between charts
-- If any chart result includes an overlap warning, fix it before creating the next chart
-- When possible, take a final screenshot covering the complete layout
+For multiple charts, use explicit non-overlapping cell ranges with consistent
+sizes and spacing. Auto-placement is suitable for a vertical stack. Read the
+saved chart's actual geometry and series; a successful creation or a prose
+description alone does not establish a correct chart.

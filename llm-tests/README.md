@@ -6,7 +6,8 @@ LLM-powered integration tests for both ExcelMcp MCP Server and Excel CLI using p
 
 - Windows desktop with Microsoft Excel installed
 - .NET 10 SDK
-- Azure OpenAI endpoint configured
+- GitHub Copilot access and authentication
+- Azure OpenAI endpoint for the optional AI report summary (enabled by default)
 - ExcelMcp MCP Server and CLI built/installed
 
 ### Azure OpenAI
@@ -25,7 +26,8 @@ From this directory:
 uv sync
 ```
 
-This installs the test dependencies from `pyproject.toml`, including `pytest-skill-engineering[copilot]`.
+This installs the locked test dependencies, including pytest-skill-engineering
+and its Copilot SDK dependency.
 
 ## Build MCP Server (Required)
 
@@ -56,8 +58,20 @@ uv run pytest -m aitest -v
 
 ## Configuration Overrides
 
+The agent evaluations use GitHub Copilot, not Azure OpenAI. The default report
+summary uses Azure OpenAI separately. To run without that optional summary:
+
+```powershell
+uv run pytest -o addopts= mcp_tests\test_mcp_chart_positioning.py -v
+```
+
+Run Excel-dependent commands sequentially. Never use parallel pytest workers
+for these evaluations or overlap them with other Excel test runs.
+
 - `EXCEL_MCP_SERVER_COMMAND` — override MCP server command (full command line)
 - `EXCEL_CLI_COMMAND` — override CLI command (default: `excelcli`)
+- `EXCEL_LLM_MODEL` — supported Copilot model ID; defaults to `auto` rather than
+  pinning a retired model. Pin an available model for comparable evaluation runs.
 
 Example:
 
@@ -133,7 +147,7 @@ maintain a separate scenario inventory that can drift from the test files.
 1. Check authentication, Excel availability, harness errors, and exhausted
    time/turn limits before assuming a product problem.
 2. Inspect recorded calls and the actual workbook to locate the first failure.
-3. Fix misleading guidance in the [canonical skill or description source](../skills/README.md#maintaining-skills-and-mcp-prompts), rebuild, and rerun.
+3. Fix misleading guidance in the [canonical skill or description source](../skills/README.md#maintaining-skills-and-server-guidance), rebuild, and rerun.
 4. For an implementation defect, add a deterministic regression test at the
    owning layer before fixing it.
 5. Change the evaluation only when its request, setup, or assertion is wrong,
@@ -143,3 +157,22 @@ Do not mask product failures with skip/xfail. The shared harness may clearly
 skip unavailable external prerequisites; a skip is not a passing evaluation.
 Run only affected scenarios during iteration: Excel and external model access
 are required, and model calls may incur costs.
+
+### Independent saved-workbook checks
+
+Chart-positioning and slicer scenarios share the same requests and checks for
+both entry points. They reopen the saved file in a separate Excel instance with
+macros/events disabled and links not updated, inspect it, and close without saving.
+The checks compare real chart geometry, types, series, labels, slicer selections,
+visible rows, and PivotTable totals. Expected answers are not embedded in prompts.
+
+The reader and checks have deterministic tests, including deliberately wrong
+saved positions and filters, that need Excel but no model or Azure access:
+
+```powershell
+python -m unittest discover -s . -p test_workbook_assertions.py -v
+```
+
+These tests also exercise the documented failure-aware batch and Power Query
+recovery workflows. They use private CLI service pipes and temporary workbooks;
+they do not stop another user's service.

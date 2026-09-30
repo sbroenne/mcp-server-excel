@@ -42,13 +42,13 @@ Restart Claude Desktop after saving the configuration.
 ## Recommended Workflow
 
 ```text
-1. Create or open a workbook:
-   file(action: 'create', path: 'C:\Users\Me\Documents\report.xlsx')
+1. Discover existing sessions and confirm the user's intended full workbook path.
+2. Create a new workbook or open that existing path.
 
-2. Use the returned session ID for workbook operations.
+3. Use the returned session ID for workbook operations.
 
-3. Save and close:
-   file(action: 'close', session_id: '...', save: true)
+4. Check results and save the intended successful changes. Close only when
+   authorized and the session reports canClose: true.
 ```
 
 Use full Windows paths and close sessions explicitly so Excel processes do not
@@ -64,23 +64,23 @@ remain open and lock workbooks.
 ### Access denied or file locked
 
 - Confirm that the path is writable.
-- Close any other Excel instance that already has the workbook open.
-- Try a workbook in the user's Documents directory.
+- Reuse the matching session when possible; do not close another user's window.
+- Ask for a different destination only if the supplied one cannot be used.
 
 ### COM timeout
 
 - Check whether Excel is displaying a modal dialog.
 - Allow long-running refresh or calculation operations to finish.
-- Restart Claude Desktop if the Excel process is unresponsive.
+- Inspect the surviving sessions and partial changes before retrying. Restarting
+  can lose unsaved work or trigger saving during normal shutdown.
 
 ### VBA operations fail
 
-VBA project editing requires explicit trust:
-
-1. Open Excel Options.
-2. Select **Trust Center** and then **Trust Center Settings**.
-3. Enable **Trust access to the VBA project object model**.
-4. Restart Excel MCP Server.
+Read the actual error. VBA project inspection/editing requires trusted project
+access configured manually by the user. Running an existing macro does not
+itself require that project access, though Excel's macro security still applies.
+Do not change Trust Center settings automatically or assume every VBA error is
+a trust failure.
 
 See the current
 [MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/)

@@ -7,7 +7,7 @@ It does not change which workbook operations are available.
 ## Follow the user's preference
 
 Excel is hidden by default. Use `show: true` when opening/creating a workbook,
-or `window(action: 'show', session_id: '...')` for an existing session, when the
+or the window `show` action for an existing session, when the
 user asks to see it. Do not force a visibility menu before each task.
 IRM/AIP authentication may require a visible session even for otherwise hidden
 work; explain that requirement rather than bypassing it.
@@ -17,9 +17,14 @@ from the session list. Do not create another session just to change visibility.
 
 ## Side-by-side work
 
+```mcp
+window(action: 'show', session_id: sessionId)
+window(action: 'arrange', session_id: sessionId, preset: 'right-half')
 ```
-window(action: 'show', session_id: '<returned-id>')
-window(action: 'arrange', session_id: '<returned-id>', preset: 'right-half')
+
+```cli
+excelcli -q window show --session $sessionId
+excelcli -q window arrange --session $sessionId --preset right-half
 ```
 
 Choose positioning only when useful to the user. Perform the requested edits;
@@ -30,9 +35,14 @@ visible mode does not require extra formatting, charts, or PivotTables.
 For longer visible operations, optional status text can explain the current
 step:
 
+```mcp
+window(action: 'set-status-bar', session_id: sessionId, text: 'Refreshing sales data...')
+window(action: 'clear-status-bar', session_id: sessionId)
 ```
-window(action: 'set-status-bar', session_id: '<returned-id>', text: 'Refreshing sales data...')
-window(action: 'clear-status-bar', session_id: '<returned-id>')
+
+```cli
+excelcli -q window set-status-bar --session $sessionId --text 'Refreshing sales data...'
+excelcli -q window clear-status-bar --session $sessionId
 ```
 
 Clear status text when finished, including after an error. Skip status bar

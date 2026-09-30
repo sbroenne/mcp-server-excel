@@ -43,7 +43,12 @@ Use `add-sparkline`, `get-sparkline`, `list-sparklines`, `update-sparkline`, and
 - `location_range`: cells that host the sparklines
 - Line sparklines can show markers
 
-```powershell
-excelcli drawing add-shape --session <id> --sheet "Dashboard" --shape-type RoundedRectangle --name "Status" --text "Ready" --fill-color "#70AD47"
-excelcli drawing add-sparkline --session <id> --sheet "Dashboard" --source-range "B2:E2" --location-range "F2" --sparkline-type Line
+```mcp
+drawing(action: 'add-shape', session_id: sessionId, sheet_name: 'Dashboard', shape_type: 'RoundedRectangle', name: 'Status', text: 'Ready', fill_color: '#70AD47')
+drawing(action: 'add-sparkline', session_id: sessionId, sheet_name: 'Dashboard', source_range: 'B2:E2', location_range: 'F2', sparkline_type: 'Line')
+```
+
+```cli
+excelcli -q drawing add-shape --session $sessionId --sheet Dashboard --shape-type RoundedRectangle --name Status --text Ready --fill-color '#70AD47'
+excelcli -q drawing add-sparkline --session $sessionId --sheet Dashboard --source-range B2:E2 --location-range F2 --sparkline-type Line
 ```

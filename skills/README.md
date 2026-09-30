@@ -15,7 +15,8 @@ install both):
 | **[excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
 | **[excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
 
-**Shared guidance:** `skills/shared/*.md` — source of truth for both skills (auto-copied to each skill's `references/` folder)
+**Shared guidance:** `skills/shared/*.md` is the source of shared explanations.
+Generation selects the authored examples for each entry point.
 
 > **Note:** Legacy npm packages (`excel-cli-skill`, `excel-mcp-skill`) are no longer published. Use the methods below instead.
 
@@ -80,13 +81,28 @@ Generation follows two related paths:
 Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
   -> GenerateSkillFile + Scriban templates -> both SKILL.md files
 
-skills/shared/*.md -> copied skill references
+skills/shared/*.md -> entry-point-specific references + linked guide index
+excelcli --help -> compact command index + individual command reference pages
 
 Core XML documentation + interface attributes -> McpToolGenerator
   -> official SDK tool/parameter descriptions and schemas
 ```
 
 To add a shared reference, create the Markdown under `skills/shared/`.
+Keep general explanations outside code fences. Put native command examples in
+fences labeled `cli` and corresponding MCP calls in fences labeled `mcp`.
+Generation includes only the matching block, rendered as PowerShell or text;
+ordinary language examples such as M, DAX, SQL, and JSON remain shared.
+This is explicit selection, not automatic translation of parameter names.
+Include required inputs, describe prerequisites, and use a returned session ID.
+Do not put entry-point-specific calls in unmarked prose or generic code fences.
+
+The generated `references/index.md` links every guide automatically.
+`references/cli-commands.md` is a short index of live-generated pages under
+`references/commands/`; do not rebuild a monolithic command catalog in a guide.
+Keep shared safety rules in `behavioral-rules.md`, and link domain guidance
+rather than repeating full save/format/refresh workflows everywhere.
+
 Build the solution in Release and generate the skills, then inspect both skill references
 for the intended content. The extension packages a
 copy of the MCP skill; it is not another source.

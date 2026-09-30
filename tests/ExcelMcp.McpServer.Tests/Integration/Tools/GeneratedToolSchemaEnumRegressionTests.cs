@@ -125,7 +125,7 @@ public sealed class GeneratedToolSchemaEnumRegressionTests : McpIntegrationTestB
                 {
                     var namedArgument = Regex.Match(
                         argument,
-                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*(?:['""](?<value>[^'""]+)['""]|(?<variable>[a-z][a-z0-9_]*))$");
+                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*(?:['""](?<value>[^'""]+)['""]|(?<variable>[a-zA-Z_][a-zA-Z0-9_]*))$");
                     Assert.True(
                         namedArgument.Success,
                         $"Use named MCP arguments in `{example.Value}` from {sourcePath}.");

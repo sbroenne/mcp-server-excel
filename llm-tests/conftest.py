@@ -23,7 +23,7 @@ FIXTURES_DIR = TESTS_DIR / "Fixtures"
 TEST_RESULTS_DIR = TESTS_DIR / "TestResults"
 TEST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_MODEL = "gpt-4.1"
+DEFAULT_MODEL = os.environ.get("EXCEL_LLM_MODEL", "auto")
 DEFAULT_MAX_TURNS = 20
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_TIMEOUT_S = 600.0
@@ -77,11 +77,11 @@ def github_auth() -> None:
 
 def unique_path(prefix: str, suffix: str = ".xlsx") -> str:
     temp_dir = Path(os.environ.get("TEMP", tempfile.gettempdir()))
-    return (temp_dir / f"{prefix}-{uuid.uuid4()}{suffix}").as_posix()
+    return str(temp_dir / f"{prefix}-{uuid.uuid4()}{suffix}")
 
 
 def unique_results_path(prefix: str, suffix: str = ".xlsx") -> str:
-    return (TEST_RESULTS_DIR / f"{prefix}-{uuid.uuid4()}{suffix}").as_posix()
+    return str(TEST_RESULTS_DIR / f"{prefix}-{uuid.uuid4()}{suffix}")
 
 
 def assert_regex(text: str | None, pattern: str) -> None:

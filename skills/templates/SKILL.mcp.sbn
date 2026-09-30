@@ -103,6 +103,10 @@ authentication. Testing does not bypass authentication.
 
 ## Reference documentation
 
+Start with the [complete task-guide index](./references/index.md) to find the
+relevant topic. Examples use `sessionId` as a local variable containing the
+returned session ID; pass it as `session_id`, not as an invented literal.
+
 Shared guides are skill references, not MCP prompts or automatically loaded
 server instructions. This server advertises tools, not prompts or resources.
 

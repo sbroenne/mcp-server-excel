@@ -1,162 +1,65 @@
-# pivottable - Server Quirks
+# PivotTables
 
-## CRITICAL: Required Parameters
+List before creating. Most operations require the PivotTable name; creating a
+PivotTable does not configure its row, column, or value fields. Add those fields
+with the field operations, then refresh and read the actual data.
 
-**`pivot_table_name` is REQUIRED for almost all PivotTable operations** across `pivottable`, `pivottable_calc`, and `pivottable_field` tools. The only exception is `list` (which lists all PivotTables). Always specify the PivotTable name.
+| Source | Creation | Calculation support |
+|--------|----------|---------------------|
+| Worksheet Table | `create-from-table` | Ordinary aggregations and calculated fields |
+| Worksheet range | `create-from-range` | Ordinary aggregations and calculated fields |
+| Data Model | `create-from-datamodel` | DAX measures and model relationships |
 
-## Calculated Fields vs DAX Measures
+## Calculated fields are calculations on aggregates
 
-PivotTable calculated fields work well for simple single-table formulas. Use DAX measures for complex scenarios.
+For a regular PivotTable with a numeric `Sales` field, doubling Sales is safe:
 
-| Feature | PivotTable Calculated Field | DAX Measure |
-|---------|----------------------------|-------------|
-| Single-table formulas | Works (e.g., `=Qty*Price`) | Works |
-| Cross-table | NOT SUPPORTED | Full support |
-| Complex logic | Limited | Full DAX |
-| Reusable | Per PivotTable only | Across all PivotTables |
-
-### Calculated Field Workflow
-
-```
-pivottable_calc(create-calculated-field, pivot_table_name="SalesPivot", field_name="Revenue", formula="=Quantity*UnitPrice")
-pivottable_field(add-value-field, pivot_table_name="SalesPivot", field_name="Revenue", aggregation_function="Sum")
-```
-
-### DAX Measure Workflow (for complex scenarios)
-
-```
-table(add-to-data-model, table_name="Sales")
-datamodel(create-measure, table_name="Sales", measure_name="Revenue", dax_formula="SUMX(Sales, Sales[Quantity]*Sales[UnitPrice])")
-pivottable(create-from-datamodel, pivot_table_name="SalesPivot", destination_sheet="Analysis", destination_cell="A3", table_name="Sales")
+```mcp
+pivottable_calc(action: 'create-calculated-field', session_id: sessionId, pivot_table_name: 'SalesPivot', field_name: 'DoubleSales', formula: '=Sales*2')
+pivottable_field(action: 'add-value-field', session_id: sessionId, pivot_table_name: 'SalesPivot', field_name: 'DoubleSales', aggregation_function: 'Sum')
+pivottable(action: 'refresh', session_id: sessionId, pivot_table_name: 'SalesPivot')
+pivottable_calc(action: 'get-data', session_id: sessionId, pivot_table_name: 'SalesPivot')
 ```
 
-### When to Use DAX Instead of Calculated Fields
-
-- Multi-table calculations (need relationships between tables)
-- Complex logic (time intelligence, YTD, running totals)
-- Calculations involving filtered contexts
-- Reusable measures across multiple PivotTables
-
-## PivotTable Source Types
-
-| Source | Create Action | Supports DAX Measures? |
-|--------|---------------|------------------------|
-| Worksheet Table | `create-from-table` | NO - worksheet PivotTable |
-| Data Model | `create-from-datamodel` | YES - full DAX support |
-| Worksheet range | `create-from-range` with `source_range` | NO |
-
-Use the Data Model for DAX and cross-table calculations. Ordinary PivotTables
-also support aggregations and calculated fields.
-
-## Refresh Behavior (CRITICAL)
-
-PivotTables do NOT auto-refresh when source data changes!
-
-**After adding rows to source table:**
-```
-table(append, ...)           # Add rows to worksheet table
-datamodel(refresh)           # First refresh the model if this PivotTable uses it
-pivottable(refresh, ...)     # Then refresh PivotTable to see new rows
+```cli
+excelcli -q pivottablecalc create-calculated-field --session $sessionId --pivot-table-name SalesPivot --field-name DoubleSales --formula '=Sales*2'
+excelcli -q pivottablefield add-value-field --session $sessionId --pivot-table-name SalesPivot --field-name DoubleSales --aggregation-function Sum
+excelcli -q pivottable refresh --session $sessionId --pivot-table-name SalesPivot
+excelcli -q pivottablecalc get-data --session $sessionId --pivot-table-name SalesPivot
 ```
 
-**After Power Query refresh:**
-```
-powerquery(refresh, ...)     # Refreshes Power Query AND Data Model
-pivottable(refresh, ...)     # Refresh the requested view after its source is current
-```
+Check each result before the next step. Creation alone does not add the
+calculated field to Values. Excel may report its raw field type as text; the
+server identifies calculated fields as numeric for aggregation.
 
-## PivotCache Options
+Do **not** use `=Quantity*UnitPrice` as a PivotTable calculated field for
+line-item revenue. For rows `(2,10)` and `(3,20)`, the sum of row revenues is 80,
+not the product of summed inputs (150). Add a source Revenue column with a formula
+on every data row and sum that column, or create this Data Model measure:
 
-- `pivottable(get-cache-options)`: Read refresh, retained-item, optimization, and saved-source settings.
-- `pivottable(set-cache-options)`: Set `enable_refresh`, `refresh_on_file_open`, `missing_items_limit`, `optimize_cache`, or `save_source_data`.
-- `missing_items_limit` values: `Default`, `None`, `Max`, `Max2`.
-- Deleted-item retention applies only to regular PivotTables. OLAP/Data Model caches manage members in the model.
-
-## Field Configuration
-
-### Row/Column/Value Fields
-
-When creating PivotTables, configure fields in order:
-1. Add Row fields: `pivottable_field(add-row-field, pivot_table_name="SalesPivot", field_name="Region")`
-2. Add Column fields: `pivottable_field(add-column-field, pivot_table_name="SalesPivot", field_name="Year")`
-3. Add Value fields: `pivottable_field(add-value-field, pivot_table_name="SalesPivot", field_name="Amount", aggregation_function="Sum")`
-4. Add filters: `pivottable_field(add-filter-field, pivot_table_name="SalesPivot", field_name="Status")`
-5. **Refresh to update display**: `pivottable(refresh, pivot_table_name="SalesPivot")`
-
-**IMPORTANT**: Field operations are structural only - they modify the PivotTable layout but don't trigger visual refresh. Call `pivottable(refresh)` after configuring all fields to update the display. This is especially important for OLAP/Data Model PivotTables.
-
-### Manual Grouping
-
-```
-pivottable_field(group-items, pivot_table_name="SalesPivot", field_name="Region", item_names=["North", "South"], group_name="Core Regions")
-# Use groupedFieldName from the result:
-pivottable_field(ungroup-field, pivot_table_name="SalesPivot", grouped_field_name="Region2")
+```dax
+SUMX(Sales, Sales[Quantity] * Sales[UnitPrice])
 ```
 
-Manual grouping requires a regular PivotTable and a field already placed in the Row or Column area. OLAP/Data Model PivotTables must add grouping columns in the model.
+DAX requires the table in the model first. Use
+[Data Model guidance](datamodel.md) for relationships, measures, and display.
 
-### Drill Through
+## Refresh, layout, and grouping
 
-```
-pivottable(drill-through, pivot_table_name="SalesPivot", cell_address="G4")
-```
+- After source edits, refresh the Data Model if used, then the PivotTable.
+  Power Query refresh updates its model load; refresh the PivotTable afterward.
+- After field changes, refresh once all fields are configured, especially for
+  model-backed PivotTables.
+- Layout values are 0 Compact, 1 Tabular, 2 Outline. Tabular is useful for exports.
+- Use field number formats, not plain-range visual formatting on PivotTable cells.
+- Manual grouping needs a regular PivotTable field in Rows or Columns. Grouped
+  field names come from the result; use that returned name to ungroup.
+- Date/numeric grouping and calculated fields are not model-backed operations;
+  add grouping columns or measures in the source/model instead.
+- Drill-through requires a regular PivotTable value cell and creates a worksheet
+  of underlying rows. The provider-dependent model equivalent is not exposed.
+- Cache options control refresh, retained items, and saved source data. Retained
+  item limits apply to regular caches, not model-managed members.
 
-The target must be a value cell in a regular PivotTable data body. Excel creates a new worksheet containing the underlying source rows. OLAP/Data Model drill-through is provider-dependent and intentionally not exposed as a deterministic operation.
-
-### Aggregation Functions for Value Fields
-
-| Function | Use Case |
-|----------|----------|
-| Sum | Totals (revenue, quantity) |
-| Count | Record counts |
-| Average | Mean values |
-| Min/Max | Extremes |
-| CountNums | Count numbers only |
-| StdDev/Var | Statistical analysis |
-
-## Common Patterns
-
-### Revenue Analysis from Worksheet Table
-
-```
-# Option 1: Add revenue column to source table FIRST
-range(set-formulas, sheet_name="Sales", range_address="I2", formulas=[["=[@Quantity]*[@UnitPrice]"]])
-pivottable(create-from-table, pivot_table_name="SalesPivot", destination_sheet="Analysis", destination_cell="A3", table_name="SalesTable")
-pivottable_field(add-value-field, pivot_table_name="SalesPivot", field_name="Revenue", aggregation_function="Sum")
-
-# Option 2: Use Data Model (RECOMMENDED)
-table(add-to-data-model, table_name="SalesTable")
-datamodel(create-measure, table_name="SalesTable", measure_name="Revenue", dax_formula="SUMX(SalesTable, SalesTable[Quantity]*SalesTable[UnitPrice])")
-pivottable(create-from-datamodel, pivot_table_name="SalesPivot", destination_sheet="Analysis", destination_cell="A3", table_name="SalesTable")
-```
-
-### Multi-Table Analysis
-
-Always use Data Model for multi-table analysis:
-```
-table(add-to-data-model, table_name="Sales")
-table(add-to-data-model, table_name="Products")
-datamodel_relationship(create-relationship, from_table="Sales", from_column="ProductID", to_table="Products", to_column="ProductID")
-datamodel(create-measure, table_name="Sales", measure_name="Revenue", dax_formula="SUMX(Sales, RELATED(Products[Price])*Sales[Quantity])")
-pivottable(create-from-datamodel, pivot_table_name="SalesPivot", destination_sheet="Analysis", destination_cell="A3", table_name="Sales")
-```
-
-## Layout Styles
-
-The `row_layout` parameter on `pivottable_calc(set-layout)` controls PivotTable appearance:
-
-| Value | Style | Description |
-|-------|-------|-------------|
-| 0 | Compact | Default, nested row labels |
-| 1 | Tabular | Each field in separate column, best for exports |
-| 2 | Outline | Hierarchical with expand/collapse |
-
-## Common Errors and Solutions
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Unknown field" aggregation error | Calculated field type limitation | Use DAX measure instead |
-| "Table not found" | Source not in Data Model | Add with `table(add-to-data-model)` |
-| "Field not found" | Typo or Data Model not refreshed | Refresh Data Model, check field names |
-| Data doesn't update | Source changed without refresh | Call `pivottable(refresh)` |
-| DAX measures missing | Created on worksheet PivotTable | Use `create-from-datamodel` |
+For charts that must follow field/filter changes, create a verified live
+[PivotChart](chart.md), not a static chart of the displayed cells.

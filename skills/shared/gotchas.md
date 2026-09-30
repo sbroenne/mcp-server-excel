@@ -54,9 +54,14 @@ formula does not universally produce zero or require manual calculation.
 Use `calculation_mode get-mode`, calculate when needed, and restore the prior
 mode after any temporary change. Read formula text with `range get-formulas`.
 
-```text
-calculation_mode(action: 'get-mode', session_id: '<session-id>')
-calculation_mode(action: 'calculate', session_id: '<session-id>', scope: 'workbook')
+```mcp
+calculation_mode(action: 'get-mode', session_id: sessionId)
+calculation_mode(action: 'calculate', session_id: sessionId, scope: 'workbook')
+```
+
+```cli
+excelcli -q calculationmode get-mode --session $sessionId
+excelcli -q calculationmode calculate --session $sessionId --scope workbook
 ```
 
 `pythoninexcel` executes in Microsoft's cloud, not local Python. It requires a

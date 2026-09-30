@@ -13,8 +13,8 @@ Use `querytable` for worksheet QueryTables backed by the desktop Excel COM objec
 
 ## Text Import
 
-```text
-querytable(action: 'create-text',
+```mcp
+querytable(action: 'create-text', session_id: sessionId,
     query_table_name: 'OrdersCsv',
     source_path: 'C:\Data\orders.csv',
     sheet_name: 'Orders',
@@ -25,6 +25,13 @@ querytable(action: 'create-text',
     has_headers: true)
 ```
 
+```cli
+excelcli -q querytable create-text --session $sessionId --query-table-name OrdersCsv --source-path $sourcePath --sheet Orders --destination-address A1 --delimiter ',' --text-qualifier double-quote --encoding 65001 --has-headers true
+```
+
+Use a known readable source path and an existing destination sheet. The example
+names are illustrative; use the actual target and inspect occupied cells first.
+
 - `delimiter` is exactly one character.
 - `text_qualifier` is `double-quote`, `single-quote`, or `none`.
 - `encoding` is a Windows code page; use `65001` for UTF-8.
@@ -32,8 +39,8 @@ querytable(action: 'create-text',
 
 ## Legacy Web Import
 
-```text
-querytable(action: 'create-web',
+```mcp
+querytable(action: 'create-web', session_id: sessionId,
     query_table_name: 'RatesHtml',
     url: 'https://example.com/rates.html',
     sheet_name: 'Rates',
@@ -42,6 +49,12 @@ querytable(action: 'create-web',
     web_tables: '1',
     formatting: 'none')
 ```
+
+```cli
+excelcli -q querytable create-web --session $sessionId --query-table-name RatesHtml --url $sourceUrl --sheet Rates --destination-address A1 --selection-type specified-tables --web-tables '1' --formatting none
+```
+
+The source URL must identify the user's intended HTML page, not a guessed site.
 
 - `selection_type` is `entire-page`, `all-tables`, or `specified-tables`.
 - `web_tables` is required with `specified-tables`.

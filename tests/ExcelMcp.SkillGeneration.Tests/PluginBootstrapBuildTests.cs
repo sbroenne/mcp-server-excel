@@ -311,13 +311,14 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "PluginBootstrap")]
-    public void BuildAgentSkills_UsesPortableNewlinesForCliSyntaxNotice()
+    public void BuildAgentSkills_UsesPortableNewlinesForSurfaceExamples()
     {
         var script = File.ReadAllText(BuildAgentSkillsScript);
 
         Assert.Contains("-replace \"`r`n?\", \"`n\"", script, StringComparison.Ordinal);
-        Assert.Contains("$cliSyntaxNotice`n`n$sourceContent", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("$cliSyntaxNotice`r`n", script, StringComparison.Ordinal);
+        Assert.Contains("(?<surface>cli|mcp)", script, StringComparison.Ordinal);
+        Assert.Contains("$match.Groups['body'].Value + '```' + \"`n\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("CLI syntax note", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -508,10 +509,9 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                     Path.GetFileName(sourceSharedReference));
                 Assert.True(File.Exists(builtSharedReference), $"Expected excel-cli plugin to package shared reference at {builtSharedReference}");
                 var builtContent = File.ReadAllText(builtSharedReference);
-                Assert.Contains("CLI syntax note", builtContent);
-                Assert.Contains(
-                    NormalizeLineEndings(File.ReadAllText(sourceSharedReference)),
-                    NormalizeLineEndings(builtContent));
+                Assert.Equal(
+                    File.ReadAllText(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli", "references", Path.GetFileName(sourceSharedReference))),
+                    builtContent);
 
                 var builtMcpReference = Path.Combine(
                     outputDir,
@@ -521,7 +521,15 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                     "references",
                     Path.GetFileName(sourceSharedReference));
                 Assert.True(File.Exists(builtMcpReference), $"Expected excel-mcp plugin to package shared reference at {builtMcpReference}");
-                Assert.Equal(File.ReadAllText(sourceSharedReference), File.ReadAllText(builtMcpReference));
+                Assert.Equal(
+                    File.ReadAllText(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp", "references", Path.GetFileName(sourceSharedReference))),
+                    File.ReadAllText(builtMcpReference));
+            }
+            var generatedCommands = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli", "references", "commands");
+            foreach (var commandPage in Directory.GetFiles(generatedCommands, "*.md"))
+            {
+                var packagedPage = Path.Combine(outputDir, "excel-cli", "skills", "excel-cli", "references", "commands", Path.GetFileName(commandPage));
+                Assert.Equal(File.ReadAllText(commandPage), File.ReadAllText(packagedPage));
             }
         }
         finally
@@ -2439,11 +2447,6 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
         var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcp-{name}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sandbox);
         return sandbox;
-    }
-
-    private static string NormalizeLineEndings(string value)
-    {
-        return value.Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static void DeleteDirectoryIfExists(string path)
