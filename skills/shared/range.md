@@ -26,6 +26,8 @@ Check each result before continuing. The header example is for plain cells, not
 an Excel Table. Use [Table styles](table.md) for Table headers/data. Combine all
 visual properties in one call; use shared `format-ranges` for disjoint ranges on
 one sheet. All target ranges are validated before that operation starts.
+For new user-facing reports or requested formatting, see the scoped
+[report-formatting workflow](report-formatting.md); preserve existing templates.
 
 ## Number formats and layout
 

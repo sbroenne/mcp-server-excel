@@ -61,6 +61,9 @@ a path. Ask when the target or a destructive change remains unclear.
 
 Reading data does not require writes, formatting, Tables, charts, or PivotTables.
 Preserve existing structures and formats unless the task calls for changing them.
+For new user-facing reports or requested formatting, read
+[report formatting](./references/report-formatting.md). Its defaults do not
+apply to reads, raw exports, or unrelated parts of an existing template.
 
 ### Rule 3: Session Lifecycle
 
@@ -243,6 +246,7 @@ See [CLI command reference and common pitfalls](./references/cli-commands.md#com
 - [Anti-patterns](./references/anti-patterns.md)
 - [Common workflows](./references/workflows.md)
 - [Ranges](./references/range.md)
+- [Report formatting](./references/report-formatting.md)
 - [Worksheets](./references/worksheet.md)
 - [Charts](./references/chart.md)
 - [Power Query](./references/powerquery.md)
