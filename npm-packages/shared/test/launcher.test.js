@@ -13,6 +13,33 @@ for (const [packageName, commandName] of [
   ['@sbroenne/excelcli', 'excelcli'],
   ['@sbroenne/mcp-server-excel', 'excel-mcp']
 ]) {
+  for (const arch of ['x64', 'arm64']) {
+    test(`${commandName} resolves only its matching ${arch} runtime`, () => {
+      const launcher = createLauncher({ packageName, commandName });
+      const expectedPackage = `${packageName}-win32-${arch}`;
+      assert.equal(launcher.resolveRuntime({
+        platform: 'win32',
+        arch,
+        resolvePackage: name => {
+          assert.equal(name, expectedPackage);
+          return 'C:\\runtime\\command.exe';
+        }
+      }), 'C:\\runtime\\command.exe');
+
+      const attempts = [];
+      assert.throws(() => launcher.resolveRuntime({
+        platform: 'win32',
+        arch,
+        resolvePackage: name => {
+          attempts.push(name);
+          throw new Error('missing runtime');
+        }
+      }), error => error.message.includes(expectedPackage) &&
+        error.message.includes('optional dependencies enabled'));
+      assert.deepEqual(attempts, [expectedPackage], 'Missing runtimes must not fall back.');
+    });
+  }
+
   test(`${commandName} forwards real child I/O and nonzero exit status`, () => {
     const launcherUrl = new URL('../launcher.js', import.meta.url).href;
     const childCode = `
@@ -53,7 +80,7 @@ test('CLI resolves its own runtime and forwards command arguments unchanged', ()
     arch: 'arm64',
     args: ['-q', 'session', 'open', 'C:\\Data\\Book with spaces.xlsx'],
     resolvePackage: name => {
-      assert.equal(name, '@sbroenne/excelcli-win32-x64');
+      assert.equal(name, '@sbroenne/excelcli-win32-arm64');
       return 'C:\\runtime\\excelcli.exe';
     },
     foreground: (...parameters) => { invocation = parameters; }
@@ -91,7 +118,7 @@ test('resolveRuntime rejects unsupported operating systems', () => {
   );
 });
 
-test('resolveRuntime supports Windows Arm64 through x64 emulation', () => {
+test('resolveRuntime supports native Windows Arm64', () => {
   assert.equal(
     resolveRuntime({
       platform: 'win32',

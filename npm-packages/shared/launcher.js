@@ -5,8 +5,6 @@ import { foregroundChild } from 'foreground-child';
 const require = createRequire(import.meta.url);
 
 export function createLauncher({ packageName, commandName }) {
-  const runtimePackageName = `${packageName}-win32-x64`;
-
   function resolveRuntime({
     platform = process.platform,
     arch = process.arch,
@@ -20,6 +18,7 @@ export function createLauncher({ packageName, commandName }) {
       throw new Error(`ExcelMcp requires Windows x64 or Arm64; this Node.js process is ${arch}.`);
     }
 
+    const runtimePackageName = `${packageName}-win32-${arch}`;
     try {
       return resolvePackage(runtimePackageName);
     } catch (cause) {

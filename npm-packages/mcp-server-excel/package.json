@@ -35,7 +35,8 @@
     "foreground-child": "^4.0.3"
   },
   "optionalDependencies": {
-    "@sbroenne/mcp-server-excel-win32-x64": "file:../mcp-server-excel-win32-x64"
+    "@sbroenne/mcp-server-excel-win32-x64": "file:../mcp-server-excel-win32-x64",
+    "@sbroenne/mcp-server-excel-win32-arm64": "file:../mcp-server-excel-win32-arm64"
   },
   "publishConfig": {
     "access": "public",

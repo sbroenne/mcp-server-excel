@@ -9,14 +9,27 @@ import test from 'node:test';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const version = '9.8.7-test.1';
 
-for (const [component, packageName, commandName] of [
+function executableFixture(arch) {
+  const payload = Buffer.alloc(128);
+  payload.write('MZ');
+  payload.writeUInt32LE(64, 0x3c);
+  payload.write('PE\0\0', 64);
+  payload.writeUInt16LE(arch === 'arm64' ? 0xaa64 : 0x8664, 68);
+  return payload;
+}
+
+const products = [
   ['McpServer', 'mcp-server-excel', 'mcp-excel'],
   ['Cli', 'excelcli', 'excelcli']
-]) {
-  test(`${component} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
+];
+
+for (const [component, packageName, commandName, arch] of products.flatMap(product =>
+  ['x64', 'arm64'].map(arch => [...product, arch])
+)) {
+  test(`${component} ${arch} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
     const executable = join(sandbox, `${commandName}.exe`);
-    const payload = Buffer.from('package fixture, not an executable');
+    const payload = executableFixture(arch);
     const sourceManifest = join(repoRoot, 'npm-packages', packageName, 'package.json');
     const originalManifest = readFileSync(sourceManifest, 'utf8');
     try {
@@ -24,6 +37,7 @@ for (const [component, packageName, commandName] of [
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version,
+        '-Architecture', arch,
         '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
       ], { encoding: 'utf8', timeout: 90_000 });
       assert.ifError(result.error);
@@ -32,7 +46,7 @@ for (const [component, packageName, commandName] of [
 
       for (const [kind, archive, name] of [
         ['launcher', packages.LauncherPackage, packageName],
-        ['runtime', packages.RuntimePackage, `${packageName}-win32-x64`]
+        ['runtime', packages.RuntimePackage, `${packageName}-win32-${arch}`]
       ]) {
         const destination = join(sandbox, kind);
         mkdirSync(destination);
@@ -50,10 +64,13 @@ for (const [component, packageName, commandName] of [
         if (kind === 'runtime') {
           assert.equal(manifest.main, `${commandName}.exe`);
           assert.deepEqual(manifest.os, ['win32']);
-          assert.deepEqual(manifest.cpu, ['x64', 'arm64']);
+          assert.deepEqual(manifest.cpu, [arch]);
           assert.deepEqual(readFileSync(join(root, manifest.main)), payload);
         } else {
-          assert.deepEqual(manifest.optionalDependencies, { [`@sbroenne/${packageName}-win32-x64`]: version });
+          assert.deepEqual(manifest.optionalDependencies, {
+            [`@sbroenne/${packageName}-win32-x64`]: version,
+            [`@sbroenne/${packageName}-win32-arm64`]: version
+          });
           assert.equal(manifest.bin[commandName], `bin/${commandName}.js`);
           assert.match(readFileSync(join(root, manifest.bin[commandName]), 'utf8'), new RegExp(`packageName: '@sbroenne/${packageName}'`));
           assert.equal(readFileSync(join(root, 'lib', 'launcher.js'), 'utf8'), readFileSync(join(repoRoot, 'npm-packages', 'shared', 'launcher.js'), 'utf8'));
@@ -63,6 +80,66 @@ for (const [component, packageName, commandName] of [
         }
       }
       assert.equal(readFileSync(sourceManifest, 'utf8'), originalManifest, 'Packaging must not stamp the source tree.');
+      if (process.platform === 'win32' && process.arch !== arch) {
+        const inspection = spawnSync('pwsh', [
+          '-NoProfile', '-File', join(repoRoot, 'scripts', 'Test-NpmPackages.ps1'),
+          '-Component', component, '-Architecture', arch,
+          '-LauncherPackage', packages.LauncherPackage, '-RuntimePackage', packages.RuntimePackage
+        ], { encoding: 'utf8', timeout: 25_000 });
+        assert.ifError(inspection.error);
+        assert.equal(inspection.status, 0, `${inspection.stdout}\n${inspection.stderr}`);
+        assert.match(inspection.stdout, /archives validated/);
+        assert.match(inspection.stdout, /execution NOT RUN/);
+      }
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+  test(`${component} rejects a mislabeled ${arch} runtime`, { timeout: 30_000 }, () => {
+    const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmMismatch-'));
+    try {
+      const executable = join(sandbox, `${commandName}.exe`);
+      writeFileSync(executable, executableFixture(arch === 'arm64' ? 'x64' : 'arm64'));
+      const result = spawnSync('pwsh', [
+        '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
+        '-Component', component, '-Version', version, '-Architecture', arch,
+        '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
+      ], { encoding: 'utf8', timeout: 25_000 });
+      assert.ifError(result.error);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /machine type.*does not match/i);
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const [name, payload] of [
+  ['non-executable', Buffer.from('not an executable')],
+  ['invalid offset', (() => {
+    const payload = executableFixture('arm64');
+    payload.writeUInt32LE(0xffffffff, 0x3c);
+    return payload;
+  })()],
+  ['invalid PE signature', (() => {
+    const payload = executableFixture('arm64');
+    payload.writeUInt32LE(0, 64);
+    return payload;
+  })()]
+]) {
+  test(`packaging rejects ${name} before creating tarballs`, { timeout: 30_000 }, () => {
+    const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmInvalid-'));
+    try {
+      const executable = join(sandbox, 'runtime.exe');
+      writeFileSync(executable, payload);
+      const result = spawnSync('pwsh', [
+        '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
+        '-Version', version, '-Architecture', 'arm64',
+        '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
+      ], { encoding: 'utf8', timeout: 25_000 });
+      assert.ifError(result.error);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /not a Windows executable|invalid executable header|invalid PE signature/);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }

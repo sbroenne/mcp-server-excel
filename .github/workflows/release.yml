@@ -335,7 +335,7 @@ jobs:
           else { Remove-Item Env:NODE_AUTH_TOKEN -ErrorAction SilentlyContinue }
           npm install --global npm@11
           if ($LASTEXITCODE -ne 0) { throw 'npm setup failed.' }
-          foreach ($name in @('excelcli-win32-x64', 'mcp-server-excel-win32-x64', 'excelcli', 'mcp-server-excel')) {
+          foreach ($name in @('excelcli-win32-x64', 'excelcli-win32-arm64', 'mcp-server-excel-win32-x64', 'mcp-server-excel-win32-arm64', 'excelcli', 'mcp-server-excel')) {
             npm view "@sbroenne/$name@$env:VERSION" version --json 2>$null | Out-Null
             if ($LASTEXITCODE -eq 0) { continue }
             npm publish "./artifacts/npm/sbroenne-$name-$env:VERSION.tgz" --access public

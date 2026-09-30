@@ -43,8 +43,10 @@ When you run the release workflow, all components are released together:
 |----------|--------|--------------|
 | `@sbroenne/mcp-server-excel@{version}` | npm | npm registry (primary launcher package) |
 | `@sbroenne/mcp-server-excel-win32-x64@{version}` | npm | npm registry (self-contained Windows runtime) |
+| `@sbroenne/mcp-server-excel-win32-arm64@{version}` | npm | npm registry (self-contained native Windows ARM64 runtime) |
 | `@sbroenne/excelcli@{version}` | npm | npm registry (primary CLI launcher package) |
 | `@sbroenne/excelcli-win32-x64@{version}` | npm | npm registry (self-contained Windows CLI runtime) |
+| `@sbroenne/excelcli-win32-arm64@{version}` | npm | npm registry (self-contained native Windows ARM64 CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs and the prepared plugin ZIP) |
@@ -115,7 +117,7 @@ Each distribution reports its own result; repair only the failed destination.
 After workflow completes:
 
 - [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, `SHA256SUMS`, VSIX, MCPB, skills ZIP)
-- [ ] All four npm packages (MCP Server and CLI launchers plus their Windows runtimes) are available at the release version
+- [ ] All six npm packages (MCP Server and CLI launchers plus their x64 and ARM64 Windows runtimes) are available at the release version
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
@@ -268,7 +270,7 @@ Configure these GitHub repository secrets and variables:
 
 > **Notes:**
 > - NuGet uses OIDC trusted publishing (no API key needed). The `NUGET_USER` is just the NuGet.org profile name for OIDC token exchange.
-> - npm trusted publishing cannot bootstrap a new package. Use `NPM_TOKEN` for the first release, configure `release.yml` as the trusted publisher for all four npm packages (MCP Server and CLI launchers and runtimes), then remove the token; npm automatically prefers OIDC and generates provenance.
+> - npm trusted publishing cannot bootstrap a new package. Use `NPM_TOKEN` for the first release of each new package, including the two ARM64 runtimes. Configure `release.yml` as the trusted publisher for all six npm packages (MCP Server and CLI launchers and their x64/ARM64 runtimes), then remove the token; npm automatically prefers OIDC and generates provenance.
 > - The follow-on plugin publish workflow uses a stored cross-repo token (`PLUGINS_REPO_TOKEN`) with write access to the published plugin repo. A PAT needs `public_repo`; an app token needs `contents:write`.
 
 ## Troubleshooting
@@ -281,7 +283,7 @@ Configure these GitHub repository secrets and variables:
 ### npm Publishing Fails
 
 - For the first release, verify `NPM_TOKEN` can publish public packages under the `@sbroenne` scope
-- After the first release, configure all four npm packages to trust the `release.yml` GitHub Actions workflow
+- After the first release, configure all six npm packages to trust the `release.yml` GitHub Actions workflow
 - Confirm the workflow has `id-token: write` and uses npm 11 or later
 
 ### npm Packaging Development
@@ -300,6 +302,22 @@ npm test --prefix npm-packages/shared
 On Windows, build and smoke-test each real runtime with
 `scripts/Build-NpmPackages.ps1` and `scripts/Test-NpmPackages.ps1`.
 Pass `-Component Cli` for `excelcli`; the default remains `McpServer`.
+Pass `-Architecture x64` (the default) or `-Architecture arm64` to both scripts.
+The executable's PE machine type must match the package architecture.
+Both launcher dependencies are stamped to the same release version.
+
+`Build-ReleasePackages.ps1` builds both npm architectures while preserving x64
+payloads for standalone ZIPs and other bundles. All four runtime packages are
+published before either launcher. ARM64 Node.js selects ARM64; x64 Node.js
+selects x64, even on ARM64 Windows. Missing matching runtimes fail explicitly.
+
+`Test-NpmPackages.ps1` inspects both archives, but installs and executes a runtime
+only when Node.js matches its architecture. On the x64 hosted release runner,
+ARM64 archive validation runs and ARM64 execution is reported as **not run**.
+Validate native ARM64 execution and real Excel automation locally on Windows
+ARM64 before release. Package installation, help, and MCP discovery alone do
+not establish Excel compatibility.
+
 The CLI smoke test checks help, version, subcommand arguments, output, and
 failure exit codes; the MCP smoke test checks initialization and tool discovery.
 These smoke tests do not exercise Excel automation.

@@ -1,23 +1,23 @@
 {
-  "name": "@sbroenne/mcp-server-excel-win32-x64",
+  "name": "@sbroenne/excelcli-win32-arm64",
   "version": "0.0.0-development",
-  "description": "Windows x64 runtime for the ExcelMcp MCP server.",
+  "description": "Windows ARM64 runtime for the ExcelMcp CLI.",
   "license": "MIT",
-  "main": "mcp-excel.exe",
+  "main": "excelcli.exe",
   "files": [
-    "mcp-excel.exe"
+    "excelcli.exe"
   ],
   "os": [
     "win32"
   ],
   "cpu": [
-    "x64"
+    "arm64"
   ],
   "preferUnplugged": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/sbroenne/mcp-server-excel",
-    "directory": "npm-packages/mcp-server-excel-win32-x64"
+    "directory": "npm-packages/excelcli-win32-arm64"
   },
   "homepage": "https://excelmcpserver.dev/",
   "publishConfig": {
