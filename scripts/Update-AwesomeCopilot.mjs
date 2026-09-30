@@ -18,6 +18,10 @@ function run(command, args, cwd, env = externalCommandEnvironment()) {
 }
 
 export function validateUpstreamBuild(directory, { env = process.env, execute = run } = {}) {
+    if ([process.env, env].some(environment => Object.keys(environment).some(name =>
+        /^(AWESOME_COPILOT_PR_TOKEN|PLUGINS_REPO_TOKEN|RELEASE_PAT)$/i.test(name) && environment[name]))) {
+        throw new Error('Upstream build blocked: write credential is present in the parent process. Use a separate token-free process.');
+    }
     const childEnv = externalCommandEnvironment(env);
     execute('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], directory, childEnv);
     execute('npm', ['run', 'plugin:validate'], directory, childEnv);
@@ -135,13 +139,27 @@ export function assertPendingTree(directory, plan) {
     }
 }
 
-function patch(directory, plan) {
+export function patch(directory, plan, validatedFiles) {
     const file = path.join(directory, 'plugins', 'external.json');
     const before = parseJson(fs.readFileSync(file));
     const after = before.map(entry => plan.state.entries[entry.name]?.entry ?? entry);
     assertListingPatch(before, after, plan.changedPlugins);
-    fs.writeFileSync(file, `${JSON.stringify(after, null, 2)}\n`);
-    validateUpstreamBuild(directory);
+    if (validatedFiles !== undefined) {
+        if (!validatedFiles || typeof validatedFiles !== 'object' || Array.isArray(validatedFiles)) {
+            throw new Error('Missing validated marketplace files.');
+        }
+        assertAllowedPaths(Object.keys(validatedFiles));
+        if (Object.values(validatedFiles).some(text => typeof text !== 'string') ||
+            Buffer.byteLength(canonical(validatedFiles)) > 2 * 1024 * 1024 ||
+            !Object.hasOwn(validatedFiles, 'plugins/external.json') ||
+            canonical(parseJson(Buffer.from(validatedFiles['plugins/external.json']))) !== canonical(after)) {
+            throw new Error('Validated files do not match the freshly verified listing proposal.');
+        }
+        for (const [name, text] of Object.entries(validatedFiles)) fs.writeFileSync(path.join(directory, name), text);
+    } else {
+        fs.writeFileSync(file, `${JSON.stringify(after, null, 2)}\n`);
+        validateUpstreamBuild(directory);
+    }
     const paths = git(directory, ['diff', '--name-only']).toString().trim().split(/\r?\n/);
     assertAllowedPaths(paths);
     const external = parseJson(fs.readFileSync(file));
@@ -160,10 +178,17 @@ function patch(directory, plan) {
     }
     const files = Object.fromEntries(paths.map(name => [name, fs.readFileSync(path.join(directory, name), 'utf8')]));
     if (Buffer.byteLength(canonical(files)) > 2 * 1024 * 1024) throw new Error('Marketplace patch exceeds two MiB.');
+    if (validatedFiles !== undefined && canonical(files) !== canonical(validatedFiles)) {
+        throw new Error('Validated patch files differ from the exact destination diff.');
+    }
     return files;
 }
 
 export function prepare({ tag, workDirectory }) {
+    return preparePlan({ tag, workDirectory });
+}
+
+function preparePlan({ tag, workDirectory, validatedFiles }) {
     assertTag(tag);
     fs.mkdirSync(workDirectory, { recursive: true });
     const published = path.join(workDirectory, 'published');
@@ -192,7 +217,7 @@ export function prepare({ tag, workDirectory }) {
     }
     assertForkHeads(plan, readForkHeads(), pulls);
     checkout(upstream, plan.expectedHead ?? upstreamCommit);
-    plan.files = patch(upstream, plan);
+    plan.files = patch(upstream, plan, validatedFiles);
     plan.state.base = plan.previousState?.base ?? upstreamCommit;
     plan.patchFingerprint = hash(canonical(plan.files));
     plan.guardFingerprint = guardFingerprint(plan);
@@ -206,6 +231,19 @@ function guardFingerprint(plan) {
         expectedBody: plan.expectedBody,
         patchFingerprint: plan.patchFingerprint,
     }));
+}
+
+export function recheckPreparedPlan({ trustedPlan, workDirectory }) {
+    if (!trustedPlan.files || trustedPlan.patchFingerprint !== hash(canonical(trustedPlan.files)) ||
+        trustedPlan.guardFingerprint !== guardFingerprint(trustedPlan)) {
+        throw new Error('Trusted build plan fingerprint mismatch; no writes performed.');
+    }
+    // Recheck current public inputs and exact built bytes without executing upstream code in the writer.
+    const fresh = preparePlan({ tag: trustedPlan.tag, workDirectory, validatedFiles: trustedPlan.files });
+    if (fresh.action !== 'noop' && fresh.guardFingerprint !== trustedPlan.guardFingerprint) {
+        throw new Error('Precheck changed; retry preview. No writes performed.');
+    }
+    return fresh;
 }
 
 export function validateRequest(output, trustedPlan) {
@@ -312,9 +350,8 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
     if (!fork.fork || fork.parent?.full_name !== upstreamRepo || fork.permissions?.push !== true) {
         throw new Error('Destination must be the writable allowlisted upstream fork.');
     }
-    const fresh = prepare({ tag: trustedPlan.tag, workDirectory });
+    const fresh = recheckPreparedPlan({ trustedPlan, workDirectory });
     if (fresh.action === 'noop') return { status: 'skipped', reason: fresh.reason };
-    if (fresh.guardFingerprint !== trustedPlan.guardFingerprint) throw new Error('Precheck changed; retry preview. No writes performed.');
     const upstream = path.join(workDirectory, 'upstream');
     const templatePath = path.join(upstream, '.github', 'pull_request_template.md');
     if (!fs.existsSync(templatePath)) throw new Error('Upstream PR template is missing; human review required.');

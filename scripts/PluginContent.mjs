@@ -257,11 +257,25 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const current = validatePublication(baseline, { repairStamps: manual === 'true' });
     const prepared = validatePublication(candidate);
     if (prepared.version !== assertVersion(version)) throw new Error('Candidate version mismatch.');
-    const comparison = compareTrees(baseline, candidate, { repairStamps: manual === 'true' });
+    const destinationComparison = compareTrees(baseline, candidate, { repairStamps: manual === 'true' });
+    let distributedComparison = destinationComparison;
+    if (manual !== 'true') {
+        const tagged = readGitTree(baselineRepo, resolveCommit(baselineRepo, `refs/tags/v${current.version}`));
+        if (validatePublication(tagged).version !== current.version) throw new Error('Current immutable tag/version mismatch.');
+        distributedComparison = compareTrees(tagged, candidate);
+    }
+    const comparison = {
+        ...destinationComparison,
+        changedPaths: [...new Set([...destinationComparison.changedPaths, ...distributedComparison.changedPaths])].sort(),
+        changedPlugins: distributedComparison.changedPlugins,
+    };
     const rawChanged = canonical([...baseline].map(([name, file]) => [name, file.mode, hash(file.bytes)]).sort()) !==
         canonical([...candidate].map(([name, file]) => [name, file.mode, hash(file.bytes)]).sort());
     console.log(JSON.stringify({
         ...comparison, currentVersion: current.version, version, rawChanged, repairs: current.repairs,
+        destinationChangedPaths: destinationComparison.changedPaths,
+        distributedChangedPaths: distributedComparison.changedPaths,
+        distributedBaselineFingerprint: distributedComparison.baselineFingerprint,
         ...publicationDecision(comparison, {
             currentVersion: current.version, version, manualRepair: manual === 'true', tagExists: exists === 'true', rawChanged,
         }),

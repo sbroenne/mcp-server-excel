@@ -104,6 +104,9 @@ try {
         $paths = @($baselineFiles + $candidateFiles | Sort-Object -Unique)
         [IO.File]::WriteAllText($pathspecFile, ($paths -join "`0") + "`0", [Text.UTF8Encoding]::new($false))
         git --literal-pathspecs -C $published -c core.autocrlf=true add --all --force "--pathspec-from-file=$pathspecFile" --pathspec-file-nul
+        # Copying can preserve equal-size cached timestamps; re-read every known candidate file.
+        [IO.File]::WriteAllText($pathspecFile, ($candidateFiles -join "`0") + "`0", [Text.UTF8Encoding]::new($false))
+        git --literal-pathspecs -C $published -c core.autocrlf=true add --renormalize --force "--pathspec-from-file=$pathspecFile" --pathspec-file-nul
         if ((git -C $published write-tree) -ne $tree) {
             throw 'Destination staged tree differs from the validated prepared publication; commit/push/tag blocked.'
         }
@@ -129,6 +132,9 @@ try {
         baseline_commit = $baselineCommit
         baseline_fingerprint = $evidence.baselineFingerprint
         candidate_fingerprint = $evidence.candidateFingerprint
+        distributed_baseline_fingerprint = $evidence.distributedBaselineFingerprint
+        destination_changed_paths = @($evidence.destinationChangedPaths)
+        distributed_changed_paths = @($evidence.distributedChangedPaths)
         repaired_stamps = @($evidence.repairs)
     }
     $result | ConvertTo-Json -Depth 10

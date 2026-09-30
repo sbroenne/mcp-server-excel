@@ -46,8 +46,9 @@ publication failure stays visible and can be repaired independently.
 
 After validating the prepared plugins and skills, the publisher prepares a
 disposable complete publication tree from the exact source release. It compares
-the files Git will distribute against the current published commit **before**
-staging the destination, committing, pushing, or creating a tag. Changed source
+the files Git will distribute against both publication `HEAD` and its current
+immutable published tag **before** staging the destination, committing, pushing,
+or creating a tag. Changed source
 paths are not sufficient: generated references can change with service contracts.
 
 The comparison ignores only:
@@ -71,6 +72,8 @@ Destination staging uses the same conversion rules, forces only the exact
 prepared/removed paths, and verifies its staged Git tree equals the validated
 candidate before any commit or tag. Legitimate ignored-name files are included;
 unrelated ignored local files are not staged.
+Known candidate files are explicitly re-read during staging, even when copying
+preserves a cached timestamp and a changed version/content has the same size.
 The output checkout retains the matching text-conversion setting so a later
 Git file-stat refresh does not report generated CRLF files as uncommitted changes.
 File/directory replacements remove only empty directories left by removed
@@ -83,8 +86,8 @@ removed in the exact released source. Unowned root files such as the existing
 license are retained and compared. A root-overlay-only change publishes output
 but does **not** request an Awesome Copilot listing update.
 
-If the normalized tree is unchanged, publication is **skipped entirely**. The
-existing plugin files, version, commit and tag remain; no new plugin tag is
+If the normalized tree matches both baselines, publication is **skipped entirely**.
+The existing plugin files, version, commit and tag remain; no new plugin tag is
 created merely to match a product release. GitHub/npm product publication has
 already happened and proceeds independently. For example, plugins at `v2.0.1`
 can remain at that tag through product releases `v2.0.2` and `v2.1.0`. A real
@@ -140,6 +143,14 @@ An existing immutable tag is never rewritten. A repair can update publication
 existing tags do not automatically hand off a different `main` commit as that
 tag. Repairing publication and catching up a listing are distinct tasks:
 the updater accepts an **existing published tag**, not every product tag.
+The next automatic release also compares its candidate with that retained tag,
+not only repaired `main`. If a content-changing repair is already present on
+`main`, a later otherwise-version-only release creates a new immutable plugin
+tag that makes the repair reachable by listings. Changed-plugin handoff is
+computed against the old immutable tag; destination staging still uses `HEAD`.
+Restoring `main` to content already distributed by the retained tag does not
+trigger a plugin listing update. Invalid immutable baseline content fails
+visibly rather than allowing a false no-change result.
 
 ## Maintenance and updates
 

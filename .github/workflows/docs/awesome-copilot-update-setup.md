@@ -96,13 +96,22 @@ gh secret set COPILOT_GITHUB_TOKEN --repo sbroenne/mcp-server-excel
 Set a short expiration, record ownership outside the repository, rotate before
 expiry, and revoke the old token after validating the replacement. Only the
 safe-output submit step sees the PR credential. Checkouts do not persist it.
+Upstream npm commands run only in the separate precheck job on its own
+GitHub-hosted runner, which starts without the PR write credential. The writer
+uses a different job/runner and a fresh trusted source checkout; upstream
+background processes and code changes cannot carry over. Filtering a child's
+environment alone is insufficient: on Linux a same-user child can inspect its parent's initial
+environment. Builds explicitly reject a parent containing a known write token.
+The token-bearing writer never runs upstream builds or scripts; it rechecks
+public source/PR inputs and verifies the precheck's exact built file bytes.
 External Git preparation (clone, fetch, checkout and content reads) and every
 upstream npm install/validation/build use copied environments that exclude the
 PR, GitHub, inference, publication and release credentials, including case
 variants on Windows. Injected Git configuration/auth headers and credential-
 helper environment variables are excluded too. Other build settings are preserved. Only trusted
 GitHub API operations and the allowlisted push receive explicit authentication;
-the original writer environment is not modified.
+the original writer environment is not modified or treated as a safe place to
+execute upstream code.
 The agent runs with read-only GitHub permissions. The publisher's separate
 `PLUGINS_REPO_TOKEN` continues to cover plugin output publication only.
 
@@ -175,7 +184,8 @@ non-fast-forward fallback is not this workflow's policy. The released
 `v0.89.21` supports fork `head-repo` create/update and custom safe-output jobs;
 the latter adds deterministic entry guards and forbids replacement PRs.
 The writer requires exactly one schema-valid output, ignores agent-authored
-patches, independently regenerates the trusted precheck, and verifies both the
+patches, independently rechecks the trusted precheck's current public inputs and
+exact built files without executing upstream code, and verifies both the
 expected branch head and body immediately before writing. Only
 `plugins/external.json` and generated `.github/plugin/marketplace.json` may
 change, and only affected Excel entries; all other entries/order/root metadata

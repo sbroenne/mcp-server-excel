@@ -92,7 +92,7 @@ safe-outputs:
     report-as-issue: false
   jobs:
     submit-marketplace-update:
-      description: Submit the independently revalidated exact Excel listing proposal, or refresh the same owned PR.
+      description: Recheck public inputs and exact prebuilt listing files without running upstream code, then submit or refresh the same owned PR.
       runs-on: ubuntu-latest
       if: needs.agent.result == 'success' && needs.detection.result == 'success' && needs.detection.outputs.detection_success == 'true'
       permissions:
@@ -115,7 +115,7 @@ safe-outputs:
           with:
             name: awesome-copilot-precheck
             path: ${{ runner.temp }}/trusted-precheck
-        - name: Guarded create or same-PR update (never fallback)
+        - name: Trusted writer only - no upstream build or script execution
           env:
             GH_TOKEN: ${{ github.token }}
             AWESOME_COPILOT_PR_TOKEN: ${{ secrets.AWESOME_COPILOT_PR_TOKEN }}
@@ -158,9 +158,11 @@ proposed entry for the other plugin and relevant human-written context; do not
 rewrite its title. Never include the machine state marker yourself.
 
 Call `submit_marketplace_update` exactly once, with the plan's `guardFingerprint`
-and that body. The permission-controlled job regenerates and validates the exact
-patch, rechecks ownership, expected head, declined proposals, opt-in and preview
-settings, and rejects any changed precheck before writing.
+and that body. The permission-controlled writer rechecks current public inputs
+and validates the exact files already built by the separate token-free precheck.
+It never runs upstream npm scripts in its token-bearing process. It rechecks
+ownership, expected head, declined proposals, opt-in and preview settings, and
+rejects any changed precheck before writing.
 Do not use direct GitHub writes, git push, fork-main synchronization, force push,
 labels, review requests, issues, merge, close or replacement PRs. If blocked,
 report the failure in the workflow only. No fallback.

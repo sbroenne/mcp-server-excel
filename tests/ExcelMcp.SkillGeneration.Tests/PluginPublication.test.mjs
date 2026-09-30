@@ -279,12 +279,10 @@ test('a reverted pending plugin blocks both no-op and other-plugin refreshes wit
     }
 });
 
-test('every upstream npm command receives a credential-free environment without changing writer credentials', () => {
+test('every token-free upstream npm command receives a sanitized environment without changing parent settings', () => {
     const env = { PATH: 'preserved-path', NODE_OPTIONS: '--max-old-space-size=4096',
-        AWESOME_COPILOT_PR_TOKEN: 'dummy-write-token', awesome_copilot_pr_token: 'dummy-lowercase-token',
         GH_TOKEN: 'dummy-read-token', GITHUB_TOKEN: 'dummy-token', COPILOT_GITHUB_TOKEN: 'dummy-inference-token',
         GH_AW_GITHUB_TOKEN: 'dummy-token', GH_AW_GITHUB_MCP_SERVER_TOKEN: 'dummy-token',
-        PLUGINS_REPO_TOKEN: 'dummy-publication-token', RELEASE_PAT: 'dummy-release-token',
         GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
         GIT_CONFIG_VALUE_0: 'AUTHORIZATION: dummy-header', GIT_CONFIG_PARAMETERS: "'http.extraheader=dummy-header'",
         GIT_ASKPASS: 'dummy-helper', SSH_ASKPASS: 'dummy-helper', GIT_SSH_COMMAND: 'dummy-helper',
@@ -302,7 +300,7 @@ test('every upstream npm command receives a credential-free environment without 
     } });
     assert.deepEqual(calls, [['ci', '--ignore-scripts', '--no-audit', '--no-fund'],
         ['run', 'plugin:validate'], ['run', 'build']]);
-    assert.equal(env.AWESOME_COPILOT_PR_TOKEN, 'dummy-write-token');
+    assert.equal(env.GH_TOKEN, 'dummy-read-token');
 });
 
 test('upstream build failure remains visible and stops remaining commands', () => {
@@ -312,6 +310,23 @@ test('upstream build failure remains visible and stops remaining commands', () =
         env: {}, execute: () => { calls++; throw failure; },
     }), error => error === failure);
     assert.equal(calls, 1);
+});
+
+test('upstream builds reject a write-token-bearing parent before executing any child', () => {
+    const probe = `
+        import { validateUpstreamBuild } from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
+        let calls = 0;
+        try {
+            validateUpstreamBuild('unused', { env: {}, execute: () => { calls++; } });
+            process.exitCode = 1;
+        } catch (error) {
+            if (!/write credential.*parent/i.test(error.message) || calls !== 0) throw error;
+            console.log('blocked before upstream execution');
+        }
+    `;
+    assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
+        { ...process.env, AWESOME_COPILOT_PR_TOKEN: 'fake-initial-parent-token' }).trim(),
+    'blocked before upstream execution');
 });
 
 test('human changes, duplicate owned PRs, wrong ownership and declined identical proposals block', () => {
@@ -558,6 +573,28 @@ test('compiled updater isolates writes, blocks failed detection and never create
     assert.equal(workflow.includes('GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"'), false);
     assert.equal(workflow.includes('GH_AW_MISSING_DATA_CREATE_ISSUE: "true"'), false);
     assert.match(workflow, /github\/gh-aw\/actions\/setup@c35393777e5604a63721d09512263b1383301d4f/);
+    const precheck = workflow.split('\n  pre_activation:')[1].split(/\n {2}[a-z_]+:/)[0];
+    assert.match(precheck, /runs-on: ubuntu-(slim|latest)/);
+    assert.match(precheck, /Update-AwesomeCopilot\.mjs prepare/);
+    assert.equal(precheck.includes('secrets.AWESOME_COPILOT_PR_TOKEN'), false);
+    assert.match(writer, /runs-on: ubuntu-latest/);
+    assert.match(writer, /needs:[\s\S]*- agent/);
+    assert.match(agent, /needs: activation/);
+    const activation = workflow.split('\n  activation:')[1].split(/\n {2}[a-z_]+:/)[0];
+    assert.match(activation, /needs: pre_activation/);
+    assert.match(activation, /needs\.pre_activation\.outputs\.actionable == 'true'/);
+    assert.match(writer, /name: awesome-copilot-precheck/);
+    assert.equal(writer.includes('Update-AwesomeCopilot.mjs prepare'), false);
+    assert.equal(writer.includes('npm '), false);
+    assert.match(writer, /Update-AwesomeCopilot\.mjs submit/);
+});
+
+test('writer rejects modified built-file fingerprints before any remote preparation', () => {
+    assert.throws(() => updater.recheckPreparedPlan({
+        trustedPlan: { files: { 'plugins/external.json': '[]' }, patchFingerprint: '0'.repeat(64) },
+        workDirectory: 'must-not-be-created',
+    }), /fingerprint mismatch/);
+    assert.equal(fs.existsSync(path.join(repoRoot, 'must-not-be-created')), false);
 });
 
 test('automatic updater requires a meaningful publication handoff and product release does not depend on it', () => {
@@ -628,6 +665,58 @@ test('shared Git preparation commands cannot inherit write credentials or inject
         assert.equal(env.AWESOME_COPILOT_PR_TOKEN, 'dummy-write-token');
     } finally { fs.rmSync(root, { recursive: true }); }
 });
+
+test('token-bearing writer validates exact prebuilt files without running any upstream npm script', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-prebuilt-writer-'));
+    try {
+        init(root);
+        const before = listings();
+        const after = structuredClone(before);
+        after[0].version = '2.3.0';
+        after[0].source = { ...after[0].source, ref: 'v2.3.0', sha: sha2 };
+        const marketplace = entries => ({ metadata: { version: '1.0.0' }, plugins: entries });
+        writeTree(root, new Map([
+            ['plugins/external.json', { bytes: Buffer.from(JSON.stringify(before)) }],
+            ['.github/plugin/marketplace.json', { bytes: Buffer.from(JSON.stringify(marketplace(before))) }],
+        ]));
+        fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({
+            scripts: { 'plugin:validate': 'node -e "require(\'fs\').writeFileSync(\'upstream-executed\', \'unsafe\')"',
+                build: 'node -e "require(\'fs\').writeFileSync(\'upstream-executed\', \'unsafe\')"' },
+        }));
+        commit(root, 'Upstream fixture');
+        const proposal = { changedPlugins: ['excel-cli'], state: { entries: { 'excel-cli': { entry: after[0] } } } };
+        const files = {
+            'plugins/external.json': JSON.stringify(after),
+            '.github/plugin/marketplace.json': JSON.stringify(marketplace(after)),
+        };
+        const probe = `
+            import assert from 'node:assert/strict';
+            import { patch } from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
+            const directory = ${JSON.stringify(root)}, proposal = ${JSON.stringify(proposal)}, files = ${JSON.stringify(files)};
+            const result = patch(directory, proposal, files);
+            if (JSON.stringify(result) !== JSON.stringify(${JSON.stringify(Object.fromEntries(Object.entries(files).sort()))})) {
+                throw new Error('Unexpected patch');
+            }
+            assert.throws(() => patch(directory, proposal, { ...files, 'evil.mjs': 'not allowed' }), /allowed/);
+            const tampered = JSON.parse(files['plugins/external.json']);
+            tampered[1].description = 'Unrelated human entry';
+            assert.throws(() => patch(directory, proposal, {
+                ...files, 'plugins/external.json': JSON.stringify(tampered),
+            }), /freshly verified/);
+            const market = JSON.parse(files['.github/plugin/marketplace.json']);
+            assert.throws(() => patch(directory, proposal, {
+                ...files, '.github/plugin/marketplace.json': JSON.stringify({ ...market, evil: true }),
+            }), /root metadata/);
+            console.log('prebuilt patch verified without upstream execution');
+        `;
+        assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
+            { ...process.env, AWESOME_COPILOT_PR_TOKEN: 'fake-initial-parent-token' }).trim(),
+        'prebuilt patch verified without upstream execution');
+        assert.equal(fs.existsSync(path.join(root, 'upstream-executed')), false);
+        assert.equal(fs.readFileSync(path.join(root, 'plugins', 'external.json'), 'utf8'), files['plugins/external.json']);
+    } finally { fs.rmSync(root, { recursive: true }); }
+});
+
 function commit(directory, message) {
     command('git', ['add', '-A'], directory);
     command('git', ['commit', '--quiet', '-m', message], directory);
@@ -709,6 +798,124 @@ test('publisher actually creates no destination commit/push/tag for version-only
         assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
         assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
         assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('automatic release makes content repaired on main reachable through a new immutable tag', () => {
+    const fixture = publicationFixture();
+    try {
+        const remote = path.join(fixture.root, 'remote.git');
+        command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
+        command('git', ['remote', 'add', 'origin', remote], fixture.output);
+        const guidance = 'Repaired CLI guidance, unchanged in the next product release';
+        fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'README.md'), guidance);
+        const currentBuilt = path.join(fixture.root, 'repair-built');
+        fs.cpSync(fixture.built, currentBuilt, { recursive: true });
+        for (const name of ['excel-cli', 'excel-mcp']) {
+            const file = path.join(currentBuilt, name, 'plugin.json');
+            const manifest = JSON.parse(fs.readFileSync(file));
+            manifest.version = '2.0.1';
+            fs.writeFileSync(file, JSON.stringify(manifest));
+            fs.writeFileSync(path.join(currentBuilt, name, 'version.txt'), '2.0.1');
+            fs.writeFileSync(path.join(currentBuilt, name, 'skills', name, 'VERSION'), '2.0.1');
+        }
+        const exactSource = command('git', ['rev-parse', 'v2.0.1'], fixture.source).trim();
+        command('git', ['checkout', '--quiet', '--detach', exactSource], fixture.source);
+        const repairText = publishFixture({ ...fixture, built: currentBuilt }, ['-ManualRepair'], '2.0.1', exactSource);
+        const repair = JSON.parse(repairText.slice(repairText.search(/^\{\r?$/m)));
+        assert.equal(repair.handoff, false);
+        assert.equal(repair.published_commit, fixture.original);
+        assert.notEqual(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+        for (const name of ['excel-cli', 'excel-mcp']) {
+            for (const relative of ['plugin.json', 'version.txt', `skills/${name}/VERSION`]) {
+                const old = fs.statSync(path.join(fixture.output, 'plugins', name, relative));
+                fs.utimesSync(path.join(fixture.built, name, relative), old.atime, old.mtime);
+            }
+        }
+        command('git', ['checkout', '--quiet', '--detach', fixture.sourceCommit], fixture.source);
+        const releaseText = publishFixture(fixture);
+        const release = JSON.parse(releaseText.slice(releaseText.search(/^\{\r?$/m)));
+        assert.equal(release.status, 'published');
+        assert.equal(release.handoff, true);
+        assert.deepEqual(release.changed_plugins, ['excel-cli']);
+        assert.equal(release.published_tag, 'v2.3.0');
+        assert.deepEqual(release.destination_changed_paths, []);
+        assert.deepEqual(release.distributed_changed_paths, ['plugins/excel-cli/README.md']);
+        assert.equal(release.baseline_fingerprint, release.candidate_fingerprint);
+        assert.notEqual(release.distributed_baseline_fingerprint, release.candidate_fingerprint);
+        assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
+        assert.equal(command('git', ['show', 'v2.3.0:plugins/excel-cli/README.md'], fixture.output), guidance);
+        assert.equal(command('git', ['rev-parse', 'refs/tags/v2.3.0^{commit}'], remote).trim(), release.published_commit);
+        assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('restoring a repaired main to already tagged plugin content publishes without listing handoff', () => {
+    const fixture = publicationFixture();
+    try {
+        const remote = path.join(fixture.root, 'remote.git');
+        command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
+        command('git', ['remote', 'add', 'origin', remote], fixture.output);
+        fs.writeFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'README.md'), 'Main-only repaired content');
+        commit(fixture.output, 'Simulate authorized main repair');
+        const text = publishFixture(fixture);
+        const result = JSON.parse(text.slice(text.search(/^\{\r?$/m)));
+        assert.equal(result.status, 'published');
+        assert.deepEqual(result.changed_plugins, []);
+        assert.deepEqual(result.distributed_changed_paths, []);
+        assert.deepEqual(result.destination_changed_paths, ['plugins/excel-cli/README.md']);
+        assert.equal(result.handoff, false);
+        assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('root-only repair becomes reachable on the next release without an agent or listing handoff', () => {
+    const fixture = publicationFixture({ candidateVersion: '2.0.1',
+        baselineFiles: new Map([['README.md', { bytes: Buffer.from('Old root guidance'), mode: '100644' }]]) });
+    try {
+        const remote = path.join(fixture.root, 'remote.git');
+        command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
+        command('git', ['remote', 'add', 'origin', remote], fixture.output);
+        const repairText = publishFixture(fixture, ['-ManualRepair'], '2.0.1');
+        const repair = JSON.parse(repairText.slice(repairText.search(/^\{\r?$/m)));
+        assert.equal(repair.status, 'published');
+        assert.equal(repair.handoff, false);
+        fs.writeFileSync(path.join(fixture.source, 'release.txt'), '2.3.0');
+        const sourceCommit = commit(fixture.source, 'Next source release');
+        command('git', ['tag', 'v2.3.0', sourceCommit], fixture.source);
+        for (const name of ['excel-cli', 'excel-mcp']) {
+            const file = path.join(fixture.built, name, 'plugin.json');
+            const manifest = JSON.parse(fs.readFileSync(file));
+            manifest.version = '2.3.0';
+            fs.writeFileSync(file, JSON.stringify(manifest));
+            fs.writeFileSync(path.join(fixture.built, name, 'version.txt'), '2.3.0');
+            fs.writeFileSync(path.join(fixture.built, name, 'skills', name, 'VERSION'), '2.3.0');
+        }
+        const text = publishFixture(fixture, [], '2.3.0', sourceCommit);
+        const result = JSON.parse(text.slice(text.search(/^\{\r?$/m)));
+        assert.equal(result.status, 'published');
+        assert.equal(result.published_tag, 'v2.3.0');
+        assert.deepEqual(result.destination_changed_paths, []);
+        assert.deepEqual(result.distributed_changed_paths, ['README.md']);
+        assert.deepEqual(result.changed_plugins, []);
+        assert.equal(result.handoff, false);
+        assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
+        assert.equal(command('git', ['show', 'v2.3.0:README.md'], fixture.output), 'Marketplace');
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('automatic publication rejects an invalid immutable baseline even when main is valid', () => {
+    const fixture = publicationFixture();
+    try {
+        fs.writeFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'version.txt'), 'invalid');
+        const invalid = commit(fixture.output, 'Invalid immutable baseline');
+        command('git', ['tag', '--delete', 'v2.0.1'], fixture.output);
+        command('git', ['tag', 'v2.0.1', invalid], fixture.output);
+        fs.writeFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'version.txt'), '2.0.1');
+        const head = commit(fixture.output, 'Valid repaired main');
+        assert.throws(() => publishFixture(fixture), /Missing or mismatched excel-cli\/version\.txt/);
+        assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), head);
+        assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
     } finally { fs.rmSync(fixture.root, { recursive: true }); }
 });
 
