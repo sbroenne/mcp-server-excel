@@ -31,9 +31,9 @@ function Get-ValidationPlan {
             '^npm-packages/excelcli' { 'cli-package'; break }
             '^npm-packages/mcp-server-excel' { 'mcp-package'; break }
             '^npm-packages/shared/' { 'npm-packages'; break }
-            '^\.github/plugins/|^\.github/workflows/publish-plugins\.yml$' { 'plugins'; break }
+            '^\.github/plugins/|^\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$' { 'plugins'; break }
             '^scripts/Build-AgentSkills\.ps1$' { 'skills'; break }
-            '^scripts/(Build-Plugins|Sync-PublishedPluginRepo)\.ps1$' { 'plugins'; break }
+            '^scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|^scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$' { 'plugins'; break }
             '^scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/release\.yml$' { 'packages'; break }
             '^scripts/(pre-commit|Get-ValidationPlan|Invoke-ExcelFreeTests|check-|Test-NpmLockfiles)' { 'tests'; break }
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }

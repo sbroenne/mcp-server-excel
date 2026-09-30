@@ -32,7 +32,11 @@ When you run the release workflow, all components are released together:
 3. **VS Code Extension** → Self-contained Windows x64 and ARM64 VSIX packages (bundle the MCP executable and skill) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
-6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with npx launch configuration, an argument-safe CLI wrapper, and skills; npm manages runtime resolution and caching (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
+6. **GitHub Copilot Plugins** → `publish-plugins.yml` compares prepared output and
+   publishes only real content changes; unchanged plugins retain their prior
+   version/tag while npx launchers use the latest npm runtime, with npm-managed
+   resolution and caching (see
+   [Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
 8. **MCP Registry** → Updated after NuGet and npm propagation
 9. **GitHub Release** → Created with all artifacts and the prepared changelog notes
@@ -139,13 +143,22 @@ The `publish-plugins.yml` workflow consumes prepared release plugins:
     - Copies canonical plugin structure from this source repository
     - Copies npx launch configuration and the argument-safe CLI wrapper from `.github/plugins/`
     - Strips committed runtime payloads from plugin bundles so the published repo contains no bundled runtimes
-    - Updates version in plugin.json and version.txt for release-tag metadata, while npx launch commands target the public npm packages' `latest` tag
+    - Stamps plugin.json, version.txt and skill VERSION for candidate validation,
+      while npx launchers still target the latest npm runtime
     - Consumes complete generated skills from the released source and stamps the release version
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches
     - Rejects downgrade publishes
-    - Skips automatic duplicate publishes when the published repo already has the same version and tag
-5. **Publishes plugin artifacts** by committing and tagging the published repo when needed, rewriting the repo to the canonical marketplace layout (`.github/plugin/marketplace.json`) and removing the legacy root `marketplace.json`
+    - Compares the complete prepared tree using the
+      [exact normalization rules](../.github/workflows/docs/publish-plugins-setup.md#publish-only-changed-output)
+      before destination writes
+5. **Publishes plugin artifacts** only for real changes. Equivalent output skips
+   commit/push/tag entirely, retaining the actual earlier plugin version/tag.
+   Root-overlay changes are included; root-only publication does not update
+   Awesome Copilot listings.
+6. **Optional listing update** calls the guarded
+   [Awesome Copilot updater](../.github/workflows/docs/awesome-copilot-update-setup.md)
+   only after real changed-plugin publication and explicit opt-in.
 
 Maintainers can also replay plugin publication for an existing release tag without cutting a new release:
 
@@ -156,17 +169,21 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 **Key Points:**
 - ✅ **Automatic** — No manual intervention required
 - ✅ **Idempotent** — Safe to re-run on the same version
-- ✅ **Version-aligned** — Uses the exact version from the release
+- ✅ **Exact candidate version** — A real publication uses the source release's
+  version; unchanged output retains its earlier plugin version/tag
 - ✅ **No stale fallback** — Distributable builds require an explicit version; canonical skill sources contain no `VERSION` file
-- ✅ **Output-compared** — identical prepared output does not create an empty commit
+- ✅ **Output-compared** — version-only prepared output creates no commit, push
+  or tag; product/npm publication still proceeds
 - ✅ **Guarded replay** — downgrade syncs are rejected, automatic duplicates are skipped, and manual repair/replay runs must keep the requested tag aligned with the incoming plugin manifest/version
 - ✅ **Manual repair path** — maintainers keep a `workflow_dispatch` re-sync entry point for repair/replay scenarios
 - ⚠️ **Requires cross-repo token** — First-time setup needs a repository secret `PLUGINS_REPO_TOKEN` in the source repo. Use either a PAT with `public_repo` scope or an app token with `contents:write` on `sbroenne/mcp-server-excel-plugins` (see [Phase 3 Plugin Publishing docs](../.github/workflows/docs/publish-plugins-setup.md))
-- ℹ️ **Setup command** — After creating the token: `gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body "<token-value>"`
+- ℹ️ **Setup command** — Enter it through the interactive prompt:
+  `gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel`
 
 **Surface note:**
 - The release automation publishes plugin bundles (manifests, skills, agents, MCP config, and the CLI wrapper) to the published repo.
 - Those bundles intentionally exclude self-contained runtime binaries. They use `npx -y @sbroenne/mcp-server-excel@latest` or `npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching. Plugins do not download GitHub release ZIPs or install global helpers.
+- Plugin versions can intentionally lag product/npm versions.
 - The published repo is the marketplace; this source repo only owns inputs, overlays, and automation.
 - Those artifacts can be relevant across multiple plugin-capable clients, but marketplace registration, discovery, and installation UX remain client-specific.
 - The current workflow and docs only claim a verified GitHub Copilot install flow; they do **not** claim automatic publication into VS Code or Claude-specific plugin marketplaces.

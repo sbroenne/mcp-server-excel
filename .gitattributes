@@ -34,3 +34,5 @@
 *.jpg binary
 *.jpeg binary
 *.gif binary
+
+.github/workflows/*.lock.yml linguist-generated=true

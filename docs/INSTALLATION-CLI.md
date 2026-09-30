@@ -138,7 +138,8 @@ excelcli --version
 
 > **Note:** The Copilot CLI install command above is specific to the GitHub Copilot plugin marketplace. VS Code and Claude have their own plugin systems with separate installation flows.
 
-Plugins are published automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace.
+Plugins are published when their distributed content changes. Their version can
+lag the ExcelMcp product release; the launcher still uses the latest npm runtime.
 
 ---
 

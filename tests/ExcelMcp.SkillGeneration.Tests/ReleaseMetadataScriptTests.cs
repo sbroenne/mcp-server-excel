@@ -256,59 +256,25 @@ public sealed class ReleaseMetadataScriptTests
         var sandbox = CreateSandbox();
         try
         {
-            var manifest = new { plugins = new[] { new { version = publishedVersion } } };
-            WriteFile(sandbox, Path.Combine("published-repo", "marketplace.json"), JsonSerializer.Serialize(manifest));
-            foreach (var name in new[] { "excel-cli", "excel-mcp" })
+            var scenario = JsonSerializer.Serialize(new
             {
-                WriteFile(sandbox, Path.Combine("built-plugins", name, "plugin.json"),
-                    JsonSerializer.Serialize(new { name, version = payloadVersion }));
-                WriteFile(sandbox, Path.Combine("built-plugins", name, "version.txt"), "1.2.3");
-                WriteFile(sandbox, Path.Combine("built-plugins", name, "skills", name, "VERSION"), "1.2.3");
-            }
-            WriteFile(sandbox, Path.Combine("source", "scripts", "Sync-PublishedPluginRepo.ps1"),
-                syncFails ? "throw 'sync-root-cause'" : "'synced' | Set-Content sync.txt");
-            var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml"));
-            var step = ExtractPowerShellStep(workflow, "Guard, synchronize and publish");
+                publishedVersion,
+                tagExists,
+                manualRepair,
+                payloadVersion,
+                syncFails,
+                succeeds
+            });
+            var script = Path.Combine(RepoRoot, "tests", "ExcelMcp.SkillGeneration.Tests", "PluginPublication.test.mjs");
             var runner = Path.Combine(sandbox, "run.ps1");
             File.WriteAllText(runner, $$"""
-                $env:VERSION='1.2.3'
-                $env:TAG='v1.2.3'
-                $env:SOURCE_COMMIT='exact-released-commit'
-                $env:MANUAL_REPAIR='{{manualRepair.ToString().ToLowerInvariant()}}'
-                $env:GITHUB_STEP_SUMMARY=Join-Path $PWD summary.txt
-                function git {
-                    $global:LASTEXITCODE=0
-                    if ($args -contains '--list') {
-                        if ({{(tagExists ? "$true" : "$false")}}) { 'v1.2.3' }
-                        return
-                    }
-                    if ($args -contains 'diff') { 'plugins/example'; return }
-                    Add-Content git-calls.txt ($args -join ' ')
-                }
-                {{step}}
+                $env:PLUGIN_PUBLICATION_SCENARIO='{{scenario}}'
+                node --test --test-name-pattern 'legacy publication guard scenario' '{{script.Replace("'", "''", StringComparison.Ordinal)}}'
+                exit $LASTEXITCODE
                 """);
             var result = await RunPowerShellScriptAsync(runner, [], sandbox);
-            Assert.True((result.ExitCode == 0) == succeeds, result.CombinedOutput);
-            if (!succeeds)
-            {
-                var expectedError = publishedVersion == "1.2.4" ? "Downgrade publish blocked"
-                    : tagExists ? "Existing tag conflicts"
-                    : payloadVersion != "1.2.3" ? "Wrong identity"
-                    : "sync-root-cause";
-                Assert.Contains(expectedError, result.Stderr, StringComparison.Ordinal);
-            }
-            var skipped = tagExists && !manualRepair && succeeds;
-            Assert.Equal(succeeds && !skipped, File.Exists(Path.Combine(sandbox, "sync.txt")));
-            var callsFile = Path.Combine(sandbox, "git-calls.txt");
-            if (succeeds && !skipped)
-            {
-                var calls = File.ReadAllText(callsFile);
-                Assert.Contains("Source release commit: exact-released-commit", calls, StringComparison.Ordinal);
-                Assert.Contains("push origin HEAD:main", calls, StringComparison.Ordinal);
-                Assert.Equal(!tagExists, calls.Contains("push origin v1.2.3", StringComparison.Ordinal));
-                Assert.DoesNotContain("--force", calls, StringComparison.Ordinal);
-            }
-            else { Assert.False(File.Exists(callsFile)); }
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            Assert.Contains("legacy publication guard scenario", result.Stdout, StringComparison.Ordinal);
         }
         finally { Directory.Delete(sandbox, recursive: true); }
     }
