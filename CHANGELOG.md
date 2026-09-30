@@ -11,6 +11,14 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.1.1] - 2026-09-30
+
+### Patch Changes
+
+- [#958](https://github.com/sbroenne/mcp-server-excel/pull/958) [`2c3f356`](https://github.com/sbroenne/mcp-server-excel/commit/2c3f356703d2fc05d7e58a3793be45b2c91cc275) Thanks [@sbroenne](https://github.com/sbroenne)! - **Native Windows ARM64 npm packages**: The MCP server and CLI now use native ARM64 executables when run with ARM64 Node.js, without changing existing `npx` commands. x64 Node.js continues to use the x64 packages.
+
+- [#955](https://github.com/sbroenne/mcp-server-excel/pull/955) [`a5c4b9f`](https://github.com/sbroenne/mcp-server-excel/commit/a5c4b9f34edb4ab335c162441144522312202797) Thanks [@sbroenne](https://github.com/sbroenne)! - Both Excel skills now include guidance for creating readable reports and applying requested formatting while preserving existing templates. The guidance covers number formats, layout, optional financial conventions, and checking calculated results without automatically restyling unrelated workbook content.
+
 ## [2.1.0] - 2026-09-30
 
 ### Patch Changes
