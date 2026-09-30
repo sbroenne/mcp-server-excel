@@ -2,10 +2,11 @@
 
 ## The Professional Report Workflow
 
-Every report or dashboard should follow this sequence:
+For a requested new dashboard, adapt this sequence to the intended result.
+Do not rebuild existing layouts or add visuals to a read-only task:
 
 ```
-1. Structure data → Excel Tables (never plain ranges)
+1. Structure data → Excel Tables when requested or needed
 2. Format values → Number formats by data type
 3. Fit columns → auto-fit so nothing renders as #####
 4. Add visuals → Charts with explicit positioning
@@ -15,7 +16,7 @@ Every report or dashboard should follow this sequence:
 
 ## Step 1: Structure Data as Excel Tables
 
-**Always use Excel Tables for tabular data:**
+**Use Excel Tables when the source should be a structured dataset:**
 
 ```
 range(set-values, range_address='A1', values=[[headers + data]])
@@ -26,7 +27,7 @@ table(create, table_name='SalesData', range_address='A1:D20')
 - Auto-filters on every column
 - Banded rows for readability
 - Structured references in formulas
-- Required for Data Model / DAX / PivotTables
+- Required when adding worksheet data to the Data Model; ordinary PivotTables can also use ranges
 - Auto-expand when new rows are added
 
 ## Step 2: Format Values by Data Type

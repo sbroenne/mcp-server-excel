@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis;
+
 namespace Sbroenne.ExcelMcp.Generators.Common;
 
 /// <summary>
@@ -53,6 +55,7 @@ public sealed class MethodInfo
     public string MethodName { get; }
     public string ActionName { get; }
     public string ReturnType { get; }
+    public ITypeSymbol ReturnTypeSymbol { get; }
     public string McpTool { get; }
     public List<ParameterInfo> Parameters { get; }
     public string? XmlDocSummary { get; }
@@ -62,13 +65,14 @@ public sealed class MethodInfo
     /// <summary>Whether the original interface method has an IProgress&lt;T&gt; parameter.</summary>
     public bool HasProgressParameter { get; }
 
-    public MethodInfo(string methodName, string actionName, string returnType, string mcpTool,
+    public MethodInfo(string methodName, string actionName, string returnType, ITypeSymbol returnTypeSymbol, string mcpTool,
         List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true,
         bool hasProgressParameter = false)
     {
         MethodName = methodName;
         ActionName = actionName;
         ReturnType = returnType;
+        ReturnTypeSymbol = returnTypeSymbol;
         McpTool = mcpTool;
         Parameters = parameters;
         XmlDocSummary = xmlDocSummary;

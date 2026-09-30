@@ -15,7 +15,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// End-to-end smoke tests for the MCP Server using the official MCP SDK client.
 ///
 /// PURPOSE: Validates the complete MCP protocol stack works correctly with real Excel operations.
-/// PATTERN: Uses Program.ConfigureTestTransport() to inject in-memory pipes, then runs the real server.
+/// PATTERN: Uses Program.RunAsync with host-owned in-memory transport and the real service.
 /// RUNTIME: ~30-60 seconds (requires Excel COM automation).
 ///
 /// These tests exercise:
@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// Run before commits to catch breaking changes:
 /// dotnet test --filter "FullyQualifiedName~McpServerSmokeTests"
 /// </summary>
-[Collection("ProgramTransport")]  // Uses Program.ConfigureTestTransport() - must run sequentially
+[Collection("ProgramTransport")]  // Real Excel tests must run sequentially.
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "McpServer")]
@@ -183,7 +183,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var setValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C3",
@@ -194,7 +193,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C3"
@@ -210,7 +208,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var preflightTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "preflight",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["table_name"] = "DataTable",
             ["sheet_name"] = "Data",
@@ -236,7 +233,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["table_name"] = "DataTable",
             ["sheet_name"] = "Data",
@@ -248,7 +244,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listTablesResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
@@ -262,7 +257,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createParamResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["name"] = "ReportDate",
             ["reference"] = "=Data!$C$2"
@@ -272,7 +266,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var readParamResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
         {
             ["action"] = "read",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["name"] = "ReportDate"
         });
@@ -342,7 +335,6 @@ in
         var listConnectionsResult = await CallToolAsync("connection", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
         AssertSuccess(listConnectionsResult, "List connections");
@@ -481,7 +473,6 @@ in
         var addRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
         {
             ["action"] = "add-rule",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "B2:B3",
@@ -496,7 +487,6 @@ in
         var addTypedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
         {
             ["action"] = "add-rule",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "C2:C3",
@@ -511,7 +501,6 @@ in
         var listTypedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
         {
             ["action"] = "list-rules",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "C2:C3"
@@ -534,7 +523,6 @@ in
         var listVbaResult = await CallToolAsync("vba", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
         using (var listVbaJson = JsonDocument.Parse(listVbaResult))
@@ -729,7 +717,6 @@ in
         var importResult = await CallToolAsync("vba", new Dictionary<string, object?>
         {
             ["action"] = "import",
-            ["path"] = macroWorkbook,
             ["session_id"] = sessionId,
             ["module_name"] = "TransportProof",
             ["vba_code"] = """
@@ -743,7 +730,6 @@ End Sub
         var runResult = await CallToolAsync("vba", new Dictionary<string, object?>
         {
             ["action"] = "run",
-            ["path"] = macroWorkbook,
             ["session_id"] = sessionId,
             ["procedure_name"] = "TransportProof.WriteTransportProof"
         });
@@ -752,7 +738,6 @@ End Sub
         var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["path"] = macroWorkbook,
             ["session_id"] = sessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
@@ -780,7 +765,6 @@ End Sub
         var persistedValueResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["path"] = macroWorkbook,
             ["session_id"] = reopenedSessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"

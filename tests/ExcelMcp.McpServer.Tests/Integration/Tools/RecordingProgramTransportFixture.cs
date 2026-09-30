@@ -25,12 +25,12 @@ public sealed class RecordingProgramTransportFixture :
 
     public async Task InitializeAsync()
     {
-        ServiceBridge.ServiceBridge.SetServiceFactoryForTests(() => _backend);
         (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
             _clientToServerPipe,
             _serverToClientPipe,
             _cts.Token,
-            "RecordingProgramTransportClient");
+            "RecordingProgramTransportClient",
+            () => _backend);
     }
 
     public async Task<CapturedToolCall> CallToolAsync(
@@ -82,15 +82,24 @@ public sealed class RecordingProgramTransportFixture :
                 expectedCommand,
                 expectedSessionId,
                 expectedArgsJson);
-            return new CapturedToolCall(text, request);
+            return new CapturedToolCall(text, request, result);
         }
         finally
         {
+            _backend.Clear();
             _callGate.Release();
         }
     }
 
     public async Task<string> CallToolWithoutDispatchAsync(
+        string toolName,
+        Dictionary<string, object?> arguments)
+    {
+        var result = await CallResultWithoutDispatchAsync(toolName, arguments);
+        return result.Content.OfType<TextContentBlock>().First().Text;
+    }
+
+    public async Task<CallToolResult> CallResultWithoutDispatchAsync(
         string toolName,
         Dictionary<string, object?> arguments)
     {
@@ -106,11 +115,7 @@ public sealed class RecordingProgramTransportFixture :
                 arguments,
                 cancellationToken: _cts.Token);
             _backend.AssertIdle();
-            return result.Content
-                .OfType<TextContentBlock>()
-                .FirstOrDefault()?.Text
-                ?? throw new InvalidOperationException(
-                    $"Unexpected response from MCP tool '{toolName}'.");
+            return result;
         }
         finally
         {
@@ -162,15 +167,6 @@ public sealed class RecordingProgramTransportFixture :
             (failures ??= []).Add(ex);
         }
 
-        try
-        {
-            ServiceBridge.ServiceBridge.ResetForTests();
-        }
-        catch (Exception ex)
-        {
-            (failures ??= []).Add(ex);
-        }
-
         _client = null;
         _cts.Dispose();
         _callGate.Dispose();
@@ -191,7 +187,8 @@ public sealed class RecordingProgramTransportFixture :
 
     public sealed record CapturedToolCall(
         string JsonResult,
-        ServiceRequest Request);
+        ServiceRequest Request,
+        CallToolResult Result);
 
     private static void AssertSerializedResult(
         string jsonResult,
@@ -249,6 +246,12 @@ public sealed class RecordingProgramTransportFixture :
             _request = null;
             _response = null;
             return request;
+        }
+
+        public void Clear()
+        {
+            _request = null;
+            _response = null;
         }
 
         public Task<ServiceResponse> ProcessAsync(ServiceRequest request)

@@ -53,13 +53,13 @@ public sealed class WorksheetRenameParameterTests(
     }
 
     [Theory]
-    [InlineData("LegacySheet", "RenamedLegacy", "old_name is required for rename action", "sheet_name", "target_name")]
-    [InlineData("TargetSheetAlias", "RenamedViaTargetSheet", "old_name is required for rename action", "sheet_name", "target_sheet_name")]
-    [InlineData("SourceNameAlias", "RenamedViaSourceName", "old_name is required for rename action", "source_name", "target_name")]
-    [InlineData("SourceSheetAlias", "RenamedViaSourceSheet", "old_name is required for rename action", "source_sheet", "target_sheet_name")]
-    [InlineData("MixedCanonicalAlias", "MixedAliasTarget", "new_name is required for rename action", "old_name", "target_name")]
-    [InlineData("MixedAliasCanonical", "MixedAliasCanonicalRenamed", "old_name is required for rename action", "sheet_name", "new_name")]
-    public async Task Rename_WithAliasOnlyPayload_FailsWithCanonicalParameterError(
+    [InlineData("LegacySheet", "RenamedLegacy", "sheet_name", "sheet_name", "target_name")]
+    [InlineData("TargetSheetAlias", "RenamedViaTargetSheet", "sheet_name", "sheet_name", "target_sheet_name")]
+    [InlineData("SourceNameAlias", "RenamedViaSourceName", "source_name", "source_name", "target_name")]
+    [InlineData("SourceSheetAlias", "RenamedViaSourceSheet", "source_sheet", "source_sheet", "target_sheet_name")]
+    [InlineData("MixedCanonicalAlias", "MixedAliasTarget", "target_name", "old_name", "target_name")]
+    [InlineData("MixedAliasCanonical", "MixedAliasCanonicalRenamed", "sheet_name", "sheet_name", "new_name")]
+    public async Task Rename_WithAliasOnlyPayload_RejectsInapplicableParameter(
         string originalSheetName,
         string renamedSheetName,
         string expectedErrorFragment,

@@ -33,10 +33,10 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 | Step | Command | When |
 |------|---------|------|
-| 1. Session | `session create/open` | Always first |
+| 1. Session | `session create/open` | Reuse the matching session first |
 | 2. Sheets | `sheet create/rename` | If needed |
 | 3. Write data | See below | If writing values |
-| 4. Save & close | `session close --save` | Always last |
+| 4. Save & close | `session close --save` | When done; confirm before closing a visible window |
 
 > **10+ commands?** Use `excelcli -q batch --input commands.json` — sends all commands in one process with automatic session management. See Rule 8.
 
@@ -50,9 +50,9 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, and network acce
 
 > **⚡ Building dashboards or bulk operations?** Skip to **Rule 8: Batch Mode** — it eliminates per-command process overhead and auto-manages session IDs.
 
-### Rule 1: NEVER Ask Clarifying Questions
+### Rule 1: Discover the Intended Workbook
 
-Execute commands to discover the answer instead:
+Use commands to discover existing state:
 
 | DON'T ASK | DO THIS INSTEAD |
 |-----------|-----------------|
@@ -60,11 +60,13 @@ Execute commands to discover the answer instead:
 | "What table should I use?" | `excelcli -q table list --session <id>` |
 | "Which sheet has the data?" | `excelcli -q sheet list --session <id>` |
 
-**You have commands to answer your own questions. USE THEM.**
+Match the user's intended workbook; do not choose an unrelated session or invent
+a path. Ask when the target or a destructive change remains unclear.
 
-### Rule 2: Always End With a Text Summary
+### Rule 2: Stay Within the Request
 
-**NEVER end your turn with only a command execution.** After completing all operations, always provide a brief text message confirming what was done. Silent command-only responses are incomplete.
+Reading data does not require writes, formatting, Tables, charts, or PivotTables.
+Preserve existing structures and formats unless the task calls for changing them.
 
 ### Rule 3: Session Lifecycle
 
@@ -89,6 +91,10 @@ excelcli -q session close --session <returned-session-id> --save
 ```
 
 **Unclosed sessions leave Excel processes running, locking files.**
+
+Explicit close defaults to discarding edits; use `--save` to keep them. Normal
+daemon shutdown attempts to save remaining sessions, but crashes, timeouts, and
+forced cleanup may lose edits. Cancellation is not undo.
 
 ### Rule 4: Data Model Prerequisites
 

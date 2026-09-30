@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -82,6 +83,20 @@ public class SessionManagerTests : IDisposable
 
         _testFiles.Add(filePath);
         return filePath;
+    }
+
+    private string CreateTestFileWithPathLength(int length)
+    {
+        const string fileName = "test.xlsx";
+        var directoryNameLength = length - _tempDir.Length - fileName.Length - 2;
+        Assert.InRange(directoryNameLength, 1, 255);
+        var directory = Path.Combine(_tempDir, new string('x', directoryNameLength));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, fileName);
+        Assert.Equal(length, path.Length);
+        File.Copy(TemplateFilePath, path);
+        _testFiles.Add(path);
+        return path;
     }
 
     #region Basic Session Lifecycle
@@ -590,51 +605,63 @@ public class SessionManagerTests : IDisposable
     #region Edge Cases
 
     [Fact]
-    public void CreateSession_VeryLongFilePath_HandlesGracefully()
+    public void CreateSession_AtDocumentedPathLimit_OpensAndCloses()
     {
-        // Create a long but valid path
-        var longDirName = new string('x', 200);
-        var longDir = Path.Combine(_tempDir, longDirName);
-
-        try
+        // Excel documents a 218-character limit including the full path.
+        var path = CreateTestFileWithPathLength(218);
+        using var owned = new OwnedExcelProcessScope();
+        var manager = new SessionManager();
+        var operationFailure = Record.Exception(() =>
         {
-            Directory.CreateDirectory(longDir);
-            var longFilePath = Path.Combine(longDir, "test.xlsx");
+            var sessionId = manager.CreateSession(path);
 
-            // Copy template file to the long path (faster than spawning Excel)
-            File.Copy(TemplateFilePath, longFilePath);
-            _testFiles.Add(longFilePath);
-
-            using var manager = new SessionManager();
-            var sessionId = manager.CreateSession(longFilePath);
-
-            Assert.NotNull(sessionId);
+            Assert.False(string.IsNullOrWhiteSpace(sessionId));
             Assert.Equal(1, manager.ActiveSessionCount);
+            Assert.Equal(path, Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId)).WorkbookPath);
+            Assert.True(manager.CloseSession(sessionId, save: false));
+            Assert.Equal(0, manager.ActiveSessionCount);
+            Assert.Empty(manager.ActiveSessionIds);
+        });
+        var disposalFailure = Record.Exception(manager.Dispose);
+        var processFailure = Record.Exception(() => owned.AssertAllExited());
+        Assert.All(new[] { operationFailure, disposalFailure, processFailure }, failure => Assert.Null(failure));
+    }
 
-            manager.CloseSession(sessionId);
-        }
-        catch (PathTooLongException)
+    [Fact]
+    public void CreateSession_OverlongFilePath_RejectsAndReleasesResources()
+    {
+        // Some Excel versions open paths beyond 218 characters; exceed the legacy Windows limit too.
+        var path = CreateTestFileWithPathLength(300);
+        using var owned = new OwnedExcelProcessScope();
+        var manager = new SessionManager();
+        var operationFailure = Record.Exception(() =>
         {
-            // Expected on some systems - skip test
-            _output.WriteLine("Path too long - test skipped");
-        }
-        catch (AggregateException ex) when (ex.InnerException is PathTooLongException)
-        {
-            // Excel COM may reject very long paths - expected behavior (converted from COMException)
-            _output.WriteLine($"Excel rejected long path - test skipped: {ex.InnerException.Message}");
-        }
-        catch (AggregateException ex) when (ex.InnerException is AggregateException inner && inner.InnerException is PathTooLongException)
-        {
-            // Nested AggregateException from async task wrapping (STA thread -> Task.Wait -> Task.Wait)
-            _output.WriteLine($"Excel rejected long path (nested) - test skipped: {((AggregateException)ex.InnerException).InnerException!.Message}");
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("already open") || ex.Message.Contains("Cannot open"))
-        {
-            // Excel COM returns generic "file already open" error (Error 1004) for paths it can't handle.
-            // This is a misleading error message - the real issue is the path is too long for Excel COM.
-            // We accept this as equivalent to PathTooLongException for test purposes.
-            _output.WriteLine($"Excel COM rejected long path with generic error - test skipped: {ex.Message}");
-        }
+            // Retry the same path to prove failed startup released its reservation.
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                var failure = Assert.Throws<InvalidOperationException>(() => manager.CreateSession(path));
+                var excelFailure = Assert.IsType<COMException>(failure.InnerException);
+                Assert.Equal(unchecked((int)0x800A03EC), excelFailure.HResult);
+                Assert.False(string.IsNullOrWhiteSpace(excelFailure.Message));
+                Assert.Equal(0, manager.ActiveSessionCount);
+                Assert.Empty(manager.ActiveSessionIds);
+
+                using var file = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                Assert.True(file.Length > 0);
+            }
+
+            var shorterPath = Path.Combine(_tempDir, "recovered.xlsx");
+            File.Move(path, shorterPath);
+            _testFiles.Add(shorterPath);
+            var sessionId = manager.CreateSession(shorterPath);
+            Assert.Equal(1, manager.ActiveSessionCount);
+            Assert.True(manager.CloseSession(sessionId, save: false));
+            Assert.Equal(0, manager.ActiveSessionCount);
+            Assert.Empty(manager.ActiveSessionIds);
+        });
+        var disposalFailure = Record.Exception(manager.Dispose);
+        var processFailure = Record.Exception(() => owned.AssertAllExited());
+        Assert.All(new[] { operationFailure, disposalFailure, processFailure }, failure => Assert.Null(failure));
     }
 
     [Fact]

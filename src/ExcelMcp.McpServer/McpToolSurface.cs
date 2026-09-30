@@ -24,8 +24,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 ///   tools      = number of [McpServerTool] methods
 ///   operations = sum of Enum.GetValues(actionEnumType).Length over those methods
 ///
-/// This mirrors the discovery loop in <see cref="GeminiCompatibleToolRegistration"/>, which is what
-/// actually registers the tools, so both walk the same surface.
+/// This mirrors the attributed surface discovered by the SDK's WithToolsFromAssembly registration.
 /// </summary>
 internal static class McpToolSurface
 {

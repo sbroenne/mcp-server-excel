@@ -21,7 +21,7 @@ public sealed class ExcelToolsBaseTelemetryTests
     [InlineData("prerequisite", "Prerequisite", "InputState")]
     [InlineData("dependency", "DependencyUnavailable", "ExternalDependency")]
     [InlineData("permissions", "Permissions", "ExternalDependency")]
-    public void ExecuteToolAction_KnownException_PreservesCategory(
+    public async Task ExecuteToolAction_KnownServiceFailure_PreservesCategory(
         string scenario, string category, string failureClass)
     {
 #pragma warning disable CA2201 // Synthetic exceptions exercise serialization, not COM behavior.
@@ -39,8 +39,8 @@ public sealed class ExcelToolsBaseTelemetryTests
         };
 #pragma warning restore CA2201
         ToolInvocationResult? invocation = null;
-        var response = ExcelToolsBase.ExecuteToolAction("powerquery", "evaluate", null,
-            () => throw error, (_, _, _, result) => invocation = result);
+        var response = await Execute(ExcelToolsBase.SerializeToolError("evaluate", null, error),
+            result => invocation = result, "powerquery", "evaluate");
 
         using var document = JsonDocument.Parse(response);
         Assert.Equal(category, document.RootElement.GetProperty("errorCategory").GetString());
@@ -54,11 +54,11 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void ExecuteToolAction_SuccessResponse_TracksSucceeded()
+    public async Task ExecuteToolAction_SuccessResponse_TracksSucceeded()
     {
         ToolInvocationResult? invocation = null;
 
-        var response = Execute(
+        var response = await Execute(
             """{"success":true,"value":"private workbook content"}""",
             result => invocation = result);
 
@@ -69,7 +69,7 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void ExecuteToolAction_DiagnosticNegative_TracksExpectedNegative()
+    public async Task ExecuteToolAction_DiagnosticNegative_TracksExpectedNegative()
     {
         ToolInvocationResult? invocation = null;
         var diagnostic = JsonSerializer.Serialize(
@@ -81,7 +81,7 @@ public sealed class ExcelToolsBaseTelemetryTests
             },
             ExcelToolsBase.JsonOptions);
 
-        var response = Execute(
+        var response = await Execute(
             diagnostic,
             result => invocation = result,
             toolName: "file",
@@ -104,7 +104,7 @@ public sealed class ExcelToolsBaseTelemetryTests
     [InlineData("Prerequisite", "InputState")]
     [InlineData("DependencyUnavailable", "ExternalDependency")]
     [InlineData("FutureCategory", "Unclassified")]
-    public void ExecuteToolAction_StructuredFailure_UsesAllowlistedClass(
+    public async Task ExecuteToolAction_StructuredFailure_UsesAllowlistedClass(
         string errorCategory,
         string expectedFailureClass)
     {
@@ -117,7 +117,7 @@ public sealed class ExcelToolsBaseTelemetryTests
             errorMessage = @"Private detail at C:\Users\Someone\Secret.xlsx"
         });
 
-        Execute(json, result => invocation = result);
+        await Execute(json, result => invocation = result);
 
         Assert.Equal(
             new ToolInvocationResult(
@@ -127,11 +127,11 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void ExecuteToolAction_FailureWithoutCategory_TracksUnclassified()
+    public async Task ExecuteToolAction_FailureWithoutCategory_TracksUnclassified()
     {
         ToolInvocationResult? invocation = null;
 
-        Execute(
+        await Execute(
             """{"success":false,"isError":true,"errorMessage":"private detail"}""",
             result => invocation = result);
 
@@ -143,11 +143,11 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void ExecuteToolAction_NegativeCoreResultWithoutIsError_TracksFailure()
+    public async Task ExecuteToolAction_NegativeCoreResultWithoutIsError_TracksFailure()
     {
         ToolInvocationResult? invocation = null;
 
-        Execute(
+        await Execute(
             """{"success":false,"errorMessage":"private command failure"}""",
             result => invocation = result);
 
@@ -159,11 +159,11 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void ExecuteToolAction_PrimitiveJsonResponse_TracksSucceeded()
+    public async Task ExecuteToolAction_PrimitiveJsonResponse_TracksSucceeded()
     {
         ToolInvocationResult? invocation = null;
 
-        var response = Execute("\"General\"", result => invocation = result);
+        var response = await Execute("\"General\"", result => invocation = result);
 
         Assert.Equal("\"General\"", response);
         Assert.Equal(
@@ -172,35 +172,30 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void ExecuteToolAction_InvalidJsonResponse_TracksUnclassifiedFailure()
+    public async Task ExecuteToolAction_InvalidJsonResponse_PropagatesFailure()
     {
         ToolInvocationResult? invocation = null;
 
-        var response = Execute("not-json", result => invocation = result);
-
-        Assert.Equal("not-json", response);
+        await Assert.ThrowsAnyAsync<JsonException>(() => Execute("not-json", result => invocation = result));
         Assert.Equal(
             new ToolInvocationResult(
                 ToolInvocationOutcome.Failed,
-                ToolFailureClass.Unclassified),
+                ToolFailureClass.InternalProductFault),
             invocation);
     }
 
     [Fact]
-    public void ExecuteToolAction_ThrownException_TracksUnclassifiedFailure()
+    public async Task ExecuteToolAction_ThrownException_IsLeftToSdkAndTracksFailure()
     {
         ToolInvocationResult? invocation = null;
 
-        var response = ExcelToolsBase.ExecuteToolAction(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ExcelToolsBase.ExecuteToolActionAsync(
             "range",
             "get-values",
-            path: null,
             operation: () => throw new InvalidOperationException(
                 @"Private failure at C:\Users\Someone\Secret.xlsx on Sheet1!A1"),
-            trackInvocation: (_, _, _, result) => invocation = result);
-
-        using var json = JsonDocument.Parse(response);
-        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+            cancellationToken: CancellationToken.None,
+            trackInvocation: (_, _, _, result) => invocation = result));
         Assert.Equal(
             new ToolInvocationResult(
                 ToolInvocationOutcome.Failed,
@@ -264,9 +259,11 @@ public sealed class ExcelToolsBaseTelemetryTests
     }
 
     [Fact]
-    public void WorksheetMissingSession_ReturnsCategorizedRecoveryGuidance()
+    public async Task WorksheetMissingSession_ReturnsCategorizedRecoveryGuidance()
     {
-        var response = ExcelWorksheetTool.ExcelWorksheet(SheetAction.List);
+        using var bridge = new ServiceBridge.ServiceBridge(() => throw new InvalidOperationException("Unexpected dispatch."));
+        var result = await ExcelWorksheetTool.ExcelWorksheet(SheetAction.List, bridge);
+        var response = Assert.Single(result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>()).Text;
 
         using var json = JsonDocument.Parse(response);
         var root = json.RootElement;
@@ -276,15 +273,18 @@ public sealed class ExcelToolsBaseTelemetryTests
         Assert.Contains("file 'open'", root.GetProperty("errorMessage").GetString());
     }
 
-    private static string Execute(
+    private static async Task<string> Execute(
         string response,
         Action<ToolInvocationResult> capture,
         string toolName = "range",
-        string actionName = "get-values") =>
-        ExcelToolsBase.ExecuteToolAction(
+        string actionName = "get-values")
+    {
+        var result = await ExcelToolsBase.ExecuteToolActionAsync(
             toolName,
             actionName,
-            path: null,
-            operation: () => response,
+            operation: () => Task.FromResult(response),
+            cancellationToken: CancellationToken.None,
             trackInvocation: (_, _, _, result) => capture(result));
+        return Assert.Single(result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>()).Text;
+    }
 }

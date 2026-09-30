@@ -15,6 +15,22 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 public sealed class ExcelScreenshotToolRoutingTests
 {
     [Fact]
+    public void CreateToolResult_Failure_HasStructuredProtocolError()
+    {
+        var result = ExcelScreenshotTool.CreateToolResult("""{"success":false,"errorMessage":"Screenshot unavailable."}""");
+        Assert.True(result.IsError);
+        Assert.NotNull(result.StructuredContent);
+        Assert.False(result.StructuredContent.Value.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public void CreateToolResult_MissingImage_RejectsMalformedSuccess()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            ExcelScreenshotTool.CreateToolResult("""{"success":true}"""));
+    }
+
+    [Fact]
     public void RouteScreenshotAction_CaptureSheet_DoesNotSupplyRangeAddress()
     {
         string? command = null;
@@ -90,5 +106,9 @@ public sealed class ExcelScreenshotToolRoutingTests
         Assert.Single(result.Content.OfType<ImageContentBlock>());
         var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
         Assert.Contains(truncationMessage, text, StringComparison.Ordinal);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.True(structured.GetProperty("success").GetBoolean());
+        Assert.Equal("image/png", structured.GetProperty("mimeType").GetString());
+        Assert.False(structured.TryGetProperty("imageBase64", out _));
     }
 }

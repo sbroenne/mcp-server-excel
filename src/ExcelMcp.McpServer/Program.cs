@@ -18,86 +18,15 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// </summary>
 public class Program
 {
-    private static readonly object TestTransportLock = new();
     private static int _globalExceptionHandlersRegistered;
+    public static Task<int> Main(string[] args) => RunAsync(args);
 
-    // Test transport configuration - set by tests before calling Main()
-    // These are intentionally static for test injection, but we still guard them so
-    // leaked test state fails fast instead of contaminating the next transport-backed test.
-    private static Pipe? _testInputPipe;
-    private static Pipe? _testOutputPipe;
-    private static CancellationTokenSource? _testShutdownCts;
-    private static long _testTransportGeneration;
-
-    /// <summary>
-    /// Configures the server to use in-memory pipe transport for testing.
-    /// Call this before RunAsync() to enable test mode.
-    /// </summary>
-    /// <param name="inputPipe">Pipe for reading client requests (client writes, server reads)</param>
-    /// <param name="outputPipe">Pipe for writing server responses (server writes, client reads)</param>
-    public static void ConfigureTestTransport(Pipe inputPipe, Pipe outputPipe)
-    {
-        lock (TestTransportLock)
-        {
-            if (_testInputPipe != null || _testOutputPipe != null || _testShutdownCts != null)
-            {
-                throw new InvalidOperationException(
-                    "Test transport is already configured. Ensure the previous MCP transport test completed cleanup before starting another one.");
-            }
-
-            _testInputPipe = inputPipe;
-            _testOutputPipe = outputPipe;
-            _testShutdownCts = new CancellationTokenSource();
-            _testTransportGeneration++;
-        }
-    }
-
-    /// <summary>
-    /// Requests shutdown for the active in-memory test transport without clearing transport state.
-    /// </summary>
-    public static void RequestTestTransportShutdown()
-    {
-        CancellationTokenSource? shutdownCts;
-
-        lock (TestTransportLock)
-        {
-            shutdownCts = _testShutdownCts;
-        }
-
-        if (shutdownCts != null)
-        {
-            try
-            {
-                shutdownCts.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // ResetTestTransport() owns disposing the test CTS after the host has fully stopped.
-            }
-        }
-    }
-
-    /// <summary>
-    /// Resets test transport configuration after the in-memory test host has stopped.
-    /// </summary>
-    public static void ResetTestTransport()
-    {
-        CancellationTokenSource? shutdownCts;
-
-        lock (TestTransportLock)
-        {
-            shutdownCts = _testShutdownCts;
-            _testShutdownCts = null;
-            _testInputPipe = null;
-            _testOutputPipe = null;
-        }
-
-        shutdownCts?.Dispose();
-
-        ServiceBridge.ServiceBridge.ResetForTests();
-    }
-
-    public static async Task<int> Main(string[] args)
+    internal static async Task<int> RunAsync(
+        string[] args,
+        Pipe? testInputPipe = null,
+        Pipe? testOutputPipe = null,
+        CancellationToken runToken = default,
+        Func<ServiceBridge.IServiceBridgeBackend>? serviceFactory = null)
     {
         // Handle --help and --version flags for easy verification
         if (args.Length > 0)
@@ -117,26 +46,6 @@ public class Program
 
         // Register global exception handlers for unhandled exceptions (telemetry)
         RegisterGlobalExceptionHandlers();
-
-        Pipe? testInputPipe;
-        Pipe? testOutputPipe;
-        CancellationTokenSource? testShutdownCts;
-        long testTransportGeneration;
-
-        lock (TestTransportLock)
-        {
-            testInputPipe = _testInputPipe;
-            testOutputPipe = _testOutputPipe;
-            testShutdownCts = _testShutdownCts;
-            testTransportGeneration = testInputPipe != null && testOutputPipe != null
-                ? _testTransportGeneration
-                : 0;
-        }
-
-        if (testTransportGeneration != 0)
-        {
-            ServiceBridge.ServiceBridge.SetTestOwnerToken(testTransportGeneration);
-        }
 
         var builder = Host.CreateApplicationBuilder(args);
 
@@ -162,6 +71,10 @@ public class Program
         // so ClearProviders removes it while leaving explicit usage telemetry enabled.
         ConfigureStdioLogging(builder.Logging);
 
+        builder.Services.AddSingleton(services => new ServiceBridge.ServiceBridge(
+            serviceFactory ?? (() => new ServiceBridge.ExcelMcpServiceBackend(new Service.ExcelMcpService())),
+            services.GetRequiredService<ILogger<ServiceBridge.ServiceBridge>>()));
+
         // Configure MCP Server - use test transport if configured, otherwise stdio
         var mcpBuilder = builder.Services
             .AddMcpServer(options =>
@@ -172,59 +85,25 @@ public class Program
                     Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0"
                 };
 
-                // Server-wide instructions for LLMs - helps with tool selection and workflow understanding
                 options.ServerInstructions = """
-                    ExcelMCP automates Microsoft Excel via COM interop.
-
-                    CRITICAL: File must be CLOSED in Excel desktop app (COM requires exclusive access).
-
-                    SESSION LIFECYCLE:
-                    1. file(action:'open') returns session_id
-                    2. Pass that ID as session_id in the arguments of ALL subsequent tool calls
-                    3. file(action:'close', session_id:the ID, save:true/false) ONLY when completely done
-
-                    CALCULATION MODE (Performance Optimization):
-                    - Use calculation_mode for bulk write operations (10+ cells with values or formulas).
-                    - Workflow: set-mode(manual) → perform all writes → calculate(scope: workbook) → set-mode(automatic).
-                    - Skips recalculation after every cell write, calculates once at end — much faster for batch operations.
-                    - Use get-mode when user asks for current calculation mode.
-
-                    CRITICAL - DO NOT CLOSE SESSION PREMATURELY:
-                    - Server automatically tracks active operations per session
-                    - Close will be BLOCKED if operations are still running (returns error with count)
-                    - Wait for error message to clear before retrying close
-                    - This prevents data loss from closing mid-operation
-
-                    SHOW EXCEL — "Agent Mode" (hero feature):
-                    - Default is show:false (hidden) — but ASK the user before starting multi-step tasks
-                    - Excel MCP supports "Agent Mode": users watch AI work in Excel in real-time
-                    - When starting a task, present two clear action card choices:
-                      (1) "Watch me work" — Show Excel side-by-side so you see every change live. Slightly slower because Excel renders each update.
-                      (2) "Work in background" — Keep Excel hidden for maximum speed. You won't see changes until done, but operations complete faster.
-                    - Each choice should clearly state its tradeoff so the user can make an informed decision
-                    - Skip asking only when: user already stated a preference, or it's a simple one-shot operation
-                    - If user picks "Watch me work": window(action:'show') + window(action:'arrange', preset:'right-half')
-                    - Use window(action:'set-status-bar', text:'...') to show what you're doing in Excel's status bar
-                    - Use window(action:'clear-status-bar') when done
-                    - Use window(action:'hide') to hide Excel again
-
-                    WHEN TO SKIP ASKING:
-                    - User says "show me", "watch", "let me see" — show immediately, no need to ask
-                    - User says "just do it", "work in background" — keep hidden, no need to ask
-                    - Simple one-shot operations (read a value, check a formula) — keep hidden
-                    - If user doesn't respond to the question, keep hidden
-
-                    WHEN Excel is visible — ASK BEFORE CLOSING:
-                    - If Excel is visible, the user is actively watching
-                    - ALWAYS ask before closing: "Would you like me to save and close, or keep it open?"
-                    - User may want to inspect results or make manual changes
-                    - Do NOT auto-close visible Excel sessions
-                    - Check visibility with window(action:'get-info') if unsure
+                    Automates desktop Microsoft Excel on Windows.
+                    Use file list to find the intended workbook; do not guess paths or choose an unrelated session.
+                    Open/create returns session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
+                    A workbook must not be open in another Excel instance. Excel is hidden unless show:true is requested.
+                    Close only after active operations finish (canClose:true). Set save:true to keep changes;
+                    close defaults to save:false and discards edits. Confirm before closing a visible window unless authorized.
+                    Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
+                    Cancellation is not undo: inspect file list before continuing, and do not blindly retry a change.
+                    For bulk writes, read the calculation mode, switch to manual, write, calculate, and restore the prior mode.
+                    Keep changes within the user's request. Formatting, Tables, charts, and PivotTables are not mandatory.
                     """;
             })
-            .WithGeminiCompatibleToolsFromAssembly()
-            .WithRequestFilters(filters => filters.AddCallToolFilter(SessionIdentityFilter.Wrap))
-            .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
+            .WithToolsFromAssembly()
+            .WithRequestFilters(filters =>
+            {
+                filters.AddCallToolFilter(SessionIdentityFilter.Wrap);
+                filters.AddCallToolFilter(ToolArgumentFilter.Wrap);
+            });
 
         if (testInputPipe != null && testOutputPipe != null)
         {
@@ -246,8 +125,6 @@ public class Program
 
         // Note: Update checks are handled by ExcelMCP Service (shown via Windows notification)
         // to avoid duplicate notifications when running in unified package mode
-
-        var runToken = testShutdownCts?.Token ?? CancellationToken.None;
 
         var stdinMonitor = testInputPipe == null
             ? StdinPipeMonitor.Start(host.Services.GetRequiredService<IHostApplicationLifetime>())
@@ -279,17 +156,6 @@ public class Program
         finally
         {
             stdinMonitor?.Dispose();
-
-            // CRITICAL: Auto-save all sessions and clean up Excel processes on shutdown.
-            // Without this, MCP client disconnect or process exit silently discards all unsaved work.
-            if (testTransportGeneration == 0)
-            {
-                ServiceBridge.ServiceBridge.Dispose();
-            }
-            else
-            {
-                ServiceBridge.ServiceBridge.DisposeIfOwnedBy(testTransportGeneration);
-            }
         }
     }
 
@@ -300,8 +166,10 @@ public class Program
         logging.ClearProviders();
         logging.AddConsole(consoleLogOptions =>
         {
+            consoleLogOptions.FormatterName = StdioConsoleFormatter.FormatterName;
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
+        logging.AddConsoleFormatter<StdioConsoleFormatter, ConsoleFormatterOptions>();
         logging.SetMinimumLevel(LogLevel.Warning);
         logging.AddFilter<ConsoleLoggerProvider>("Microsoft.ApplicationInsights", LogLevel.Warning);
     }

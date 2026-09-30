@@ -289,7 +289,7 @@ public sealed class SessionManager : IDisposable
     private readonly object _filePathReservationLock = new();
     private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
     private readonly ILogger<SessionManager> _logger;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
@@ -298,6 +298,7 @@ public sealed class SessionManager : IDisposable
     {
         lock (_filePathReservationLock)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             return _activeFilePaths.TryAdd(normalizedPath, sessionId);
         }
     }
@@ -311,6 +312,23 @@ public sealed class SessionManager : IDisposable
             {
                 _activeFilePaths.TryRemove(normalizedPath, out _);
             }
+        }
+    }
+
+    private void PublishSession(string sessionId, string normalizedPath, IExcelBatch batch, bool show, SessionOrigin origin)
+    {
+        // Publication and shutdown share a short lock; Excel startup and teardown stay outside it.
+        lock (_filePathReservationLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_activeSessions.TryAdd(sessionId, batch))
+                throw new InvalidOperationException($"Session ID collision: {sessionId}");
+            if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
+                throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
+            _activeOperationCounts[sessionId] = 0;
+            _showExcelFlags[sessionId] = show;
+            _sessionOrigins[sessionId] = origin;
+            _sessionCreatedAt[sessionId] = DateTime.UtcNow;
         }
     }
 
@@ -398,23 +416,7 @@ public sealed class SessionManager : IDisposable
                     startupTimeout,
                     filePath));
 
-            // Store in active sessions
-            if (!_activeSessions.TryAdd(sessionId, batch))
-            {
-                throw new InvalidOperationException($"Session ID collision: {sessionId}");
-            }
-
-            if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
-            {
-                _activeSessions.TryRemove(sessionId, out _);
-                throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
-            }
-
-            // Initialize operation counter and show flag
-            _activeOperationCounts[sessionId] = 0;
-            _showExcelFlags[sessionId] = show;
-            _sessionOrigins[sessionId] = origin;
-            _sessionCreatedAt[sessionId] = DateTime.UtcNow;
+            PublishSession(sessionId, normalizedPath, batch, show, origin);
 
             // Success - transfer ownership to dictionary
             var result = sessionId;
@@ -423,9 +425,7 @@ public sealed class SessionManager : IDisposable
         }
         catch (Exception ex)
         {
-            _activeSessions.TryRemove(sessionId, out _);
-            _sessionFilePaths.TryRemove(sessionId, out _);
-            ReleaseFilePathClaim(normalizedPath, sessionId);
+            RemoveSessionTracking(sessionId, removeSessionLock: true);
             throw new InvalidOperationException($"Failed to create session for '{filePath}': {ex.Message}", ex);
         }
         finally
@@ -530,23 +530,7 @@ public sealed class SessionManager : IDisposable
             // Create new workbook and keep session open with retry for transient COM failures
             batch = _sessionCreationPipeline.Execute(() => ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, show: show, operationTimeout: operationTimeout));
 
-            // Store in active sessions
-            if (!_activeSessions.TryAdd(sessionId, batch))
-            {
-                throw new InvalidOperationException($"Session ID collision: {sessionId}");
-            }
-
-            if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
-            {
-                _activeSessions.TryRemove(sessionId, out _);
-                throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
-            }
-
-            // Initialize operation counter and show flag
-            _activeOperationCounts[sessionId] = 0;
-            _showExcelFlags[sessionId] = show;
-            _sessionOrigins[sessionId] = origin;
-            _sessionCreatedAt[sessionId] = DateTime.UtcNow;
+            PublishSession(sessionId, normalizedPath, batch, show, origin);
 
             // Success - transfer ownership to dictionary
             var result = sessionId;
@@ -555,9 +539,7 @@ public sealed class SessionManager : IDisposable
         }
         catch (Exception ex)
         {
-            _activeSessions.TryRemove(sessionId, out _);
-            _sessionFilePaths.TryRemove(sessionId, out _);
-            ReleaseFilePathClaim(normalizedPath, sessionId);
+            RemoveSessionTracking(sessionId, removeSessionLock: true);
             throw new InvalidOperationException($"Failed to create session for new file '{filePath}': {ex.Message}", ex);
         }
         finally
@@ -1216,21 +1198,19 @@ public sealed class SessionManager : IDisposable
     /// <exception cref="AggregateException">One or more sessions could not be saved or shut down.</exception>
     public void Dispose()
     {
-        if (_disposed)
+        KeyValuePair<string, IExcelBatch>[] sessions;
+        lock (_filePathReservationLock)
         {
-            return;
+            if (_disposed)
+                return;
+            _disposed = true;
+            sessions = _activeSessions.ToArray();
+            foreach (var sessionId in _activeSessions.Keys)
+                RemoveSessionTracking(sessionId, removeSessionLock: true);
+            _activeFilePaths.Clear();
         }
 
-        _disposed = true;
-
-        // Close all active sessions SEQUENTIALLY to avoid COM threading issues
-        // Excel COM objects must be disposed on their STA threads, parallel disposal causes deadlocks
-        var sessions = _activeSessions.ToArray();
         var failures = new List<Exception>();
-        _activeSessions.Clear();
-        _activeFilePaths.Clear();
-        _sessionFilePaths.Clear();
-
         foreach (var (sessionId, session) in sessions)
         {
             // Auto-save before disposal to prevent silent data loss.

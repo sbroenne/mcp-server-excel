@@ -103,6 +103,37 @@ public sealed class ProgramLoggingTests
     }
 
     [Fact]
+    public void ConfigureStdioLogging_SuppressesExpectedSdkCancellationButKeepsUnexpectedFailures()
+    {
+        using var stderr = new StringWriter();
+        var originalError = Console.Error;
+
+        try
+        {
+            Console.SetError(stderr);
+            var services = new ServiceCollection();
+            services.AddLogging(Program.ConfigureStdioLogging);
+
+            using (var provider = services.BuildServiceProvider())
+            {
+                var logger = provider.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("ModelContextProtocol.Server.McpServer");
+                var eventId = new EventId(975074943);
+                logger.LogWarning(eventId, new OperationCanceledException(), "expected cancellation");
+                logger.LogWarning(eventId, new InvalidOperationException("unexpected detail"), "unexpected failure");
+            }
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        Assert.DoesNotContain("expected cancellation", stderr.ToString(), StringComparison.Ordinal);
+        Assert.Contains("unexpected failure", stderr.ToString(), StringComparison.Ordinal);
+        Assert.Contains("unexpected detail", stderr.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConfigureStdioLogging_RemovesApplicationInsightsLoggerProvider()
     {
         var services = new ServiceCollection();

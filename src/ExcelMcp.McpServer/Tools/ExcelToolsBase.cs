@@ -1,472 +1,198 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
-
-#pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
+using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
-/// <summary>
-/// Base class for Excel MCP tools providing common patterns and utilities.
-/// All Excel tools inherit from this to ensure consistency for LLM usage.
-///
-/// The MCP Server forwards ALL requests to the in-process ExcelMCP Service.
-/// </summary>
-[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+/// <summary>Converts shared Excel results into SDK results without replacing SDK invocation.</summary>
 public static class ExcelToolsBase
 {
-    private static readonly AsyncLocal<CancellationToken> CurrentCancellationToken = new();
-
-    private sealed class CancellationTokenScope : IDisposable
-    {
-        private readonly CancellationToken _previousToken;
-        private bool _disposed;
-
-        public CancellationTokenScope(CancellationToken token)
-        {
-            _previousToken = CurrentCancellationToken.Value;
-            CurrentCancellationToken.Value = token;
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            CurrentCancellationToken.Value = _previousToken;
-            _disposed = true;
-        }
-    }
-
-    /// <summary>
-    /// Ensures the ExcelMCP Service is running.
-    /// The service is required for all MCP Server operations.
-    /// </summary>
-    public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
-    {
-        return await ServiceBridge.ServiceBridge.EnsureServiceAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// JSON serializer options optimized for LLM token efficiency.
-    /// Uses compact formatting to reduce token consumption.
-    /// </summary>
-    /// <remarks>
-    /// Token optimization settings:
-    /// - WriteIndented = false: Removes whitespace (saves ~20% tokens)
-    /// - DefaultIgnoreCondition = WhenWritingNull: Omits null properties
-    /// - PropertyNamingPolicy = CamelCase: Consistent naming (e.g., success, errorMessage, filePath)
-    /// - JsonStringEnumConverter: Human-readable enum values
-    /// </remarks>
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = false,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter() }
     };
 
-    /// <summary>
-    /// Delegate wrapper for ForwardToService matching the generated code signature.
-    /// Used by generated RouteAction methods.
-    /// </summary>
-    public static readonly Func<string, string, object?, string> ForwardToServiceFunc =
-        (command, sessionId, args) => ForwardToService(command, sessionId, args);
-
-    internal static IDisposable PushCancellationToken(CancellationToken cancellationToken) =>
-        new CancellationTokenScope(cancellationToken);
-
-    /// <summary>
-    /// Forwards a command to the ExcelMCP Service and returns the JSON response.
-    /// This is the primary method for MCP tools to execute commands.
-    ///
-    /// The command format is "category.action", e.g., "sheet.list", "range.get-values".
-    /// The service handles session management and Core command execution.
-    /// </summary>
-    /// <param name="command">Service command in format "category.action"</param>
-    /// <param name="sessionId">Session ID for the operation</param>
-    /// <param name="args">Optional arguments object to serialize</param>
-    /// <param name="timeoutSeconds">Optional timeout override</param>
-    /// <returns>JSON response from service</returns>
-    public static string ForwardToService(
+    public static async Task<string> ForwardToServiceAsync(
+        ServiceBridge.ServiceBridge bridge,
         string command,
         string? sessionId,
-        object? args = null,
-        int? timeoutSeconds = null)
+        object? args,
+        CancellationToken cancellationToken)
     {
-        var response = ServiceBridge.ServiceBridge.SendAsync(
-            command,
-            sessionId,
-            args,
-            timeoutSeconds,
-            CurrentCancellationToken.Value).GetAwaiter().GetResult();
-
-        if (!response.Success)
-        {
-            var errorMessage = response.ErrorMessage ?? $"Command '{command}' failed";
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                error = errorMessage,
-                errorMessage,
-                errorCategory = response.ErrorCategory,
-                command = response.Command,
-                sessionId = response.SessionId,
-                exceptionType = response.ExceptionType,
-                hresult = response.HResult,
-                innerError = response.InnerError,
-                isError = true
-            }, JsonOptions);
-        }
-
-        return response.Result ?? JsonSerializer.Serialize(new
-        {
-            success = true
-        }, JsonOptions);
+        var response = await bridge.SendAsync(command, sessionId, args, cancellationToken: cancellationToken);
+        return SerializeServiceResponse(response);
     }
 
-    /// <summary>
-    /// Forwards a command to the ExcelMCP Service without a session.
-    /// Used for commands that don't require an active session (e.g., service.status).
-    /// </summary>
-    public static string ForwardToServiceNoSession(
-        string command,
-        object? args = null,
-        int? timeoutSeconds = null)
+    internal static string SerializeServiceResponse(ServiceResponse response, string? filePath = null)
     {
-        var response = ServiceBridge.ServiceBridge.SendAsync(
-            command,
-            null,
-            args,
-            timeoutSeconds,
-            CurrentCancellationToken.Value).GetAwaiter().GetResult();
+        if (response.Success)
+            return response.Result ?? throw new InvalidOperationException("Service operation returned no result.");
 
-        if (!response.Success)
-        {
-            var errorMessage = response.ErrorMessage ?? $"Command '{command}' failed";
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                error = errorMessage,
-                errorMessage,
-                errorCategory = response.ErrorCategory,
-                command = response.Command,
-                sessionId = response.SessionId,
-                exceptionType = response.ExceptionType,
-                hresult = response.HResult,
-                innerError = response.InnerError,
-                isError = true
-            }, JsonOptions);
-        }
-
-        return response.Result ?? JsonSerializer.Serialize(new
-        {
-            success = true
-        }, JsonOptions);
-    }
-
-    /// <summary>
-    /// Executes a tool operation and serializes any exception using shared error formatting.
-    /// Tracks tool usage telemetry (if enabled).
-    /// </summary>
-    /// <param name="toolName">Tool name for telemetry (e.g., "range").</param>
-    /// <param name="actionName">Action string (kebab-case) included in error context.</param>
-    /// <param name="operation">Synchronous operation to execute.</param>
-    /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
-    /// <returns>Serialized JSON response.</returns>
-    public static string ExecuteToolAction(
-        string toolName,
-        string actionName,
-        Func<string> operation,
-        Func<Exception, string?>? customHandler = null) =>
-        ExecuteToolAction(toolName, actionName, null, operation, customHandler);
-
-    /// <summary>
-    /// Executes a tool operation and serializes any exception using shared error formatting.
-    /// Tracks tool usage telemetry (if enabled).
-    /// </summary>
-    /// <param name="toolName">Tool name for telemetry (e.g., "range").</param>
-    /// <param name="actionName">Action string (kebab-case) included in error context.</param>
-    /// <param name="path">Optional Excel path for context in error messages.</param>
-    /// <param name="operation">Synchronous operation to execute.</param>
-    /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
-    /// <returns>Serialized JSON response.</returns>
-    public static string ExecuteToolAction(
-        string toolName,
-        string actionName,
-        string? path,
-        Func<string> operation,
-        Func<Exception, string?>? customHandler = null) =>
-        ExecuteToolAction(
-            toolName,
-            actionName,
-            path,
-            operation,
-            ExcelMcpTelemetry.TrackToolInvocation,
-            customHandler);
-
-    internal static string ExecuteToolAction(
-        string toolName,
-        string actionName,
-        string? path,
-        Func<string> operation,
-        Action<string, string, long, ToolInvocationResult> trackInvocation,
-        Func<Exception, string?>? customHandler = null)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        var invocationResult = new ToolInvocationResult(
-            ToolInvocationOutcome.Failed,
-            ToolFailureClass.Unclassified);
-
-        try
-        {
-            var result = operation();
-            invocationResult = ClassifyToolResponse(toolName, actionName, result);
-            return result;
-        }
-        catch (Exception ex)
-        {
-            // Log COM exceptions to stderr for diagnostic capture
-            if (ex is System.Runtime.InteropServices.COMException comEx)
-            {
-                Console.Error.WriteLine($"[ExcelMcp] COM Exception in {toolName}/{actionName}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
-                if (ex.StackTrace != null)
-                {
-                    Console.Error.WriteLine($"[ExcelMcp] StackTrace: {ex.StackTrace[..Math.Min(500, ex.StackTrace.Length)]}");
-                }
-            }
-            else if (ex.InnerException is System.Runtime.InteropServices.COMException innerComEx)
-            {
-                Console.Error.WriteLine($"[ExcelMcp] Inner COM Exception in {toolName}/{actionName}: HResult=0x{innerComEx.HResult:X8}, Message={innerComEx.Message}");
-            }
-
-            if (customHandler != null)
-            {
-                var custom = customHandler(ex);
-                if (!string.IsNullOrWhiteSpace(custom))
-                {
-                    invocationResult = ClassifyThrownExceptionResponse(
-                        toolName,
-                        actionName,
-                        custom!);
-                    return custom!;
-                }
-            }
-
-            var errorResponse = SerializeToolError(actionName, path, ex);
-            invocationResult = ClassifyThrownExceptionResponse(
-                toolName,
-                actionName,
-                errorResponse);
-            return errorResponse;
-        }
-        finally
-        {
-            stopwatch.Stop();
-            trackInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, invocationResult);
-        }
-    }
-
-    private static ToolInvocationResult ClassifyThrownExceptionResponse(
-        string toolName,
-        string actionName,
-        string response)
-    {
-        var classified = ClassifyToolResponse(toolName, actionName, response);
-        return classified.Outcome == ToolInvocationOutcome.Failed
-            ? classified
-            : new ToolInvocationResult(
-                ToolInvocationOutcome.Failed,
-                ToolFailureClass.Unclassified);
-    }
-
-    private static ToolInvocationResult ClassifyToolResponse(
-        string toolName,
-        string actionName,
-        string response)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(response);
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null);
-            }
-
-            var root = document.RootElement;
-            var reportsNegative = root.TryGetProperty("success", out var success)
-                && success.ValueKind == JsonValueKind.False;
-            var reportsError = root.TryGetProperty("isError", out var isError)
-                && isError.ValueKind == JsonValueKind.True;
-
-            if (reportsNegative
-                && !reportsError
-                && toolName == "file"
-                && actionName == "test")
-            {
-                return new ToolInvocationResult(
-                    ToolInvocationOutcome.ExpectedNegative,
-                    null);
-            }
-
-            if (reportsNegative || reportsError)
-            {
-                var errorCategory = root.TryGetProperty("errorCategory", out var category)
-                    && category.ValueKind == JsonValueKind.String
-                    ? category.GetString()
-                    : null;
-                return new ToolInvocationResult(
-                    ToolInvocationOutcome.Failed,
-                    ClassifyFailure(errorCategory));
-            }
-
-            return new ToolInvocationResult(ToolInvocationOutcome.Succeeded, null);
-        }
-        catch (JsonException)
-        {
-            return new ToolInvocationResult(
-                ToolInvocationOutcome.Failed,
-                ToolFailureClass.Unclassified);
-        }
-    }
-
-    private static ToolFailureClass ClassifyFailure(string? errorCategory) =>
-        errorCategory switch
-        {
-            "InvalidInput" or "SessionNotFound" or "SessionUnavailable"
-                or "NotFound" or "Conflict" or "Syntax" or "Expression" or "Prerequisite"
-                => ToolFailureClass.InputState,
-            "Privacy" or "Authentication" or "Connectivity" or "Permissions" or "DependencyUnavailable"
-                => ToolFailureClass.ExternalDependency,
-            "Timeout" or "Cancelled" or "SessionInvalidated"
-                => ToolFailureClass.TimeoutCancellation,
-            "ComInterop" or "ExcelProcessDied" or "Cleanup"
-                => ToolFailureClass.ExcelRuntime,
-            "ServiceUnavailable" or "ServiceStartup" or "InvalidResponse"
-                => ToolFailureClass.InternalProductFault,
-            _ => ToolFailureClass.Unclassified
-        };
-
-    /// <summary>
-    /// Validates that a path is a valid Windows absolute path.
-    /// Returns null if valid, or a JSON error response if invalid.
-    /// </summary>
-    /// <param name="path">The path to validate</param>
-    /// <returns>JSON error response if invalid, null if valid</returns>
-    public static string? ValidateWindowsPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null; // Let existing null checks handle this
-        }
-
-        // Use .NET's built-in check for fully qualified Windows paths
-        // Returns false for Unix paths like /home/user/file.xlsx, relative paths like ./file.xlsx
-        if (!Path.IsPathFullyQualified(path))
-        {
-            // Extract filename from the invalid path (works for both Unix and Windows separators)
-            var fileName = Path.GetFileName(path.Replace('/', Path.DirectorySeparatorChar));
-            if (string.IsNullOrEmpty(fileName))
-            {
-                fileName = "workbook.xlsx";
-            }
-
-            // Get user's actual Documents folder to provide a valid suggestion
-            var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            var suggestedPath = Path.Combine(documentsFolder, fileName);
-
-            var errorMessage = path.StartsWith('/')
-                ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
-                : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'";
-
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                error = errorMessage,
-                errorMessage,
-                errorCategory = "InvalidInput",
-                filePath = path,
-                suggestedPath,
-                documentsFolder,
-                isError = true
-            }, JsonOptions);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Serializes a tool error response with consistent structure.
-    /// Uses camelCase property names matching JsonNamingPolicy: success, errorMessage, isError.
-    /// Includes detailed COM exception info for diagnostics.
-    /// </summary>
-    /// <param name="actionName">Action string (kebab-case) included in message.</param>
-    /// <param name="path">Optional Excel path context.</param>
-    /// <param name="ex">Exception to serialize.</param>
-    /// <returns>Serialized JSON error payload.</returns>
-    public static string SerializeToolError(string actionName, string? path, Exception ex)
-    {
-        var errorMessage = path != null
-            ? $"{actionName} failed for '{path}': {ex.Message}"
-            : $"{actionName} failed: {ex.Message}";
-
-        // Add detailed COM exception info for diagnostics
-        string? exceptionType = ex.GetType().Name;
-        string? hresult = OperationFailureClassifier.GetComHResult(ex);
-        string? innerError = null;
-        var errorCategory = OperationFailureClassifier.Classify(ex);
-
-        if (ex is System.Runtime.InteropServices.COMException comEx)
-        {
-            hresult = $"0x{comEx.HResult:X8}";
-            errorMessage += $" [COM Error: {hresult}]";
-        }
-
-        if (ex.InnerException != null)
-        {
-            innerError = ex.InnerException.Message;
-            if (ex.InnerException is System.Runtime.InteropServices.COMException innerComEx)
-            {
-                innerError += $" [COM: 0x{innerComEx.HResult:X8}]";
-            }
-        }
-
-        var payload = new
+        var errorMessage = response.ErrorMessage ?? $"Command '{response.Command}' failed.";
+        return JsonSerializer.Serialize(new
         {
             success = false,
             error = errorMessage,
             errorMessage,
-            errorCategory,
-            isError = true,
-            exceptionType,
-            hresult,
-            innerError
-        };
-
-        return JsonSerializer.Serialize(payload, JsonOptions);
+            errorCategory = response.ErrorCategory,
+            command = response.Command,
+            sessionId = response.SessionId,
+            exceptionType = response.ExceptionType,
+            hresult = response.HResult,
+            innerError = response.InnerError,
+            filePath,
+            isError = true
+        }, JsonOptions);
     }
 
-    /// <summary>
-    /// Returns a JSON error response when the required 'action' parameter is missing.
-    /// Used by generated tool methods to handle null action gracefully instead of
-    /// throwing an unhandled exception at the framework level.
-    /// </summary>
-    /// <param name="toolName">Tool name for error context.</param>
-    /// <returns>JSON error payload with isError=true.</returns>
-    public static string MissingActionError(string toolName)
+    public static Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        string actionName,
+        Func<Task<string>> operation,
+        CancellationToken cancellationToken,
+        Func<string, CallToolResult>? resultFactory = null) =>
+        ExecuteToolActionAsync(toolName, actionName, operation, cancellationToken,
+            ExcelMcpTelemetry.TrackToolInvocation, resultFactory);
+
+    internal static async Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        string actionName,
+        Func<Task<string>> operation,
+        CancellationToken cancellationToken,
+        Action<string, string, long, ToolInvocationResult> trackInvocation,
+        Func<string, CallToolResult>? resultFactory = null)
     {
+        var stopwatch = Stopwatch.StartNew();
+        var invocation = new ToolInvocationResult(ToolInvocationOutcome.Failed, ToolFailureClass.Unclassified);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var json = await operation();
+            cancellationToken.ThrowIfCancellationRequested();
+            invocation = ClassifyToolResponse(toolName, actionName, json);
+            var result = resultFactory?.Invoke(json)
+                ?? CreateToolResult(json, invocation.Outcome == ToolInvocationOutcome.Failed);
+            if (result.IsError is true && invocation.Outcome != ToolInvocationOutcome.Failed)
+                invocation = new(ToolInvocationOutcome.Failed, ToolFailureClass.Unclassified);
+            return result;
+        }
+        catch (ArgumentException ex)
+        {
+            var json = SerializeToolError(actionName, null, ex);
+            invocation = ClassifyToolResponse(toolName, actionName, json);
+            return CreateToolResult(json, isError: true);
+        }
+        catch (Exception ex)
+        {
+            invocation = new(ToolInvocationOutcome.Failed, ex is JsonException
+                ? ToolFailureClass.InternalProductFault
+                : ClassifyFailure(OperationFailureClassifier.Classify(ex)));
+            throw; // Let the SDK preserve cancellation and redact unexpected invocation errors.
+        }
+        finally
+        {
+            trackInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, invocation);
+        }
+    }
+
+    internal static CallToolResult CreateToolResult(string json, bool? isError = null)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var failed = root.ValueKind == JsonValueKind.Object &&
+            ((root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) ||
+             (root.TryGetProperty("isError", out var error) && error.ValueKind == JsonValueKind.True));
+        return new CallToolResult
+        {
+            IsError = isError ?? failed,
+            Content = [new TextContentBlock { Text = json }],
+            // Older MCP versions require an object here; retain existing text for scalar results.
+            StructuredContent = root.ValueKind == JsonValueKind.Object
+                ? root.Clone()
+                : JsonSerializer.SerializeToElement(new { result = root }, JsonOptions)
+        };
+    }
+
+    private static ToolInvocationResult ClassifyToolResponse(string toolName, string actionName, string response)
+    {
+        using var document = JsonDocument.Parse(response);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return new(ToolInvocationOutcome.Succeeded, null);
+
+        var negative = root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False;
+        var error = root.TryGetProperty("isError", out var isError) && isError.ValueKind == JsonValueKind.True;
+        if (negative && !error && toolName == "file" && actionName == "test")
+            return new(ToolInvocationOutcome.ExpectedNegative, null);
+
+        if (negative || error)
+        {
+            var category = root.TryGetProperty("errorCategory", out var property)
+                && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
+            return new(ToolInvocationOutcome.Failed, ClassifyFailure(category));
+        }
+        return new(ToolInvocationOutcome.Succeeded, null);
+    }
+
+    private static ToolFailureClass ClassifyFailure(string? category) => category switch
+    {
+        "InvalidInput" or "SessionNotFound" or "SessionUnavailable" or "NotFound" or "Conflict"
+            or "Syntax" or "Expression" or "Prerequisite" => ToolFailureClass.InputState,
+        "Privacy" or "Authentication" or "Connectivity" or "Permissions" or "DependencyUnavailable"
+            => ToolFailureClass.ExternalDependency,
+        "Timeout" or "Cancelled" or "SessionInvalidated" => ToolFailureClass.TimeoutCancellation,
+        "ComInterop" or "ExcelProcessDied" or "Cleanup" => ToolFailureClass.ExcelRuntime,
+        "ServiceUnavailable" or "ServiceStartup" or "InvalidResponse" => ToolFailureClass.InternalProductFault,
+        _ => ToolFailureClass.Unclassified
+    };
+
+    public static string? ValidateWindowsPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path))
+            return null;
+
+        var fileName = Path.GetFileName(path.Replace('/', Path.DirectorySeparatorChar));
+        if (string.IsNullOrEmpty(fileName))
+            fileName = "workbook.xlsx";
+        var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var suggestedPath = Path.Combine(documentsFolder, fileName);
+        var errorMessage = path.StartsWith('/')
+            ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
+            : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'";
         return JsonSerializer.Serialize(new
         {
             success = false,
-            error = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
-            errorMessage = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
+            error = errorMessage,
+            errorMessage,
             errorCategory = "InvalidInput",
+            filePath = path,
+            suggestedPath,
+            documentsFolder,
             isError = true
+        }, JsonOptions);
+    }
+
+    public static string SerializeToolError(string actionName, string? path, Exception ex)
+    {
+        var errorMessage = path is null
+            ? $"{actionName} failed: {ex.Message}"
+            : $"{actionName} failed for '{path}': {ex.Message}";
+        return JsonSerializer.Serialize(new
+        {
+            success = false,
+            error = errorMessage,
+            errorMessage,
+            errorCategory = OperationFailureClassifier.Classify(ex),
+            isError = true,
+            exceptionType = ex.GetType().Name,
+            hresult = OperationFailureClassifier.GetComHResult(ex),
+            innerError = ex.InnerException?.Message
         }, JsonOptions);
     }
 }

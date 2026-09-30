@@ -91,12 +91,13 @@ public class SkillMdQualityTests
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void McpSkill_HasParameterTables()
+    public void McpSkill_UsesDiscoveredSchemasAndTaskScopedGuidance()
     {
-        // MCP SKILL.md has markdown tables for reference, not parameter tables
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
         var content = File.ReadAllText(skillPath);
-        Assert.Contains("| Task | Tool |", content);
+        Assert.Contains("Tool schemas describe the available actions and", content);
+        Assert.Contains("Read-only tasks need no writes, formatting, Tables, charts, or PivotTables.", content);
+        Assert.Contains("Do not convert every range automatically.", content);
     }
 
     [Fact]
@@ -252,7 +253,10 @@ public class SkillMdQualityTests
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
         var content = File.ReadAllText(skillPath);
 
-        Assert.Contains("## Calculation Mode Workflow", content);
+        Assert.Single(Regex.Matches(content, @"^## Bulk writes\r?$", RegexOptions.Multiline));
+        Assert.Contains("calculation_mode(action: 'get-mode'", content);
+        Assert.Contains("scope: 'workbook'", content);
+        Assert.Contains("restore the prior mode", content);
         Assert.DoesNotContain("### Rule 10: Use Calculation Mode", content);
     }
 
@@ -275,6 +279,7 @@ public class SkillMdQualityTests
         var allowedCamelCaseTokens = new HashSet<string>(StringComparer.Ordinal)
         {
             // MCP and CLI response properties.
+            "canClose",
             "canOpen",
             "chartName",
             "errorCategory",

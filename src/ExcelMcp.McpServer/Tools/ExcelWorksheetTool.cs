@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -33,12 +34,14 @@ public static partial class ExcelWorksheetTool
     /// <param name="target_sheet_name">Optional: New name for the copied sheet (default: keeps original name)</param>
     /// <param name="before_sheet">Optional: Position before this sheet</param>
     /// <param name="after_sheet">Optional: Position after this sheet</param>
-    [McpServerTool(Name = "worksheet", Title = "Worksheet Operations", Destructive = true)]
+    [McpServerTool(Name = "worksheet", Title = "Worksheet Operations", Destructive = true,
+        UseStructuredContent = true, OutputSchemaType = typeof(WorksheetToolOutputSchema))]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
     [Description("Worksheet lifecycle: create, rename, copy, delete, move. RENAME: Use old_name plus new_name. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors, visibility, and protection.")]
-    public static string ExcelWorksheet(
+    public static Task<CallToolResult> ExcelWorksheet(
         [Description("The action to perform")] SheetAction action,
+        ServiceBridge.ServiceBridge bridge,
         [Description(
             "Session ID from file 'open' or 'create'. Required for same-workbook actions: list, create, rename, delete, move, and copy. Not used by copy-to-file or move-to-file.")]
         string? session_id = null,
@@ -78,23 +81,21 @@ public static partial class ExcelWorksheetTool
         string? after_sheet = null,
         CancellationToken cancellationToken = default)
     {
-        using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
-
-        return ExcelToolsBase.ExecuteToolAction(
+        return ExcelToolsBase.ExecuteToolActionAsync(
             "worksheet",
             ServiceRegistry.Sheet.ToActionString(action),
-            () =>
+            async () =>
             {
                 // Atomic operations don't require a session
                 if (action == SheetAction.CopyToFile || action == SheetAction.MoveToFile)
                 {
-                    return action switch
+                    return await (action switch
                     {
                         SheetAction.CopyToFile =>
                             ServiceRegistry.Sheet.RouteAction(
                                 action,
                                 "",  // No session for atomic operation
-                                ExcelToolsBase.ForwardToServiceFunc,
+                                (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                                 sourceFile: source_file,
                                 sourceSheet: source_sheet,
                                 targetFile: target_file,
@@ -105,14 +106,14 @@ public static partial class ExcelWorksheetTool
                             ServiceRegistry.Sheet.RouteAction(
                                 action,
                                 "",  // No session for atomic operation
-                                ExcelToolsBase.ForwardToServiceFunc,
+                                (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                                 sourceFile: source_file,
                                 sourceSheet: source_sheet,
                                 targetFile: target_file,
                                 beforeSheet: before_sheet,
                                 afterSheet: after_sheet),
                         _ => throw new ArgumentException($"Unknown atomic action: {action}"),
-                    };
+                    });
                 }
 
                 // Validate session_id for non-atomic operations
@@ -141,51 +142,51 @@ public static partial class ExcelWorksheetTool
                 }
 
                 // Session-based operations
-                return action switch
+                return await (action switch
                 {
                     SheetAction.List =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
                             session_id,
-                            ExcelToolsBase.ForwardToServiceFunc,
+                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             filePath: file_path),
                     SheetAction.Create =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
                             session_id,
-                            ExcelToolsBase.ForwardToServiceFunc,
+                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name,
                             filePath: file_path),
                     SheetAction.Rename =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
                             session_id,
-                            ExcelToolsBase.ForwardToServiceFunc,
+                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             oldName: old_name,
                             newName: new_name),
                     SheetAction.Delete =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
                             session_id,
-                            ExcelToolsBase.ForwardToServiceFunc,
+                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name),
                     SheetAction.Copy =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
                             session_id,
-                            ExcelToolsBase.ForwardToServiceFunc,
+                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sourceName: source_name,
                             targetName: target_name),
                     SheetAction.Move =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
                             session_id,
-                            ExcelToolsBase.ForwardToServiceFunc,
+                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name,
                             beforeSheet: before_sheet,
                             afterSheet: after_sheet),
                     _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.Sheet.ToActionString(action)})", nameof(action))
-                };
-            });
+                });
+            }, cancellationToken);
     }
 }

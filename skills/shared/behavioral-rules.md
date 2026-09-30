@@ -2,82 +2,27 @@
 
 These rules ensure efficient and reliable Excel automation. AI assistants should follow these guidelines when executing Excel operations.
 
-## System Prompt Rules (LLM-Validated)
-
-These rules are validated by automated LLM tests and MUST be followed:
-
-- **Execute tasks immediately without asking for confirmation**
-- **Never ask clarifying questions - make reasonable assumptions and proceed**
-- Ask the user whether they want Excel visible or hidden when starting multi-step tasks
-- When the user asks to "show Excel" or "watch" the work, use `window(show)` + `window(arrange)` to position it
-- Format Excel files professionally (proper column widths, headers, number formats)
-- Always format data ranges as Excel Tables (not plain ranges)
-- **Always end with a text summary** - never end on just a tool call or command
-
-## CRITICAL: No Clarification Questions
-
-**STOP.** If you are about to ask "Which file?", "What table?", "Where should I put this?" - DON'T.
-
-**Instead, discover the information yourself:**
-
-| Bad (Asking) | Good (Discovering) |
-|--------------|-------------------|
-| "Which Excel file should I use?" | `file(list)` → use the open session |
-| "What's the table name?" | `table(list)` → discover tables |
-| "Which sheet has the data?" | `worksheet(list)` → check all sheets |
-| "Should I create a PivotTable?" | YES - create it on a new sheet |
-| "What values should I filter?" | Read the data first, then filter appropriately |
-
-**You have tools to answer your own questions. USE THEM.**
-
 ## Core Execution Rules
 
-### Execute Immediately
+### Discover, then stay within scope
 
-Do NOT ask clarifying questions for standard operations. Proceed with reasonable defaults:
+Use session, worksheet, and table listings to discover existing state. Match
+the intended workbook; do not choose an unrelated session or invent a path.
+Ask when the requested target or a destructive change remains unclear.
+Reading a workbook does not require writing, formatting, Tables, or PivotTables.
 
-- **File creation**: Create the file and report the path
-- **Data operations**: Execute the operation and report results
-- **Formatting**: Apply formatting and confirm completion
-
-**When to ask**: Only when the request is genuinely ambiguous (e.g., "update the data" without specifying what data or which file).
-
-### Ask About Excel Visibility
-
-When starting a multi-step task, **ask the user** whether they want Excel visible or hidden. Present two clear action card choices:
-
-> **Watch me work** — Show Excel side-by-side so you see every change live. Operations run slightly slower because Excel renders each update on screen.
->
-> **Work in background** — Keep Excel hidden for maximum speed. You won't see changes until the task is done, but operations complete faster.
-
-**Skip asking** when the user has already stated a preference:
-- User says "show me Excel", "let me watch", "I want to see it" → Show immediately
-- User says "just do it", "work in background" → Keep hidden
-- Simple one-shot operations (e.g., "what's in A1?") → Keep hidden, no need to ask
-
-**If the user doesn't respond**, keep Excel hidden.
-
-**How to show Excel:**
-```
-1. window(action: 'show')                         → Make visible
-2. window(action: 'arrange', preset: 'left-half') → Position for side-by-side
-```
-
-Do NOT:
-- Show Excel without the user choosing to see it
-- Tell users to look at Excel windows unless Excel is visible
-- Reference Excel UI elements when Excel is hidden
-- Suggest manual Excel interactions
+Excel is hidden by default. Show it when requested, without imposing a visibility
+menu. Confirm before closing a visible window unless already authorized.
 
 ### Format Professionally
 
-When creating or modifying Excel files:
+When formatting is part of the task:
 
 - Set appropriate column widths for content
 - Apply header formatting (bold, filters)
 - Use proper number formats (currency, dates, percentages) with `range set-number-format`
 - Auto-fit variable-width data with `range_format auto-fit-columns` or `range_format auto-fit-rows`
-- Format data as Excel Tables (not plain ranges)
+- Create Excel Tables when requested or required for the intended workflow
 - When the same visual styling applies to multiple disjoint ranges on one sheet, use `range_format format-ranges`
 
 **Tool split to remember:**
@@ -98,7 +43,8 @@ When creating or modifying Excel files:
 
 ### Format Cells by Data Type (CRITICAL)
 
-Always apply number formats after setting values. Without formatting:
+Preserve existing formats unless the task calls for changing them. New numeric
+data may need number formats:
 - Dates appear as serial numbers (45678 instead of 2025-01-22)
 - Currency appears as plain numbers (1234.56 instead of $1,234.56)
 - Percentages appear as decimals (0.15 instead of 15%)
@@ -130,7 +76,7 @@ because a screenshot shows swapped separators.
 
 ### Format Tabular Data as Excel Tables
 
-Always convert tabular data to Excel Tables (ListObjects):
+When an Excel Table (ListObject) is requested or needed:
 
 ```
 1. range set-values (write data including headers)
@@ -159,17 +105,6 @@ After completing operations, report:
 - File path (for new files)
 - Any relevant statistics (row counts, etc.)
 
-### CRITICAL: Always End With a Text Response
-
-**NEVER end your turn with only a tool call or command execution.** After all operations are complete, you MUST provide a text message summarizing what was accomplished.
-
-| Bad (Silent completion) | Good (Text summary) |
-|------------------------|--------------------|
-| *(tool call with no text)* | "Created PivotTable 'SalesPivot' with tabular layout on the Analysis sheet." |
-| *(just runs a command)* | "Set the PivotTable to compact layout (row fields in a single indented column)." |
-
-**Why**: Users and automation expect a text confirmation. A silent tool call or command with no follow-up text is an incomplete response.
-
 ### Session Lifecycle
 
 Use `file(action: 'test')` or `excelcli -q session test <path>` before opening
@@ -180,7 +115,7 @@ closes it without saving; use the timeout option for slow validation opens.
 IRM/AIP files report `canOpen:false` until the required interactive Excel
 authentication occurs; open them with a visible session.
 
-Always close sessions when done. MCP example:
+Close when work is finished and no operations are active. MCP example:
 
 ```
 1. file(action: 'open', path: '...')  → capture response.session_id as sessionId
@@ -207,18 +142,6 @@ excelcli -q session close --session $sessionId --save
 CLI and MCP sessions are separate; IDs cannot be transferred between them.
 
 **Why**: Unclosed sessions leave Excel processes running, consuming memory and locking files.
-
-### Format Results as Tables
-
-When presenting data to users, format as Markdown tables:
-
-```markdown
-| Column A | Column B | Column C |
-|----------|----------|----------|
-| Value 1  | Value 2  | Value 3  |
-```
-
-NOT as raw JSON arrays: `[["Column A","Column B"],["Value 1","Value 2"]]`
 
 ## Data Model Output Rules
 
@@ -271,8 +194,10 @@ When updating data:
 Call `file(action: 'close', save: true)` to persist changes:
 
 - Operations modify the in-memory workbook
-- Changes are NOT automatically saved to disk
-- Session termination WITHOUT save loses all changes
+- Explicit close defaults to discarding unsaved edits
+- Normal Service shutdown attempts to save remaining sessions before disposal
+- Bare batch disposal, crashes, timeouts, and forced cleanup do not guarantee saving
+- Cancellation is not undo; inspect the session list before continuing or retrying
 
 ## Workflow Sequencing Rules
 

@@ -27,13 +27,12 @@ public sealed class McpProgramTransportFixture :
 
     public async Task InitializeAsync()
     {
-        ServiceBridge.ServiceBridge.SetServiceFactoryForTests(
-            _ownedExcelProcesses.CreateBackend);
         (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
             _clientToServerPipe,
             _serverToClientPipe,
             _cts.Token,
-            "SharedProgramTransportClient");
+            "SharedProgramTransportClient",
+            _ownedExcelProcesses.CreateBackend);
         _tempDirectory = Path.Join(
             Path.GetTempPath(),
             $"McpProgramTransport_{Guid.NewGuid():N}");

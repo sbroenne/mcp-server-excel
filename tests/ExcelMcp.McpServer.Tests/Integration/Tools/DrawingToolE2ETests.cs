@@ -132,7 +132,6 @@ public sealed class DrawingToolE2ETests : McpIntegrationTestBase
         var valuesJson = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["path"] = _workbookPath,
             ["session_id"] = _sessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "B2:E3",
@@ -199,7 +198,6 @@ public sealed class DrawingToolE2ETests : McpIntegrationTestBase
     private Task<string> CallDrawingAsync(string action, Dictionary<string, object?> arguments)
     {
         arguments["action"] = action;
-        arguments["path"] = _workbookPath;
         arguments["session_id"] = _sessionId;
         return CallToolAsync("drawing", arguments);
     }

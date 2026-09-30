@@ -41,7 +41,7 @@ npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp
 **Via VS Code Extension (auto-installs excel-mcp):**
 Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) — it registers the `excel-mcp` skill via `chatSkills`. For the `excel-cli` skill, use the plugin or `npx skills` methods above.
 
-## Maintaining skills and MCP prompts
+## Maintaining skills and server guidance
 
 The source repository no longer contains installable generated skills. The old
 `npx skills add sbroenne/mcp-server-excel` command does not redirect. Existing
@@ -57,9 +57,11 @@ editing output that the next build replaces.
 | Skill prose and tool-selection rules | `skills/templates/SKILL.cli.sbn` and `skills/templates/SKILL.mcp.sbn` |
 | Shared workflows, examples, and limitations | `skills/shared/*.md` |
 | Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
-| MCP prompt description overrides | `GenerateSkillPromptsClass` in `src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj` |
+| Minimal MCP server instructions | `src/ExcelMcp.McpServer/Program.cs` |
 
-Release builds generate the manifest and embedded MCP prompts. Complete
+Release builds generate the manifest. Shared guides are no longer advertised as
+MCP prompts: prompts are optional, user-selected templates, not automatic server
+instructions. The guides remain available as installed skill references. Complete
 installable skills are generated explicitly, outside the tracked source tree:
 
 ```powershell
@@ -78,13 +80,11 @@ Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
   -> GenerateSkillFile + Scriban templates -> both SKILL.md files
 
 skills/shared/*.md -> copied skill references
-  -> embedded MCP prompt content + generated ExcelSkillPrompts.g.cs
 ```
 
-To add a shared reference, create the Markdown under `skills/shared/`. Review the MCP
-prompt description overrides if its automatic description is insufficient.
-Build the solution in Release and generate the skills, then inspect both skill references and the
-generated prompt surface for the intended content. The extension packages a
+To add a shared reference, create the Markdown under `skills/shared/`.
+Build the solution in Release and generate the skills, then inspect both skill references
+for the intended content. The extension packages a
 copy of the MCP skill; it is not another source.
 
 Write for an agent that already knows Excel and can read tool schemas. Explain
