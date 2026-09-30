@@ -9,7 +9,7 @@
 
 ### From Range
 ```
-chart(create-from-range, chart_type, source_range, sheet_name)
+chart(create-from-range, chart_type, source_range_address, sheet_name)
 ```
 Best for: Simple data in worksheet ranges
 
@@ -126,20 +126,20 @@ Charts support three positioning modes, listed in order of preference:
 
 ### 1. `target_range` (PREFERRED - One Step)
 ```
-chart(create-from-range, source_range='A1:B10', chart_type='Line', target_range='F2:K15')
+chart(create-from-range, source_range_address='A1:B10', chart_type='Line', target_range='F2:K15')
 ```
 Creates chart AND positions it to the cell range in one call. No point math needed.
 
 ### 2. Auto-Positioning (No Position Specified)
 When you omit both `target_range` and `left`/`top`, the chart is automatically placed below all existing content (data ranges + other charts) with 10pt padding. This prevents overlap automatically.
 ```
-chart(create-from-range, source_range='A1:B10', chart_type='Line')
+chart(create-from-range, source_range_address='A1:B10', chart_type='Line')
 # → Chart auto-positioned below the used range and any existing charts
 ```
 
 ### 3. Manual Coordinates
 ```
-chart(create-from-range, source_range='A1:B10', left=360, top=20)
+chart(create-from-range, source_range_address='A1:B10', left=360, top=20)
 # left/top in points (72 points = 1 inch)
 ```
 
@@ -158,7 +158,7 @@ Result example with collision warning:
 **If you see an overlap warning:**
 1. Use `chart(fit-to-range, chart_name, range_address='F2:K15')` to reposition
 2. Or use `chart(move, chart_name, left=..., top=...)` to adjust
-3. Always follow up with `screenshot(capture, range_address='A1:M25')` to include and verify the chart
+3. When an interactive desktop is available, use `screenshot(capture, range_address='A1:M25')` to verify the layout; otherwise inspect bounds and report that visual verification was unavailable
 
 ### Position Estimates
 - Rows: ~15 points per row (varies with row height)
@@ -166,14 +166,15 @@ Result example with collision warning:
 - Default chart: 400×300 points
 
 ### Positioning Workflow
-1. **Preferred**: Use `target_range='F2:K15'` in create call — avoids all overlap issues
+1. **Explicit placement**: Use `target_range='F2:K15'` in the create call, choosing cells clear of other content
 2. **Alternative**: Omit position — auto-positioning places chart below content
 3. **Manual**: `get-used-range` → calculate coordinates → specify left/top
-4. **Always verify**: Use `screenshot(capture, range_address='A1:M25')` to visually confirm layout
+4. **Verify**: Check returned bounds and warnings; use a screenshot when appearance matters and the desktop is available
 
-## Multi-Chart Layout (CRITICAL)
+## Multi-Chart Layout
 
-When creating dashboards with multiple charts, **every chart needs explicit positioning**:
+Use explicit placement for a grid layout. Automatic positioning is also supported
+and stacks charts below existing content.
 
 ### Grid Layout Pattern
 ```
@@ -187,7 +188,7 @@ screenshot(capture, range_address='A1:M40') → Verify no overlaps
 ```
 
 ### Rules
-- **Use `target_range` for every chart** in multi-chart layouts — auto-positioning stacks vertically
+- Use `target_range` when a particular grid layout is needed
 - Leave at least 1-2 rows/columns gap between charts
 - If any chart result includes an overlap warning, fix it before creating the next chart
-- Take a final `screenshot(capture, range_address='A1:M40')` to verify the complete layout
+- When possible, take a final screenshot covering the complete layout

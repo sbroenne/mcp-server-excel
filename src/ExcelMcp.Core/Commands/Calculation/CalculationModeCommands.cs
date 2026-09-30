@@ -68,11 +68,11 @@ public class CalculationModeResult : OperationResult
 
 /// <summary>
 /// Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes
-/// for faster performance, then recalculate once at the end.
+/// when repeated recalculation is costly, then calculate and restore the prior mode, including on failure.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
-    Description = "Optimize bulk write performance by controlling Excel's automatic recalculation. Use manual mode when writing 10+ cells to avoid recalculating after every write. MODES: automatic (default - recalculates on every change), manual (only when explicitly requested), semi-automatic (auto except data tables). BATCH WORKFLOW (required for 10+ cell operations): 1. set-mode(manual) 2. Perform all writes (range set-values, set-formulas) 3. calculate(workbook) 4. set-mode(automatic). SCOPES for calculate: workbook (all formulas), sheet (requires sheetName), range (requires sheetName + rangeAddress). NOT needed for: reading formulas, small edits (1-9 cells), or when immediate calculation results are required.")]
+    Description = "Control Excel recalculation: automatic, manual, or semi-automatic (automatic except data tables). For bulk writes where repeated recalculation is costly, use get-mode to remember the current mode, set-mode(manual), write, calculate, then restore the prior mode, including after failure. Do not change modes just to read formulas or when intermediate calculated results are needed. Calculate scopes: workbook, sheet (requires sheetName), range (requires sheetName and rangeAddress).")]
 public interface ICalculationModeCommands
 {
     /// <summary>

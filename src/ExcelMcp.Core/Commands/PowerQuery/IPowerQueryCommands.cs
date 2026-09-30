@@ -8,11 +8,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Power Query M code and data loading.
 ///
-/// TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE):
-/// 1. evaluate - Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview)
-/// 2. create/update - Store VALIDATED query in workbook
-/// 3. refresh/load-to - Load data to destination
-/// Skip evaluate only for trivial literal tables.
+/// Prefer evaluate for new or materially changed M code before persisting it.
+/// Create loads its selected destination (worksheet by default); connection-only stores without loading.
+/// Update refreshes by default unless refresh=false. Load-to changes destinations; refresh updates loaded data.
+/// Trivial literal tables or already-validated code with unchanged dependencies need no redundant evaluation.
 ///
 /// IF CREATE/UPDATE FAILS: Use evaluate to get the actual M engine error message, fix code, retry.
 ///
@@ -33,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. READS: list returns compact metadata, exact load state, and an M preview of at most 80 characters; use view for one query's full M code. IDENTITY: Load detection, refresh, unload, and delete use the exact case-insensitive mashup Location, so prefix names remain isolated. EVALUATE: Temporary query, sheet, table, and connection cleanup is verified; cleanup failures return an error with recovery guidance. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. Values are case-insensitive and unknown values are rejected. M-CODE: Preserved exactly by default. Set formatMCode=true only with user consent; it sends M code to powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
+    Description = "Power Query M code and data loading. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. List returns metadata, exact load state, and an M preview of at most 80 characters; view returns full M code. Load detection and cleanup use exact case-insensitive mashup Location, preserving similarly named queries. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
 public interface IPowerQueryCommands
 {
     /// <summary>

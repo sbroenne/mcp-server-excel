@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - Power Query refresh auto-syncs (no manual refresh needed)
 ///
 /// PREREQUISITE: Tables must be added to the Data Model first.
-/// Use table add-to-datamodel for worksheet tables,
+/// Use table add-to-data-model for worksheet tables,
 /// or powerquery to import and load data directly to the Data Model.
 ///
 /// DAX MEASURES:
@@ -36,7 +36,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("datamodel", "DataModel")]
 [McpTool("datamodel", Title = "Data Model Operations", Destructive = true, Category = "analysis",
-    Description = "Data Model (Power Pivot) - DAX measures and table management. CRITICAL: Worksheet tables and Data Model are separate! After table(append), MUST call datamodel(refresh) to sync. Power Query refresh auto-syncs. DAX MEASURES: Create with formulas like SUM(Sales[Amount]); DAX is preserved exactly by default. Set formatDax=true only with user consent; it sends formulas to daxformatter.com. DAX EVALUATE: Execute queries (SUMMARIZE, FILTER, CALCULATETABLE, TOPN). DMV QUERIES: SELECT * FROM $SYSTEM.SchemaRowset for metadata. DAX FILE INPUT: daxFormulaFile/daxQueryFile for complex multi-line DAX. TIMEOUT: 2 min. Use datamodel_relationship for relationships, table for add-to-datamodel.")]
+    Description = "DAX measures and Data Model tables. Worksheet Tables and Data Model tables are separate: refresh the model after changing a worksheet source. Power Query refresh synchronizes data loaded to the model. DAX is preserved by default; formatDax=true sends formulas to daxformatter.com and requires user consent. Use evaluate for DAX queries and execute-dmv for SELECT * FROM $SYSTEM.SchemaRowset metadata queries. File inputs daxFormulaFile, daxQueryFile, and dmvQueryFile support longer expressions. Use datamodel_relationship for relationships and table add-to-data-model to add worksheet data.")]
 public interface IDataModelCommands
 {
     /// <summary>

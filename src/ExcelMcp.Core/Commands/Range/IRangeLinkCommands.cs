@@ -100,6 +100,10 @@ public interface IRangeLinkCommands
     /// Adds a top-level threaded comment to one cell.
     /// Excel COM: Range.AddCommentThreaded().
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the cell</param>
+    /// <param name="cellAddress">Cell receiving the threaded comment</param>
+    /// <param name="text">Comment or reply text; cloud mentions and assignments are not supported</param>
     [ServiceAction("add-threaded-comment")]
     OperationResult AddThreadedComment(
         IExcelBatch batch,

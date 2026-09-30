@@ -106,7 +106,8 @@ range_format(action: 'set-style', range_address: 'C2:C10', style_name: 'Bad')
 | `horizontal_alignment` | string | `"center"`, `"left"`, `"right"` |
 | `vertical_alignment` | string | `"middle"`, `"top"`, `"bottom"` |
 | `wrap_text` | bool | `true` |
-| `border_style` | string | `"thin"`, `"medium"`, `"thick"` |
+| `border_style` | string | `"continuous"`, `"dash"`, `"dot"` |
+| `border_weight` | string | `"thin"`, `"medium"`, `"thick"` |
 | `border_color` | hex color | `"#000000"` |
 | `orientation` | int | `-90` to `90` (degrees) |
 
@@ -144,8 +145,9 @@ and `mm/dd/yyyy` follows the locale's date separator. This is correct behaviour,
 rewrite a format code because a screenshot shows swapped separators, and do not tell the user a
 literal rendering without accounting for their regional settings.
 
-After applying a number format, run `range_format auto-fit-columns` — formatted values are wider
-than raw ones and will render as `#####` at the default column width.
+After applying a number format, check whether values fit. Use
+`range_format auto-fit-columns` or an appropriate explicit width when needed;
+preserve fixed-width layouts unless the task calls for changing them.
 
 ## Actions
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -19,6 +20,123 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         Assert.Equal(McpToolSurface.ToolCount, tools.Count);
         Assert.Null(Client.ServerCapabilities.Prompts);
+        Assert.Null(Client.ServerCapabilities.Resources);
+    }
+
+    [Theory]
+    [InlineData("range", "values", "2D array")]
+    [InlineData("range_format", "font_size", "points")]
+    [InlineData("chart", "target_range", "left/top")]
+    [InlineData("screenshot", "range_address", "capture")]
+    [InlineData("screenshot", "quality", "JPEG")]
+    public async Task ParameterDescriptions_PreserveCoreDocumentation(string toolName, string parameter, string detail)
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == toolName).JsonSchema
+            .GetProperty("properties").GetProperty(parameter).GetProperty("description").GetString();
+
+        Assert.Contains(detail, description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EveryInput_HasSubstantiveDescription()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        foreach (var tool in tools)
+        {
+            foreach (var parameter in tool.JsonSchema.GetProperty("properties").EnumerateObject())
+            {
+                Assert.True(parameter.Value.TryGetProperty("description", out var description),
+                    $"{tool.Name}.{parameter.Name} has no description.");
+                var text = description.GetString();
+                Assert.False(string.IsNullOrWhiteSpace(text)
+                    || text.StartsWith("(required", StringComparison.Ordinal)
+                    || text.StartsWith("(valid", StringComparison.Ordinal),
+                    $"{tool.Name}.{parameter.Name} has no description beyond action applicability.");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task CalculationGuidance_RestoresPriorModeWithoutForcingUnrequestedChanges()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "calculation_mode").Description;
+
+        Assert.Contains("restore the prior mode", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("set-mode(automatic)", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("restore the prior mode", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not mandatory", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not request confirmation", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Descriptions_UseAdvertisedTopLevelParameterNamesAndNoEmoji()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        foreach (var tool in tools)
+        {
+            var descriptions = EnumerateDescriptions(tool.JsonSchema).Prepend(tool.Description).ToArray();
+            foreach (var description in descriptions)
+            {
+                Assert.False(description.EnumerateRunes().Any(rune =>
+                    rune.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F),
+                    $"{tool.Name} description contains an emoji: {description}");
+            }
+
+            foreach (var property in tool.JsonSchema.GetProperty("properties").EnumerateObject())
+            {
+                var camelCase = Regex.Replace(property.Name, "_([a-z])", match => match.Groups[1].Value.ToUpperInvariant());
+                if (camelCase == property.Name || camelCase == "sessionId")
+                    continue; // sessionId is also the documented file.list response field.
+
+                // Nested JSON object keys keep their schema spelling; inspect only top-level prose.
+                var prose = new[] { tool.Description }.Concat(
+                    tool.JsonSchema.GetProperty("properties").EnumerateObject()
+                        .Where(p => p.Value.TryGetProperty("description", out _))
+                        .Select(p => p.Value.GetProperty("description").GetString()!));
+                foreach (var description in prose)
+                {
+                    var topLevelProse = Regex.Replace(description, @"\{[^{}]*\}", string.Empty);
+                    Assert.False(Regex.IsMatch(topLevelProse, $@"\b{Regex.Escape(camelCase)}\b"),
+                        $"{tool.Name} describes '{camelCase}' instead of '{property.Name}': {description}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ParameterNameRendering_PreservesNestedJsonKeys()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var tool = tools.Single(t => t.Name == "table_column");
+
+        Assert.Contains("{columnName, ascending}", tool.Description);
+        Assert.DoesNotContain("{column_name, ascending}", tool.Description);
+        var nested = tool.JsonSchema.GetProperty("properties").GetProperty("sort_columns")
+            .GetProperty("items").GetProperty("properties");
+        Assert.True(nested.TryGetProperty("columnName", out _));
+    }
+
+    private static IEnumerable<string> EnumerateDescriptions(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (property.Name == "description" && property.Value.ValueKind == JsonValueKind.String)
+                    yield return property.Value.GetString()!;
+                else
+                    foreach (var description in EnumerateDescriptions(property.Value))
+                        yield return description;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+                foreach (var description in EnumerateDescriptions(item))
+                    yield return description;
+        }
     }
 
     [Theory]

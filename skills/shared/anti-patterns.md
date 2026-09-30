@@ -163,21 +163,21 @@ This burns tokens, costs money, and never completes the task.
 
 ### The Solution
 
-If you already have a sessionId, use it. Do not rediscover:
+Reuse known state while it remains valid. After cancellation, timeout, or an
+expired-session error, inspect `file list` once to find out what survived:
 
 ```
-CORRECT: Use the sessionId you already have
-
 Error: "session expired"
-→ file(action: 'open', path: original_path)  ← Re-open once, get new sessionId
-→ Continue with the new sessionId immediately
+→ file(action: 'list')
+→ Reuse a surviving matching session, or reopen the known path if necessary
+→ Inspect affected data before repeating a change
 ```
 
 ### The Rule
 
-- **Max 2 retries** for any session or file operation
-- After 2 failures: stop retrying, report the error, end your response
-- **Never call `list`, `worksheet(list)`, or `table(list)` more than twice in a row** without doing something with the result
+- Retry only after correcting the cause or observing a meaningful state change.
+- Do not repeat an unchanged failing write; it may already have partially applied.
+- Report a blocker when the next safe step requires information or access you lack.
 
 ## Confirmation Loop Anti-Pattern
 
@@ -201,17 +201,15 @@ AI: "The file has been created. Would you like me to add headers?"
 
 ### The Solution
 
-Execute with reasonable defaults, report results:
+Use choices already authorized by the request and discover available state.
+Ask only for unresolved decisions, such as the target workbook or destination;
+do not invent a private path or ask again for permission already given.
 
 ```
 CORRECT:
 
-User: "Create a sales report"
-AI: "Created sales report at C:\Users\You\Documents\sales_report.xlsx with the following structure:
-- Sheet 'Summary' with headers: Date, Product, Region, Sales
-- Ready for data entry
-
-What data would you like to add?"
+User supplies the destination and report requirements.
+AI creates the requested report there and summarizes the result.
 ```
 
 ### When to Ask
@@ -238,7 +236,7 @@ This:
 - Transfers megabytes unnecessarily
 - Risks data corruption if interrupted
 - Destroys formulas (values only, not formulas)
-- Loses cell formatting
+- Overwrites cells outside the requested change, even though set-values preserves formatting
 
 ### The Solution
 
@@ -273,17 +271,21 @@ Results:
 
 ### The Solution
 
-Always close sessions:
+Close sessions when the work is finished and closing is authorized. Check
+`canClose` first; keep a session open when requested. Confirm before closing a
+visible window unless the user already authorized it.
 
 ```
 CORRECT: Proper lifecycle
 
-session1 = file(action: 'open', path: 'file1.xlsx')
+session1 = file(action: 'open', path: first_known_path).session_id
 // ... work with file1 ...
+// Check file list: canClose must be true.
 file(action: 'close', session_id: session1, save: true)
 
-session2 = file(action: 'open', path: 'file2.xlsx')
+session2 = file(action: 'open', path: second_known_path).session_id
 // ... work with file2 ...
+// Check file list: canClose must be true.
 file(action: 'close', session_id: session2, save: true)
 ```
 
@@ -362,7 +364,6 @@ Match load destination to workflow:
 CORRECT: Load to Data Model for DAX workflows
 
 powerquery(action: 'create', load_destination: 'data-model', ...)
-powerquery(action: 'refresh', ...)
 datamodel(action: 'create-measure', ...)  // Works
 ```
 
@@ -395,7 +396,8 @@ This causes:
 
 ### The Solution
 
-Always evaluate M code BEFORE creating permanent queries:
+Prefer evaluating new or materially changed M code before creating permanent queries.
+An evaluation may be skipped for trivial or already-validated code:
 
 ```
 CORRECT: Test-first development workflow
@@ -405,11 +407,11 @@ powerquery(action: 'evaluate', m_code: '...')
 // → Returns actual data preview with columns and rows
 // → Better error messages if M code has issues
 
-// Step 2: Create permanent query with validated code
-powerquery(action: 'create', m_code: '...', ...)
+// Step 2: Store the query without loading it yet
+powerquery(action: 'create', m_code: '...', load_destination: 'connection-only', ...)
 
 // Step 3: Load data to destination
-powerquery(action: 'refresh', ...)
+powerquery(action: 'load-to', load_destination: 'worksheet', ...)
 ```
 
 **Benefits:**
@@ -424,7 +426,7 @@ powerquery(action: 'refresh', ...)
 
 - Trivial literal tables: `#table({"Column1"}, {{123}})`
 - M code already validated in previous evaluate call
-- Copying known-working query from another workbook
+- Reusing known-working code whose sources and dependencies are unchanged
 
 ### When to Retry With Evaluate
 

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Sbroenne.ExcelMcp.Generators.Common;
@@ -22,9 +23,38 @@ public class McpToolGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterSourceOutput(context.CompilationProvider,
-            static (spc, compilation) =>
+        var documentation = context.AdditionalTextsProvider
+            .Where(file => file.Path.EndsWith("Sbroenne.ExcelMcp.Core.xml", StringComparison.OrdinalIgnoreCase))
+            .Select((file, cancellationToken) => file.GetText(cancellationToken)?.ToString())
+            .Collect();
+
+        context.RegisterSourceOutput(context.CompilationProvider.Combine(documentation),
+            static (spc, input) =>
             {
+                var compilation = input.Left;
+                var coreReference = compilation.References.OfType<PortableExecutableReference>()
+                    .SingleOrDefault(reference =>
+                        compilation.GetAssemblyOrModuleSymbol(reference)?.Name == "Sbroenne.ExcelMcp.Core");
+                if (coreReference != null)
+                {
+                    if (input.Right.Length != 1 || string.IsNullOrWhiteSpace(input.Right[0]))
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(
+                            new DiagnosticDescriptor("EXCELMCP001", "Missing Core documentation",
+                                "MCP generation requires the Core XML documentation as an AdditionalFile",
+                                "ExcelMcp.Generation", DiagnosticSeverity.Error, isEnabledByDefault: true),
+                            Location.None));
+                        return;
+                    }
+
+                    compilation = compilation.ReplaceReference(coreReference,
+                        ((AssemblyMetadata)coreReference.GetMetadata()).GetReference(
+                            documentation: new CoreDocumentationProvider(input.Right[0]!),
+                            aliases: coreReference.Properties.Aliases,
+                            embedInteropTypes: coreReference.Properties.EmbedInteropTypes,
+                            filePath: coreReference.FilePath));
+                }
+
                 var services = DiscoverServices(compilation);
                 if (services.Count == 0)
                     return;
@@ -178,7 +208,7 @@ public class McpToolGenerator : IIncrementalGenerator
             // Wrap the summary text, respecting line breaks
             foreach (var line in WrapXmlDocLines(info.XmlDocSummary))
             {
-                sb.AppendLine($"    /// {line}");
+                sb.AppendLine($"    /// {EscapeXml(line)}");
             }
             sb.AppendLine("    /// </summary>");
         }
@@ -207,11 +237,10 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
         sb.AppendLine($"    [McpMeta(\"requiresSession\", {(!info.NoSession).ToString().ToLower()})]");
 
-        // Method-level [Description] from [McpTool(Description = "...")] attribute.
-        // Source generators can't read XML docs from metadata references.
+        // Tool prose stays concise; parameter details come from Core XML documentation.
         if (!string.IsNullOrEmpty(info.McpToolDescription))
         {
-            var methodDesc = EscapeStringLiteral(info.McpToolDescription);
+            var methodDesc = EscapeStringLiteral(RenderMcpParameterNames(info.McpToolDescription, exposedParams));
             sb.AppendLine($"    [Description(\"{methodDesc}\")]");
         }
 
@@ -475,6 +504,9 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             paramInfoByName.TryGetValue(ep.Name, out var pInfo);
             var snakeName = StringHelper.ToSnakeCase(ep.Name);
+            var description = ep.DescriptionWithRequired == null
+                ? null
+                : RenderMcpParameterNames(ep.DescriptionWithRequired, exposedParams);
 
             // Determine MCP type and conversion
             if (pInfo != null && pInfo.IsEnum && pInfo.EnumTypeName != null)
@@ -487,7 +519,7 @@ public class McpToolGenerator : IIncrementalGenerator
                         mcpTypeName: "string?",
                         routeActionParamName: ep.Name,
                         routeActionValue: snakeName,
-                        description: ep.DescriptionWithRequired,
+                        description: description,
                         defaultExpression: "null",
                         preProcessingCode: null));
                 }
@@ -503,7 +535,7 @@ public class McpToolGenerator : IIncrementalGenerator
                         mcpTypeName: "string?",
                         routeActionParamName: ep.Name,
                         routeActionValue: localVarName,
-                        description: ep.DescriptionWithRequired,
+                        description: description,
                         defaultExpression: "null",
                         preProcessingCode: preProcessingCode));
                 }
@@ -519,8 +551,8 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: "int?",
                     routeActionParamName: ep.Name,
                     routeActionValue: snakeSecondsName,
-                    description: ep.DescriptionWithRequired != null
-                        ? ep.DescriptionWithRequired + $" Accepted range: {minimumSeconds}-2147483 seconds."
+                    description: description != null
+                        ? description + $" Accepted range: {minimumSeconds}-2147483 seconds."
                         : $"Timeout in whole seconds; range {minimumSeconds}-2147483",
                     defaultExpression: "null",
                     preProcessingCode: null));
@@ -535,8 +567,8 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: "string?",
                     routeActionParamName: ep.Name,
                     routeActionValue: localVarName,
-                    description: ep.DescriptionWithRequired != null
-                        ? ep.DescriptionWithRequired + " (JSON array, e.g., '[\"value1\",\"value2\"]')"
+                    description: description != null
+                        ? description + " (JSON array, e.g., '[\"value1\",\"value2\"]')"
                         : "JSON array of strings",
                     defaultExpression: "null",
                     preProcessingCode: $"var {localVarName} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ParseJsonList({snakeName}, nameof({snakeName}));"));
@@ -557,13 +589,33 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: mcpType,
                     routeActionParamName: ep.Name,
                     routeActionValue: snakeName,
-                    description: ep.DescriptionWithRequired,
+                    description: description,
                     defaultExpression: "null",
                     preProcessingCode: null));
             }
         }
 
         return result;
+    }
+
+    private static string RenderMcpParameterNames(string description, List<ExposedParameter> parameters)
+    {
+        // Only known top-level camelCase inputs are translated. Nested JSON keys,
+        // enum values, output fields, and ordinary words retain their own spelling.
+        var names = parameters.Where(parameter => parameter.Name.Any(char.IsUpper))
+            .ToDictionary(parameter => parameter.Name, parameter => StringHelper.ToSnakeCase(parameter.Name));
+        var objectDepth = 0;
+        return Regex.Replace(description, @"[{}]|\b[A-Za-z][A-Za-z0-9]*\b", match =>
+        {
+            if (match.Value == "{")
+                objectDepth++;
+            else if (match.Value == "}")
+                objectDepth = Math.Max(0, objectDepth - 1);
+            else if (objectDepth == 0 && names.TryGetValue(match.Value, out var name))
+                return name;
+
+            return match.Value;
+        });
     }
 
     private static string BuildEnumAliasArguments(ParameterInfo parameter)

@@ -10,7 +10,7 @@ PivotTable calculated fields work well for simple single-table formulas. Use DAX
 
 | Feature | PivotTable Calculated Field | DAX Measure |
 |---------|----------------------------|-------------|
-| Single-table formulas | ✅ Works (e.g., `=Qty*Price`) | ✅ Works |
+| Single-table formulas | Works (e.g., `=Qty*Price`) | Works |
 | Cross-table | NOT SUPPORTED | Full support |
 | Complex logic | Limited | Full DAX |
 | Reusable | Per PivotTable only | Across all PivotTables |
@@ -43,9 +43,10 @@ pivottable(create-from-datamodel, pivot_table_name="SalesPivot", destination_she
 |--------|---------------|------------------------|
 | Worksheet Table | `create-from-table` | NO - worksheet PivotTable |
 | Data Model | `create-from-datamodel` | YES - full DAX support |
-| External | `create-from-range` with `source_range` | NO |
+| Worksheet range | `create-from-range` with `source_range` | NO |
 
-**Rule**: If you need calculated revenue/aggregations, use Data Model as source.
+Use the Data Model for DAX and cross-table calculations. Ordinary PivotTables
+also support aggregations and calculated fields.
 
 ## Refresh Behavior (CRITICAL)
 
@@ -54,14 +55,14 @@ PivotTables do NOT auto-refresh when source data changes!
 **After adding rows to source table:**
 ```
 table(append, ...)           # Add rows to worksheet table
-pivottable(refresh, ...)     # Refresh PivotTable to see new rows
-datamodel(refresh)           # ALSO refresh Data Model if using DAX measures
+datamodel(refresh)           # First refresh the model if this PivotTable uses it
+pivottable(refresh, ...)     # Then refresh PivotTable to see new rows
 ```
 
 **After Power Query refresh:**
 ```
 powerquery(refresh, ...)     # Refreshes Power Query AND Data Model
-# PivotTables connected to Data Model auto-refresh
+pivottable(refresh, ...)     # Refresh the requested view after its source is current
 ```
 
 ## PivotCache Options

@@ -17,7 +17,7 @@ public static partial class ExcelWorksheetTool
     /// Worksheet lifecycle: create, rename, copy, delete, move.
     /// RENAME: Use old_name + new_name.
     /// ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically).
-    /// POSITIONING: Use before OR after (not both) to place sheet relative to another.
+    /// POSITIONING: Use before_sheet or after_sheet (not both) to place a sheet relative to another.
     /// Use worksheet_style for tab colors, visibility, and protection.
     /// </summary>
     /// <param name="action">The action to perform</param>
@@ -38,7 +38,7 @@ public static partial class ExcelWorksheetTool
         UseStructuredContent = true, OutputSchemaType = typeof(WorksheetToolOutputSchema))]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
-    [Description("Worksheet lifecycle: create, rename, copy, delete, move. RENAME: Use old_name plus new_name. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors, visibility, and protection.")]
+    [Description("Worksheet lifecycle: create, rename, copy, delete, move. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
     public static Task<CallToolResult> ExcelWorksheet(
         [Description("The action to perform")] SheetAction action,
         ServiceBridge.ServiceBridge bridge,

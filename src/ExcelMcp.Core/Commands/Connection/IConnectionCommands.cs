@@ -8,11 +8,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Data connections (OLEDB, ODBC, ODC import).
 /// TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations.
 /// Power Query connections auto-redirect to powerquery.
-/// TIMEOUT: 30 min auto-timeout for refresh/load-to.
+/// TIMEOUT: Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
-    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations. Power Query connections redirect to powerquery by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. Typed OLEDB/ODBC refresh status and cancellation are available. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
+    Description = "Data connections (OLEDB, ODBC, ODC import). Use querytable for direct text/web/CSV imports or powerquery for transformations. Power Query connections redirect by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. Typed OLEDB/ODBC refresh status and cancellation are available. Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.")]
 public interface IConnectionCommands
 {
     /// <summary>

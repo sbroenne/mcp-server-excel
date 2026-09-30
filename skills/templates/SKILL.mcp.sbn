@@ -38,7 +38,8 @@ Only supply arguments applicable to the selected action. Unknown names,
 inapplicable arguments (including nulls/defaults), and incorrect types are errors.
 Send numbers and booleans as JSON values, not strings. Range values are 2D arrays.
 
-Close only when work is finished and `file(list)` reports `canClose: true`:
+Close only when authorized, work is finished, and `file(list)` reports `canClose: true`.
+Leave the workbook open when requested:
 
 ```
 file(action: 'close', session_id: '<returned-id>', save: true)
@@ -48,6 +49,8 @@ Close defaults to `save: false`, which discards unsaved edits. Normal server
 shutdown attempts to save remaining sessions; do not rely on it as a substitute
 for an explicit save. Crashes, timeouts, and forced cleanup can lose edits.
 Confirm before closing a visible window unless already authorized.
+The server does not request confirmation through MCP elicitation; obtain any
+needed consent in the client conversation before calling the tool.
 
 Cancellation is not undo. A cancelled operation may have changed a workbook.
 The affected session may be closed, and cancelled startup is cleaned up after
@@ -69,9 +72,10 @@ retry a change or substitute a different session.
 
 ## Bulk writes
 
-For many values or formulas, read the current calculation mode, switch to
+For bulk writes where repeated recalculation is costly, read the current mode, switch to
 manual, perform the writes, calculate once, and restore the prior mode even
-after an error. Reading values or formulas does not require changing the mode.
+after an error, as in a `finally` block. Reading values or formulas does not
+require changing the mode, and intermediate results may require calculation.
 
 ```
 calculation_mode(action: 'get-mode', session_id: '<returned-id>')
@@ -87,9 +91,11 @@ Worksheet tables and Data Model tables are separate. Add a worksheet table to
 the Data Model before creating DAX measures. Refresh the Data Model after
 changing the source table.
 
-Use `powerquery(action: 'evaluate', m_code: '...')` to check nontrivial M before
-storing it with `create`/`update`. Then refresh or load it to the intended
-destination. Query creation alone does not load the data.
+Prefer `powerquery(action: 'evaluate', session_id: id, m_code: '...')` for new or
+materially changed M code. Create loads data to its selected destination
+(`worksheet` by default); choose `connection-only` to store without loading.
+Use `load-to` to change destinations and `refresh` to update already-loaded data.
+Update refreshes by default unless `refresh: false` is supplied.
 
 Use `file(test)` when workbook access or IRM/AIP protection is uncertain. Ordinary
 validation opens briefly in Excel read-only; protected files may need visible
@@ -98,7 +104,7 @@ authentication. Testing does not bypass authentication.
 ## Reference documentation
 
 Shared guides are skill references, not MCP prompts or automatically loaded
-server instructions.
+server instructions. This server advertises tools, not prompts or resources.
 
 - [What-if analysis and Solver limits](./references/analysis.md)
 - [Execution and recovery](./references/behavioral-rules.md)

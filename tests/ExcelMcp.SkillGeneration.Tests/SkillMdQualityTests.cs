@@ -14,6 +14,39 @@ public class SkillMdQualityTests
 {
     private static string SkillsFolder => GeneratedAssetsFixture.SkillsDirectory;
 
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void GeneratedGuidance_HasNoEmojiOrForcedUnrequestedWork(string skill)
+    {
+        foreach (var path in Directory.GetFiles(Path.Combine(SkillsFolder, skill), "*.md", SearchOption.AllDirectories))
+        {
+            var content = File.ReadAllText(path);
+            Assert.False(content.EnumerateRunes().Any(rune =>
+                rune.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F),
+                $"Emoji in {Path.GetRelativePath(SkillsFolder, path)}");
+            foreach (var stale in new[] { "Always restore automatic mode", "Restore automatic mode",
+                "NEVER Ask Clarifying Questions", "Write **one row at a time**", "MUST call `screenshot`",
+                "pivottable(action: 'set-style')", "connection(action: 'test-connection')",
+                "Query creation alone does not load", "imports the M code but does NOT execute it",
+                "File name MUST match", "same STA thread pool" })
+            {
+                Assert.DoesNotContain(stale, content, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("excel-cli", "SKILL.md")]
+    [InlineData("excel-mcp", @"references\calculation.md")]
+    public void CalculationGuidance_RestoresPriorMode(string skill, string relativePath)
+    {
+        var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, relativePath));
+        Assert.Contains("get-mode", content);
+        Assert.Contains("restore the prior mode", content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("finally", content, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
@@ -39,16 +72,6 @@ public class SkillMdQualityTests
     {
         var referencePath = Path.Combine(SkillsFolder, "excel-cli", "references", "cli-commands.md");
         AssertNoEmptyDescriptions(referencePath, "CLI command reference");
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void McpSkill_HasNoEmptyParameterDescriptions()
-    {
-        // MCP SKILL.md doesn't have auto-generated parameter tables
-        // Tools are discovered via MCP schema - skill contains curated guidance
-        // Skip parameter validation for MCP skill
     }
 
     [Fact]

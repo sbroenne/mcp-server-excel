@@ -10,8 +10,8 @@ Do not rebuild existing layouts or add visuals to a read-only task:
 2. Format values → Number formats by data type
 3. Fit columns → auto-fit so nothing renders as #####
 4. Add visuals → Charts with explicit positioning
-5. Verify layout → Screenshot to confirm no overlaps
-6. Save and close → Persist changes
+5. Verify layout → Check bounds/warnings; screenshot when the desktop is available
+6. Save and close → When authorized; keep open if requested
 ```
 
 ## Step 1: Structure Data as Excel Tables
@@ -32,7 +32,7 @@ table(create, table_name='SalesData', range_address='A1:D20')
 
 ## Step 2: Format Values by Data Type
 
-**Apply number formats AFTER setting values — not before:**
+**Choose number formats for the requested data; preserve intentional existing formats:**
 
 | Data Type | Format Code | Result (en-US) |
 |-----------|-------------|----------------|
@@ -52,15 +52,15 @@ behaviour, not a formatting bug. Never promise a literal rendering when reportin
 
 ## Step 3: Fit Columns to Content
 
-**Number formats make cells WIDER, so auto-fit immediately after formatting:**
+**Check widths after formatting; auto-fit where it fits the intended layout:**
 
 ```
 range_format(action: 'auto-fit-columns', sheet_name: 'Sales', range_address: 'A:F')
 ```
 
-A date formatted as `yyyy-mm-dd` or a currency value formatted as `$#,##0.00` does not fit the
-default column width, so Excel renders the cell as `#####`. A screenshot taken before auto-fit will
-show those columns as unreadable hash marks. Auto-fit before Step 5, not after.
+A formatted date or currency value may exceed the column width and display
+`#####`. Adjust widths before checking the final layout; fixed-width report
+columns may need a deliberate width rather than auto-fit.
 
 Use `range_format auto-fit-rows` as well when any cell has `wrap_text` enabled.
 
@@ -71,14 +71,14 @@ Use `range_format auto-fit-rows` as well when any cell has `wrap_text` enabled.
 ### Single Chart (Auto-Position or `target_range`)
 ```
 # Option A: target_range (explicit cell placement)
-chart(create-from-range, source_range='A1:D20', target_range='F2:K15')
+chart(create-from-range, source_range_address='A1:D20', target_range='F2:K15')
 
 # Option B: Omit position — auto-places below content
-chart(create-from-range, source_range='A1:D20', chart_type='Line')
+chart(create-from-range, source_range_address='A1:D20', chart_type='Line')
 # → Automatically positioned below the used range
 ```
 
-### Multiple Charts (Dashboard) — Always Use `target_range`
+### Multiple Charts with a Grid Layout
 ```
 Place in a grid pattern below data:
 
@@ -89,20 +89,23 @@ Chart 4: target_range='G37:L50'    (bottom-right)
 ```
 
 ### Collision Detection
-All chart operations automatically warn about overlaps. If a result includes an `OVERLAP WARNING` message:
+Chart create, move, and fit-to-range operations warn about overlaps. If a result includes an `OVERLAP WARNING` message:
 1. Use `chart(fit-to-range)` to reposition
-2. Take `screenshot(capture, range_address='A1:M50')` to verify
+2. Check the revised bounds and, when available, capture the layout
 
 **Rules:**
-- **Use `target_range` for multi-chart layouts** — auto-positioning stacks vertically
+- Use `target_range` for a grid; auto-positioning is suitable for vertical stacks
 - Leave 1-2 rows/columns gap between charts
-- Place charts BELOW the data area, not beside it (more room)
+- Place charts below or beside the data where there is sufficient room
 - Keep chart sizes consistent (same row/column span)
 - **Always check result messages** for overlap warnings
 
 ## Step 5: Verify with Screenshot
 
-**Always take a screenshot after creating charts or complex layouts:**
+Use a screenshot for the requested visual result when an unlocked interactive
+desktop is available. If unavailable, inspect bounds and overlap warnings and
+report that visual verification was not performed; do not block an authorized
+save/close solely because capture failed.
 
 ```
 screenshot(capture, range_address='A1:M50')
@@ -142,11 +145,11 @@ Sheet "Detail":
 
 ## Formatting Checklist
 
-- [ ] Data in Excel Tables (not plain ranges)
+- [ ] Data uses the requested structure (Tables when needed, otherwise ranges)
 - [ ] Number formats applied (currency, dates, percentages)
 - [ ] `range_format auto-fit-columns` run after formatting (no `#####` cells)
 - [ ] Chart titles are descriptive
 - [ ] Chart axis labels formatted (currency, percentages)
 - [ ] No chart overlaps with data or other charts
 - [ ] Consistent chart sizes in dashboards
-- [ ] Screenshot taken to verify final layout
+- [ ] Final layout checked, or visual verification limitation reported

@@ -345,10 +345,17 @@ and do not replace the SDK's server cancellation handling with a custom protocol
 Tool and parameter descriptions should explain server-specific behavior,
 constraints, and differences between overlapping tools. Types and enum values
 already appear in the schema. Keep destructive/read-only metadata accurate.
+Core XML documentation is passed to the MCP generator as an MSBuild additional
+file so compiled interface references retain their parameter descriptions.
+Known top-level parameter names are rendered in MCP snake_case; nested JSON
+keys and enum values keep their contract spelling. Do not delete Core XML
+documentation before downstream builds. Published MCP output still excludes it.
 All MCP stdio diagnostics, including bootstrap/startup output, go to stderr;
 stdout is reserved for JSON-RPC.
 
-The server does not advertise the shared guides as MCP prompts. For generated
+The server exposes tools, not prompts or resources, and sends no MCP elicitation
+requests. Consent advice in descriptions and instructions must be handled by
+the client; it is not an enforced server dialog. For generated
 skills and minimal server instructions, see
 [Maintaining skills and server guidance](../skills/README.md#maintaining-skills-and-server-guidance).
 

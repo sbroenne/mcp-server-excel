@@ -20,10 +20,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 public interface IDrawingCommands
 {
     /// <summary>Lists drawing objects on a worksheet.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the drawing objects or sparklines</param>
     [ServiceAction("list-objects")]
     DrawingObjectListResult ListObjects(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>Reads one drawing object by name.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the object</param>
+    /// <param name="objectName">Existing drawing object's name, as returned by list-objects</param>
     [ServiceAction("get-object")]
     DrawingObjectResult GetObject(
         IExcelBatch batch,
@@ -31,6 +36,15 @@ public interface IDrawingCommands
         [RequiredParameter] string objectName);
 
     /// <summary>Adds an embedded image from a local file.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="imagePath">Full path to a readable local image file</param>
+    /// <param name="name">Optional name for the new drawing object</param>
+    /// <param name="left">Left position in points from the worksheet edge</param>
+    /// <param name="top">Top position in points from the worksheet edge</param>
+    /// <param name="width">Object width in points</param>
+    /// <param name="height">Object height in points</param>
+    /// <param name="lockAspectRatio">Keep the image's aspect ratio when resizing</param>
     [ServiceAction("add-image")]
     DrawingObjectResult AddImage(
         IExcelBatch batch,
@@ -44,6 +58,18 @@ public interface IDrawingCommands
         bool lockAspectRatio = true);
 
     /// <summary>Adds and formats an Excel AutoShape.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="shapeType">AutoShape type, such as Rectangle, Oval, or a supported arrow/flowchart shape</param>
+    /// <param name="name">Optional object name</param>
+    /// <param name="left">Left position in points</param>
+    /// <param name="top">Top position in points</param>
+    /// <param name="width">Width in points</param>
+    /// <param name="height">Height in points</param>
+    /// <param name="text">Text displayed by the shape, text box, or Forms control</param>
+    /// <param name="fillColor">Fill color as #RRGGBB</param>
+    /// <param name="lineColor">Outline, connector, or sparkline color as #RRGGBB</param>
+    /// <param name="lineWeight">Line thickness in points</param>
     [ServiceAction("add-shape")]
     DrawingObjectResult AddShape(
         IExcelBatch batch,
@@ -60,6 +86,18 @@ public interface IDrawingCommands
         double? lineWeight = null);
 
     /// <summary>Adds and formats a text box.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="text">Text to display</param>
+    /// <param name="name">Optional object name</param>
+    /// <param name="left">Left position in points</param>
+    /// <param name="top">Top position in points</param>
+    /// <param name="width">Width in points</param>
+    /// <param name="height">Height in points</param>
+    /// <param name="fontSize">Text size in points</param>
+    /// <param name="fontColor">Text color as #RRGGBB</param>
+    /// <param name="fillColor">Fill color as #RRGGBB</param>
+    /// <param name="lineColor">Outline color as #RRGGBB</param>
     [ServiceAction("add-text-box")]
     DrawingObjectResult AddTextBox(
         IExcelBatch batch,
@@ -76,6 +114,16 @@ public interface IDrawingCommands
         string? lineColor = null);
 
     /// <summary>Adds and formats a connector.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="connectorType">Connector geometry: Straight, Elbow, or Curved</param>
+    /// <param name="beginX">Starting horizontal position in points</param>
+    /// <param name="beginY">Starting vertical position in points</param>
+    /// <param name="endX">Ending horizontal position in points</param>
+    /// <param name="endY">Ending vertical position in points</param>
+    /// <param name="name">Optional object name</param>
+    /// <param name="lineColor">Line color as #RRGGBB</param>
+    /// <param name="lineWeight">Line thickness in points</param>
     [ServiceAction("add-connector")]
     DrawingObjectResult AddConnector(
         IExcelBatch batch,
@@ -90,6 +138,17 @@ public interface IDrawingCommands
         double? lineWeight = null);
 
     /// <summary>Adds a safe worksheet Forms control. linkedCell applies to value controls; inputRange applies only to DropDown and ListBox. ActiveX/OLE controls are not supported.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="controlType">Worksheet Forms control type; ActiveX/OLE controls are excluded</param>
+    /// <param name="name">Optional control name</param>
+    /// <param name="left">Left position in points</param>
+    /// <param name="top">Top position in points</param>
+    /// <param name="width">Width in points</param>
+    /// <param name="height">Height in points</param>
+    /// <param name="text">Optional control label</param>
+    /// <param name="linkedCell">Cell binding for CheckBox, DropDown, ListBox, OptionButton, ScrollBar, or Spinner</param>
+    /// <param name="inputRange">Cell range supplying items to a DropDown or ListBox</param>
     [ServiceAction("add-form-control")]
     DrawingObjectResult AddFormControl(
         IExcelBatch batch,
@@ -105,6 +164,27 @@ public interface IDrawingCommands
         string? inputRange = null);
 
     /// <summary>Updates geometry, formatting, text, accessibility, or Forms-control bindings.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the object</param>
+    /// <param name="objectName">Existing object name</param>
+    /// <param name="newName">New name for the object; omit to keep its name</param>
+    /// <param name="left">New left position in points</param>
+    /// <param name="top">New top position in points</param>
+    /// <param name="width">New width in points</param>
+    /// <param name="height">New height in points</param>
+    /// <param name="rotation">Rotation angle in degrees</param>
+    /// <param name="text">Replacement text</param>
+    /// <param name="fontSize">Text size in points</param>
+    /// <param name="fontColor">Text color as #RRGGBB</param>
+    /// <param name="fillColor">Fill color as #RRGGBB</param>
+    /// <param name="lineColor">Outline color as #RRGGBB</param>
+    /// <param name="lineWeight">Line thickness in points</param>
+    /// <param name="visible">Show or hide the object; omit to leave unchanged</param>
+    /// <param name="locked">Lock the object; effective when worksheet protection is enabled</param>
+    /// <param name="placement">Cell anchoring: 1=move and size, 2=move only, 3=free floating</param>
+    /// <param name="alternativeText">Accessible description of the object</param>
+    /// <param name="linkedCell">Replacement Forms-control cell binding</param>
+    /// <param name="inputRange">Replacement item range for a DropDown or ListBox</param>
     [ServiceAction("update-object")]
     DrawingObjectResult UpdateObject(
         IExcelBatch batch,
@@ -141,6 +221,9 @@ public interface IDrawingCommands
     SparklineListResult ListSparklines(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>Reads the sparkline group at a cell or range.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the sparkline</param>
+    /// <param name="locationRange">Cell or range displaying the sparkline group</param>
     [ServiceAction("get-sparkline")]
     SparklineResult GetSparkline(
         IExcelBatch batch,
@@ -148,6 +231,13 @@ public interface IDrawingCommands
         [RequiredParameter] string locationRange);
 
     /// <summary>Adds a line, column, or win/loss sparkline group.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet</param>
+    /// <param name="sourceRange">Cell range supplying the sparkline data</param>
+    /// <param name="locationRange">Cells where the sparklines will appear</param>
+    /// <param name="sparklineType">Sparkline type: Line, Column, or WinLoss</param>
+    /// <param name="lineColor">Sparkline color as #RRGGBB</param>
+    /// <param name="showMarkers">Display markers on line sparklines</param>
     [ServiceAction("add-sparkline")]
     SparklineResult AddSparkline(
         IExcelBatch batch,

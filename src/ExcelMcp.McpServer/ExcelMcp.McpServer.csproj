@@ -134,7 +134,6 @@ internal static class TelemetryConfig
 
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj">
-      <!-- Don't copy XML docs from referenced projects in Release builds -->
       <Private>true</Private>
     </ProjectReference>
     <ProjectReference Include="..\ExcelMcp.Service\ExcelMcp.Service.csproj" />
@@ -145,6 +144,14 @@ internal static class TelemetryConfig
     <!-- Build.Tasks - ensures skill generator is built before AfterBuild target runs -->
     <ProjectReference Include="..\ExcelMcp.Build.Tasks\ExcelMcp.Build.Tasks.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
+
+  <Target Name="IncludeCoreToolDocumentation" BeforeTargets="CoreCompile" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <CoreDocumentationAssembly Include="@(ReferenceCopyLocalPaths)"
+                                 Condition="'%(Filename)' == 'Sbroenne.ExcelMcp.Core' and '%(Extension)' == '.dll'" />
+      <AdditionalFiles Include="@(CoreDocumentationAssembly->'%(RootDir)%(Directory)%(Filename).xml')" />
+    </ItemGroup>
+  </Target>
 
   <!-- Allow test project to access internal members (e.g., McpProgressAdapter) -->
   <ItemGroup>

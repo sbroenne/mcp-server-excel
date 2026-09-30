@@ -16,6 +16,11 @@ public interface IAnalysisCommands
     /// <summary>
     /// Adjusts one changing cell until a formula cell reaches the requested numeric goal.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the what-if model</param>
+    /// <param name="formulaCell">Cell containing the formula whose result should reach the goal</param>
+    /// <param name="goal">Numeric target for the formula result</param>
+    /// <param name="changingCell">Single input cell Excel may adjust</param>
     [ServiceAction("goal-seek")]
     GoalSeekResult GoalSeek(
         IExcelBatch batch,
@@ -33,6 +38,14 @@ public interface IAnalysisCommands
     /// <summary>
     /// Creates a worksheet scenario from a range of changing cells and one value per cell.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the model</param>
+    /// <param name="scenarioName">Name of the worksheet scenario</param>
+    /// <param name="changingCells">Range of input cells whose values the scenario stores</param>
+    /// <param name="values">One value per changing cell, in range order</param>
+    /// <param name="comment">Optional scenario description</param>
+    /// <param name="locked">Prevent scenario editing when worksheet protection is enabled</param>
+    /// <param name="hidden">Hide the scenario when worksheet protection is enabled</param>
     [ServiceAction("create-scenario")]
     OperationResult CreateScenario(
         IExcelBatch batch,
@@ -76,6 +89,10 @@ public interface IAnalysisCommands
     /// <summary>
     /// Creates a standard worksheet summary or PivotTable summary for all scenarios on a worksheet.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the scenarios</param>
+    /// <param name="reportType">Scenario report type: Summary or PivotTable</param>
+    /// <param name="resultCells">Formula result cells to include in the scenario report</param>
     [ServiceAction("create-scenario-summary")]
     ScenarioSummaryResult CreateScenarioSummary(
         IExcelBatch batch,
@@ -86,6 +103,11 @@ public interface IAnalysisCommands
     /// <summary>
     /// Creates a one- or two-variable Excel data table from a prepared formula and input-value range.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the prepared what-if model</param>
+    /// <param name="tableRange">Prepared sensitivity table range, including formulas and trial input values</param>
+    /// <param name="rowInputCell">Model input cell to substitute values from the table's row; supply at least one input cell</param>
+    /// <param name="columnInputCell">Model input cell to substitute values from the table's column; supply at least one input cell</param>
     [ServiceAction("create-data-table")]
     OperationResult CreateDataTable(
         IExcelBatch batch,

@@ -66,7 +66,7 @@ datamodel(evaluate, dax_query="...")             # Returns NEW values!
 
 **DAX Formatting**:
 
-DAX formulas are preserved exactly by default on WRITE operations (create-measure, update-measure), subject to Excel locale separator translation. Set `format_dax=true` only with explicit user consent; it sends DAX to daxformatter.com. Remote formatting adds ~100-500ms network latency per write operation. If formatting fails (network issues, API errors), the original DAX is saved unchanged - operations never fail due to formatting.
+DAX formulas are preserved exactly by default on WRITE operations (create-measure, update-measure), subject to Excel locale separator translation. Set `format_dax=true` only with explicit user consent; it sends DAX to daxformatter.com. If remote formatting is unavailable, the formatter retains the original DAX; check the operation result rather than assuming the write succeeded.
 
 **Action disambiguation**:
 

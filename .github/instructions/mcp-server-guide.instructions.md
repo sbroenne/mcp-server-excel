@@ -26,5 +26,10 @@ excludeAgent: "code-review"
   Keep destructive/read-only metadata accurate.
 - Server instructions stay minimal and task-focused. Shared skill guides are
   not MCP prompts; do not advertise optional guides as required instructions.
+- Prompts, resources, and MCP elicitation are not implemented. The client must
+  obtain any needed consent; description text does not enforce confirmation.
+- Preserve Core XML documentation as a generator input. Render known top-level
+  input names in snake_case without changing nested JSON keys or enum values.
+  Verify emitted descriptions through SDK discovery, not only source strings.
 
 Manual routing example and explanation: `docs/DEVELOPMENT.md`.

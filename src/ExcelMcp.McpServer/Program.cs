@@ -92,6 +92,7 @@ public class Program
                     A workbook must not be open in another Excel instance. Excel is hidden unless show:true is requested.
                     Close only after active operations finish (canClose:true). Set save:true to keep changes;
                     close defaults to save:false and discards edits. Confirm before closing a visible window unless authorized.
+                    The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file list before continuing, and do not blindly retry a change.
                     For bulk writes, read the calculation mode, switch to manual, write, calculate, and restore the prior mode.

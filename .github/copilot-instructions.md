@@ -13,6 +13,9 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Core `[ServiceCategory]` interfaces drive generated Service, CLI, and MCP
   routing. Change contracts/generators, not emitted code. Follow a changed
   contract through both entry points, tests, and shared guidance.
+- Keep agent-facing metadata, server instructions, skills, and recovery messages
+  consistent with implemented behavior. Follow `mcp-llm-guidance.instructions.md`
+  for guidance changes; do not edit generated or installed skill copies.
 - Production code must access workbook contents through Excel COM. Never open
   an Excel file as a ZIP/OOXML package or parse/modify its internal XML outside
   tests. Pre-open binary container detection may read only IRM/AIP protection

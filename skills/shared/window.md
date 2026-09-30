@@ -6,6 +6,9 @@
 
 ## Actions
 
+All actions require the selected session's `session_id`. The table lists
+additional inputs; these controls affect that session's Excel instance.
+
 | Action | Purpose | Parameters |
 |--------|---------|------------|
 | `show` | Make Excel visible and bring to front | *(none)* |
@@ -91,8 +94,9 @@ Omitted `set-display-options` flags remain unchanged. `show_formulas` switches t
 2. window(show)
 3. window(arrange, preset='left-half')
 4. ... create tables, charts, formatting ...
-5. file(close, save=true)
-   → Excel hidden automatically on close
+5. Leave open if requested; otherwise confirm an authorized close and wait for canClose
+6. file(close, save=true)
+   → The session's Excel instance closes
 ```
 
 ### Quick Peek — Show Result Then Hide

@@ -115,7 +115,8 @@ closes it without saving; use the timeout option for slow validation opens.
 IRM/AIP files report `canOpen:false` until the required interactive Excel
 authentication occurs; open them with a visible session.
 
-Close when work is finished and no operations are active. MCP example:
+Close when authorized, work is finished, and `file list` reports `canClose: true`.
+Keep the workbook open when requested. MCP example:
 
 ```
 1. file(action: 'open', path: '...')  → capture response.session_id as sessionId
@@ -249,16 +250,17 @@ belong to the selected action are rejected instead of being defaulted or ignored
   `schemaFile`, and `xmlDataFile`; MCP uses snake_case and CLI uses kebab-case.
   The file must exist and be readable.
 
-### Refresh After Create
+### Create, Load, and Refresh
 
-`powerquery(action: 'create')` imports the M code but does NOT execute it:
+`powerquery create` stores M code and loads its selected destination
+(`worksheet` by default). Choose `connection-only` to store without execution.
+Use `load-to` to change destinations, and `refresh` when loaded data needs updating.
+Update refreshes by default unless `refresh: false` is supplied.
 
 ```
-Step 1: powerquery(action: 'create', ...) → Query created
-Step 2: powerquery(action: 'refresh', query_name: '...') → Data loaded
+powerquery(action: 'create', load_destination: 'data-model', ...)
+datamodel(action: 'list-tables', ...)  // Data is already loaded
 ```
-
-Without refresh, the query exists but contains no data.
 
 ## Error Handling Rules
 
@@ -278,9 +280,10 @@ Follow `suggestedNextActions` when provided.
 
 Use the structured `errorCategory` when it is present. For `InvalidInput`,
 `NotFound`, or `Conflict`, correct the named input or workbook state before
-retrying. For `SessionNotFound`, reopen the workbook once and continue with the
-new session ID. A timeout, cancellation, or dead Excel process can invalidate
-and close the session; reopen it instead of retrying against the old session.
+retrying. For `SessionNotFound`, timeout, or cancellation, inspect `file list`
+and reuse a surviving matching session or reopen the known workbook when
+necessary. Inspect affected data before continuing: a failed operation may
+have partly applied, and reopening cannot recover unsaved edits.
 
 `Prerequisite` means required workbook data or a feature is missing, such as
 tables in the Data Model. `DependencyUnavailable` means an external component

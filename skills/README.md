@@ -56,6 +56,7 @@ editing output that the next build replaces.
 | Tool or parameter description | Command interface XML documentation and attributes under `src/ExcelMcp.Core` |
 | Skill prose and tool-selection rules | `skills/templates/SKILL.cli.sbn` and `skills/templates/SKILL.mcp.sbn` |
 | Shared workflows, examples, and limitations | `skills/shared/*.md` |
+| MCP-only references, such as calculation mode | `skills/assets/excel-mcp/references/*.md` |
 | Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
 | Minimal MCP server instructions | `src/ExcelMcp.McpServer/Program.cs` |
 
@@ -80,18 +81,34 @@ Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
   -> GenerateSkillFile + Scriban templates -> both SKILL.md files
 
 skills/shared/*.md -> copied skill references
+
+Core XML documentation + interface attributes -> McpToolGenerator
+  -> official SDK tool/parameter descriptions and schemas
 ```
 
 To add a shared reference, create the Markdown under `skills/shared/`.
 Build the solution in Release and generate the skills, then inspect both skill references
 for the intended content. The extension packages a
 copy of the MCP skill; it is not another source.
+Keep Core XML documentation available during downstream builds; it is stripped
+from published MCP binaries, not deleted before tool generation. The generator
+translates known top-level parameter names to MCP snake_case, leaving nested
+JSON fields and enum values unchanged.
+
+The server exposes tools, not prompts or resources, and does not request
+confirmation through MCP elicitation. Consent instructions apply to the client
+conversation; they are not server-enforced dialogs. Source updates do not change
+installed skills until the normal packaging, publication, and update process.
 
 Write for an agent that already knows Excel and can read tool schemas. Explain
 which overlapping tool to choose, non-obvious load/save/refresh semantics,
 destructive effects, and recovery from predictable errors. Add concrete examples
 when schemas alone cannot explain a workflow, not to duplicate enum catalogs or
 CLI help.
+Check guidance across both templates, references, live descriptions, and returned
+recovery messages. Avoid emojis, invented parameter/action names, unconditional
+mode resets, or requirements for unrelated formatting and screenshots on
+unattended desktops.
 
 If a tool is misunderstood in an evaluation, fix the relevant source above,
 rebuild, and rerun the affected scenario. See the

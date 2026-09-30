@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chartconfig", "ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
-    Description = "Chart configuration - data source, series, type, title, axis labels, legend, and styling. SERIES: add-series (valuesRange required), remove-series (1-based index), set-source-range. TITLES: set-title, set-axis-title (Category/Value/Secondary). AXIS: number format, scale min/max/units. LEGEND: Bottom, Corner, Top, Right, Left. STYLES: 1-48 built-in. DATA LABELS: values, percentages, positions (Center, InsideEnd, OutsideEnd, BestFit). GRIDLINES: major/minor for value/category axes. TRENDLINES: Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage. SERIES FORMAT: marker style/size/colors, invert if negative. PLACEMENT: 1=move+size with cells, 2=move only, 3=free floating. Use chart for lifecycle.")]
+    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series indices are 1-based. PivotChart series follow their PivotTable fields: use pivottable_field rather than changing series directly. Axis selectors are Category, Value, CategorySecondary, and ValueSecondary. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for create/delete/move and fit-to-range.")]
 public interface IChartConfigCommands
 {
     // === DATA SOURCE OPERATIONS ===
@@ -52,7 +52,7 @@ public interface IChartConfigCommands
 
     /// <summary>
     /// Adds a data series to Regular Charts.
-    /// PivotCharts: Throws exception guiding to pivottable(action: 'add-value-field').
+    /// PivotCharts: Throws exception guiding to pivottable_field add-value-field.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -69,7 +69,7 @@ public interface IChartConfigCommands
 
     /// <summary>
     /// Removes a data series from Regular Charts.
-    /// PivotCharts: Throws exception guiding to pivottable(action: 'remove-field').
+    /// PivotCharts: Throws exception guiding to pivottable_field remove-field.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>

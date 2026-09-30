@@ -43,8 +43,11 @@ public static class ExcelScreenshotTool
         [Description("The action to perform")] ScreenshotAction action,
         ServiceBridge.ServiceBridge bridge,
         [Description("Session ID from file 'open' action")] string session_id,
+        [Description("Worksheet name; omit for the active sheet. Valid for capture and capture-sheet.")]
         [DefaultValue(null)] string? sheet_name,
+        [Description("Range to capture; defaults to A1:Z30. Only valid for capture, not capture-sheet.")]
         [DefaultValue("A1:Z30")] string range_address,
+        [Description("Image quality: Medium (default, JPEG 75% scale), High (PNG full scale), Low (JPEG 50% scale).")]
         [DefaultValue(ScreenshotQuality.Medium)] ScreenshotQuality quality,
         CancellationToken cancellationToken = default)
     {

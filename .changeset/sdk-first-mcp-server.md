@@ -19,3 +19,8 @@ unexpected handler failures remain logged.
 Removed Gemini-specific schema rewriting and generated guide prompts. Shared
 guides remain in the skills. Server instructions and skill guidance are now
 task-focused, without forced formatting, Table creation, or presentation menus.
+Restored detailed parameter documentation in generated tool schemas and corrected
+input names, query-loading guidance, and stale skill examples. Bulk-write guidance
+preserves the previous calculation mode, and chart feedback no longer requires
+screenshots on unavailable desktops. Consent guidance now distinguishes client
+confirmation from server-side elicitation, which is not implemented.
