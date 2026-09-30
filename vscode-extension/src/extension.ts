@@ -50,7 +50,12 @@ export async function activate(context: Pick<vscode.ExtensionContext, 'extension
 	const hasShownWelcome = context.globalState.get<boolean>('excelmcp.hasShownWelcome', false);
 	if (!hasShownWelcome) {
 		void showWelcomeMessage(output);
-		await context.globalState.update('excelmcp.hasShownWelcome', true);
+		try {
+			await context.globalState.update('excelmcp.hasShownWelcome', true);
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			output.appendLine(`Could not save the welcome preference. Getting-started help may appear again. ${detail}`);
+		}
 	}
 }
 

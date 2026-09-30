@@ -12,3 +12,6 @@ access in remote workspaces.
 
 Point Getting Started to the user guides rather than installation instructions,
 and clarify server startup and approval steps in the installation guide.
+
+Keep the MCP server available if saving the optional first-run welcome
+preference fails, and report that the help may appear again.

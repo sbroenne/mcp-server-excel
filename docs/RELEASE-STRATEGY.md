@@ -29,7 +29,7 @@ When you run the release workflow, all components are released together:
    - ZIP file (primary distribution)
    - NuGet package (secondary distribution)
 2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained exe ZIP [primary] + NuGet pack [secondary]
-3. **VS Code Extension** → Self-contained VSIX (bundles the MCP executable and skill) → VS Code Marketplace
+3. **VS Code Extension** → Self-contained Windows x64 and ARM64 VSIX packages (bundle the MCP executable and skill) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
 6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
@@ -53,7 +53,8 @@ When you run the release workflow, all components are released together:
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
-| `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (self-contained MCP executable and skill) |
+| `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
+| `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; same x64 MCP executable through Windows emulation, plus skill) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop bundle, self-contained) |
 | `excel-plugins-v{version}.zip` | ZIP | GitHub Release (prepared plugin payload for exact-release repairs) |
 

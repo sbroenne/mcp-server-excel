@@ -233,10 +233,14 @@ describe('First-run help', () => {
 		expect(context.subscriptions).toContain(output);
 	});
 
-	it('propagates a failed welcome-state write instead of reporting activation success', async () => {
+	it('keeps the provider usable and logs a failed welcome-state write', async () => {
 		const context = createContext();
 		context.globalState.get.mockReturnValue(false);
 		context.globalState.update.mockRejectedValue(new Error('Cannot save the welcome preference.'));
-		await expect(activate(context)).rejects.toThrow('Cannot save the welcome preference.');
+		const { provider } = await registeredProvider(context);
+		expect(await resolveServer(provider)).toMatchObject({ label: 'excel-mcp' });
+		expect(output.appendLine).toHaveBeenCalledWith(
+			'Could not save the welcome preference. Getting-started help may appear again. Cannot save the welcome preference.'
+		);
 	});
 });
