@@ -96,6 +96,13 @@ gh secret set COPILOT_GITHUB_TOKEN --repo sbroenne/mcp-server-excel
 Set a short expiration, record ownership outside the repository, rotate before
 expiry, and revoke the old token after validating the replacement. Only the
 safe-output submit step sees the PR credential. Checkouts do not persist it.
+External Git preparation (clone, fetch, checkout and content reads) and every
+upstream npm install/validation/build use copied environments that exclude the
+PR, GitHub, inference, publication and release credentials, including case
+variants on Windows. Injected Git configuration/auth headers and credential-
+helper environment variables are excluded too. Other build settings are preserved. Only trusted
+GitHub API operations and the allowlisted push receive explicit authentication;
+the original writer environment is not modified.
 The agent runs with read-only GitHub permissions. The publisher's separate
 `PLUGINS_REPO_TOKEN` continues to cover plugin output publication only.
 
@@ -154,6 +161,12 @@ branch, title or body is written, even if its release stamps changed. New
 meaningful content refreshes the **same** PR and preserves its other proposed
 plugin. The marker records the expected head, original upstream base, proposed
 entries and normalized fingerprints.
+Preservation applies only while the newer published tag still contains the
+proposed change. If it restores a pending plugin to currently listed content,
+the precheck fails visibly and leaves the PR untouched rather than reporting a
+successful no-op or carrying the outdated entry into another plugin's refresh.
+An authorized owner must inspect and resolve that stale proposal manually; the
+workflow does not close it or remove entries automatically.
 Every owned PR must also have a valid fingerprint of its visible body; removing
 or corrupting that field does not bypass protection.
 

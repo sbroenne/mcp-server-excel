@@ -78,16 +78,29 @@ try {
         $candidateFiles = @(git -C $candidate -c core.quotepath=false ls-tree -r --name-only $tree)
         $baselineFiles = @(git -C $published -c core.quotepath=false ls-tree -r --name-only HEAD)
         foreach ($file in $baselineFiles | Where-Object { $_ -cnotin $candidateFiles }) {
-            Remove-Item -LiteralPath (Join-Path $published $file.Replace('/', [IO.Path]::DirectorySeparatorChar))
+            $removed = Join-Path $published $file.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            Remove-Item -LiteralPath $removed
+            $directory = Split-Path $removed -Parent
+            while ($directory -ne $published -and @(Get-ChildItem -LiteralPath $directory -Force).Count -eq 0) {
+                Remove-Item -LiteralPath $directory
+                $directory = Split-Path $directory -Parent
+            }
         }
         foreach ($file in $candidateFiles) {
             $relative = $file.Replace('/', [IO.Path]::DirectorySeparatorChar)
             $destination = Join-Path $published $relative
+            if (Test-Path -LiteralPath $destination -PathType Container) {
+                if (@(Get-ChildItem -LiteralPath $destination -Force).Count) {
+                    throw "Cannot replace nonempty destination directory: $relative; local files are protected."
+                }
+                Remove-Item -LiteralPath $destination
+            }
             New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
             Copy-Item -LiteralPath (Join-Path $candidate $relative) -Destination $destination -Force
         }
         git -C $published config user.name 'ExcelMcp Publisher Bot'
         git -C $published config user.email 'excelmcp-publisher[bot]@users.noreply.github.com'
+        git -C $published config core.autocrlf true
         $paths = @($baselineFiles + $candidateFiles | Sort-Object -Unique)
         [IO.File]::WriteAllText($pathspecFile, ($paths -join "`0") + "`0", [Text.UTF8Encoding]::new($false))
         git --literal-pathspecs -C $published -c core.autocrlf=true add --all --force "--pathspec-from-file=$pathspecFile" --pathspec-file-nul

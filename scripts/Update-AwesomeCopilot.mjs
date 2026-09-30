@@ -3,18 +3,25 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-    canonical, hash, git, readGitTree, resolveCommit, assertTag, parseJson,
+    canonical, hash, git, readGitTree, resolveCommit, assertTag, parseJson, externalCommandEnvironment,
 } from './PluginContent.mjs';
 import {
     upstreamRepo, forkRepo, prAuthor, allowedPaths, planListings, parseState, stateMarker,
     assertListingPatch, assertAllowedPaths, ownedPulls,
 } from './AwesomeCopilotPolicy.mjs';
 
-function run(command, args, cwd, env = process.env) {
+function run(command, args, cwd, env = externalCommandEnvironment()) {
     return execFileSync(command, args, {
         cwd, env, windowsHide: true, maxBuffer: 64 * 1024 * 1024,
         encoding: 'utf8', shell: process.platform === 'win32' && command === 'npm',
     });
+}
+
+export function validateUpstreamBuild(directory, { env = process.env, execute = run } = {}) {
+    const childEnv = externalCommandEnvironment(env);
+    execute('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], directory, childEnv);
+    execute('npm', ['run', 'plugin:validate'], directory, childEnv);
+    execute('npm', ['run', 'build'], directory, childEnv);
 }
 
 export function api(endpoint, { method = 'GET', body, token } = {}) {
@@ -28,7 +35,9 @@ export function api(endpoint, { method = 'GET', body, token } = {}) {
     if (body) args.push('--input', '-');
     const text = execFileSync('gh', args, {
         input: body ? JSON.stringify(body) : undefined, encoding: 'utf8', windowsHide: true,
-        env: { ...process.env, ...(token ? { GH_TOKEN: token } : {}) },
+        env: { ...externalCommandEnvironment(),
+            ...((token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN)
+                ? { GH_TOKEN: token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN } : {}) },
         maxBuffer: 16 * 1024 * 1024,
     });
     return parseJson(Buffer.from(text));
@@ -132,9 +141,7 @@ function patch(directory, plan) {
     const after = before.map(entry => plan.state.entries[entry.name]?.entry ?? entry);
     assertListingPatch(before, after, plan.changedPlugins);
     fs.writeFileSync(file, `${JSON.stringify(after, null, 2)}\n`);
-    run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], directory);
-    run('npm', ['run', 'plugin:validate'], directory);
-    run('npm', ['run', 'build'], directory);
+    validateUpstreamBuild(directory);
     const paths = git(directory, ['diff', '--name-only']).toString().trim().split(/\r?\n/);
     assertAllowedPaths(paths);
     const external = parseJson(fs.readFileSync(file));
@@ -326,7 +333,7 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
     saveReceipt();
     const auth = Buffer.from(`x-access-token:${token}`).toString('base64');
     run('git', ['push', `https://github.com/${forkRepo}.git`, `HEAD:refs/heads/${fresh.branch}`], upstream, {
-        ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+        ...externalCommandEnvironment(), GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
         GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${auth}`, GIT_TERMINAL_PROMPT: '0',
     });
     receipt.status = 'pushed';

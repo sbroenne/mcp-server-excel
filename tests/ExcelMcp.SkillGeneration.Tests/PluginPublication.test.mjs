@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-    compareTrees, publicationDecision, validatePublication, canonicalJson, hash,
+    compareTrees, publicationDecision, validatePublication, canonicalJson, hash, git as readOnlyGit,
 } from '../../scripts/PluginContent.mjs';
 import {
     planListings, parseState, stateMarker, assertListingPatch, assertAllowedPaths,
@@ -245,6 +245,7 @@ test('new content refreshes the same PR and preserves an existing proposal for t
     edit(first, 'plugins/excel-cli/README.md', 'CLI proposal');
     const prior = pending(plan(first));
     const second = payload('2.4.0');
+    edit(second, 'plugins/excel-cli/README.md', 'CLI proposal');
     edit(second, 'plugins/excel-mcp/README.md', 'MCP proposal');
     const result = plan(second, { pulls: [prior], tag: 'v2.4.0', commit: sha4,
         getTree: sha => ({ [sha1]: payload(), [sha2]: first, [sha4]: second })[sha],
@@ -254,6 +255,63 @@ test('new content refreshes the same PR and preserves an existing proposal for t
     assert.equal(result.expectedHead, sha3);
     assert.equal(result.state.entries['excel-cli'].entry.source.sha, sha2);
     assert.deepEqual(Object.keys(result.state.entries).sort(), ['excel-cli', 'excel-mcp']);
+});
+
+test('a reverted pending plugin blocks both no-op and other-plugin refreshes without writes', () => {
+    for (const name of ['excel-cli', 'excel-mcp']) {
+        const first = payload('2.3.0');
+        edit(first, `plugins/${name}/README.md`, 'Pending proposal');
+        const prior = pending(plan(first));
+        for (const changeOther of [false, true]) {
+            const second = payload('2.4.0');
+            if (changeOther) {
+                const other = name === 'excel-cli' ? 'excel-mcp' : 'excel-cli';
+                edit(second, `plugins/${other}/README.md`, 'Other plugin changed');
+            }
+            const body = prior.body;
+            assert.throws(() => plan(second, { pulls: [prior], tag: 'v2.4.0', commit: sha4,
+                getTree: sha => ({ [sha1]: payload(), [sha2]: first, [sha4]: second })[sha],
+                resolveTag: tag => ({ 'v2.0.1': sha1, 'v2.3.0': sha2, 'v2.4.0': sha4 })[tag] }),
+            /Pending plugin proposal was reverted.*manual resolution/);
+            assert.equal(prior.body, body);
+            assert.equal(prior.head.sha, sha3);
+        }
+    }
+});
+
+test('every upstream npm command receives a credential-free environment without changing writer credentials', () => {
+    const env = { PATH: 'preserved-path', NODE_OPTIONS: '--max-old-space-size=4096',
+        AWESOME_COPILOT_PR_TOKEN: 'dummy-write-token', awesome_copilot_pr_token: 'dummy-lowercase-token',
+        GH_TOKEN: 'dummy-read-token', GITHUB_TOKEN: 'dummy-token', COPILOT_GITHUB_TOKEN: 'dummy-inference-token',
+        GH_AW_GITHUB_TOKEN: 'dummy-token', GH_AW_GITHUB_MCP_SERVER_TOKEN: 'dummy-token',
+        PLUGINS_REPO_TOKEN: 'dummy-publication-token', RELEASE_PAT: 'dummy-release-token',
+        GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+        GIT_CONFIG_VALUE_0: 'AUTHORIZATION: dummy-header', GIT_CONFIG_PARAMETERS: "'http.extraheader=dummy-header'",
+        GIT_ASKPASS: 'dummy-helper', SSH_ASKPASS: 'dummy-helper', GIT_SSH_COMMAND: 'dummy-helper',
+        GIT_CONFIG_GLOBAL: 'dummy-config', GIT_CONFIG_SYSTEM: 'dummy-config' };
+    const calls = [];
+    updater.validateUpstreamBuild('disposable-upstream', { env, execute: (command, args, cwd, childEnv) => {
+        calls.push(args);
+        assert.equal(command, 'npm');
+        assert.equal(cwd, 'disposable-upstream');
+        assert.deepEqual(childEnv, { PATH: env.PATH, NODE_OPTIONS: env.NODE_OPTIONS });
+        const probe = execFileSync(process.execPath, ['-e',
+            "console.log(JSON.stringify(Object.keys(process.env).filter(name => /(?:TOKEN|_PAT)$|^GIT_CONFIG(?:$|_)|^(?:GIT|SSH)_ASKPASS$|^GIT_SSH(?:$|_)/i.test(name))))"],
+        { env: childEnv, encoding: 'utf8', windowsHide: true });
+        assert.deepEqual(JSON.parse(probe), []);
+    } });
+    assert.deepEqual(calls, [['ci', '--ignore-scripts', '--no-audit', '--no-fund'],
+        ['run', 'plugin:validate'], ['run', 'build']]);
+    assert.equal(env.AWESOME_COPILOT_PR_TOKEN, 'dummy-write-token');
+});
+
+test('upstream build failure remains visible and stops remaining commands', () => {
+    let calls = 0;
+    const failure = new Error('Upstream validation failed');
+    assert.throws(() => updater.validateUpstreamBuild('disposable-upstream', {
+        env: {}, execute: () => { calls++; throw failure; },
+    }), error => error === failure);
+    assert.equal(calls, 1);
 });
 
 test('human changes, duplicate owned PRs, wrong ownership and declined identical proposals block', () => {
@@ -553,6 +611,23 @@ test('disposable Git commands cannot inherit a hook repository, worktree or inde
         assert.equal(fs.existsSync(inherited.GIT_DIR), false);
     } finally { fs.rmSync(root, { recursive: true }); }
 });
+
+test('shared Git preparation commands cannot inherit write credentials or injected authentication settings', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-git-auth-isolation-'));
+    try {
+        init(root);
+        fs.writeFileSync(path.join(root, 'probe.mjs'),
+            'console.log(JSON.stringify(Object.entries(process.env).filter(([name,value]) => /(?:TOKEN|_PAT)$|^GIT_CONFIG(?:$|_)|^(?:GIT|SSH)_ASKPASS$|^GIT_SSH(?:$|_)/i.test(name) && value.includes("dummy")).map(([name]) => name)));');
+        const env = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot,
+            AWESOME_COPILOT_PR_TOKEN: 'dummy-write-token', GH_TOKEN: 'dummy-read-token',
+            GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+            GIT_CONFIG_VALUE_0: 'AUTHORIZATION: dummy-header',
+            GIT_CONFIG_PARAMETERS: "'http.extraheader=dummy-parameter'" };
+        const probe = readOnlyGit(root, ['-c', `alias.probe=!"${process.execPath}" probe.mjs`, 'probe'], { env });
+        assert.deepEqual(JSON.parse(probe), []);
+        assert.equal(env.AWESOME_COPILOT_PR_TOKEN, 'dummy-write-token');
+    } finally { fs.rmSync(root, { recursive: true }); }
+});
 function commit(directory, message) {
     command('git', ['add', '-A'], directory);
     command('git', ['commit', '--quiet', '-m', message], directory);
@@ -575,6 +650,7 @@ function writeTree(directory, files) {
 function publicationFixture({
     staleOverlay = false, currentVersion = '2.0.1', candidateVersion = '2.3.0',
     payloadVersion = candidateVersion, syncFails = false, candidateTagExists = false, ignoredNames = false,
+    baselineFiles = new Map(),
 } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-publication-'));
     const source = path.join(root, 'source'), output = path.join(root, 'output'), built = path.join(root, 'built');
@@ -600,6 +676,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../.github/plugins/marketplace-
     const originalSource = commit(source, 'Original source');
     command('git', ['tag', `v${currentVersion}`], source);
     writeTree(output, payload(currentVersion));
+    writeTree(output, baselineFiles);
     if (ignoredNames) fs.writeFileSync(path.join(output, '.gitignore'), '*.test.md\n*.log\ntemp/\n');
     if (staleOverlay) fs.writeFileSync(path.join(output, 'stale.txt'), 'Old owned file');
     const original = commit(output, 'Original publication');
@@ -644,6 +721,57 @@ test('publisher rejects a dirty or wrong source checkout before touching the des
         assert.throws(() => publishFixture(fixture), /exact release commit/);
         assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
         assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('publication safely replaces tracked directories with files, including nested emptied directories', () => {
+    for (const relative of ['assets/icon.png', 'assets/icons/icon.png']) {
+        const fixture = publicationFixture({ baselineFiles: new Map([
+            [`plugins/excel-cli/${relative}`, { bytes: Buffer.from('Old asset'), mode: '100644' }],
+        ]) });
+        try {
+            const remote = path.join(fixture.root, 'remote.git');
+            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
+            command('git', ['remote', 'add', 'origin', remote], fixture.output);
+            fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'assets'), 'Replacement asset');
+            assert.match(publishFixture(fixture), /"status": "published"/);
+            assert.equal(command('git', ['show', 'v2.3.0:plugins/excel-cli/assets'], remote), 'Replacement asset');
+            const marketplace = path.join(fixture.output, '.github', 'plugin', 'marketplace.json');
+            fs.utimesSync(marketplace, new Date(), new Date(Date.now() + 2000));
+            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+        } finally { fs.rmSync(fixture.root, { recursive: true }); }
+    }
+});
+
+test('publication safely replaces a tracked file with a directory containing a new asset', () => {
+    const fixture = publicationFixture({ baselineFiles: new Map([
+        ['plugins/excel-cli/assets', { bytes: Buffer.from('Old asset'), mode: '100644' }],
+    ]) });
+    try {
+        const remote = path.join(fixture.root, 'remote.git');
+        command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
+        command('git', ['remote', 'add', 'origin', remote], fixture.output);
+        writeTree(fixture.built, new Map([
+            ['excel-cli/assets/icon.png', { bytes: Buffer.from('New asset'), mode: '100644' }],
+        ]));
+        assert.match(publishFixture(fixture), /"status": "published"/);
+        assert.equal(command('git', ['show', 'v2.3.0:plugins/excel-cli/assets/icon.png'], remote), 'New asset');
+        assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+    } finally { fs.rmSync(fixture.root, { recursive: true }); }
+});
+
+test('directory replacement fails rather than deleting an unrelated ignored local file', () => {
+    const fixture = publicationFixture({ ignoredNames: true, baselineFiles: new Map([
+        ['plugins/excel-cli/assets/icon.png', { bytes: Buffer.from('Old asset'), mode: '100644' }],
+    ]) });
+    try {
+        const privateFile = path.join(fixture.output, 'plugins', 'excel-cli', 'assets', 'private.log');
+        fs.writeFileSync(privateFile, 'Unrelated local content');
+        fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'assets'), 'Replacement asset');
+        assert.throws(() => publishFixture(fixture), /nonempty destination directory/);
+        assert.equal(fs.readFileSync(privateFile, 'utf8'), 'Unrelated local content');
+        assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+        assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
     } finally { fs.rmSync(fixture.root, { recursive: true }); }
 });
 

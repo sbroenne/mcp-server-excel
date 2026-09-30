@@ -71,6 +71,11 @@ Destination staging uses the same conversion rules, forces only the exact
 prepared/removed paths, and verifies its staged Git tree equals the validated
 candidate before any commit or tag. Legitimate ignored-name files are included;
 unrelated ignored local files are not staged.
+The output checkout retains the matching text-conversion setting so a later
+Git file-stat refresh does not report generated CRLF files as uncommitted changes.
+File/directory replacements remove only empty directories left by removed
+tracked files. A remaining nonempty destination directory blocks publication
+rather than deleting ignored or otherwise unrelated local files.
 
 Root overlay files under `.github/plugins/marketplace-repo` are included.
 Previously source-owned overlay files are removed from the candidate when

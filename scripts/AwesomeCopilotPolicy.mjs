@@ -123,7 +123,12 @@ export function planListings({ listings, tag, commit, getTree, resolveTag, pulls
         listed[name] = structuredClone(entry);
         const comparison = compareTrees(baselineTree, candidateTree, { publication: false, plugin: name });
         evidence[name] = { baselineCommit, candidateCommit: commit, ...comparison };
-        if (!comparison.changedPaths.length) continue;
+        if (!comparison.changedPaths.length) {
+            if (entries[name]) {
+                throw new Error(`Pending plugin proposal was reverted: ${name}; manual resolution required.`);
+            }
+            continue;
+        }
         if (entries[name]?.fingerprint === comparison.candidateFingerprint) continue;
         const candidate = validatePlugin(candidateTree, name).manifest;
         const desired = structuredClone(entry);

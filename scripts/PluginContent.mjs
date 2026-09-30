@@ -85,9 +85,21 @@ export function assertTag(tag) {
     return tag;
 }
 
+export function externalCommandEnvironment(env = process.env) {
+    const credentials = new Set([
+        'AWESOME_COPILOT_PR_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN', 'COPILOT_GITHUB_TOKEN',
+        'GH_AW_GITHUB_TOKEN', 'GH_AW_GITHUB_MCP_SERVER_TOKEN', 'PLUGINS_REPO_TOKEN', 'RELEASE_PAT',
+        'GIT_ASKPASS', 'SSH_ASKPASS', 'GIT_SSH', 'GIT_SSH_COMMAND', 'SSH_AUTH_SOCK',
+    ]);
+    return Object.fromEntries(Object.entries(env).filter(([name]) =>
+        !credentials.has(name.toUpperCase()) &&
+        !/^GIT_CONFIG(?:$|_(?:COUNT|PARAMETERS|GLOBAL|SYSTEM|(?:KEY|VALUE)_\d+)$)/i.test(name)));
+}
+
 export function git(repo, args, options = {}) {
     return execFileSync('git', ['-C', repo, ...args], {
         maxBuffer: 64 * 1024 * 1024, windowsHide: true, ...options,
+        env: externalCommandEnvironment(options.env ?? process.env),
     });
 }
 
