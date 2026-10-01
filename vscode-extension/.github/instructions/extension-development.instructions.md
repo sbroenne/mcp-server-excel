@@ -5,8 +5,9 @@ excludeAgent: "code-review"
 
 # Extension constraints
 
-- The extension bundles a self-contained Windows MCP Server and generated skill;
-  no separate user .NET install. Keep provider IDs in `package.json` and
+- The extension bundles self-contained Windows x64 and Apple Silicon macOS MCP
+  Servers plus a generated skill; no separate user .NET install. Keep provider
+  IDs and platform runtime paths in `package.json`, build scripts, and
   `src/extension.ts` aligned.
 - `bin/`, `skills/excel-mcp/`, and extension `CHANGELOG.md` are packaging outputs.
   Edit repository sources instead.

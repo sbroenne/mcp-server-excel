@@ -7,12 +7,17 @@ keywords: "Excel automation reference, Excel COM gotchas, Power Query reference,
 # Excel Automation Reference
 
 This is the reference corpus that ships inside the
-[Excel MCP Server agent skills](../skills.md) and as MCP prompts. It is written as
+[Excel MCP Server agent skills](../skills.md). Shared references are not exposed
+as MCP prompts. It is written as
 instruction for an AI agent — terse, imperative, and specific about what Excel
 actually does rather than what its documentation implies.
 
 It is published here because the same material is useful to anyone automating
 Excel, whether through this project or not.
+
+**Platform scope:** Windows has the complete backend. Apple Silicon macOS is
+experimental beta; each reference identifies its supported native subset or
+Windows-only workflow. See [Mac beta support and limitations](../macos-support.md).
 
 For task walkthroughs, start with the [guides](../guides/index.md). For the
 complete operation catalogue, see the [features reference](../features.md).

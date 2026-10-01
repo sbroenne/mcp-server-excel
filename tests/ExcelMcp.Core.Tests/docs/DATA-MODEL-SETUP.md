@@ -1,5 +1,11 @@
 # Data Model Test Setup
 
+**Historical Windows fixture design:** the examples below retain the original
+Core fixture pattern, not the current public Service-boundary testing policy.
+For new work use [the testing strategy](../../../.github/instructions/testing-strategy.instructions.md)
+and [current test guidance](../../README.md). Data Model actions are unsupported
+in the [experimental Apple Silicon macOS beta](../../../specs/MACOS-SUPPORT.md).
+
 > **Fixture-as-Test pattern for Data Model integration tests**
 
 ## Overview

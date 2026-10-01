@@ -1,5 +1,11 @@
 # Excel PivotTable API Specification
 
+**Platform scope:** the dated implementation record and COM design below
+describe Windows. All PivotTable actions remain unsupported in the
+experimental Apple Silicon macOS beta; candidate Office.js handlers do not
+enable them. Use [current feature guidance](../docs/features/DATA-ANALYTICS.md)
+and [Mac limitations](MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 > **Comprehensive specification for Excel PivotTable operations - creating, managing, and analyzing data with pivot functionality**
 
 ## Implementation Status

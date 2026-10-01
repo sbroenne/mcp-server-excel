@@ -1,5 +1,11 @@
 # Working with visible Excel
 
+**Windows-only window/Agent Mode workflow.** The experimental Mac beta uses shared
+desktop Excel, not a separately owned hidden application. Mac window, layout,
+status-bar, and screenshot actions are gated; supported open/create visibility
+options do not enable them. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Excel can remain hidden for automation or be shown so the user can watch and
 inspect changes. Visibility is supported by both MCP and CLI window commands.
 It does not change which workbook operations are available.

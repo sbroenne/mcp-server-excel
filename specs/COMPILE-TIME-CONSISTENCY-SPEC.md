@@ -2,6 +2,13 @@
 
 > **Status**: ✅ COMPLETED (February 2026)
 
+This is the historical February implementation record; its synchronous and
+manual-routing examples are not the current implementation prescription.
+Follow [current architecture](../docs/ARCHITECTURE.md) and
+[generator instructions](../.github/instructions/architecture-patterns.instructions.md).
+Shared CLI/MCP contracts do not imply Mac availability: the experimental beta
+uses the [generated per-action gates](../docs/MACOS-ACTION-INVENTORY.md).
+
 ## Overview
 
 This document describes the **code generation system** that ensures consistency between Core interfaces, CLI commands, and MCP tools.

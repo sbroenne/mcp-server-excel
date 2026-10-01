@@ -2,8 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
+    <TargetFramework Condition="'$(OS)' == 'Windows_NT'">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(OS)' != 'Windows_NT'">net10.0</TargetFramework>
+    <UseWindowsForms Condition="'$(TargetFramework)' == 'net10.0-windows'">true</UseWindowsForms>
+    <ExcelMcpSkipCleanup Condition="'$(OS)' != 'Windows_NT'">true</ExcelMcpSkipCleanup>
 
     <PublishAot>false</PublishAot>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -24,7 +26,7 @@
     <!-- NuGet Package Configuration (secondary distribution — primary is standalone exe) -->
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
     <Title>ExcelMcp CLI</Title>
-    <Description>Command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. 326 operations across Power Query M code, Power Pivot DAX measures, VBA macros, PivotTables, Excel Tables, ranges, formatting, data validation, and connections. Perfect for RPA, CI/CD pipelines, scripting (PowerShell/Bash), and batch processing. Windows x64 and ARM64 support.</Description>
+    <Description>Command-line interface for 326 operations across Power Query, VBA, worksheets, ranges, tables, charts, PivotTables, formatting, validation, connections, and more. Windows uses the complete COM backend; Apple Silicon macOS support is an experimental beta subset with documented feature limitations.</Description>
     <PackageTags>excel;cli;powerquery;dax;power-pivot;automation;com;rpa;ci-cd;scripting;github-copilot;mcp;windows;dotnet-tool;sbroenne;excel-automation;vba;pivottables;excel-tables;batch-processing;devops</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
@@ -120,7 +122,11 @@ internal static class TelemetryConfig
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\excelcli.ico" />
+    <EmbeddedResource Include="Resources\excelcli.ico" Condition="'$(TargetFramework)' == 'net10.0-windows'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Compile Remove="Infrastructure\CliServiceTray.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -146,14 +152,16 @@ internal static class TelemetryConfig
 
   <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows -->
   <!-- See: https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
-  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation"
+          Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <PropertyGroup>
       <TargetPlatformIdentifier></TargetPlatformIdentifier>
       <TargetPlatformMoniker></TargetPlatformMoniker>
     </PropertyGroup>
   </Target>
 
-  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool"
+          Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <PropertyGroup>
       <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     </PropertyGroup>
@@ -162,6 +170,17 @@ internal static class TelemetryConfig
   <!-- Import the Build.Tasks project to use GenerateSkillFile task -->
   <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateSkillFile"
              AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
+  <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateMacActionInventory"
+             AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
+
+  <Target Name="GenerateMacActionInventory" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"
+          Inputs="$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_MacActionInventory.g.cs;$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll"
+          Outputs="$(MSBuildProjectDirectory)\..\..\docs\generated\macos-action-inventory.json;$(MSBuildProjectDirectory)\..\..\docs\MACOS-ACTION-INVENTORY.md">
+    <GenerateMacActionInventory
+      ManifestPath="$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_MacActionInventory.g.cs"
+      JsonOutputPath="$(MSBuildProjectDirectory)\..\..\docs\generated\macos-action-inventory.json"
+      MarkdownOutputPath="$(MSBuildProjectDirectory)\..\..\docs\MACOS-ACTION-INVENTORY.md" />
+  </Target>
 
   <!-- Invoked explicitly by Build-AgentSkills.ps1, never by ordinary builds. -->
   <Target Name="GenerateCliSkill">

@@ -1,5 +1,11 @@
 # table - Server Quirks
 
+**Windows-only in the experimental macOS beta.** All public Table and column
+actions remain gated on Mac, including plain worksheet Tables. Optional Office.js
+handlers do not enable them. Use ordinary range operations for accepted Mac
+cell workflows, not as a substitute for an Excel Table contract. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 **Data Model workflow (CRITICAL)**:
 
 Excel Tables on worksheets are NOT automatically in the Data Model (Power Pivot).

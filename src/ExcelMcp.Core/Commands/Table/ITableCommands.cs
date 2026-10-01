@@ -26,6 +26,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// Related: tablecolumn (filter/sort/columns), datamodel (DAX measures, evaluate queries)
 /// </summary>
 [ServiceCategory("table", "Table")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events exposes no table object model. Office.js routes exist only for methods marked OfficeAddInAction; it exposes no Data Model/DAX APIs and cannot reproduce the preflight contract's CurrentRegion, merged-cell, and formula-risk guarantees.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "no supported local macOS API preserves this table contract; use the Windows COM backend")]
 [McpTool("table", Title = "Table Operations", Destructive = true, Category = "data",
     Description = "Excel Tables (ListObjects) - lifecycle and data operations. SAFE CREATION: Use preflight to inspect merged cells, headers, excluded contiguous columns, formula-sort risks, and the effective range without changing the workbook. Create runs the same checks and rejects deterministic blockers; heuristic warnings remain advisory. Formula risk analysis is skipped with an explicit warning when the proposed range exceeds 100,000 cells. CONVERT TO TABLE: Write data to a range, then use create. STYLING: Pass tableStyle on create or use set-style later; never apply range_format to table headers or data rows. Prefer append/resize/rename over delete+recreate. Deleting tables used by PivotTables or the Data Model breaks those objects. Use table_column for filtering, sorting, and columns.")]
 public interface ITableCommands
@@ -33,7 +37,7 @@ public interface ITableCommands
     /// <summary>
     /// Lists all Excel Tables in the workbook
     /// </summary>
-    [ServiceAction("list")]
+    [ServiceAction("list"), OfficeAddInAction("1.1", mutation: false)]
     TableListResult List(IExcelBatch batch);
 
     /// <summary>
@@ -58,7 +62,7 @@ public interface ITableCommands
     /// <param name="hasHeaders">True if first row contains column headers (default: true)</param>
     /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2', 'TableStyleLight1'). Optional.</param>
     /// <exception cref="InvalidOperationException">Sheet not found, table name already exists, range invalid, or preflight found a blocker</exception>
-    [ServiceAction("create")]
+    [ServiceAction("create"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string rangeAddress, bool hasHeaders = true, string? tableStyle = null);
 
     /// <summary>
@@ -67,7 +71,7 @@ public interface ITableCommands
     /// <param name="tableName">Current name of the table</param>
     /// <param name="newName">New name for the table (must be unique in workbook)</param>
     /// <exception cref="InvalidOperationException">Table not found or new name already exists</exception>
-    [ServiceAction("rename")]
+    [ServiceAction("rename"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult Rename(IExcelBatch batch, string tableName, string newName);
 
     /// <summary>
@@ -75,14 +79,14 @@ public interface ITableCommands
     /// </summary>
     /// <param name="tableName">Name of the table to delete</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
-    [ServiceAction("delete")]
+    [ServiceAction("delete"), OfficeAddInAction("1.2", mutation: true)]
     OperationResult Delete(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets detailed information about an Excel Table
     /// </summary>
     /// <param name="tableName">Name of the table</param>
-    [ServiceAction("read")]
+    [ServiceAction("read"), OfficeAddInAction("1.1", mutation: false)]
     TableInfoResult Read(IExcelBatch batch, string tableName);
 
     /// <summary>
@@ -91,7 +95,7 @@ public interface ITableCommands
     /// <param name="tableName">Name of the table to resize</param>
     /// <param name="newRange">New range address (e.g., 'A1:F20')</param>
     /// <exception cref="InvalidOperationException">Table not found or new range invalid</exception>
-    [ServiceAction("resize")]
+    [ServiceAction("resize"), OfficeAddInAction("1.13", mutation: true)]
     OperationResult Resize(IExcelBatch batch, string tableName, string newRange);
 
     /// <summary>
@@ -100,7 +104,7 @@ public interface ITableCommands
     /// <param name="tableName">Name of the table</param>
     /// <param name="showTotals">True to show totals row, false to hide</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
-    [ServiceAction("toggle-totals")]
+    [ServiceAction("toggle-totals"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult ToggleTotals(IExcelBatch batch, string tableName, bool showTotals);
 
     /// <summary>
@@ -110,7 +114,7 @@ public interface ITableCommands
     /// <param name="columnName">Name of the column to set total function on</param>
     /// <param name="totalFunction">Totals function name: Sum, Count, Average, Min, Max, CountNums, StdDev, Var, None</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("set-column-total")]
+    [ServiceAction("set-column-total"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction);
 
     /// <summary>
@@ -121,7 +125,7 @@ public interface ITableCommands
     /// <param name="rows">2D array of row data to append - column order must match table columns. Optional if rowsFile is provided.</param>
     /// <param name="rowsFile">Path to a JSON or CSV file containing the rows to append. JSON: 2D array. CSV: rows/columns. Alternative to inline rows parameter.</param>
     /// <exception cref="InvalidOperationException">Table not found or append failed</exception>
-    [ServiceAction("append")]
+    [ServiceAction("append"), OfficeAddInAction("1.4", mutation: true)]
     OperationResult Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null);
 
     /// <summary>
@@ -131,7 +135,7 @@ public interface ITableCommands
     /// <param name="tableName">Name of the table to read data from</param>
     /// <param name="visibleOnly">True to return only visible (non-filtered) rows; false for all rows (default: false)</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
-    [ServiceAction("get-data")]
+    [ServiceAction("get-data"), OfficeAddInAction("1.3", mutation: false)]
     TableDataResult GetData(IExcelBatch batch, string tableName, bool visibleOnly = false);
 
     /// <summary>
@@ -140,7 +144,7 @@ public interface ITableCommands
     /// <param name="tableName">Name of the table to style</param>
     /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2', 'TableStyleLight1', 'TableStyleDark1')</param>
     /// <exception cref="InvalidOperationException">Table not found or invalid style</exception>
-    [ServiceAction("set-style")]
+    [ServiceAction("set-style"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult SetStyle(IExcelBatch batch, string tableName, string tableStyle);
 
     /// <summary>

@@ -26,6 +26,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// NUMBER FORMAT: Use US format codes like '#,##0.00' for currency or '0.00%' for percentages.
 /// </summary>
 [ServiceCategory("pivottablefield", "PivotTableField")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Office.js routes exist only for methods marked OfficeAddInAction. The remaining field contracts require exact source types, placement, aggregation, or grouping metadata that ExcelApi does not expose without guessing.",
+    ExcelApiVersion = "Office.js ExcelApi through 1.21.",
+    Blocker = "Office.js cannot preserve exact PivotTable field semantics; use the Windows COM backend")]
 [McpTool("pivottable_field", Title = "PivotTable Field Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field operations modify structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
 public interface IPivotTableFieldCommands
@@ -107,7 +111,7 @@ public interface IPivotTableFieldCommands
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <param name="fieldName">Name of the field to remove</param>
     /// <returns>Updated layout after removal</returns>
-    [ServiceAction("remove-field")]
+    [ServiceAction("remove-field"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult RemoveField(IExcelBatch batch, string pivotTableName,
         string fieldName);
 
@@ -133,7 +137,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field</param>
     /// <param name="customName">Custom name to set</param>
     /// <returns>Applied name and field reference</returns>
-    [ServiceAction("set-field-name")]
+    [ServiceAction("set-field-name"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SetFieldName(IExcelBatch batch, string pivotTableName,
         string fieldName, string customName);
 
@@ -145,7 +149,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field</param>
     /// <param name="numberFormat">Number format string</param>
     /// <returns>Applied format with sample formatted value</returns>
-    [ServiceAction("set-field-format")]
+    [ServiceAction("set-field-format"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SetFieldFormat(IExcelBatch batch, string pivotTableName,
         string fieldName, string numberFormat);
 
@@ -159,7 +163,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field to filter</param>
     /// <param name="selectedValues">Values to show (others will be hidden)</param>
     /// <returns>Applied filter state and affected row count</returns>
-    [ServiceAction("set-field-filter")]
+    [ServiceAction("set-field-filter"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldFilterResult SetFieldFilter(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues);
 
@@ -171,7 +175,7 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field to sort</param>
     /// <param name="direction">Sort direction</param>
     /// <returns>Applied sort configuration and preview of changes</returns>
-    [ServiceAction("sort-field")]
+    [ServiceAction("sort-field"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, [FromString] SortDirection direction = SortDirection.Ascending);
 

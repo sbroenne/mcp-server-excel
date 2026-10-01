@@ -1,5 +1,10 @@
 # Calculation Mode API Specification
 
+**Platform scope:** this document records the Windows COM design. Apple Silicon
+macOS is experimental beta: explicit `calculate` is enabled, but application
+calculation-mode get/set is unavailable in shared Excel. Follow the
+[current support reference](MACOS-SUPPORT.md), not the mode-changing workflow below.
+
 > **User-controllable calculation mode for performance optimization and workflow control**
 > 
 > **🤖 Primary Audience:** LLMs using MCP Server/CLI to automate Excel workbooks with complex formulas, Data Models, or bulk operations

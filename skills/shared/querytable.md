@@ -1,5 +1,9 @@
 # querytable - Local Text and Web Imports
 
+**Windows-only in the experimental macOS beta.** All public QueryTable actions
+are gated on Mac; existing native candidates still require real Excel proof.
+See [macOS support](https://excelmcpserver.dev/macos-support/).
+
 Use `querytable` for worksheet QueryTables backed by the desktop Excel COM object model.
 
 ## Choose the Right Import Surface

@@ -6,6 +6,11 @@ Import, transform, model, and summarize data with Power Query, DAX, Excel Tables
 
 ---
 
+> **Windows-only feature reference.** All Power Query, Data Model/DAX, Table,
+> PivotTable, connection, and QueryTable actions below are unavailable in the
+> experimental macOS beta. Optional Office.js handlers are candidates, not
+> supported features. See [macOS support and limitations](../../specs/MACOS-SUPPORT.md).
+
 ## 🔄 Power Query & M Code (12 operations)
 
 Import, transform, and refresh data with Power Query. Every operation is a single-call atomic workflow.

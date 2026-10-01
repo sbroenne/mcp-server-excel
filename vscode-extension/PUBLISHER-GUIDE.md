@@ -2,6 +2,12 @@
 
 This guide walks you through publishing your VS Code extension to the marketplace for the first time.
 
+These steps require explicit publication authorization, not merely permission
+to build packages. The extension has separate Windows x64 and Apple Silicon
+VSIX files; Mac support is **experimental beta**, with the
+[unsupported-feature reference](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+in its packaged README. Local validation is documented in [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Quick Summary
 
 1. Create Azure DevOps organization + PAT token

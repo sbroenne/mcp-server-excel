@@ -122,6 +122,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             var validation = await RunPowerShellFileAsync(
                 Path.Combine(publishedDirectory, "tests", "Test-Plugins.ps1"), []);
             Assert.True(validation.ExitCode == 0, validation.CombinedOutput);
+            Assert.Contains("All plugin validation checks passed.", validation.Stdout, StringComparison.Ordinal);
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -186,6 +187,11 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     [SupportedOSPlatform("windows")]
     public async Task StartCliWrapper_EscapesArgumentsSoTheyRoundTripThroughWin32Parsing()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         var sandbox = CreateSandbox("argument-fidelity");
         try
         {
@@ -224,7 +230,6 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
         try
         {
             var wrapper = Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "start-cli.ps1");
-            File.WriteAllText(Path.Combine(sandbox, "npx.cmd"), "@echo off\r\n");
             var npmBin = Directory.CreateDirectory(Path.Combine(sandbox, "node_modules", "npm", "bin")).FullName;
             File.WriteAllText(Path.Combine(npmBin, "npx-cli.js"), """
                 if (process.argv[2] !== "-y" || process.argv[3] !== "@sbroenne/excelcli@latest") {
@@ -232,11 +237,23 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
                 }
                 process.stdout.write(process.argv[4]);
                 """);
+            if (OperatingSystem.IsWindows())
+            {
+                File.WriteAllText(Path.Combine(sandbox, "npx.cmd"), "@echo off\r\n");
+            }
+            else
+            {
+                var npx = Path.Combine(sandbox, "npx");
+                File.WriteAllText(npx, $"#!/bin/sh\nexec node '{Path.Combine(npmBin, "npx-cli.js")}' \"$@\"\n");
+                File.SetUnixFileMode(
+                    npx,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
             const string json = """[["Name","Amount"],["Widget",1500]]""";
             var harness = Path.Combine(sandbox, "invoke.ps1");
             File.WriteAllText(harness, """
                 param([string]$Wrapper, [string]$NpxDirectory, [string]$Json)
-                $env:PATH = "$NpxDirectory;$env:PATH"
+                $env:PATH = "$NpxDirectory$([IO.Path]::PathSeparator)$env:PATH"
                 & $Wrapper $Json
                 exit $LASTEXITCODE
                 """);

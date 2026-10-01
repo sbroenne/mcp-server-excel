@@ -1,5 +1,9 @@
 # Build and Update PivotTables with an AI Assistant
 
+**Windows-only walkthrough.** All public PivotTable and chart actions remain
+unavailable in the experimental macOS beta. Optional Office.js candidates do not
+enable this workflow. See [macOS limitations](../../specs/MACOS-SUPPORT.md).
+
 PivotTables are the part of Excel most people want an assistant to handle, and the
 part that file-parser libraries handle worst. ExcelMcp creates and refreshes them
 through Excel's own PivotTable engine, so the result is a real, interactive
@@ -117,8 +121,9 @@ Data Model, and Data Model PivotTables follow.
 
 **Custom formatting does not survive a refresh.** Colours, bold, and borders
 applied to PivotTable cells are erased whenever Excel's layout engine reapplies
-defaults. Use the PivotTable's own style (`set-style`) instead of formatting
-individual cells — styles persist.
+defaults. ExcelMcp does not expose a PivotTable `set-style` action. Use field
+number formats and supported layout operations instead of promising persistent
+visual styling.
 
 **"Unknown field" on a value field** usually means a calculated-field limitation.
 Switch to a DAX measure.

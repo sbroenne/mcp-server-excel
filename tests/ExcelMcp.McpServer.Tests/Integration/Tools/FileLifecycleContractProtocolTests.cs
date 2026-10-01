@@ -136,7 +136,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
         var toolResult = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = path });
 
         Assert.False(serviceResponse.Success);
-        Assert.Contains("absolute Windows path", serviceResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("absolute path", serviceResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         using var json = JsonDocument.Parse(toolResult);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(serviceResponse.ErrorMessage, json.RootElement.GetProperty("errorMessage").GetString());

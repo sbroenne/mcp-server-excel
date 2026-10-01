@@ -78,6 +78,8 @@ SITE_PAGE_MAP = {
     "docs/INSTALLATION.md": "/installation/",
     "docs/INSTALLATION-MCP-SERVER.md": "/installation-mcp-server/",
     "docs/INSTALLATION-CLI.md": "/installation-cli/",
+    "docs/MACOS-OFFICEJS.md": "/installation-macos-officejs/",
+    "specs/MACOS-SUPPORT.md": "/macos-support/",
     "docs/ARCHITECTURE.md": "/architecture/",
     "docs/USE-CASES.md": "/use-cases/",
     "docs/guides/README.md": "/guides/",
@@ -1214,13 +1216,18 @@ def _write_llm_outputs(config) -> None:
         "# Excel MCP Server",
         "",
         "> Excel MCP Server (ExcelMcp) automates the real Microsoft Excel "
-        f"application through its COM API, exposing {headline_tools} tools and "
+        f"desktop application, exposing a full Windows surface of {headline_tools} tools and "
         f"{headline_operations} operations to AI assistants "
         "over the Model Context Protocol and to scripts through "
         "the `excelcli` command line. Unlike file-parser libraries it can refresh "
         "Power Query, evaluate DAX against the Data Model, refresh PivotTables, "
-        "and run VBA, because Excel itself does the work. Windows-only; requires "
-        "Microsoft Excel 2016 or later.",
+        "and run VBA on Windows, because Excel itself does the work. Windows requires "
+        "Microsoft Excel 2016 or later. Apple Silicon macOS support is an experimental beta "
+        "requiring Excel for Mac 16.112 or later and accepts only an explicitly gated subset. "
+        "Power Query, VBA, Data Model/DAX, Tables, PivotTables, charts, slicers, connections, "
+        "QueryTables, XML Maps, screenshots, advanced visual formatting, and Python result reads "
+        "are unsupported on Mac. See the Mac support page and per-action inventory; "
+        "shared contracts and operation counts are not a Mac availability list.",
         "",
         "Every page below is also available as Markdown by appending `index.md` "
         "to its URL. The complete corpus is at "
@@ -1360,6 +1367,24 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
             demote_h1=True,
         ),
     )
+    _write(
+        "installation-macos-officejs.md",
+        "docs/MACOS-OFFICEJS.md",
+        _strip_header(
+            _read("docs/MACOS-OFFICEJS.md"),
+            end_on_blank=True,
+            demote_h1=True,
+        ),
+    )
+    _write(
+        "macos-support.md",
+        "specs/MACOS-SUPPORT.md",
+        _strip_header(
+            _read("specs/MACOS-SUPPORT.md"),
+            end_on_blank=True,
+            demote_h1=True,
+        ),
+    )
 
     # Canonical architecture and examples guides.
     _write(
@@ -1479,13 +1504,37 @@ def _write_tools_json(config) -> None:
         "url": SITE_URL,
         "repository": "https://github.com/sbroenne/mcp-server-excel",
         "description": (
-            "Automates the real Microsoft Excel application through its COM API, "
+            "Automates desktop Microsoft Excel through Windows COM or an experimental "
+            "beta Apple Silicon macOS subset, "
             "exposing Excel to AI assistants over the Model Context Protocol and "
             "to scripts through the excelcli command line."
         ),
         "requirements": {
-            "operatingSystem": "Windows",
-            "application": "Microsoft Excel desktop 2016 or later",
+            "operatingSystem": "Windows or Apple Silicon macOS",
+            "application": "Microsoft Excel desktop; see platform-specific requirements",
+        },
+        "catalogueScope": "Full Windows surface; not a macOS availability list.",
+        "platformSupport": {
+            "windows": {
+                "status": "supported",
+                "application": "Microsoft Excel 2016 or later",
+            },
+            "macOS": {
+                "status": "experimental beta",
+                "architecture": "arm64",
+                "application": "Microsoft Excel for Mac 16.112 or later",
+                "supportPage": SITE_URL + "macos-support/",
+                "capabilityInventory": (
+                    "https://github.com/sbroenne/mcp-server-excel/blob/main/"
+                    "docs/generated/macos-action-inventory.json"
+                ),
+                "availability": "Only enabled inventory actions; Partial and Blocked actions remain unavailable.",
+                "unsupportedFeatures": [
+                    "Power Query", "VBA", "Data Model/DAX/OLAP", "Tables", "PivotTables",
+                    "charts", "slicers", "connections", "QueryTables", "XML Maps",
+                    "screenshots", "advanced visual formatting", "Python result reads",
+                ],
+            },
         },
         "entryPoints": ["mcp-server", "cli"],
         "toolCount": headline_tools,

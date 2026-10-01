@@ -97,4 +97,14 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
         Assert.DoesNotContain("22 tools", help, StringComparison.Ordinal);
         Assert.DoesNotContain("195+", help, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void HelpText_AdvertisesSupportedPlatforms()
+    {
+        var help = Program.BuildHelpText();
+
+        Assert.Contains("Windows x64", help, StringComparison.Ordinal);
+        Assert.Contains("Apple Silicon macOS", help, StringComparison.Ordinal);
+        Assert.Contains("Excel for Mac 16.112", help, StringComparison.Ordinal);
+    }
 }

@@ -16,8 +16,9 @@ Excel's native automation capabilities.
 
 ExcelMcp was born from the need for a reliable way for coding agents such as
 GitHub Copilot to work with Excel. It drives the real Excel application through
-its official COM API, which preserves workbook features and runs operations that
-file-format libraries cannot.
+COM on Windows and a capability-gated Apple Events backend on Apple Silicon
+macOS. Mac support is [experimental beta](../specs/MACOS-SUPPORT.md), not full
+feature parity. Excel itself performs operations that file-format libraries cannot.
 
 ### Contact
 

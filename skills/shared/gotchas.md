@@ -1,5 +1,9 @@
 # Gotchas and Known Limits
 
+**Mac experimental beta:** apply only the
+[enabled capability subset](https://excelmcpserver.dev/macos-support/).
+Table/model/chart guidance describes Windows, not ways to enable gated actions.
+
 ## Formatting and Data Structures
 
 - PivotTable cell formatting may be replaced on refresh. This API does not expose
@@ -17,10 +21,11 @@
 Use `file list` before opening a workbook. Reuse the matching session; do not
 open the same workbook in a second Excel instance.
 
-Each session owns an Excel instance and its COM work runs on that session's
-dedicated thread. Operations in one session are serialized. Clients do not
-manage COM threads. `window show/hide` affects the selected session's Excel
-application, not every session.
+On Windows, each session owns an Excel instance and its COM work runs on that
+session's dedicated thread. On Mac, each session owns one exact workbook in
+shared desktop Excel; never terminate Excel or close unrelated workbooks.
+Operations are serialized. Clients do not manage COM threads.
+`window show/hide` is Windows-only.
 
 Explicit close defaults to discarding edits. Set `save: true` to keep them and
 wait for `canClose: true`. Confirm before closing a visible window unless already
@@ -29,6 +34,8 @@ remaining sessions, but crashes and forced cleanup may lose changes.
 
 Cancellation is not undo. Inspect the current sessions and affected workbook
 state before retrying a write, recreating an object, or reopening a file.
+On Mac, `RecoveryRequired` after an uncertain handoff means reconcile the exact
+workbook manually; `canClose: false` forbids automatic cleanup.
 
 ## Timeouts and Refresh
 
@@ -53,9 +60,11 @@ in summaries or diagnostic artifacts.
 
 Formula results depend on the current calculation mode and state; writing a
 formula does not universally produce zero or require manual calculation.
-Use `calculation_mode` (MCP) / `calculationmode` (CLI) with `get-mode`,
+On Windows, use `calculation_mode` (MCP) / `calculationmode` (CLI) with `get-mode`,
 calculate when authorized and needed, and restore the prior
 mode after any temporary change. Read formula text with `range get-formulas`.
+Mac supports explicit calculation, but not mode get/set. The mode query in
+these examples is Windows-only.
 
 ```mcp
 calculation_mode(action: 'get-mode', session_id: sessionId)
@@ -70,7 +79,8 @@ excelcli -q calculationmode calculate --session $sessionId --scope workbook
 `pythoninexcel` executes in Microsoft's cloud, not local Python. It requires a
 licensed Microsoft 365 account with Python in Excel and internet access.
 `#NAME?` means the feature is unavailable; do not treat it as pending work.
-For pending cloud results, follow `get-result` status and error guidance.
+On Windows, for pending cloud results, follow `get-result` status and error guidance.
+Mac supports licensed formula writes, not `get-result`.
 Do not assume every connection or policy error is transient.
 
 CLI `--max-wait-seconds` must be at least 1 and shorter than the session's

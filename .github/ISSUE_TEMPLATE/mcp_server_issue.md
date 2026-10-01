@@ -19,9 +19,9 @@ Which AI assistant are you using with the MCP Server?
 
 ## MCP Tool & Action
 Which MCP tool and action are experiencing issues?
-- **Tool**: [e.g., powerquery, worksheet, vba, excel_cell, excel_parameter, file]
+- **Tool**: [e.g., powerquery, worksheet, vba, range, namedrange, file]
 - **Action**: [e.g., list, view, import, export, update, refresh, delete, etc.]
-- **File Path**: [e.g., "C:\Data\workbook.xlsx"]
+- **File Path Form**: [redacted absolute Windows or Mac path; do not include private paths]
 - **Additional Parameters**: [describe any other parameters used]
 
 ## Expected Behavior
@@ -56,17 +56,21 @@ How is the MCP Server configured?
 ```
 
 ## Environment
-- **Windows Version**: [e.g. Windows 11, Windows 10]
+- **OS and Architecture**: [e.g. Windows 11 x64, macOS on Apple Silicon]
 - **Excel Version**: [e.g. Excel 365, Excel 2019]
 - **ExcelMcp Version**: [e.g. v1.0.0 - run `mcp-excel --version` or `dotnet tool list -g`]
-- **.NET Version**: [Run `dotnet --version`]
+- **.NET Version**: [Only for .NET tool/source builds; otherwise N/A]
+- **Node.js Version**: [For npm/plugin installations; otherwise N/A]
 - **Installation Method**: 
-  - [ ] Global .NET tool (`dotnet tool install --global ExcelMcp.McpServer`)
+  - [ ] npm
+  - [ ] VS Code extension / MCPB / Copilot plugin
+  - [ ] Global .NET tool (`dotnet tool install --global Sbroenne.ExcelMcp.McpServer`)
   - [ ] Source build
   - [ ] Other: [please specify]
 
 ## MCP Server Logs
-If possible, provide relevant logs from the MCP Server:
+If possible, provide relevant logs from the MCP Server after removing workbook
+data, credentials, connection strings, and private paths:
 ```
 [Paste logs here]
 ```
@@ -96,6 +100,8 @@ AI: [response]
   - [ ] External connections
 
 ## VBA-Related Issues (if applicable)
+Windows only; VBA is unsupported in the experimental Mac beta.
+
 - [ ] Excel Trust Center setting "Trust access to the VBA project object model" is enabled
 - [ ] Using .xlsm file format for VBA operations
 - [ ] VBA module exists in the workbook

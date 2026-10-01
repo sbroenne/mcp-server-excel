@@ -1,6 +1,6 @@
 ---
 title: Installing the CLI
-description: Install the Excel CLI tool (excelcli) for scripting, RPA, CI/CD pipelines, and coding agents — standalone exe, Copilot plugin, and NuGet options.
+description: Install excelcli on Windows or Apple Silicon Mac (experimental beta) for desktop Excel scripting and coding agents through npm, standalone archives, or plugins.
 keywords: "excelcli install, Excel CLI, Excel automation scripting, Excel RPA, Excel CI/CD"
 ---
 

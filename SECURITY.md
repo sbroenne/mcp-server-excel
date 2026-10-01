@@ -11,6 +11,11 @@ ExcelMcp ships frequent releases (multiple per month). We only support the **lat
 
 Check the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases) for the current latest version, and keep your installation up to date via the CLI's built-in auto-update, `npx skills`, the VS Code extension, or NuGet.
 
+Apple Silicon macOS support is **experimental beta**, not full Windows feature
+parity or a production-support commitment. Intel Macs are unsupported. See
+[macOS support and limitations](specs/MACOS-SUPPORT.md); security settings and
+optional infrastructure do not enable gated features.
+
 ## Security Features
 
 ExcelMcp includes several security measures:
@@ -28,19 +33,29 @@ ExcelMcp includes several security measures:
 - **Treat Warnings as Errors**: All code quality issues must be resolved
 - **CodeQL Scanning**: C#, JavaScript/TypeScript, Python, and GitHub Actions scanning on pull requests to `main`, pushes to `main`, merge groups, and a weekly schedule
 
-### COM Security
+### Excel Automation Security
 
-- **Controlled Excel Automation**: Excel.Application runs with `Visible=false` and `DisplayAlerts=false`
-- **Resource Cleanup**: Comprehensive COM object disposal and garbage collection
+- **Windows COM**: Excel.Application runs with `Visible=false` and `DisplayAlerts=false`
+- **macOS Apple Events**: Permission checks never request consent; users grant
+  Automation access through macOS and ExcelMcp never clicks permission dialogs
+- **Resource Cleanup**: Controlled COM cleanup on Windows and exact-workbook
+  ownership on macOS
 - **No Remote Connections**: Only local Excel automation supported
+- **Optional Office.js tier**: Binds only to authenticated localhost HTTPS,
+  validates browser origin and loopback host, bounds JSON payloads, and binds
+  requests to an exact workbook/session/task-pane instance
 
 ### ExcelMcp Service Security
 
-The ExcelMcp Service manages Excel COM automation sessions:
+The ExcelMcp Service manages local Excel automation sessions:
 
-**MCP Server**: The service runs fully **in-process** — no inter-process communication. There is no attack surface beyond the MCP Server process itself.
+**MCP Server**: The Service bridge runs **in-process**, without the CLI daemon's
+named-pipe channel. Excel control still crosses the platform automation boundary;
+the optional Office.js tier adds the authenticated localhost channel described
+below. In-process routing is not a guarantee against unsafe requests.
 
-**CLI**: The CLI daemon uses a **Windows named pipe** (`excelmcp-cli-{USER_SID}`) for communication between CLI commands and the daemon process:
+**CLI on Windows** uses a named pipe (`excelmcp-cli-{USER_SID}`) between CLI
+commands and the daemon:
 
 | Protection | Status | Description |
 |------------|--------|-------------|
@@ -56,6 +71,29 @@ The ExcelMcp Service manages Excel COM automation sessions:
 2. **No cross-user access**: User A cannot connect to User B's CLI daemon. Each user has a separate named pipe with their SID.
 
 3. **No network access**: The named pipe is strictly local. Remote processes cannot connect.
+
+**CLI on macOS** uses user-local IPC and a private daemon identity. Apple Event
+permission and dispatch occur in the same bounded executable child because
+Automation authorization is sender-specific. ExcelMcp does not automate System
+Settings, weaken macro security, or click Excel warnings.
+
+The optional macOS Office.js bridge is not required by either entry point.
+Its per-user token and copied private key are mode `0600`; protocol mismatches,
+inactive add-ins, identity mismatches, unsupported requirement sets, expired
+requests, and cancelled requests fail closed. Users or administrators must
+provide and trust the localhost certificate explicitly. Removal does not alter
+keychain trust that ExcelMcp did not create.
+
+All macOS VBA actions are unsupported. ExcelMcp ships no `.xlam` dispatcher,
+does not inject VBA into user workbooks, and does not inspect or alter macro or
+VBA project-model trust as a capability workaround. Apple Events and Office.js
+cannot satisfy the public VBA source and exact-workbook execution contracts.
+Use Windows for VBA workflows under user-managed trust.
+
+Mac sessions own exact workbooks in shared desktop Excel. Recovery from an
+uncertain handoff requires manual reconciliation; automatic cleanup must not
+close an unconfirmed or unrelated workbook or terminate the shared application.
+Workbook files remain opaque in production, tests, fixtures, and scripts.
 
 **Security Implications:**
 
@@ -200,12 +238,22 @@ We follow responsible disclosure practices:
 
 ## Known Security Considerations
 
-### Excel COM Automation
+### Desktop Excel Automation
 
 - **Local Only**: ExcelMcp only supports local Excel automation
-- **Windows Only**: Requires Windows with Excel installed
-- **Excel Process**: Creates Excel.Application COM objects
-- **Macro Security**: VBA operations require the user to manually enable "Trust access to the VBA project object model" in Excel Trust Center settings
+- **Windows Backend**: Creates owned `Excel.Application` COM objects and provides
+  the complete operation set
+- **macOS Backend**: Uses Apple Events with the user's existing Automation
+  permission and owns exact workbooks inside shared desktop Excel
+- **No Prompt Automation**: ExcelMcp does not click permission or macro dialogs,
+  change system privacy settings, or weaken macro security
+- **Macro Security**: Windows VBA source operations require the user to manually
+  enable "Trust access to the VBA project object model". All Mac VBA actions
+  remain unsupported; ExcelMcp ships no VBA helper and does not read or change
+  those preferences to bypass the gate.
+- **Office.js Capability Claims**: Requirement-set availability and installed
+  Excel version are negotiated at runtime, but features remain gated until
+  real-Excel contract tests establish support
 
 ### File System Access
 
@@ -229,6 +277,18 @@ Security updates are published through:
 - **NuGet Advisories**: Package vulnerabilities shown in NuGet
 
 Subscribe to repository notifications to receive security alerts.
+
+### macOS distribution trust
+
+Release automation supports Developer ID signing and Apple notarization when
+the repository's signing credentials are configured. It always verifies the
+embedded code signature before packaging. Builds without those credentials are
+explicitly ad-hoc signed and reported as unnotarized. Missing notarization
+credentials fail closed unless local validation deliberately passes
+`-AllowUnnotarized`; that switch is not production acceptance. Checksums establish
+download integrity but do not replace Apple trust validation. Never infer
+notarization from a successful build, checksum, executable mode, or Mach-O
+architecture check.
 
 ## Vulnerability Disclosure Policy
 
@@ -267,6 +327,6 @@ Subscribe to repository notifications to receive security alerts.
 
 ---
 
-**Last Updated**: 2026-07-09
+**Last Updated**: 2026-09-30
 
 Thank you for helping keep ExcelMcp and its users safe!

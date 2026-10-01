@@ -6,6 +6,19 @@ Read, write, calculate, and format cells while managing worksheets, workbooks, n
 
 ---
 
+> **Platform scope:** Windows supports the full reference below. The experimental
+> macOS beta supports `.xlsx` lifecycle, basic values/formulas/number formats,
+> accepted copy/clear variants, cell/row/column insertion and deletion, sizing,
+> merge/unmerge, cell locking, named ranges,
+> worksheet lifecycle/visibility/tab color, and explicit calculation. It does not
+> support new `.xlsm` creation, calculation-mode get/set, UsedRange/CurrentRegion,
+> merge-area inspection, advanced visual formatting, links/comments, protection,
+> worksheet copy/move or cross-file selection, or the advanced `workbook` actions.
+> Check [macOS support and the per-action inventory](../../specs/MACOS-SUPPORT.md)
+> before combining operations.
+> Mac row/column editing requires a single-area range; disjoint row/column
+> selections, find/replace and sorting remain unavailable.
+
 ## 📁 File Operations (5 operations)
 
 Open, create, and close Excel workbooks. Every other tool works on a session opened here.
@@ -15,7 +28,7 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **Open:** Open workbook and create session (returns session ID for all subsequent operations). IRM/AIP-protected files are automatically detected and opened read-only with Excel visible for credential authentication — no extra parameters needed.
 - **Close:** Close session with optional save
 - **Create Empty:** Create new .xlsx or .xlsm workbook
-- **Test:** Report existence, extension validity, openability, and IRM/AIP requirements through `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`. Ordinary workbooks are opened read-only in a temporary Excel session and closed without saving.
+- **Test:** Report path, extension, lock/read access, and IRM/AIP requirements. Workbook content remains opaque, so `isValid` and `canOpen` stay false until Excel opens and validates the file.
 
 **Workflow:** List and match the intended workbook; reuse its session or
 open/create; operate; list and check its `canClose`; close only when authorized
@@ -256,7 +269,8 @@ Manage named ranges — ideal for driving workbook parameters that Power Query a
 - **Delete:** Remove named range
 
 **Notes:**
-- **Use cases:** Manage workbook parameters without touching worksheets. Ideal for automation — update a parameter and Power Query refreshes automatically.
+- **Use cases:** Manage parameters used by formulas or, on Windows, Power Query.
+  Refresh dependent queries explicitly when current results are required.
 
 ---
 

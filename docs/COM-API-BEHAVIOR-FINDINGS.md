@@ -1,5 +1,11 @@
 # Excel COM API Behavior Findings
 
+**Platform scope:** these empirical Windows COM findings include historical
+investigations and do not establish current Mac availability. Power Query and
+Data Model/DAX remain unsupported in the experimental Apple Silicon macOS beta;
+see [Mac limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+Use current feature guidance for action names and resolved implementation status.
+
 > **Summary of diagnostic test findings from empirical testing of raw Excel COM API behavior**
 
 This document captures the key discoveries made through diagnostic tests that use raw COM API calls to understand Excel's actual behavior, without our abstractions.

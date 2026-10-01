@@ -1,10 +1,24 @@
-# Excel (Windows)
+# Excel MCP Server
 
-**Automate Microsoft Excel with Claude** - Control Excel through natural language conversations. Requires Windows and local Office install.
+**Automate Microsoft Excel with Claude** - Control the installed Excel desktop
+application through natural language conversations on Windows x64 or Apple
+Silicon macOS.
+
+> **macOS support is experimental beta.** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads are not
+> supported. See [macOS beta limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta);
+> test on copies of important workbooks. Windows retains the complete backend.
+
+Choose the MCPB matching your computer:
+
+- `excel-mcp-<version>.mcpb` (Windows; launches the npm `@latest` package)
+- `excel-mcp-<version>-macos-arm64.mcpb`
 
 ## What It Does
 
-Excel MCP Server lets you automate Excel through conversation with Claude:
+Excel MCP Server lets you automate Excel through conversation with Claude.
+The following complete feature list describes Windows:
 
 - **Create & Edit** - Build spreadsheets, tables, and formulas
 - **Analyze Data** - PivotTables, charts, and DAX calculations
@@ -13,49 +27,36 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Automate** - VBA macros, batch operations, data refresh
 - **Agent Mode** - Say "show me Excel" and watch AI work in real-time, side-by-side with Claude
 
-**31 tools with 326 operations** for comprehensive Excel automation.
+The MCP Server provides **31 tools with 326 operations**. Windows exposes the
+complete operation set. Apple Silicon macOS exposes only actions marked enabled
+in the [generated capability inventory](../docs/MACOS-ACTION-INVENTORY.md).
+That enabled set includes workbook lifecycle, worksheet management, values and
+formulas, number formats, row and column sizing, merged cells, cell locking,
+named ranges, Goal Seek, Data Tables, calculation, and Python formula writes.
+Other actions return an explicit unsupported-platform error.
 
 ## Requirements
 
-- **Windows** (required - uses Excel COM automation)
-- **Microsoft Excel 2016 or later**
-- **Claude Desktop** (Windows version)
-- **Node.js 18+ with npm/npx on PATH** (install the current Node.js LTS)
-- **An interactive desktop** and network access for package downloads
+- **Windows x64** with Microsoft Excel 2016 or later, or
+- **Apple Silicon macOS** with Excel for Mac 16.112 or later
+- **Claude Desktop**
+- **Node.js 18+ with npm/npx** for the Windows bundle
 
 ## Installation
 
-1. Install [Node.js LTS](https://nodejs.org/) if `npx` is not already available.
-   Restart Claude Desktop after changing PATH.
-2. Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-3. Double-click to install in Claude Desktop
-4. Restart Claude Desktop if prompted
+1. Download the `.mcpb` matching your platform from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Double-click to install in Claude Desktop
+3. Restart Claude Desktop if prompted
 
 That's it! Start a new conversation and ask Claude to work with Excel.
 
-## Updates
-
-The bundle tells Claude to run
-`npx -y @sbroenne/mcp-server-excel@latest` directly. It contains no custom
-launcher, bundled npm, or fixed server executable. Claude's built-in Node.js
-does not guarantee availability of the external `npx` command.
-
-On each new server launch, npm resolves the `latest` tag using normal caching
-and configuration. Network access is needed for downloads and update checks;
-this is not a guaranteed fresh online check every time. A running server is
-not replaced automatically.
-
-Before restarting, finish work and explicitly save and close the intended
-workbook sessions. Older binary MCPB installations need a one-time installation
-of this npx-based bundle; restarting an old bundle does not migrate it.
-Changes to bundle metadata/configuration still require manually installing
-a new `.mcpb`. To uninstall, remove Excel from Claude's Settings > Extensions.
-
 ## Usage Examples
 
-These examples work with any Excel file, including a new empty workbook.
+These Windows examples require the described input data, CSV, or existing
+objects. The first creates a new workbook. On Mac, start with plain range
+writes/formulas and an absolute native path instead of Tables or analytics.
 
-### Example 1: Create a Sales Tracker
+### Example 1: Create a Sales Tracker (Windows)
 
 **You say:** *"Create a new Excel file called SalesTracker.xlsx with a table for tracking sales. Include columns for Date, Product, Quantity, Unit Price, and Total. Add some sample data and a formula for the Total column."*
 
@@ -67,7 +68,7 @@ These examples work with any Excel file, including a new empty workbook.
 - Formats the data as an Excel Table
 - Confirms completion with file location
 
-### Example 2: Build a Dashboard with PivotTable and Chart
+### Example 2: Build a Dashboard with PivotTable and Chart (Windows)
 
 **You say:** *"I want to analyze this data. Create a PivotTable that shows total sales by Product, then add a bar chart to visualize the results."*
 
@@ -78,7 +79,7 @@ These examples work with any Excel file, including a new empty workbook.
 - Adds a bar chart based on the PivotTable
 - Returns confirmation with locations of both
 
-### Example 3: Power Query and Data Model Analysis
+### Example 3: Power Query and Data Model Analysis (Windows)
 
 **You say:** *"Use Power Query to import this CSV file: C:\Data\products.csv. Add the data to the Data Model and create measures for Total Revenue and Average Rating."*
 
@@ -91,7 +92,7 @@ These examples work with any Excel file, including a new empty workbook.
 
 ---
 
-**More things you can ask:**
+**More Windows examples** (plain cell writes also work on Mac):
 
 - *"Show me Excel side-by-side while you build this dashboard"* - Agent Mode: watch every step happen live
 - *"Put this data in A1:C4 - Name, Age, City / Alice, 30, Seattle / Bob, 25, Portland"*
@@ -105,8 +106,11 @@ These examples work with any Excel file, including a new empty workbook.
 
 - **Be specific** - Include file paths, sheet names, and column references when you know them
 - **Start simple** - Build complex spreadsheets step by step
-- **Ask to see Excel** - Say *"Show me Excel while you work"* to watch changes in real-time
-- **Close files first** - Excel MCP needs exclusive access to workbooks during automation
+- **Ask to see Excel on Windows** - Say *"Show me Excel while you work"*;
+  window/Agent Mode actions are unavailable in the Mac beta
+- **Select the exact workbook** - Reuse its existing session when possible.
+  Reconcile conflicts for that file only; never close unrelated workbooks or
+  terminate shared Mac Excel
 
 ## Privacy & Security
 
@@ -118,9 +122,6 @@ Claude through the MCP client.
 code and requires explicit consent. Python in Excel runs Python code and
 referenced worksheet data in Microsoft's cloud.
 
-**Package downloads:** npx contacts the npm registry to resolve and download the
-server. This does not upload workbook contents to npm.
-
 **Anonymous telemetry:** The MCP Server collects tool usage, performance, and
 error-rate metrics. Telemetry excludes file contents, file names, paths, and
 personal data.
@@ -131,13 +132,16 @@ See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 
 **Claude says the tool isn't available:**
 - Restart Claude Desktop after installation
-- Check Settings → Extensions to verify Excel MCP Server is enabled
-- Run `npx -y @sbroenne/mcp-server-excel@latest --version` in PowerShell.
-  If npx is missing, install Node.js LTS and restart Claude Desktop.
+- Check Settings → Integrations to verify Excel MCP Server is enabled
 
 **Excel operations fail:**
-- Close the workbook in Excel before asking Claude to modify it
+- Inspect the matching session and reported error before retrying; reconcile
+  only the intended workbook
 - Ensure Excel is installed and working normally
+- On macOS, verify Excel Automation permission is already granted; ExcelMcp
+  never clicks permission prompts or weakens security settings
+- For Mac `RecoveryRequired`, reconcile the exact workbook and dialogs manually;
+  an uncertain open is not safe to repeat or clean up automatically
 
 **Need help?**
 - [Report an issue](https://github.com/sbroenne/mcp-server-excel/issues)

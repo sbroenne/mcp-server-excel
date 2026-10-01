@@ -65,7 +65,9 @@ explicitly; the hook never changes the index for you. Unrelated documentation
 edits are left alone.
 
 A failing command stops the hook and retains its output and exit code.
-Windows with desktop Excel is required when Excel checks are selected.
+Windows or Apple Silicon macOS with desktop Excel is required when Excel checks
+are selected. `Test-E2E.ps1` delegates to the Mac suite on macOS; it does not
+execute Windows COM tests there.
 An unavailable prerequisite is not reported as a pass. Report the blocker
 rather than bypassing the hook.
 

@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/mcp-server-excel",
   "version": "0.0.0-development",
-  "description": "Excel automation MCP server for Windows, distributed through npm.",
+  "description": "Excel automation MCP server for Windows x64 and Apple Silicon macOS (experimental beta).",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -36,6 +36,7 @@
   },
   "optionalDependencies": {
     "@sbroenne/mcp-server-excel-win32-x64": "file:../mcp-server-excel-win32-x64",
+    "@sbroenne/mcp-server-excel-darwin-arm64": "file:../mcp-server-excel-darwin-arm64",
     "@sbroenne/mcp-server-excel-win32-arm64": "file:../mcp-server-excel-win32-arm64"
   },
   "publishConfig": {

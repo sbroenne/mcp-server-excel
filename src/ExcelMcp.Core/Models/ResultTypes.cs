@@ -914,9 +914,15 @@ public class ScriptInfo
 public class FileValidationInfo
 {
     /// <summary>
-    /// Whether the file passed validation and can be opened
+    /// Whether the path-level preflight completed successfully.
     /// </summary>
-    public bool Success => CanOpen;
+    public bool Success => PreflightPassed;
+
+    /// <summary>
+    /// Whether existence, extension, lock, read-access, and protection checks passed.
+    /// This does not imply that Excel validated workbook structure or openability.
+    /// </summary>
+    public bool PreflightPassed { get; set; }
 
     /// <summary>
     /// Full file path being validated
@@ -944,15 +950,14 @@ public class FileValidationInfo
     public DateTime LastModified { get; set; }
 
     /// <summary>
-    /// Whether Excel successfully opened the workbook during validation.
-    /// IRM/AIP containers require interactive Excel validation and report false.
+    /// Whether workbook structure has been validated by Excel.
+    /// FileCommands.Test treats workbook content as opaque and reports false.
     /// </summary>
     public bool IsValid { get; set; }
 
     /// <summary>
-    /// Whether Excel opened the workbook using ExcelMcp's required validation
-    /// mode. IRM/AIP openability requires
-    /// interactive authentication and reports false during preflight.
+    /// Whether openability has been validated by Excel.
+    /// FileCommands.Test performs only path-level preflight and reports false.
     /// </summary>
     public bool CanOpen { get; set; }
 

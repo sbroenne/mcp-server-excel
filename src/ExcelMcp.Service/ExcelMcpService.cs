@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Analysis;
@@ -12,6 +13,7 @@ using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Service.Rpc;
+using Sbroenne.ExcelMcp.Service.Mac;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -32,6 +34,8 @@ namespace Sbroenne.ExcelMcp.Service;
 public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
+    private readonly MacExcelBackend? _macBackend;
+    private readonly MacExcelSessionManager? _macSessionManager;
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly DaemonHost _daemonHost;
     private readonly DateTime _startTime = DateTime.UtcNow;
@@ -67,11 +71,26 @@ public sealed class ExcelMcpService : IDisposable
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _daemonHost = new DaemonHost(
             ProcessAsync,
-            () => _sessionManager.GetActiveSessions().Count);
+            () => SessionCount);
+        if (OperatingSystem.IsMacOS())
+        {
+            _macBackend = new MacExcelBackend();
+            _macSessionManager = new MacExcelSessionManager(_macBackend);
+        }
+    }
+
+    internal ExcelMcpService(MacExcelBackend macBackend)
+    {
+        _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _macBackend = macBackend;
+        _macSessionManager = new MacExcelSessionManager(macBackend);
+        _daemonHost = new DaemonHost(
+            ProcessAsync,
+            () => SessionCount);
     }
 
     public DateTime StartTime => _startTime;
-    public int SessionCount => _sessionManager.GetActiveSessions().Count;
+    public int SessionCount => _macSessionManager?.Count ?? _sessionManager.GetActiveSessions().Count;
     public SessionManager SessionManager => _sessionManager;
 
     /// <summary>
@@ -99,6 +118,18 @@ public sealed class ExcelMcpService : IDisposable
             var action = parts.Length > 1 ? parts[1] : "";
 
             ServiceRegistry.ValidateCommandArguments(request.Command, request.Args);
+
+            if (_macSessionManager != null)
+            {
+                var macResponse = category == "service"
+                    ? HandleServiceCommand(action)
+                    : category == "diag"
+                        ? DispatchSessionless(action, request)
+                    : category == "session"
+                        ? await HandleMacSessionCommandAsync(action, request)
+                        : await DispatchMacCommandAsync(category, action, request);
+                return AttachRequestContext(request, macResponse);
+            }
 
             ServiceResponse response = category switch
             {
@@ -180,6 +211,18 @@ public sealed class ExcelMcpService : IDisposable
 
             return AttachRequestContext(request, response);
         }
+        catch (MacExcelOperationException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.ErrorCategory,
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name,
+                Command = request.Command,
+                SessionId = request.SessionId
+            };
+        }
         catch (Exception ex)
         {
             // Include type name so callers can distinguish exception kinds (GitHub #482, Bug 5)
@@ -217,13 +260,412 @@ public sealed class ExcelMcpService : IDisposable
         {
             Running = true,
             ProcessId = Environment.ProcessId,
-            SessionCount = _sessionManager.GetActiveSessions().Count,
+            SessionCount = SessionCount,
             StartTime = _startTime
         };
         return new ServiceResponse { Success = true, Result = JsonSerializer.Serialize(status, ServiceProtocol.JsonOptions) };
     }
 
     // === SESSION COMMANDS ===
+
+    private async Task<ServiceResponse> HandleMacSessionCommandAsync(
+        string action,
+        ServiceRequest request)
+    {
+        if (action is not ("create" or "open" or "close" or "list" or "test"))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown session action: {action}"
+            };
+        }
+
+        ValidateSessionActionArguments(action, request.Args);
+        if (action == "list")
+        {
+            var sessions = _macSessionManager!.Sessions.Select(session => new
+            {
+                sessionId = session.SessionId,
+                filePath = session.FilePath,
+                isExcelVisible = session.IsVisible,
+                activeOperations = Volatile.Read(ref session.ActiveOperations),
+                canClose = session.PendingOperations == 0
+                    && !session.IsClosing
+                    && !session.HasUnconfirmedOpen
+                    && !session.RequiresRecovery
+                    && session.UnsafeReason is null,
+                requiresRecovery = session.RequiresRecovery,
+                unsafeReason = session.UnsafeReason
+            }).ToList();
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(
+                    new { success = true, sessions, count = sessions.Count },
+                    ServiceProtocol.JsonOptions)
+            };
+        }
+
+        if (action == "test")
+        {
+            return HandleSessionTest(request);
+        }
+
+        if (action == "close")
+        {
+            if (string.IsNullOrWhiteSpace(request.SessionId))
+            {
+                return new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "InvalidInput",
+                    ErrorMessage = "sessionId is required"
+                };
+            }
+
+            var closeArgs = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
+            var session = _macSessionManager!.Sessions.FirstOrDefault(
+                candidate => candidate.SessionId == request.SessionId);
+            var closed = await _macSessionManager!.CloseAsync(request.SessionId, closeArgs?.Save ?? false);
+            if (closed)
+            {
+                if (session is not null)
+                {
+                    await TryUnregisterOfficeSessionAsync(session);
+                }
+                return new ServiceResponse { Success = true };
+            }
+            if (_knownSessionIds.ContainsKey(request.SessionId))
+            {
+                return new ServiceResponse
+                {
+                    Success = true,
+                    Result = JsonSerializer.Serialize(
+                        new { success = true, sessionId = request.SessionId, message = "Session already closed." },
+                        ServiceProtocol.JsonOptions)
+                };
+            }
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "SessionNotFound",
+                ErrorMessage = $"Session '{request.SessionId}' not found"
+            };
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.FilePath))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "filePath is required"
+            };
+        }
+
+        var fullPath = FilePathValidation.NormalizeAbsolutePath(args.FilePath);
+        var parsedTimeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
+        var timeout = parsedTimeout ?? TimeSpan.FromSeconds(120);
+        if (action == "open" && !File.Exists(fullPath))
+        {
+            throw new FileNotFoundException(
+                $"Excel file not found: {fullPath}. To create a new file, use the 'create' action instead.",
+                fullPath);
+        }
+        if (action == "create" && File.Exists(fullPath))
+        {
+            throw new InvalidOperationException(
+                $"File already exists: {fullPath}. Use session open to open an existing workbook.");
+        }
+
+        var extension = Path.GetExtension(fullPath);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Invalid file extension '{extension}'. session {action} supports .xlsx and .xlsm only.");
+        }
+
+        var macroEnabled = string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase);
+        if (action == "create"
+            && args.MacroEnabled.HasValue
+            && args.MacroEnabled.Value != macroEnabled)
+        {
+            throw new ArgumentException(
+                $"macroEnabled must be {macroEnabled.ToString().ToLowerInvariant()} for a '{extension}' workbook.");
+        }
+
+        var sessionId = action == "create"
+            ? await _macSessionManager!.CreateAsync(fullPath, macroEnabled, args.Show, timeout)
+            : await _macSessionManager!.OpenAsync(fullPath, args.Show, timeout);
+        _knownSessionIds.TryAdd(sessionId, 0);
+        return new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(
+                new { success = true, sessionId, filePath = fullPath },
+                ServiceProtocol.JsonOptions)
+        };
+    }
+
+    private async Task<ServiceResponse> DispatchMacCommandAsync(
+        string category,
+        string action,
+        ServiceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "sessionId is required"
+            };
+        }
+
+        var command = $"{category}.{action}";
+        var officeCandidateEnabled = MacOfficeActionCatalog.TryGet(command, out _)
+            && MacOfficeBridgeConfiguration.IsActionEnabled(command);
+        var capability = MacCommandCapabilities.Get(
+            command,
+            officeCandidateEnabled: officeCandidateEnabled);
+        if (!capability.IsAvailable)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "PlatformNotSupported",
+                ErrorMessage = capability.UnavailableMessage
+            };
+        }
+
+        try
+        {
+            return await _macSessionManager!.ExecuteAsync(request.SessionId, async session =>
+            {
+                var arguments = string.IsNullOrWhiteSpace(request.Args)
+                    ? new JsonObject()
+                    : JsonNode.Parse(request.Args)?.AsObject() ?? new JsonObject();
+                var suppliedFilePath = category == "sheet" && action is "list" or "create"
+                    ? arguments["filePath"]?.GetValue<string>()
+                    : null;
+                if (!string.IsNullOrWhiteSpace(suppliedFilePath)
+                    && !string.Equals(
+                        MacPathCanonicalizer.Normalize(suppliedFilePath),
+                        session.FilePath,
+                        StringComparison.Ordinal))
+                {
+                    throw new MacExcelOperationException(
+                        "PlatformNotSupported",
+                        "macOS worksheet operations support only the exact session workbook. " +
+                        "Open the requested workbook in its own session; multi-workbook filePath selection requires Windows.");
+                }
+                ResolveMacFileArguments(category, action, arguments);
+
+                if (capability.RequiredTier == MacCapabilityTier.OfficeAddIn)
+                {
+                    if (!MacOfficeActionCatalog.TryGet(command, out var officeAction))
+                    {
+                        throw new InvalidOperationException(
+                            $"Office.js metadata is missing for '{command}'.");
+                    }
+                    try
+                    {
+                        using var officeClient = MacOfficeBridgeClient.CreateDefault();
+                        var officeResult = await officeClient.InvokeAsync(
+                            session.SessionId,
+                            session.FilePath,
+                            command,
+                            arguments,
+                            session.OperationTimeout,
+                            officeAction.Mutation);
+                        return new ServiceResponse
+                        {
+                            Success = true,
+                            Result = officeResult.GetRawText()
+                        };
+                    }
+                    catch (MacOfficeMutationUncertainException ex)
+                    {
+                        session.MarkUnsafe(ex.Message);
+                        throw;
+                    }
+                }
+
+                if (category == "pythoninexcel")
+                {
+                    MacPythonInExcelArguments.Prepare(action, arguments, session.OperationTimeout);
+                }
+                if (category == "namedrange")
+                {
+                    MacNamedRangeArguments.Prepare(action, arguments);
+                }
+                if (category == "range")
+                {
+                    var nameCommand = action == "set-values" ? "namedrange.write" : "namedrange.read";
+                    MacNamedRangeArguments.PrepareRangeBinding(
+                        action,
+                        arguments,
+                        MacCommandCapabilities.Get(nameCommand).IsAvailable);
+                }
+                arguments["filePath"] = session.FilePath;
+                var result = await _macBackend!.InvokeAsync(
+                    command,
+                    arguments,
+                    session.OperationTimeout,
+                    allowFailureResult: category == "pythoninexcel");
+                return new ServiceResponse
+                {
+                    Success = true,
+                    Result = result.GetRawText()
+                };
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "SessionNotFound",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeMutationUncertainException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "MutationOutcomeUncertain",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeBridgeTimeoutException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (TimeoutException ex)
+        {
+            _macSessionManager!.RequireRecovery(request.SessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacOfficeBridgeException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.ErrorCategory,
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacExcelOperationException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = ex.ErrorCategory,
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (Exception ex)
+        {
+            return CreateErrorResponse(ex);
+        }
+    }
+
+    private static async Task TryUnregisterOfficeSessionAsync(MacExcelSession session)
+    {
+        try
+        {
+            using var officeClient = MacOfficeBridgeClient.CreateDefault();
+            await officeClient.TryUnregisterAsync(session.SessionId, session.FilePath);
+        }
+        catch (Exception ex) when (ex is MacOfficeBridgeException
+                                   or IOException
+                                   or JsonException
+                                   or InvalidOperationException
+                                   or UriFormatException)
+        {
+            // The optional add-in must not prevent native session close.
+        }
+    }
+
+    private static void ResolveMacFileArguments(
+        string category,
+        string action,
+        JsonObject arguments)
+    {
+        if (category == "table" && action == "append")
+        {
+            var rows = arguments["rows"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
+            var rowsFile = arguments["rowsFile"]?.GetValue<string>();
+            arguments["rows"] = JsonSerializer.SerializeToNode(
+                ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows"),
+                ServiceProtocol.JsonOptions);
+            arguments.Remove("rowsFile");
+            return;
+        }
+
+        if (category != "range")
+        {
+            ValidateMacRangeFormatArguments(category, action, arguments);
+            return;
+        }
+
+        MacRangeArguments.Prepare(category, action, arguments);
+    }
+
+    private static void ValidateMacRangeFormatArguments(
+        string category,
+        string action,
+        JsonObject arguments)
+    {
+        if (category != "rangeformat")
+        {
+            return;
+        }
+
+        if (action == "set-column-width")
+        {
+            var width = arguments["columnWidth"]?.GetValue<double>()
+                ?? throw new ArgumentException("columnWidth is required.");
+            if (width is < 0.25 or > 409)
+            {
+                throw new ArgumentException("columnWidth must be between 0.25 and 409 points");
+            }
+        }
+        else if (action == "set-row-height")
+        {
+            var height = arguments["rowHeight"]?.GetValue<double>()
+                ?? throw new ArgumentException("rowHeight is required.");
+            if (height is < 0 or > 409)
+            {
+                throw new ArgumentException("rowHeight must be between 0 and 409 points");
+            }
+        }
+    }
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
@@ -293,7 +735,7 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeAbsolutePath(args.FilePath);
 
         if (File.Exists(fullPath))
         {
@@ -358,7 +800,7 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = "filePath is required"
             };
         }
-        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeAbsolutePath(args.FilePath);
 
         try
         {
@@ -1074,6 +1516,7 @@ public sealed class ExcelMcpService : IDisposable
         _daemonHost.RequestShutdown();
         try
         {
+            _macSessionManager?.Dispose();
             _sessionManager.Dispose();
         }
         finally

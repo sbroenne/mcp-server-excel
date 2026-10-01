@@ -49,6 +49,7 @@ public static class OperationFailureClassifier
                 TimeoutException => "Timeout",
                 OperationCanceledException => "Cancelled",
                 ArgumentException or JsonException => "InvalidInput",
+                PlatformNotSupportedException => "PlatformNotSupported",
                 COMException => "ComInterop",
                 _ => null
             };

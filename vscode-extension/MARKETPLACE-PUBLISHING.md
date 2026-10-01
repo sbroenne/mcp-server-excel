@@ -2,6 +2,12 @@
 
 This document explains how to set up automated publishing to the VS Code Marketplace.
 
+Publication requires separate authorization; do not dispatch a release to test
+packaging. Ship verified `win32-x64` and `darwin-arm64` VSIX files. Mac support
+must remain labeled **experimental beta** with
+[unsupported features](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+visible in the packaged README and metadata.
+
 ## Required GitHub Secret
 
 The release workflow requires the following secret to be configured in your GitHub repository:
@@ -53,38 +59,27 @@ When you run the release workflow (via `workflow_dispatch`):
 2. **Updates `package.json`** version for VS Code extension
 3. **Compiles changesets** into `CHANGELOG.md` and release notes
 4. **Builds the extension** from source
-5. **Packages and verifies Windows x64 and ARM64 VSIX files**
-6. **Publishes both platform packages to VS Code Marketplace**
+5. **Packages as VSIX** file
+6. **Publishes to VS Code Marketplace**
 7. **Creates GitHub Release** with all components (MCP Server, CLI, VS Code, MCPB)
 
-### Publishing failures
+### Publishing is Best-Effort
 
-Building and publishing use the same `@vscode/vsce` version from the extension's
-lockfile. The Marketplace job checks out the exact release commit, installs its
-locked tools, and uploads the verified VSIX files without rebuilding them.
-Publishing runs on Windows because the extension declares `os: ["win32"]`;
-installing its locked tools on Linux fails with npm `EBADPLATFORM`.
-Each upload uses `--skip-duplicate`, so retrying a partially completed job can
-publish the missing platform without failing on the already published one.
+The marketplace step uses `continue-on-error: true`, so a missing/expired token
+or Marketplace outage does not block the GitHub release. Inspect the publish
+step after every release and use the manual fallback below if needed.
 
-The Marketplace job reports publication failures. A missing/expired token or
-Marketplace outage can leave one or both platform packages unpublished.
-Inspect both publish steps after every release and use the manual fallback
-below only with authorization.
+## Authorized Release Verification
 
-## Checking Packages Without Publishing
+To publish an authorized release (not a local test):
 
-Do not dispatch a release to test packaging. From the repository root, after a
-successful Release solution build, use:
-
-```powershell
-.\scripts\Build-ReleasePackages.ps1 -Components Extension
-```
-
-This runs the compile, metadata, lint, type, and Vitest checks and inspects both
-VSIX files without publishing. Install the matching package in an isolated
-VS Code profile to check activation and real Excel behavior. Release dispatch
-and publication require separate authorization.
+1. Ensure the `VSCE_TOKEN` secret is configured
+2. Dispatch a real semantic release when it is ready:
+   ```powershell
+   gh workflow run release.yml -f version_bump=patch
+   ```
+3. Go to GitHub Actions and watch the unified workflow run
+4. Check that the release was created and marketplace publishing succeeded
 
 ## Troubleshooting
 
@@ -103,24 +98,19 @@ and publication require separate authorization.
 
 ## Manual Publishing (Fallback)
 
-If automated publishing fails, publish the **verified, release-stamped VSIX
-files** from that release. Do not publish directly from the unprepared source
-folder or rebuild an existing release with different inputs. After authorization,
-use the locked tool from the extension folder (replace the example version and
-artifact paths):
+With separate publication authorization, publish the already verified
+platform-targeted VSIX from the intended release:
 
 ```powershell
-Set-Location vscode-extension
-npm ci
-npm exec -- vsce login sbroenne
-npm exec -- vsce publish --packagePath ..\artifacts\release\excel-mcp-2.1.0.vsix
-npm exec -- vsce publish --packagePath ..\artifacts\release\excel-mcp-2.1.0-win32-arm64.vsix
+cd vscode-extension
+npx vsce login <publisher-name>
+npx vsce publish --packagePath /path/to/excelmcp-<version>-win32-x64.vsix
+npx vsce publish --packagePath /path/to/excelmcp-<version>-darwin-arm64.vsix
 ```
 
-Both packages use the existing Marketplace PAT authentication and bundle a
-matching native server: x64 for `win32-x64`, ARM64 for `win32-arm64`. Packaging
-checks the executable inside each VSIX, not just its target label. The npm
-distribution selects its runtime separately, according to Node.js architecture.
+Do not run bare `vsce publish` from a clean source checkout: the runtime and
+skill are packaging outputs. For local package preparation and inspection use
+[DEVELOPMENT.md](DEVELOPMENT.md), without publishing.
 
 ## Security Best Practices
 
@@ -133,5 +123,5 @@ distribution selects its runtime separately, according to Node.js architecture.
 ## References
 
 - [VS Code Publishing Documentation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
-- [VS Code Extension Manager (vsce)](https://github.com/microsoft/vsce)
+- [HaaLeo/publish-vscode-extension Action](https://github.com/marketplace/actions/publish-vs-code-extension)
 - [Azure DevOps PAT Documentation](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)

@@ -1,28 +1,44 @@
 ---
 name: excel-cli
 description: >
-  Excel CLI automation skill for Windows workbooks. Use when a coding agent needs
+  Excel CLI automation skill for Windows and Apple Silicon macOS workbooks. Use when a coding agent needs
   token-efficient, scriptable, or unattended Excel automation via excelcli commands.
-  Best for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk
-  workbook edits. Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts,
-  VBA, Data Models, screenshots, and formatting. Triggers: excelcli, Excel CLI,
+  Best for self-hosted desktop jobs, batch processing, PowerShell workflows, and bulk
+  workbook edits. Windows supports Power Query, DAX, PivotTables, Tables, Ranges, Charts,
+  VBA, Data Models, screenshots, and formatting. macOS support is experimental
+  beta with a limited capability-gated subset. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks.
+compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+ (experimental beta), Node.js 18+, and network access for npx; feature availability differs by platform.
 ---
 
 # Excel Automation with excelcli
 
 ## Preconditions
 
-- Windows host with Microsoft Excel installed (2016+)
-- Uses COM interop — does NOT work on macOS or Linux
+- Windows with Microsoft Excel 2016+, or Apple Silicon macOS with Excel 16.112+
+- Windows uses COM; macOS uses the capability-gated Apple Events backend
+- Interactive desktop Excel is required; headless and GitHub-hosted CI are unsupported.
 - **Use `npx -y @sbroenne/excelcli@latest` by default.** The examples below use
   `excelcli` for readability; replace that token with the npx command unless `excelcli`
   already resolves on PATH.
 - The plugin's `bin\start-cli.ps1` wrapper runs the same npx package and
   preserves embedded quotes in JSON arguments from Windows PowerShell.
   No global helper or PATH change is required.
+
+## macOS Capability Gate
+
+On macOS, use only actions marked available in the generated macOS action
+inventory. Mac support is experimental beta, not Windows parity. Power Query,
+VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections,
+QueryTables, XML Maps, screenshots, advanced visual formatting, Scenario
+actions, calculation-mode get/set, and Python result reads are unavailable.
+Python formula writes and the enabled basic range/worksheet operations remain
+available. `Partial` inventory entries are gated, not partially supported.
+Report the limit rather than retrying, clicking dialogs,
+changing security settings, or inspecting workbook packages. macOS sessions own
+exact workbooks in shared Excel; never terminate the shared application.
+See [Mac support and limitations](https://excelmcpserver.dev/macos-support/).
 
 ## Workflow Checklist
 
@@ -105,7 +121,8 @@ excelcli -q range set-values --session <returned-session-id> ...
 excelcli -q session close --session <returned-session-id> --save
 ```
 
-**Unclosed sessions leave Excel processes running, locking files.**
+**Unclosed sessions keep workbooks open.** Windows sessions can leave owned Excel
+processes running; Mac sessions use shared Excel and must never terminate it.
 
 Explicit close defaults to discarding edits; use `--save` to keep them. Normal
 daemon shutdown attempts to save remaining sessions, but crashes, timeouts, and
@@ -117,7 +134,7 @@ too. Calls within a session execute one at a time, but concurrent requests and
 responses have no guaranteed order. Wait for each dependent call; different
 sessions can run independently.
 
-### Rule 4: Data Model Prerequisites
+### Rule 4: Data Model Prerequisites (Windows only)
 
 DAX operations require tables in the Data Model:
 
@@ -126,7 +143,7 @@ excelcli -q table add-to-data-model --session <id> --table-name Sales  # Step 1
 excelcli -q datamodel create-measure --session <id> ...               # Step 2 - NOW works
 ```
 
-### Rule 5: Power Query Development Lifecycle
+### Rule 5: Power Query Development Lifecycle (Windows only)
 
 Prefer `evaluate` for new or materially changed M code before persisting it.
 Already-validated code and trivial literal tables do not need a redundant evaluation.
@@ -153,7 +170,7 @@ Use the session lifecycle below to save only a successful job and clean up failu
 Report missing files or paths. Check the supplied path and available evidence;
 retry only after correcting the cause. Do not invent a different location.
 
-### Rule 7: Use Calculation Mode for Bulk Writes
+### Rule 7: Use Calculation Mode for Bulk Writes on Windows
 
 For bulk writes where repeated recalculation is costly, remember the current mode,
 use manual mode, calculate, then restore the prior mode in a `finally` block.
@@ -165,6 +182,7 @@ after restoration; manual needs explicit calculation.
 Semi-automatic excludes what-if data tables, not worksheet Tables.
 Successful writes do not establish completion of asynchronous refreshes or
 Python calculations.
+On Mac, mode get/set is unsupported; use explicit calculation when needed.
 
 ```powershell
 # $sessionId is the ID from a successful open/create or a matching session list entry.

@@ -1,6 +1,10 @@
 # Mistakes to avoid
 
 Use [working safely with Excel](behavioral-rules.md) for the shared rules.
+Table, Data Model, Power Query, PivotTable, and slicer examples below require
+Windows. The experimental Mac beta has a
+[gated subset](https://excelmcpserver.dev/macos-support/); do not retry an
+unsupported or uncertain mutation through another backend.
 
 | Mistake | Better approach |
 |---------|-----------------|

@@ -136,7 +136,7 @@ public class SkillMdQualityTests
 
     [Theory]
     [InlineData("excel-cli", "SKILL.md")]
-    [InlineData("excel-mcp", @"references\calculation.md")]
+    [InlineData("excel-mcp", "references/calculation.md")]
     public void CalculationGuidance_RestoresPriorMode(string skill, string relativePath)
     {
         var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, relativePath));
@@ -492,12 +492,15 @@ public class SkillMdQualityTests
             "isIrmProtected",
             "isPivotChart",
             "linkedPivotTable",
+            "isValid",
             "loadMode",
             "majorUnit",
             "matchingCells",
             "minorUnit",
             "newName",
             "oldName",
+            "preflightPassed",
+            "requiresRecovery",
             "requiresVisibleSession",
             "returnedCount",
             "safeToCreate",
@@ -520,6 +523,7 @@ public class SkillMdQualityTests
             "xmlDataFile",
 
             // External configuration and XML names.
+            "macOS",
             "mcpServers",
             "noNamespaceSchemaLocation",
             "schemaLocation",

@@ -1,5 +1,11 @@
 # Dashboards and reports
 
+The chart-based workflow below requires **Windows**. The experimental Mac beta
+supports summaries in plain cells with formulas, number formats, and sizing,
+but not Tables, charts, rich styling, or screenshots. Use only its
+[enabled actions](https://excelmcpserver.dev/macos-support/) and report visual
+verification as unavailable.
+
 Adapt the layout to the requested result. Do not add charts or rebuild existing
 reports for a read-only task.
 

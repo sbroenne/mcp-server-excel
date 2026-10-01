@@ -5,16 +5,28 @@
 
 ### Installation Options
 
+**Apple Silicon macOS support is experimental beta**, not full Windows parity.
+Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers,
+connections, QueryTables, XML Maps, screenshots, advanced visual formatting,
+and Python result reads are unsupported on Mac. See
+[the beta support reference](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md);
+use copies of important workbooks.
+
 **VS Code Extension** (Recommended)
 - Search "ExcelMcp" in VS Code Marketplace and click Install
-- Or download `excel-mcp-{{VERSION}}.vsix` below
+- Or download `excel-mcp-{{VERSION}}.vsix`,
+  `excel-mcp-{{VERSION}}-win32-arm64.vsix`, or
+  `excelmcp-{{VERSION}}-darwin-arm64.vsix` below
 - Self-contained: no .NET runtime or SDK required
-- Includes the MCP Server and `excel-mcp` skill; install the CLI separately
+- Includes the MCP Server and its `excel-mcp` skill; install the CLI separately
+- The MCP skill is registered automatically via `chatSkills`
 
 **Claude Desktop (MCPB)**
 - Download `excel-mcp-{{VERSION}}.mcpb` and double-click to install
 - Requires Node.js/npm with npx on PATH; launches the npm server with `@latest`
 - Older binary MCPB installations need a one-time replacement with this bundle
+- On Apple Silicon macOS, download
+  `excel-mcp-{{VERSION}}-macos-arm64.mcpb`; it contains the native beta runtime
 
 **npm MCP Server** (Primary — no .NET runtime required)
 ```powershell
@@ -31,7 +43,9 @@ npm install --global @sbroenne/excelcli@latest
 **Standalone Executables** (no .NET runtime required)
 - MCP Server: Download `ExcelMcp-MCP-Server-{{VERSION}}-windows.zip`, extract `mcp-excel.exe`
 - CLI: Download `ExcelMcp-CLI-{{VERSION}}-windows.zip`, extract `excelcli.exe`
-- Add the exe(s) to your PATH, then configure your MCP client with command `mcp-excel`
+- Mac: use `ExcelMcp-MCP-Server-{{VERSION}}-macos-arm64.zip` (`mcp-excel`) or
+  `ExcelMcp-CLI-{{VERSION}}-macos-arm64.zip` (`excelcli`)
+- Add the executable(s) to PATH, then configure your MCP client with command `mcp-excel`
 
 **NuGet (.NET Tool)** (Secondary — requires .NET 10 runtime)
 ```powershell
@@ -40,15 +54,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
 **Agent Skills** (for AI coding assistants)
-- VS Code Extension includes the `excel-mcp` skill automatically
+- VS Code Extension includes the MCP skill automatically; install the CLI skill separately
 - Install via Skills CLI: `npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli` or `--skill excel-mcp`
 - Or download `excel-skills-v{{VERSION}}.zip`
 
 ### Requirements
-- Windows OS
-- Microsoft Excel 2016+
-- Interactive Windows desktop with Excel available to the signed-in user
-- Node.js 18+ with npm/npx for npm and MCPB installation
+- Windows x64 with desktop Excel 2016+, or Apple Silicon macOS with Excel for
+  Mac 16.112+ (experimental beta)
+- An interactive desktop session; Intel Macs, Linux, and headless hosts are unsupported
+- Node.js 18+ with npm/npx for npm and the Windows MCPB installation
 - No .NET runtime required for npm, VS Code Extension, MCPB, or standalone executables
 - .NET 10 Runtime required for NuGet (.NET tool) installation only
 

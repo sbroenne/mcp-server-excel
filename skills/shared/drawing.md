@@ -1,5 +1,9 @@
 # drawing - Server Quirks
 
+**Windows-only in the experimental macOS beta.** Drawing objects, Forms controls,
+and sparklines are unavailable on Mac. Do not use a package, VBA, or UI workaround.
+See [macOS support](https://excelmcpserver.dev/macos-support/).
+
 Use `drawing` for worksheet images, AutoShapes, text boxes, connectors, safe Forms controls, and sparklines.
 
 ## Object lifecycle

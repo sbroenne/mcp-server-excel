@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
 [**Website**](https://excelmcpserver.dev/) ·
@@ -21,16 +21,30 @@
 Claude, ChatGPT, and other agents control Excel through natural-language
 requests—using either MCP or a token-efficient CLI.
 
-Unlike file-parser tools, ExcelMcp drives the **actual Excel application** through
-its official COM API. It can refresh Power Query, recalculate formulas, evaluate
-DAX, run VBA and Python `=PY()`, and preserve PivotTables, charts, macros, the
-Data Model, and workbook formatting.
+Unlike file-parser tools, ExcelMcp drives the **actual Excel application**.
+Windows uses the complete COM backend. Apple Silicon macOS support is
+**experimental beta**, using a capability-gated
+Apple Events backend for the actions marked enabled in the
+[generated capability inventory](docs/MACOS-ACTION-INVENTORY.md).
 
 **31 tools with 326 operations** cover end-to-end Excel automation.
 
 > [!IMPORTANT]
-> Requires **Windows**, **Microsoft Excel 2016 or later**, and an interactive
-> desktop. It is not intended for Linux, macOS, or server-side batch processing.
+> Requires an interactive desktop with **Windows and Excel 2016+**, or an
+> **Apple Silicon Mac with Excel for Mac 16.112+**. Windows provides all 326
+> operations; macOS exposes the enabled capability inventory and returns
+> `PlatformNotSupported` for unavailable actions. Linux, Intel Macs, and
+> headless servers are not supported. See
+> [macOS support](specs/MACOS-SUPPORT.md).
+
+> [!WARNING]
+> **macOS experimental beta is not Windows feature parity.** Power Query, VBA,
+> Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections,
+> QueryTables, XML Maps, screenshots, and advanced visual formatting are not
+> supported in this beta. Python formula writes are enabled, but Python result
+> reads are not. Use Windows for these workflows. See the
+> [full macOS limitations](specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+> and test on copies of important workbooks.
 
 ## 🚀 Get Started
 
@@ -41,10 +55,11 @@ Data Model, and workbook formatting.
 | **Coding agents and scripts** | [Install the CLI](https://excelmcpserver.dev/installation-cli/) |
 | **Not sure which to choose?** | [Read the installation overview](https://excelmcpserver.dev/installation/) |
 
-Close open Excel workbooks before starting; ExcelMcp requires exclusive access
-while automating them.
+Reconcile the target workbook if it is already open or session-owned before
+opening it for automation. Do not close unrelated workbooks; Mac sessions share
+desktop Excel and own only their exact workbook.
 
-## What You Can Automate
+## What You Can Automate on Windows
 
 - **[Data & analytics](https://excelmcpserver.dev/features/data-analytics/):**
   Power Query, DAX, Power Pivot, Excel Tables, PivotTables, and data connections.
@@ -55,9 +70,13 @@ while automating them.
 - **[Automation & advanced](https://excelmcpserver.dev/features/automation-advanced/):**
   VBA, Python in Excel, Goal Seek, scenarios, data tables, windows, and XML Maps.
 
-Explore the [complete reference for all 326 operations](https://excelmcpserver.dev/features/).
+Explore the [complete Windows reference for all 326 operations](https://excelmcpserver.dev/features/).
 
 ## See It in Action
+
+The demo, report image, and Power Query/PivotTable/window examples below show
+**Windows workflows**. Goal Seek is also enabled in the Mac beta; check the
+[Mac support list](specs/MACOS-SUPPORT.md) before combining features.
 
 [![A sales table, regional summary, and chart created in the real Excel application by Excel MCP Server](https://excelmcpserver.dev/assets/images/excel-demo-table-chart.png)](https://excelmcpserver.dev/use-cases/)
 
@@ -90,9 +109,9 @@ AI assistant or script
         │
    MCP Server / CLI
         │
- ExcelMcp Core commands
+ ExcelMcp Service contracts
         │
- Real Excel COM API
+ Windows COM / macOS Apple Events
 ```
 
 [Read the architecture](docs/ARCHITECTURE.md) or browse the

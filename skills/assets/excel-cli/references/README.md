@@ -7,6 +7,8 @@ This folder contains the generated command/action/flag reference plus shared Exc
 **Note for users:** Start with `cli-commands.md` for the generated command index
 and linked command pages. Shared domain guides contain native CLI examples
 selected during generation; no translation from MCP calls is needed.
+Use their platform notices to
+distinguish Windows workflows from the experimental Apple Silicon macOS subset.
 
 ## Contents
 

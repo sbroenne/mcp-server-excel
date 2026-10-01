@@ -1,6 +1,6 @@
 ---
 title: MCP Server Documentation
-description: Complete Model Context Protocol (MCP) server reference for Excel automation — tools, actions and examples for Claude Desktop, VS Code and other MCP clients.
+description: Excel MCP tools, actions, and examples for Claude, VS Code, and other clients. Full Windows support; experimental Apple Silicon Mac subset with explicit gates.
 keywords: "Excel MCP server, Model Context Protocol, MCP tools, Claude Excel, VS Code MCP"
 ---
 

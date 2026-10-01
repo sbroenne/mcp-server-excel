@@ -1,5 +1,10 @@
 # Excel Chart API Specification
 
+**Platform scope:** the implemented API and COM design below describe Windows.
+All chart actions remain unsupported in the experimental Apple Silicon macOS
+beta, including regular charts and PivotCharts. Candidate Office.js handlers
+are not accepted support; see [Mac limitations](MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 > **Comprehensive specification for Excel chart operations - creating and managing Regular Charts and PivotCharts**
 
 ## Implementation Status

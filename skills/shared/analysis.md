@@ -2,6 +2,10 @@
 
 Use `analysis` for Excel's native Goal Seek, scenarios, scenario summaries, and one- or two-variable data tables.
 
+**Mac experimental beta:** Goal Seek and one-/two-variable Data Tables are
+enabled; all Scenario actions below remain Windows-only. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 ## Goal Seek
 
 The formula cell must contain a formula, and the changing cell must be one of its inputs.
@@ -54,10 +58,11 @@ analysis(action: 'create-data-table', session_id: sessionId, sheet_name: 'Model'
 excelcli -q analysis create-data-table --session $sessionId --sheet Model --table-range A1:B11 --column-input-cell D1
 ```
 
-Data tables can be calculation-intensive. Use `calculation_mode` (MCP) /
+Data tables can be calculation-intensive. On Windows, use `calculation_mode` (MCP) /
 `calculationmode` (CLI) and follow the shared
 [calculation-mode rules](behavioral-rules.md#changes-and-formatting) when
 controlling recalculation around larger workbook edits.
+Mac supports explicit calculation when authorized, but not mode get/set.
 
 ## Solver Is Not Exposed
 

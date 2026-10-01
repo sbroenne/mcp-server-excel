@@ -4,6 +4,13 @@ Complete guide for publishing and managing all ExcelMcp NuGet packages using OID
 
 > **Distribution Channels:** NuGet is the **secondary** distribution channel. The MCP Server and CLI are primarily distributed through npm and as standalone self-contained executables — neither requires a separate .NET runtime. See [INSTALLATION-MCP-SERVER.md](INSTALLATION-MCP-SERVER.md) and [INSTALLATION-CLI.md](INSTALLATION-CLI.md) for the recommended installation methods.
 
+**Platform evidence:** the release's NuGet installation checks run on Windows.
+Apple Silicon macOS support is experimental beta through the native primary
+channels; a cross-target build or portable target framework does not prove the
+published NuGet tool works on Mac. Use npm, standalone Mac archives, VSIX, or
+MCPB for accepted Mac installation paths, and consult
+[the unsupported-feature reference](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 ## Table of Contents
 
 - [Published Packages](#published-packages)

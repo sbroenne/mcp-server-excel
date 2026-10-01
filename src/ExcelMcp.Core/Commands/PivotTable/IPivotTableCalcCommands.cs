@@ -24,6 +24,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// - 2 = Outline (hierarchical with expand/collapse)
 /// </summary>
 [ServiceCategory("pivottablecalc", "PivotTableCalc")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Office.js routes exist only for methods marked OfficeAddInAction. ExcelApi exposes no calculated-field or calculated-member authoring and inspection surface equivalent to the public contract.",
+    ExcelApiVersion = "Office.js ExcelApi through 1.21.",
+    Blocker = "Office.js cannot preserve calculated field/member semantics; use the Windows COM backend")]
 [McpTool("pivottable_calc", Title = "PivotTable Calc Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable calculated fields/members, layout configuration, and data extraction. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
 public interface IPivotTableCalcCommands
@@ -36,7 +40,7 @@ public interface IPivotTableCalcCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <returns>Values with headers, row/column labels, formatted numbers</returns>
-    [ServiceAction("get-data")]
+    [ServiceAction("get-data"), OfficeAddInAction("1.15", mutation: false)]
     PivotTableDataResult GetData(IExcelBatch batch, string pivotTableName);
 
     /// <summary>
@@ -164,7 +168,7 @@ public interface IPivotTableCalcCommands
     ///
     /// Supported by both regular and OLAP PivotTables.
     /// </remarks>
-    [ServiceAction("set-layout")]
+    [ServiceAction("set-layout"), OfficeAddInAction("1.15", mutation: true)]
     OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout);
 
     /// <summary>
@@ -182,7 +186,7 @@ public interface IPivotTableCalcCommands
     ///
     /// OLAP PivotTables only support Automatic subtotals.
     /// </remarks>
-    [ServiceAction("set-subtotals")]
+    [ServiceAction("set-subtotals"), OfficeAddInAction("1.15", mutation: true)]
     PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName,
         string fieldName, bool showSubtotals);
 
@@ -204,7 +208,7 @@ public interface IPivotTableCalcCommands
     /// - Regular PivotTables: Full support
     /// - OLAP PivotTables: Full support
     /// </remarks>
-    [ServiceAction("set-grand-totals")]
+    [ServiceAction("set-grand-totals"), OfficeAddInAction("1.15", mutation: true)]
     OperationResult SetGrandTotals(IExcelBatch batch, string pivotTableName,
         bool showRowGrandTotals, bool showColumnGrandTotals);
 }

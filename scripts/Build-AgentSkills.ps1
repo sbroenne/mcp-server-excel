@@ -59,7 +59,9 @@ function Generate-CliReference {
     )
 
     if (-not $ExcelCliPath) {
-        $ExcelCliPath = Join-Path $RepoRoot "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
+        $executableName = if ($IsWindows) { "excelcli.exe" } else { "excelcli" }
+        $targetFramework = if ($IsWindows) { "net10.0-windows" } else { "net10.0" }
+        $ExcelCliPath = Join-Path $RepoRoot "src/ExcelMcp.CLI/bin/Release/$targetFramework/$executableName"
     }
     if ($env:OS -ne "Windows_NT" -and [System.IO.Path]::GetExtension($ExcelCliPath) -eq ".exe") {
         throw "Complete CLI reference generation requires Windows."
@@ -262,7 +264,7 @@ function Generate-CliReference {
             $content.Add("")
         }
 
-        $subcommands = Get-HelpEntries -Lines $help -Header "COMMANDS:" -Kind Command
+        $subcommands = @(Get-HelpEntries -Lines $help -Header "COMMANDS:" -Kind Command)
         if ($subcommands.Count -gt 0) {
             foreach ($subcommand in $subcommands) {
                 $subcommandName = $subcommand.Spec.Split(' ')[0]
@@ -342,11 +344,11 @@ if ($GenerateOnly) {
         $ManifestPath = Join-Path $RepoRoot 'src\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs'
     }
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Required manifest not found: $ManifestPath" }
-    if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
+    if (-not $OutputDir) { $OutputDir = 'artifacts/generated-skills' }
     if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
 }
 elseif (-not $OutputDir) {
-    $OutputDir = 'artifacts\skills'
+    $OutputDir = 'artifacts/skills'
 }
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
@@ -360,7 +362,7 @@ if ($OutputPath -eq [IO.Path]::GetPathRoot($OutputPath) -or
     $OutputPath -eq $SkillsDir) {
     throw "Skill output must not overlap source files: $OutputPath"
 }
-if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts\generated-skills' }
+if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts/generated-skills' }
 $StagingDir = Join-Path ([IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 try {

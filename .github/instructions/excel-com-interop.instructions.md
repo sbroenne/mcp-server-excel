@@ -5,6 +5,9 @@ excludeAgent: "code-review"
 
 # Excel COM pitfalls
 
+These rules apply to the Windows backend. Mac uses supported Excel APIs through
+Service, not COM; see `specs/MACOS-SUPPORT.md` for its ownership and recovery rules.
+
 - Prefer typed Excel PIAs. Late binding needs a documented PIA/runtime gap;
   existing `Application.Run`, VBE, and Office-core calls may intentionally avoid
   unavailable dependencies. Follow `scripts\check-dynamic-casts.ps1`.

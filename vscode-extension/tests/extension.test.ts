@@ -1,8 +1,8 @@
 import type { ExecFileOptions } from 'node:child_process';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
-import { activate } from '../src/extension';
+import { activate, resolveBundledRuntime } from '../src/extension';
 import { noCancellation, output, window as mockedWindow } from './vscode';
 
 const probes = vi.hoisted(() => ({
@@ -67,16 +67,27 @@ async function resolveServer(provider: vscode.McpServerDefinitionProvider,
 }
 
 beforeEach(() => {
+	vi.stubGlobal('process', {
+		...process,
+		platform: 'win32',
+		arch: 'x64',
+		env: { ...process.env, SystemRoot: 'C:\\Windows' }
+	});
 	probes.access.mockReset().mockResolvedValue(undefined);
 	probes.query.mockReset().mockImplementation((_file, _args, _options, callback) => callback(null, '', ''));
+});
+
+afterEach(() => {
+	vi.unstubAllGlobals();
 });
 
 describe('MCP registration and launch', () => {
 	it('registers the packaged version and preserves the bundled command', async () => {
 		const { context, provider } = await registeredProvider();
+		const runtime = resolveBundledRuntime(process.platform, process.arch);
 		expect(await serverDefinition(provider)).toMatchObject({
 			label: 'excel-mcp',
-			command: join(context.extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe'),
+			command: join(context.extensionPath, 'bin', runtime.directory, runtime.executable),
 			args: [],
 			env: {},
 			version: '2.1.0'
@@ -144,9 +155,18 @@ describe('MCP registration and launch', () => {
 
 	it('rejects a non-Windows host before checking local files', async () => {
 		vi.stubGlobal('process', { ...process, platform: 'linux' });
-		const { provider } = await registeredProvider();
-		await expect(resolveServer(provider)).rejects.toThrow(/Windows desktop/i);
+		await expect(registeredProvider()).rejects.toThrow(/does not include a runtime/i);
 		expect(probes.access).not.toHaveBeenCalled();
+		expect(probes.query).not.toHaveBeenCalled();
+	});
+
+	it('checks the bundled executable without a Windows registry probe on Apple Silicon', async () => {
+		vi.stubGlobal('process', { ...process, platform: 'darwin', arch: 'arm64' });
+		const { provider } = await registeredProvider();
+
+		await expect(resolveServer(provider)).resolves.toBeDefined();
+
+		expect(probes.access).toHaveBeenCalledOnce();
 		expect(probes.query).not.toHaveBeenCalled();
 	});
 
@@ -159,6 +179,20 @@ describe('MCP registration and launch', () => {
 		expect(probes.access).not.toHaveBeenCalled();
 		expect(probes.query).not.toHaveBeenCalled();
 		expect(vscode.window.showErrorMessage).not.toHaveBeenCalled();
+	});
+
+	describe('bundled runtime selection', () => {
+		it.each([
+			['win32', 'x64', 'win32-x64', 'Sbroenne.ExcelMcp.McpServer.exe'],
+			['win32', 'arm64', 'win32-arm64', 'Sbroenne.ExcelMcp.McpServer.exe'],
+			['darwin', 'arm64', 'darwin-arm64', 'Sbroenne.ExcelMcp.McpServer']
+		] as const)('selects %s-%s', (platform, architecture, directory, executable) => {
+			expect(resolveBundledRuntime(platform, architecture)).toEqual({ directory, executable });
+		});
+
+		it('rejects Intel macOS', () => {
+			expect(() => resolveBundledRuntime('darwin', 'x64')).toThrow(/Intel macOS is not supported/i);
+		});
 	});
 
 	it('aborts an in-flight registration query and disposes the listener', async () => {

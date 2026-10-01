@@ -1,5 +1,11 @@
 # Excel Formatting & Data Validation Specification
 
+**Platform scope:** the complete formatting/validation surface and original COM
+design below describe Windows. Experimental Apple Silicon macOS supports only
+accepted number-format, sizing, merge/unmerge, and cell-locking variants; rich
+styling, validation, conditional formatting, and merge-area inspection remain
+unavailable. See [Mac support](MACOS-SUPPORT.md).
+
 > **Comprehensive formatting and validation capabilities for ranges, formulas, and tables**
 > 
 > **🤖 Primary Audience:** LLMs using MCP Server tools for professional Excel automation

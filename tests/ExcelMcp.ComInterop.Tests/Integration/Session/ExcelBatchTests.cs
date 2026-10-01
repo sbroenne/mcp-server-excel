@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using System.Globalization;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
@@ -587,52 +585,45 @@ public class ExcelBatchTests : IAsyncLifetime
 
     private static void CreateJapaneseTableWorkbook(string workbookPath)
     {
-        object? excel = null;
-        object? workbooks = null;
-        object? workbook = null;
-        object? worksheets = null;
-        object? worksheet = null;
-        object? sourceRange = null;
-        object? listObjects = null;
-        object? table = null;
-        object? listColumns = null;
-        object? dateColumn = null;
-        object? dataBodyRange = null;
+        Excel.Application? excel = null;
+        Excel.Workbooks? workbooks = null;
+        Excel.Workbook? workbook = null;
+        Excel.Sheets? worksheets = null;
+        Excel.Worksheet? worksheet = null;
+        Excel.Range? sourceRange = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? table = null;
+        Excel.ListColumns? listColumns = null;
+        Excel.ListColumn? dateColumn = null;
+        Excel.Range? dataBodyRange = null;
 
         try
         {
             var excelType = Type.GetTypeFromProgID("Excel.Application")
                 ?? throw new InvalidOperationException("Microsoft Excel is not installed.");
-            excel = Activator.CreateInstance(excelType)
+            excel = Activator.CreateInstance(excelType) as Excel.Application
                 ?? throw new InvalidOperationException("Could not start Microsoft Excel.");
-            dynamic excelDispatch = excel;
-            excelDispatch.DisplayAlerts = false;
+            excel.DisplayAlerts = false;
 
-            workbooks = excelDispatch.Workbooks;
-            dynamic workbooksDispatch = workbooks;
-            workbook = workbooksDispatch.Add();
-            dynamic workbookDispatch = workbook;
-            worksheets = workbookDispatch.Worksheets;
-            dynamic worksheetsDispatch = worksheets;
-            worksheet = worksheetsDispatch[1];
-            dynamic worksheetDispatch = worksheet;
-            sourceRange = worksheetDispatch.Range["A1:B3"];
-            dynamic sourceRangeDispatch = sourceRange;
-            sourceRangeDispatch.Value2 = new object[,] { { "Amount", "Date" }, { 1, 46000 }, { 2, 46001 } };
+            workbooks = excel.Workbooks;
+            workbook = workbooks.Add();
+            worksheets = workbook.Worksheets;
+            worksheet = (Excel.Worksheet)worksheets[1];
+            sourceRange = worksheet.Range["A1:B3"];
+            sourceRange.Value2 = new object[,] { { "Amount", "Date" }, { 1, 46000 }, { 2, 46001 } };
 
-            listObjects = worksheetDispatch.ListObjects;
-            dynamic listObjectsDispatch = listObjects;
-            table = listObjectsDispatch.Add(1, sourceRange, Type.Missing, 1);
-            dynamic tableDispatch = table;
-            listColumns = tableDispatch.ListColumns;
-            dynamic listColumnsDispatch = listColumns;
-            dateColumn = listColumnsDispatch["Date"];
-            dynamic dateColumnDispatch = dateColumn;
-            dataBodyRange = dateColumnDispatch.DataBodyRange;
-            dynamic dataBodyRangeDispatch = dataBodyRange;
-            dataBodyRangeDispatch.NumberFormatLocal = "yyyy/m/d";
+            listObjects = worksheet.ListObjects;
+            table = listObjects.Add(
+                Excel.XlListObjectSourceType.xlSrcRange,
+                sourceRange,
+                Type.Missing,
+                Excel.XlYesNoGuess.xlYes);
+            listColumns = table.ListColumns;
+            dateColumn = listColumns["Date"];
+            dataBodyRange = dateColumn.DataBodyRange;
+            dataBodyRange.NumberFormatLocal = "yyyy/m/d";
 
-            workbookDispatch.SaveAs(workbookPath, 51);
+            workbook.SaveAs(workbookPath, Excel.XlFileFormat.xlOpenXMLWorkbook);
         }
         finally
         {
@@ -644,33 +635,59 @@ public class ExcelBatchTests : IAsyncLifetime
 
     private static string ReadTableColumnFormatCode(string workbookPath, string columnName)
     {
-        using var archive = ZipFile.OpenRead(workbookPath);
-        var tableEntry = archive.Entries.Single(entry => entry.FullName.StartsWith("xl/tables/", StringComparison.OrdinalIgnoreCase));
-        var tableDocument = XDocument.Load(tableEntry.Open());
-        XNamespace spreadsheetNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        var column = tableDocument.Descendants(spreadsheetNamespace + "tableColumn")
-            .Single(element => element.Attribute("name")?.Value == columnName);
-        int dxfId = int.Parse(column.Attribute("dataDxfId")!.Value, CultureInfo.InvariantCulture);
-
-        var stylesEntry = archive.GetEntry("xl/styles.xml")
-            ?? throw new InvalidOperationException("Workbook styles were not found.");
-        var stylesDocument = XDocument.Load(stylesEntry.Open());
-        return stylesDocument.Root!
-            .Element(spreadsheetNamespace + "dxfs")!
-            .Elements(spreadsheetNamespace + "dxf")
-            .ElementAt(dxfId)
-            .Element(spreadsheetNamespace + "numFmt")!
-            .Attribute("formatCode")!
-            .Value;
+        Excel.Application? excel = null;
+        Excel.Workbooks? workbooks = null;
+        Excel.Workbook? workbook = null;
+        Excel.Sheets? worksheets = null;
+        Excel.Worksheet? worksheet = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? table = null;
+        Excel.ListColumns? listColumns = null;
+        Excel.ListColumn? column = null;
+        Excel.Range? dataBodyRange = null;
+        try
+        {
+            var excelType = Type.GetTypeFromProgID("Excel.Application")
+                ?? throw new InvalidOperationException("Microsoft Excel is not installed.");
+            excel = Activator.CreateInstance(excelType) as Excel.Application
+                ?? throw new InvalidOperationException("Could not start Microsoft Excel.");
+            excel.DisplayAlerts = false;
+            workbooks = excel.Workbooks;
+            workbook = workbooks.Open(workbookPath, ReadOnly: true);
+            worksheets = workbook.Worksheets;
+            worksheet = (Excel.Worksheet)worksheets[1];
+            listObjects = worksheet.ListObjects;
+            table = listObjects[1];
+            listColumns = table.ListColumns;
+            column = listColumns[columnName];
+            dataBodyRange = column.DataBodyRange;
+            return Convert.ToString(dataBodyRange.NumberFormatLocal)
+                ?? string.Empty;
+        }
+        finally
+        {
+            CloseWorkbookAndQuitExcel(workbook, excel);
+            ReleaseComObjects(
+                dataBodyRange,
+                column,
+                listColumns,
+                table,
+                listObjects,
+                worksheet,
+                worksheets,
+                workbook,
+                workbooks,
+                excel);
+        }
     }
 
-    private static void CloseWorkbookAndQuitExcel(object? workbook, object? excel)
+    private static void CloseWorkbookAndQuitExcel(Excel.Workbook? workbook, Excel.Application? excel)
     {
         if (workbook != null)
         {
             try
             {
-                ((dynamic)workbook).Close(false);
+                workbook.Close(false);
             }
             catch (Exception)
             {
@@ -682,7 +699,7 @@ public class ExcelBatchTests : IAsyncLifetime
         {
             try
             {
-                ((dynamic)excel).Quit();
+                excel.Quit();
             }
             catch (Exception)
             {

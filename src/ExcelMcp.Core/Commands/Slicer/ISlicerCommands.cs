@@ -16,6 +16,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// Empty list clears filter (shows all items). Set clearFirst=false to add to existing selection.
 /// </summary>
 [ServiceCategory("slicer", "Slicer")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Office.js routes exist only for the source-identifiable creation methods marked OfficeAddInAction. ExcelApi does not expose enough source identity and selection metadata to list, select, or delete slicers with the public contract's PivotTable/table distinction.",
+    ExcelApiVersion = "Office.js ExcelApi through 1.21.",
+    Blocker = "Office.js cannot preserve exact slicer source identity and selection results; use the Windows COM backend")]
 [McpTool("slicer", Title = "Slicer Operations", Destructive = true, Category = "analysis",
     Description = "Slicer management: create, list, configure, delete visual filtering controls for PivotTables and Tables. NAMING: Auto-generate descriptive names like RegionSlicer, CategorySlicer. PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer. SELECTION: selectedItems as JSON array of strings. Use clearFirst=false to add to existing selection.")]
 public interface ISlicerCommands
@@ -31,7 +35,7 @@ public interface ISlicerCommands
     /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
     /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
     /// <returns>Created slicer details with available items</returns>
-    [ServiceAction("create-slicer")]
+    [ServiceAction("create-slicer"), OfficeAddInAction("1.15", mutation: true)]
     SlicerResult CreateSlicer(IExcelBatch batch, string pivotTableName,
         string fieldName, string slicerName, string destinationSheet, string position);
 
@@ -75,7 +79,7 @@ public interface ISlicerCommands
     /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
     /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
     /// <returns>Created slicer details with available items</returns>
-    [ServiceAction("create-table-slicer")]
+    [ServiceAction("create-table-slicer"), OfficeAddInAction("1.10", mutation: true)]
     SlicerResult CreateTableSlicer(IExcelBatch batch, string tableName,
         string columnName, string slicerName, string destinationSheet, string position);
 

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using OpenTelemetry.Metrics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Sbroenne.ExcelMcp.Service.Mac;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -28,6 +29,11 @@ public class Program
         CancellationToken runToken = default,
         Func<ServiceBridge.IServiceBridgeBackend>? serviceFactory = null)
     {
+        if (MacAutomationHost.TryRun(args, out var automationExitCode))
+        {
+            return automationExitCode;
+        }
+
         // Handle --help and --version flags for easy verification
         if (args.Length > 0)
         {
@@ -86,13 +92,18 @@ public class Program
                 };
 
                 options.ServerInstructions = """
-                    Automates desktop Microsoft Excel on Windows.
+                    Automates desktop Microsoft Excel on Windows and Apple Silicon macOS.
+                    macOS support is experimental beta and capability-gated, not Windows parity.
+                    Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections,
+                    QueryTables, XML Maps, screenshots, advanced visual formatting, and Python result reads
+                    are unavailable on macOS. Unavailable actions fail explicitly; never substitute another workflow.
+                    macOS owns exact workbooks in shared Excel, not the application; never force-kill shared Excel.
                     Use file list to find the intended workbook; do not guess paths or choose an unrelated session.
                     Open/create and file list entries return session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
                     Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
                     Await each dependent call before the next; different sessions can run independently.
                     A workbook must not be open in another Excel instance. Reuse known visibility preferences;
-                    preserve existing visibility unless a change is requested. New sessions default to hidden.
+                    preserve existing visibility unless a change is requested. New Windows sessions default to hidden.
                     Leaving a workbook open means retaining its session, not showing a hidden window.
                     Do not set show:true just to leave a workbook open without a separate visibility request or known preference.
                     Close only after active operations finish (canClose:true). Set save:true to keep changes;
@@ -104,6 +115,7 @@ public class Program
                     when the request authorizes replacement; never automatically retry a rejected write with allow.
                     For bulk writes, read the calculation mode, switch to manual, write, calculate, and restore the prior mode.
                     Writes do not force calculation in every mode; manual mode needs explicit calculation.
+                    Calculation-mode changes are Windows-only. macOS does not support Power Query or VBA.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question
                     only when the target, essential result, or destructive permission remains unclear.
                     Audits and proposals are read-only: no edits, refresh, recalculation, or temporary workbook objects without authorization.
@@ -339,7 +351,7 @@ public class Program
             Provides {McpToolSurface.ToolCount} tools with {McpToolSurface.OperationCount} operations for AI assistants.
 
             Usage:
-              mcp-excel.exe [options]
+              mcp-excel [options]
 
             Options:
               -h, --help      Show this help message
@@ -348,8 +360,9 @@ public class Program
             Without options, starts the MCP server in stdio mode.
 
             Requirements:
-              - Windows x64
-              - Microsoft Excel 2016 or later (desktop version)
+              - Windows x64 or Apple Silicon macOS
+              - Microsoft Excel desktop: Windows 2016+ or Excel for Mac 16.112+
+              - macOS support is experimental beta and capability-gated; Intel macOS is unsupported
 
             Documentation:
               https://sbroenne.github.io/mcp-server-excel/
@@ -416,8 +429,13 @@ internal static class StdinPipeMonitor
     /// (terminal, debugger, file redirection) since those cases don't need
     /// broken-pipe detection.
     /// </summary>
-    public static Timer? Start(IHostApplicationLifetime lifetime) =>
-        Start(lifetime, GetStdHandle(StdInputHandle));
+    public static Timer? Start(IHostApplicationLifetime lifetime)
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        return Start(lifetime, GetStdHandle(StdInputHandle));
+    }
 
     internal static Timer? Start(IHostApplicationLifetime lifetime, IntPtr handle)
     {

@@ -1,13 +1,14 @@
 ---
 name: excel-mcp
 description: >
-  Excel MCP Server skill for Windows workbook automation. Use when an assistant
+  Excel MCP Server skill for Windows and Apple Silicon macOS workbook automation. Use when an assistant
   needs rich MCP tools to create, inspect, modify, format, or analyze Excel files.
-  Supports Power Query (M), Data Model/DAX, PivotTables, Tables, Ranges, Charts,
+  Windows supports Power Query (M), Data Model/DAX, PivotTables, Tables, Ranges, Charts,
   Slicers, formatting, screenshots, VBA macros, connections, and calculation mode.
+  macOS support is experimental beta with a limited capability-gated subset.
   Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
   chart, dashboard, VBA, MCP.
-compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks. The VS Code extension bundles its server and does not require a separate Node.js or .NET installation.
+compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+ (experimental beta). Node.js 18+ and network access are required for npx; the VS Code extension bundles its server. Feature availability differs by platform.
 ---
 
 # Excel MCP Server Skill
@@ -18,21 +19,37 @@ parameters; these notes cover behavior that schemas alone cannot explain.
 
 ## Choose the intended workbook
 
-- Requires Windows and desktop Microsoft Excel 2016 or later.
+- Requires Windows with desktop Excel 2016+ or Apple Silicon macOS with Excel 16.112+.
+- An interactive desktop is required; headless hosts are unsupported.
 - The VS Code extension bundles its server; no separate Node.js or .NET installation is needed.
 - Use `file(action: 'list')` to discover existing sessions before opening a file.
   Match the user's intended workbook; do not automatically choose any open session.
-- Use a supplied full Windows path, not a guessed username or folder. Ask when
+- Use a supplied absolute native path, not a guessed username or folder. Ask when
   the intended file, essential result, or permission for a destructive change
   remains unclear; discover workbook facts with tools first.
 - A workbook must not be open in another Excel instance.
 - Reuse a known visibility preference and preserve an existing session's
-  visibility unless a change is requested. New sessions default to hidden when
+  visibility unless a change is requested. New Windows sessions default to hidden when
   no preference is known. Use `show: true` or `window(action: 'show')` when
   requested; do not ask just because a task has multiple steps. Leaving a workbook
   open does not mean showing a hidden Excel window: omit `show` or keep it
   `false` unless the user separately requested or already prefers visible Excel.
   Protected-file authentication may require visible Excel.
+  `window(action: 'show')` is Windows-only; Mac uses shared desktop Excel.
+
+## macOS Capability Gate
+
+Use only actions marked available in the generated macOS action inventory.
+Mac support is experimental beta, not Windows parity. Power Query, VBA,
+Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections,
+QueryTables, XML Maps, screenshots, advanced visual formatting, Scenario
+actions, calculation-mode get/set, and Python result reads are unavailable.
+Python formula writes and the enabled basic range/worksheet operations remain
+available. `Partial` inventory entries are gated, not partially supported.
+Report the limit rather than retrying, clicking dialogs, changing
+security settings, or inspecting workbook packages. macOS sessions own exact
+workbooks in shared Excel; never terminate the shared application.
+See [Mac support and limitations](https://excelmcpserver.dev/macos-support/).
 
 ## Session and saving behavior
 
@@ -65,9 +82,12 @@ The server does not request confirmation through MCP elicitation; obtain any
 needed consent in the client conversation before calling the tool.
 
 Cancellation is not undo. A cancelled operation may have changed a workbook.
-The affected session may be closed, and cancelled startup is cleaned up after
-Excel finishes opening. Inspect `file(list)` before continuing; do not blindly
-retry a change or substitute a different session.
+On Windows, the affected session may be closed, and cancelled startup is cleaned
+up after Excel finishes opening. On Mac, an unconfirmed handoff retains a
+recovery session with `requiresRecovery: true` and `canClose: false`; reconcile
+the exact workbook manually rather than closing, deleting, or reopening it.
+Inspect `file(list)` before continuing; do not blindly retry a change or
+substitute a different session.
 
 ## Work within the request
 
@@ -101,7 +121,7 @@ retry a change or substitute a different session.
 
 ## Bulk writes
 
-For bulk writes where repeated recalculation is costly, read the current mode, switch to
+On Windows, for bulk writes where repeated recalculation is costly, read the current mode, switch to
 manual, perform the writes, calculate once, and restore the prior mode even
 after an error, as in a `finally` block. Reading values or formulas does not
 require changing the mode, and intermediate results may require calculation.
@@ -121,7 +141,7 @@ calculation_mode(action: 'set-mode', session_id: '<returned-id>', mode: 'manual'
 After writing, use `calculation_mode(action: 'calculate', session_id: '<returned-id>', scope: 'workbook')`
 and restore the mode returned by the first call.
 
-## Data Model and Power Query
+## Data Model and Power Query (Windows only)
 
 Worksheet tables and Data Model tables are separate. Add a worksheet table to
 the Data Model before creating DAX measures. Refresh the Data Model after
@@ -133,9 +153,12 @@ materially changed M code. Create loads data to its selected destination
 Use `load-to` to change destinations and `refresh` to update already-loaded data.
 Update refreshes by default unless `refresh: false` is supplied.
 
-Use `file(test)` when workbook access or IRM/AIP protection is uncertain. Ordinary
-validation opens briefly in Excel read-only; protected files may need visible
-authentication. Testing does not bypass authentication.
+## File access preflight
+
+Use `file(test)` for path/access/IRM preflight without opening or inspecting
+workbook contents. `preflightPassed` does not establish workbook validity;
+`isValid` and `canOpen` remain false until Excel opens it. Protected files may
+need visible authentication; testing does not bypass authentication.
 
 ## Reference documentation
 

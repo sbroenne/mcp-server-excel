@@ -1,5 +1,13 @@
 # powerquery - Server Quirks
 
+## macOS limitation
+
+All Power Query actions are unavailable in the experimental macOS beta. Apple Events and Office.js
+do not expose faithful query-management APIs. Use the Windows COM backend;
+never inspect workbook packages, install a VBA helper, or change trust settings
+as a workaround.
+See [macOS support](https://excelmcpserver.dev/macos-support/).
+
 ## Test New or Changed Queries Within the Request
 
 For authorized query development, prefer testing new logic before storing it:

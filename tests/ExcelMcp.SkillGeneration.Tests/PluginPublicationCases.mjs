@@ -873,6 +873,13 @@ export function registerMarketplaceTests() {
         } finally { fs.rmSync(fixture, { recursive: true }); }
     });
 
+    test('macOS system temporary-directory aliases resolve before link validation', t => {
+        if (process.platform !== 'darwin') { t.skip('macOS system path aliases only'); return; }
+        for (const alias of ['/var', '/tmp']) {
+            assert.equal(updater.safeUpdaterPath(alias, { directory: true }), fs.realpathSync.native(alias));
+        }
+    });
+
     test('Windows canonical aliases accept long, short and case paths without weakening link or source guards', t => {
         if (process.platform !== 'win32') { t.skip('Windows path-name APIs only'); return; }
         const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-long-path-alias-'));

@@ -55,25 +55,36 @@ if ($null -eq $PassthroughArgs) {
     $PassthroughArgs = @()
 }
 
-$npxCommand = Get-Command "npx.cmd" -CommandType Application -ErrorAction SilentlyContinue |
+$npxCommandName = if ($IsWindows) { "npx.cmd" } else { "npx" }
+$nodeCommandName = if ($IsWindows) { "node.exe" } else { "node" }
+$npxCommand = Get-Command $npxCommandName -CommandType Application -ErrorAction SilentlyContinue |
     Select-Object -First 1
-$nodeCommand = Get-Command "node.exe" -CommandType Application -ErrorAction SilentlyContinue |
+$nodeCommand = Get-Command $nodeCommandName -CommandType Application -ErrorAction SilentlyContinue |
     Select-Object -First 1
 $npxCliPath = if ($null -ne $npxCommand) {
     Join-Path (Split-Path -Parent $npxCommand.Source) "node_modules\npm\bin\npx-cli.js"
 }
 
-if ($null -ne $nodeCommand -and -not [string]::IsNullOrWhiteSpace($npxCliPath) -and
+if ($IsWindows -and $null -ne $nodeCommand -and -not [string]::IsNullOrWhiteSpace($npxCliPath) -and
     (Test-Path -LiteralPath $npxCliPath -PathType Leaf)) {
     $binaryPath = $nodeCommand.Source
     $nativeArguments = @($npxCliPath, "-y", "@sbroenne/excelcli@latest") + @($PassthroughArgs)
+} elseif (-not $IsWindows -and $null -ne $npxCommand) {
+    $binaryPath = $npxCommand.Source
+    $nativeArguments = @("-y", "@sbroenne/excelcli@latest") + @($PassthroughArgs)
 } else {
     throw "excel-cli requires Node.js 18 or later with npm/npx available on PATH."
 }
 
 $startInfo = New-Object System.Diagnostics.ProcessStartInfo
 $startInfo.FileName = $binaryPath
-$startInfo.Arguments = (($nativeArguments | ForEach-Object { ConvertTo-NativeArgument -Value $_ }) -join ' ')
+if ($IsWindows) {
+    $startInfo.Arguments = (($nativeArguments | ForEach-Object { ConvertTo-NativeArgument -Value $_ }) -join ' ')
+} else {
+    foreach ($argument in $nativeArguments) {
+        $startInfo.ArgumentList.Add($argument)
+    }
+}
 $startInfo.UseShellExecute = $false
 $startInfo.RedirectStandardOutput = $true
 $startInfo.RedirectStandardError = $true

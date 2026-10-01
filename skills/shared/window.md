@@ -1,5 +1,10 @@
 # Window management
 
+**Windows-only in the experimental macOS beta.** Mac sessions own exact workbooks
+inside shared desktop Excel. They do not own an Excel instance; all window
+actions below remain gated. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Window operations affect only the selected session's Excel instance. Use the
 captured session ID; do not create another session to change visibility.
 

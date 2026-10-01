@@ -1,5 +1,11 @@
 # Excel COM API Coverage Specification
 
+**Platform scope:** this is a Windows COM coverage roadmap, not a promise of
+Mac feature parity. Apple Silicon macOS is experimental beta and has separate
+supported-API acceptance and shared-Excel ownership requirements; see
+[Mac support](MACOS-SUPPORT.md). Public behavior tests follow the current
+[Service-boundary testing strategy](../.github/instructions/testing-strategy.instructions.md).
+
 > Roadmap for expanding ExcelMcp from high-value automation coverage toward comprehensive,
 > deterministic Excel COM coverage.
 

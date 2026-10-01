@@ -1,5 +1,9 @@
 # Charts
 
+**Windows-only in the experimental macOS beta.** All public chart actions are
+gated on Mac, including ordinary charts. Optional Office.js handlers do not
+enable them. See [macOS support](https://excelmcpserver.dev/macos-support/).
+
 Chart lifecycle operations create, list, read, move, fit, and delete charts.
 Chart-configuration operations manage series, titles, axes, labels, styles, and
 trendlines. Reuse the returned chart name rather than assuming Excel's default.

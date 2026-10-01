@@ -1,5 +1,9 @@
 # M Code Syntax Reference
 
+This is a language reference, not a platform capability promise. ExcelMcp's
+Power Query actions are **Windows-only** in the experimental Mac beta. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 ## Column/Field Name Quoting (CRITICAL)
 
 M code requires `#"..."` quoting for identifiers with hyphens, spaces, or special characters:

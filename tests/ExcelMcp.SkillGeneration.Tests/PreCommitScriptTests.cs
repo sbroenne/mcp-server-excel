@@ -27,6 +27,8 @@ public sealed class PreCommitScriptTests
     [InlineData("scripts/Update-AwesomeCopilot.mjs", true, false)]
     [InlineData(".github/workflows/update-awesome-copilot.md", true, false)]
     [InlineData(".github/workflows/publish-plugins.yml", true, false)]
+    [InlineData("scripts/Build-MacReleasePackages.ps1", false, false)]
+    [InlineData("scripts/Build-MacScreenCaptureHelper.ps1", false, false)]
     [InlineData("scripts/Build-AgentSkills.ps1", true, false)]
     [InlineData("tests/ExcelMcp.Core.Tests/ExampleTests.cs", true, false)]
     [InlineData("scripts/pre-commit.ps1", true, false)]
@@ -46,16 +48,33 @@ public sealed class PreCommitScriptTests
     public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
     {
         var result = await RunHookAsync(path);
+        var supportedExcelHost = OperatingSystem.IsWindows()
+            || OperatingSystem.IsMacOS()
+                && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+                    == System.Runtime.InteropServices.Architecture.Arm64;
 
         Assert.Equal(build, result.Output.Contains("dotnet build", StringComparison.Ordinal));
-        Assert.Equal(excel, result.Output.Contains("e2e-ran", StringComparison.Ordinal));
+        Assert.Equal(
+            excel && supportedExcelHost,
+            result.Output.Contains("e2e-ran", StringComparison.Ordinal));
         Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm ci", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
-        Assert.True(result.ExitCode == 0, result.Output);
+        if (excel && !supportedExcelHost)
+        {
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(
+                "Desktop Excel validation requires Windows or Apple Silicon macOS",
+                result.Output,
+                StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
     }
 
     [Fact]
@@ -66,6 +85,30 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
         Assert.Contains("non-packaging-tests-ran", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExcelValidation_FailsClosedOnUnsupportedHostArchitecture()
+    {
+        var preCommit = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "pre-commit.ps1"));
+        var e2e = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Test-E2E.ps1"));
+
+        Assert.Contains(
+            "[Runtime.InteropServices.Architecture]::Arm64",
+            preCommit,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Desktop Excel validation requires Windows or Apple Silicon macOS",
+            preCommit,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "[Runtime.InteropServices.Architecture]::Arm64",
+            e2e,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Mac Excel E2E requires Apple Silicon",
+            e2e,
+            StringComparison.Ordinal);
     }
 
     [Theory]
@@ -94,8 +137,23 @@ public sealed class PreCommitScriptTests
     public async Task UnrelatedUnstagedDocs_DoNotBlockRuntimeChecks()
     {
         var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", unstaged: "docs/guide.md");
-        Assert.True(result.ExitCode == 0, result.Output);
-        Assert.Contains("e2e-ran", result.Output, StringComparison.Ordinal);
+        var supportedExcelHost = OperatingSystem.IsWindows()
+            || OperatingSystem.IsMacOS()
+                && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+                    == System.Runtime.InteropServices.Architecture.Arm64;
+        if (supportedExcelHost)
+        {
+            Assert.True(result.ExitCode == 0, result.Output);
+            Assert.Contains("e2e-ran", result.Output, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(
+                "Desktop Excel validation requires Windows or Apple Silicon macOS",
+                result.Output,
+                StringComparison.Ordinal);
+        }
     }
 
     [Theory]
@@ -108,6 +166,11 @@ public sealed class PreCommitScriptTests
     [InlineData("Test-E2E")]
     public async Task SelectedCheckFailure_IsNeverSwallowed(string failure)
     {
+        if (failure == "Test-E2E" && !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
         var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", failure: failure);
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("check-root-cause", result.Output, StringComparison.Ordinal);

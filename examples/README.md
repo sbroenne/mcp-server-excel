@@ -2,6 +2,11 @@
 
 This directory contains example scripts demonstrating ExcelMcp CLI features.
 
+The demo below is Windows-only because it includes Power Query. Apple Silicon
+macOS support is experimental beta; use native paths and only
+[enabled actions](../docs/MACOS-ACTION-INVENTORY.md).
+See [unsupported Mac features](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 ## Session Mode Demo
 
 The session mode demo shows how to use sessions for high-performance multi-operation workflows.
@@ -47,10 +52,11 @@ excelcli session close --session $session --save
 
 ### Expected Performance
 
-Session mode is **75-90% faster** than running individual commands because:
+Session mode avoids repeated workbook setup:
 - Only one Excel instance is opened
 - No file open/close overhead between operations
-- All changes committed atomically
+- Operations reuse the same session; a failure does not roll back earlier
+  mutations, and saving is explicit
 
 ### Cleanup
 

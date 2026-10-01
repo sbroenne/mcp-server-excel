@@ -33,12 +33,12 @@ public static partial class ExcelFileTool
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
     /// Open/create/test default to 120 seconds. Cancellation is not undo; inspect list before continuing.
-    /// Test validates ordinary files through a temporary read-only Excel open. IRM/AIP files may require
-    /// visible authentication and read-only access: inspect canOpen, isIrmProtected, willOpenReadOnly,
-    /// and requiresVisibleSession. Test does not bypass authentication.
+    /// Test checks path, extension, access, and IRM/AIP signals without opening or inspecting workbook contents.
+    /// Inspect preflightPassed, isIrmProtected, willOpenReadOnly, and requiresVisibleSession;
+    /// isValid and canOpen remain false until Excel opens the workbook. Test does not bypass authentication.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
-    /// <param name="path">Full Windows workbook path. Required for open, create, test. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
+    /// <param name="path">Absolute native workbook path. Required for open, create, test. Create supports .xlsx and, on Windows, .xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
@@ -68,7 +68,7 @@ public static partial class ExcelFileTool
 
             if (action is FileAction.Open or FileAction.Create)
             {
-                var pathError = ExcelToolsBase.ValidateWindowsPath(path);
+                var pathError = ExcelToolsBase.ValidateAbsolutePath(path);
                 if (pathError is not null)
                     return pathError;
             }

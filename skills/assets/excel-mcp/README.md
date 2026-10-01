@@ -2,6 +2,10 @@
 
 Agent Skill for AI assistants using the Excel MCP Server via the Model Context Protocol.
 
+**macOS support is experimental beta**, with the same capability gate as the
+runtime. See [unsupported Mac features](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+Windows retains the complete backend.
+
 ## Best For
 
 - **Conversational AI** (Claude Desktop, VS Code Chat)

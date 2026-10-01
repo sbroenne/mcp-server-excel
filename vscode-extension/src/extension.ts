@@ -13,7 +13,8 @@ export async function activate(context: Pick<vscode.ExtensionContext, 'extension
 		output.appendLine(message);
 		throw new Error(message);
 	}
-	const executable = join(context.extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
+	const runtime = resolveBundledRuntime(process.platform, process.arch);
+	const executable = join(context.extensionPath, 'bin', runtime.directory, runtime.executable);
 
 	context.subscriptions.push(
 		vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
@@ -57,6 +58,30 @@ export async function activate(context: Pick<vscode.ExtensionContext, 'extension
 			output.appendLine(`Could not save the welcome preference. Getting-started help may appear again. ${detail}`);
 		}
 	}
+}
+
+export function resolveBundledRuntime(
+	platform: NodeJS.Platform,
+	architecture: string
+): { directory: string; executable: string } {
+	if (platform === 'win32' && (architecture === 'x64' || architecture === 'arm64')) {
+		return {
+			directory: `win32-${architecture}`,
+			executable: 'Sbroenne.ExcelMcp.McpServer.exe'
+		};
+	}
+
+	if (platform === 'darwin' && architecture === 'arm64') {
+		return {
+			directory: 'darwin-arm64',
+			executable: 'Sbroenne.ExcelMcp.McpServer'
+		};
+	}
+
+	throw new Error(
+		`Excel MCP Server does not include a runtime for ${platform}-${architecture}. ` +
+		'Supported platforms are Windows x64/ARM64 and Apple Silicon macOS. Intel macOS is not supported.'
+	);
 }
 
 async function showWelcomeMessage(output: vscode.OutputChannel) {

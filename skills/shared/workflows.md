@@ -1,6 +1,10 @@
 # Excel MCP Server - Key Constraints
 
-These are the critical constraints and workarounds specific to Excel automation via COM.
+These sequencing workflows describe the **Windows COM backend**. Power Query,
+Data Model/DAX, charts, and screenshots are unavailable in the experimental
+macOS beta. Basic worksheet/range/named-range setup can be used on Mac, but does
+not enable a Power Query workflow. Check
+[macOS support](https://excelmcpserver.dev/macos-support/) before selecting actions.
 
 ## Excel Power Pivot Limitations
 

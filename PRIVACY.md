@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** September 20, 2026
+**Last Updated:** September 30, 2026
 
 ## Overview
 
@@ -73,7 +73,10 @@ Telemetry is sent to **Azure Application Insights**, a Microsoft service. Data i
 
 ExcelMcp drives the Excel application on your local machine:
 
-1. **Local Processing** - All Excel operations are performed locally via Microsoft's COM API
+1. **Local Automation** - ExcelMcp controls local Excel through COM on Windows
+   or Apple Events on Apple Silicon macOS; optional Office.js uses authenticated
+   localhost HTTPS bound to the exact saved workbook. Python in Excel and
+   remote formatting have the separate network flows described below.
 2. **Your Files Stay Local** - Excel files are read from and written to your local filesystem only
 3. **Tool Results** - Data requested by your AI assistant is returned through
    your MCP client or CLI process; your assistant's privacy policy governs how
@@ -94,6 +97,10 @@ When you use ExcelMcp with an AI assistant (like Claude):
 5. The MCP Server or CLI can send anonymous usage telemetry to Azure Application Insights
 
 Some operations have additional data flows:
+
+macOS support is an [experimental beta subset](specs/MACOS-SUPPORT.md). Remote
+M/DAX formatting belongs to Windows-only query/model actions; licensed Python
+formula writes are enabled on Mac, but Python result reads are not.
 
 - Setting `formatMCode=true` sends the supplied M code to
   [powerqueryformatter.com](https://powerqueryformatter.com/).

@@ -8,6 +8,14 @@
 **Command-line interface for Excel automation — preferred by coding agents.**
 
 > **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli@latest --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+
+> **macOS support is experimental beta.** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads are not
+> supported. Windows retains the complete backend. See
+> [macOS beta limitations](../../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta);
+> test on copies of important workbooks.
+
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
@@ -18,6 +26,8 @@ The CLI provides 31 feature command categories with 326 operations matching the 
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection |
 
 Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+Excel-dependent jobs need an interactive desktop with Excel; headless CI and
+GitHub-hosted runners are not supported.
 
 ➡️ **[Learn more and see examples](https://excelmcpserver.dev/)**
 
@@ -35,7 +45,7 @@ excelcli --version
 ```
 
 Requires Node.js 18+. Keep optional dependencies enabled so npm installs the
-matching Windows runtime. ARM64 Node.js selects the native ARM64 package;
+matching platform runtime. On Windows, ARM64 Node.js selects the native ARM64 package;
 x64 Node.js selects the x64 package, which runs through emulation on ARM64
 Windows. A missing matching runtime fails with reinstall guidance rather than
 falling back to another architecture. CLI arguments follow the package name
@@ -46,8 +56,8 @@ service for an update.
 
 ### Primary Installation: Standalone Executable
 
-1. Download **`ExcelMcp-CLI-{version}-windows.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Extract `excelcli.exe` to a permanent location (e.g., `C:\Tools\ExcelMcp\`) and add the directory to your PATH
+1. Download **`ExcelMcp-CLI-{version}-windows.zip`** or **`ExcelMcp-CLI-{version}-macos-arm64.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Extract `excelcli.exe` (Windows) or `excelcli` (macOS) to a permanent location and add the directory to your PATH
 3. Verify: `excelcli --version` and `excelcli --help`
 
 ### Secondary Installation: .NET Global Tool
@@ -67,9 +77,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 What You Can Do
 
-ExcelMcp.CLI provides **326 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
+ExcelMcp.CLI provides **326 operations** across its feature categories through
+the complete Windows backend. Apple Silicon macOS supports the enabled session,
+worksheet lifecycle/style, range value/formula/copy/format/merge/lock, named
+range, calculation, Goal Seek, Data Table, and Python formula-write operations;
+unsupported operations fail explicitly. See the
+[generated macOS action inventory](../../docs/MACOS-ACTION-INVENTORY.md) for the
+exact current list.
 
-Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
+It drives the **actual Excel application** via COM on Windows and Apple Events on macOS.
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Full documentation with all operations, grouped by category
 
@@ -77,8 +93,9 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 
 ## ⚙️ System Requirements
 
-- **Windows OS** (Windows 10/11 or Server 2016+) + **Microsoft Excel 2016 or later** — COM interop is Windows-specific and requires Excel to be installed
-- **Node.js 18+** only if using npm; Windows x64 and ARM64 are supported, with the runtime selected by Node.js architecture
+- **Windows:** Windows 10/11 or Server 2016+ with Microsoft Excel 2016 or later
+- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+- **Node.js 18+** only if using npm; native runtimes support Windows x64, Windows ARM64, and Apple Silicon macOS, selected by Node.js platform and architecture
 - **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for npm or the standalone exe)
 
 📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites
@@ -124,15 +141,14 @@ where.exe excelcli
 
 ### Permission Issues
 
-```powershell
-# Run PowerShell/CMD as Administrator if you encounter permission errors
-# excelcli.exe is a standalone exe - no installation needed
-```
+Resolve the specific denied file or Automation access; do not elevate privileges
+as a general workaround. On Mac, grant Excel Automation access manually for the
+actual requesting identity. Do not automate privacy or trust dialogs.
 
 ### IRM / AIP Protected Workbooks
 
 ```powershell
-# Validate an ordinary workbook through a temporary read-only Excel open
+# Check path/access metadata without opening or inspecting workbook contents
 excelcli -q session test "D:\Docs\Workbook.xlsx" --timeout 120
 
 # Inspect deterministic protection requirements before an interactive open
@@ -142,12 +158,13 @@ excelcli -q session test "D:\Docs\Protected.xlsx"
 excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
 ```
 
-`session test` reports `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and
+`session test` reports `preflightPassed`, `isValid`, `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and
 `requiresVisibleSession` using the same result model as MCP `file test`. Protected
 files report `canOpen:false` until interactive Excel authentication occurs. Use
 `--show` whenever hidden automation would block on a sign-in, consent, or
-information-protection prompt. Ordinary files are opened read-only in a temporary
-Excel session and closed without saving.
+information-protection prompt. Successful preflight does not establish validity
+or openability: `isValid` and `canOpen` remain false because workbook content is
+opaque. Use `session open` when Excel must validate the actual workbook.
 
 ### Daemon Status and Session Discovery
 
@@ -167,6 +184,8 @@ allows up to 30 seconds.
 ## 🛠️ Advanced Usage
 
 ### Scripting & Automation
+
+This Power Query/Data Model example requires **Windows**.
 
 ```powershell
 # PowerShell script example
@@ -216,6 +235,9 @@ dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "Layer=C
 ```
 
 These tests open actual workbooks, issue `session open/list/close`, and call `excelcli sheet` actions to ensure the command pipeline stays healthy.
+That project selection requires Windows. On Apple Silicon, use
+`pwsh ./scripts/Test-MacE2E.ps1` for real CLI/MCP beta acceptance; it does not
+substitute for Windows COM coverage.
 
 ---
 

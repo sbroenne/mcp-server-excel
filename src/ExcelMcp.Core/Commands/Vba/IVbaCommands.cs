@@ -22,6 +22,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// ExcelMcp does not configure VBA trust settings for you.
 /// </summary>
 [ServiceCategory("vba", "Vba")]
+[MacCapability(
+    MacCapabilityTier.Unsupported,
+    MacImplementationStatus.Blocked,
+    false,
+    Evidence = "Excel for Mac 16.113.1 Apple Events exposes no VBProject, VBComponents, or CodeModule surface, and Office.js exposes no VBA project API.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js API review.",
+    Blocker = "no supported local macOS API can satisfy the VBA source contract; ExcelMcp does not ship a VBA helper or change project-model trust")]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
     Description = "VBA module and procedure operations for macro-enabled workbooks (.xlsm). Lists and views existing VBA components, imports new standard modules, updates or deletes module code, and runs procedures. VBA project inspection and editing require Trust Center access; running an existing macro does not. ExcelMcp does not configure Trust Center settings.")]
 public interface IVbaCommands
@@ -61,6 +68,13 @@ public interface IVbaCommands
     /// <param name="procedureName">Name of the procedure to run (for example "Module1.MySub")</param>
     /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
     /// <param name="parameters">Optional parameters to pass to the procedure</param>
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
+        false,
+        Evidence = "Excel for Mac exposes run VB macro, but reliable exact-workbook execution, bounded arguments, timeout reconciliation, and prompt-free behavior cannot satisfy the public contract without a VBA helper.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "ExcelMcp does not ship a VBA helper or request macro trust; use Windows Excel for supported VBA execution")]
     [ServiceAction("run")]
     OperationResult Run(IExcelBatch batch, [RequiredParameter] string procedureName, TimeSpan? timeout, params string[] parameters);
 
@@ -71,4 +85,3 @@ public interface IVbaCommands
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
 }
-
