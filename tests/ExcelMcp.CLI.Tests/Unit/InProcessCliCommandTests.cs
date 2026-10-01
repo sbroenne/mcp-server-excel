@@ -44,6 +44,31 @@ public sealed class InProcessCliCommandTests
         }
     }
 
+    [Theory]
+    [InlineData("session", "open", "--show")]
+    [InlineData("session", "close", "--save")]
+    [InlineData("service", null, "stop")]
+    [InlineData("range", null, "--sheet")]
+    [InlineData("range", null, "--range")]
+    [InlineData("range", null, "--values")]
+    public async Task CommandHelp_ExposesLifecycleCommandsAndNativeOptionsWithoutConnecting(
+        string command, string? branch, string option)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        string[] arguments = branch is null
+            ? ["--quiet", command, "--help"]
+            : ["--quiet", command, branch, "--help"];
+
+        var exitCode = await Program.RunAsync(arguments, CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(string.Empty, error.ToString());
+        Assert.Contains(option, output.ToString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task SessionOpen_ServiceFailure_PreservesRequestExitAndErrorEnvelope()
     {

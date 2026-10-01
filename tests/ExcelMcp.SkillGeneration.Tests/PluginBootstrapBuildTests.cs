@@ -33,6 +33,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     [Theory]
     [InlineData("excel-mcp")]
     [InlineData("excel-cli")]
+    [Trait("Feature", "SkillGeneration")]
     public void SourcePluginManifest_ConformsToAgentPluginsV1(string pluginName)
     {
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
@@ -47,14 +48,32 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BuildAgentSkills_UsesPortableNewlinesForSurfaceExamples()
+    [Trait("Feature", "SkillGeneration")]
+    public void PackagedReferences_AreReachableFromEachSkill()
     {
-        var script = File.ReadAllText(BuildAgentSkillsScript);
-
-        Assert.Contains("-replace \"`r`n?\", \"`n\"", script, StringComparison.Ordinal);
-        Assert.Contains("(?<surface>cli|mcp)", script, StringComparison.Ordinal);
-        Assert.Contains("$match.Groups['body'].Value + '```' + \"`n\"", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("CLI syntax note", script, StringComparison.Ordinal);
+        foreach (var skill in new[] { "excel-cli", "excel-mcp" })
+        {
+            var root = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, skill);
+            var pending = new Stack<string>();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            pending.Push(Path.Combine(root, "SKILL.md"));
+            while (pending.TryPop(out var path))
+            {
+                path = Path.GetFullPath(path);
+                if (!visited.Add(path))
+                    continue;
+                Assert.True(File.Exists(path), $"Missing linked file: {path}");
+                foreach (Match match in Regex.Matches(File.ReadAllText(path), @"\]\(([^)]+)\)"))
+                {
+                    var target = match.Groups[1].Value.Split('#')[0];
+                    if (target.Length > 0 && !target.Contains("://", StringComparison.Ordinal)
+                        && target.EndsWith(".md", StringComparison.Ordinal))
+                        pending.Push(Path.Combine(Path.GetDirectoryName(path)!, target));
+                }
+            }
+            foreach (var reference in Directory.GetFiles(Path.Combine(root, "references"), "*.md", SearchOption.AllDirectories))
+                Assert.Contains(Path.GetFullPath(reference), visited);
+        }
     }
 
     [Fact]
@@ -294,9 +313,17 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     private static void AssertAgentSkill(string skillRoot, string expectedName)
     {
         var content = File.ReadAllText(Path.Combine(skillRoot, "SKILL.md"));
-        Assert.StartsWith("---", content, StringComparison.Ordinal);
-        Assert.Matches($@"(?m)^name:\s*{Regex.Escape(expectedName)}\s*$", content);
-        Assert.Contains("Use when", content, StringComparison.OrdinalIgnoreCase);
+        var header = Regex.Match(content, @"\A---\r?\n(?<header>.*?)\r?\n---(?:\r?\n|\z)", RegexOptions.Singleline);
+        Assert.True(header.Success, "Skill metadata header is missing.");
+        var metadata = header.Groups["header"].Value;
+        Assert.Matches($@"(?m)^name:\s*{Regex.Escape(expectedName)}\s*$", metadata);
+        var lines = metadata.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
+        var index = Array.FindIndex(lines, line => line.StartsWith("description:", StringComparison.Ordinal));
+        Assert.True(index >= 0, "Skill description metadata is missing.");
+        var description = lines[index]["description:".Length..].Trim();
+        if (description is ">" or ">-" or "|" or "|-")
+            description = string.Join(" ", lines.Skip(index + 1).TakeWhile(line => line.StartsWith(' '))).Trim();
+        Assert.False(string.IsNullOrWhiteSpace(description), "Skill description metadata is empty.");
     }
 
     private static void AssertSkillDirectoryMatchesSource(

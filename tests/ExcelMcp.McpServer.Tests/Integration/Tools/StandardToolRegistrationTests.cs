@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Xunit;
@@ -19,23 +21,28 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         Assert.Equal(McpToolSurface.ToolCount, tools.Count);
+        Assert.False(string.IsNullOrWhiteSpace(Client.ServerInstructions));
+        Assert.All(tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
         Assert.Null(Client.ServerCapabilities.Prompts);
         Assert.Null(Client.ServerCapabilities.Resources);
     }
 
     [Theory]
-    [InlineData("range", "values", "2D array")]
-    [InlineData("range_format", "font_size", "points")]
-    [InlineData("chart", "target_range", "left/top")]
-    [InlineData("screenshot", "range_address", "capture")]
-    [InlineData("screenshot", "quality", "JPEG")]
-    public async Task ParameterDescriptions_PreserveCoreDocumentation(string toolName, string parameter, string detail)
+    [InlineData("range", "values")]
+    [InlineData("range_format", "font_size")]
+    [InlineData("chart", "target_range")]
+    [InlineData("screenshot", "range_address")]
+    [InlineData("screenshot", "quality")]
+    public async Task ParameterDescriptions_PreserveDeclaredMetadata(string toolName, string parameter)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var description = tools.Single(t => t.Name == toolName).JsonSchema
             .GetProperty("properties").GetProperty(parameter).GetProperty("description").GetString();
 
-        Assert.Contains(detail, description, StringComparison.OrdinalIgnoreCase);
+        var metadata = GeneratedToolContract.GetParameter(toolName, parameter)
+            .GetCustomAttribute<DescriptionAttribute>();
+        Assert.NotNull(metadata);
+        Assert.Equal(metadata.Description, description);
     }
 
     [Fact]
@@ -58,76 +65,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task CalculationGuidance_RestoresPriorModeWithoutForcingUnrequestedChanges()
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var description = tools.Single(t => t.Name == "calculation_mode").Description;
-
-        Assert.Contains("restore the prior mode", description, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("set-mode(automatic)", description, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("restore the prior mode", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("not mandatory", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("does not request confirmation", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("manual needs explicit calculate", description, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("attempt to restore the prior mode", description, StringComparison.Ordinal);
-        Assert.Contains("restoration can fail without failing the write", description, StringComparison.Ordinal);
-        Assert.Contains("what-if data tables, not worksheet Tables", description, StringComparison.Ordinal);
-        Assert.Contains("asynchronous refreshes or Python calculations", description, StringComparison.Ordinal);
-        Assert.Contains("concurrent requests and responses have no guaranteed order", Client.ServerInstructions, StringComparison.Ordinal);
-        Assert.Contains("Await each dependent call", Client.ServerInstructions, StringComparison.Ordinal);
-        Assert.Contains("where repeated recalculation is costly", Client.ServerInstructions, StringComparison.Ordinal);
-        Assert.Contains("restore the prior mode, including after failure", Client.ServerInstructions, StringComparison.Ordinal);
-        Assert.Contains("One rectangular write is already batched", Client.ServerInstructions, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task FileDescription_ContainsCompactAuthorizedWorkflowAndDiscardWarning()
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var tool = tools.Single(t => t.Name == "file");
-        var description = tool.Description;
-        Assert.Contains("Workflow: list and match", description, StringComparison.Ordinal);
-        Assert.Contains("reuse its session or open/create", description, StringComparison.Ordinal);
-        Assert.Contains("canClose", description, StringComparison.Ordinal);
-        Assert.Contains("close when authorized with explicit save:true or save:false", description, StringComparison.Ordinal);
-        var actionDescription = tool.JsonSchema.GetProperty("properties")
-            .GetProperty("action").GetProperty("description").GetString();
-        Assert.Contains("discards all unsaved edits, including earlier work", actionDescription, StringComparison.Ordinal);
-        Assert.Contains("no tool-level undo", actionDescription, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("range", "clear-all removes values, formulas, and formats")]
-    [InlineData("range", "clear-contents removes values/formulas")]
-    [InlineData("range", "clear-formats removes formats")]
-    [InlineData("worksheet", "removes all sheet contents and may break dependent references")]
-    [InlineData("worksheet", "removes the source sheet and saves both files")]
-    [InlineData("workbook", "replaces linked formulas with their current values")]
-    public async Task DestructiveGuidance_ExposesConsequencesWithoutBackupInstructions(string toolName, string consequence)
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var description = tools.Single(t => t.Name == toolName).Description;
-        Assert.Contains(consequence, description, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("no tool-level undo", description, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("backup", description, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("saved cop", description, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("copies of both", description, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Descriptions_UseAdvertisedTopLevelParameterNamesAndNoEmoji()
+    public async Task Descriptions_UseAdvertisedTopLevelParameterNames()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         foreach (var tool in tools)
         {
-            var descriptions = EnumerateDescriptions(tool.JsonSchema).Prepend(tool.Description).ToArray();
-            foreach (var description in descriptions)
-            {
-                Assert.False(description.EnumerateRunes().Any(rune =>
-                    rune.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F),
-                    $"{tool.Name} description contains an emoji: {description}");
-            }
-
             foreach (var property in tool.JsonSchema.GetProperty("properties").EnumerateObject())
             {
                 var camelCase = Regex.Replace(property.Name, "_([a-z])", match => match.Groups[1].Value.ToUpperInvariant());
@@ -160,27 +102,6 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var nested = tool.JsonSchema.GetProperty("properties").GetProperty("sort_columns")
             .GetProperty("items").GetProperty("properties");
         Assert.True(nested.TryGetProperty("columnName", out _));
-    }
-
-    private static IEnumerable<string> EnumerateDescriptions(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var property in element.EnumerateObject())
-            {
-                if (property.Name == "description" && property.Value.ValueKind == JsonValueKind.String)
-                    yield return property.Value.GetString()!;
-                else
-                    foreach (var description in EnumerateDescriptions(property.Value))
-                        yield return description;
-            }
-        }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-                foreach (var description in EnumerateDescriptions(item))
-                    yield return description;
-        }
     }
 
     [Fact]

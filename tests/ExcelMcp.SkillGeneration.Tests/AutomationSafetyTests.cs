@@ -179,8 +179,11 @@ public sealed class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
-    public async Task SkillGeneration_SelectsNativeExamplesWithoutTranslatingContent()
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [Trait("Feature", "SkillGeneration")]
+    public async Task SkillGeneration_SelectsNativeExamplesWithoutTranslatingContent(string newline)
     {
         var root = NewSandbox();
         try
@@ -192,7 +195,7 @@ public sealed class AutomationSafetyTests
                 if (-not $function) { throw 'Missing shared-reference renderer.' }
                 . ([scriptblock]::Create($function.Extent.Text))
                 $SharedDir = New-Item -ItemType Directory -Path shared
-                @'
+                $document = @'
                 # Workflow
                 Shared policy uses sessionId responses.
                 ```cli
@@ -204,7 +207,9 @@ public sealed class AutomationSafetyTests
                 ```json
                 {"mCodeFile":"query.m"}
                 ```
-                '@ | Set-Content -LiteralPath (Join-Path $SharedDir 'workflow.md')
+                '@
+                $newline = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(newline))}}'))
+                [IO.File]::WriteAllText((Join-Path $SharedDir 'workflow.md'), (($document -replace "`r`n?", "`n") -replace "`n", $newline))
                 foreach ($surface in @('cli', 'mcp')) {
                     Copy-SharedReferences -SkillPath "excel-$surface" -SkillName "excel-$surface"
                     $content = Get-Content -LiteralPath "excel-$surface\references\workflow.md" -Raw

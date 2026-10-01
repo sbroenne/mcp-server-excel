@@ -12,6 +12,20 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 public sealed class GeneratedMcpParameterTests
 {
     [Fact]
+    public void TimeSpanAndFileInputs_AreExposedAsOptionalSecondsAndFileAliases()
+    {
+        var timeout = GeneratedToolContract.GetParameter("powerquery", "timeout_seconds");
+        Assert.Equal(typeof(int?), timeout.ParameterType);
+        Assert.True(timeout.IsOptional);
+        Assert.Null(timeout.DefaultValue);
+        var file = GeneratedToolContract.GetParameter("powerquery", "m_code_file");
+        Assert.Equal(typeof(string), file.ParameterType);
+        Assert.True(file.IsOptional);
+        Assert.Null(file.DefaultValue);
+        Assert.Equal(NullabilityState.Nullable, new NullabilityInfoContext().Create(file).ReadState);
+    }
+
+    [Fact]
     public void CalculationParameters_KeepActionSpecificEnumsAsOptionalStrings()
     {
         foreach (var name in new[] { "mode", "scope" })

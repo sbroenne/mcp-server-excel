@@ -89,23 +89,65 @@ public sealed class PersistentServiceCalculationTests(
         AssertModeRoundTrip(CalculationMode.SemiAutomatic, "semi-automatic", 2);
     }
 
-    [Fact]
-    public void Calculate_WorkbookScope_Succeeds()
+    [Theory]
+    [InlineData(CalculationScope.Workbook, 9d, 6d, 9d)]
+    [InlineData(CalculationScope.Sheet, 9d, 4d, 6d)]
+    [InlineData(CalculationScope.Range, 6d, 4d, 6d)]
+    public void Calculate_UpdatesOnlyTheRequestedIndependentScope(
+        CalculationScope scope, double targetOtherCell, double otherSheetCell, double otherSheetOtherCell)
     {
-        try
+        var previous = _calculation.GetMode(_fixture.BatchToken);
+        Assert.True(previous.Success, previous.ErrorMessage);
+        var range = _fixture.CreateCommands<IRangeCommands>();
+        var failure = Record.Exception(() =>
         {
-            Assert.True(_calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual).Success);
+            var manual = _calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual);
+            Assert.True(manual.Success, manual.ErrorMessage);
+            var target = _fixture.CreateTestSheet(_fixture.BatchToken);
+            var other = _fixture.CreateTestSheet(_fixture.BatchToken);
+            foreach (var sheet in new[] { target, other })
+            {
+                var input = range.SetValues(_fixture.BatchToken, sheet, "A1", [[2]]);
+                Assert.True(input.Success, input.ErrorMessage);
+                var first = range.SetFormulas(_fixture.BatchToken, sheet, "B1", [["=A1*2"]]);
+                Assert.True(first.Success, first.ErrorMessage);
+                var second = range.SetFormulas(_fixture.BatchToken, sheet, "D1", [["=A1*3"]]);
+                Assert.True(second.Success, second.ErrorMessage);
+            }
+            var baseline = _calculation.Calculate(_fixture.BatchToken, CalculationScope.Workbook);
+            Assert.True(baseline.Success, baseline.ErrorMessage);
+            foreach (var sheet in new[] { target, other })
+            {
+                AssertCells(sheet, 4d, 6d);
+                var change = range.SetValues(_fixture.BatchToken, sheet, "A1", [[3]], overwritePolicy: OverwritePolicy.Allow);
+                Assert.True(change.Success, change.ErrorMessage);
+                AssertCells(sheet, 4d, 6d);
+            }
 
-            var result = _calculation.Calculate(
-                _fixture.BatchToken,
-                CalculationScope.Workbook);
+            var calculated = _calculation.Calculate(_fixture.BatchToken, scope,
+                scope == CalculationScope.Workbook ? null : target,
+                scope == CalculationScope.Range ? "B1" : null);
+            Assert.True(calculated.Success, calculated.ErrorMessage);
+            AssertCells(target, 6d, targetOtherCell);
+            AssertCells(other, otherSheetCell, otherSheetOtherCell);
 
-            Assert.True(result.Success, result.ErrorMessage);
-        }
-        finally
+            void AssertCells(string sheet, double first, double second)
+            {
+                var values = range.GetValues(_fixture.BatchToken, sheet, "B1:D1");
+                Assert.True(values.Success, values.ErrorMessage);
+                Assert.Equal(first, Convert.ToDouble(values.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(second, Convert.ToDouble(values.Values[0][2], System.Globalization.CultureInfo.InvariantCulture));
+            }
+        });
+        var restoration = Record.Exception(() =>
         {
-            _calculation.SetMode(_fixture.BatchToken, CalculationMode.Automatic);
-        }
+            var restored = _calculation.SetMode(_fixture.BatchToken, (CalculationMode)previous.ModeValue);
+            Assert.True(restored.Success, restored.ErrorMessage);
+        });
+        if (restoration != null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, restoration);
+        if (failure != null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Fact]
@@ -121,27 +163,6 @@ public sealed class PersistentServiceCalculationTests(
     }
 
     [Fact]
-    public void Calculate_SheetScope_WithValidSheetName_Succeeds()
-    {
-        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        try
-        {
-            Assert.True(_calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual).Success);
-
-            var result = _calculation.Calculate(
-                _fixture.BatchToken,
-                CalculationScope.Sheet,
-                sheetName);
-
-            Assert.True(result.Success, result.ErrorMessage);
-        }
-        finally
-        {
-            _calculation.SetMode(_fixture.BatchToken, CalculationMode.Automatic);
-        }
-    }
-
-    [Fact]
     public void Calculate_RangeScope_RequiresBothSheetAndRange()
     {
         var result = _calculation.Calculate(
@@ -152,28 +173,6 @@ public sealed class PersistentServiceCalculationTests(
 
         Assert.False(result.Success);
         Assert.Contains("rangeAddress are required", result.ErrorMessage ?? "");
-    }
-
-    [Fact]
-    public void Calculate_RangeScope_WithValidParameters_Succeeds()
-    {
-        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        try
-        {
-            Assert.True(_calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual).Success);
-
-            var result = _calculation.Calculate(
-                _fixture.BatchToken,
-                CalculationScope.Range,
-                sheetName,
-                "A1:C10");
-
-            Assert.True(result.Success, result.ErrorMessage);
-        }
-        finally
-        {
-            _calculation.SetMode(_fixture.BatchToken, CalculationMode.Automatic);
-        }
     }
 
     [Fact]

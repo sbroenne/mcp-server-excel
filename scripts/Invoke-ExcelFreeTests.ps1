@@ -3,6 +3,7 @@ param(
     [switch]$Local,
     [switch]$HookTests,
     [switch]$Contracts,
+    [switch]$SkillTests,
     [string[]]$ChangedPaths = @()
 )
 $ErrorActionPreference = 'Stop'
@@ -10,10 +11,15 @@ $root = Split-Path -Parent $PSScriptRoot
 $selections = [ordered]@{}
 if ($Local) {
     if ($HookTests) { $selections['SkillGeneration'] = 'Feature=PreCommit|Feature=AutomationSafety' }
+    if ($SkillTests) {
+        $selections['SkillGeneration'] = if ($selections['SkillGeneration']) {
+            "$($selections['SkillGeneration'])|Feature=SkillGeneration"
+        } else { 'Feature=SkillGeneration' }
+    }
     if ($Contracts) {
         $selections['Core'] = 'Feature=GeneratedContracts'
         $selections['CLI'] = 'FullyQualifiedName~GeneratedActionContractCliTests'
-        $selections['McpServer'] = 'FullyQualifiedName~CoreCommandsCoverageTests|FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests'
+        $selections['McpServer'] = 'FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests'
     }
     foreach ($path in $ChangedPaths) {
         if ($path -match '(PluginPublication|Publish-PreparedPlugins|PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot|update-awesome-copilot|publish-plugins)') {

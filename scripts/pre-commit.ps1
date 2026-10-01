@@ -60,7 +60,7 @@ try {
             dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
         }
         Invoke-Check 'Running focused non-packaging tests' {
-            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -ChangedPaths $paths
+            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -ChangedPaths $paths
         }
     }
     if ($plan.Excel) {

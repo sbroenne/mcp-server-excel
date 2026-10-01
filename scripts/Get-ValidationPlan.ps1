@@ -12,6 +12,7 @@ function Get-ValidationPlan {
         Extension = $false
         Mcpb = $false
         Skills = $false
+        SkillTests = $false
         Plugins = $false
         Reasons = [Collections.Generic.List[string]]::new()
     }
@@ -21,7 +22,7 @@ function Get-ValidationPlan {
             '^(Directory\.Build\..*|Directory\.Packages\.props|global\.json|NuGet\.Config|Sbroenne\.ExcelMcp\.sln)$' { 'runtime'; break }
             '^src/ExcelMcp\.(Core|ComInterop|Service|Cleanup|Generators[^/]*)/' { 'runtime'; break }
             '^src/ExcelMcp\.CLI/' { 'cli'; break }
-            '^src/ExcelMcp\.McpServer/|^skills/shared/' { 'mcp'; break }
+            '^src/ExcelMcp\.McpServer/' { 'mcp'; break }
             '^src/ExcelMcp\.Build\.Tasks/|^skills/' { 'skills'; break }
             '^src/ExcelMcp\.Diagnostics/|^\.editorconfig$' { 'build'; break }
             '^scripts/(Test-E2E|Test-CliWorkflow|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests)\.cs$' { 'runtime'; break }
@@ -57,6 +58,7 @@ function Get-ValidationPlan {
         if ($kind -in @('plugins', 'skills', 'packages', 'pipeline', 'runtime', 'cli', 'mcp', 'unknown')) { $plan.Plugins = $true }
         if ($kind -in @('build', 'tests', 'skills', 'plugins', 'pipeline')) { $plan.Build = $true }
         if ($kind -in @('tests', 'pipeline')) { $plan.HookTests = $true }
+        if ($kind -eq 'skills' -or $path -match '^tests/ExcelMcp\.SkillGeneration\.Tests/') { $plan.SkillTests = $true }
     }
     [pscustomobject]$plan
 }

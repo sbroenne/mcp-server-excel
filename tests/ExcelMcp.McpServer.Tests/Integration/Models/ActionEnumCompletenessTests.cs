@@ -170,37 +170,7 @@ public class ActionEnumCompletenessTests(ITestOutputHelper output)
         }
     }
 
-    /// <summary>
-    /// CRITICAL: Verifies all *Tool.cs files have switch statements covering all enum values.
-    /// This ensures tool implementations don't get out of sync with enums.
-    ///
-    /// NOTE: This is a compile-time check via exhaustive switch expressions.
-    /// If switch is missing a case, C# compiler shows warning CS8524.
-    /// This test documents the expectation - actual enforcement is via compiler.
-    /// </summary>
-    [Fact]
-    public void AllActionEnums_DocumentedInToolFiles()
-    {
-        var actionEnums = typeof(ActionExtensions).Assembly
-            .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.Core.Models.Actions")
-            .ToList();
-
-        output.WriteLine($"\nExpected tool files with switch statements:");
-        output.WriteLine($"Each *Action enum should have corresponding *Tool.cs with exhaustive switch.\n");
-
-        foreach (var enumType in actionEnums)
-        {
-            var toolName = enumType.Name.Replace("Action", "Tool");
-            output.WriteLine($"  - {enumType.Name} → Tools/{toolName}.cs");
-            output.WriteLine($"    Expected: switch (action.ToActionString()) with all {Enum.GetValues(enumType).Length} cases");
-        }
-
-        output.WriteLine($"\n✅ Compiler enforces exhaustive switches via warning CS8524.");
-        output.WriteLine($"✅ Build with TreatWarningsAsErrors=true ensures no missing cases.");
-    }
 }
-
 
 
 
