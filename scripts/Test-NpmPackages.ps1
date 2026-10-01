@@ -6,6 +6,8 @@ param(
     [ValidateSet('x64', 'arm64')]
     [string]$Architecture = 'x64',
 
+    [switch]$ArchiveOnly,
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$LauncherPackage,
@@ -90,6 +92,10 @@ try {
         }
     }
     Write-Output "$Component $Architecture npm archives validated."
+    if ($ArchiveOnly) {
+        Write-Output "$Component $Architecture archive-only validation requested; native execution is a separate check."
+        return
+    }
     $nodeArchitecture = (& node.exe -p 'process.arch' | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Could not determine Node.js architecture.' }
     if ($nodeArchitecture -ne $Architecture) {

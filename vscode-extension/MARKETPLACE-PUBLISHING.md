@@ -62,6 +62,8 @@ When you run the release workflow (via `workflow_dispatch`):
 Building and publishing use the same `@vscode/vsce` version from the extension's
 lockfile. The Marketplace job checks out the exact release commit, installs its
 locked tools, and uploads the verified VSIX files without rebuilding them.
+Publishing runs on Windows because the extension declares `os: ["win32"]`;
+installing its locked tools on Linux fails with npm `EBADPLATFORM`.
 Each upload uses `--skip-duplicate`, so retrying a partially completed job can
 publish the missing platform without failing on the already published one.
 

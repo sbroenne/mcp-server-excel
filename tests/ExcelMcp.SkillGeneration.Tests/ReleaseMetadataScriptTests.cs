@@ -45,6 +45,57 @@ public sealed class ReleaseMetadataScriptTests
         "workflows",
         "publish-mcp-registry.yml");
 
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void VscodePublication_UsesWindowsForWindowsOnlyExtensionTools()
+    {
+        var publish = ExtractWorkflowJob(File.ReadAllText(ReleaseWorkflow), "publish-vscode");
+
+        Assert.Contains("needs: [version, create-tag]", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("if:", publish, StringComparison.Ordinal);
+        Assert.Contains("ref: ${{ needs.create-tag.outputs.commit }}", publish, StringComparison.Ordinal);
+        Assert.Contains("name: release-packages", publish, StringComparison.Ordinal);
+        Assert.Contains("runs-on: windows-latest", publish, StringComparison.Ordinal);
+        Assert.Contains("npm ci --ignore-scripts", publish, StringComparison.Ordinal);
+        Assert.Contains("shell: pwsh", publish, StringComparison.Ordinal);
+        Assert.Contains("Publish Windows x64 extension", publish, StringComparison.Ordinal);
+        Assert.Contains("Publish Windows ARM64 extension", publish, StringComparison.Ordinal);
+        Assert.Contains("--skip-duplicate", publish, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void PublicationJobs_UseImmutableActionReferences()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        foreach (var job in new[] { "publish-vscode", "verify-arm64" })
+        {
+            var body = ExtractWorkflowJob(workflow, job);
+            foreach (var line in body.Split('\n').Where(line => line.Contains("uses: actions/", StringComparison.Ordinal)))
+            {
+                Assert.Matches(@"uses: actions/[a-z-]+@[0-9a-f]{40} # v[0-9.]+", line);
+            }
+            Assert.Contains("uses: actions/checkout@", body, StringComparison.Ordinal);
+            Assert.Contains("uses: actions/setup-node@", body, StringComparison.Ordinal);
+            Assert.Contains("uses: actions/download-artifact@", body, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseValidation_ExecutesBothArm64PackagesBeforeCreatingTag()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        var nativeTests = ExtractWorkflowJob(workflow, "verify-arm64");
+
+        Assert.Contains("runs-on: windows-11-arm", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("architecture: arm64", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("@('Cli', 'McpServer')", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("-Architecture arm64", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("verify-arm64", ExtractWorkflowJob(workflow, "create-tag"), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(true, true, false)]
     [InlineData(true, false, false)]

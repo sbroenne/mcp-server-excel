@@ -130,6 +130,7 @@ try {
             }
             Invoke-PackageStep "$component $architecture installed npm package" {
                 & (Join-Path $PSScriptRoot 'Test-NpmPackages.ps1') -Component $npmComponent -Architecture $architecture `
+                    -ArchiveOnly:($architecture -eq 'arm64') `
                     -LauncherPackage (Join-Path $npmDir "sbroenne-$packageName-$Version.tgz") `
                     -RuntimePackage (Join-Path $npmDir "sbroenne-$packageName-win32-$architecture-$Version.tgz")
             }
