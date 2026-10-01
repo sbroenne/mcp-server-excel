@@ -1,7 +1,7 @@
 ---
 name: excel-mcp
 description: >
-  Workflow and recovery guidance for Excel MCP automation on Windows. Use for
+  Workflow and recovery guidance for Excel MCP automation on Windows. Use when handling
   Power Query loading failures, Data Model/DAX and PivotTable sequencing,
   preserving existing workbooks, or requested report formatting.
   Supports Excel workbooks, xlsx, xlsm, Tables, ranges, charts, and dashboards.

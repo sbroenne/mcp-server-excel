@@ -273,7 +273,8 @@ public class SkillMdQualityTests
     public void NativeCliHelp_HasDescribedArgumentsAndOptions()
     {
         var commandGroups = NativeCliCommandGroups();
-        Assert.True(commandGroups.Length >= 34, $"Expected all command groups, found {commandGroups.Length}.");
+        Assert.True(commandGroups.Length >= 34,
+            $"Expected all command groups, found {commandGroups.Length}.\n{ReadCliHelp()}");
         foreach (var command in commandGroups)
         {
             var help = ReadCliHelp(command);
@@ -634,7 +635,7 @@ public class SkillMdQualityTests
             process.WaitForExit();
             throw new TimeoutException($"CLI help for '{key}' exceeded 30 seconds.");
         }
-        var content = stdout.GetAwaiter().GetResult();
+        var content = NormalizeCliHelp(stdout.GetAwaiter().GetResult());
         var error = stderr.GetAwaiter().GetResult();
         Assert.True(process.ExitCode == 0, $"CLI help for '{key}' failed:\n{content}\n{error}");
         Assert.Equal(string.Empty, error);
@@ -642,12 +643,25 @@ public class SkillMdQualityTests
         return content;
     }
 
-    private static string[] NativeCliCommandGroups() =>
-        Regex.Matches(ReadCliHelp().Split("COMMANDS:", StringSplitOptions.None)[1],
+    [Theory]
+    [InlineData("COMMANDS:\n    range <ACTION>    Range operations\n")]
+    [InlineData("COMMANDS:\n    \u001b[32mrange\u001b[0m <ACTION>    Range operations\n")]
+    public void NativeCliCommandGroups_ParsesPlainAndDecoratedHelp(string help)
+    {
+        Assert.Equal(["range"], ParseCliCommandGroups(help));
+    }
+
+    private static string[] NativeCliCommandGroups() => ParseCliCommandGroups(ReadCliHelp());
+
+    private static string[] ParseCliCommandGroups(string help) =>
+        Regex.Matches(NormalizeCliHelp(help).Split("COMMANDS:", StringSplitOptions.None)[1],
                 @"(?m)^ {4}([a-z][a-z0-9-]+)(?: <ACTION>)? {2,}\S")
             .Select(match => match.Groups[1].Value)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
+
+    private static string NormalizeCliHelp(string help) =>
+        Regex.Replace(help, @"\x1B\[[0-?]*[ -/]*[@-~]", string.Empty);
 
     private static string NormalizeLineEndings(string content) =>
         content.Replace("\r\n", "\n", StringComparison.Ordinal)
