@@ -11,6 +11,34 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.1.2] - 2026-10-01
+
+### Patch Changes
+
+- [#960](https://github.com/sbroenne/mcp-server-excel/pull/960) [`9c7d834`](https://github.com/sbroenne/mcp-server-excel/commit/9c7d834c5c9b09eff65b139536eb3be84e28bf74) Thanks [@sbroenne](https://github.com/sbroenne)! - Clarify that the VS Code extension includes its own Excel MCP server and does not require a separate Node.js or .NET installation. The MCP and CLI skills now distinguish the Windows and Excel requirements from Node.js needed whenever running through npx, and network access needed for package downloads and update checks.
+
+- [#963](https://github.com/sbroenne/mcp-server-excel/pull/963) [`611ee7e`](https://github.com/sbroenne/mcp-server-excel/commit/611ee7ed210dd6dfeca2a05464f3e9c622ccde74) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP session identifiers now consistently use `session_id` in list entries and errors as well as open/create results and inputs. Calls using the old `sessionId` input are rejected; CLI output naming is unchanged. Tool descriptions and both Excel skills now explain safe saving, calculation modes, dependent-call ordering, and destructive actions with no tool-level undo.
+
+  Destructive-action guidance no longer prescribes unsolicited workbook copies. Calculation guidance now states that restoring the prior mode is best-effort and can fail without failing the write.
+
+- [#960](https://github.com/sbroenne/mcp-server-excel/pull/960) [`9c7d834`](https://github.com/sbroenne/mcp-server-excel/commit/9c7d834c5c9b09eff65b139536eb3be84e28bf74) Thanks [@sbroenne](https://github.com/sbroenne)! - Improve the VS Code extension's first-run guidance, setup diagnostics, and
+  launch-time checks for desktop Excel and the bundled server. Include the
+  server version so VS Code can refresh tools after an update. Publish separate
+  Windows x64 and ARM64 extension packages, keeping the existing x64 server
+  through Windows emulation on ARM64. Refresh the Marketplace README to explain
+  real Excel automation, the bundled skill, requirements, and local workbook
+  access in remote workspaces.
+
+  Point Getting Started to the user guides rather than installation instructions,
+  and clarify server startup and approval steps in the installation guide.
+
+  Keep the MCP server available if saving the optional first-run welcome
+  preference fails, and report that the help may appear again.
+
+- [#964](https://github.com/sbroenne/mcp-server-excel/pull/964) [`dee86ad`](https://github.com/sbroenne/mcp-server-excel/commit/dee86ad3904e9d50e66260a6bb2d840a821ae2b6) Thanks [@sbroenne](https://github.com/sbroenne)! - Removed the optional global installation scripts from both Copilot plugins. Use the existing npx launch commands without changing PATH or adding a separate global MCP configuration. The CLI plugin retains its Windows launcher for quoted JSON arguments, and installation guidance now matches the npm-based setup.
+
+- [#959](https://github.com/sbroenne/mcp-server-excel/pull/959) [`a8c3317`](https://github.com/sbroenne/mcp-server-excel/commit/a8c33170f620f984b41bb8b140ad476cc2b7f69e) Thanks [@sbroenne](https://github.com/sbroenne)! - Both Excel skills now use consistent clarification and permission rules: clear requests proceed without repeated approval, audits and proposals remain read-only, and known visibility preferences are reused. Leaving a workbook open no longer implies showing Excel. Guidance preserves exact MCP input and CLI flag names, explains temporary Power Query evaluation changes, distinguishes required from optional workflow steps, and corrects stale CLI reference, screenshot, and workbook-property advice.
+
 ## [2.1.1] - 2026-09-30
 
 ### Patch Changes
