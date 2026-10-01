@@ -56,6 +56,14 @@ public sealed class GeneratedActionContractTests
             var enumActions = enumType.GetFields(BindingFlags.Public | BindingFlags.Static)
                 .Select(field => field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name).ToArray();
             Assert.Equal(expected.Order(StringComparer.Ordinal), enumActions.Order(StringComparer.Ordinal));
+            var mapping = registry.GetMethod("ToActionString", BindingFlags.Public | BindingFlags.Static);
+            Assert.NotNull(mapping);
+            foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+            {
+                var mapped = Assert.IsType<string>(mapping.Invoke(null, [field.GetValue(null)]));
+                Assert.True(mapped == field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name,
+                    $"{name}.{field.Name} maps to '{mapped}'.");
+            }
         }
     }
 

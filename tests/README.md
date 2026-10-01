@@ -117,6 +117,29 @@ Protocol checks cover our names, descriptions, selected output fields, and
 request handling, not the SDK's primitive JSON Schema type encoding or
 provider-specific schema restrictions.
 
+Keep representative tests for rules our generators implement, such as optional
+enum strings, whole-second timeouts, file aliases, mixed cell values, and
+injected parameters. One declaration-to-generated-contract completeness check
+replaces repeated per-category inventories; compilation alone does not verify
+that every declared action was emitted. Keep real parser, request, result, and
+custom validation regressions at their owning entry point.
+
+Guidance tests do not establish assistant understanding or performance. Do not
+freeze sentences, editorial phrases, emoji rules, or example-count quotas.
+Retain mechanical checks for metadata, packaged links, native example-block
+selection, package integrity, and failed preparation preserving existing output.
+Check native CLI help through the CLI parser, not by launching it from a skill
+documentation scanner. Authored prose still needs review; API tests do not
+validate its examples automatically.
+
+Shared skill Markdown selects the existing skill-generation checks locally,
+not Excel E2E. Program source, mixed runtime changes, and unknown inputs still
+select Excel validation. Run the focused skill selection after a Release build:
+
+```powershell
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -SkillTests
+```
+
 ### Parallel collections
 
 Each project allows up to four xUnit collection workers, but only

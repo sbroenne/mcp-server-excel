@@ -92,7 +92,7 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
                 }
             }
         }
-        Assert.True(exampleCount >= 5, $"Expected calculation workflow examples, found {exampleCount}.");
+        Assert.True(exampleCount > 0, "No calculation examples were checked.");
         Assert.Equal(actionNames.Order(StringComparer.Ordinal), verifiedActions.Order(StringComparer.Ordinal));
     }
 

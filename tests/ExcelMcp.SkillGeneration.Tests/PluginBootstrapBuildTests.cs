@@ -33,11 +33,28 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     [Theory]
     [InlineData("excel-mcp")]
     [InlineData("excel-cli")]
+    [Trait("Feature", "SkillGeneration")]
     public void SourcePluginManifest_ConformsToAgentPluginsV1(string pluginName)
     {
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
         AssertAgentPluginManifest(pluginRoot, "0.0.0");
         AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, pluginName), pluginName);
+    }
+
+    [Theory]
+    [InlineData("description: \"\"", "")]
+    [InlineData("description: ''", "")]
+    [InlineData("description: null", null)]
+    [InlineData("description: \"\" # placeholder", "")]
+    [InlineData("description: null # intentionally omitted", null)]
+    [InlineData("description: \"Useful # skill\" # explanation", "Useful # skill")]
+    [InlineData("description: >-\n  ", "")]
+    [InlineData("description: >-\n  Useful skill", "Useful skill")]
+    [Trait("Feature", "SkillGeneration")]
+    public void SkillDescriptionMetadata_DecodesYamlScalar(string declaration, string? expected)
+    {
+        var lines = declaration.Split('\n');
+        Assert.Equal(expected, DecodeYamlDescription(lines, 0));
     }
 
     [Fact]
@@ -47,14 +64,32 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BuildAgentSkills_UsesPortableNewlinesForSurfaceExamples()
+    [Trait("Feature", "SkillGeneration")]
+    public void PackagedReferences_AreReachableFromEachSkill()
     {
-        var script = File.ReadAllText(BuildAgentSkillsScript);
-
-        Assert.Contains("-replace \"`r`n?\", \"`n\"", script, StringComparison.Ordinal);
-        Assert.Contains("(?<surface>cli|mcp)", script, StringComparison.Ordinal);
-        Assert.Contains("$match.Groups['body'].Value + '```' + \"`n\"", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("CLI syntax note", script, StringComparison.Ordinal);
+        foreach (var skill in new[] { "excel-cli", "excel-mcp" })
+        {
+            var root = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, skill);
+            var pending = new Stack<string>();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            pending.Push(Path.Combine(root, "SKILL.md"));
+            while (pending.TryPop(out var path))
+            {
+                path = Path.GetFullPath(path);
+                if (!visited.Add(path))
+                    continue;
+                Assert.True(File.Exists(path), $"Missing linked file: {path}");
+                foreach (Match match in Regex.Matches(File.ReadAllText(path), @"\]\(([^)]+)\)"))
+                {
+                    var target = match.Groups[1].Value.Split('#')[0];
+                    if (target.Length > 0 && !target.Contains("://", StringComparison.Ordinal)
+                        && target.EndsWith(".md", StringComparison.Ordinal))
+                        pending.Push(Path.Combine(Path.GetDirectoryName(path)!, target));
+                }
+            }
+            foreach (var reference in Directory.GetFiles(Path.Combine(root, "references"), "*.md", SearchOption.AllDirectories))
+                Assert.Contains(Path.GetFullPath(reference), visited);
+        }
     }
 
     [Fact]
@@ -294,9 +329,62 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     private static void AssertAgentSkill(string skillRoot, string expectedName)
     {
         var content = File.ReadAllText(Path.Combine(skillRoot, "SKILL.md"));
-        Assert.StartsWith("---", content, StringComparison.Ordinal);
-        Assert.Matches($@"(?m)^name:\s*{Regex.Escape(expectedName)}\s*$", content);
-        Assert.Contains("Use when", content, StringComparison.OrdinalIgnoreCase);
+        var header = Regex.Match(content, @"\A---\r?\n(?<header>.*?)\r?\n---(?:\r?\n|\z)", RegexOptions.Singleline);
+        Assert.True(header.Success, "Skill metadata header is missing.");
+        var metadata = header.Groups["header"].Value;
+        Assert.Matches($@"(?m)^name:\s*{Regex.Escape(expectedName)}\s*$", metadata);
+        var lines = metadata.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
+        var index = Array.FindIndex(lines, line => line.StartsWith("description:", StringComparison.Ordinal));
+        Assert.True(index >= 0, "Skill description metadata is missing.");
+        var description = DecodeYamlDescription(lines, index);
+        Assert.False(string.IsNullOrWhiteSpace(description), "Skill description metadata is empty.");
+    }
+
+    private static string? DecodeYamlDescription(string[] lines, int index)
+    {
+        var value = StripYamlInlineComment(lines[index]["description:".Length..].Trim());
+        if (value is ">" or ">-" or ">+" or "|" or "|-" or "|+")
+            return string.Join(" ", lines.Skip(index + 1)
+                .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
+                .Select(line => line.Trim()))
+                .Trim();
+        if (value is "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
+            return value[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+            return JsonSerializer.Deserialize<string>(value);
+        return value;
+    }
+
+    private static string StripYamlInlineComment(string value)
+    {
+        var inSingleQuotes = false;
+        var inDoubleQuotes = false;
+        var escaped = false;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var character = value[i];
+            if (inDoubleQuotes && character == '\\' && !escaped)
+            {
+                escaped = true;
+                continue;
+            }
+            if (character == '"' && !inSingleQuotes && !escaped)
+                inDoubleQuotes = !inDoubleQuotes;
+            else if (character == '\'' && !inDoubleQuotes)
+            {
+                if (inSingleQuotes && i + 1 < value.Length && value[i + 1] == '\'')
+                    i++;
+                else
+                    inSingleQuotes = !inSingleQuotes;
+            }
+            else if (character == '#' && !inSingleQuotes && !inDoubleQuotes
+                     && (i == 0 || char.IsWhiteSpace(value[i - 1])))
+                return value[..i].TrimEnd();
+            escaped = false;
+        }
+        return value;
     }
 
     private static void AssertSkillDirectoryMatchesSource(
