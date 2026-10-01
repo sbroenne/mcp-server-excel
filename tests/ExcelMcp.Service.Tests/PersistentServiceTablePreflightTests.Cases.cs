@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
@@ -122,7 +123,8 @@ public sealed partial class PersistentServiceTablePreflightTests
             [
                 ["=$F$2*2"],
                 ["=I3*2"]
-            ]);
+            ],
+            overwritePolicy: OverwritePolicy.Allow);
 
         var result = _tableCommands.Preflight(batch, "Sales", "FormulaTable", "F1:G3");
 

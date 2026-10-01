@@ -36,24 +36,24 @@ public partial class RangeCommands
     // === COPY OPERATIONS ===
 
     /// <inheritdoc />
-    public OperationResult Copy(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
+    public OperationResult Copy(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange, OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty)
     {
         return CopyRange(batch, sourceSheet, sourceRange, targetSheet, targetRange, "copy",
-            (src, tgt) => src.Copy(tgt));
+            (src, tgt) => src.Copy(tgt), overwritePolicy);
     }
 
     /// <inheritdoc />
-    public OperationResult CopyValues(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
+    public OperationResult CopyValues(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange, OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty)
     {
         return CopyRange(batch, sourceSheet, sourceRange, targetSheet, targetRange, "copy-values",
-            (src, tgt) => { src.Copy(); tgt.PasteSpecial(-4163); }); // xlPasteValues
+            (src, tgt) => { src.Copy(); tgt.PasteSpecial(-4163); }, overwritePolicy); // xlPasteValues
     }
 
     /// <inheritdoc />
-    public OperationResult CopyFormulas(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange)
+    public OperationResult CopyFormulas(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange, OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty)
     {
         return CopyRange(batch, sourceSheet, sourceRange, targetSheet, targetRange, "copy-formulas",
-            (src, tgt) => { src.Copy(); tgt.PasteSpecial(-4123); }); // xlPasteFormulas
+            (src, tgt) => { src.Copy(); tgt.PasteSpecial(-4123); }, overwritePolicy); // xlPasteFormulas
     }
 
     // === INSERT/DELETE OPERATIONS ===
@@ -145,6 +145,5 @@ public partial class RangeCommands
     // === FIND/REPLACE OPERATIONS ===
 
 }
-
 
 

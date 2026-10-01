@@ -14,6 +14,25 @@ public class SkillMdQualityTests
 {
     private static string SkillsFolder => GeneratedAssetsFixture.SkillsDirectory;
 
+    [Theory]
+    [InlineData("excel-cli", "--overwrite-policy allow")]
+    [InlineData("excel-mcp", "overwrite_policy: 'allow'")]
+    public void OverwriteGuidance_ExplainsProtectedDefaultAndAuthorizedReplacement(string skill, string option)
+    {
+        var root = Path.Combine(SkillsFolder, skill);
+        var template = File.ReadAllText(Path.Combine(root, "SKILL.md"));
+        Assert.Contains(option, template, StringComparison.Ordinal);
+        Assert.Contains("automatically retry", template, StringComparison.Ordinal);
+        var range = File.ReadAllText(Path.Combine(root, "references", "range.md"));
+        Assert.Contains("default to `reject-nonempty`", range.Replace("\r\n", "\n"), StringComparison.Ordinal);
+        Assert.Contains("at most 10 cell addresses", range, StringComparison.Ordinal);
+        Assert.Contains("Failed inspection also stops", range, StringComparison.Ordinal);
+        Assert.Contains("not a", range, StringComparison.Ordinal);
+        Assert.Contains("transaction", range, StringComparison.Ordinal);
+        Assert.Contains("whole multiples", range, StringComparison.Ordinal);
+        Assert.DoesNotContain("Read before overwriting", range, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void McpSessionGuidance_UsesCanonicalReturnedIdentifiers()
     {
