@@ -23,7 +23,11 @@ ARM64 Node.js uses a native ARM64 executable.
 
 ## Quick Start (Recommended)
 
-The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting outside the plugin. For a direct installation:
+The **excel-cli GitHub Copilot plugin** runs the public npm package through
+`npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching.
+No separate CLI installation is needed for plugin-driven flows. The **VS Code
+extension** does *not* include the CLI (it only bundles the MCP server); use
+`npx` or install the CLI separately for scripting outside the plugin. For direct use:
 
 Use npm (below) or download the standalone executable if you prefer not to
 install Node.js.
@@ -110,8 +114,20 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-**After installation:** The plugin downloads, caches, and runs `excelcli`
-automatically. If you also need `excelcli` directly on your PATH, use the
+**After installation:** Use `npx -y @sbroenne/excelcli@latest`. The plugin also
+provides `bin\start-cli.ps1`, which launches the same npm package while preserving
+quoted JSON arguments in Windows PowerShell. npm resolves the `latest` tag and
+manages caching subject to its cache policy; the plugin has no GitHub-release
+downloader or separate update checker. No global installation helper, PATH
+change, or separate .NET runtime is required.
+
+```powershell
+npx -y @sbroenne/excelcli@latest --help
+```
+
+The plugin does not put bare `excelcli` on PATH. For examples that use that
+command, substitute the npx command or invoke the plugin's PowerShell wrapper.
+If you also need `excelcli` directly on your PATH, use the
 global npm installation or standalone executable above, or install the secondary NuGet tool when .NET 10 is
 available:
 
