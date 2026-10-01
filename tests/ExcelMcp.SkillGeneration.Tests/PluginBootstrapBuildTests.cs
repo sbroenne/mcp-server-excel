@@ -45,6 +45,9 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     [InlineData("description: \"\"", "")]
     [InlineData("description: ''", "")]
     [InlineData("description: null", null)]
+    [InlineData("description: \"\" # placeholder", "")]
+    [InlineData("description: null # intentionally omitted", null)]
+    [InlineData("description: \"Useful # skill\" # explanation", "Useful # skill")]
     [InlineData("description: >-\n  ", "")]
     [InlineData("description: >-\n  Useful skill", "Useful skill")]
     [Trait("Feature", "SkillGeneration")]
@@ -339,7 +342,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
 
     private static string? DecodeYamlDescription(string[] lines, int index)
     {
-        var value = lines[index]["description:".Length..].Trim();
+        var value = StripYamlInlineComment(lines[index]["description:".Length..].Trim());
         if (value is ">" or ">-" or ">+" or "|" or "|-" or "|+")
             return string.Join(" ", lines.Skip(index + 1)
                 .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
@@ -351,6 +354,36 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             return value[1..^1].Replace("''", "'", StringComparison.Ordinal);
         if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
             return JsonSerializer.Deserialize<string>(value);
+        return value;
+    }
+
+    private static string StripYamlInlineComment(string value)
+    {
+        var inSingleQuotes = false;
+        var inDoubleQuotes = false;
+        var escaped = false;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var character = value[i];
+            if (inDoubleQuotes && character == '\\' && !escaped)
+            {
+                escaped = true;
+                continue;
+            }
+            if (character == '"' && !inSingleQuotes && !escaped)
+                inDoubleQuotes = !inDoubleQuotes;
+            else if (character == '\'' && !inDoubleQuotes)
+            {
+                if (inSingleQuotes && i + 1 < value.Length && value[i + 1] == '\'')
+                    i++;
+                else
+                    inSingleQuotes = !inSingleQuotes;
+            }
+            else if (character == '#' && !inSingleQuotes && !inDoubleQuotes
+                     && (i == 0 || char.IsWhiteSpace(value[i - 1])))
+                return value[..i].TrimEnd();
+            escaped = false;
+        }
         return value;
     }
 
