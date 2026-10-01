@@ -34,19 +34,16 @@ on:
     - uses: actions/setup-node@v7
       with:
         node-version: '22'
-    - name: Deterministic no-write precheck
-      id: precheck
+    - name: Trusted authenticated discovery - no upstream execution
       env:
         GH_TOKEN: ${{ github.token }}
         PUBLISHED_TAG: ${{ inputs.published_tag }}
-        PREVIEW: ${{ inputs.preview }}
-        AWESOME_COPILOT_UPDATES_ENABLED: ${{ vars.AWESOME_COPILOT_UPDATES_ENABLED }}
       run: |
-        node scripts/Update-AwesomeCopilot.mjs prepare "$PUBLISHED_TAG" "$RUNNER_TEMP/plugin-precheck" "$RUNNER_TEMP/plugin-update-plan.json"
+        node scripts/Update-AwesomeCopilot.mjs discover "$PUBLISHED_TAG" "$RUNNER_TEMP/plugin-discovery" "$RUNNER_TEMP/plugin-discovery.json"
     - uses: actions/upload-artifact@v7
       with:
-        name: awesome-copilot-precheck
-        path: ${{ runner.temp }}/plugin-update-plan.json
+        name: awesome-copilot-discovery
+        path: ${{ runner.temp }}/plugin-discovery.json
         if-no-files-found: error
 permissions:
   contents: read
@@ -56,12 +53,47 @@ concurrency:
   cancel-in-progress: false
   job-discriminator: ${{ github.run_id }}
 timeout-minutes: 30
-if: needs.pre_activation.outputs.actionable == 'true'
 jobs:
-  pre-activation:
+  activation:
+    needs: build
+    if: needs.build.outputs.actionable == 'true'
+  build:
+    needs: pre_activation
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ '' }}
+      OTEL_EXPORTER_OTLP_HEADERS: ${{ '' }}
+      GH_AW_OTLP_ENDPOINTS: ${{ '[]' }}
     outputs:
       actionable: ${{ steps.precheck.outputs.actionable }}
       upstream_commit: ${{ steps.precheck.outputs.upstream_commit }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v8
+        with:
+          name: awesome-copilot-discovery
+          path: ${{ runner.temp }}/public-discovery
+      - name: Build verified public discovery - no GitHub API credentials
+        id: precheck
+        env:
+          PREVIEW: ${{ inputs.preview }}
+          AWESOME_COPILOT_UPDATES_ENABLED: ${{ vars.AWESOME_COPILOT_UPDATES_ENABLED }}
+        run: |
+          node scripts/Update-AwesomeCopilot.mjs build "$RUNNER_TEMP/public-discovery/plugin-discovery.json" "$RUNNER_TEMP/plugin-precheck" "$RUNNER_TEMP/plugin-update-plan.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: awesome-copilot-precheck
+          path: ${{ runner.temp }}/plugin-update-plan.json
+          if-no-files-found: error
+  agent:
+    needs: build
+    if: needs.build.outputs.actionable == 'true'
 engine: copilot
 network:
   allowed:
@@ -70,7 +102,7 @@ network:
 checkout:
   - path: source
   - repository: github/awesome-copilot
-    ref: ${{ needs.pre_activation.outputs.upstream_commit }}
+    ref: ${{ needs.build.outputs.upstream_commit }}
     path: upstream
 steps:
   - uses: actions/download-artifact@v8

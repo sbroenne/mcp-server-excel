@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-    compareTrees, publicationDecision, validatePublication, canonicalJson, hash, git as readOnlyGit,
+    compareTrees, publicationDecision, validatePublication, canonicalJson, hash, git as readOnlyGit, externalCommandEnvironment,
 } from '../../scripts/PluginContent.mjs';
 import {
     planListings, parseState, stateMarker, assertListingPatch, assertAllowedPaths,
@@ -281,12 +281,15 @@ test('a reverted pending plugin blocks both no-op and other-plugin refreshes wit
 
 test('every token-free upstream npm command receives a sanitized environment without changing parent settings', () => {
     const env = { PATH: 'preserved-path', NODE_OPTIONS: '--max-old-space-size=4096',
-        GH_TOKEN: 'dummy-read-token', GITHUB_TOKEN: 'dummy-token', COPILOT_GITHUB_TOKEN: 'dummy-inference-token',
-        GH_AW_GITHUB_TOKEN: 'dummy-token', GH_AW_GITHUB_MCP_SERVER_TOKEN: 'dummy-token',
         GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
         GIT_CONFIG_VALUE_0: 'AUTHORIZATION: dummy-header', GIT_CONFIG_PARAMETERS: "'http.extraheader=dummy-header'",
         GIT_ASKPASS: 'dummy-helper', SSH_ASKPASS: 'dummy-helper', GIT_SSH_COMMAND: 'dummy-helper',
         GIT_CONFIG_GLOBAL: 'dummy-config', GIT_CONFIG_SYSTEM: 'dummy-config' };
+    const probe = `
+    import assert from 'node:assert/strict';
+    import { execFileSync } from 'node:child_process';
+    import * as updater from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
+    const env = ${JSON.stringify(env)};
     const calls = [];
     updater.validateUpstreamBuild('disposable-upstream', { env, execute: (command, args, cwd, childEnv) => {
         calls.push(args);
@@ -300,16 +303,24 @@ test('every token-free upstream npm command receives a sanitized environment wit
     } });
     assert.deepEqual(calls, [['ci', '--ignore-scripts', '--no-audit', '--no-fund'],
         ['run', 'plugin:validate'], ['run', 'build']]);
-    assert.equal(env.GH_TOKEN, 'dummy-read-token');
+    assert.equal(env.PATH, 'preserved-path');
+    `;
+    // The suite may itself be launched by a credentialed test host; build probes start independently.
+    command(process.execPath, ['--input-type=module', '-e', probe], repoRoot, externalCommandEnvironment());
 });
 
 test('upstream build failure remains visible and stops remaining commands', () => {
+    const probe = `
+    import assert from 'node:assert/strict';
+    import * as updater from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
     let calls = 0;
     const failure = new Error('Upstream validation failed');
     assert.throws(() => updater.validateUpstreamBuild('disposable-upstream', {
         env: {}, execute: () => { calls++; throw failure; },
     }), error => error === failure);
     assert.equal(calls, 1);
+    `;
+    command(process.execPath, ['--input-type=module', '-e', probe], repoRoot, externalCommandEnvironment());
 });
 
 test('upstream builds reject a write-token-bearing parent before executing any child', () => {
@@ -327,6 +338,30 @@ test('upstream builds reject a write-token-bearing parent before executing any c
     assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
         { ...process.env, AWESOME_COPILOT_PR_TOKEN: 'fake-initial-parent-token' }).trim(),
     'blocked before upstream execution');
+});
+
+test('upstream builds and local prepare reject initial GitHub and inference credentials before any execution', () => {
+    for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'COPILOT_GITHUB_TOKEN', 'GH_AW_GITHUB_TOKEN',
+        'GH_AW_GITHUB_MCP_SERVER_TOKEN', 'gh_token']) {
+        const probe = `
+            import assert from 'node:assert/strict';
+            import { execFileSync } from 'node:child_process';
+            import { validateUpstreamBuild, prepare } from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
+            if (process.platform === 'linux') {
+                const inherited = execFileSync(process.execPath, ['-e',
+                    'process.stdout.write(require("node:fs").readFileSync("/proc/" + process.ppid + "/environ"))']);
+                assert.ok(inherited.includes(Buffer.from('fake-initial-api-canary')));
+            }
+            delete process.env[${JSON.stringify(name)}];
+            let calls = 0;
+            assert.throws(() => validateUpstreamBuild('unused', { env: {}, execute: () => { calls++; } }), /credential.*parent/i);
+            assert.equal(calls, 0);
+            assert.throws(() => prepare({tag:'v2.1.0',workDirectory:'must-not-be-created'}), /credential.*parent/i);
+            console.log('blocked');
+        `;
+        assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
+            { ...process.env, [name]: 'fake-initial-api-canary' }).trim(), 'blocked');
+    }
 });
 
 test('human changes, duplicate owned PRs, wrong ownership and declined identical proposals block', () => {
@@ -614,18 +649,37 @@ test('compiled updater isolates writes, blocks failed detection and never create
     assert.match(workflow, /github\/gh-aw\/actions\/setup@c35393777e5604a63721d09512263b1383301d4f/);
     const precheck = workflow.split('\n  pre_activation:')[1].split(/\n {2}[a-z_]+:/)[0];
     assert.match(precheck, /runs-on: ubuntu-(slim|latest)/);
-    assert.match(precheck, /Update-AwesomeCopilot\.mjs prepare/);
+    assert.match(precheck, /Update-AwesomeCopilot\.mjs discover/);
     assert.equal(precheck.includes('secrets.AWESOME_COPILOT_PR_TOKEN'), false);
     assert.match(writer, /runs-on: ubuntu-latest/);
     assert.match(writer, /needs:[\s\S]*- agent/);
-    assert.match(agent, /needs: activation/);
+    assert.match(agent, /needs:[\s\S]*- activation[\s\S]*- build/);
     const activation = workflow.split('\n  activation:')[1].split(/\n {2}[a-z_]+:/)[0];
-    assert.match(activation, /needs: pre_activation/);
-    assert.match(activation, /needs\.pre_activation\.outputs\.actionable == 'true'/);
+    assert.match(activation, /needs:[\s\S]*- pre_activation/);
+    assert.match(activation, /needs\.build\.outputs\.actionable == 'true'/);
+    const build = workflow.split('\n  build:')[1].split(/\n {2}[a-z_]+:/)[0];
+    assert.match(build, /needs: pre_activation/);
+    assert.match(build, /permissions: \{\}/);
+    assert.match(build, /OTEL_EXPORTER_OTLP_HEADERS: \$\{\{ '' \}\}/);
+    assert.match(build, /GH_AW_OTLP_ENDPOINTS: \$\{\{ '\[\]' \}\}/);
+    assert.match(build, /Update-AwesomeCopilot\.mjs build/);
+    assert.equal(/GH_TOKEN:|GITHUB_TOKEN:|COPILOT_GITHUB_TOKEN:|AWESOME_COPILOT_PR_TOKEN:/.test(build), false);
+    assert.match(build, /persist-credentials: false/);
+    assert.match(build, /name: awesome-copilot-discovery/);
+    const globalEnvironment = workflow.split('\nenv:')[1].split('\njobs:')[0];
+    assert.equal(/GH_TOKEN:|GITHUB_TOKEN:|COPILOT_GITHUB_TOKEN:|AWESOME_COPILOT_PR_TOKEN:/.test(globalEnvironment), false);
+    assert.match(agent, /needs\.build\.outputs\.actionable == 'true'/);
     assert.match(writer, /name: awesome-copilot-precheck/);
     assert.equal(writer.includes('Update-AwesomeCopilot.mjs prepare'), false);
     assert.equal(writer.includes('npm '), false);
     assert.match(writer, /Update-AwesomeCopilot\.mjs submit/);
+});
+
+test('public build rejects malformed discovery snapshots before clone or upstream execution', () => {
+    for (const discovery of [null, {}, { pulls: [], tag: 'v2.1.0', discoveryFingerprint: '0'.repeat(64) }]) {
+        assert.throws(() => updater.buildDiscoveredPlan({ discovery, workDirectory: 'must-not-be-created' }), /artifact\/digest/);
+    }
+    assert.equal(fs.existsSync(path.join(repoRoot, 'must-not-be-created')), false);
 });
 
 test('writer rejects modified built-file fingerprints before any remote preparation', () => {

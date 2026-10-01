@@ -96,12 +96,24 @@ gh secret set COPILOT_GITHUB_TOKEN --repo sbroenne/mcp-server-excel
 Set a short expiration, record ownership outside the repository, rotate before
 expiry, and revoke the old token after validating the replacement. Only the
 safe-output submit step sees the PR credential. Checkouts do not persist it.
-Upstream npm commands run only in the separate precheck job on its own
-GitHub-hosted runner, which starts without the PR write credential. The writer
-uses a different job/runner and a fresh trusted source checkout; upstream
+Authenticated API discovery runs trusted source code only in `pre_activation`.
+It uploads public snapshots bound to the published tag/commit, upstream commit,
+owned PR state and a canonical digest. The separate `build` job downloads only
+this public artifact, uses public Git clones to revalidate commits/listings and
+the discovery digest, and runs upstream npm without any GitHub API, PR,
+inference, publication or release token in the build process ancestry.
+The build job requests `permissions: {}` and checkouts do not persist auth.
+It also overrides gh-aw's optional global telemetry headers/endpoints to empty values.
+GitHub-hosted runner services and artifact/checkout actions still use platform
+transport credentials; this is not a claim that the entire runner is
+credential-free. Those actions are trusted, separate completed processes,
+not token-bearing parents of upstream npm. Custom application credentials and
+credential artifacts never enter the build job.
+The writer uses another job/runner and a fresh trusted source checkout; upstream
 background processes and code changes cannot carry over. Filtering a child's
-environment alone is insufficient: on Linux a same-user child can inspect its parent's initial
-environment. Builds explicitly reject a parent containing a known write token.
+environment alone is insufficient: on Linux a same-user child can inspect its
+parent's initial environment. Builds reject parents containing any known
+GitHub/inference/write token, even when a sanitized child environment is supplied.
 The token-bearing writer never runs upstream builds or scripts; it rechecks
 public source/PR inputs and verifies the precheck's exact built file bytes.
 External Git preparation (clone, fetch, checkout and content reads) and every
@@ -133,6 +145,22 @@ job. Its plan is retained as an Actions artifact; the summary records the
 candidate output commit and comparison outcome. This validates read access and
 the local patch, not the unexercised write credential or Copilot inference.
 Verify those credentials separately before authorizing actual submission.
+
+Local authenticated discovery and build must also be separate commands:
+
+```powershell
+# In a trusted shell with a read-only GH_TOKEN, discovery runs no upstream code.
+node scripts\Update-AwesomeCopilot.mjs discover v2.1.0 artifacts\discovery-work artifacts\public-discovery.json
+# In a separately started shell whose ancestry never received application tokens:
+node scripts\Update-AwesomeCopilot.mjs build artifacts\public-discovery.json artifacts\build-work artifacts\plugin-update-plan.json
+```
+
+Do not late-unset a token or launch a filtered child from a token-bearing shell
+as a substitute for the second boundary. Each work directory must be new.
+`prepare` remains an anonymous convenience command only from such a token-free
+shell: public REST reads use unauthenticated `curl`, never saved `gh` login
+credentials. HTTP/rate-limit/auth failures are visible; use trusted authenticated
+`discover` and a separately started `build` instead of weakening isolation.
 
 After the user validates credentials and preview:
 

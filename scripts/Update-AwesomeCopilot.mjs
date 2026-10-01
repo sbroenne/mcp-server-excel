@@ -17,11 +17,22 @@ function run(command, args, cwd, env = externalCommandEnvironment()) {
     });
 }
 
-export function validateUpstreamBuild(directory, { env = process.env, execute = run } = {}) {
-    if ([process.env, env].some(environment => Object.keys(environment).some(name =>
-        /^(AWESOME_COPILOT_PR_TOKEN|PLUGINS_REPO_TOKEN|RELEASE_PAT)$/i.test(name) && environment[name]))) {
-        throw new Error('Upstream build blocked: write credential is present in the parent process. Use a separate token-free process.');
+const applicationCredential = /^(AWESOME_COPILOT_PR_TOKEN|PLUGINS_REPO_TOKEN|RELEASE_PAT|GH_TOKEN|GITHUB_TOKEN|COPILOT_GITHUB_TOKEN|GH_AW_GITHUB_TOKEN|GH_AW_GITHUB_MCP_SERVER_TOKEN)$/i;
+const initialApplicationCredential = Object.entries(process.env).some(([name, value]) => applicationCredential.test(name) && value) ||
+    (process.platform === 'linux' && fs.readFileSync('/proc/self/environ', 'utf8').split('\0').some(entry => {
+        const equals = entry.indexOf('=');
+        return equals > 0 && applicationCredential.test(entry.slice(0, equals)) && entry.length > equals + 1;
+    }));
+
+function assertBuildEnvironment(env = process.env) {
+    if (initialApplicationCredential || [process.env, env].some(environment =>
+        Object.entries(environment).some(([name, value]) => applicationCredential.test(name) && value))) {
+        throw new Error('Upstream build blocked: GitHub/write credential is present in the parent process. Use separate discovery and build jobs.');
     }
+}
+
+export function validateUpstreamBuild(directory, { env = process.env, execute = run } = {}) {
+    assertBuildEnvironment(env);
     const childEnv = externalCommandEnvironment(env);
     execute('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], directory, childEnv);
     execute('npm', ['run', 'plugin:validate'], directory, childEnv);
@@ -35,13 +46,19 @@ export function api(endpoint, { method = 'GET', body, token } = {}) {
     if (!/^repos\/(github\/awesome-copilot|sbroenne\/awesome-copilot)(\/|$)/.test(endpoint) && endpoint !== 'user' && !permittedSearch) {
         throw new Error('GitHub API destination is not allowlisted.');
     }
+    const credential = token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+    if (!credential) {
+        if (method !== 'GET' || body) throw new Error('Authenticated API writes require an explicit credential.');
+        const text = run('curl', ['--disable', '--fail-with-body', '--silent', '--show-error',
+            '--proto', '=https', '-H', 'Accept: application/vnd.github+json', `https://api.github.com/${endpoint}`]);
+        return parseJson(Buffer.from(text));
+    }
     const args = ['api', endpoint, '--method', method];
     if (body) args.push('--input', '-');
     const text = execFileSync('gh', args, {
         input: body ? JSON.stringify(body) : undefined, encoding: 'utf8', windowsHide: true,
         env: { ...externalCommandEnvironment(),
-            ...((token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN)
-                ? { GH_TOKEN: token ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN } : {}) },
+            GH_TOKEN: credential },
         maxBuffer: 16 * 1024 * 1024,
     });
     return parseJson(Buffer.from(text));
@@ -185,10 +202,30 @@ export function patch(directory, plan, validatedFiles) {
 }
 
 export function prepare({ tag, workDirectory }) {
+    assertBuildEnvironment();
     return preparePlan({ tag, workDirectory });
 }
 
-function preparePlan({ tag, workDirectory, validatedFiles }) {
+export function discover({ tag, workDirectory }) {
+    return preparePlan({ tag, workDirectory, discoveryOnly: true });
+}
+
+export function buildDiscoveredPlan({ discovery, workDirectory }) {
+    if (!discovery || !Array.isArray(discovery.pulls) ||
+        discovery.discoveryFingerprint !== discoveryFingerprint(discovery)) {
+        throw new Error('Invalid public discovery artifact/digest.');
+    }
+    assertBuildEnvironment();
+    return preparePlan({ tag: discovery.tag, workDirectory, discovery });
+}
+
+function discoveryFingerprint(plan) {
+    const inputs = { ...plan };
+    delete inputs.discoveryFingerprint;
+    return hash(canonical(inputs));
+}
+
+function preparePlan({ tag, workDirectory, validatedFiles, discoveryOnly = false, discovery }) {
     assertTag(tag);
     fs.mkdirSync(workDirectory, { recursive: true });
     const published = path.join(workDirectory, 'published');
@@ -203,13 +240,22 @@ function preparePlan({ tag, workDirectory, validatedFiles }) {
         return cache.get(sha);
     };
     const resolveTag = value => resolveCommit(published, `refs/tags/${assertTag(value)}`);
-    const pulls = allPulls();
+    const pulls = discovery?.pulls ?? allPulls();
     const plan = planListings({
         listings: listedFile(upstream, upstreamCommit), tag, commit, getTree, resolveTag, pulls,
     });
     plan.tag = tag;
     plan.commit = commit;
     plan.upstreamCommit = upstreamCommit;
+    if (plan.action !== 'noop') plan.state.base = plan.previousState?.base ?? upstreamCommit;
+    if (discoveryOnly || discovery) {
+        const snapshot = { ...plan, pulls };
+        snapshot.discoveryFingerprint = discoveryFingerprint(snapshot);
+        if (discovery && snapshot.discoveryFingerprint !== discovery.discoveryFingerprint) {
+            throw new Error('Public discovery baseline changed; retry discovery before building.');
+        }
+        if (discoveryOnly) return snapshot;
+    }
     if (plan.action === 'noop') return plan;
     if (plan.action === 'update') {
         git(upstream, ['fetch', '--quiet', `https://github.com/${forkRepo}.git`, plan.expectedHead]);
@@ -218,7 +264,6 @@ function preparePlan({ tag, workDirectory, validatedFiles }) {
     assertForkHeads(plan, readForkHeads(), pulls);
     checkout(upstream, plan.expectedHead ?? upstreamCommit);
     plan.files = patch(upstream, plan, validatedFiles);
-    plan.state.base = plan.previousState?.base ?? upstreamCommit;
     plan.patchFingerprint = hash(canonical(plan.files));
     plan.guardFingerprint = guardFingerprint(plan);
     return plan;
@@ -400,8 +445,10 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const [mode, tag, workDirectory, planFile] = process.argv.slice(2);
     let result;
-    if (mode === 'prepare') {
-        result = prepare({ tag, workDirectory });
+    if (['prepare', 'discover', 'build'].includes(mode)) {
+        result = mode === 'discover' ? discover({ tag, workDirectory }) :
+            mode === 'build' ? buildDiscoveredPlan({ discovery: parseJson(fs.readFileSync(tag)), workDirectory }) :
+                prepare({ tag, workDirectory });
         fs.writeFileSync(planFile, `${JSON.stringify(result, null, 2)}\n`);
         if (process.env.GITHUB_OUTPUT) {
             fs.appendFileSync(process.env.GITHUB_OUTPUT,
@@ -412,7 +459,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         const trustedPlan = parseJson(fs.readFileSync(planFile));
         const output = parseJson(fs.readFileSync(process.env.GH_AW_AGENT_OUTPUT));
         result = submit({ trustedPlan, output, workDirectory });
-    } else throw new Error('Use prepare or submit.');
+    } else throw new Error('Use discover, build, prepare or submit.');
     const summary = { action: result.action, status: result.status, reason: result.reason,
         changedPlugins: result.changedPlugins, tag: result.tag, publishedCommit: result.commit,
         upstreamCommit: result.upstreamCommit, url: result.url };
