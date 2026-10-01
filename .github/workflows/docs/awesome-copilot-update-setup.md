@@ -304,13 +304,24 @@ Requirements: selected .NET SDK (`global.json`), PowerShell, Node.js 22+, Git,
 GitHub CLI and public read access. No desktop Excel is needed for these scripts.
 
 ```powershell
-node --test tests\ExcelMcp.SkillGeneration.Tests\PluginPublication.test.mjs
-dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PluginPublication" --blame-hang-timeout 3m
+node --test --test-concurrency=3 `
+    tests\ExcelMcp.SkillGeneration.Tests\PluginPublication.test.mjs `
+    tests\ExcelMcp.SkillGeneration.Tests\PluginPublicationMarketplace.test.mjs `
+    tests\ExcelMcp.SkillGeneration.Tests\PluginPublicationHistory.test.mjs `
+    tests\ExcelMcp.SkillGeneration.Tests\PluginPublicationStaging.test.mjs
+dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PluginPublication" --blame-hang-timeout 5m
 $env:PREVIEW='true'
 $env:AWESOME_COPILOT_UPDATES_ENABLED='false'
 $workRoot = Join-Path ([IO.Path]::GetTempPath()) "excel-listing-$([Guid]::NewGuid().ToString('N'))"
 node scripts\Update-AwesomeCopilot.mjs prepare v2.1.0 "$workRoot\awesome-preview" "$workRoot\awesome-preview-plan.json"
 ```
+
+The four test files share the existing checks and fixture helpers, but run in
+separate Node processes with at most three files active at once. Each fixture
+owns its disposable repositories and local remote; no Excel or real publication
+is involved. The .NET test retains its three-minute suite deadline and terminates
+the owned process tree on timeout, including the active check's diagnostics.
+The five-minute test-host hang limit leaves time for that cleanup and reporting.
 
 Use a new disposable directory on each preview. The prepare command runs
 upstream's documented `npm ci --ignore-scripts --no-audit --no-fund`,
