@@ -80,6 +80,10 @@ never both.
 One block is already batched. Only for costly repeated recalculation, remember
 the mode with `calculationmode get-mode`, use manual, write, calculate, and
 restore the prior mode in `finally`, including failure. Reads need no mode change.
+After a timeout or cancellation, inspect `excelcli -q session list` before
+restoring. If the session was removed or invalidated, do not call
+`calculationmode set-mode`; report that restoration could not be completed.
+Do not blindly reopen the workbook or repeat writes.
 Writes attempt to restore the prior mode, not unconditional recalculation.
 Restoration can fail without failing the write; use `get-mode` when subsequent
 results depend on it; manual needs explicit calculation.

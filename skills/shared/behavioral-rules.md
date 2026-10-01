@@ -95,6 +95,10 @@ existing formats and fixed layouts unless a change is requested. See
 
 For costly bulk writes, get the current calculation mode with `get-mode`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
+After a timeout or cancellation, inspect the session listing before attempting
+restoration. If the session was removed or invalidated, do not call `set-mode`;
+report that restoration could not be completed. Do not blindly reopen the
+workbook or repeat writes.
 Reads and operations needing intermediate results do not need manual mode.
 Value/formula writes attempt to restore the prior mode rather than always
 forcing calculation. Restoration can fail without failing the write; use
