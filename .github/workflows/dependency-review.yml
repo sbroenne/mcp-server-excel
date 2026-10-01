@@ -32,7 +32,11 @@ jobs:
 
           # PyPI declares typing-extensions as PSF-2.0, but dependency review
           # currently reports a composite expression containing vendored licenses.
-          allow-dependencies-licenses: "pkg:pypi/typing-extensions"
+          # vsce 4 uses Microsoft's VS Code development-only signing tool.
+          # Its reviewed Microsoft license permits our build use; the tool is
+          # excluded from shipped VSIX packages. The action matches exceptions
+          # by package identity, not version.
+          allow-dependencies-licenses: "pkg:pypi/typing-extensions,pkg:npm/%40vscode/vsce-sign"
           
           # Comment on PR with summary
           comment-summary-in-pr: always

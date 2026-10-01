@@ -28,6 +28,14 @@ function Invoke-PackageStep {
     & $Action
     if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
 }
+function Read-VsixEntry {
+    param([IO.Compression.ZipArchive]$Archive, [string]$Name)
+    $entry = $Archive.GetEntry($Name)
+    if (-not $entry) { throw "VSIX is missing $Name." }
+    $reader = [IO.StreamReader]::new($entry.Open())
+    try { $reader.ReadToEnd() }
+    finally { $reader.Dispose() }
+}
 Push-Location $root
 $extensionStage = $null
 try {
@@ -177,25 +185,56 @@ try {
         $manifest.scripts.'vscode:prepublish' = 'npm run compile'
         $manifest | ConvertTo-Json -Depth 20 | Set-Content $manifestPath -Encoding utf8
         Push-Location $extension
+        $extensionPackages = @(
+            @{ Target = 'win32-x64'; FileName = "excel-mcp-$Version.vsix" },
+            @{ Target = 'win32-arm64'; FileName = "excel-mcp-$Version-win32-arm64.vsix" }
+        )
         try {
             Invoke-PackageStep 'Extension dependencies' { npm.cmd ci --ignore-scripts }
+            Invoke-PackageStep 'Extension compile and metadata' { npm.cmd run compile }
             Invoke-PackageStep 'Extension lint' { npm.cmd run lint }
-            Invoke-PackageStep 'Extension package' { npm.cmd exec -- vsce package --no-dependencies --out (Join-Path $OutputDirectory "excel-mcp-$Version.vsix") }
+            Invoke-PackageStep 'Extension test types' { npm.cmd run typecheck:tests }
+            Invoke-PackageStep 'Extension tests' { npm.cmd test }
+            foreach ($package in $extensionPackages) {
+                Invoke-PackageStep "Extension package ($($package.Target))" {
+                    npm.cmd exec -- vsce package --no-dependencies --target $package.Target --out (Join-Path $OutputDirectory $package.FileName)
+                }
+            }
         }
         finally { Pop-Location }
-        $vsix = [IO.Compression.ZipFile]::OpenRead((Join-Path $OutputDirectory "excel-mcp-$Version.vsix"))
-        try {
-            foreach ($required in @('extension/bin/Sbroenne.ExcelMcp.McpServer.exe', 'extension/skills/excel-mcp/SKILL.md', 'extension/skills/excel-mcp/references/range.md', 'extension/out/extension.js')) {
-                if (-not $vsix.GetEntry($required)) { throw "VSIX is missing $required." }
-            }
-            $versionEntry = $vsix.GetEntry('extension/skills/excel-mcp/VERSION')
-            if (-not $versionEntry) { throw 'VSIX is missing its skill version.' }
-            $reader = [IO.StreamReader]::new($versionEntry.Open())
+        foreach ($package in $extensionPackages) {
+            $vsix = [IO.Compression.ZipFile]::OpenRead((Join-Path $OutputDirectory $package.FileName))
             try {
-                if ($reader.ReadToEnd().Trim() -ne $Version) { throw 'VSIX skill version does not match the package.' }
-            } finally { $reader.Dispose() }
+                foreach ($required in @('extension/bin/Sbroenne.ExcelMcp.McpServer.exe', 'extension/out/extension.js', 'extension/out/prerequisites.js')) {
+                    if (-not $vsix.GetEntry($required)) { throw "VSIX is missing $required." }
+                }
+                foreach ($skillFile in Get-ChildItem (Join-Path $skills.FullName 'excel-mcp') -File -Recurse) {
+                    $relative = [IO.Path]::GetRelativePath($extension, $skillFile.FullName).Replace('\', '/')
+                    if (-not $vsix.GetEntry("extension/$relative")) { throw "VSIX is missing $relative." }
+                }
+                if ((Read-VsixEntry $vsix 'extension/skills/excel-mcp/VERSION').Trim() -ne $Version) {
+                    throw 'VSIX skill version does not match the package.'
+                }
+                $packagedManifest = Read-VsixEntry $vsix 'extension/package.json' | ConvertFrom-Json
+                if ($packagedManifest.version -ne $Version -or
+                    ($packagedManifest.extensionKind -join ',') -ne 'ui' -or
+                    ($packagedManifest.os -join ',') -ne 'win32') {
+                    throw 'VSIX version or local Windows host metadata is incorrect.'
+                }
+                [xml]$metadata = Read-VsixEntry $vsix 'extension.vsixmanifest'
+                if ($metadata.PackageManifest.Metadata.Identity.TargetPlatform -ne $package.Target) {
+                    throw "VSIX target does not match $($package.Target)."
+                }
+                foreach ($entry in $vsix.Entries) {
+                    if ($entry.FullName -match '^extension/(node_modules|tests|scripts|\.vitest|coverage|out/tests)/' -or
+                        $entry.FullName -match '^extension/(vitest\.config\.|tsconfig(?:\.test)?\.json$|bin/excelcli)') {
+                        throw "VSIX contains development files or the CLI: $($entry.FullName)"
+                    }
+                }
+                Write-Host "Verified VSIX target: $($package.Target)"
+            }
+            finally { $vsix.Dispose() }
         }
-        finally { $vsix.Dispose() }
         $debugDirectory = New-Item -ItemType Directory -Path (Join-Path $OutputDirectory 'extension')
         Get-ChildItem $extension -Force | Where-Object Name -ne 'node_modules' |
             Copy-Item -Destination $debugDirectory.FullName -Recurse

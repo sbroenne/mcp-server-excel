@@ -53,27 +53,36 @@ When you run the release workflow (via `workflow_dispatch`):
 2. **Updates `package.json`** version for VS Code extension
 3. **Compiles changesets** into `CHANGELOG.md` and release notes
 4. **Builds the extension** from source
-5. **Packages as VSIX** file
-6. **Publishes to VS Code Marketplace**
+5. **Packages and verifies Windows x64 and ARM64 VSIX files**
+6. **Publishes both platform packages to VS Code Marketplace**
 7. **Creates GitHub Release** with all components (MCP Server, CLI, VS Code, MCPB)
 
-### Publishing is Best-Effort
+### Publishing failures
 
-The marketplace step uses `continue-on-error: true`, so a missing/expired token
-or Marketplace outage does not block the GitHub release. Inspect the publish
-step after every release and use the manual fallback below if needed.
+Building and publishing use the same `@vscode/vsce` version from the extension's
+lockfile. The Marketplace job checks out the exact release commit, installs its
+locked tools, and uploads the verified VSIX files without rebuilding them.
+Each upload uses `--skip-duplicate`, so retrying a partially completed job can
+publish the missing platform without failing on the already published one.
 
-## Testing the Workflow
+The Marketplace job reports publication failures. A missing/expired token or
+Marketplace outage can leave one or both platform packages unpublished.
+Inspect both publish steps after every release and use the manual fallback
+below only with authorization.
 
-To test the release workflow:
+## Checking Packages Without Publishing
 
-1. Ensure the `VSCE_TOKEN` secret is configured
-2. Dispatch a real semantic release when it is ready:
-   ```powershell
-   gh workflow run release.yml -f version_bump=patch
-   ```
-3. Go to GitHub Actions and watch the unified workflow run
-4. Check that the release was created and marketplace publishing succeeded
+Do not dispatch a release to test packaging. From the repository root, after a
+successful Release solution build, use:
+
+```powershell
+.\scripts\Build-ReleasePackages.ps1 -Components Extension
+```
+
+This runs the compile, metadata, lint, type, and Vitest checks and inspects both
+VSIX files without publishing. Install the matching package in an isolated
+VS Code profile to check activation and real Excel behavior. Release dispatch
+and publication require separate authorization.
 
 ## Troubleshooting
 
@@ -92,14 +101,23 @@ To test the release workflow:
 
 ## Manual Publishing (Fallback)
 
-If automated publishing fails, you can publish manually:
+If automated publishing fails, publish the **verified, release-stamped VSIX
+files** from that release. Do not publish directly from the unprepared source
+folder or rebuild an existing release with different inputs. After authorization,
+use the locked tool from the extension folder (replace the example version and
+artifact paths):
 
 ```powershell
-cd vscode-extension
-npm install -g @vscode/vsce
-vsce login <publisher-name>
-vsce publish
+Set-Location vscode-extension
+npm ci
+npm exec -- vsce login sbroenne
+npm exec -- vsce publish --packagePath ..\artifacts\release\excel-mcp-2.1.0.vsix
+npm exec -- vsce publish --packagePath ..\artifacts\release\excel-mcp-2.1.0-win32-arm64.vsix
 ```
+
+Both packages use the existing Marketplace PAT authentication. On Windows
+ARM64, the server uses Windows' x64 emulation; the ARM64 target describes the
+VS Code installation, not a new native ARM64 server build.
 
 ## Security Best Practices
 
@@ -112,5 +130,5 @@ vsce publish
 ## References
 
 - [VS Code Publishing Documentation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
-- [HaaLeo/publish-vscode-extension Action](https://github.com/marketplace/actions/publish-vs-code-extension)
+- [VS Code Extension Manager (vsce)](https://github.com/microsoft/vsce)
 - [Azure DevOps PAT Documentation](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)

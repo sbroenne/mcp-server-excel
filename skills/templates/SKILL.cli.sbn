@@ -8,7 +8,7 @@ description: >
   VBA, Data Models, screenshots, and formatting. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows, Microsoft Excel 2016 or later, Node.js 18+, and network access for npx.
+compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks.
 ---
 
 # Excel Automation with excelcli

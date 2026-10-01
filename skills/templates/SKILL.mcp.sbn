@@ -7,7 +7,7 @@ description: >
   Slicers, formatting, screenshots, VBA macros, connections, and calculation mode.
   Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
   chart, dashboard, VBA, MCP.
-compatibility: Requires Windows, Microsoft Excel 2016 or later, Node.js 18+, and network access for npx.
+compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks. The VS Code extension bundles its server and does not require a separate Node.js or .NET installation.
 ---
 
 # Excel MCP Server Skill
@@ -19,6 +19,7 @@ parameters; these notes cover behavior that schemas alone cannot explain.
 ## Choose the intended workbook
 
 - Requires Windows and desktop Microsoft Excel 2016 or later.
+- The VS Code extension bundles its server; no separate Node.js or .NET installation is needed.
 - Use `file(action: 'list')` to discover existing sessions before opening a file.
   Match the user's intended workbook; do not automatically choose any open session.
 - Use a supplied full Windows path, not a guessed username or folder. Ask when

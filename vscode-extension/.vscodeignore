@@ -16,7 +16,12 @@ out/tests/**
 .vscode/**
 .github/**
 scripts/**
+tests/**
+vitest.config.*
 tsconfig.json
+tsconfig.test.json
+.vitest/**
+coverage/**
 node_modules/**
 *.vsix
 .gitignore
