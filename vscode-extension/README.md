@@ -33,10 +33,11 @@ A sales table, regional summary, and chart created in Excel. Ask Copilot:
 ## Quick Start
 
 1. **Install the extension** on your Windows desktop with Excel installed.
-2. **Open Copilot Chat with tool support.** With VS Code's default settings,
-   the bundled **excel-mcp** server starts automatically. Approve server or
-   tool use if prompted.
-3. **Give Copilot a local workbook path or ask it to create a workbook.** Try:
+2. **Open Copilot Chat with tool support.**
+3. **Give Copilot a local workbook path or ask it to create a workbook.** With
+   VS Code's default settings, the bundled **excel-mcp** server starts
+   automatically when your request needs Excel tools. Approve server or tool
+   use if prompted. Try:
    "Create a new workbook on my Desktop with sample sales data and a column
    chart. Save it as SalesDemo.xlsx and show me Excel while you work."
 

@@ -117,10 +117,10 @@ npm exec -- vsce publish --packagePath ..\artifacts\release\excel-mcp-2.1.0.vsix
 npm exec -- vsce publish --packagePath ..\artifacts\release\excel-mcp-2.1.0-win32-arm64.vsix
 ```
 
-Both packages use the existing Marketplace PAT authentication and currently
-bundle the x64 server. The `win32-arm64` target describes the VS Code
-installation, not the server executable's architecture. Native ARM64 server
-executables are provided by the npm distribution when using ARM64 Node.js.
+Both packages use the existing Marketplace PAT authentication and bundle a
+matching native server: x64 for `win32-x64`, ARM64 for `win32-arm64`. Packaging
+checks the executable inside each VSIX, not just its target label. The npm
+distribution selects its runtime separately, according to Node.js architecture.
 
 ## Security Best Practices
 
