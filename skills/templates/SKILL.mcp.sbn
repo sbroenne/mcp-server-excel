@@ -7,7 +7,7 @@ description: >
   Slicers, formatting, screenshots, VBA macros, connections, and calculation mode.
   Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
   chart, dashboard, VBA, MCP.
-compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ and network access are needed only for npx-based installs and updates.
+compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks. The VS Code extension bundles its server and does not require a separate Node.js or .NET installation.
 ---
 
 # Excel MCP Server Skill
