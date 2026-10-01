@@ -1,9 +1,12 @@
 # VS Code Extension Development
 
-The Excel MCP Server extension bundles the Windows x64 MCP executable and one
-Agent Skill. It ships separate Windows x64 and Windows ARM64 VSIX packages;
-ARM64 Windows runs the same executable through x64 emulation. Users do not
-need a separate .NET runtime, Node.js runtime, or CLI installation.
+The Excel MCP Server extension bundles a self-contained Windows MCP executable
+and one Agent Skill. It ships separate VSIX packages for Windows x64 and
+Windows ARM64 installations of VS Code. Both VSIX packages currently contain
+the x64 server; the ARM64 VSIX target does not describe the server executable's
+architecture. Native ARM64 server and CLI executables are distributed through
+npm and selected by ARM64 Node.js. Extension users do not need a separate .NET
+runtime, Node.js runtime, or CLI installation.
 
 ## Project structure
 

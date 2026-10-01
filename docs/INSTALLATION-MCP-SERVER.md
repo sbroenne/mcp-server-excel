@@ -10,6 +10,14 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 
 > **.NET runtime is NOT required** for any installation method — all distributions are self-contained.
 
+### Windows Architecture
+
+Native ARM64 MCP Server executables are available through npm when using ARM64
+Node.js. x64 Node.js selects the x64 executable, including on ARM64 Windows.
+The VS Code extension, Claude Desktop MCPB, and standalone ZIP currently bundle
+the x64 server. The ARM64 VSIX targets ARM64 VS Code; it does not contain a
+native ARM64 server.
+
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
@@ -39,11 +47,10 @@ Use this order to avoid setup confusion:
    - Search for **"ExcelMcp"**
    - Click **Install**
 
-2. **Start the bundled server**
-   - Open a GitHub Copilot chat that can use tools.
-   - Open the Command Palette, run **MCP: List Servers**, select
-     **excel-mcp**, and start it.
-   - Approve the server and tool use when VS Code asks.
+2. **Open Copilot Chat**
+   - Use a chat that supports tools. With VS Code's default settings, the
+     bundled **excel-mcp** server starts automatically.
+   - Approve server or tool use if prompted.
 
 3. **Ask Copilot to work with Excel**
    - Use a workbook path available on your Windows desktop.

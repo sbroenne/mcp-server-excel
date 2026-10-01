@@ -76,8 +76,7 @@ Skills menu if you want to inspect available skills.
 
 ## Requirements
 
-- **Windows x64 or Windows ARM64** with an interactive desktop. On ARM64,
-  the bundled x64 server runs through Windows' x64 emulation.
+- **Windows x64 or Windows ARM64** with an interactive desktop.
 - **Microsoft Excel 2016 or later**, installed and able to open normally.
   Some features, such as Python in Excel, require a supported Excel edition.
 - **VS Code 1.125 or later** and GitHub Copilot chat with tool support.
