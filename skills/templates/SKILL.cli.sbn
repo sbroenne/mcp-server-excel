@@ -20,9 +20,9 @@ compatibility: Requires Windows, Microsoft Excel 2016 or later, Node.js 18+, and
 - **Use `npx -y @sbroenne/excelcli@latest` by default.** The examples below use
   `excelcli` for readability; replace that token with the npx command unless `excelcli`
   already resolves on PATH.
-- The optional `com.github.copilot\bin\install-global.ps1` helper creates
-  `excelcli.cmd` / `excelcli.ps1` shims in `~\.copilot\bin`. The PowerShell shim
-  preserves embedded quotes in JSON arguments.
+- The plugin's `bin\start-cli.ps1` wrapper runs the same npx package and
+  preserves embedded quotes in JSON arguments from Windows PowerShell.
+  No global helper or PATH change is required.
 
 ## Workflow Checklist
 

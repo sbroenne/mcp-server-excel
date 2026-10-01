@@ -21,75 +21,13 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     private static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
 
-    [Fact]
-    public async Task InstallMcpGlobal_PreservesUnrelatedConfigurationAndWritesNpxCommand()
-    {
-        var sandbox = CreateSandbox("mcp-config");
-        try
-        {
-            var configDir = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot")).FullName;
-            var configPath = Path.Combine(configDir, "mcp-config.json");
-            File.WriteAllText(configPath, """{"preferences":{"theme":"dark"},"mcpServers":{"existing":{"command":"keep"}}}""");
-            var installer = Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "com.github.copilot", "bin", "install-global.ps1");
-
-            var result = await RunPowerShellFileAsync(installer, [],
-                new Dictionary<string, string> { ["USERPROFILE"] = sandbox });
-
-            Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            using var config = JsonDocument.Parse(File.ReadAllText(configPath));
-            Assert.Equal("dark", config.RootElement.GetProperty("preferences").GetProperty("theme").GetString());
-            Assert.Equal("keep", config.RootElement.GetProperty("mcpServers").GetProperty("existing").GetProperty("command").GetString());
-            var excelMcp = config.RootElement.GetProperty("mcpServers").GetProperty("excel-mcp");
-            Assert.Equal("npx", excelMcp.GetProperty("command").GetString());
-            Assert.Equal(["-y", "@sbroenne/mcp-server-excel@latest"],
-                excelMcp.GetProperty("args").EnumerateArray().Select(value => value.GetString()!).ToArray());
-        }
-        finally { DeleteDirectoryIfExists(sandbox); }
-    }
-
     [Theory]
-    [InlineData("excelcli.cmd")]
-    [InlineData("excelcli.ps1")]
-    public async Task InstallCliGlobal_RepairsMissingShimAndPreservesExistingShim(string existingShim)
+    [InlineData("excel-mcp")]
+    [InlineData("excel-cli")]
+    public void SourcePlugin_DoesNotShipGlobalInstaller(string pluginName)
     {
-        var sandbox = CreateSandbox("cli-shims");
-        try
-        {
-            var plugin = Path.Combine(sandbox, "plugin owner's \u00e9");
-            var bin = Directory.CreateDirectory(Path.Combine(plugin, "bin")).FullName;
-            File.WriteAllText(Path.Combine(bin, "start-cli.ps1"), "Write-Output 'wrapper-ran'\n$global:LASTEXITCODE=0");
-            var installerDirectory = Directory.CreateDirectory(Path.Combine(plugin, "com.github.copilot", "bin")).FullName;
-            var installer = Path.Combine(installerDirectory, "install-global.ps1");
-            var source = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"))
-                .Replace("[Environment]::GetEnvironmentVariable(\"PATH\", \"User\")", "$env:TEST_USER_PATH", StringComparison.Ordinal)
-                .Replace("[Environment]::SetEnvironmentVariable(\"PATH\", $newUserPath, \"User\")", "throw 'Unexpected PATH mutation'", StringComparison.Ordinal);
-            File.WriteAllText(installer, source, new UTF8Encoding(true));
-
-            var userBin = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot", "bin")).FullName;
-            var existingPath = Path.Combine(userBin, existingShim);
-            File.WriteAllText(existingPath, "keep existing shim");
-            var environment = new Dictionary<string, string>
-            {
-                ["USERPROFILE"] = sandbox,
-                ["TEST_USER_PATH"] = userBin
-            };
-
-            var installed = await RunPowerShellFileAsync(installer, [], environment);
-
-            Assert.True(installed.ExitCode == 0, installed.CombinedOutput);
-            Assert.Equal("keep existing shim", File.ReadAllText(existingPath));
-            Assert.True(File.Exists(Path.Combine(userBin, "excelcli.cmd")));
-            Assert.True(File.Exists(Path.Combine(userBin, "excelcli.ps1")));
-
-            var forced = await RunPowerShellFileAsync(installer, ["-Force"], environment);
-            Assert.True(forced.ExitCode == 0, forced.CombinedOutput);
-            Assert.Contains("call npx.cmd -y @sbroenne/excelcli@latest %*",
-                File.ReadAllText(Path.Combine(userBin, "excelcli.cmd")), StringComparison.Ordinal);
-            var launched = await RunPowerShellFileAsync(Path.Combine(userBin, "excelcli.ps1"), [], environment);
-            Assert.True(launched.ExitCode == 0, launched.CombinedOutput);
-            Assert.Contains("wrapper-ran", launched.Stdout, StringComparison.Ordinal);
-        }
-        finally { DeleteDirectoryIfExists(sandbox); }
+        var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
+        Assert.Empty(Directory.GetFiles(pluginRoot, "install-global.ps1", SearchOption.AllDirectories));
     }
 
     [Theory]
@@ -100,7 +38,6 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
         AssertAgentPluginManifest(pluginRoot, "0.0.0");
         AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, pluginName), pluginName);
-        Assert.True(File.Exists(Path.Combine(pluginRoot, "com.github.copilot", "bin", "install-global.ps1")));
     }
 
     [Fact]
@@ -145,6 +82,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             Assert.False(File.Exists(Path.Combine(mcpRoot, "bin", "start-mcp.ps1")));
             Assert.False(File.Exists(Path.Combine(mcpRoot, "bin", "download.ps1")));
             Assert.False(File.Exists(Path.Combine(cliRoot, "bin", "download.ps1")));
+            Assert.Empty(Directory.GetFiles(outputDirectory, "install-global.ps1", SearchOption.AllDirectories));
 
             AssertSkillDirectoryMatchesSource(
                 Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp"),
@@ -179,6 +117,11 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             Assert.True(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "start-cli.ps1")));
             Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-mcp", "bin", "download.ps1")));
             Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "download.ps1")));
+            Assert.Empty(Directory.GetFiles(publishedDirectory, "install-global.ps1", SearchOption.AllDirectories));
+
+            var validation = await RunPowerShellFileAsync(
+                Path.Combine(publishedDirectory, "tests", "Test-Plugins.ps1"), []);
+            Assert.True(validation.ExitCode == 0, validation.CombinedOutput);
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -204,6 +147,37 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
 
             Assert.NotEqual(0, sync.ExitCode);
             Assert.Contains("excel-mcp is missing mcp.json", sync.Stderr, StringComparison.Ordinal);
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Theory]
+    [InlineData("excel-mcp", "bin")]
+    [InlineData("excel-mcp", "com.github.copilot")]
+    [InlineData("excel-cli", "bin")]
+    [InlineData("excel-cli", "com.github.copilot")]
+    public async Task SyncPublishedPluginRepo_RejectsRetiredGlobalInstaller(string pluginName, string directory)
+    {
+        var sandbox = CreateSandbox("sync-retired-installer");
+        try
+        {
+            var builtDirectory = Path.Combine(sandbox, "built");
+            var publishedDirectory = Directory.CreateDirectory(Path.Combine(sandbox, "published")).FullName;
+            const string version = "9.9.12-test";
+
+            var build = await RunPowerShellFileAsync(
+                BuildPluginsScript, ["-Version", version, "-OutputDir", builtDirectory]);
+            Assert.True(build.ExitCode == 0, build.CombinedOutput);
+            var installerDirectory = Directory.CreateDirectory(Path.Combine(builtDirectory, pluginName, directory)).FullName;
+            File.WriteAllText(Path.Combine(installerDirectory, "install-global.ps1"), "# Retired helper");
+
+            var sync = await RunPowerShellFileAsync(
+                SyncPublishedRepoScript,
+                ["-PublishedRepoDir", publishedDirectory, "-BuiltPluginsDir", builtDirectory, "-Version", version]);
+
+            Assert.NotEqual(0, sync.ExitCode);
+            Assert.Contains("Global installation helpers are retired", sync.Stderr, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFileSystemEntries(publishedDirectory));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }

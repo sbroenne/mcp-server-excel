@@ -24,18 +24,7 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-### Step 2: Install the Optional Global Shim
-
-If you want `excelcli` on PATH for shell usage outside plugin-driven flows, install the plugin-provided shim:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
-```
-
-This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that directory to your user PATH if needed.
-
-### Step 3: Run `excelcli` through npm
+### Step 2: Run `excelcli` through npm
 
 The plugin does not bundle `excelcli.exe`. Its wrapper runs:
 
@@ -43,12 +32,13 @@ The plugin does not bundle `excelcli.exe`. Its wrapper runs:
 npx -y @sbroenne/excelcli@latest --help
 ```
 
-Node.js and npx are required. The optional global shim preserves quoted JSON
-arguments when invoked from Windows PowerShell.
+Node.js and npx are required. The plugin's `bin\start-cli.ps1` wrapper preserves
+quoted JSON arguments when invoked from Windows PowerShell. No global helper,
+PATH change, or separate runtime installation is required.
 
 You do **not** need a separate standalone install just to use the plugin.
 
-### Step 4: Optional Standalone CLI Install
+### Optional Standalone CLI Install
 
 If you still prefer a fully separate non-plugin install, you can use the normal release channels:
 

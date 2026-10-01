@@ -5,11 +5,11 @@
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
     2. Strip any runtime payloads from plugin bin/ roots
-    3. Update runtime-bootstrap metadata in plugin.json and version.txt
+    3. Update release metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
-    RUNTIME BOOTSTRAP MODEL:
+    NPM LAUNCH MODEL:
     - Published plugins use the public npm packages through npx
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
@@ -223,9 +223,9 @@ function Assert-AgentPluginPackage {
         throw "$pluginJsonPath repository must be a string."
     }
 
-    $legacyCopilotHelper = Join-Path $PluginDir "bin\install-global.ps1"
-    if (Test-Path $legacyCopilotHelper) {
-        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    $globalHelpers = @(Get-ChildItem -LiteralPath $PluginDir -Recurse -Force -File -Filter "install-global.ps1")
+    if ($globalHelpers.Count) {
+        throw "Global installation helpers are retired; use npx instead: $($globalHelpers.FullName -join ', ')"
     }
 
     $legacyMcpPath = Join-Path $PluginDir ".mcp.json"

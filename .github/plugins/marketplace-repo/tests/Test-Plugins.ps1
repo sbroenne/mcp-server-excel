@@ -45,6 +45,9 @@ foreach ($plugin in $marketplace.plugins) {
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "$($plugin.name) contains a reparse point: $($item.FullName)"
         }
+        if ($item.Name -eq "install-global.ps1") {
+            throw "$($plugin.name) contains a retired global installation helper: $($item.FullName)"
+        }
     }
 }
 
@@ -67,6 +70,7 @@ if (@($server.args).Count -ne 2 -or $server.args[0] -ne "-y" -or
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
     $content = Get-Content $file.FullName -Raw
     $retiredDocumentation = @(
+        @{ Pattern = [regex]::Escape("install-global.ps1"); Description = "retired global installation helper" }
         @{ Pattern = [regex]::Escape("ExcelMcp-CLI-latest-windows.zip"); Description = "nonexistent unversioned CLI release asset" }
         @{ Pattern = [regex]::Escape("excel-mcp-server.exe"); Description = "retired MCP executable name" }
         @{ Pattern = [regex]::Escape("excel-mcp-bundle.mcpb"); Description = "retired MCPB asset name" }
