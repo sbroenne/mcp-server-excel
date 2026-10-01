@@ -71,7 +71,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
 
             var sessions = await CallAsync(host.Client, "file", new() { ["action"] = "list" });
             Assert.Equal(firstId, Assert.Single(sessions.GetProperty("sessions").EnumerateArray())
-                .GetProperty("sessionId").GetString());
+                .GetProperty("session_id").GetString());
             var values = await CallAsync(host.Client, "range", new()
             {
                 ["action"] = "get-values",

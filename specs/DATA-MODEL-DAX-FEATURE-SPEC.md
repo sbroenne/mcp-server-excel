@@ -1379,7 +1379,7 @@ public class DataModelRelationshipInfo
 |------|------------|--------|------------|
 | Excel version compatibility | Medium | High | Document version requirements, test with Excel 2013+ |
 | TOM dependency complexity | High | Medium | Make TOM optional, provide basic operations without it |
-| Data Model file corruption | Low | High | Always work on copies, validate before save |
+| Data Model file corruption | Low | High | Validate requested model changes before saving |
 | DAX validation performance | Medium | Medium | Cache validation results, async operations |
 | Large model performance | Medium | High | Implement pagination, limit operations |
 | Refresh operations hang | Medium | High | Implement timeouts, per-table refresh |
@@ -1872,4 +1872,3 @@ This feature enables powerful BI workflows:
 - Automated report generation with DAX aggregations
 - Creating summary tables from complex Data Model calculations
 - AI-assisted data analysis with natural language → DAX → results
-

@@ -9,6 +9,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// Use rangeedit for insert/delete/find/sort. Use rangeformat for styling/validation.
 /// Use rangelink for hyperlinks and cell protection.
 /// Calculation mode and explicit recalculation are handled by calculationmode.
+/// Value/formula writes attempt to restore the prior calculation mode; manual mode needs explicit calculation.
+/// Restoration can fail without failing the write; use get-mode when subsequent work depends on the mode.
+/// Clear actions have no tool-level undo: clear-all removes values, formulas, and formats;
+/// clear-contents removes values/formulas; clear-formats removes formats. Check the intended target.
 ///
 /// BEST PRACTICE: Use 'get-values' to check existing data before overwriting.
 /// Use 'clear-contents' (not 'clear-all') to preserve cell formatting when clearing data.
@@ -30,7 +34,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents removes values/formulas; clear-formats removes formats. Check the intended target before clearing. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Use calculation_mode get-mode when subsequent work depends on the mode; manual mode needs explicit calculation. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
@@ -50,6 +54,8 @@ public interface IRangeCommands
 
     /// <summary>
     /// Sets values in a range from 2D array or file.
+    /// Attempts to restore the prior calculation mode; restoration can fail without failing the write.
+    /// Manual mode needs explicit calculation of dependent formulas.
     /// Provide EITHER values (inline JSON 2D array) OR valuesFile (path to .json or .csv file), not both.
     /// JSON file: must contain a 2D array like [[1,2],[3,4]].
     /// CSV file: rows become array rows, comma-separated values become columns.
@@ -83,6 +89,8 @@ public interface IRangeCommands
 
     /// <summary>
     /// Sets formulas in a range from 2D array or file.
+    /// Attempts to restore the prior calculation mode; restoration can fail without failing the write.
+    /// Manual mode needs explicit calculation of dependent formulas.
     /// Provide EITHER formulas (inline JSON 2D array) OR formulasFile (path to .json file), not both.
     /// Every row must be rectangular and match the target range column count.
     /// Writes that intersect merged cells fail unless the target is only the merged range's top-left cell.
@@ -112,6 +120,7 @@ public interface IRangeCommands
 
     /// <summary>
     /// Clears all content (values, formulas, formats) from range.
+    /// No tool-level undo. Check the intended target before clearing.
     /// Excel COM: Range.Clear()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -122,6 +131,7 @@ public interface IRangeCommands
 
     /// <summary>
     /// Clears only values and formulas (preserves formatting).
+    /// No tool-level undo. Check the intended target before clearing.
     /// Excel COM: Range.ClearContents()
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -132,6 +142,7 @@ public interface IRangeCommands
 
     /// <summary>
     /// Clears only formatting (preserves values and formulas).
+    /// No tool-level undo. Check the intended target before clearing.
     /// Excel COM: Range.ClearFormats()
     /// </summary>
     /// <param name="batch">Excel batch session</param>

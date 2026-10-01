@@ -1,7 +1,5 @@
 using System.IO.Pipelines;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -161,7 +159,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
     [InlineData("worksheet", "delete")]
     [InlineData("worksheet", "move")]
     [InlineData("worksheet", "copy")]
-    public async Task CamelCaseSessionIdAlias_ReachesSessionLookup(string toolName, string action)
+    public async Task CamelCaseSessionId_IsRejectedBeforeSessionLookup(string toolName, string action)
     {
         var arguments = SessionArguments(toolName, action);
         arguments["sessionId"] = "synthetic-unknown-session";
@@ -170,15 +168,15 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         using var document = ParseJsonResult(json, $"{toolName}.{action}");
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
         var error = document.RootElement.GetProperty("errorMessage").GetString();
-        Assert.Contains("not found", error, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("required", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("session_id", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("not found", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
     [InlineData("workbook", "get-info")]
     [InlineData("file", "close")]
     [InlineData("worksheet", "list")]
-    public async Task EqualCanonicalAndAliasSessionIds_ReachSessionLookup(string toolName, string action)
+    public async Task EqualCanonicalAndLegacySessionIds_ReturnStructuredInputError(string toolName, string action)
     {
         var arguments = SessionArguments(toolName, action);
         arguments["session_id"] = "synthetic-unknown-session";
@@ -187,8 +185,11 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         var json = await CallToolAsync(toolName, arguments, TimeSpan.FromSeconds(30));
         using var document = ParseJsonResult(json, $"{toolName}.{action}");
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("not found", document.RootElement.GetProperty("errorMessage").GetString(),
-            StringComparison.OrdinalIgnoreCase);
+        AssertFailureEnvelope(document.RootElement, $"{toolName}.{action}",
+            nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
+        Assert.Contains("session_id", document.RootElement.GetProperty("errorMessage").GetString(),
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("synthetic-unknown-session", json, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -267,41 +268,6 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         Assert.Contains("session_id", text, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void AliasObservation_WritesPrivacySafeWarningOnlyToStandardError()
-    {
-        using var stdout = new StringWriter();
-        using var stderr = new StringWriter();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
-
-            var services = new ServiceCollection();
-            services.AddLogging(Program.ConfigureStdioLogging);
-            using var provider = services.BuildServiceProvider();
-            var logger = provider
-                .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("SessionIdentityFilterTest");
-
-            SessionIdentityFilter.WriteAliasWarning(logger, "workbook", "get-info");
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
-
-        Assert.Empty(stdout.ToString());
-        Assert.Contains("Compatibility sessionId alias observed", stderr.ToString(),
-            StringComparison.Ordinal);
-        Assert.Contains("workbook/get-info", stderr.ToString(), StringComparison.Ordinal);
-        Assert.DoesNotContain("synthetic-private-value", stderr.ToString(), StringComparison.Ordinal);
-    }
-
     [Theory]
     [InlineData("open")]
     [InlineData("create")]
@@ -322,7 +288,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         Assert.False(aliasDocument.RootElement.GetProperty("success").GetBoolean());
         error = aliasDocument.RootElement.GetProperty("errorMessage").GetString();
         Assert.Contains("sessionId", error, StringComparison.Ordinal);
-        Assert.Contains("not valid", error, StringComparison.Ordinal);
+        Assert.Contains("not a valid MCP parameter", error, StringComparison.Ordinal);
     }
 
     [Fact]

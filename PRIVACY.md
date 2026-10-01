@@ -28,11 +28,6 @@ that a tool returns to your chosen AI assistant.
 - **Session information** - A random telemetry session ID generated each time the CLI or server starts
 - **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
 - **Application version** - Which version of ExcelMcp is running
-- **Session alias compatibility** - Whether a session-bound MCP request used the
-  fixed `sessionId` compatibility alias. Its custom properties contain only the
-  tool, declared action, alias name, and application version. Like other MCP
-  telemetry, the standard context also includes the anonymous user ID and the
-  random MCP Server process telemetry session ID described above.
 - **Unhandled exceptions** - Error type, approved source, and project-owned failure site only
   (never exception messages or stack traces)
 

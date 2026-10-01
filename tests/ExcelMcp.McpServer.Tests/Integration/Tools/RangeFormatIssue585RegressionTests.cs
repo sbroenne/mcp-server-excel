@@ -92,7 +92,7 @@ public sealed class RangeFormatIssue585RegressionTests(
         Assert.Equal("ArgumentException", root.GetProperty("exceptionType").GetString());
         Assert.Equal("InvalidInput", root.GetProperty("errorCategory").GetString());
         Assert.Equal("rangeformat.format-range", root.GetProperty("command").GetString());
-        Assert.Equal(sessionId, root.GetProperty("sessionId").GetString());
+        Assert.Equal(sessionId, root.GetProperty("session_id").GetString());
         Assert.Contains(
             "not-a-color",
             root.GetProperty("errorMessage").GetString(),

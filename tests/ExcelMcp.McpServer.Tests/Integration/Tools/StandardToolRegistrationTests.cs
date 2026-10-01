@@ -68,6 +68,47 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Contains("restore the prior mode", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("not mandatory", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("does not request confirmation", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("manual needs explicit calculate", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("attempt to restore the prior mode", description, StringComparison.Ordinal);
+        Assert.Contains("restoration can fail without failing the write", description, StringComparison.Ordinal);
+        Assert.Contains("what-if data tables, not worksheet Tables", description, StringComparison.Ordinal);
+        Assert.Contains("asynchronous refreshes or Python calculations", description, StringComparison.Ordinal);
+        Assert.Contains("concurrent requests and responses have no guaranteed order", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("Await each dependent call", Client.ServerInstructions, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task FileDescription_ContainsCompactAuthorizedWorkflowAndDiscardWarning()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var tool = tools.Single(t => t.Name == "file");
+        var description = tool.Description;
+        Assert.Contains("Workflow: list and match", description, StringComparison.Ordinal);
+        Assert.Contains("reuse its session or open/create", description, StringComparison.Ordinal);
+        Assert.Contains("canClose", description, StringComparison.Ordinal);
+        Assert.Contains("close when authorized with explicit save:true or save:false", description, StringComparison.Ordinal);
+        var actionDescription = tool.JsonSchema.GetProperty("properties")
+            .GetProperty("action").GetProperty("description").GetString();
+        Assert.Contains("discards all unsaved edits, including earlier work", actionDescription, StringComparison.Ordinal);
+        Assert.Contains("no tool-level undo", actionDescription, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("range", "clear-all removes values, formulas, and formats")]
+    [InlineData("range", "clear-contents removes values/formulas")]
+    [InlineData("range", "clear-formats removes formats")]
+    [InlineData("worksheet", "removes all sheet contents and may break dependent references")]
+    [InlineData("worksheet", "removes the source sheet and saves both files")]
+    [InlineData("workbook", "replaces linked formulas with their current values")]
+    public async Task DestructiveGuidance_ExposesConsequencesWithoutBackupInstructions(string toolName, string consequence)
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == toolName).Description;
+        Assert.Contains(consequence, description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no tool-level undo", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("backup", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("saved cop", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("copies of both", description, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -88,7 +129,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             {
                 var camelCase = Regex.Replace(property.Name, "_([a-z])", match => match.Groups[1].Value.ToUpperInvariant());
                 if (camelCase == property.Name || camelCase == "sessionId")
-                    continue; // sessionId is also the documented file.list response field.
+                    continue; // sessionId is a local variable name in authored workflow examples.
 
                 // Nested JSON object keys keep their schema spelling; inspect only top-level prose.
                 var prose = new[] { tool.Description }.Concat(
@@ -164,6 +205,9 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             var properties = schema.GetProperty("properties");
             Assert.True(properties.TryGetProperty("success", out _),
                 $"{tool.Name} output schema does not describe success.");
+            Assert.True(properties.TryGetProperty("session_id", out _),
+                $"{tool.Name} output schema does not describe session error context.");
+            Assert.False(properties.TryGetProperty("sessionId", out _));
         }
     }
 
@@ -192,12 +236,12 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        foreach (var name in new[] { "sessionId", "filePath", "isExcelVisible", "activeOperations", "canClose" })
+        foreach (var name in new[] { "session_id", "filePath", "isExcelVisible", "activeOperations", "canClose" })
         {
             Assert.True(properties.TryGetProperty(name, out _),
                 $"File session output schema does not describe {name}.");
         }
-        Assert.False(properties.TryGetProperty("session_id", out _));
+        Assert.False(properties.TryGetProperty("sessionId", out _));
     }
 
     [Fact]

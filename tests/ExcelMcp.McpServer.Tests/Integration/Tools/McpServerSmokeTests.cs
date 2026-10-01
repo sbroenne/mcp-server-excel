@@ -146,6 +146,19 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         Assert.NotNull(sessionId);
         _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
 
+        var listSessionsResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "list"
+        });
+        AssertSuccess(listSessionsResult, "List workbook sessions");
+        using (var listed = JsonDocument.Parse(listSessionsResult))
+        {
+            var session = Assert.Single(listed.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal(sessionId, session.GetProperty("session_id").GetString());
+            Assert.False(session.TryGetProperty("sessionId", out _));
+            Assert.True(session.GetProperty("canClose").GetBoolean());
+        }
+
         // =====================================================================
         // STEP 3: WORKSHEET OPERATIONS
         // =====================================================================
@@ -154,8 +167,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            // Compatibility path for client bridges that rewrite the canonical session_id key.
-            ["sessionId"] = sessionId
+            ["session_id"] = sessionId
         });
         AssertSuccess(listSheetsResult, "List worksheets");
 

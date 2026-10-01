@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -24,6 +25,56 @@ public sealed class PersistentServiceCalculationTests(
         Assert.True(result.Success);
         Assert.Equal("automatic", result.Mode);
         Assert.Equal(-4105, result.ModeValue);
+    }
+
+    [Theory]
+    [InlineData(CalculationMode.Automatic, false)]
+    [InlineData(CalculationMode.Manual, false)]
+    [InlineData(CalculationMode.SemiAutomatic, false)]
+    [InlineData(CalculationMode.Automatic, true)]
+    [InlineData(CalculationMode.Manual, true)]
+    [InlineData(CalculationMode.SemiAutomatic, true)]
+    public void RangeWrites_PreserveModeAndRecalculateOrdinaryDependentsByMode(
+        CalculationMode mode,
+        bool writeFormula)
+    {
+        var previous = _calculation.GetMode(_fixture.BatchToken);
+        Assert.True(previous.Success, previous.ErrorMessage);
+        var range = _fixture.CreateCommands<IRangeCommands>();
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        try
+        {
+            Assert.True(_calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual).Success);
+            var seed = range.SetFormulas(_fixture.BatchToken, sheetName, "A1:B1", [["=2", "=A1*2"]]);
+            Assert.True(seed.Success, seed.ErrorMessage);
+            Assert.True(_calculation.Calculate(_fixture.BatchToken, CalculationScope.Workbook).Success);
+            var baseline = range.GetValues(_fixture.BatchToken, sheetName, "B1");
+            Assert.True(baseline.Success, baseline.ErrorMessage);
+            Assert.Equal(4d, Convert.ToDouble(baseline.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+
+            Assert.True(_calculation.SetMode(_fixture.BatchToken, mode).Success);
+            var write = writeFormula
+                ? range.SetFormulas(_fixture.BatchToken, sheetName, "A1", [["=3"]])
+                : range.SetValues(_fixture.BatchToken, sheetName, "A1", [[3]]);
+            Assert.True(write.Success, write.ErrorMessage);
+            var retainedMode = _calculation.GetMode(_fixture.BatchToken);
+            Assert.True(retainedMode.Success, retainedMode.ErrorMessage);
+            Assert.Equal((int)mode, retainedMode.ModeValue);
+            var beforeExplicitCalculation = range.GetValues(_fixture.BatchToken, sheetName, "B1");
+            Assert.True(beforeExplicitCalculation.Success, beforeExplicitCalculation.ErrorMessage);
+            Assert.Equal(mode == CalculationMode.Manual ? 4d : 6d,
+                Convert.ToDouble(beforeExplicitCalculation.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+
+            Assert.True(_calculation.Calculate(_fixture.BatchToken, CalculationScope.Workbook).Success);
+            var calculated = range.GetValues(_fixture.BatchToken, sheetName, "B1");
+            Assert.True(calculated.Success, calculated.ErrorMessage);
+            Assert.Equal(6d, Convert.ToDouble(calculated.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        }
+        finally
+        {
+            var restored = _calculation.SetMode(_fixture.BatchToken, (CalculationMode)previous.ModeValue);
+            Assert.True(restored.Success, restored.ErrorMessage);
+        }
     }
 
     [Fact]

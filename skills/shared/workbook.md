@@ -39,4 +39,7 @@ Changing formats can remove unsupported workbook features. In particular, saving
 2. Call `update-external-link` to refresh one source.
 3. Call `break-external-link` only with explicit user intent: it permanently replaces linked formulas with their current values.
 
+Breaking a link has no tool-level undo. Until saved, an authorized close without
+saving can discard the change, but it also discards earlier unsaved work.
+
 Printing and print preview are not exposed. Printing can send output to a physical default printer, and preview is modal and can block unattended Excel sessions.

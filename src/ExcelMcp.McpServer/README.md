@@ -84,6 +84,23 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ---
 
+## Session workflow
+
+List and match the intended workbook, reuse its session or open/create, perform
+the work, then list and check its `canClose`. Close only when authorized and
+choose `save: true` or `save: false` explicitly. Closing without saving discards
+all unsaved edits and has no tool-level undo.
+
+MCP inputs, open/create results, list entries, and session error context use
+`session_id`. The legacy `sessionId` input is rejected. CLI JSON keeps its
+`sessionId` convention; its sessions are separate.
+
+Calls within a session execute one at a time, but concurrent requests and
+responses have no guaranteed order. Wait for dependent calls. Writes attempt to
+restore the calculation mode; restoration can fail without failing the write.
+Use `get-mode` when subsequent work depends on the mode. Manual mode requires
+explicit calculation before relying on dependent values.
+
 ## 💡 Example Use Cases
 
 **"Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns"**  

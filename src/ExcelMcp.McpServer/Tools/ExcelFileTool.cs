@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -14,7 +15,7 @@ public static partial class ExcelFileTool
         {
             "open" or "create" => ["action", "path", "show", "timeout_seconds"],
             "test" => ["action", "path", "timeout_seconds"],
-            "close" => ["action", "session_id", "sessionId", "save"],
+            "close" => ["action", "session_id", "save"],
             "list" => ["action"],
             _ => throw new ArgumentException("Unknown file action.")
         };
@@ -24,8 +25,10 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Open/create workbooks and manage their sessions. Call list first to reuse the matching session.
-    /// Open/create returns session_id; pass it to session-based tools. Create requires an existing directory.
+    /// Open/create workbooks and manage their sessions.
+    /// Workflow: list and match the intended workbook -> reuse its session or open/create -> operate ->
+    /// list and check that session's canClose -> close when authorized with explicit save:true or save:false.
+    /// Open/create and list entries return session_id; pass it to session-based tools. Create requires an existing directory.
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
@@ -34,7 +37,7 @@ public static partial class ExcelFileTool
     /// visible authentication and read-only access: inspect canOpen, isIrmProtected, willOpenReadOnly,
     /// and requiresVisibleSession. Test does not bypass authentication.
     /// </summary>
-    /// <param name="action">The file operation to perform.</param>
+    /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
     /// <param name="path">Full Windows workbook path. Required for open, create, test. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
@@ -102,6 +105,23 @@ public static partial class ExcelFileTool
 
             var result = response.Result
                 ?? throw new InvalidOperationException("File operation returned no result.");
+            if (action == FileAction.List)
+            {
+                var list = JsonNode.Parse(result)?.AsObject()
+                    ?? throw new InvalidOperationException("Session listing returned no object.");
+                foreach (var node in list["sessions"]?.AsArray()
+                    ?? throw new InvalidOperationException("Session listing returned no sessions array."))
+                {
+                    var session = node?.AsObject()
+                        ?? throw new InvalidOperationException("Session listing returned an invalid entry.");
+                    var sessionId = session["sessionId"]?.GetValue<string>();
+                    if (string.IsNullOrWhiteSpace(sessionId))
+                        throw new InvalidOperationException("Session listing returned no session ID.");
+                    session.Remove("sessionId");
+                    session["session_id"] = sessionId;
+                }
+                return list.ToJsonString(ExcelToolsBase.JsonOptions);
+            }
             if (action is not (FileAction.Open or FileAction.Create))
                 return result;
 

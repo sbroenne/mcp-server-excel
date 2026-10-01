@@ -19,6 +19,10 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
 - Preserve exact tool, action, parameter, and flag names in agent guidance.
   When MCP and CLI spellings differ, show both explicitly or use native examples;
   do not replace identifiers with vague descriptions.
+- Do not tell agents to create or retain workbook backup/recovery copies, or to
+  work on duplicate workbooks as a prerequisite to requested edits. Explain
+  destructive consequences without adding file-copy steps. Copying or exporting
+  is appropriate only when part of the user's request.
 - Production code must access workbook contents through Excel COM. Never open
   an Excel file as a ZIP/OOXML package or parse/modify its internal XML outside
   tests. Pre-open binary container detection may read only IRM/AIP protection

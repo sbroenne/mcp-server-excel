@@ -107,6 +107,10 @@ daemon shutdown attempts to save remaining sessions, but crashes, timeouts, and
 forced cleanup may lose edits. Cancellation is not undo.
 After an error or cancellation, inspect `session list` and the affected state
 before retrying. Confirm before closing a visible window unless already authorized.
+Closing without saving has no tool-level undo and discards earlier unsaved work
+too. Calls within a session execute one at a time, but concurrent requests and
+responses have no guaranteed order. Wait for each dependent call; different
+sessions can run independently.
 
 ### Rule 4: Data Model Prerequisites
 
@@ -149,6 +153,13 @@ retry only after correcting the cause. Do not invent a different location.
 For bulk writes where repeated recalculation is costly, remember the current mode,
 use manual mode, calculate, then restore the prior mode in a `finally` block.
 Do not change modes for reads or when intermediate calculated results are needed.
+Writes attempt to restore the prior mode, not unconditional recalculation.
+Restoration can fail without failing the write; use `get-mode` when subsequent
+work depends on the mode. Automatic normally recalculates dependent formulas
+after restoration; manual needs explicit calculation.
+Semi-automatic excludes what-if data tables, not worksheet Tables.
+Successful writes do not establish completion of asynchronous refreshes or
+Python calculations.
 
 ```powershell
 # $sessionId is the ID from a successful open/create or a matching session list entry.
