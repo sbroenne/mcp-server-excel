@@ -150,13 +150,25 @@ Local authenticated discovery and build must also be separate commands:
 
 ```powershell
 # In a trusted shell with a read-only GH_TOKEN, discovery runs no upstream code.
-node scripts\Update-AwesomeCopilot.mjs discover v2.1.0 artifacts\discovery-work artifacts\public-discovery.json
+$workRoot = Join-Path ([IO.Path]::GetTempPath()) "excel-listing-$([Guid]::NewGuid().ToString('N'))"
+node scripts\Update-AwesomeCopilot.mjs discover v2.1.0 "$workRoot\discovery-work" "$workRoot\public-discovery.json"
 # In a separately started shell whose ancestry never received application tokens:
-node scripts\Update-AwesomeCopilot.mjs build artifacts\public-discovery.json artifacts\build-work artifacts\plugin-update-plan.json
+node scripts\Update-AwesomeCopilot.mjs build "$workRoot\public-discovery.json" "$workRoot\build-work" "$workRoot\plugin-update-plan.json"
 ```
 
 Do not late-unset a token or launch a filtered child from a token-bearing shell
 as a substitute for the second boundary. Each work directory must be new.
+Pass only the public `$workRoot` path to the separately started build shell.
+Disposable workspaces must not overlap the trusted source checkout. Roots,
+ancestors and leaf destinations must be ordinary directories/files: symlinks,
+Windows junctions and all reparse points are rejected before reads/writes,
+including dangling links or missing leaves underneath linked ancestors.
+Windows local runs require `pwsh` for the complete reparse-attribute check.
+Git blob-mode checks also reject tracked links materialized as ordinary text
+by `core.symlinks=false`. Both listing files are checked before any mutation
+and again after upstream build; artifact/template/receipt paths have the same
+filesystem protection. The updater does not recursively clean external trees;
+remove only exact owned disposable directories without following links.
 `prepare` remains an anonymous convenience command only from such a token-free
 shell: public REST reads use unauthenticated `curl`, never saved `gh` login
 credentials. HTTP/rate-limit/auth failures are visible; use trusted authenticated
@@ -291,7 +303,8 @@ node --test tests\ExcelMcp.SkillGeneration.Tests\PluginPublication.test.mjs
 dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PluginPublication" --blame-hang-timeout 3m
 $env:PREVIEW='true'
 $env:AWESOME_COPILOT_UPDATES_ENABLED='false'
-node scripts\Update-AwesomeCopilot.mjs prepare v2.1.0 artifacts\awesome-preview artifacts\awesome-preview-plan.json
+$workRoot = Join-Path ([IO.Path]::GetTempPath()) "excel-listing-$([Guid]::NewGuid().ToString('N'))"
+node scripts\Update-AwesomeCopilot.mjs prepare v2.1.0 "$workRoot\awesome-preview" "$workRoot\awesome-preview-plan.json"
 ```
 
 Use a new disposable directory on each preview. The prepare command runs

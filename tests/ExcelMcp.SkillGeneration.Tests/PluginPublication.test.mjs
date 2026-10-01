@@ -759,6 +759,96 @@ test('shared Git preparation commands cannot inherit write credentials or inject
     } finally { fs.rmSync(root, { recursive: true }); }
 });
 
+test('allowed marketplace paths reject root, ancestor and leaf links before any mutation', () => {
+    const cases = process.platform === 'win32'
+        ? ['root', 'plugins', '.github', '.github/plugin', 'missing-market']
+        : ['root', 'plugins', '.github', '.github/plugin', 'missing-market', 'external-leaf', 'market-leaf', 'dangling', 'relative'];
+    for (const kind of cases) {
+        const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-listing-link-'));
+        const root = path.join(fixture, 'checkout'), outside = path.join(fixture, 'outside');
+        try {
+            init(root);
+            const before = listings(), after = structuredClone(before);
+            after[0].version = '2.3.0';
+            const market = entries => JSON.stringify({ plugins: entries });
+            const files = { 'plugins/external.json': JSON.stringify(after), '.github/plugin/marketplace.json': market(after) };
+            writeTree(root, new Map([
+                ['plugins/external.json', { bytes: Buffer.from(JSON.stringify(before)) }],
+                ['.github/plugin/marketplace.json', { bytes: Buffer.from(market(before)) }],
+            ]));
+            commit(root, 'Safe baseline');
+            fs.mkdirSync(outside);
+            const canary = path.join(outside, 'canary.json');
+            fs.writeFileSync(canary, JSON.stringify(before));
+            let directory = root;
+            if (kind === 'root') {
+                directory = path.join(fixture, 'linked-checkout');
+                fs.symlinkSync(root, directory, process.platform === 'win32' ? 'junction' : 'dir');
+            } else if (['external-leaf', 'market-leaf', 'dangling', 'relative'].includes(kind)) {
+                const leaf = path.join(root, kind === 'market-leaf' ? '.github/plugin/marketplace.json' : 'plugins/external.json');
+                fs.rmSync(leaf);
+                const target = kind === 'dangling' ? path.join(outside, 'missing.json') :
+                    kind === 'relative' ? path.relative(path.dirname(leaf), canary) : canary;
+                fs.symlinkSync(target, leaf);
+            } else {
+                const destination = path.join(root, kind === 'missing-market' ? '.github/plugin' : kind);
+                fs.rmSync(destination, { recursive: true });
+                fs.symlinkSync(outside, destination, process.platform === 'win32' ? 'junction' : 'dir');
+            }
+            assert.throws(() => updater.patch(directory, {
+                changedPlugins: ['excel-cli'], state: { entries: { 'excel-cli': { entry: after[0] } } },
+            }, files), /unsafe|link|reparse/i);
+            assert.equal(fs.readFileSync(canary, 'utf8'), JSON.stringify(before));
+            assert.deepEqual(fs.readdirSync(outside), ['canary.json']);
+            if (kind !== 'plugins') {
+                const external = path.join(root, 'plugins/external.json');
+                if (fs.existsSync(external)) assert.equal(fs.readFileSync(external, 'utf8'), JSON.stringify(before));
+            }
+        } finally { fs.rmSync(fixture, { recursive: true }); }
+    }
+});
+
+test('tracked link modes are rejected even when Windows materializes a regular link-text file', () => {
+    for (const name of ['plugins/external.json', '.github/plugin/marketplace.json', 'plugins', '.github', '.github/plugin']) {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-listing-mode-'));
+        try {
+            init(root);
+            const before = listings();
+            writeTree(root, new Map([
+                ['plugins/external.json', { bytes: Buffer.from(JSON.stringify(before)) }],
+                ['.github/plugin/marketplace.json', { bytes: Buffer.from(JSON.stringify({ plugins: before })) }],
+            ]));
+            const blob = command('git', ['hash-object', '-w', 'plugins/external.json'], root).trim();
+            command('git', ['add', '-A'], root);
+            if (!name.endsWith('.json')) {
+                for (const leaf of ['plugins/external.json', '.github/plugin/marketplace.json'].filter(leaf => leaf.startsWith(`${name}/`))) {
+                    command('git', ['update-index', '--force-remove', leaf], root);
+                }
+            }
+            command('git', ['update-index', '--add', '--cacheinfo', `120000,${blob},${name}`], root);
+            command('git', ['commit', '--quiet', '-m', 'Tracked link mode with ordinary checkout bytes'], root);
+            assert.throws(() => updater.patch(root, {
+                changedPlugins: [], state: { entries: {} },
+            }, {}), /mode|link/i);
+        } finally { fs.rmSync(root, { recursive: true }); }
+    }
+});
+
+test('artifact guards reject missing-leaf link ancestors and regular-file ancestors', () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-artifact-path-'));
+    try {
+        const outside = path.join(fixture, 'outside'), link = path.join(fixture, 'link');
+        fs.mkdirSync(outside);
+        fs.symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir');
+        assert.throws(() => updater.safeUpdaterPath(path.join(link, 'missing-plan.json'), { allowMissing: true }), /unsafe|link/i);
+        const file = path.join(fixture, 'file');
+        fs.writeFileSync(file, 'canary');
+        assert.throws(() => updater.safeUpdaterPath(path.join(file, 'missing.json'), { allowMissing: true }), /type/i);
+        assert.deepEqual(fs.readdirSync(outside), []);
+        assert.equal(fs.readFileSync(file, 'utf8'), 'canary');
+    } finally { fs.rmSync(fixture, { recursive: true }); }
+});
+
 test('token-bearing writer validates exact prebuilt files without running any upstream npm script', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-prebuilt-writer-'));
     try {

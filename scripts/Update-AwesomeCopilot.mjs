@@ -98,18 +98,78 @@ export function allPulls(read = api) {
     return [...new Map(result.map(pr => [pr.number, pr])).values()];
 }
 
+export function safeUpdaterPath(target, { directory = false, allowMissing = false } = {}) {
+    const absolute = path.resolve(target), volume = path.parse(absolute).root;
+    const parts = absolute.slice(volume.length).split(path.sep).filter(Boolean);
+    let current = volume;
+    const existing = [];
+    for (let i = -1; i < parts.length; i++) {
+        if (i >= 0) current = path.join(current, parts[i]);
+        const stat = fs.lstatSync(current, { throwIfNoEntry: false });
+        if (!stat) {
+            if (allowMissing) break;
+            throw new Error('Unsafe updater path: required path is missing.');
+        }
+        if (stat.isSymbolicLink()) throw new Error('Unsafe updater path: links are forbidden.');
+        const isDirectory = i < parts.length - 1 || directory;
+        if (isDirectory ? !stat.isDirectory() : !stat.isFile()) throw new Error('Unsafe updater path type.');
+        const resolved = fs.realpathSync.native(current);
+        const normalize = value => process.platform === 'win32' ? value.toLowerCase() : value;
+        if (normalize(resolved) !== normalize(current)) throw new Error('Unsafe updater path: realpath escapes its lexical boundary.');
+        existing.push(current);
+    }
+    if (process.platform === 'win32') {
+        run('pwsh', ['-NoProfile', '-NonInteractive', '-Command',
+            '$ErrorActionPreference="Stop"; foreach($p in (ConvertFrom-Json $env:EXCEL_UPDATER_PATHS)) { if (([IO.File]::GetAttributes($p) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Unsafe updater path: reparse points are forbidden." } }'],
+        undefined, { ...externalCommandEnvironment(), EXCEL_UPDATER_PATHS: JSON.stringify(existing) });
+    }
+    return absolute;
+}
+
+function workspace(directory, allowMissing = false) {
+    const absolute = safeUpdaterPath(directory, { directory: true, allowMissing });
+    const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const contained = (parent, child) => {
+        const relative = path.relative(parent, child);
+        return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+    };
+    if (contained(source, absolute) || contained(absolute, source)) throw new Error('Unsafe updater workspace: must not overlap trusted source.');
+    return absolute;
+}
+
+function allowedInputs(directory, commit = 'HEAD') {
+    workspace(directory);
+    for (const name of allowedPaths) safeUpdaterPath(path.join(directory, name), { allowMissing: true });
+    const entries = new Map(git(directory, ['ls-tree', '-z', commit, '--', ...allowedPaths]).toString().split('\0')
+        .filter(Boolean).map(entry => {
+            const match = /^(\d+) (\w+) [a-f0-9]{40}\t(.+)$/.exec(entry);
+            if (!match) throw new Error('Invalid allowed-input Git mode data.');
+            return [match[3], { mode: match[1], type: match[2] }];
+        }));
+    for (const name of allowedPaths) {
+        const entry = entries.get(name);
+        if (!entry || entry.type !== 'blob' || !['100644', '100755'].includes(entry.mode)) {
+            throw new Error('Unsafe allowed-input Git mode: tracked links or missing files are forbidden.');
+        }
+    }
+}
+
 function clone(repository, directory) {
+    workspace(directory, true);
     if (fs.existsSync(directory)) throw new Error('Use a new disposable updater workspace.');
     run('git', ['clone', '--quiet', '--no-checkout', `https://github.com/${repository}.git`, directory]);
 }
 
 function listedFile(directory, commit) {
+    allowedInputs(directory, commit);
     return parseJson(git(directory, ['show', `${commit}:plugins/external.json`]));
 }
 
 function checkout(directory, commit) {
+    allowedInputs(directory, commit);
     git(directory, ['-c', 'core.autocrlf=false', 'checkout', '--quiet', '--detach', commit]);
     git(directory, ['config', 'core.autocrlf', 'false']);
+    allowedInputs(directory, commit);
 }
 
 function forkHeads(text) {
@@ -157,8 +217,9 @@ export function assertPendingTree(directory, plan) {
 }
 
 export function patch(directory, plan, validatedFiles) {
+    allowedInputs(directory);
     const file = path.join(directory, 'plugins', 'external.json');
-    const before = parseJson(fs.readFileSync(file));
+    const before = parseJson(fs.readFileSync(safeUpdaterPath(file)));
     const after = before.map(entry => plan.state.entries[entry.name]?.entry ?? entry);
     assertListingPatch(before, after, plan.changedPlugins);
     if (validatedFiles !== undefined) {
@@ -172,17 +233,18 @@ export function patch(directory, plan, validatedFiles) {
             canonical(parseJson(Buffer.from(validatedFiles['plugins/external.json']))) !== canonical(after)) {
             throw new Error('Validated files do not match the freshly verified listing proposal.');
         }
-        for (const [name, text] of Object.entries(validatedFiles)) fs.writeFileSync(path.join(directory, name), text);
+        for (const [name, text] of Object.entries(validatedFiles)) fs.writeFileSync(safeUpdaterPath(path.join(directory, name), { allowMissing: true }), text);
     } else {
-        fs.writeFileSync(file, `${JSON.stringify(after, null, 2)}\n`);
+        fs.writeFileSync(safeUpdaterPath(file), `${JSON.stringify(after, null, 2)}\n`);
         validateUpstreamBuild(directory);
     }
+    allowedInputs(directory);
     const paths = git(directory, ['diff', '--name-only']).toString().trim().split(/\r?\n/);
     assertAllowedPaths(paths);
-    const external = parseJson(fs.readFileSync(file));
+    const external = parseJson(fs.readFileSync(safeUpdaterPath(file)));
     assertListingPatch(before, external, plan.changedPlugins);
     const oldMarket = parseJson(git(directory, ['show', 'HEAD:.github/plugin/marketplace.json']));
-    const market = parseJson(fs.readFileSync(path.join(directory, '.github', 'plugin', 'marketplace.json')));
+    const market = parseJson(fs.readFileSync(safeUpdaterPath(path.join(directory, '.github', 'plugin', 'marketplace.json'))));
     assertListingPatch(oldMarket.plugins, market.plugins, plan.changedPlugins);
     const oldRoot = { ...oldMarket }, newRoot = { ...market };
     delete oldRoot.plugins;
@@ -193,7 +255,7 @@ export function patch(directory, plan, validatedFiles) {
             throw new Error('Generated marketplace does not match the verified proposed entry.');
         }
     }
-    const files = Object.fromEntries(paths.map(name => [name, fs.readFileSync(path.join(directory, name), 'utf8')]));
+    const files = Object.fromEntries(paths.map(name => [name, fs.readFileSync(safeUpdaterPath(path.join(directory, name)), 'utf8')]));
     if (Buffer.byteLength(canonical(files)) > 2 * 1024 * 1024) throw new Error('Marketplace patch exceeds two MiB.');
     if (validatedFiles !== undefined && canonical(files) !== canonical(validatedFiles)) {
         throw new Error('Validated patch files differ from the exact destination diff.');
@@ -227,6 +289,7 @@ function discoveryFingerprint(plan) {
 
 function preparePlan({ tag, workDirectory, validatedFiles, discoveryOnly = false, discovery }) {
     assertTag(tag);
+    workspace(workDirectory, true);
     fs.mkdirSync(workDirectory, { recursive: true });
     const published = path.join(workDirectory, 'published');
     const upstream = path.join(workDirectory, 'upstream');
@@ -399,8 +462,10 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
     if (fresh.action === 'noop') return { status: 'skipped', reason: fresh.reason };
     const upstream = path.join(workDirectory, 'upstream');
     const templatePath = path.join(upstream, '.github', 'pull_request_template.md');
-    if (!fs.existsSync(templatePath)) throw new Error('Upstream PR template is missing; human review required.');
-    assertTemplate(fs.readFileSync(templatePath, 'utf8'), request.body);
+    safeUpdaterPath(templatePath);
+    const templateMode = git(upstream, ['ls-tree', 'HEAD', '--', '.github/pull_request_template.md']).toString();
+    if (!/^100(644|755) blob /.test(templateMode)) throw new Error('Unsafe upstream PR template Git mode.');
+    assertTemplate(fs.readFileSync(safeUpdaterPath(templatePath), 'utf8'), request.body);
     git(upstream, ['config', 'user.name', 'Excel Plugin Updates']);
     git(upstream, ['config', 'user.email', '3026464+sbroenne@users.noreply.github.com']);
     git(upstream, ['add', '--', ...allowedPaths]);
@@ -411,7 +476,7 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
     verifyLive(fresh);
     const receipt = createSubmissionReceipt(fresh, head, body);
     const receiptFile = path.join(workDirectory, 'submission-receipt.json');
-    const saveReceipt = () => fs.writeFileSync(receiptFile, `${JSON.stringify(receipt, null, 2)}\n`);
+    const saveReceipt = () => fs.writeFileSync(safeUpdaterPath(receiptFile, { allowMissing: true }), `${JSON.stringify(receipt, null, 2)}\n`);
     saveReceipt();
     const auth = Buffer.from(`x-access-token:${token}`).toString('base64');
     run('git', ['push', `https://github.com/${forkRepo}.git`, `HEAD:refs/heads/${fresh.branch}`], upstream, {
@@ -447,22 +512,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let result;
     if (['prepare', 'discover', 'build'].includes(mode)) {
         result = mode === 'discover' ? discover({ tag, workDirectory }) :
-            mode === 'build' ? buildDiscoveredPlan({ discovery: parseJson(fs.readFileSync(tag)), workDirectory }) :
+            mode === 'build' ? buildDiscoveredPlan({ discovery: parseJson(fs.readFileSync(safeUpdaterPath(tag))), workDirectory }) :
                 prepare({ tag, workDirectory });
-        fs.writeFileSync(planFile, `${JSON.stringify(result, null, 2)}\n`);
+        fs.writeFileSync(safeUpdaterPath(planFile, { allowMissing: true }), `${JSON.stringify(result, null, 2)}\n`);
         if (process.env.GITHUB_OUTPUT) {
-            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            fs.appendFileSync(safeUpdaterPath(process.env.GITHUB_OUTPUT, { allowMissing: true }),
                 `actionable=${result.action !== 'noop' && process.env.PREVIEW === 'false' && process.env.AWESOME_COPILOT_UPDATES_ENABLED === 'true'}\n` +
                 `upstream_commit=${result.upstreamCommit}\n`);
         }
     } else if (mode === 'submit') {
-        const trustedPlan = parseJson(fs.readFileSync(planFile));
-        const output = parseJson(fs.readFileSync(process.env.GH_AW_AGENT_OUTPUT));
+        const trustedPlan = parseJson(fs.readFileSync(safeUpdaterPath(planFile)));
+        const output = parseJson(fs.readFileSync(safeUpdaterPath(process.env.GH_AW_AGENT_OUTPUT)));
         result = submit({ trustedPlan, output, workDirectory });
     } else throw new Error('Use discover, build, prepare or submit.');
     const summary = { action: result.action, status: result.status, reason: result.reason,
         changedPlugins: result.changedPlugins, tag: result.tag, publishedCommit: result.commit,
         upstreamCommit: result.upstreamCommit, url: result.url };
     console.log(JSON.stringify(summary, null, 2));
-    if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
+    if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(safeUpdaterPath(process.env.GITHUB_STEP_SUMMARY, { allowMissing: true }), `\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
 }
