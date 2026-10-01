@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -12,12 +13,11 @@ public partial class RangeCommands
 {
     // === FIND/REPLACE OPERATIONS ===
 
-    /// <summary>
-    /// Finds all cells matching criteria in range
-    /// Excel COM: Range.Find()
-    /// </summary>
-    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions findOptions)
+    /// <inheritdoc />
+    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions findOptions, int maxMatches = 10)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxMatches);
+
         var result = new RangeFindResult
         {
             FilePath = batch.WorkbookPath,
@@ -28,8 +28,9 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
-            dynamic? foundCell = null;
+            Excel.Range? range = null;
+            Excel.Range? foundCell = null;
+            Excel.Range? nextCell = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -38,17 +39,19 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                // Excel COM constants
-                int lookIn = findOptions.SearchFormulas && findOptions.SearchValues ? -4163 : // xlValues
-                             findOptions.SearchFormulas ? -4123 : -4163; // xlFormulas : xlValues
-                int lookAt = findOptions.MatchEntireCell ? 1 : 2; // xlWhole : xlPart
+                var lookIn = findOptions.SearchFormulas && !findOptions.SearchValues
+                    ? Excel.XlFindLookIn.xlFormulas
+                    : Excel.XlFindLookIn.xlValues;
+                var lookAt = findOptions.MatchEntireCell
+                    ? Excel.XlLookAt.xlWhole
+                    : Excel.XlLookAt.xlPart;
 
                 foundCell = range.Find(
                     What: searchValue,
                     LookIn: lookIn,
                     LookAt: lookAt,
-                    SearchOrder: 1, // xlByRows
-                    SearchDirection: 1, // xlNext
+                    SearchOrder: Excel.XlSearchOrder.xlByRows,
+                    SearchDirection: Excel.XlSearchDirection.xlNext,
                     MatchCase: findOptions.MatchCase
                 );
 
@@ -57,23 +60,33 @@ public partial class RangeCommands
                     string firstAddress = foundCell.Address;
                     do
                     {
-                        result.MatchingCells.Add(new RangeCell
+                        ct.ThrowIfCancellationRequested();
+                        result.TotalCount++;
+                        if (result.MatchingCells.Count < maxMatches)
                         {
-                            Address = foundCell.Address,
-                            Row = foundCell.Row,
-                            Column = foundCell.Column,
-                            Value = foundCell.Value2
-                        });
+                            result.MatchingCells.Add(new RangeCell
+                            {
+                                Address = foundCell.Address,
+                                Row = foundCell.Row,
+                                Column = foundCell.Column,
+                                Value = foundCell.Value2
+                            });
+                        }
 
-                        foundCell = range.FindNext(foundCell);
+                        nextCell = range.FindNext(foundCell);
+                        ComUtilities.Release(ref foundCell);
+                        foundCell = nextCell;
+                        nextCell = null;
                     } while (foundCell != null && foundCell.Address != firstAddress);
                 }
 
+                ct.ThrowIfCancellationRequested();
                 result.Success = true;
                 return result;
             }
             finally
             {
+                ComUtilities.Release(ref nextCell);
                 ComUtilities.Release(ref foundCell);
                 ComUtilities.Release(ref range);
             }
@@ -188,6 +201,4 @@ public partial class RangeCommands
     // === NATIVE EXCEL COM OPERATIONS ===
 
 }
-
-
 

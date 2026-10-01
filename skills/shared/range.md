@@ -83,6 +83,32 @@ target before clearing.
 These are in-memory changes until saved. An authorized close without saving can
 discard them, but also discards any earlier unsaved work; it is not targeted undo.
 
+## Finding matches
+
+Find returns at most 10 matching cells by default. Set MCP `max_matches` or
+CLI `--max-matches` to a positive whole number from 1 through 2147483647 to
+change that limit. For the existing `Sales` worksheet and captured session:
+
+```mcp
+range_edit(action: 'find', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B100', search_value: 'Widget', find_options: {}, max_matches: 5)
+```
+
+```cli
+# Batch JSON uses maxMatches for the limit.
+# --find-options and --replace-options accept JSON objects.
+# For whole-cell matching, use --find-options '{"matchEntireCell":true}'.
+excelcli -q rangeedit find --session $sessionId --sheet Sales --range A1:B100 --search-value Widget --find-options '{}' --max-matches 5
+```
+
+`matchingCells` contains the returned cell details. `totalCount` is the exact
+number of matches, `returnedCount` is the number included, and `truncated` is
+true only when matches were left out. No matches means an empty list, both
+counts zero, and `truncated=false`. Exactly the limit is not truncated.
+
+Excel still searches every match to count the total. The limit bounds retained
+and returned cell details, not search time; requesting a large limit can
+produce a large response. There is no paging or continuation.
+
 ## Links, comments, and names
 
 Range-link actions manage external and internal hyperlinks. An internal target

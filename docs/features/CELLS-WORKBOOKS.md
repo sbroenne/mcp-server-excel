@@ -64,9 +64,18 @@ Read and write cell values, formulas, and formatting across any range of cells.
 - **Insert/Delete Cells:** Shift cells to insert or remove space
 - **Insert/Delete Rows:** Insert or delete entire rows
 - **Insert/Delete Columns:** Insert or delete entire columns
-- **Find:** Search a range for matching values
+- **Find:** Search a range for matching values, returning up to 10 cells by default with an exact total
 - **Replace:** Find and replace values in a range
 - **Sort:** Sort a range by one or more columns
+
+**Find coverage:** MCP `range_edit(action: 'find')` accepts `max_matches`;
+CLI `excelcli rangeedit find` accepts `--max-matches`; batch JSON uses
+`maxMatches`. The default is 10, and any positive whole number through
+2147483647 is accepted. Results retain `matchingCells` and include
+`totalCount`, `returnedCount`, and `truncated`. A no-match result returns an empty
+list, zero counts, and `truncated=false`; exactly the limit is not truncated.
+Exact totals require searching every match even after the return limit is
+reached. The limit bounds cell details, not search time. Paging is not provided.
 
 **Clearing has no tool-level undo:** Clear All removes values, formulas, and
 formats; Clear Contents preserves formats; Clear Formats preserves
