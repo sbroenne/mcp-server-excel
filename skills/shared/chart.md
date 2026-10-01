@@ -161,6 +161,8 @@ Choose display formats from the stored values, not from the column name alone.
 Use an axis title or chart title to identify the currency and any scale.
 Supply US format codes; Excel translates them for the user's locale, as with
 [range number formats](range.md#number-formats-and-layout).
+Axis formatting preserves explicit currency symbols and date/time meanings;
+read-back returns US codes, not the localized COM codes.
 
 | Stored meaning | Value-axis format | Important check |
 |----------------|-------------------|-----------------|

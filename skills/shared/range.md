@@ -98,6 +98,11 @@ a literal en-US rendering. After formatting, widen columns if values show
 `#####`, while preserving intentional fixed layouts. Auto-fit rows for wrapped
 text when needed.
 
+Number-format reads return Excel's canonical US codes; Excel may add or remove
+literal escapes while preserving the display meaning. Reuse those returned codes
+for subsequent writes. Currency literals stay explicit rather than changing to
+the regional currency.
+
 `Good`, `Bad`, and `Neutral` are theme-aware styles with fills. Heading styles
 provide hierarchy but no fill; use explicit visual formatting for colored
 headers. `Normal` resets formatting.

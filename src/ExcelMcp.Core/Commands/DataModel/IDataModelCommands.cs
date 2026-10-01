@@ -150,7 +150,7 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Creates a new DAX measure in the Data Model.
-    /// DAX formula is preserved exactly by default.
+    /// Native DAX with comma argument separators and decimal points is passed to Excel unchanged by default.
     /// Uses Excel COM API: ModelMeasures.Add method (Office 2016+)
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
@@ -174,7 +174,7 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Updates an existing DAX measure in the Data Model.
-    /// DAX formula is preserved exactly by default.
+    /// Native DAX with comma argument separators and decimal points is passed to Excel unchanged by default.
     /// Uses Excel COM API: ModelMeasure properties (Formula, Description, FormatInformation - all Read/Write)
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
