@@ -19,9 +19,9 @@ hide:
       fresh data, recalculate with Excel's own engine, refresh PivotTables and
       the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real,
       *computed results* land right in your workbook.
-    - **Edits your existing files safely.** Excel opens and saves the workbook
-      itself, so every formula, PivotTable, chart, macro, the Data Model and all
-      your formatting stay exactly as they were.
+    - **Excel opens and saves your workbook.** Excel opens and saves your
+      workbook itself, rather than a file-parser library rewriting it. Requested
+      edits can still change the workbook's data, formatting, or features.
 
     Other tools (openpyxl-based MCP servers and Agent Skills, including
     Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which
@@ -187,6 +187,14 @@ features like **Python in Excel** work too — your AI assistant can write
   ![Close-up of the Excel ribbon Python group and the formula bar showing a =PY() formula that uses pandas to sum a table column](assets/images/excel-demo-python.png){ width="1360" height="392" loading=lazy }
   <figcaption>The formula bar with a <code>=PY()</code> formula (note the green <strong>PY</strong> badge) and Excel's <strong>Python</strong> ribbon group — summing the <code>SalesData</code> table with <code>pandas</code>, driven from your AI assistant.</figcaption>
 </figure>
+
+!!! info "Local Excel and your data"
+    Excel runs on your Windows desktop. Requested workbook results are returned
+    to your AI assistant, whose privacy policy applies. Release builds can send
+    anonymous usage statistics, but those statistics exclude workbook contents,
+    file names, and paths. Optional remote M/DAX formatting and Python in Excel
+    use external services only when you request those features.
+    [Read the privacy policy](privacy.md).
 
 ## CLI or MCP Server?
 

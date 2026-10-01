@@ -14,6 +14,9 @@ The npm option also requires **Node.js 18 or later**. Install the current LTS
 with `winget install OpenJS.NodeJS.LTS`. Windows x64 and ARM64 are supported;
 ARM64 Node.js uses a native ARM64 executable.
 
+The standalone ZIP currently contains the x64 CLI. For a native ARM64 CLI,
+use the npm installation with ARM64 Node.js.
+
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)

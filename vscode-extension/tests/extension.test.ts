@@ -202,13 +202,18 @@ describe('First-run help', () => {
 		);
 	});
 
-	it('explains Copilot setup without claiming the server has started', async () => {
+	it('explains automatic Copilot setup without claiming the server has started', async () => {
 		const context = createContext();
 		context.globalState.get.mockReturnValue(false);
 		await registeredProvider(context);
 		const message = vi.mocked(vscode.window.showInformationMessage).mock.calls[0]?.[0];
 		expect(message).toMatch(/Copilot/);
 		expect(message).toMatch(/excel-mcp/);
+		expect(message).toMatch(/starts excel-mcp automatically/i);
+		expect(message).toMatch(/send an Excel request/i);
+		expect(message).toMatch(/when needed/i);
+		expect(message).toMatch(/if prompted/i);
+		expect(message).not.toContain('MCP: List Servers');
 		expect(message).not.toMatch(/activated|connected|now available/i);
 		expect(context.globalState.update).toHaveBeenCalledWith('excelmcp.hasShownWelcome', true);
 	});

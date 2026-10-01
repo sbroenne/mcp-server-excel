@@ -1,9 +1,11 @@
 # VS Code Extension Development
 
-The Excel MCP Server extension bundles the Windows x64 MCP executable and one
-Agent Skill. It ships separate Windows x64 and Windows ARM64 VSIX packages;
-ARM64 Windows runs the same executable through x64 emulation. Users do not
-need a separate .NET runtime, Node.js runtime, or CLI installation.
+The Excel MCP Server extension bundles a self-contained Windows MCP executable
+and one Agent Skill. It ships separate VSIX packages for Windows x64 and
+Windows ARM64 installations of VS Code, each containing a matching native
+server executable. Native ARM64 server and CLI executables are also distributed
+through npm and selected by ARM64 Node.js. Extension users do not need a
+separate .NET runtime, Node.js runtime, or CLI installation.
 
 ## Project structure
 
@@ -33,10 +35,12 @@ shared package command copies the prepared MCP skill from
 
 After a Release solution build, `npm run package` uses
 `scripts/Build-ReleasePackages.ps1 -Components Extension`. It publishes the MCP
-runtime once, generates complete skills, installs locked extension dependencies,
-and creates and inspects the VSIX under `artifacts/packages/`. It does not clean
-or overwrite this source directory. For an unpackaged debug session, open the
-prepared `extension` directory reported by that command.
+runtimes for x64 and ARM64, generates complete skills, installs locked extension
+dependencies, and creates and inspects both VSIX files under `artifacts/packages/`.
+When npm packages are built in the same run, the extension reuses their prepared
+ARM64 server. It does not clean or overwrite this source directory. For an
+unpackaged debug session, open the prepared `extension` directory reported by
+that command; its server matches the Windows host architecture.
 
 Do not edit `vscode-extension/CHANGELOG.md` directly. The build copies the
 generated root `CHANGELOG.md` into the extension package.
@@ -132,14 +136,16 @@ npm run package
 
 Packaging performs these steps automatically:
 
-1. Publishes the MCP Server as a self-contained Windows x64 executable.
+1. Prepares self-contained Windows x64 and native ARM64 MCP Server executables.
 2. Copies and stamps the canonical Agent Skill.
 3. Copies the generated root changelog.
 4. Validates feature and Marketplace metadata and compiles TypeScript.
 5. Runs lint, test-source type checking, and the focused Vitest suite.
-6. Runs `vsce package --target win32-x64` and `--target win32-arm64`.
-7. Inspects both VSIX targets, versions, all skill files, executable, compiled
-   source, and exclusions for development files and the CLI.
+6. Copies the matching server before each `vsce package --target win32-x64` or
+   `--target win32-arm64` invocation.
+7. Inspects both VSIX targets, versions, all skill files, the actual bundled
+   executable's CPU architecture, compiled source, and exclusions for development
+   files and the CLI. A mislabeled server fails packaging.
 
 To prepare and inspect the bundled executable through the shared package path,
 run these commands from the repository root:
@@ -148,6 +154,8 @@ run these commands from the repository root:
 .\scripts\Build-AgentSkills.ps1 -GenerateOnly
 .\scripts\Build-ReleasePackages.ps1 -Components Extension -SkillsDirectory artifacts\generated-skills -OutputDirectory artifacts\extension-check
 .\artifacts\extension-check\runtimes\Mcp\Sbroenne.ExcelMcp.McpServer.exe --version
+# On ARM64 Windows, also check the native server:
+.\artifacts\extension-check\runtimes\Mcp-arm64\Sbroenne.ExcelMcp.McpServer.exe --version
 ```
 
 ## Local testing
@@ -171,8 +179,9 @@ run these commands from the repository root:
    `excel-mcp-<version>-win32-arm64.vsix` for native ARM64 VS Code.
 4. Reload VS Code and verify the MCP server and Agent Skill.
 
-The VSIX is approximately 65 MB. Most of its size is the compressed,
-self-contained MCP Server; the unpacked executable is approximately 150 MB.
+The VSIX files are approximately 60-65 MB. Most of their size is the compressed,
+self-contained MCP Server; the unpacked executable is approximately 150-165 MB,
+depending on architecture.
 
 For an isolated check, use separate `--user-data-dir` and `--extensions-dir`
 directories rather than overwrite your everyday installation. Check activation,
