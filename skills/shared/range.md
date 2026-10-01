@@ -85,13 +85,20 @@ discard them, but also discards any earlier unsaved work; it is not targeted und
 
 ## Finding matches
 
-MCP `range_edit(action: 'find')` and CLI `excelcli rangeedit find` return at
-most 10 matching cells by default. Set MCP `max_matches`, CLI `--max-matches`,
-or batch JSON `maxMatches` to a positive whole number from 1 through
-2147483647 to change that limit.
+Find returns at most 10 matching cells by default. Set MCP `max_matches` or
+CLI `--max-matches` to a positive whole number from 1 through 2147483647 to
+change that limit. For the existing `Sales` worksheet and captured session:
 
-CLI `--find-options` and `--replace-options` accept JSON objects with the
-existing camelCase keys, such as `{"matchEntireCell":true}`.
+```mcp
+range_edit(action: 'find', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B100', search_value: 'Widget', find_options: {}, max_matches: 5)
+```
+
+```cli
+# Batch JSON uses maxMatches for the limit.
+# --find-options and --replace-options accept JSON objects.
+# For whole-cell matching, use --find-options '{"matchEntireCell":true}'.
+excelcli -q rangeedit find --session $sessionId --sheet Sales --range A1:B100 --search-value Widget --find-options '{}' --max-matches 5
+```
 
 `matchingCells` contains the returned cell details. `totalCount` is the exact
 number of matches, `returnedCount` is the number included, and `truncated` is

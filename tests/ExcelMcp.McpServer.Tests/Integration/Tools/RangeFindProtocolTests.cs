@@ -71,6 +71,8 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
     {
         var tools = await fixture.ListToolsAsync();
         var tool = Assert.Single(tools, item => item.Name == "range_edit");
+        Assert.Contains("max_matches", tool.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain("maxMatches", tool.Description, StringComparison.Ordinal);
         Assert.Contains("totalCount", tool.Description, StringComparison.Ordinal);
         Assert.Contains("returnedCount", tool.Description, StringComparison.Ordinal);
         Assert.Contains("truncated", tool.Description, StringComparison.Ordinal);

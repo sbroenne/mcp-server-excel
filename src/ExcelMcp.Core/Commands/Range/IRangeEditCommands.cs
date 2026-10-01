@@ -25,7 +25,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("rangeedit", "RangeEdit")]
 [McpTool("range_edit", Title = "Range Edit Operations", Destructive = true, Category = "data",
-    Description = "Insert/delete cells, rows, or columns; find/replace text; sort data. Cell movement uses insertShift (Down/Right) or deleteShift (Up/Left). Rows use a range like 5:10; columns use B:D. Find returns up to maxMatches cells (default: 10) with exact totalCount, returnedCount, truncated, and optional case/cell matching. Exact counting searches all matches; the limit bounds returned cell details, not search time. Replace modifies all matches by default (replace_options.replaceAll=true). Sort uses sortColumns, an array of {columnIndex, ascending}; indices are 1-based relative to the range.")]
+    Description = "Insert/delete cells, rows, or columns; find/replace text; sort data. Cell movement uses insertShift (Down/Right) or deleteShift (Up/Left). Rows use a range like 5:10; columns use B:D. Find returns up to max_matches cells (default: 10) with exact totalCount, returnedCount, truncated, and optional case/cell matching. Exact counting searches all matches; the limit bounds returned cell details, not search time. Replace modifies all matches by default (replace_options.replaceAll=true). Sort uses sortColumns, an array of {columnIndex, ascending}; indices are 1-based relative to the range.")]
 public interface IRangeEditCommands
 {
     // === INSERT/DELETE CELL OPERATIONS ===

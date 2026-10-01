@@ -72,7 +72,7 @@ Read and write cell values, formulas, and formatting across any range of cells.
 CLI `excelcli rangeedit find` accepts `--max-matches`; batch JSON uses
 `maxMatches`. The default is 10, and any positive whole number through
 2147483647 is accepted. Results retain `matchingCells` and include
-`totalCount`, `returnedCount`, and `truncated`. No matches returns an empty
+`totalCount`, `returnedCount`, and `truncated`. A no-match result returns an empty
 list, zero counts, and `truncated=false`; exactly the limit is not truncated.
 Exact totals require searching every match even after the return limit is
 reached. The limit bounds cell details, not search time. Paging is not provided.

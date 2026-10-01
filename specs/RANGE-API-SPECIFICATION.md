@@ -208,7 +208,7 @@ uses `range_edit` / `max_matches`, CLI uses `rangeedit find` /
 `--max-matches`, and batch JSON uses `maxMatches`. The limit bounds retained
 and returned details, not traversal time; there is no paging.
 `totalCount` is exact, `returnedCount` is the list size, and `truncated` means
-more matches exist than were returned. No matches has zero counts and
+more matches exist than were returned. A no-match result has zero counts and
 `truncated=false`; exactly the limit is complete.
 
 ```csharp
