@@ -1,7 +1,24 @@
 # Calculation Mode
 
 `calculation_mode` controls automatic, manual, and semi-automatic recalculation
-(automatic except data tables). All actions require `session_id`.
+(automatic except what-if data tables, not worksheet Tables). All actions
+require `session_id`.
+
+## Calculation after writes
+
+Range value/formula writes temporarily suppress calculation when appropriate,
+then attempt to restore the prior mode. They do not unconditionally calculate
+after every write:
+
+| Mode | Dependent formulas after a write |
+|------|----------------------------------|
+| Automatic | Excel normally recalculates when the original mode is restored. |
+| Manual | The mode stays manual; explicitly calculate before relying on dependent results. |
+| Semi-automatic | Ordinary formulas recalculate, but what-if data tables require explicit calculation. |
+
+A successful write does not guarantee that asynchronous refreshes or Python
+calculations have finished. Use the owning operation's completion checks and
+read back the calculated values needed for the task.
 
 Use manual mode for bulk writes when repeated recalculation is costly. There is
 no universal cell-count threshold: one rectangular write is already batched.

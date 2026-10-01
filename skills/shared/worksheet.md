@@ -14,6 +14,9 @@ excelcli -q sheet rename --session $sessionId --old-name Sheet1 --new-name Summa
 
 For ordering, specify before **or** after another sheet, not both. Inspect names
 and dependencies before deleting or replacing anything.
+Deleting a sheet removes all of its contents and can break dependent references.
+There is no tool-level undo; retain a saved copy before deleting when recovery
+matters. Discarding unsaved changes also discards earlier unsaved work.
 
 ## Cross-file operations
 
@@ -33,6 +36,9 @@ Cross-file copy can rename the copied sheet. Both transfer operations support
 positioning relative to a target sheet. Same-file copying uses the ordinary copy
 action instead. Do not assume a failure rolls back every file; inspect both
 files before retrying a transfer.
+Move-to-file removes the source sheet and saves both workbooks. There is no
+tool-level undo; retain copies of both files before moving. Closing another
+session without saving cannot reverse that saved transfer.
 
 ## Styling and outlines
 

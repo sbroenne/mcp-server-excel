@@ -189,7 +189,8 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(1, result.RootElement.GetProperty("count").GetInt32());
         var session = Assert.Single(
             result.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.Equal("session-list", session.GetProperty("sessionId").GetString());
+        Assert.Equal("session-list", session.GetProperty("session_id").GetString());
+        Assert.False(session.TryGetProperty("sessionId", out _));
         Assert.Equal(@"C:\workbook.xlsx", session.GetProperty("filePath").GetString());
         Assert.Equal(isExcelVisible, session.GetProperty("isExcelVisible").GetBoolean());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
@@ -261,6 +262,9 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(
             "InvalidOperationException",
             result.RootElement.GetProperty("exceptionType").GetString());
+        Assert.Equal("missing-session", result.RootElement.GetProperty("session_id").GetString());
+        Assert.False(result.RootElement.TryGetProperty("sessionId", out _));
+        Assert.Equal(result.RootElement.GetRawText(), call.Result.StructuredContent!.Value.GetRawText());
     }
 
     [Fact]

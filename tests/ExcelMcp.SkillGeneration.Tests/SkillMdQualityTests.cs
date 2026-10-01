@@ -15,6 +15,32 @@ public class SkillMdQualityTests
     private static string SkillsFolder => GeneratedAssetsFixture.SkillsDirectory;
 
     [Fact]
+    public void McpSessionGuidance_UsesCanonicalReturnedIdentifiers()
+    {
+        var content = File.ReadAllText(Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md"));
+        Assert.Contains("session error", content, StringComparison.Ordinal);
+        Assert.Contains("same `session_id` spelling", content, StringComparison.Ordinal);
+        Assert.Contains("`sessionId` is not an accepted input", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("entries instead contain", content, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void Guidance_ExplainsCalculationOrderingAndDestructiveRecovery(string skill)
+    {
+        var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, "SKILL.md"));
+        Assert.Contains("concurrent requests and", content, StringComparison.Ordinal);
+        Assert.Contains("no guaranteed order", content, StringComparison.Ordinal);
+        Assert.Contains("manual needs explicit calculation", content, StringComparison.Ordinal);
+        Assert.Contains("what-if data tables, not worksheet Tables", content, StringComparison.Ordinal);
+        var recovery = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", "behavioral-rules.md"));
+        Assert.Contains("no tool-level", recovery, StringComparison.Ordinal);
+        Assert.Contains("earlier unsaved work", recovery, StringComparison.Ordinal);
+        Assert.Contains("cannot be reversed", recovery, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CliGuidance_UsesCliExamplesInsteadOfMcpCalls()
     {
         foreach (var path in Directory.GetFiles(Path.Combine(SkillsFolder, "excel-cli"), "*.md", SearchOption.AllDirectories))

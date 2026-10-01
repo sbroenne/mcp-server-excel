@@ -52,6 +52,12 @@ headers. `Normal` resets formatting.
 
 ## Formulas and merged cells
 
+Value/formula writes preserve the prior calculation mode. Automatic normally
+recalculates dependent formulas; manual requires explicit calculation.
+Semi-automatic excludes what-if data tables, not worksheet Tables. A successful
+write does not guarantee completion of asynchronous refreshes or Python
+calculations. Calculate and read back values when the result depends on them.
+
 The server probes modern `Formula2` support once per session. Older Excel uses
 `Formula`, with implicit intersection instead of dynamic-array spill behavior.
 This does not add newer functions to Excel 2016/2019. Invalid formulas and
@@ -64,6 +70,16 @@ broken sub-reference; do not invent one.
 Writes intersecting merged cells fail unless the target is just the merged
 range's top-left cell. Write there for one merged value, or explicitly unmerge
 before writing a grid.
+
+## Clearing ranges
+
+`clear-all` removes values, formulas, and formats. `clear-contents` removes
+values/formulas while preserving formats. `clear-formats` removes formatting
+while preserving values/formulas. Each has no tool-level undo: check the exact
+target and retain a saved copy before clearing when recovery matters.
+
+These are in-memory changes until saved. An authorized close without saving can
+discard them, but also discards any earlier unsaved work; it is not targeted undo.
 
 ## Links, comments, and names
 

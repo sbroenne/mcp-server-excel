@@ -464,12 +464,6 @@ The Application Insights connection string is **embedded at build time** via MSB
   failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
-- **Session alias compatibility**: A fixed event when a declared session-bound
-  action uses the top-level `sessionId` fallback. Its custom properties contain
-  only tool, declared action, alias name, and application version. Standard
-  telemetry context also carries the anonymous user ID, random MCP server
-  process telemetry session ID, role, role instance, and component version.
-
 ### **What is NOT Tracked**
 
 - File paths, file names, or file contents

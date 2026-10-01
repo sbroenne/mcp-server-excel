@@ -47,6 +47,8 @@ See [working with visible Excel](excel_agent_mode.md).
 - Explicit close discards unsaved edits unless saving is requested. Normal
   service shutdown attempts to save remaining sessions; leaving a failed job
   open is not a rollback. Crashes and forced cleanup can lose changes.
+- Closing without saving discards all edits since the last save, including
+  earlier work. There is no tool-level undo for discarded edits.
 - Cancellation is not undo. After failure, inspect the surviving session and
   affected objects before retrying. A failed operation can partly apply.
 - Save only the intended successful result. For a session opened exclusively for
@@ -60,11 +62,24 @@ Use the file test operation when access or protection is uncertain. It reports
 Ordinary files are briefly opened read-only for this check. IRM/AIP workbooks
 require interactive Excel authentication; do not work around protection.
 
+## Ordering calls
+
+Operations within one session execute one at a time, but concurrent requests
+have no guaranteed caller-defined order, and responses can arrive out of order.
+Wait for each dependent call's result before starting the next. Different
+sessions can run independently. A `canClose: true` listing is a snapshot:
+do not submit new work while closing that session.
+
 ## Changes and formatting
 
 Make targeted writes and prefer resize, rename, refresh, or update over rebuilding
 objects. Deleting objects can break formulas, relationships, measures, and charts.
 Check their dependencies first.
+Clearing ranges, deleting sheets, and breaking external links have no tool-level
+undo. Retain a saved copy before destructive work when recovery matters.
+Unsaved in-memory changes can be discarded by an authorized no-save close, but
+that also discards earlier unsaved work. Automatically saved cross-file moves
+cannot be reversed by closing another session without saving.
 
 Use the owning object's style system: Table styles for Tables, chart styles for
 charts, and range formatting for plain cells. Do not style PivotTable cells with
@@ -78,6 +93,11 @@ existing formats and fixed layouts unless a change is requested. See
 For costly bulk writes, get the current calculation mode with `get-mode`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
 Reads and operations needing intermediate results do not need manual mode.
+Value/formula writes preserve the prior mode rather than always forcing
+calculation. Automatic normally recalculates dependent formulas; manual needs
+explicit calculation. Semi-automatic excludes what-if data tables, not ordinary
+worksheet Tables. Successful writes do not establish completion of asynchronous
+refreshes or Python calculations; check the owning operation's completion state.
 
 ## Inputs and errors
 

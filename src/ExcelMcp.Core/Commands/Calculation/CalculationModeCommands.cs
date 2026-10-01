@@ -69,10 +69,13 @@ public class CalculationModeResult : OperationResult
 /// <summary>
 /// Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes
 /// when repeated recalculation is costly, then calculate and restore the prior mode, including on failure.
+/// Value/formula writes do not force recalculation in every mode. Manual mode needs explicit calculation;
+/// semi-automatic excludes what-if data tables, not worksheet Tables. Successful writes do not establish
+/// completion of asynchronous refreshes or Python calculations.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
-    Description = "Control Excel recalculation: automatic, manual, or semi-automatic (automatic except data tables). For bulk writes where repeated recalculation is costly, use get-mode to remember the current mode, set-mode(manual), write, calculate, then restore the prior mode, including after failure. Do not change modes just to read formulas or when intermediate calculated results are needed. Calculate scopes: workbook, sheet (requires sheetName), range (requires sheetName and rangeAddress).")]
+    Description = "Control Excel recalculation: automatic, manual, or semi-automatic (automatic except what-if data tables, not worksheet Tables). Value/formula writes preserve the prior mode, not unconditional recalculation: automatic normally recalculates dependent formulas; manual needs explicit calculate. Successful writes do not establish completion of asynchronous refreshes or Python calculations. For bulk writes where repeated recalculation is costly, use get-mode to remember the current mode, set-mode(manual), write, calculate, then restore the prior mode, including after failure. Do not change modes just to read formulas or when intermediate calculated results are needed. Calculate scopes: workbook, sheet (requires sheetName), range (requires sheetName and rangeAddress).")]
 public interface ICalculationModeCommands
 {
     /// <summary>

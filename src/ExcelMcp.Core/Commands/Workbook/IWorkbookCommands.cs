@@ -10,11 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 /// FIXED FORMAT: PDF or XPS with standard or minimum quality.
 /// DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted.
 /// EXTERNAL LINKS: discovers, updates, or permanently breaks Excel workbook links.
+/// break-external-link replaces linked formulas with their current values; no tool-level undo.
+/// Retain a saved copy before breaking links.
 /// Printing and print preview are intentionally excluded because default-printer output and modal preview are unsafe for unattended automation.
 /// </summary>
 [ServiceCategory("workbook", "Workbook")]
 [McpTool("workbook", Title = "Workbook Operations", Destructive = true, Category = "structure",
-    Description = "Manage workbook metadata, document properties, Save As/copy operations, fixed-format PDF/XPS exports, and external Excel links. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: list, update, or permanently break Excel workbook links. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
+    Description = "Manage workbook metadata, document properties, Save As/copy operations, fixed-format PDF/XPS exports, and external Excel links. BREAK-EXTERNAL-LINK HAS NO TOOL-LEVEL UNDO: replaces linked formulas with their current values; retain a saved copy before breaking links. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: list, update, or permanently break Excel workbook links. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
 public interface IWorkbookCommands
 {
     /// <summary>Gets metadata for the active workbook.</summary>
@@ -110,7 +112,8 @@ public interface IWorkbookCommands
     [ServiceAction("update-external-link")]
     OperationResult UpdateExternalLink(IExcelBatch batch, [RequiredParameter] string linkSource);
 
-    /// <summary>Permanently breaks one external Excel workbook link, replacing formulas with their current values.</summary>
+    /// <summary>Permanently breaks one external Excel workbook link, replacing formulas with their current values.
+    /// No tool-level undo. Retain a saved copy before breaking links.</summary>
     [ServiceAction("break-external-link")]
     OperationResult BreakExternalLink(IExcelBatch batch, [RequiredParameter] string linkSource);
 

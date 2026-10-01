@@ -36,13 +36,17 @@ parameters; these notes cover behavior that schemas alone cannot explain.
 ## Session and saving behavior
 
 `file(action: 'open'/'create', path: '...')` returns `session_id`. Pass it as
-`session_id` on every session-based call. `file(list)` entries instead contain
-`sessionId`; copy that value into the canonical `session_id` argument.
+`session_id` on every session-based call. `file(list)` entries and session error
+context use the same `session_id` spelling. `sessionId` is not an accepted input.
 CLI and MCP sessions are separate and their IDs cannot be exchanged.
 
 Only supply arguments applicable to the selected action. Unknown names,
 inapplicable arguments (including nulls/defaults), and incorrect types are errors.
 Send numbers and booleans as JSON values, not strings. Range values are 2D arrays.
+
+Calls within a session execute one at a time, but concurrent requests and
+responses have no guaranteed order. Wait for each dependent call before starting
+the next. Different sessions can run independently.
 
 Close only when authorized, work is finished, and `file(list)` reports `canClose: true`.
 Leave the workbook open when requested. For an authorized save and close:
@@ -51,9 +55,10 @@ Leave the workbook open when requested. For an authorized save and close:
 file(action: 'close', session_id: '<returned-id>', save: true)
 ```
 
-Close defaults to `save: false`, which discards unsaved edits. Normal server
-shutdown attempts to save remaining sessions; do not rely on it as a substitute
-for an explicit save. Crashes, timeouts, and forced cleanup can lose edits.
+Close defaults to `save: false`, which discards unsaved edits. There is no
+tool-level undo for closing without saving, including loss of earlier unsaved
+work. Normal server shutdown attempts to save remaining sessions; do not rely on
+it as a substitute for an explicit save. Crashes, timeouts, and forced cleanup can lose edits.
 Confirm before closing a visible window unless already authorized.
 The server does not request confirmation through MCP elicitation; obtain any
 needed consent in the client conversation before calling the tool.
@@ -84,6 +89,10 @@ retry a change or substitute a different session.
 - For new user-facing reports or requested formatting, read
   [report formatting](./references/report-formatting.md). Its defaults do not
   apply to reads, raw exports, or unrelated parts of an existing template.
+- Clearing ranges, deleting sheets, and breaking links have no tool-level undo.
+  Check the target and retain saved copies when recovery matters. Discarding
+  in-memory changes also discards earlier unsaved work; cross-file moves save
+  both files and cannot be reversed by closing another session without saving.
 
 ## Bulk writes
 
@@ -91,6 +100,11 @@ For bulk writes where repeated recalculation is costly, read the current mode, s
 manual, perform the writes, calculate once, and restore the prior mode even
 after an error, as in a `finally` block. Reading values or formulas does not
 require changing the mode, and intermediate results may require calculation.
+Writes preserve the prior mode, not unconditional recalculation. Automatic
+normally recalculates dependent formulas; manual needs explicit calculation.
+Semi-automatic excludes what-if data tables, not worksheet Tables.
+Successful writes do not establish completion of asynchronous refreshes or
+Python calculations.
 
 ```
 calculation_mode(action: 'get-mode', session_id: '<returned-id>')

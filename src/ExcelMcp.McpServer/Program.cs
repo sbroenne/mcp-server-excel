@@ -88,7 +88,9 @@ public class Program
                 options.ServerInstructions = """
                     Automates desktop Microsoft Excel on Windows.
                     Use file list to find the intended workbook; do not guess paths or choose an unrelated session.
-                    Open/create returns session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
+                    Open/create and file list entries return session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
+                    Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
+                    Await each dependent call before the next; different sessions can run independently.
                     A workbook must not be open in another Excel instance. Reuse known visibility preferences;
                     preserve existing visibility unless a change is requested. New sessions default to hidden.
                     Leaving a workbook open means retaining its session, not showing a hidden window.
@@ -99,6 +101,7 @@ public class Program
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file list before continuing, and do not blindly retry a change.
                     For bulk writes, read the calculation mode, switch to manual, write, calculate, and restore the prior mode.
+                    Writes do not force calculation in every mode; manual mode needs explicit calculation.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question
                     only when the target, essential result, or destructive permission remains unclear.
                     Audits and proposals are read-only: no edits, refresh, recalculation, or temporary workbook objects without authorization.
