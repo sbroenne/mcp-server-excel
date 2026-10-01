@@ -24,8 +24,16 @@ excelcli -q datamodel evaluate --session $sessionId --dax-query 'EVALUATE ROW("T
 Measure names are unique across the model, not just their home table. Use update
 for an existing measure. Formats are General, Currency, Decimal, Percentage, or
 WholeNumber. On create, an omitted format defaults to General; on update it keeps
-the existing format. DAX is preserved by default, apart from locale separator
-translation. Remote formatting requires explicit consent.
+the existing format. Supply native DAX with comma argument separators and decimal
+points; create and update pass it to Excel without regional separator rewriting.
+Remote formatting requires explicit consent and remains off by default:
+MCP `format_dax: true` or CLI `--format-dax true`.
+
+On the tested decimal-comma Excel installation, native measure writes still reject
+some numeric arguments followed by commas, including `DATEADD(..., -1, MONTH)`
+and `IF(..., 1.5, 0)`, even when the same DAX evaluates successfully as a query.
+Report the Excel error instead of rewriting the supplied formula, changing
+regional settings, or enabling remote formatting as a workaround.
 
 ## Refresh is not calculation
 

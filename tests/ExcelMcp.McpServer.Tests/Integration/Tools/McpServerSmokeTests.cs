@@ -86,6 +86,78 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         await DisposeAsyncCore();
     }
 
+    [Fact]
+    public async Task DaxMeasureWrites_NativeCommaSyntax_PreserveAndEvaluate()
+    {
+        var created = await CallToolAsync("file", new()
+        {
+            ["action"] = "create",
+            ["path"] = _testExcelFile
+        });
+        AssertSuccess(created, "Create DAX workbook");
+        var session = GetJsonProperty(created, "session_id");
+        Assert.NotNull(session);
+        var loaded = await CallToolAsync("powerquery", new()
+        {
+            ["action"] = "create",
+            ["session_id"] = session,
+            ["query_name"] = "SalesTable",
+            ["m_code"] = "#table(type table [Amount = number], {{1000}, {2500}})",
+            ["load_destination"] = "data-model"
+        });
+        AssertSuccess(loaded, "Load DAX source");
+        const string formula = "DIVIDE(SUM(SalesTable[Amount]), 1000)";
+        foreach (var update in new[] { false, true })
+        {
+            var name = $"Comma_{Guid.NewGuid():N}";
+            var written = await CallToolAsync("datamodel", new()
+            {
+                ["action"] = "create-measure",
+                ["session_id"] = session,
+                ["table_name"] = "SalesTable",
+                ["measure_name"] = name,
+                ["dax_formula"] = update ? "SUM(SalesTable[Amount])" : formula
+            });
+            AssertSuccess(written, "Create comma measure");
+            if (update)
+            {
+                var updated = await CallToolAsync("datamodel", new()
+                {
+                    ["action"] = "update-measure",
+                    ["session_id"] = session,
+                    ["measure_name"] = name,
+                    ["dax_formula"] = formula
+                });
+                AssertSuccess(updated, "Update comma measure");
+            }
+            var read = await CallToolAsync("datamodel", new()
+            {
+                ["action"] = "read",
+                ["session_id"] = session,
+                ["measure_name"] = name
+            });
+            AssertSuccess(read, "Read comma measure");
+            Assert.Equal(formula, GetJsonProperty(read, "daxFormula"));
+            var evaluated = await CallToolAsync("datamodel", new()
+            {
+                ["action"] = "evaluate",
+                ["session_id"] = session,
+                ["dax_query"] = $"EVALUATE ROW(\"Result\", [{name}])"
+            });
+            AssertSuccess(evaluated, "Evaluate comma measure");
+            using var document = JsonDocument.Parse(evaluated);
+            Assert.Equal(3.5m, Assert.Single(Assert.Single(
+                document.RootElement.GetProperty("rows").EnumerateArray()).EnumerateArray()).GetDecimal());
+        }
+        var closed = await CallToolAsync("file", new()
+        {
+            ["action"] = "close",
+            ["session_id"] = session,
+            ["save"] = false
+        });
+        AssertSuccess(closed, "Close DAX workbook");
+    }
+
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
         await DisposeAsyncCore();

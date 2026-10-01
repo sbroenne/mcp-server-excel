@@ -10,6 +10,18 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class NumberFormatTranslatorTests
 {
     [Theory]
+    [InlineData("General", "Standard")]
+    [InlineData("[Red]General", "[Red]Standard")]
+    [InlineData("mmm-yy", "MMM-JJ")]
+    [InlineData("dddd, mmmm d, yyyy", "TTTT, MMMM T, JJJJ")]
+    public void TranslateToLocale_LocalApiKeywordsAndDateNames_UseNativeCodes(string format, string expected)
+    {
+        var translator = CreateGermanTranslator();
+        Assert.Equal(expected, translator.TranslateToLocale(format));
+        Assert.Equal(format, translator.TranslateFromLocale(expected));
+    }
+
+    [Theory]
     [InlineData(".", ",", "$#,##0.00,,\"M\"", "$#,##0.00,,\"M\"")]
     [InlineData(",", ".", "$#,##0.00,,\"M\"", "$#.##0,00..\"M\"")]
     [InlineData(",", ".", "0.0E+0", "0,0E+0")]
