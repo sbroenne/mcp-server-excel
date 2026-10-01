@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from pytest_skill_engineering.copilot import CopilotEval
+from pytest_skill_engineering.copilot.result import ToolCall
 
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parent
@@ -90,15 +91,41 @@ def assert_regex(text: str | None, pattern: str) -> None:
         raise AssertionError(f"Pattern not found: {pattern}\nText:\n{haystack}")
 
 
-def _parse_cli_results(result: Any) -> list[dict[str, Any]]:
-    outputs: list[dict[str, Any]] = []
-    for call in result.tool_calls_for("excel_execute"):
-        payload = call.result or ""
-        if not payload:
-            continue
+def _cli_tool_calls(result: Any) -> list[ToolCall]:
+    return [
+        call for call in result.all_tool_calls
+        if call.name in {"excel_execute", "excel-cli-excel_execute"}
+    ]
 
+
+def _parse_cli_results(result: Any) -> list[dict[str, Any]]:
+    calls = _cli_tool_calls(result)
+    if not calls:
+        return []
+
+    payloads = [call.result or "" for call in calls]
+    use_tool_turns = any(not payload for payload in payloads)
+    if use_tool_turns:
+        # Some SDK recordings keep outputs only in tool turns, not on ToolCall.
+        payloads = []
+        for turn in result.turns:
+            if turn.role != "tool":
+                continue
+            content = turn.content or ""
+            marker = re.match(r"^\[(excel_execute|excel-cli-excel_execute)\]\s*", content)
+            if marker:
+                payloads.append(content[marker.end():])
+        if len(payloads) != len(calls):
+            raise AssertionError(
+                f"CLI execution results are incomplete: {len(payloads)}/{len(calls)} recorded"
+            )
+
+    outputs: list[dict[str, Any]] = []
+    for payload in payloads:
         try:
-            outputs.append(json.loads(payload))
+            # Tool turns can append SDK trace JSON after the execution object.
+            output = json.JSONDecoder().raw_decode(payload)[0] if use_tool_turns else json.loads(payload)
+            outputs.append(output)
         except json.JSONDecodeError:
             outputs.append({"exit_code": -1, "stdout": payload, "stderr": ""})
 
@@ -129,7 +156,7 @@ def assert_cli_exit_codes(result: Any, *, strict: bool = False) -> None:
 
 
 def assert_cli_args_contain(result: Any, token: str) -> None:
-    for call in result.tool_calls_for("excel_execute"):
+    for call in _cli_tool_calls(result):
         args = call.arguments.get("args", "")
         if token in args:
             return

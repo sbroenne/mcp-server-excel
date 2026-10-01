@@ -457,10 +457,7 @@ public class SkillMdQualityTests
         Assert.Contains("action:", content);
     }
 
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void CanonicalMcpGuidance_UsesSnakeCaseInputs()
+    private static IEnumerable<Match> UnexpectedCamelCaseTokens(string content)
     {
         var allowedCamelCaseTokens = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -547,6 +544,56 @@ public class SkillMdQualityTests
             "topBottom"
         };
 
+        const string quotedText = @"'(?:\\.|[^'\\])*'|""(?:\\.|[^""\\])*""";
+        var inputPositions = Regex.Matches(content, $@"\b[a-z][a-z_]*\((?:{quotedText}|[^)'""])*\)")
+            .Cast<Match>()
+            .SelectMany(call => Regex.Matches(call.Value,
+                    $@"{quotedText}|(?<input>\b[a-z]+[A-Z][A-Za-z0-9]*)\s*:")
+                .Cast<Match>()
+                .Where(match => match.Groups["input"].Success)
+                .Select(match => call.Index + match.Groups["input"].Index))
+            .ToHashSet();
+
+        return Regex.Matches(content, @"\b[a-z]+[A-Z][A-Za-z0-9]*\b")
+            .Cast<Match>()
+            .Where(match => !allowedCamelCaseTokens.Contains(match.Value) || inputPositions.Contains(match.Index));
+    }
+
+    [Theory]
+    [InlineData("categoryRange")]
+    [InlineData("sourceRange")]
+    [InlineData("valuesRange")]
+    [InlineData("sessionId")]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void McpSpellingGuard_RejectsResponsePropertyNamesAsInputs(string parameter)
+    {
+        var content = $"Response property `{parameter}`.\n```mcp\nchart_config(\n{parameter}: 'A1:A6')\n```";
+        var unexpected = Assert.Single(UnexpectedCamelCaseTokens(content));
+        Assert.Equal(parameter, unexpected.Value);
+        Assert.True(unexpected.Index > content.IndexOf("chart_config", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void McpSpellingGuard_AllowsResponseProseAndQuotedValues()
+    {
+        const string content = """
+            Response properties: categoryRange, sourceRange, valuesRange, sessionId.
+            ```mcp
+            chart_config(action: 'set-title', title: 'categoryRange: (sourceRange)', session_id: sessionId)
+            conditionalformat(action: 'add-rule', rule_type: 'colorScale')
+            ```
+            """;
+        Assert.Empty(UnexpectedCamelCaseTokens(content));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void CanonicalMcpGuidance_UsesSnakeCaseInputs()
+    {
         var canonicalFiles = Directory.GetFiles(Path.Combine(SkillsFolder, "excel-mcp", "references"), "*.md")
             .Append(Path.Combine(SkillsFolder, "templates", "SKILL.mcp.sbn"))
             .Append(Path.Combine(SkillsFolder, "excel-mcp", "references", "claude-desktop.md"));
@@ -555,17 +602,11 @@ public class SkillMdQualityTests
         foreach (var path in canonicalFiles)
         {
             var relativePath = Path.GetRelativePath(SkillsFolder, path);
-            var lines = File.ReadAllLines(path);
-
-            for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+            var content = File.ReadAllText(path);
+            foreach (var match in UnexpectedCamelCaseTokens(content))
             {
-                foreach (Match match in Regex.Matches(lines[lineIndex], @"\b[a-z]+[A-Z][A-Za-z0-9]*\b"))
-                {
-                    if (!allowedCamelCaseTokens.Contains(match.Value))
-                    {
-                        unexpectedTokens.Add($"{relativePath}:{lineIndex + 1}: {match.Value}");
-                    }
-                }
+                var line = content[..match.Index].Count(character => character == '\n') + 1;
+                unexpectedTokens.Add($"{relativePath}:{line}: {match.Value}");
             }
         }
 
