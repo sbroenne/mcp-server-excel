@@ -47,7 +47,12 @@
     "copilot",
     "ai",
     "github copilot",
-    "data analysis"
+    "data analysis",
+    "excel automation",
+    "pivot tables",
+    "charts",
+    "python in excel",
+    "m code"
   ],
   "activationEvents": [
     "onStartupFinished"

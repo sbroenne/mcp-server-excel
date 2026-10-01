@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -150,7 +151,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["X", "Series1", "Series2"],
              ["A", 10, 20],
              ["B", 15, 25],
-             ["C", 20, 30]]);
+             ["C", 20, 30]], overwritePolicy: OverwritePolicy.Allow);
 
         var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:C4", ChartType.Line, 50, 50);
 
@@ -290,7 +291,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["Date", "Sales"],
              [45658, 100],
              [45689, 150],
-             [45717, 200]]);
+             [45717, 200]], overwritePolicy: OverwritePolicy.Allow);
 
         var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Line, 50, 50);
 
@@ -316,7 +317,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["Item", "Rate"],
              ["A", 0.25],
              ["B", 0.50],
-             ["C", 0.75]]);
+             ["C", 0.75]], overwritePolicy: OverwritePolicy.Allow);
 
         var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.BarClustered, 50, 50);
 

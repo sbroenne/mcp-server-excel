@@ -22,6 +22,16 @@ updates. They use normal npm resolution and caching, not a guaranteed online
 check on every launch. Install the current Node.js LTS for npm or MCPB setup:
 `winget install OpenJS.NodeJS.LTS`.
 
+### Windows Architecture
+
+The VS Code extension bundles a server matching its package: x64 for Windows
+x64 VS Code and native ARM64 for Windows ARM64 VS Code. No separate Node.js
+installation is needed.
+
+With npm, including the npx-based Claude Desktop MCPB, ARM64 Node.js selects
+the native ARM64 server; x64 Node.js selects the x64 server, including on
+ARM64 Windows. Standalone ZIP downloads currently bundle the x64 server.
+
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
@@ -50,15 +60,15 @@ Use this order to avoid setup confusion:
    - Search for **"ExcelMcp"**
    - Click **Install**
 
-2. **Start the bundled server**
-   - Open a GitHub Copilot chat that can use tools.
-   - Open the Command Palette, run **MCP: List Servers**, select
-     **excel-mcp**, and start it.
-   - Approve the server and tool use when VS Code asks.
+2. **Open Copilot Chat**
+   - Use a chat that supports tools.
 
 3. **Ask Copilot to work with Excel**
    - Use a workbook path available on your Windows desktop.
    - Try: "Create an empty Excel file called test.xlsx."
+   - With VS Code's default settings, the bundled **excel-mcp** server starts
+     automatically when your request needs Excel tools. Approve server or
+     tool use if prompted.
    - Copilot can load the bundled `excel-mcp` skill automatically when relevant.
      Type `/skills` to open VS Code's Configure Skills menu.
 

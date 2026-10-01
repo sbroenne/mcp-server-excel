@@ -79,6 +79,10 @@ retry a change or substitute a different session.
   [intent and permission rules](./references/behavioral-rules.md#intent-and-permission).
 - Read-only tasks need no writes, formatting, Tables, charts, or PivotTables.
 - Prefer targeted updates over deleting and rebuilding workbook structures.
+- Range content writes/copies check for existing content by default. When the
+  request authorizes replacement, supply `overwrite_policy: 'allow'`; do not ask
+  redundant confirmation or automatically retry a rejected write with `allow`.
+  See [protected writes](./references/range.md#protected-writes-and-copies).
 - Create an Excel Table when requested or required, for example before adding
   worksheet data to the Data Model. Do not convert every range automatically.
 - `range` owns values, formulas, and number formats. `range_format` owns visual
@@ -147,7 +151,7 @@ server instructions. This server advertises tools, not prompts or resources.
 - [Common mistakes](./references/anti-patterns.md)
 - [Calculation mode](./references/calculation.md)
 - [Data Model workflows](./references/workflows.md)
-- [Charts](./references/chart.md)
+- [Charts: sources, labels, periods, units, and placement](./references/chart.md)
 - [Conditional formatting](./references/conditionalformat.md)
 - [Dashboards](./references/dashboard.md)
 - [Data Model and DAX](./references/datamodel.md)

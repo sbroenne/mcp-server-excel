@@ -62,7 +62,7 @@ export async function activate(context: Pick<vscode.ExtensionContext, 'extension
 async function showWelcomeMessage(output: vscode.OutputChannel) {
 	try {
 		const selection = await vscode.window.showInformationMessage(
-			'ExcelMcp bundles real Excel automation. Open Copilot Chat and use MCP: List Servers to start excel-mcp and approve it when prompted.',
+			'ExcelMcp bundles real Excel automation. Send an Excel request in Copilot Chat with tool support; VS Code starts excel-mcp automatically when needed, with its default settings. Approve server or tool use if prompted.',
 			'Getting Started'
 		);
 		if (selection === 'Getting Started') {

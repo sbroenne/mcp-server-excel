@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
@@ -79,7 +80,8 @@ public sealed partial class PersistentServicePivotTableTests
                 [new DateTime(2026, 1, 8), "West", "Widget", 110],
                 [new DateTime(2026, 1, 9), "East", "Gadget", 80],
                 [new DateTime(2026, 1, 10), "North", "Gadget", 130],
-            ]);
+            ],
+            overwritePolicy: OverwritePolicy.Allow);
         _commands.SetNumberFormat(batch, _salesSheetName, "A2:A11", "m/d/yyyy");
         _commands.SetNumberFormat(batch, _salesSheetName, "D2:D11", "$#,##0.00");
         _tableCommands.Create(
@@ -356,6 +358,4 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.True(result.Success, $"SortField failed: {result.ErrorMessage}");
     }
 }
-
-
 

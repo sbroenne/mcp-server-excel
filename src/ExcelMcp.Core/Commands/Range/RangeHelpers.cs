@@ -465,14 +465,17 @@ public partial class RangeCommands
         string targetSheet,
         string targetRange,
         string action,
-        Action<dynamic, dynamic> copyAction)
+        Action<dynamic, dynamic> copyAction,
+        OverwritePolicy overwritePolicy)
     {
+        ValidateOverwritePolicy(overwritePolicy);
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = action };
 
         return batch.Execute((ctx, ct) =>
         {
             dynamic? srcRange = null;
             dynamic? tgtRange = null;
+            Excel.Range? destination = null;
             try
             {
                 srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
@@ -487,14 +490,22 @@ public partial class RangeCommands
                     throw new InvalidOperationException(tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange));
                 }
 
+                if (overwritePolicy == OverwritePolicy.RejectNonempty)
+                {
+                    destination = ResolveProtectedCopyDestination((Excel.Range)srcRange, (Excel.Range)tgtRange);
+                    EnsureDestinationWritable(ctx, destination, overwritePolicy, ct);
+                }
+
+                ct.ThrowIfCancellationRequested();
                 copyAction(srcRange, tgtRange);
                 result.Success = true;
                 return result;
             }
             finally
             {
-                ComUtilities.Release(ref srcRange);
+                ComUtilities.Release(ref destination);
                 ComUtilities.Release(ref tgtRange);
+                ComUtilities.Release(ref srcRange);
             }
         });
     }

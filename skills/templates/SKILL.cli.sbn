@@ -39,6 +39,11 @@ not a transaction: earlier writes are not undone when a later command fails.
 **Writing Data (Step 3):**
 - `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
 - Write rectangular blocks in one call; use `--values-file` for large datasets.
+- Range content writes/copies reject existing content by default. Add
+  `--overwrite-policy allow` for intentional replacement authorized by the
+  request; batch JSON uses `"overwritePolicy": "allow"`. Do not ask redundant
+  confirmation or automatically retry a rejected write with `allow`.
+  See [protected writes](./references/range.md#protected-writes-and-copies).
 - Strings MUST be double-quoted in JSON: `"text"`. Numbers are bare: `42`
 - Always wrap the entire JSON value in single quotes to protect special characters
 
@@ -271,7 +276,7 @@ See [CLI command reference and common pitfalls](./references/cli-commands.md#com
 - [Ranges](./references/range.md)
 - [Report formatting](./references/report-formatting.md)
 - [Worksheets](./references/worksheet.md)
-- [Charts](./references/chart.md)
+- [Charts: sources, labels, periods, units, and placement](./references/chart.md)
 - [Power Query](./references/powerquery.md)
 - [Data Model and DAX](./references/datamodel.md)
 - [PivotTables](./references/pivottable.md)

@@ -123,6 +123,7 @@ try {
                 $npmRuntime = Join-Path $armRuntimeDir $exeName
                 $armVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($npmRuntime).ProductVersion
                 if (($armVersion -split '\+')[0] -ne $Version) { throw "$component ARM64 runtime version $armVersion does not match $Version." }
+                $prepared["$component-arm64"] = $npmRuntime
             }
             Invoke-PackageStep "$component $architecture npm packages" {
                 & (Join-Path $PSScriptRoot 'Build-NpmPackages.ps1') -Component $npmComponent -Version $Version `
@@ -168,6 +169,18 @@ try {
             -DestinationPath (Join-Path $OutputDirectory "excel-plugins-v$Version.zip")
     }
     if ($Components -contains 'Extension') {
+        if (-not $prepared.ContainsKey('Mcp-arm64')) {
+            $armRuntimeDir = Join-Path $runtimeRoot 'Mcp-arm64'
+            Invoke-PackageStep 'Mcp ARM64 extension runtime' {
+                Publish-PackageRuntime -Component Mcp -RepoRoot $root -Version $Version `
+                    -Architecture arm64 -OutputDirectory $armRuntimeDir
+            }
+            $armRuntime = Join-Path $armRuntimeDir 'Sbroenne.ExcelMcp.McpServer.exe'
+            Assert-PackageRuntimeArchitecture -Path $armRuntime -Architecture arm64
+            $armVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($armRuntime).ProductVersion
+            if (($armVersion -split '\+')[0] -ne $Version) { throw "Mcp ARM64 runtime version $armVersion does not match $Version." }
+            $prepared['Mcp-arm64'] = $armRuntime
+        }
         $extensionStage = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpExtension-$([Guid]::NewGuid().ToString('N'))"
         $extension = $extensionStage
         New-Item -ItemType Directory -Path $extension | Out-Null
@@ -187,8 +200,8 @@ try {
         $manifest | ConvertTo-Json -Depth 20 | Set-Content $manifestPath -Encoding utf8
         Push-Location $extension
         $extensionPackages = @(
-            @{ Target = 'win32-x64'; FileName = "excel-mcp-$Version.vsix" },
-            @{ Target = 'win32-arm64'; FileName = "excel-mcp-$Version-win32-arm64.vsix" }
+            @{ Target = 'win32-x64'; Architecture = 'x64'; Runtime = $prepared.Mcp; FileName = "excel-mcp-$Version.vsix" },
+            @{ Target = 'win32-arm64'; Architecture = 'arm64'; Runtime = $prepared['Mcp-arm64']; FileName = "excel-mcp-$Version-win32-arm64.vsix" }
         )
         try {
             Invoke-PackageStep 'Extension dependencies' { npm.cmd ci --ignore-scripts }
@@ -197,6 +210,7 @@ try {
             Invoke-PackageStep 'Extension test types' { npm.cmd run typecheck:tests }
             Invoke-PackageStep 'Extension tests' { npm.cmd test }
             foreach ($package in $extensionPackages) {
+                Copy-Item -LiteralPath $package.Runtime -Destination $bin.FullName -Force
                 Invoke-PackageStep "Extension package ($($package.Target))" {
                     npm.cmd exec -- vsce package --no-dependencies --target $package.Target --out (Join-Path $OutputDirectory $package.FileName)
                 }
@@ -208,6 +222,17 @@ try {
             try {
                 foreach ($required in @('extension/bin/Sbroenne.ExcelMcp.McpServer.exe', 'extension/out/extension.js', 'extension/out/prerequisites.js')) {
                     if (-not $vsix.GetEntry($required)) { throw "VSIX is missing $required." }
+                }
+                $inspectionRuntime = Join-Path $OutputDirectory "$($package.Target)-server-inspection.exe"
+                try {
+                    [IO.Compression.ZipFileExtensions]::ExtractToFile(
+                        $vsix.GetEntry('extension/bin/Sbroenne.ExcelMcp.McpServer.exe'), $inspectionRuntime, $false)
+                    Assert-PackageRuntimeArchitecture -Path $inspectionRuntime -Architecture $package.Architecture
+                }
+                finally {
+                    if (Test-Path -LiteralPath $inspectionRuntime) {
+                        Remove-Item -LiteralPath $inspectionRuntime -Force
+                    }
                 }
                 foreach ($skillFile in Get-ChildItem (Join-Path $skills.FullName 'excel-mcp') -File -Recurse) {
                     $relative = [IO.Path]::GetRelativePath($extension, $skillFile.FullName).Replace('\', '/')
@@ -236,6 +261,10 @@ try {
             }
             finally { $vsix.Dispose() }
         }
+        $debugRuntime = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64) {
+            $prepared['Mcp-arm64']
+        } else { $prepared.Mcp }
+        Copy-Item -LiteralPath $debugRuntime -Destination $bin.FullName -Force
         $debugDirectory = New-Item -ItemType Directory -Path (Join-Path $OutputDirectory 'extension')
         Get-ChildItem $extension -Force | Where-Object Name -ne 'node_modules' |
             Copy-Item -Destination $debugDirectory.FullName -Recurse

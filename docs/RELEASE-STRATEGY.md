@@ -58,7 +58,7 @@ When you run the release workflow, all components are released together:
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
 | `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
-| `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; same x64 MCP executable through Windows emulation, plus skill) |
+| `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; self-contained native ARM64 MCP executable and skill) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop metadata bundle; server fetched through npx with `@latest`) |
 | `excel-plugins-v{version}.zip` | ZIP | GitHub Release (prepared plugin payload for exact-release repairs) |
 
@@ -324,10 +324,13 @@ Pass `-Architecture x64` (the default) or `-Architecture arm64` to both scripts.
 The executable's PE machine type must match the package architecture.
 Both launcher dependencies are stamped to the same release version.
 
-`Build-ReleasePackages.ps1` builds both npm architectures while preserving x64
-payloads for standalone ZIPs and other bundles. All four runtime packages are
-published before either launcher. ARM64 Node.js selects ARM64; x64 Node.js
-selects x64, even on ARM64 Windows. Missing matching runtimes fail explicitly.
+`Build-ReleasePackages.ps1` builds both npm architectures and bundles a matching
+native server in each VSIX target. It reuses the prepared ARM64 npm server for
+the ARM64 VSIX, or publishes it when only the extension is selected. Standalone
+ZIPs and MCPB currently bundle x64 executables.
+All four npm runtime packages are published before either launcher.
+ARM64 Node.js selects the native ARM64 executable; x64 Node.js selects x64,
+even on ARM64 Windows. Missing matching runtimes fail explicitly.
 
 `Test-NpmPackages.ps1` inspects both archives, but installs and executes a runtime
 only when Node.js matches its architecture. On the x64 hosted release runner,

@@ -62,10 +62,12 @@ for the full comparison with tools like openpyxl and pandas.
 
 ### Will it damage my existing workbooks?
 
-No. Excel itself opens and saves the file, so formulas, PivotTables, charts,
-macros, the Data Model, and formatting are all preserved. Other tools that
-rewrite the `.xlsx` file directly can silently drop those; here Excel does the
-work.
+Excel itself opens and saves the file, rather than a file-parser library
+rewriting it. That avoids file-parser limitations, but it is not a guarantee
+that a workbook stays unchanged. Requested edits can change or remove data,
+formulas, formatting, charts, PivotTables, macros, or Data Model features.
+Review the requested changes before saving; some operations are destructive
+and have no tool-level undo.
 
 ## Cost, privacy and support
 
