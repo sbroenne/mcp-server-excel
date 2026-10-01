@@ -47,9 +47,9 @@ This extension includes an **Agent Skill** following the [agentskills.io](https:
 
 The skill is registered automatically through VS Code's `chatSkills`
 contribution point. No separate skill installation or preview setting is needed.
-Copilot loads relevant guidance as needed. You can also type `/excel-mcp` in
-chat to load the existing skill explicitly; ordinary natural-language requests
-work without remembering a command.
+Copilot can load relevant guidance as needed. Type `/skills` in chat to open
+VS Code's Configure Skills menu. Ordinary natural-language requests work
+without remembering a command.
 
 
 ## 💬 Example Prompts

@@ -48,8 +48,8 @@ Use this order to avoid setup confusion:
 3. **Ask Copilot to work with Excel**
    - Use a workbook path available on your Windows desktop.
    - Try: "Create an empty Excel file called test.xlsx."
-   - The bundled `excel-mcp` skill supplies Excel guidance automatically.
-     You can also load it explicitly with `/excel-mcp`.
+   - Copilot can load the bundled `excel-mcp` skill automatically when relevant.
+     Type `/skills` to open VS Code's Configure Skills menu.
 
 The extension includes a self-contained MCP server and its Excel skill.
 No separate .NET, Node.js, CLI, or skill installation is needed. The CLI is
