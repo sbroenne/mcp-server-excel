@@ -41,6 +41,19 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
         AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, pluginName), pluginName);
     }
 
+    [Theory]
+    [InlineData("description: \"\"", "")]
+    [InlineData("description: ''", "")]
+    [InlineData("description: null", null)]
+    [InlineData("description: >-\n  ", "")]
+    [InlineData("description: >-\n  Useful skill", "Useful skill")]
+    [Trait("Feature", "SkillGeneration")]
+    public void SkillDescriptionMetadata_DecodesYamlScalar(string declaration, string? expected)
+    {
+        var lines = declaration.Split('\n');
+        Assert.Equal(expected, DecodeYamlDescription(lines, 0));
+    }
+
     [Fact]
     public void ExcelMcpSource_UsesPortableNpxConfiguration()
     {
@@ -320,10 +333,25 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
         var lines = metadata.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
         var index = Array.FindIndex(lines, line => line.StartsWith("description:", StringComparison.Ordinal));
         Assert.True(index >= 0, "Skill description metadata is missing.");
-        var description = lines[index]["description:".Length..].Trim();
-        if (description is ">" or ">-" or "|" or "|-")
-            description = string.Join(" ", lines.Skip(index + 1).TakeWhile(line => line.StartsWith(' '))).Trim();
+        var description = DecodeYamlDescription(lines, index);
         Assert.False(string.IsNullOrWhiteSpace(description), "Skill description metadata is empty.");
+    }
+
+    private static string? DecodeYamlDescription(string[] lines, int index)
+    {
+        var value = lines[index]["description:".Length..].Trim();
+        if (value is ">" or ">-" or ">+" or "|" or "|-" or "|+")
+            return string.Join(" ", lines.Skip(index + 1)
+                .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
+                .Select(line => line.Trim()))
+                .Trim();
+        if (value is "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
+            return value[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+            return JsonSerializer.Deserialize<string>(value);
+        return value;
     }
 
     private static void AssertSkillDirectoryMatchesSource(
