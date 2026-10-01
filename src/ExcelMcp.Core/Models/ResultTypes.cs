@@ -1296,9 +1296,24 @@ public class RangeFindResult : ResultBase
     public string SearchValue { get; set; } = string.Empty;
 
     /// <summary>
-    /// List of matching cells
+    /// Matching cell details, limited to the requested maximum (default: 10).
     /// </summary>
     public List<RangeCell> MatchingCells { get; set; } = [];
+
+    /// <summary>
+    /// Exact number of matching cells in the searched range.
+    /// </summary>
+    public long TotalCount { get; set; }
+
+    /// <summary>
+    /// Number of matching cells included in this response.
+    /// </summary>
+    public int ReturnedCount => MatchingCells.Count;
+
+    /// <summary>
+    /// Whether matching cells were omitted because of the return limit.
+    /// </summary>
+    public bool Truncated => TotalCount > ReturnedCount;
 }
 
 /// <summary>

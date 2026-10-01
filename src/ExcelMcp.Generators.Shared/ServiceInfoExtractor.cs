@@ -278,7 +278,9 @@ public static class ServiceInfoExtractor
             enumTypeName,
             enumAliases,
             param.IsParams,
-            allowsEmptyString);
+            allowsEmptyString,
+            isJsonObject: param.Type.TypeKind == TypeKind.Class &&
+                          param.Type.SpecialType == SpecialType.None);
     }
 
     private static XmlDocumentation? ExtractXmlDocumentation(IMethodSymbol method)

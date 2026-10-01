@@ -668,6 +668,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 var nonNullableType = p.TypeName.TrimEnd('?');
                 sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeList<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
             }
+            else if (parameterInfo is { IsJsonObject: true })
+            {
+                var nonNullableType = p.TypeName.TrimEnd('?');
+                sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeObject<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\") : null{comma}");
+            }
             else
             {
                 sb.AppendLine($"                {p.Name}: settings.{StringHelper.ToPascalCase(p.Name)}{comma}");
@@ -765,12 +770,13 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             // Deserialized back to the original type in RouteFromSettings.
             var isCollectionForJson = IsNestedCollectionType(p.TypeName) || IsSimpleListType(p.TypeName);
             var parameterInfo = FindParameterInfo(info, p.Name);
+            var isJsonParameter = isCollectionForJson || parameterInfo is { IsJsonObject: true };
             var isTimeoutSeconds = parameterInfo != null && IsTimeSpanType(parameterInfo.TypeName);
-            var cliTypeName = isCollectionForJson ||
+            var cliTypeName = isJsonParameter ||
                               parameterInfo is { IsEnum: true, IsFromString: false }
                 ? "string?"
                 : p.TypeName;
-            if (isCollectionForJson && !escapedDescription.Contains("JSON"))
+            if (isJsonParameter && !escapedDescription.Contains("JSON"))
                 escapedDescription += " (JSON format)";
             if (isTimeoutSeconds && escapedDescription.IndexOf("seconds", StringComparison.OrdinalIgnoreCase) < 0)
             {
@@ -1734,6 +1740,20 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        if (string.IsNullOrWhiteSpace(json)) return null;");
         sb.AppendLine("        return System.Text.Json.JsonSerializer.Deserialize<T>(json)");
         sb.AppendLine("            ?? throw new System.Text.Json.JsonException($\"Failed to deserialize list from JSON: {json}\");");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Deserializes CLI object options using the shared Service JSON naming policy.</summary>");
+        sb.AppendLine("    internal static T DeserializeObject<T>(string json, string parameterName) where T : class");
+        sb.AppendLine("    {");
+        sb.AppendLine("        try");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return System.Text.Json.JsonSerializer.Deserialize<T>(json, DispatchJsonOptions)");
+        sb.AppendLine("                ?? throw new System.Text.Json.JsonException(\"Expected a non-null JSON object.\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("        catch (System.Text.Json.JsonException exception)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            throw new System.ArgumentException($\"Invalid JSON object for {parameterName}.\", parameterName, exception);");
+        sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

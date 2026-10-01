@@ -178,6 +178,47 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["sheet_name"] = "Data"
         });
         AssertSuccess(createSheetResult, "Create worksheet");
+
+        var findSheetResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "FindSmoke"
+        });
+        AssertSuccess(findSheetResult, "Create find smoke worksheet");
+        var findValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "FindSmoke",
+            ["range_address"] = "A1:A26",
+            ["values"] = Enumerable.Range(0, 26)
+                .Select(index => new[] { index < 25 ? "Apple" : "Banana" }).ToArray()
+        });
+        AssertSuccess(findValuesResult, "Write find smoke values");
+        foreach (int? limit in new int?[] { null, 5 })
+        {
+            var findArguments = new Dictionary<string, object?>
+            {
+                ["action"] = "find",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "FindSmoke",
+                ["range_address"] = "A1:A26",
+                ["search_value"] = "Apple",
+                ["find_options"] = new { matchEntireCell = true }
+            };
+            if (limit.HasValue)
+            {
+                findArguments["max_matches"] = limit.Value;
+            }
+            var findResult = await CallToolAsync("range_edit", findArguments);
+            AssertSuccess(findResult, "Find bounded matches");
+            using var findJson = JsonDocument.Parse(findResult);
+            Assert.Equal(25, findJson.RootElement.GetProperty("totalCount").GetInt64());
+            Assert.Equal(limit ?? 10, findJson.RootElement.GetProperty("returnedCount").GetInt32());
+            Assert.Equal(limit ?? 10, findJson.RootElement.GetProperty("matchingCells").GetArrayLength());
+            Assert.True(findJson.RootElement.GetProperty("truncated").GetBoolean());
+        }
         _output.WriteLine("  ✓ worksheet: List and Create passed");
 
         // =====================================================================

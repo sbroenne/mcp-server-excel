@@ -201,6 +201,16 @@ range.EntireColumn.Delete();  // Delete entire columns
 ```
 
 #### 14. **Find/Replace**
+
+Find returns up to `maxMatches` cell details, defaulting to 10, while counting
+every matching cell. The limit accepts positive 32-bit whole numbers. MCP
+uses `range_edit` / `max_matches`, CLI uses `rangeedit find` /
+`--max-matches`, and batch JSON uses `maxMatches`. The limit bounds retained
+and returned details, not traversal time; there is no paging.
+`totalCount` is exact, `returnedCount` is the list size, and `truncated` means
+more matches exist than were returned. No matches has zero counts and
+`truncated=false`; exactly the limit is complete.
+
 ```csharp
 // Excel COM: Range.Find() and Range.Replace()
 dynamic foundCell = range.Find(
@@ -381,9 +391,9 @@ public interface IRangeCommands
     // === FIND/REPLACE OPERATIONS === (⭐ POWER USER ESSENTIAL)
     
     /// <summary>
-    /// Finds all cells matching criteria in range
+    /// Counts all matching cells and returns up to maxMatches cell details
     /// </summary>
-    Task<RangeFindResult> FindAsync(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options);
+    Task<RangeFindResult> FindAsync(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options, int maxMatches = 10);
     
     /// <summary>
     /// Replaces text/values in range
@@ -446,6 +456,9 @@ public class SortColumn
 public class RangeFindResult : OperationResult
 {
     public List<RangeCell> MatchingCells { get; set; } = new();
+    public long TotalCount { get; set; }
+    public int ReturnedCount => MatchingCells.Count;
+    public bool Truncated => TotalCount > ReturnedCount;
 }
 
 public class RangeCell
