@@ -1,5 +1,5 @@
 ---
-applyTo: "skills/**/*.md,skills/templates/**/*.sbn,src/ExcelMcp.Build.Tasks/**/*.cs,src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.Generators.Mcp/**/*.cs,src/ExcelMcp.McpServer/**/*.cs"
+applyTo: "skills/**/*.md,skills/templates/**/*.sbn,src/ExcelMcp.Build.Tasks/**/*.cs,src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.Generators*/**/*.cs,src/ExcelMcp.McpServer/**/*.cs,scripts/Build-AgentSkills.ps1"
 excludeAgent: "code-review"
 ---
 
@@ -8,6 +8,7 @@ excludeAgent: "code-review"
 | Content | Edit here |
 |---------|-----------|
 | Tool/parameter descriptions | Core interface XML docs/attributes; manual MCP metadata only where it owns the tool |
+| Generated command/skill metadata | `src/ExcelMcp.Generators/ServiceRegistryGenerator.cs` and shared generator metadata |
 | Skill prose and selection rules | `skills/templates/SKILL.cli.sbn`, `SKILL.mcp.sbn` |
 | Shared workflows and limitations | `skills/shared/*.md` |
 | Skill rendering | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
@@ -23,6 +24,8 @@ source edits do not update installed skills or authorize publication.
 Guidance should add only what an Excel-capable agent cannot infer from schemas:
 tool disambiguation, server-specific semantics, pitfalls, and recovery.
 No enum catalogs, generic Excel tutorials, duplicated CLI help, or emojis.
+Keep server instructions minimal and task-focused; do not present optional
+guides as required server instructions.
 Rebuild Release after source edits; run affected evaluations when discovery or
 workflow selection changes.
 Do not require unnecessary formatting, Tables, questions, or presentation menus.
@@ -45,7 +48,8 @@ an enforced server confirmation dialog. Do not imply otherwise.
 
 Core XML documentation is a build input to the MCP generator. Do not delete it
 before downstream generation or accept description strings containing only
-required/valid-action suffixes. Use existing discovery and generated-skill tests
-to cover recurring guidance defects; do not add a parallel audit framework.
+required/valid-action suffixes. Verify emitted MCP descriptions through SDK
+discovery, not only source strings. Use existing discovery and generated-skill
+tests to cover recurring guidance defects; do not add a parallel audit framework.
 
 Generation pipeline and authoring procedure: `skills/README.md`.
