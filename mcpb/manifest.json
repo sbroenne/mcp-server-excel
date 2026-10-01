@@ -36,11 +36,11 @@
     "pivot table"
   ],
   "server": {
-    "type": "binary",
-    "entry_point": "server/excel-mcp-server",
+    "type": "node",
+    "entry_point": "@sbroenne/mcp-server-excel",
     "mcp_config": {
-      "command": "${__dirname}/server/excel-mcp-server",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   },
@@ -48,6 +48,9 @@
   "prompts_generated": true,
   "compatibility": {
     "claude_desktop": ">=0.10.0",
-    "platforms": ["win32"]
+    "platforms": ["win32"],
+    "runtimes": {
+      "node": ">=18"
+    }
   }
 }

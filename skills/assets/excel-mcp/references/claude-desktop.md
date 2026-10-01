@@ -7,6 +7,9 @@ or a manual stdio configuration.
 
 - Windows 10 or later
 - Microsoft Excel 2016 or later (desktop version)
+- An interactive Windows desktop with Excel available to the signed-in user
+- Node.js 18+ with npm/npx on PATH for MCPB or manual npx configuration
+- Network access for npm package downloads and update checks
 
 The published Windows packages are self-contained; no .NET runtime is required.
 
@@ -17,9 +20,37 @@ The published Windows packages are self-contained; no .NET runtime is required.
 2. Double-click the bundle or drag it into Claude Desktop.
 3. Restart Claude Desktop.
 
-The bundle contains the MCP server and configures Claude Desktop automatically.
+The bundle configures Claude Desktop to run
+`npx -y @sbroenne/mcp-server-excel@latest`. It contains configuration and
+documentation, not a fixed server executable or bundled npm. Install Node.js
+LTS first if npx is unavailable, then restart Claude Desktop so it sees PATH.
+Do not assume Claude's built-in Node.js provides the external npx command.
+
+`@latest` uses normal npm resolution and caching, not a guaranteed online
+check on every launch. A running server does not change versions. Users of an
+older binary MCPB must install the new bundle once; later bundle configuration
+changes still require manual replacement.
 
 ## Manual Configuration
+
+Add the server to `%APPDATA%\Claude\claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "excel-mcp": {
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving the configuration.
+
+### Standalone Alternative
+
+This method does not require Node.js, but executable updates are manual.
 
 1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).

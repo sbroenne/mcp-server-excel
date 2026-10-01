@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "mcp-excel",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   }

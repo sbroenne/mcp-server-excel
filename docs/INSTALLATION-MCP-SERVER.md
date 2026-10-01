@@ -7,8 +7,20 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 ### Required
 - **Windows OS** (Windows 10 or later)
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
+- **An interactive Windows desktop** with Excel available to the signed-in user
 
-> **.NET runtime is NOT required** for any installation method — all distributions are self-contained.
+| Installation method | Additional requirements |
+|---|---|
+| VS Code extension | VS Code with GitHub Copilot; no separate Node.js or .NET |
+| Claude Desktop MCPB | Claude Desktop and Node.js 18+ with npm/npx available on PATH; no separate .NET |
+| npm / Copilot plugin | Node.js 18+ with npm/npx; no separate .NET |
+| Standalone ZIP | No Node.js or .NET |
+| NuGet tool | .NET 10 Runtime or SDK |
+
+npm-based launches need network access to download packages and check for
+updates. They use normal npm resolution and caching, not a guaranteed online
+check on every launch. Install the current Node.js LTS for npm or MCPB setup:
+`winget install OpenJS.NodeJS.LTS`.
 
 ### Windows Architecture
 
@@ -16,15 +28,14 @@ The VS Code extension bundles a server matching its package: x64 for Windows
 x64 VS Code and native ARM64 for Windows ARM64 VS Code. No separate Node.js
 installation is needed.
 
-With npm, ARM64 Node.js selects the native ARM64 server; x64 Node.js selects
-the x64 server, including on ARM64 Windows. Claude Desktop MCPB and standalone
-ZIP downloads currently bundle the x64 server.
+With npm, including the npx-based Claude Desktop MCPB, ARM64 Node.js selects
+the native ARM64 server; x64 Node.js selects the x64 server, including on
+ARM64 Windows. Standalone ZIP downloads currently bundle the x64 server.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
-- **Node.js** - Required for the recommended `npx` installation and other `npx` commands. Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
 
 ---
 
@@ -74,11 +85,24 @@ not start an Excel workbook or approve server access for you.
 
 **Best for:** Claude Desktop users who want the simplest installation
 
+Install Node.js LTS first (`winget install OpenJS.NodeJS.LTS`) if `npx` is not
+already available. Restart Claude Desktop after changing PATH.
+
 1. Download `excel-mcp-{version}.mcpb` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Double-click the `.mcpb` file (or drag-and-drop onto Claude Desktop)
 3. Restart Claude Desktop
 
-That's it! The MCPB bundle includes everything needed - no .NET installation required.
+The bundle configures Claude to run
+`npx -y @sbroenne/mcp-server-excel@latest` directly. It contains no custom
+launcher, npm installation, or fixed server executable. No separate .NET
+installation is needed. The first launch downloads the Windows server; later
+launches resolve `@latest` using npm's cache policy. Claude's built-in Node.js
+does not guarantee that the external `npx` command is available.
+
+**Already installed an older, binary MCPB?** Install the new npx-based bundle once.
+Restarting an older bundle does not replace its fixed server executable.
+The bundle itself still needs manual replacement for configuration changes;
+fetching a newer npm server does not update the installed `.mcpb`.
 
 ---
 
@@ -110,12 +134,13 @@ The plugin version can lag the product release; its npx launcher uses the latest
 Run the self-contained server directly through npm:
 
 ```powershell
-npx -y @sbroenne/mcp-server-excel --version
+npx -y @sbroenne/mcp-server-excel@latest --version
 ```
 
 The npm package includes the Windows server, so it does not require .NET or a
 separate download from GitHub Releases. npm caches the package after the first
-run.
+run. `@latest` selects the release marked latest when starting the server;
+it does not replace an already running server.
 
 Windows x64 and ARM64 are supported. ARM64 Node.js selects
 `@sbroenne/mcp-server-excel-win32-arm64`; x64 Node.js selects
@@ -162,20 +187,20 @@ Or manually: **Settings → System → About → Advanced system settings → En
 Use [`add-mcp`](https://github.com/neondatabase/add-mcp) to configure all detected coding agents with a single command:
 
 ```powershell
-npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp
+npx add-mcp "npx -y @sbroenne/mcp-server-excel@latest" --name excel-mcp
 ```
 
 This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more. Use flags to customize:
 
 ```powershell
 # Configure specific agents only
-npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp -a cursor -a claude-code
+npx add-mcp "npx -y @sbroenne/mcp-server-excel@latest" --name excel-mcp -a cursor -a claude-code
 
 # Configure globally (user-wide, all projects)
-npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp -g
+npx add-mcp "npx -y @sbroenne/mcp-server-excel@latest" --name excel-mcp -g
 
 # Non-interactive (skip prompts)
-npx add-mcp "npx -y @sbroenne/mcp-server-excel" --name excel-mcp --all -y
+npx add-mcp "npx -y @sbroenne/mcp-server-excel@latest" --name excel-mcp --all -y
 ```
 
 > **Requires:** [Node.js](https://nodejs.org/) for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if not already available. No permanent `add-mcp` installation is needed.
@@ -195,7 +220,7 @@ Create `.vscode/mcp.json` in your workspace:
   "servers": {
     "excel-mcp": {
       "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel"]
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"]
     }
   }
 }
@@ -212,7 +237,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
   "servers": {
     "excel-mcp": {
       "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel"]
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"]
     }
   }
 }
@@ -229,7 +254,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
   "mcpServers": {
     "excel-mcp": {
       "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel"],
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   }
@@ -242,7 +267,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 1. Open Cursor Settings (Ctrl+,)
 2. Search for "MCP" in settings
-3. Click "Edit in settings.json" or create config at: `%APPDATA%\Cursor\User\globalStorage\mcp\mcp.json`
+3. Open its MCP configuration, or create `%USERPROFILE%\.cursor\mcp.json`
+   for all projects (`.cursor\mcp.json` for one project)
 4. Add this configuration:
 
 ```json
@@ -250,7 +276,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
   "mcpServers": {
     "excel-mcp": {
       "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel"],
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   }
@@ -270,7 +296,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
   "mcpServers": {
     "excel-mcp": {
       "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel"],
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   }
@@ -282,7 +308,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 **For Windsurf:**
 
 1. Open Windsurf Settings
-2. Navigate to MCP Servers configuration  
+2. Use **Open MCP config file** in the client's MCP settings
 3. Add this configuration:
 
 ```json
@@ -290,7 +316,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
   "mcpServers": {
     "excel-mcp": {
       "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel"],
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   }
@@ -348,16 +374,25 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ### Check Current Version
 
 ```powershell
-npx -y @sbroenne/mcp-server-excel --version
+npx -y @sbroenne/mcp-server-excel@latest --version
 ```
 
 ### Update to New Version
 
-**npm (primary):**
+Before restarting or updating, finish the current work and explicitly save and
+close the intended workbook sessions. Do not interrupt a refresh or calculation.
 
-Unpinned `npx` configurations resolve the newest published package. Restart the
-MCP client to start the new version. If the configuration pins a version, update
-the version after the package name.
+| Installation | How to update |
+|---|---|
+| npm / Copilot plugin | Restart the MCP server/client; `@latest` resolves the server using normal npm caching |
+| Claude Desktop MCPB | Restart the server to resolve the npm server; install a new `.mcpb` manually when its configuration changes |
+| VS Code extension | Update the extension through VS Code, then restart its bundled server |
+| Standalone ZIP | Replace the extracted executable with the new release, then restart the client |
+| NuGet | Run `dotnet tool update --global Sbroenne.ExcelMcp.McpServer`, then restart the client |
+
+The npm version command above checks the npm-launched executable, not an
+existing server launched by a different installation. A restart does not upgrade
+an older binary MCPB or a standalone executable.
 
 **Standalone exe:**
 
@@ -406,7 +441,7 @@ Test-Path "C:\Tools\ExcelMcp\mcp-excel.exe"
 
 **Verify it runs:**
 ```powershell
-npx -y @sbroenne/mcp-server-excel --version
+npx -y @sbroenne/mcp-server-excel@latest --version
 ```
 
 ### 3. "Workbook is locked" or "Cannot open file"
@@ -417,7 +452,9 @@ ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 
 ### 4. MCP Server Still Running Old Version
 
-**Solution:** Fully restart your MCP client
+**Solution:** Check the update steps for your installation method first, then
+fully restart your MCP client. `@latest` is resolved at launch; a running process
+does not change versions.
 - Close VS Code completely (including terminal windows)
 - Close Claude Desktop completely
 - Reopen the application
@@ -479,6 +516,16 @@ Avoid opening more sessions while the bridge cannot forward follow-up calls.
 ---
 
 ## Uninstallation
+
+Remove the server entry from your client's configuration as well.
+
+| Installation | How to remove |
+|---|---|
+| Claude Desktop MCPB | Remove Excel from Claude's Settings > Extensions |
+| VS Code extension | Uninstall ExcelMcp through VS Code Extensions |
+| Copilot plugin | `copilot plugin uninstall excel-mcp@mcp-server-excel-plugins` |
+| npm through npx | Remove the client configuration; no global installation to uninstall |
+| Standalone ZIP / NuGet | Use the commands below |
 
 ```powershell
 # npm: no global installation to remove

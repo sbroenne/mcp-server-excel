@@ -9,8 +9,12 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 [Trait("Feature", "PluginPublication")]
 public sealed class PluginPublicationScriptTests
 {
-    [Fact]
-    public async Task PublicationAndMarketplaceScripts_PassDisposableNoWriteRegressions()
+    [Theory]
+    [InlineData("PluginPublication.test.mjs")]
+    [InlineData("PluginPublicationMarketplace.test.mjs")]
+    [InlineData("PluginPublicationHistory.test.mjs")]
+    [InlineData("PluginPublicationStaging.test.mjs")]
+    public async Task PublicationAndMarketplaceScripts_PassDisposableNoWriteRegressions(string testFile)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !File.Exists(Path.Combine(root.FullName, "Sbroenne.ExcelMcp.sln")))
@@ -18,15 +22,10 @@ public sealed class PluginPublicationScriptTests
             root = root.Parent;
         }
         Assert.NotNull(root);
-        // Each file owns independent disposable repositories. Bound file-level
-        // concurrency so synchronous Git/PowerShell startup does not serialize the suite.
+        // Bound each independent group, rather than sharing one deadline across the suite.
         await RunNodeAsync(root.FullName,
             [
-                "--test", "--test-concurrency=3",
-                "tests/ExcelMcp.SkillGeneration.Tests/PluginPublication.test.mjs",
-                "tests/ExcelMcp.SkillGeneration.Tests/PluginPublicationMarketplace.test.mjs",
-                "tests/ExcelMcp.SkillGeneration.Tests/PluginPublicationHistory.test.mjs",
-                "tests/ExcelMcp.SkillGeneration.Tests/PluginPublicationStaging.test.mjs"
+                "--test", Path.Combine("tests", "ExcelMcp.SkillGeneration.Tests", testFile)
             ],
             TimeSpan.FromMinutes(3));
     }

@@ -316,12 +316,13 @@ $workRoot = Join-Path ([IO.Path]::GetTempPath()) "excel-listing-$([Guid]::NewGui
 node scripts\Update-AwesomeCopilot.mjs prepare v2.1.0 "$workRoot\awesome-preview" "$workRoot\awesome-preview-plan.json"
 ```
 
-The four test files share the existing checks and fixture helpers, but run in
-separate Node processes with at most three files active at once. Each fixture
+The four test files share the existing checks and fixture helpers. The direct
+Node command runs at most three files at once; the .NET theory runs each file
+as a separate, sequential test with its own three-minute deadline. Each fixture
 owns its disposable repositories and local remote; no Excel or real publication
-is involved. The .NET test retains its three-minute suite deadline and terminates
-the owned process tree on timeout, including the active check's diagnostics.
-The five-minute test-host hang limit leaves time for that cleanup and reporting.
+is involved. A timeout terminates the owned process tree and includes the active
+check's diagnostics. The five-minute test-host hang limit leaves time for each
+test's cleanup and reporting.
 
 Use a new disposable directory on each preview. The prepare command runs
 upstream's documented `npm ci --ignore-scripts --no-audit --no-fund`,

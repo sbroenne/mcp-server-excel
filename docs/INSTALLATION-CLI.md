@@ -7,6 +7,8 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 ### Required
 - **Windows OS** (Windows 10 or later)
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
+- **An interactive Windows desktop** with Excel available to the signed-in user;
+  ordinary hosted CI runners do not have desktop Excel
 
 > **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
 
@@ -38,22 +40,29 @@ install Node.js.
 ### npm (Primary)
 
 ```powershell
-npx -y @sbroenne/excelcli --version
-npx -y @sbroenne/excelcli --help
+npx -y @sbroenne/excelcli@latest --version
+npx -y @sbroenne/excelcli@latest --help
 ```
 
 All CLI arguments follow the package name, for example:
 
 ```powershell
-npx -y @sbroenne/excelcli -q session open "C:\Data\Test.xlsx"
-npx -y @sbroenne/excelcli -q session list
-npx -y @sbroenne/excelcli -q session close --session <id>
+npx -y @sbroenne/excelcli@latest -q session open "C:\Data\Test.xlsx"
+npx -y @sbroenne/excelcli@latest -q session list
+# Replace SESSION_ID with the ID returned by session open:
+npx -y @sbroenne/excelcli@latest -q session close --session "SESSION_ID"
 ```
 
-For repeated use, install the command on your PATH:
+These commands do not install bare `excelcli` on PATH. `@latest` selects the
+current npm release at invocation, subject to normal caching. It does not
+replace an already running background service.
+
+#### Global npm Installation
+
+For repeated use with the bare command, install it on your PATH:
 
 ```powershell
-npm install --global @sbroenne/excelcli
+npm install --global @sbroenne/excelcli@latest
 excelcli --version
 ```
 
@@ -78,7 +87,9 @@ Avoid installing multiple distributions of `excelcli` on the same PATH. Use
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-### Add CLI to PATH
+#### Add the Standalone CLI to PATH
+
+Skip this section for npx and global npm installations.
 
 ```powershell
 $toolsDir = "C:\Tools\ExcelMcp"
@@ -91,7 +102,7 @@ if ($userPath -notlike "*$toolsDir*") {
 
 Or manually: **Settings → System → About → Advanced system settings → Environment Variables → User variables → Path → Edit → New** → add `C:\Tools\ExcelMcp`
 
-### Quick Test
+#### Standalone Quick Test
 
 ```powershell
 excelcli --version
@@ -100,7 +111,8 @@ excelcli --help
 # Test with an existing workbook
 excelcli -q session open "C:\Data\Test.xlsx"
 excelcli -q session list
-excelcli -q session close --session <id>
+# Replace SESSION_ID with the ID returned by session open:
+excelcli -q session close --session "SESSION_ID"
 ```
 
 ---
@@ -179,7 +191,23 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 excelcli --version
 ```
 
+For npx use `npx -y @sbroenne/excelcli@latest --version` instead.
+This reports the foreground CLI executable's version, not necessarily the
+version of an already running background service.
+
 ### Update to New Version
+
+**Before updating:** finish operations, explicitly save and close the intended
+workbook sessions, then stop the CLI service:
+
+```powershell
+npx -y @sbroenne/excelcli@latest -q service stop
+```
+
+For standalone or global installations, use `excelcli -q service stop`.
+Stopping the service may terminate its tracked Excel processes; do not use it
+as an update shortcut while workbooks have unsaved changes. The next workbook
+command starts the service using the selected CLI executable.
 
 **npm:**
 
@@ -223,7 +251,7 @@ If the launcher cannot find `@sbroenne/excelcli-win32-x64` or
 optional dependencies enabled:
 
 ```powershell
-npm install --global @sbroenne/excelcli --include=optional
+npm install --global @sbroenne/excelcli@latest --include=optional
 ```
 
 The npm launcher reports an error on macOS/Linux and unsupported Windows
@@ -282,7 +310,15 @@ For complete VBA command usage and a macro-enabled workbook example, see
 
 ## Uninstallation
 
+Save and close your intended workbook sessions and stop the service first.
+Remove Copilot's CLI plugin with
+`copilot plugin uninstall excel-cli@mcp-server-excel-plugins` if installed.
+One-off npx use has no global installation to remove.
+
 ```powershell
+# Global npm installation:
+npm uninstall --global @sbroenne/excelcli
+
 # Standalone exe:
 Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
 
@@ -305,7 +341,8 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 After installation:
 
-1. **Learn the basics:** Try `excelcli --help` and open a session against a test workbook
+1. **Learn the basics:** Try `npx -y @sbroenne/excelcli@latest --help`
+   (or `excelcli --help` for global/standalone installs) and open a test workbook
 2. **Explore commands:** See the [Feature Reference](../FEATURES.md) for all 31 feature command categories
 3. **Read the guides:**
    - [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md) - for AI assistants like Claude Desktop and Copilot Chat
