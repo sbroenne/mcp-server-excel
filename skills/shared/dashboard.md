@@ -12,6 +12,10 @@ reports for a read-only task.
    that visual verification was unavailable rather than claiming it was checked.
 6. Save and close only when authorized; keep open if requested.
 
+Before adding a chart, use the [chart-building recipes](chart.md#choose-the-source-before-creating)
+to choose source fields, preserve detail behind short labels, group periods,
+and make units clear. Reuse suitable existing data instead of forcing a helper.
+
 ## Example layout
 
 | Area | Content |

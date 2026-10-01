@@ -467,12 +467,15 @@ public class SkillMdQualityTests
             // MCP and CLI response properties.
             "canClose",
             "canOpen",
+            "categoryRange",
             "chartName",
             "errorCategory",
             "errorMessage",
             "formulaPreview",
             "groupedFieldName",
             "isIrmProtected",
+            "isPivotChart",
+            "linkedPivotTable",
             "loadMode",
             "majorUnit",
             "matchingCells",
@@ -484,9 +487,11 @@ public class SkillMdQualityTests
             "safeToCreate",
             "sessionId",
             "sourcePath",
+            "sourceRange",
             "targetPath",
             "suggestedNextActions",
             "totalCount",
+            "valuesRange",
             "willOpenReadOnly",
 
             // CLI batch JSON aliases.

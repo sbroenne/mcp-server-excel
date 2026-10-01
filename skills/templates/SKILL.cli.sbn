@@ -271,7 +271,7 @@ See [CLI command reference and common pitfalls](./references/cli-commands.md#com
 - [Ranges](./references/range.md)
 - [Report formatting](./references/report-formatting.md)
 - [Worksheets](./references/worksheet.md)
-- [Charts](./references/chart.md)
+- [Charts: sources, labels, periods, units, and placement](./references/chart.md)
 - [Power Query](./references/powerquery.md)
 - [Data Model and DAX](./references/datamodel.md)
 - [PivotTables](./references/pivottable.md)
