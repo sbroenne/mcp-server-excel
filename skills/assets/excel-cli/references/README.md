@@ -4,7 +4,9 @@ This folder contains the generated command/action/flag reference plus shared Exc
 
 **Note for developers:** After the Release solution build, run `scripts\Build-AgentSkills.ps1 -GenerateOnly`. It renders complete skill directories under `artifacts\generated-skills`, including live CLI help and adapted shared guidance. Do not edit generated output.
 
-**Note for users:** The exact CLI syntax comes from `cli-commands.md`. Shared domain guides may use MCP-style calls as conceptual shorthand; translate them according to the syntax notice at the top of each file.
+**Note for users:** Start with `cli-commands.md` for the generated command index
+and linked command pages. Shared domain guides contain native CLI examples
+selected during generation; no translation from MCP calls is needed.
 
 ## Contents
 

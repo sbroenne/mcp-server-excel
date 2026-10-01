@@ -1,8 +1,8 @@
 # powerquery - Server Quirks
 
-## Test New or Changed Queries
+## Test New or Changed Queries Within the Request
 
-**Test BEFORE persisting - avoid polluting workbooks with broken queries:**
+For authorized query development, prefer testing new logic before storing it:
 
 ```
 Step 1: evaluate → Test M code, verify results (catches syntax errors, missing sources)
@@ -11,13 +11,21 @@ Step 3: load-to if created connection-only; refresh when loaded data needs updat
 ```
 
 **Why this workflow:**
-- `evaluate` executes M code WITHOUT creating permanent query (test-then-commit)
+- `evaluate` executes M code without keeping a permanent query
 - Returns actual data preview with columns and rows in JSON
 - Better error messages than COM exceptions from create/update
 - Temporary queries, sheets, tables, and mashup connections are deleted by exact
   `Location`; cleanup failures return an error instead of success
 - Skip redundant evaluation for trivial literal tables or already-validated code
   with unchanged sources and dependencies
+
+Evaluation is not a read-only operation: it creates a temporary query, sheet,
+Table, and connection in the current workbook, executes M code, then removes
+those objects. Execution may contact external sources. An audit does not
+authorize evaluation, refresh, or repairs merely because the resulting objects
+are temporary. Use stored definitions, metadata, and existing loaded values for
+inspection; follow the shared [permission policy](behavioral-rules.md#intent-and-permission)
+when a state-changing check is necessary.
 
 ## Recovering a failed create
 
@@ -45,17 +53,10 @@ Check each result. Refresh a surviving intended load, or use `load-to` for the
 required destination after inspecting sheet content. A successful evaluation does
 not prove that loading onto a particular sheet will succeed.
 
-**Additional evaluate use cases:**
-- Execute one-off queries without creating permanent queries
-- Ad-hoc data exploration or debugging M code transformations
-- Quick testing during development (like REPL for M code)
-
----
-
 **M-Code Formatting and reads**:
 
 - Create and Update preserve M code exactly by default and do not call remote services
-- Set `format_m_code=true` only with explicit user consent; it sends M code to powerqueryformatter.com
+- Set `format_m_code: true` (MCP) / `--format-m-code true` (CLI) only with explicit user consent; it sends M code to powerqueryformatter.com
 - Graceful fallback: saves original M code if the formatting service is unavailable
 - `list` returns compact metadata, exact load mode, character count, and at most
   80 characters of `formulaPreview`; it never returns full M code
@@ -74,7 +75,7 @@ Destination values are case-insensitive. Unknown values fail before the query is
 changed; they never fall back to connection-only or another enum default.
 
 To create DAX measures on Power Query data:
-1. Use powerquery create/load-to with `load_destination='data-model'`
+1. Use `create`/`load-to` with `load_destination: 'data-model'` (MCP) / `--load-destination data-model` (CLI)
 2. Then use datamodel to create DAX measures
 
 Alternative path (for existing worksheet tables):
@@ -84,9 +85,9 @@ Alternative path (for existing worksheet tables):
 **Action disambiguation**:
 
 - evaluate: Execute M code and return results without keeping a permanent query
-- create: Import NEW query using inline `m_code` (FAILS if query already exists - use update instead)
-- update: Update an existing query; refresh defaults to true and can be disabled
-- rename: Change query name (requires both `old_name` and `new_name`)
+- create: Store a new query and load its selected destination (fails if it already exists; use update instead)
+- update: Update an existing query; refresh defaults to true. Use `refresh: false` (MCP) / `--refresh false` (CLI) to disable it.
+- rename: Change query name (requires `old_name` and `new_name` in MCP / `--old-name` and `--new-name` in CLI)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
 - delete: Completely removes query AND all associated data (worksheet, Data Model connections)
@@ -121,15 +122,20 @@ Alternative path (for existing worksheet tables):
 
 **Inline M code**:
 
-- Provide raw M code directly via `m_code`
-- Use `m_code_file` for a readable file containing longer M code; do not also pass `m_code`
+- Supply raw M code with `m_code` (MCP) / `--m-code` (CLI), or use
+  `m_code_file` (MCP) / `--m-code-file` (CLI) for a readable file containing
+  longer M code. Do not supply both.
 
 **Create/LoadTo with existing sheets**:
 
-- Use `target_cell_address` to place the table on an existing worksheet without deleting other content
+- Use `target_cell_address` (MCP) / `--target-cell-address` (CLI) to place the Table on an existing worksheet without deleting other content
 - Applies to BOTH create and load-to
-- If the worksheet already has data and you omit `target_cell_address`, the tool returns guidance telling you to provide one
-- Existing tables are refreshed in-place; specifying a different `target_cell_address` requires unload + reload
+- If the worksheet already has data and `target_cell_address` (MCP) /
+  `--target-cell-address` (CLI) is omitted, the
+  tool returns guidance telling you to provide one
+- Existing Tables are refreshed in place. Moving a load requires unload and
+  reload, which removes existing destinations and must be within the authorized
+  scope; a requested new position is not permission to discard unrelated data.
 - Worksheets that exist but are empty behave like new sheets (default destination = A1)
 
 **Common mistakes**:
@@ -137,19 +143,23 @@ Alternative path (for existing worksheet tables):
 - Persisting untested code can leave a broken query; prefer evaluate for new logic
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
-- Loading onto populated sheets without a suitable `target_cell_address` or into overlapping content
+- Loading onto populated sheets without a suitable `target_cell_address` (MCP) / `--target-cell-address` (CLI), or into overlapping content
 - Assuming unload only removes worksheet data → Also removes Data Model connections
 - Assuming rename preserves outer whitespace; the server trims " Query " to "Query"
 - Renaming to conflicting name → Check list first if unsure about existing names
-- Passing an option from another action (for example `m_code` on delete or `timeout_seconds` on load-to) → ERROR; category-wide schemas expose the union of options, but each action validates its own subset
+- Passing an option from another action, such as `m_code` (MCP) / `--m-code`
+  (CLI) on delete, or `timeout_seconds` (MCP) / `--timeout` (CLI) on load-to.
+  Category-wide schemas expose the union of options, but
+  each action validates its own subset.
 
 **Server-specific quirks**:
 
 - Validation = execution: M code only validated when data loads/refreshes
 - connection-only queries: NOT validated until first execution
-- load-to with `load_destination`: Applies load config + refreshes (2-in-1)
+- load-to: Applies `load_destination` (MCP) / `--load-destination` (CLI) and refreshes
 - Single cell returns [[value]] not scalar
-- Public timeout inputs are integer seconds. Refresh/refresh-all accepts 0-2147483 and defaults to the 30-minute data-operation timeout when `timeout_seconds`/`--timeout` is 0 or omitted. For quick queries use a smaller value (e.g., 60-120 seconds).
+- `timeout_seconds` (MCP) / `--timeout` (CLI) uses integer seconds. Refresh/refresh-all accepts
+  0-2147483; zero or omission uses the 30-minute data-operation default.
 - load-to has no caller timeout parameter and uses the fixed 30-minute data-operation timeout; passing `timeout` to load-to is rejected instead of ignored.
 - Refresh/refresh-all data-operation timeouts replace the session operation wait rather than layering with it. The session timeout controls startup and operations without a dedicated data timeout, including create/update/evaluate. Session open/create accepts 10-3600 seconds and defaults to 120.
 
@@ -160,39 +170,9 @@ Alternative path (for existing worksheet tables):
 - Ownership uses the exact case-insensitive mashup `Location` value, not connection
   display names; queries such as `A` and `AA` remain isolated
 
-## M Code - Server-Specific Notes
+## M Code Files
 
-> For full M code language syntax, see [m-code-syntax reference](m-code-syntax.md).
-
-### Column/Field Name Quoting (CRITICAL)
-
-M code requires special syntax for identifiers containing hyphens, spaces, or special characters:
-
-| Column Name | Syntax | Notes |
-|-------------|--------|-------|
-| `Amount` | `[Amount]` | Simple names work without quotes |
-| `Non-Recurring` | `[#"Non-Recurring"]` | **Hyphen requires `#"..."` quoting** |
-| `List Price (USD)` | `[#"List Price (USD)"]` | Spaces/parens require quoting |
-| `Service Level 1` | `[#"Service Level 1"]` | Spaces require quoting |
-
-**Common mistake:** `[Non-Recurring]` parses as `[Non] - [Recurring]` (subtraction!) and fails with cryptic "The name 'X' wasn't recognized" errors.
-
-**Rule:** If a column name contains anything other than letters, numbers, and underscores, use `[#"Column Name"]` syntax.
-
-### Reading Named Ranges (parameters)
-
-```m
-Excel.CurrentWorkbook(){[Name = "Param_Name"]}[Content]{0}[Column1]
-```
-
-### Query Chaining
-
-Reference other queries by name directly: `Source = OtherQueryName`
-
-### Source Control Pattern
-
-1. Store M code in a readable `.pq` or `.m` file.
-2. Evaluate new/changed code with `m_code_file`.
-3. Use create or update with `m_code_file` and the intended `query_name`.
-
-The source filename does not need to match the Excel query name.
+See the [M-syntax reference](m-code-syntax.md) for quoted identifiers, named
+parameters, and query chaining. For longer code, store a readable `.pq` or `.m`
+file and use `m_code_file` (MCP) / `--m-code-file` (CLI) for evaluation and create/update. The source
+filename does not need to match the Excel query name.

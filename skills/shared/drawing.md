@@ -28,8 +28,8 @@ Colors use `#RRGGBB`. Position and size values use points. Placement values are:
 
 Supported controls are Button, CheckBox, DropDown, GroupBox, Label, ListBox, OptionButton, ScrollBar, and Spinner.
 
-- `linked_cell`: CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner
-- `input_range`: DropDown and ListBox only
+- `linked_cell` (MCP) / `--linked-cell` (CLI): CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner
+- `input_range` (MCP) / `--input-range` (CLI): DropDown and ListBox only
 - Button, GroupBox, and Label return explicit nulls for both binding properties
 
 ActiveX/OLE controls and macro assignment are intentionally unavailable. Do not try to create them through VBA as a workaround.
@@ -39,8 +39,8 @@ ActiveX/OLE controls and macro assignment are intentionally unavailable. Do not 
 Use `add-sparkline`, `get-sparkline`, `list-sparklines`, `update-sparkline`, and `delete-sparkline`.
 
 - Types: Line, Column, WinLoss
-- `source_range`: data to visualize
-- `location_range`: cells that host the sparklines
+- `source_range` (MCP) / `--source-range` (CLI): data to visualize
+- `location_range` (MCP) / `--location-range` (CLI): cells that host the sparklines
 - Line sparklines can show markers
 
 ```mcp

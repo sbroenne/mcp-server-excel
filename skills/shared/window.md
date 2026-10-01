@@ -27,7 +27,11 @@ frozen panes and splits; setting both split counts to zero removes movable split
 
 ## Visibility and placement
 
-Show Excel when requested. Arrange presets are left-half, right-half, top-half,
+Reuse known visibility preferences and preserve existing visibility unless a
+change is requested. New sessions default to hidden, not a mandatory question;
+see the shared [visibility policy](behavioral-rules.md#visibility).
+Leaving a workbook open retains its session; it does not request showing Excel.
+Arrange presets are left-half, right-half, top-half,
 bottom-half, center, and full-screen; they use Excel's current monitor work area.
 Arranging makes Excel visible. Normal/maximized states also make it visible.
 Positioning uses points and restores a normal window state first.

@@ -4,14 +4,14 @@ Use `xmlmap` for Excel XML maps and in-memory XML import/export.
 
 ## Actions
 
-| Action | Purpose | Key parameters |
-|--------|---------|----------------|
-| `list` | List workbook XML maps | none |
-| `add` | Add an XSD schema map | `schema` or `schema_file`; optional `root_element_name`, `map_name` |
-| `map-range` | Bind a cell or single-column range to an XPath | `map_name`, `sheet_name`, `range_address`, `xpath`; optional `selection_namespace`, `repeating` |
-| `import-xml` | Import XML into an existing map or create an automatically mapped XML table | `xml_data` or `xml_data_file`; either `map_name`, or `sheet_name` plus optional `start_cell` |
-| `export-xml` | Return mapped cell values as XML | `map_name` |
-| `delete` | Remove a map while leaving existing cell data | `map_name` |
+| Action | Purpose | MCP inputs | CLI flags |
+|--------|---------|------------|-----------|
+| `list` | List workbook XML maps | none | none |
+| `add` | Add an XSD schema map | `schema` or `schema_file`; optional `root_element_name`, `map_name` | `--schema` or `--schema-file`; optional `--root-element-name`, `--map-name` |
+| `map-range` | Bind a cell or single-column range to an XPath | `map_name`, `sheet_name`, `range_address`, `xpath`; optional `selection_namespace`, `repeating` | `--map-name`, `--sheet`, `--range`, `--xpath`; optional `--selection-namespace`, `--repeating` |
+| `import-xml` | Import XML into an existing map or create an automatically mapped XML table | `xml_data` or `xml_data_file`; either `map_name`, or `sheet_name` plus optional `start_cell` | `--xml-data` or `--xml-data-file`; either `--map-name`, or `--sheet` plus optional `--start-cell` |
+| `export-xml` | Return mapped cell values as XML | `map_name` | `--map-name` |
+| `delete` | Remove a map while leaving existing cell data | `map_name` | `--map-name` |
 
 ## Import Modes
 
@@ -25,7 +25,7 @@ xmlmap(action: 'import-xml', session_id: sessionId, map_name: 'CustomerMap', xml
 excelcli -q xmlmap import-xml --session $sessionId --map-name CustomerMap --xml-data-file customers.xml
 ```
 
-Omit `map_name` to let Excel infer a schema, create a map, and create an XML
+Omit `map_name` (MCP) / `--map-name` (CLI) to let Excel infer a schema, create a map, and create an XML
 table at a destination:
 
 ```mcp
@@ -45,7 +45,8 @@ Inspect the existing map or empty destination cells before choosing one.
 - XSD `import`, `include`, and `redefine` dependencies are rejected.
 - XML `xsi:schemaLocation` and `xsi:noNamespaceSchemaLocation` attributes are
   rejected before Excel can resolve HTTP, UNC, or local-file schemas.
-- Use `schema_file` and `xml_data_file` for local file content; the generated
+- Use `schema_file` and `xml_data_file` (MCP) / `--schema-file` and
+  `--xml-data-file` (CLI) for local file content; the generated
   CLI and MCP surfaces read the file and send its content to Core.
 - Import/export stays in memory. URL/file variants that could fetch remote data
   or overwrite server files are intentionally not exposed.
