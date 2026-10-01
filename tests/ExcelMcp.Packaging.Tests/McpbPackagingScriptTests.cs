@@ -451,6 +451,29 @@ public sealed class McpbPackagingScriptTests
     }
 
     [Fact]
+    [Trait("Feature", "McpbPackaging")]
+    public async Task PackageOutputs_RespectCaseSensitiveAllowedDirectoryNames()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var sandbox = CreateSandbox();
+        try
+        {
+            var output = Path.Combine(sandbox, "ARTIFACTS", "packages");
+            var result = await RunPowerShellAsync($$"""
+                . '{{EscapePowerShellLiteral(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"))}}'
+                Assert-PackageOutputPath -Path '{{EscapePowerShellLiteral(output)}}' -RepoRoot '{{EscapePowerShellLiteral(sandbox)}}'
+                """);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Unsafe package output", result.Stderr, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "McpbPackaging")]
     public async Task PublicationSync_RejectsItsOwnSourceTreeBeforeInspectingPayload()
@@ -618,6 +641,70 @@ public sealed class McpbPackagingScriptTests
         {
             Directory.Delete(sandbox, recursive: true);
         }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "McpbPackaging")]
+    public async Task NewArchive_PreservesMacExecutableMode()
+    {
+        var sandbox = CreateSandbox();
+        var archivePath = $"{sandbox}.mcpb";
+        File.WriteAllText(Path.Combine(sandbox, "server", "excel-mcp-server"), "test");
+
+        try
+        {
+            var script = $$"""
+                $ErrorActionPreference = 'Stop'
+                . '{{EscapePowerShellLiteral(PackagingHelpers)}}'
+                New-McpbArchive `
+                    -SourceDirectory '{{EscapePowerShellLiteral(sandbox)}}' `
+                    -DestinationPath '{{EscapePowerShellLiteral(archivePath)}}' `
+                    -MacExecutableRelativePath 'server/excel-mcp-server'
+                """;
+
+            var result = await RunPowerShellAsync(script);
+
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            using var archive = ZipFile.OpenRead(archivePath);
+            var macEntry = archive.GetEntry("server/excel-mcp-server");
+            var windowsEntry = archive.GetEntry("server/excel-mcp-server.exe");
+            Assert.NotNull(macEntry);
+            Assert.NotNull(windowsEntry);
+            Assert.NotEqual(0, macEntry.ExternalAttributes & 0x00400000);
+            Assert.Equal(0, windowsEntry.ExternalAttributes & 0x00400000);
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+            if (File.Exists(archivePath))
+            {
+                File.Delete(archivePath);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Feature", "McpbPackaging")]
+    public void BuildScript_ProducesSeparateWindowsAndAppleSiliconBundles()
+    {
+        var script = File.ReadAllText(Path.Combine(RepoRoot, "mcpb", "Build-McpBundle.ps1"));
+        var workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+        var macPackages = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Build-MacReleasePackages.ps1"));
+
+        Assert.Contains("[ValidateSet(\"win-x64\", \"osx-arm64\")]", script, StringComparison.Ordinal);
+        Assert.Contains("[string]$RuntimeExecutable", script, StringComparison.Ordinal);
+        Assert.Contains("\"excel-mcp-$Version-$($Target.Slug).mcpb\"", script, StringComparison.Ordinal);
+        Assert.Contains("$Manifest.compatibility.platforms = @($Target.Platform)", script, StringComparison.Ordinal);
+        Assert.Contains("MacExecutableRelativePath", script, StringComparison.Ordinal);
+        Assert.Contains("Build-ReleasePackages.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("Build-MacReleasePackages.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("runs-on: macos-14", workflow, StringComparison.Ordinal);
+        Assert.Contains("name: release-packages-macos", workflow, StringComparison.Ordinal);
+        Assert.Contains("-RuntimeIdentifier $runtimeIdentifier", macPackages, StringComparison.Ordinal);
     }
 
     private static string StageMcpbInputs(string sandbox)

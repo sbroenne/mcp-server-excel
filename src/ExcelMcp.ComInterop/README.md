@@ -8,6 +8,11 @@ This library provides Excel-specific COM object lifecycle management and OLE mes
 
 **Note:** Despite the generic name "ComInterop", this library is Excel-specific and not intended for Word/PowerPoint/other Office applications.
 
+This is an internal Windows backend component, not a supported product entry
+point. The MCP Server and `excelcli` also offer an
+[experimental Apple Silicon macOS subset](../../specs/MACOS-SUPPORT.md) through
+Apple Events; Mac support does not use COM.
+
 ## Features
 
 - **STA Threading Management** - Ensures proper single-threaded apartment model for Excel COM objects
@@ -62,6 +67,5 @@ batch.Save();
 ## Platform Support
 
 - ✅ Windows x64
-- ✅ Windows ARM64
 - ❌ Linux (Excel COM not available)
 - ❌ macOS (Excel COM not available)

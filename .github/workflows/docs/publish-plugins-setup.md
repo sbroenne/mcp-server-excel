@@ -26,10 +26,12 @@ attempting publication. Never print the credential.
 
 ## Release handoff
 
-`release.yml` builds and verifies every package through
-`scripts\Build-ReleasePackages.ps1`. Each standalone runtime is published once;
-the extension reuses the MCP executable, while the Claude bundle contains a
-direct npx configuration rather than a runtime. Complete skills are
+`release.yml` builds and verifies Windows packages through
+`scripts\Build-ReleasePackages.ps1` and experimental Apple Silicon Mac packages
+through `scripts\Build-MacReleasePackages.ps1` on their matching desktop hosts.
+Each standalone runtime is published once; the extension reuses the MCP
+executable. The Windows Claude bundle contains a direct `npx @latest`
+configuration, while the Mac bundle contains its signed native runtime. Complete skills are
 generated once for the package set and consumed by the skill ZIP, plugins, and
 extension.
 
@@ -202,7 +204,7 @@ MCP layouts are rejected.
 From the source repository root:
 
 ```powershell
-dotnet build Sbroenne.ExcelMcp.sln -c Release
+dotnet build Sbroenne.ExcelMcp.sln -c Release -p:EnableWindowsTargeting=true
 .\scripts\Build-AgentSkills.ps1 -GenerateOnly
 .\scripts\Build-Plugins.ps1 -Version 1.2.3 -OutputDir artifacts\plugin-check
 New-Item -ItemType Directory artifacts\publication-check

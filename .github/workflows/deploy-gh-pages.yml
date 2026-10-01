@@ -20,6 +20,8 @@ on:
       - 'docs/INSTALLATION.md'
       - 'docs/INSTALLATION-MCP-SERVER.md'
       - 'docs/INSTALLATION-CLI.md'
+      - 'docs/MACOS-OFFICEJS.md'
+      - 'specs/MACOS-SUPPORT.md'
       - 'docs/ARCHITECTURE.md'
       - 'docs/USE-CASES.md'
       - 'docs/CONTRIBUTING.md'

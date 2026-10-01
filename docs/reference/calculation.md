@@ -1,4 +1,9 @@
-# Calculation settings
+# Calculation Mode
+
+**Platform scope:** Windows supports all actions below. Experimental Apple
+Silicon macOS supports `calculate`, but not `get-mode` or `set-mode`. On Mac,
+write the requested blocks and calculate explicitly without changing the mode.
+See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
 
 Calculation is not the same as data refresh. Recalculating formulas does not
 reload external sources, and a successful write does not prove that cloud
@@ -22,7 +27,7 @@ inspect the current mode when subsequent work depends on it.
 Semi-automatic excludes What-If data tables, not ordinary worksheet Tables.
 Read the relevant calculated values before treating a result as verified.
 
-## Preserve the application's mode
+## Preserve the Workbook's Mode (Windows)
 
 Manual mode can avoid repeated expensive recalculation during bulk edits.
 One rectangular write is already batched; there is no universal size threshold

@@ -114,7 +114,28 @@ test('CLI missing runtime errors identify the CLI package and command', () => {
 test('resolveRuntime rejects unsupported operating systems', () => {
   assert.throws(
     () => resolveRuntime({ platform: 'linux', arch: 'x64' }),
-    /Windows only/
+    /supports Windows x64\/Arm64 and Apple Silicon macOS/
+  );
+});
+
+test('resolveRuntime selects the Darwin ARM64 runtime on Apple Silicon', () => {
+  assert.equal(
+    resolveRuntime({
+      platform: 'darwin',
+      arch: 'arm64',
+      resolvePackage: name => {
+        assert.equal(name, '@sbroenne/mcp-server-excel-darwin-arm64');
+        return '/runtime/mcp-excel';
+      }
+    }),
+    '/runtime/mcp-excel'
+  );
+});
+
+test('resolveRuntime rejects Intel macOS', () => {
+  assert.throws(
+    () => resolveRuntime({ platform: 'darwin', arch: 'x64' }),
+    /Apple Silicon macOS/
   );
 });
 
@@ -132,7 +153,7 @@ test('resolveRuntime supports native Windows Arm64', () => {
 test('resolveRuntime rejects unsupported Windows architectures', () => {
   assert.throws(
     () => resolveRuntime({ platform: 'win32', arch: 'ia32' }),
-    /x64 or Arm64/
+    /Windows x64\/Arm64/
   );
 });
 

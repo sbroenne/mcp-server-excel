@@ -48,7 +48,7 @@
   "prompts_generated": true,
   "compatibility": {
     "claude_desktop": ">=0.10.0",
-    "platforms": ["win32"],
+    "platforms": ["win32", "darwin"],
     "runtimes": {
       "node": ">=18"
     }

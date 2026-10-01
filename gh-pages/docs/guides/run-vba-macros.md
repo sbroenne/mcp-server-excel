@@ -1,6 +1,6 @@
 ---
 title: Run VBA Macros from an AI Agent
-description: Read, write, and execute Excel VBA macros from an AI agent - including the Trust Center setting you must enable first and the safety trade-offs involved.
+description: Read, write, and run Excel VBA on Windows with user-controlled macro and project trust. VBA is unsupported in the Mac beta; changing Mac trust cannot enable it.
 keywords: "run VBA from AI, execute Excel macro programmatically, VBA automation MCP, trust access to the VBA project object model"
 ---
 

@@ -4,6 +4,11 @@ Task-focused walkthroughs for the things people most often want an AI assistant 
 do in Excel. Each guide shows what to ask for, the equivalent CLI commands, how to
 verify the result, and the gotchas that bite people.
 
+The Power Query, Data Model, PivotTable, and VBA walkthroughs are **Windows-only**.
+Apple Silicon macOS is an **experimental beta** with a verified subset; see
+[macOS support and limitations](../../specs/MACOS-SUPPORT.md) before choosing
+a workflow.
+
 For the exhaustive operation reference, see the
 [feature documentation](../../FEATURES.md).
 

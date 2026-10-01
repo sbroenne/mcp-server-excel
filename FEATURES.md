@@ -6,6 +6,18 @@ ExcelMcp uses the installed Microsoft Excel application, not a file parser.
 Excel itself calculates formulas, refreshes data, runs macros, and renders
 charts. The MCP Server and CLI provide the same capabilities.
 
+> **Platform availability:** The full 326-operation reference describes the
+> complete Windows COM backend. Apple Silicon macOS support is **experimental
+> beta** and exposes only actions marked
+> enabled in the [generated capability inventory](docs/MACOS-ACTION-INVENTORY.md);
+> unavailable actions return `PlatformNotSupported`. Intel macOS is unsupported.
+
+> **Not supported in the macOS beta:** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads. Basic
+> number formats, sizing, merge/unmerge, cell locking, and Python formula writes
+> are enabled. See [all macOS limitations](specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 ## Explore by goal
 
 | What you want to accomplish | Feature area |

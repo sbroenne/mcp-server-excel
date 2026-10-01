@@ -50,7 +50,6 @@ try {
         Write-Host 'No distributable package inputs changed.'
         return
     }
-    if (-not $IsWindows) { throw 'Package installation checks require Windows (not Excel).' }
     if (-not $Version) { $Version = (Get-Content package.json -Raw | ConvertFrom-Json).version }
     if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'A valid package version is required.' }
     if ($SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {
@@ -67,6 +66,7 @@ try {
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory, $root)
     Assert-PackageOutputPath -Path $OutputDirectory -RepoRoot $root -Inputs @($SkillsDirectory, $McpRuntimeExecutable, $CliRuntimeExecutable)
     if (Test-Path -LiteralPath $OutputDirectory) { throw "Use a new package output directory: $OutputDirectory" }
+    if (-not $IsWindows) { throw 'Package installation checks require Windows (not Excel).' }
     New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
     $runtimeRoot = Join-Path $OutputDirectory 'runtimes'
     $prepared = @{}
@@ -187,7 +187,7 @@ try {
         Get-ChildItem (Join-Path $root 'vscode-extension') -Force |
             Where-Object { $_.Name -notin @('node_modules', 'bin', 'out', 'skills') -and $_.Extension -ne '.vsix' } |
             Copy-Item -Destination $extension -Recurse
-        $bin = New-Item -ItemType Directory -Path (Join-Path $extension 'bin')
+        $bin = New-Item -ItemType Directory -Path (Join-Path $extension 'bin\win32-x64')
         Copy-Item -LiteralPath $prepared.Mcp -Destination $bin.FullName
         $skills = New-Item -ItemType Directory -Path (Join-Path $extension 'skills')
         Copy-Item (Join-Path $SkillsDirectory 'excel-mcp-report-formatting') $skills.FullName -Recurse
@@ -210,7 +210,10 @@ try {
             Invoke-PackageStep 'Extension test types' { npm.cmd run typecheck:tests }
             Invoke-PackageStep 'Extension tests' { npm.cmd test }
             foreach ($package in $extensionPackages) {
-                Copy-Item -LiteralPath $package.Runtime -Destination $bin.FullName -Force
+                $packageBin = Join-Path $extension "bin\$($package.Target)"
+                Remove-Item -LiteralPath (Join-Path $extension 'bin') -Recurse -Force
+                New-Item -ItemType Directory -Path $packageBin -Force | Out-Null
+                Copy-Item -LiteralPath $package.Runtime -Destination $packageBin -Force
                 Invoke-PackageStep "Extension package ($($package.Target))" {
                     npm.cmd exec -- vsce package --no-dependencies --target $package.Target --out (Join-Path $OutputDirectory $package.FileName)
                 }
@@ -220,13 +223,14 @@ try {
         foreach ($package in $extensionPackages) {
             $vsix = [IO.Compression.ZipFile]::OpenRead((Join-Path $OutputDirectory $package.FileName))
             try {
-                foreach ($required in @('extension/bin/Sbroenne.ExcelMcp.McpServer.exe', 'extension/out/extension.js', 'extension/out/prerequisites.js')) {
+                $runtimeEntry = "extension/bin/$($package.Target)/Sbroenne.ExcelMcp.McpServer.exe"
+                foreach ($required in @($runtimeEntry, 'extension/out/extension.js', 'extension/out/prerequisites.js')) {
                     if (-not $vsix.GetEntry($required)) { throw "VSIX is missing $required." }
                 }
                 $inspectionRuntime = Join-Path $OutputDirectory "$($package.Target)-server-inspection.exe"
                 try {
                     [IO.Compression.ZipFileExtensions]::ExtractToFile(
-                        $vsix.GetEntry('extension/bin/Sbroenne.ExcelMcp.McpServer.exe'), $inspectionRuntime, $false)
+                        $vsix.GetEntry($runtimeEntry), $inspectionRuntime, $false)
                     Assert-PackageRuntimeArchitecture -Path $inspectionRuntime -Architecture $package.Architecture
                 }
                 finally {
@@ -244,7 +248,7 @@ try {
                 $packagedManifest = Read-VsixEntry $vsix 'extension/package.json' | ConvertFrom-Json
                 if ($packagedManifest.version -ne $Version -or
                     ($packagedManifest.extensionKind -join ',') -ne 'ui' -or
-                    ($packagedManifest.os -join ',') -ne 'win32') {
+                    $packagedManifest.os -notcontains 'win32') {
                     throw 'VSIX version or local Windows host metadata is incorrect.'
                 }
                 [xml]$metadata = Read-VsixEntry $vsix 'extension.vsixmanifest'
@@ -265,7 +269,11 @@ try {
         $debugRuntime = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64) {
             $prepared['Mcp-arm64']
         } else { $prepared.Mcp }
-        Copy-Item -LiteralPath $debugRuntime -Destination $bin.FullName -Force
+        $debugTarget = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64) {
+            'win32-arm64'
+        } else { 'win32-x64' }
+        $debugBin = New-Item -ItemType Directory -Path (Join-Path $extension "bin\$debugTarget") -Force
+        Copy-Item -LiteralPath $debugRuntime -Destination $debugBin.FullName -Force
         $debugDirectory = New-Item -ItemType Directory -Path (Join-Path $OutputDirectory 'extension')
         Get-ChildItem $extension -Force | Where-Object Name -ne 'node_modules' |
             Copy-Item -Destination $debugDirectory.FullName -Recurse

@@ -1,13 +1,19 @@
 # Run VBA Macros from an AI Agent
 
-Many Excel workbooks carry decades of VBA. ExcelMcp lets an AI assistant read,
-write, and **execute** that code inside the real Excel application — so existing
-macros keep working instead of being rewritten.
+Many Excel workbooks carry decades of VBA. On Windows, ExcelMcp lets an AI
+assistant read, write, and execute that code inside the real Excel application,
+so existing macros keep working instead of being rewritten.
 
-This is something file-parser libraries cannot do at all: `.xlsm` macro code is
-only meaningful to Excel's VBA host.
+This is something file-parser libraries cannot do: `.xlsm` macro code is only
+meaningful to Excel's VBA host.
 
-## One-time setup for project access: enable VBA trust
+!!! note "Platform availability"
+    VBA commands require the Windows COM backend. They are unsupported on
+    macOS because Apple Events exposes no VBA project object model and
+    Office.js exposes no equivalent API. ExcelMcp does not ship a VBA helper
+    add-in, request macro approval, or change macro or VBA project-model trust.
+
+## One-time setup for project access on Windows: enable VBA trust
 
 Excel blocks all programmatic access to the VBA project by default. **You must
 enable it manually** before listing, viewing, importing, updating, or deleting
@@ -15,20 +21,21 @@ VBA modules. ExcelMcp never changes this setting for you, because doing so
 silently would be a security problem. Running an existing macro does not inspect
 the VBA project and does not require this setting.
 
-1. Open Excel
-2. **File → Options → Trust Center → Trust Center Settings**
-3. **Macro Settings**
-4. Tick **Trust access to the VBA project object model**
-5. Click OK, then restart Excel
+The setting enables source inspection and mutation; it is not required merely
+to invoke an already trusted macro. Macro execution is governed separately by
+Excel's macro security and per-workbook trust.
 
-Without it, VBA project inspection and editing fail with a `Permissions` error.
-This is a per-machine, per-Office-install setting, so remote and CI machines that
-manage VBA modules need it too.
+Use **File -> Options -> Trust Center -> Trust Center Settings -> Macro
+Settings**. Enable **Trust access to the VBA project object model**, then
+restart Excel.
+
+Without it, VBA source operations fail with an access error. This is a
+per-machine, per-Office-install setting, so remote and CI machines need it too.
 
 !!! warning "Security implication"
     Enabling VBA trust allows any program on the machine to read and modify VBA
-    code in workbooks you open. Enable it only if you actually need VBA
-    automation, and only on machines you control.
+    code in workbooks you open. Enable it only if you need VBA automation and
+    only on machines you control.
 
 ## What you ask for
 
@@ -57,8 +64,8 @@ excelcli -q vba run --session $session --procedure-name "Module1.GenerateReport"
 The procedure name uses `Module.Procedure` form. Pass arguments with
 `--parameters` when the macro takes them.
 
-Set a timeout that matches the work. A macro that waits on a dialog will otherwise
-hold the session until the default limit expires.
+Set a timeout that matches the work. A macro that waits on a dialog will
+otherwise hold the session until the default limit expires.
 
 If the requested run timeout expires, the operation is reported as a timeout
 rather than a cancellation. If execution has started, Excel may still be busy
@@ -79,8 +86,9 @@ file. `delete` removes a module.
 
 ## Save to the right file format
 
-VBA commands support `.xlsm` workbooks. Saving VBA into an `.xlsx` silently
-discards it. If you are adding VBA to an `.xlsx`, save-as `.xlsm` first.
+Macro-enabled workbooks must be `.xlsm` (or `.xlsb`). Saving VBA into an
+`.xlsx` silently discards it. If you are adding VBA to an `.xlsx`, save as
+`.xlsm` first.
 
 ## Verify
 
@@ -102,17 +110,8 @@ someone dismisses it. Prefer macros that write results to cells over ones that
 prompt. Always pass a timeout.
 
 **Macros run with full user privileges.** A macro can touch the file system,
-network, and other applications. Review code before running it, especially code an
-assistant generated or a workbook you did not author.
+network, and other applications. Review code before running it, especially code
+an assistant generated or a workbook you did not author.
 
 **Line continuations and quoting.** When passing VBA source on a command line,
-prefer `import` from a `.bas` file — it avoids shell-escaping problems entirely.
-
-**Excel must be installed.** VBA execution is not emulated; it runs in Excel's own
-VBA host.
-
-## Related
-
-- [Advanced automation operations](../features/AUTOMATION-ADVANCED.md)
-- [CLI installation and setup](../INSTALLATION-CLI.md)
-- [Security policy](../../SECURITY.md)
+prefer `import` from a `.bas` file to avoid shell-escaping problems.

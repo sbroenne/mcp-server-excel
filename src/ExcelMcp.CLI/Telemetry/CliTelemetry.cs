@@ -130,7 +130,7 @@ internal static class CliTelemetry
 
         try
         {
-            return ServiceProtocol.Deserialize<FileValidationInfo>(response.Result) is { CanOpen: false };
+            return ServiceProtocol.Deserialize<FileValidationInfo>(response.Result) is { PreflightPassed: false };
         }
         catch (JsonException)
         {

@@ -29,6 +29,10 @@ interruptions with unknown usage. The historical 1.0.2 results below are separat
 The current source now contains only narrowly scoped formatting skills; these
 historical results describe the broad skills, not the new ones.
 
+**Platform scope:** the workbook/COM evaluations below target Windows. They do
+not establish support for the experimental Apple Silicon macOS beta; see the
+separate [Mac acceptance requirements](../specs/MACOS-SUPPORT.md).
+
 | Entry point | Without skill | With broad skill | Verified cases per condition |
 |-------------|--------------:|-----------------:|-----------------------------:|
 | MCP | 4,312,584 recorded tokens | 5,320,118 recorded tokens | 12/12 |

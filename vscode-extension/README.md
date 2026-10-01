@@ -1,50 +1,89 @@
-# ExcelMcp - Real Excel Automation for VS Code
+# Excel MCP Server - AI-Powered Excel Automation
 
-<a href="https://github.com/sbroenne/mcp-server-excel"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20Stars" alt="GitHub stars" width="112" height="20"></a>
-<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" width="81" height="20"></a>
+[![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Automate real Microsoft Excel with GitHub Copilot.**
 
-Refresh Power Query, calculate formulas, build PivotTables and charts, work with
-DAX measures, or run VBA directly from Copilot Chat.
+**Control Microsoft Excel with AI through GitHub Copilot - just ask in natural language!**
 
-**Requires Windows, desktop Excel 2016 or later, VS Code 1.125 or later, and
-GitHub Copilot chat with tool support.**
+> **Apple Silicon macOS support is experimental beta.** Windows retains the
+> complete backend. Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables,
+> charts, slicers, connections, QueryTables, XML Maps, screenshots, advanced
+> visual formatting, and Python result reads are not supported on Mac. See
+> [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+> and test on copies of important workbooks. The feature list and analytics
+> examples below describe Windows capabilities, not Mac beta availability.
 
-The server and Excel guidance are included: **no separate .NET, Node.js, CLI,
-or skill installation is needed**.
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required.
 
-**Excel does the work.** Calculations, Power Query refreshes, and Data Model
-operations run in the actual Excel application. Excel opens and saves your
-workbook itself, rather than a file-parser library rewriting it. Requested
-edits can still change the workbook's data, formatting, or features.
+**⚡ Powered by the real Excel engine** - ExcelMcp automates the **actual Excel application** through COM on Windows and a capability-gated Apple Events backend on macOS. On Windows, that unlocks what spreadsheets are really for:
 
-## See It in Action
+- **Runs live Excel operations** - Refresh Power Query to pull and reshape fresh data, recalculate with Excel's own engine, refresh PivotTables and the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real, *computed results* land right in your workbook.
+- **Uses Excel to open and save your files** - No file-parser rewrite of workbook
+  contents. Use copies of important workbooks: failed or cancelled mutations
+  are not guaranteed to roll back or preserve every object unchanged.
 
-<a href="https://excelmcpserver.dev/use-cases/"><img src="https://excelmcpserver.dev/assets/images/excel-demo-table-chart.png" alt="A sales table, regional summary, and column chart created in real Microsoft Excel" width="680" height="400"></a>
+Other tools (openpyxl-based MCP servers and Agent Skills, including Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which can quietly drop PivotTables, charts, and macros, and can't run Power Query, the Data Model, or DAX at all. Here, Excel does the work. Watch it live: just say *"Show me Excel while you work."*
 
-A sales table, regional summary, and chart created in Excel. Ask Copilot:
-*"Show me Excel while you work"* to watch changes live.
+**💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-<a href="https://youtu.be/wbw3-hPcE2o"><img src="https://img.youtube.com/vi/wbw3-hPcE2o/maxresdefault.jpg" alt="Watch the two-minute Excel MCP Server intro video" width="384" height="216"></a>
+## Key features
 
-[Watch the intro video (2 min)](https://youtu.be/wbw3-hPcE2o)
+The Excel MCP Server (excel-mcp) provides **31 specialized tools with 326 operations** for comprehensive Excel automation:
+
+- 🔄 **Power Query & M code** - Create, edit and optimize M code. Import from files, databases and APIs. Refresh queries and manage load destinations.
+- 🧮 **Power Pivot & DAX** - Build Data Models, create DAX measures and manage table relationships. Full Power Pivot automation.
+- 📊 **PivotTables & charts** - Create PivotTables from ranges, tables or the Data Model. Build charts and PivotCharts with full formatting control.
+- 📋 **Tables & ranges** - Read/write data, formulas and formatting. Filter, sort and validate. Manage Excel Tables with structured references.
+- 📝 **VBA macros** - View, import, update and execute VBA code. Export modules for version control.
+- 📄 **Worksheets & connections** - Manage sheets, named ranges and data connections. Copy and move sheets between workbooks.
+- 👁️ **Agent mode** - Watch AI work in Excel in real time — side-by-side view, live status-bar feedback and smart window arrangement, like a pair programmer in a spreadsheet.
+- 🐍 **Python in Excel** - Write and run `=PY()` formulas that execute in Excel's cloud Python engine — process worksheet data with pandas, NumPy and more, from your AI assistant.
+- 🧪 **LLM-tested quality** - Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering), so AI assistants reliably understand and use every operation.
+
+📚 **[See all 31 tools and 326 operations →](https://excelmcpserver.dev/features/)**
+
+### Agent Skills (Bundled)
+
+This extension includes an **Agent Skill** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants:
+
+- **[excel-mcp](https://excelmcpserver.dev/skills/)** - MCP Server tool guidance
+
+The skill is registered automatically through VS Code's `chatSkills`
+contribution point. No separate skill installation or preview setting is needed.
+
+
+## 💬 Example Prompts
+
+**Create & Populate Data (plain ranges on Mac; Tables on Windows):**
+- *"Create a new Excel file called SalesTracker.xlsx with a table for Date, Product, Quantity, Unit Price, and Total"*
+- *"Put this data in A1:C4 - Name, Age, City / Alice, 30, Seattle / Bob, 25, Portland"*
+- *"Add sample data and a formula column for Quantity times Unit Price"*
+
+**Analysis & Visualization (Windows):**
+- *"Create a PivotTable from this data showing total sales by Product, then add a bar chart"*
+- *"Import products.csv with Power Query, load to Data Model, create a measure for Total Revenue"*
+- *"Create a slicer for the Region field so I can filter the PivotTable interactively"*
+
+**Formatting & Automation (Windows; Mac supports number formats, not the
+conditional-formatting or Power Query examples):**
+- *"Format the Price column as currency and highlight values over $500 in green"*
+- *"Export all Power Query M code to files for version control"*
+- *"Show me Excel while you work"* - watch changes in real-time
+
 
 ## Quick Start
 
-1. **Install the extension** on your Windows desktop with Excel installed.
-2. **Open Copilot Chat with tool support.**
-3. **Give Copilot a local workbook path or ask it to create a workbook.** With
-   VS Code's default settings, the bundled **excel-mcp** server starts
-   automatically when your request needs Excel tools. Approve server or tool
-   use if prompted. Try:
-   "Create a new workbook on my Desktop with sample sales data and a column
-   chart. Save it as SalesDemo.xlsx and show me Excel while you work."
+1. **Install this extension** (you just did!)
+2. **Ask Copilot** in the chat panel:
+   - "Open my workbook at this absolute path and read Sheet1!A1:C4"
+   - "Create a new workbook at this absolute path and put my data in plain cells"
+   - "Add a SUM formula and calculate the workbook"
 
-Close a workbook in Excel before asking Copilot to open it: ExcelMcp needs
-exclusive access while automating it.
+Supply a full Windows or Mac path and use the returned session ID. On Mac, use
+only enabled actions in the [beta support reference](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md).
 
-## What You Can Ask Copilot
+**That's it!** The extension includes a self-contained MCP server - no .NET runtime or SDK needed.
 
 | Ask Copilot | Result |
 |---|---|
@@ -80,51 +119,47 @@ Skills menu if you want to inspect available skills.
 
 ## Requirements
 
-- **Windows x64 or Windows ARM64** with an interactive desktop.
-- **Microsoft Excel 2016 or later**, installed and able to open normally.
-  Some features, such as Python in Excel, require a supported Excel edition.
-- **VS Code 1.125 or later** and GitHub Copilot chat with tool support.
+- **Windows with Microsoft Excel 2016+**, or **Apple Silicon macOS with Excel for Mac 16.112+ (experimental beta)**
+- **Interactive desktop Excel** must be installed; Intel Macs, Linux, and headless hosts are unsupported
 
-This extension is not for macOS, Linux, browser-only VS Code, Windows services,
-or unattended server-side processing. It bundles the MCP server, not `excelcli`.
+## Potential Issues
 
-## Troubleshooting
+**"Excel is not installed" error:**
+- Ensure the required desktop Excel version for your platform is installed
+- Try opening Excel manually to verify it works
 
-| Problem | What to Do |
-|---|---|
-| "Excel is not installed" | Install desktop Excel 2016 or later and check that it opens normally. |
-| "VBA access denied" | In Excel, open **File > Options > Trust Center > Trust Center Settings > Macro Settings** and enable **Trust access to the VBA project object model**. This one-time setup is required for VBA operations. |
-| Copilot cannot see Excel tools | Run **MCP: List Servers**, choose **excel-mcp**, and start it. Enable Excel tools in chat and accept the server trust prompt. After an update, refresh tools when prompted. |
-| "Bundled server is missing or unreadable" | Check security software and file permissions, or reinstall the extension. |
-| "Could not check Excel registration" or a registration timeout | Check that Windows PowerShell and desktop Excel open normally. Retry; repair Microsoft Office if the installation is damaged. |
+**"VBA access denied" error (Windows only):**
+- VBA project inspection/editing requires one-time manual setup in Excel;
+  running an existing macro has separate macro-security requirements
+- Go to: File → Options → Trust Center → Trust Center Settings → Macro Settings
+- Check "Trust access to the VBA project object model"
 
-- **Server logs:** run **MCP: List Servers**, choose **excel-mcp**, then
-  **Show Output**.
-- **Extension setup diagnostics:** open the Output panel and choose
-  **ExcelMcp**, or select **Show Setup Output** in a setup error notification.
+VBA is unsupported in the Mac beta; changing macro trust cannot enable it.
 
-Startup checks read Excel's registration; they do not start Excel, open a
-workbook, or verify that every Excel feature is available.
+**Mac platform or permission errors:**
+- `PlatformNotSupported`: use an enabled action or the Windows backend
+- Grant Excel Automation permission manually when macOS requests it
+- `RecoveryRequired`: reconcile the exact workbook manually before retrying;
+  do not close unrelated workbooks or terminate shared Excel
 
-## Privacy
+**Copilot doesn't see Excel tools:**
+- Restart VS Code after installing the extension
 
-Excel runs on your Windows desktop. Requested workbook results are returned to
-your AI assistant, whose privacy policy applies. Release builds can send
-anonymous usage statistics, but those statistics exclude workbook contents,
-file names, and paths. Optional remote M/DAX formatting and Python in Excel
-use external services only when you request those features.
-[Read the privacy policy](https://excelmcpserver.dev/privacy/).
+### Troubleshooting
 
-## Guides & Support
+- Check Output panel → "Excel MCP Server" for connection status
 
-- [Refresh Power Query](https://excelmcpserver.dev/guides/refresh-power-query/)
-- [Build and update PivotTables](https://excelmcpserver.dev/guides/automate-pivottables/)
-- [Query the Data Model with DAX](https://excelmcpserver.dev/guides/query-data-model-with-dax/)
-- [Run VBA macros](https://excelmcpserver.dev/guides/run-vba-macros/)
+## Documentation & Support
 
-[All user guides](https://excelmcpserver.dev/guides/) (also opened by
-**Getting Started**) |
-[Complete documentation](https://excelmcpserver.dev/) |
-[Report an issue](https://github.com/sbroenne/mcp-server-excel/issues)
+- **[Complete Documentation](https://excelmcpserver.dev/)** - Full guides and examples
+- **[Report Issues](https://github.com/sbroenne/mcp-server-excel/issues)** - Bug reports and feature requests
 
-MIT License - see [LICENSE](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE).
+## License & Privacy
+
+MIT License - see [LICENSE](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)
+
+Privacy Policy - see [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
+
+---
+
+**Built with GitHub Copilot** | **Powered by Model Context Protocol**

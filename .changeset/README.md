@@ -5,7 +5,8 @@ user-facing change before it ships. They are compiled into [`CHANGELOG.md`](../C
 and GitHub Release notes automatically when a release is cut (see
 [Release Strategy](../docs/RELEASE-STRATEGY.md#changelog-generation)).
 
-> This repo is Windows/.NET-first (MCP Server, CLI, VS Code Extension, MCPB). The
+> This repo ships .NET-based desktop Excel tools for Windows and an experimental
+> Apple Silicon Mac beta (MCP Server, CLI, VS Code Extension, MCPB). The
 > `@changesets/cli` tool is Node-based, but it is used **only** to manage
 > `CHANGELOG.md` content — it does not build, version, or publish any ExcelMcp
 > component. `package.json` at the repo root exists solely to host this tool.

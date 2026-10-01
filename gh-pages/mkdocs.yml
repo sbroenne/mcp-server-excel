@@ -2,7 +2,8 @@ site_name: Excel MCP Server
 site_url: https://excelmcpserver.dev/
 site_description: >-
   Control Microsoft Excel with natural language through AI assistants like
-  GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables and more.
+  GitHub Copilot and Claude. Full Windows automation and an experimental
+  Apple Silicon macOS subset with explicit feature limitations.
 site_author: Stefan Broenner
 copyright: Copyright &copy; 2025&ndash;2026 Stefan Broenner &mdash; MIT License
 
@@ -25,6 +26,7 @@ watch:
   - ../PRIVACY.md
   - ../docs
   - ../skills
+  - ../specs/MACOS-SUPPORT.md
   - ../src/ExcelMcp.CLI/README.md
   - ../src/ExcelMcp.McpServer/README.md
   - ../samples/world-bank-dashboard
@@ -119,6 +121,8 @@ nav:
     - Overview: installation.md
     - MCP Server: installation-mcp-server.md
     - CLI: installation-cli.md
+    - Experimental macOS beta support: macos-support.md
+    - Optional macOS Office.js bridge: installation-macos-officejs.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
   - Workflow guidance:

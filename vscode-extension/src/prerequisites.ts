@@ -25,15 +25,18 @@ function checkCancellation(signal: AbortSignal) {
 
 export async function checkLaunchPrerequisites(executable: string, signal: AbortSignal) {
 	checkCancellation(signal);
-	if (process.platform !== 'win32') {
-		throw new LaunchSetupError('ExcelMcp requires a local Windows desktop with Microsoft Excel.');
-	}
 	try {
 		await access(executable, constants.R_OK);
 	} catch {
 		throw new LaunchSetupError('The bundled ExcelMcp server is missing or unreadable. Check access permissions or reinstall the extension.');
 	}
 	checkCancellation(signal);
+	if (process.platform === 'darwin' && process.arch === 'arm64') {
+		return;
+	}
+	if (process.platform !== 'win32') {
+		throw new LaunchSetupError('ExcelMcp requires Windows desktop Excel or Apple Silicon macOS Excel.');
+	}
 
 	const windowsDirectory = process.env.SystemRoot;
 	if (!windowsDirectory) {

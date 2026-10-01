@@ -1,6 +1,10 @@
 # ExcelMcp Copilot CLI Plugins
 
-Windows-only GitHub Copilot CLI plugins for ExcelMcp.
+GitHub Copilot CLI plugins for ExcelMcp on Windows x64 and Apple Silicon macOS.
+
+**macOS support is experimental beta**, not Windows parity. Review the
+[unsupported features](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+before using either plugin on a Mac.
 
 This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel).
 
@@ -79,7 +83,8 @@ For Claude Desktop, use the one-click `.mcpb` bundle from the
 
 ## Notes
 
-- **Windows only** — ExcelMcp depends on Microsoft Excel COM automation.
+- **Windows x64 or Apple Silicon macOS** — Microsoft Excel is required; the
+  supported operation surface depends on the host backend.
 - **excel-mcp** includes portable root `mcp.json` configuration that launches `@sbroenne/mcp-server-excel`.
 - **excel-cli** includes an argument-safe npx wrapper for `@sbroenne/excelcli`; separate PATH installation is optional.
 - Both root `plugin.json` manifests target `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills are discovered from the fixed `skills/` directory.

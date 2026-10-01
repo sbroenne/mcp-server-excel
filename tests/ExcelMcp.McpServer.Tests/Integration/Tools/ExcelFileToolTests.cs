@@ -113,7 +113,8 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
 
             // Assert
             var json = JsonDocument.Parse(result).RootElement;
-            Assert.False(json.GetProperty("success").GetBoolean());
+            Assert.True(json.GetProperty("success").GetBoolean());
+            Assert.True(json.GetProperty("preflightPassed").GetBoolean());
             Assert.True(json.GetProperty("exists").GetBoolean());
             Assert.False(json.GetProperty("isValid").GetBoolean());
             Assert.False(json.GetProperty("canOpen").GetBoolean());

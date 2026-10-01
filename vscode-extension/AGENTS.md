@@ -6,8 +6,9 @@ Excel usage guidance comes from native MCP descriptions and repository docs.
 The optional report-formatting skill is authored under `skills`; do not maintain
 a separate tool reference in this extension.
 
-- The extension bundles a self-contained Windows MCP Server and generated skill;
-  no separate user .NET install. Keep provider IDs in `package.json` and
+- The extension bundles self-contained Windows x64/ARM64 and Apple Silicon
+  macOS MCP Servers and an optional formatting skill; no separate user .NET
+  install. Keep provider IDs and platform runtime paths in `package.json` and
   `src/extension.ts` aligned.
 - `bin/`, `skills/excel-mcp-report-formatting/`, and extension `CHANGELOG.md` are packaging outputs.
   Edit repository sources instead.

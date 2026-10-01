@@ -8,7 +8,8 @@
     .github/plugin/marketplace.json, and removes the legacy root marketplace.json.
 
     The published repo contains npx launch configuration, an argument-safe CLI
-    wrapper, and skills. Self-contained Windows runtimes remain outside the plugin.
+    wrapper, and skills. Self-contained Windows x64 and Darwin ARM64 runtimes
+    remain in npm packages outside the plugin.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -222,7 +223,7 @@ $legacyManifestPath = Join-Path $PublishedRepoDir "marketplace.json"
 $canonicalManifest = [ordered]@{
     name = "mcp-server-excel-plugins"
     metadata = [ordered]@{
-        description = "Windows-only GitHub Copilot CLI plugins for Excel automation with ExcelMcp."
+        description = "ExcelMcp plugins for full Windows Excel automation and an experimental beta Apple Silicon macOS subset."
         version = "1.0.0"
     }
     owner = [ordered]@{

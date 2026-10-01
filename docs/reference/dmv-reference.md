@@ -1,5 +1,9 @@
 # DMV Query Reference (Excel's Embedded Analysis Services)
 
+**Windows-only in the experimental macOS beta.** `datamodel execute-dmv` and
+the other model actions are unavailable on Mac. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 ## When to Use DMV Queries
 
 Use DMV queries when ordinary model inspection cannot answer a metadata

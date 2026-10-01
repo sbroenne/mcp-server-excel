@@ -322,11 +322,11 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         }
 
         CliCommandRuntime.Current.Output.WriteLine(response.Result);
-        if (!result.CanOpen)
+        if (!result.PreflightPassed)
         {
             CliTelemetry.RecordExpectedNegative();
         }
-        return result.CanOpen ? 0 : 1;
+        return result.PreflightPassed ? 0 : 1;
     }
 
     internal sealed class Settings : CommandSettings

@@ -4,6 +4,25 @@ Excel-dependent behavior uses real Excel integration tests. Parsing, mapping,
 serialization, and generation can use focused tests without Excel.
 [ADR-001](../docs/ADR-001-TESTING-STRATEGY.md) explains this split.
 
+**Platform scope:** the COM fixtures, owned-process checks, VBA/registry setup,
+and ordered normal-suite commands below require Windows desktop Excel. Apple
+Silicon macOS is experimental beta; its shared-Excel workbook ownership must
+be tested separately. A portable contract test or cross-target build is not
+proof of Excel behavior on either platform.
+
+After a successful Release build, use these Mac lanes sequentially:
+
+```powershell
+pwsh -NoProfile -File scripts/Invoke-ExcelFreeTests.ps1 -Local -Contracts
+pwsh -NoProfile -File scripts/Test-MacE2E.ps1 -SkipBuild
+```
+
+The E2E lane requires interactive Excel for Mac and accepted Automation
+permission. Office.js candidates additionally require user-controlled
+certificate trust and exact-workbook activation; they remain unavailable until
+accepted. See [Mac support and limitations](../specs/MACOS-SUPPORT.md).
+Never overlap Excel testhosts, fixtures, or CLI/MCP E2E runs.
+
 ## Quick Start
 
 ```powershell
@@ -155,6 +174,11 @@ test name where appropriate. Core OnDemand tests are optional diagnostics,
 not mandatory CI gates.
 
 ### Saved workbook templates
+
+Treat all workbook files as opaque. Templates must be authored by Excel and
+copied intact; never construct, inspect, or mutate ZIP/OOXML workbook contents,
+including through libraries or fixture scripts. Verify content through
+supported Excel APIs only.
 
 Fixtures that only need an already-saved blank or populated workbook create one
 immutable template per baseline and extension, then copy it to a unique path for
@@ -623,6 +647,7 @@ process counts.
 
 ```
 tests/
+├── ExcelMcp.Portable.Tests/      # Mac adapter contracts and explicitly selected desktop probes
 ├── ExcelMcp.Core.Tests/           # Internal contracts and pure parsing tests
 ├── ExcelMcp.Service.Tests/        # Public workbook behavior through Service
 ├── ExcelMcp.Diagnostics.Tests/    # Excel COM behavior research (OnDemand, Manual)

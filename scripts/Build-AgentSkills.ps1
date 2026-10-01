@@ -61,11 +61,11 @@ function Copy-SharedReferences {
 }
 
 if ($GenerateOnly) {
-    if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
+    if (-not $OutputDir) { $OutputDir = 'artifacts/generated-skills' }
     if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
 }
 elseif (-not $OutputDir) {
-    $OutputDir = 'artifacts\skills'
+    $OutputDir = 'artifacts/skills'
 }
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
@@ -79,7 +79,7 @@ if ($OutputPath -eq [IO.Path]::GetPathRoot($OutputPath) -or
     $OutputPath -eq $SkillsDir) {
     throw "Skill output must not overlap source files: $OutputPath"
 }
-if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts\generated-skills' }
+if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts/generated-skills' }
 $StagingDir = Join-Path ([IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 try {
@@ -124,7 +124,7 @@ try {
         Write-Host "Generated complete skills at $OutputPath"
     }
     else {
-        Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\AGENT-SKILLS.md') (Join-Path $StagingDir 'README.md')
+        Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs/AGENT-SKILLS.md') (Join-Path $StagingDir 'README.md')
         $zip = Join-Path $StagingDir "excel-skills-v$Version.zip"
         Compress-Archive -LiteralPath $SkillsStagingDir,(Join-Path $StagingDir 'README.md') -DestinationPath $zip
         Install-PackageOutput -Source $zip -Destination (Join-Path $OutputPath (Split-Path $zip -Leaf))

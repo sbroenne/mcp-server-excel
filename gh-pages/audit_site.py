@@ -376,6 +376,11 @@ def audit_llms(html_files: list[Path]) -> None:
             fail("llms.txt contains no sections")
         if text.count("](") < 10:
             fail("llms.txt lists suspiciously few pages")
+        summary = next((line for line in lines if line.startswith("> ")), "")
+        if "experimental beta" not in summary or "Apple Silicon" not in summary:
+            fail("llms.txt summary must disclose experimental Apple Silicon Mac support")
+        if "Windows-only" in summary:
+            fail("llms.txt summary incorrectly describes the whole product as Windows-only")
 
     full = SITE_DIR / "llms-full.txt"
     if not full.is_file():
@@ -441,6 +446,13 @@ def audit_tools_json() -> None:
     if not categories:
         fail("tools.json has no categories")
         return
+    mac_support = data.get("platformSupport", {}).get("macOS", {})
+    if mac_support.get("status") != "experimental beta":
+        fail("tools.json must disclose experimental beta macOS support")
+    if not mac_support.get("capabilityInventory") or not mac_support.get("unsupportedFeatures"):
+        fail("tools.json must link Mac availability evidence and list unsupported features")
+    if "Windows" not in data.get("catalogueScope", ""):
+        fail("tools.json must distinguish its full Windows catalogue from Mac availability")
 
     expected_sources = set(FEATURE_SOURCES.values())
     actual_sources = {

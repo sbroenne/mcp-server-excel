@@ -4,6 +4,10 @@ Goal Seek, scenarios, and data tables answer different questions. Choose the
 method from the requested result, and use CLI help or MCP tool descriptions
 for current commands and inputs.
 
+**Mac experimental beta:** Goal Seek and one-/two-variable Data Tables are
+enabled; all Scenario actions below remain Windows-only. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 ## Goal Seek
 
 Use Goal Seek when one formula result must reach a numeric target by changing

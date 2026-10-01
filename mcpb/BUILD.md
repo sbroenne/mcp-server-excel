@@ -4,6 +4,10 @@ This guide explains how maintainers build the Excel MCP Server bundle for
 Claude Desktop. End-user installation instructions are in
 [README.md](README.md).
 
+Apple Silicon macOS support is experimental beta. Packaging success is not
+feature acceptance; keep staged descriptions aligned with the
+[enabled inventory and limitations](../specs/MACOS-SUPPORT.md).
+
 ## Directory Contents
 
 ```text
@@ -18,26 +22,34 @@ mcpb/
 
 ## Prerequisites
 
+- The .NET SDK selected by `global.json`
 - PowerShell 7
-- Node.js/npm when verifying the server launch (not needed to build the archive)
+- Windows x64 or Apple Silicon macOS to run matching executable verification
 
-Packaging copies metadata only. It does not publish .NET executables, install
-npm dependencies, or download the server.
+The Windows bundle is metadata-only and launches the public npm package at
+`@latest`. The Mac bundle contains its signed native runtime and must be built
+on Apple Silicon for release-shaped verification.
+
+Release-shaped Mac validation uses `scripts/Build-MacReleasePackages.ps1` on
+Apple Silicon, including signing and native launch checks. Cross-compilation
+alone does not establish Automation permission, notarization, or Excel behavior.
 
 ## Build the Bundle
 
 Run the script from the `mcpb` directory:
 
 ```powershell
-.\Build-McpBundle.ps1
+.\Build-McpBundle.ps1 -RuntimeIdentifier win-x64
+.\Build-McpBundle.ps1 -RuntimeIdentifier osx-arm64
 ```
 
-The default output is `artifacts\excel-mcp-{version}.mcpb`. The version comes
-from `Directory.Build.props` unless you pass it explicitly.
+The outputs are `artifacts\excel-mcp-{version}.mcpb` and
+`artifacts\excel-mcp-{version}-macos-arm64.mcpb`. The version comes from
+`Directory.Build.props` unless you pass it explicitly.
 
 ```powershell
 # Use an explicit version
-.\Build-McpBundle.ps1 -Version "1.2.3"
+.\Build-McpBundle.ps1 -Version "1.2.3" -RuntimeIdentifier osx-arm64
 
 # Write artifacts to another directory
 .\Build-McpBundle.ps1 -OutputDir ".\dist"
@@ -45,45 +57,47 @@ from `Directory.Build.props` unless you pass it explicitly.
 
 ## Package Contents
 
-An `.mcpb` file is a ZIP-compatible archive with this layout:
+The Mac `.mcpb` is a ZIP-compatible archive with this layout:
 
 ```text
-excel-mcp-{version}.mcpb
+excel-mcp-{version}-{platform}.mcpb
 |-- manifest.json
 |-- icon-512.png
 |-- README.md
 |-- LICENSE
-`-- CHANGELOG.md
+|-- CHANGELOG.md
+`-- server/
+    `-- excel-mcp-server[.exe]
 ```
 
-`Build-McpBundle.ps1` stamps a staged manifest, copies the package metadata,
-checks the archive entries, and installs the completed output. Failed builds
-preserve existing packages; staging cleanup is restricted to the owned
-temporary directory.
+For Windows, `Build-McpBundle.ps1` packages metadata that invokes
+`npx -y @sbroenne/mcp-server-excel@latest`. For Mac it publishes one
+self-contained native executable, stamps `darwin` compatibility metadata, and
+preserves Unix executable modes for the server and helper.
 
 ## Manifest and Tool Metadata
 
-`manifest.json` follows MCPB manifest version 0.3. The entry point identifies
-the npm package, while `mcp_config` specifies the actual command:
+`manifest.json` follows MCPB manifest version 0.3. Its source declares the
+Windows npm entry point; the Mac build stamps a packaged binary entry point:
 
 ```json
 {
   "manifest_version": "0.3",
   "server": {
-    "type": "node",
-    "entry_point": "@sbroenne/mcp-server-excel",
+    "type": "binary",
+    "entry_point": "server/excel-mcp-server",
     "mcp_config": {
-      "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
+      "command": "${__dirname}/server/excel-mcp-server",
+      "args": [],
       "env": {}
     }
   }
 }
 ```
 
-The build stamps the package version into a staged copy of the manifest. Do not
-add a release download URL or an `install.win32` block. npx obtains the server
-from npm at launch, subject to normal npm configuration and caching.
+The build stamps the package version, display name, description, and platform
+into a staged copy. The Windows bundle contains no executable; the Mac bundle
+contains only its matching executable and helper.
 
 The MCP Server generates its 60 tool schemas from the Core contracts and manual
 MCP tool definitions. Destructive metadata is set per tool: most tools can
@@ -92,7 +106,7 @@ workbook content.
 
 ## Release Workflow
 
-The unified release workflow builds and publishes the MCPB artifact with the
+The unified release workflow builds and publishes both MCPB artifacts with the
 MCP Server, CLI, VS Code extension, and NuGet packages. Do not edit the manifest
 or upload a differently named ZIP by hand.
 
@@ -100,7 +114,8 @@ See [Release Strategy](../docs/RELEASE-STRATEGY.md) for the release process. To
 rebuild locally before a release:
 
 ```powershell
-.\Build-McpBundle.ps1
+.\Build-McpBundle.ps1 -RuntimeIdentifier win-x64
+.\Build-McpBundle.ps1 -RuntimeIdentifier osx-arm64
 ```
 
 ## Verify the Archive
@@ -120,40 +135,26 @@ Remove-Item $zip
 Remove-Item .\test-extract -Recurse
 ```
 
-Verify the actual configured command on Windows as well:
-
-```powershell
-npx -y @sbroenne/mcp-server-excel@latest --version
-```
-
-This checks startup, not full Claude integration. Install the bundle in Claude
-Desktop and confirm initialization, tool discovery, and a create/save/close
-workbook operation before claiming host integration is verified.
+The packaging script also prints every archive entry after a successful build.
 
 ## Technical Notes
 
-### Why Direct npx?
+### Why is the Mac bundle self-contained?
 
-- No custom launcher or bundled npm dependencies.
-- The installed bundle does not pin the server to its stamped release version.
-- The npm server contains a self-contained .NET executable.
-- Node.js/npm must be available on PATH; do not assume Claude bundles npx.
+- Mac users do not need the .NET runtime or SDK.
+- The package uses the same tested runtime as the standalone release.
+- Windows instead uses the maintained npm `@latest` launch configuration.
 
-### Updates and Network Access
+### Why No Trimming?
 
-The bundle is not offline/self-contained. First launch downloads the server;
-later launches use normal npm resolution and caching. The `latest` tag can
-resolve to a different version than the bundle's metadata version. A running
-server is never hot-swapped. Existing binary MCPB users must install this
-configuration bundle once, and future bundle changes still require replacement.
+Excel COM interop relies on runtime type activation and reflection. Trimming can
+remove required interop metadata, so the package sets `PublishTrimmed=false`.
 
-### Architecture and Directory Submission
+### Why separate bundles?
 
-- Excel COM automation requires Windows.
-- npm selects the x64 or ARM64 runtime matching the Node.js process architecture.
-- x64 Node.js on ARM64 Windows uses the x64 package through emulation.
-- Directory acceptance of a fetch-on-launch bundle is not verified. Disclose
-  its npm and network requirements; do not claim it bundles all dependencies.
+- PE and Mach-O are different native executable formats.
+- Windows receives npx metadata; Mac receives only its native runtime.
+- The macOS archive must retain its Unix executable permission.
 
 ## Submission References
 

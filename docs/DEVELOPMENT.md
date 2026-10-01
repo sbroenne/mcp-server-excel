@@ -1,5 +1,24 @@
 # Development Workflow
 
+**Platform scope:** Windows has the complete COM backend. Apple Silicon macOS
+support is experimental beta, with [explicit feature gates](../specs/MACOS-SUPPORT.md).
+COM, STA, Windows tray, and Windows test commands below are Windows-specific.
+Native Mac changes require their own real Excel evidence, not a cross-target
+build or Office.js mock test.
+
+For Mac validation, use PowerShell 7 and the SDK selected by `global.json`:
+
+```powershell
+dotnet restore Sbroenne.ExcelMcp.sln -p:EnableWindowsTargeting=true
+dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore -p:EnableWindowsTargeting=true
+pwsh -NoProfile -File scripts/Test-MacE2E.ps1 -SkipBuild
+```
+
+Run every Excel-dependent lane sequentially. Mac sessions own exact workbooks
+in shared Excel, never the application or unrelated workbooks. Headless hosts
+are unsupported. For Excel-free checks, use
+`scripts/Invoke-ExcelFreeTests.ps1 -Local -Contracts`.
+
 ## 🚨 **IMPORTANT: All Changes Must Use Pull Requests**
 
 **Direct commits to `main` are not allowed.** All changes must go through the Pull Request (PR) process to ensure:
@@ -114,12 +133,28 @@ The `main` branch is protected with:
 
 ### **Integration-First Test Architecture**
 
-ExcelMcp tests Excel behavior through real COM automation. Unit tests that mock
-Excel do not validate the threading, type conversion, persistence, or resource
-management failures that matter in production.
+ExcelMcp tests behavior through real desktop Excel. Windows COM integration
+tests and macOS Apple Events E2E tests remain separate because neither can
+substitute for the other.
+
+The optional Office.js bridge has Excel-independent protocol, authentication,
+identity, timeout, and lifecycle tests under `office-addin/test`. Run:
+
+```bash
+cd office-addin
+npm run check
+npm test
+```
+
+These checks do not establish Excel behavior. A feature action may be enabled
+only after a prompt-free real Excel workflow proves its public CLI and MCP
+contracts. Add-in sideload activation and localhost certificate trust remain
+user-mediated; do not automate dialogs or weaken localhost, macro, or VBA
+security to make a smoke test pass.
 
 ```
 tests/
+├── ExcelMcp.Portable.Tests/ # Excel-free Mac contracts; desktop cases are explicit
 ├── ExcelMcp.Core.Tests/
 │   └── Integration/    # Feature and round-trip tests against real Excel
 ├── ExcelMcp.ComInterop.Tests/
@@ -134,7 +169,7 @@ tests/
 
 ### **Development Workflow Commands**
 
-**During Development (Fast Feedback):**
+**Windows COM Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
@@ -334,8 +369,10 @@ the SDK still owns binding and injected parameters.
 
 Each host owns its bridge through dependency injection. Ordinary shutdown attempts
 to save remaining sessions. Explicit `file close` defaults to `save:false` and
-discards edits. A cancelled open/create reclaims its eventual workbook without
-resetting unrelated sessions. Cancellation is not a transaction or undo.
+discards edits. Windows cancelled open/create reclaims its eventual workbook
+without resetting unrelated sessions. An unconfirmed Mac open returns
+`RecoveryRequired` and is not retried or cleaned up automatically. Cancellation
+is not a transaction or undo.
 
 Protocol cancellation tests send `notifications/cancelled` explicitly and verify
 the server's cleanup. Cancelling an SDK client's local wait alone does not prove
@@ -421,7 +458,7 @@ When creating a PR, verify:
 - **Break large changes** into smaller, reviewable chunks
 - **Include tests and docs** in the same PR as the feature
 
-## 🔧 **Local Development Setup**
+## 🔧 **Local Windows Development Setup**
 
 ```powershell
 # Clone the repository
@@ -438,7 +475,7 @@ dotnet build -c Release
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 
 # Test the built executable
-.\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version
+.\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe --version
 ```
 
 ## 📊 **Application Insights / Telemetry Setup**
@@ -672,7 +709,9 @@ Runtime:
 
 ### **Why Trimming Is Not Supported**
 
-ExcelMcp **cannot be trimmed** due to fundamental architectural constraints of Excel COM automation. The IL trimmer removes unused code at publish time, but Excel COM interop requires dynamic code paths that the trimmer cannot statically analyze.
+ExcelMcp releases do not enable trimming or Native AOT. The Windows COM backend
+requires dynamic code paths that the IL trimmer cannot statically analyze. The
+following COM constraints are Windows-specific, not a claim that Mac uses COM.
 
 ### **Technical Constraints**
 
@@ -723,7 +762,7 @@ The following warnings are suppressed in `Directory.Build.props` because they ca
 |---------|--------|
 | `IL2026` | Reflection/dynamic code incompatible with trimming |
 | `IL3050` | Code incompatible with Native AOT |
-| `CA1416` | Windows-only APIs (this is a Windows-only project) |
+| `CA1416` | Platform-specific APIs need an explicit Windows or macOS boundary |
 
 ### **Can We Ever Support Trimming?**
 
