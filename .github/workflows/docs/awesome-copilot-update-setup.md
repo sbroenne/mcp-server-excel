@@ -178,6 +178,15 @@ An authorized owner must inspect and resolve that stale proposal manually; the
 workflow does not close it or remove entries automatically.
 Every owned PR must also have a valid fingerprint of its visible body; removing
 or corrupting that field does not bypass protection.
+New state markers encode canonical UTF-8 JSON as unpadded `b64url:` base64url,
+so listing text containing HTML comment delimiters cannot end the marker.
+Decoding rejects malformed/noncanonical encoding, invalid UTF-8 and invalid
+state or fingerprints. Original raw-JSON markers are accepted only when their
+JSON is canonical, contains no double hyphen or angle brackets, and passes all
+existing body/head/ownership checks. Unsafe or broken legacy markers fail
+visibly and require separately authorized, verified manual migration; automation
+does not reconstruct them or overwrite the PR. Writes and saved recovery bodies
+use the same encoded marker.
 
 The custom gh-aw safe output is deliberate: the built-in create handler's
 non-fast-forward fallback is not this workflow's policy. The released

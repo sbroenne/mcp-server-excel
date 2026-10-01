@@ -11,13 +11,30 @@ const marker = 'excel-plugin-update-state:';
 const metadata = ['description', 'author', 'repository', 'homepage', 'license', 'keywords'];
 const shaPattern = /^[a-f0-9]{40}$/;
 
-export function stateMarker(state) { return `<!-- ${marker}${canonical(state)} -->`; }
+export function stateMarker(state) {
+    return `<!-- ${marker}b64url:${Buffer.from(canonical(state)).toString('base64url')} -->`;
+}
 
 export function parseState(body) {
     if (typeof body !== 'string') throw new Error('Missing owned PR state.');
     const matches = [...body.matchAll(/<!-- excel-plugin-update-state:(.*?) -->/gs)];
     if (matches.length !== 1) throw new Error('Expected exactly one owned PR state marker.');
-    const state = parseJson(Buffer.from(matches[0][1]));
+    const payload = matches[0][1];
+    let text;
+    if (payload.startsWith('b64url:')) {
+        const encoded = payload.slice('b64url:'.length);
+        if (!/^[A-Za-z0-9_-]+$/.test(encoded)) throw new Error('Invalid owned state encoding.');
+        const bytes = Buffer.from(encoded, 'base64url');
+        if (bytes.toString('base64url') !== encoded) throw new Error('Noncanonical owned state encoding.');
+        text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } else {
+        if (!payload.startsWith('{') || /--|[<>]/.test(payload)) {
+            throw new Error('Unsafe legacy owned state; manual verified migration required.');
+        }
+        text = payload;
+    }
+    const state = parseJson(Buffer.from(text));
+    if (canonical(state) !== text) throw new Error('Noncanonical owned state JSON.');
     if (state.schema !== 1 || !state.entries || typeof state.entries !== 'object' || Array.isArray(state.entries) ||
         !Object.keys(state.entries).length || Object.keys(state.entries).some(name => !pluginNames.includes(name))) {
         throw new Error('Invalid owned PR proposal entries.');

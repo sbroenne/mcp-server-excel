@@ -355,6 +355,45 @@ test('owned bodies cannot bypass protection by removing or corrupting their fing
     }
 });
 
+test('owned state safely round-trips HTML delimiters and preserves exact visible body protection', () => {
+    const candidate = payload('2.3.0');
+    edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
+    const prior = pending(plan(candidate));
+    const state = parseState(prior.body);
+    state.entries['excel-cli'].entry.description = 'Text --> <!-- nested --> and \u00e9';
+    state.listed['excel-cli'].description = 'Listed --> text';
+    const visible = 'Reviewed context containing --> without a machine marker.';
+    state.bodyFingerprint = hash(visible);
+    const encoded = stateMarker(state);
+    assert.equal((encoded.match(/-->/g) ?? []).length, 1);
+    assert.match(encoded, /^<!-- excel-plugin-update-state:b64url:[A-Za-z0-9_-]+ -->$/);
+    assert.deepEqual(parseState(`${visible}\n\n${encoded}`), state);
+    assert.throws(() => parseState(`Human edit\n${visible}\n\n${encoded}`), /body changed/);
+    const receipt = updater.createSubmissionReceipt({ action: 'update', state,
+        branch: prior.head.ref, pullNumber: prior.number, expectedHead: sha3,
+        expectedBody: hash(prior.body), files: {} }, sha4, `${visible}\n\n${encoded}`);
+    assert.deepEqual(parseState(receipt.body), state);
+});
+
+test('state encoding rejects malformed, noncanonical and unsafe legacy markers visibly', () => {
+    const candidate = payload('2.3.0');
+    edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
+    const state = parseState(pending(plan(candidate)).body);
+    for (const value of ['', 'abc=', 'not+url', 'A', '_w',
+        Buffer.from('{invalid').toString('base64url'),
+        Buffer.from(JSON.stringify(state, null, 2)).toString('base64url')]) {
+        assert.throws(() => parseState(`<!-- excel-plugin-update-state:b64url:${value} -->`));
+    }
+    // Original markers used canonical object ordering, including nested objects.
+    const canonicalState = JSON.parse(Buffer.from(stateMarker(state).split('b64url:')[1].split(' -->')[0], 'base64url'));
+    const canonicalText = canonicalJson(JSON.stringify(canonicalState));
+    assert.deepEqual(parseState(`<!-- excel-plugin-update-state:${canonicalText} -->`), state);
+    assert.throws(() => parseState(`Human edit\n<!-- excel-plugin-update-state:${canonicalText} -->`), /body changed/);
+    state.entries['excel-cli'].entry.description = 'unsafe -- legacy';
+    assert.throws(() => parseState(`<!-- excel-plugin-update-state:${canonicalJson(JSON.stringify(state))} -->`), /legacy|unsafe/i);
+    assert.throws(() => parseState(`${stateMarker(state)}\n${stateMarker(state)}`), /exactly one/);
+});
+
 test('an orphan from an older proposal blocks a different create branch but associated closed heads do not', () => {
     const candidate = payload('2.3.0');
     edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
