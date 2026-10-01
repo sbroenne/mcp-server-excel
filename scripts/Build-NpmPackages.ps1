@@ -10,6 +10,9 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$Version,
 
+    [ValidateSet('win-x64', 'win-arm64', 'osx-arm64')]
+    [string]$RuntimeIdentifier = 'win-x64',
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$RuntimeExecutable,
@@ -24,18 +27,29 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
+if (-not $PSBoundParameters.ContainsKey('RuntimeIdentifier')) {
+    $RuntimeIdentifier = "win-$Architecture"
+}
 $packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
 $commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
+$runtimePackageSuffix = switch ($RuntimeIdentifier) {
+    'osx-arm64' { 'darwin-arm64' }
+    'win-arm64' { 'win32-arm64' }
+    default { 'win32-x64' }
+}
+$runtimeFileName = if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal)) { $commandName } else { "$commandName.exe" }
 $launcherSource = Join-Path $repoRoot "npm-packages\$packageName"
-$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-win32-$Architecture"
+$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-$runtimePackageSuffix"
 $sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
 $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
 $licensePath = Join-Path $repoRoot 'LICENSE'
 $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimeExecutable).Path
+$runtimeDirectory = Split-Path -Parent $resolvedRuntime
+$helperSource = Join-Path $runtimeDirectory 'helpers/excelmcp-screencapture'
 $resolvedOutput = [IO.Path]::GetFullPath($OutputDirectory)
 $stagingRoot = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpm-$([Guid]::NewGuid().ToString('N'))"
 $launcherStage = Join-Path $stagingRoot $packageName
-$runtimeStage = Join-Path $stagingRoot "$packageName-win32-$Architecture"
+$runtimeStage = Join-Path $stagingRoot "$packageName-$runtimePackageSuffix"
 
 function Copy-PackageSource {
     param(
@@ -127,10 +141,16 @@ if (-not (Test-Path -LiteralPath $launcherSource -PathType Container) -or
     throw 'npm package source directories are missing.'
 }
 
-if ([IO.Path]::GetExtension($resolvedRuntime) -ne '.exe') {
+if ($RuntimeIdentifier.StartsWith('win-', [StringComparison]::Ordinal) -and [IO.Path]::GetExtension($resolvedRuntime) -ne '.exe') {
     throw "Runtime executable must be an .exe file: $resolvedRuntime"
 }
-Assert-PackageRuntimeArchitecture -Path $resolvedRuntime -Architecture $Architecture
+if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal) -and
+    -not (Test-Path -LiteralPath $helperSource -PathType Leaf)) {
+    throw "macOS runtime package requires the ScreenCaptureKit helper: $helperSource"
+}
+if ($RuntimeIdentifier.StartsWith('win-', [StringComparison]::Ordinal)) {
+    Assert-PackageRuntimeArchitecture -Path $resolvedRuntime -Architecture $RuntimeIdentifier.Substring(4)
+}
 
 New-Item -ItemType Directory -Path $resolvedOutput -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
@@ -146,7 +166,14 @@ try {
         -Source $runtimeSource `
         -Destination $runtimeStage `
         -Entries @('package.json', 'README.md')
-    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage "$commandName.exe")
+    Copy-Item -LiteralPath $resolvedRuntime -Destination (Join-Path $runtimeStage $runtimeFileName)
+    $runtimeRequiredFiles = @($runtimeFileName, 'package.json', 'LICENSE')
+    if ($RuntimeIdentifier.StartsWith('osx-', [StringComparison]::Ordinal)) {
+        $helperStage = Join-Path $runtimeStage 'helpers'
+        New-Item -ItemType Directory -Path $helperStage -Force | Out-Null
+        Copy-Item -LiteralPath $helperSource -Destination $helperStage
+        $runtimeRequiredFiles += 'helpers/excelmcp-screencapture'
+    }
 
     Write-PackageManifest -Path (Join-Path $runtimeStage 'package.json') -Update {
         param($manifest)
@@ -155,13 +182,14 @@ try {
     Write-PackageManifest -Path (Join-Path $launcherStage 'package.json') -Update {
         param($manifest)
         $manifest.version = $Version
-        $manifest.optionalDependencies."@sbroenne/$packageName-win32-x64" = $Version
-        $manifest.optionalDependencies."@sbroenne/$packageName-win32-arm64" = $Version
+        foreach ($property in $manifest.optionalDependencies.PSObject.Properties) {
+            $property.Value = $Version
+        }
     }
 
     $runtimeTarball = New-NpmTarball `
         -PackageDirectory $runtimeStage `
-        -RequiredFiles @("$commandName.exe", 'package.json', 'LICENSE')
+        -RequiredFiles $runtimeRequiredFiles
     $launcherTarball = New-NpmTarball `
         -PackageDirectory $launcherStage `
         -RequiredFiles @("bin/$commandName.js", 'lib/launcher.js', 'package.json', 'LICENSE')

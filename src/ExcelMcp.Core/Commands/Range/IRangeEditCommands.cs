@@ -39,6 +39,9 @@ public interface IRangeEditCommands
     /// <param name="rangeAddress">Cell range address where cells will be inserted (e.g., 'A1:D10')</param>
     /// <param name="insertShift">Direction to shift existing cells: 'Down' or 'Right'</param>
     [ServiceAction("insert-cells")]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Real CLI and MCP structural-edit acceptance verifies both shift directions, values, formulas, failed-input isolation and save/reopen persistence.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Apple Events insert into range.")]
     OperationResult InsertCells(
         IExcelBatch batch, string sheetName,
         [RequiredParameter] string rangeAddress,
@@ -54,6 +57,9 @@ public interface IRangeEditCommands
     /// <param name="rangeAddress">Cell range address to delete (e.g., 'A1:D10')</param>
     /// <param name="deleteShift">Direction to shift remaining cells: 'Up' or 'Left'</param>
     [ServiceAction("delete-cells")]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Real CLI and MCP structural-edit acceptance verifies both shift directions, values, formulas, failed-input isolation and save/reopen persistence.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Apple Events delete range.")]
     OperationResult DeleteCells(
         IExcelBatch batch, string sheetName,
         [RequiredParameter] string rangeAddress,
@@ -66,8 +72,11 @@ public interface IRangeEditCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="rangeAddress">Row range defining rows to insert above (e.g., '5:10' for rows 5-10)</param>
+    /// <param name="rangeAddress">Row range defining rows to insert above (e.g., '5:10' for rows 5-10). macOS requires a single-area range; disjoint selections are unavailable.</param>
     [ServiceAction("insert-rows")]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Real CLI and MCP structural-edit acceptance verifies multi-row insertion, values, formulas, failed-input isolation and save/reopen persistence.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Apple Events insert into range.")]
     OperationResult InsertRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -76,8 +85,11 @@ public interface IRangeEditCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="rangeAddress">Row range defining rows to delete (e.g., '5:10' for rows 5-10)</param>
+    /// <param name="rangeAddress">Row range defining rows to delete (e.g., '5:10' for rows 5-10). macOS requires a single-area range; disjoint selections are unavailable.</param>
     [ServiceAction("delete-rows")]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Real CLI and MCP structural-edit acceptance verifies multi-row deletion, values, formulas, failed-input isolation and save/reopen persistence.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Apple Events delete range.")]
     OperationResult DeleteRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -86,8 +98,11 @@ public interface IRangeEditCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="rangeAddress">Column range defining columns to insert left of (e.g., 'B:D' for columns B-D)</param>
+    /// <param name="rangeAddress">Column range defining columns to insert left of (e.g., 'B:D' for columns B-D). macOS requires a single-area range; disjoint selections are unavailable.</param>
     [ServiceAction("insert-columns")]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Real CLI and MCP structural-edit acceptance verifies multi-column insertion, values, formulas, failed-input isolation and save/reopen persistence.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Apple Events insert into range.")]
     OperationResult InsertColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
@@ -96,8 +111,11 @@ public interface IRangeEditCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="rangeAddress">Column range defining columns to delete (e.g., 'B:D' for columns B-D)</param>
+    /// <param name="rangeAddress">Column range defining columns to delete (e.g., 'B:D' for columns B-D). macOS requires a single-area range; disjoint selections are unavailable.</param>
     [ServiceAction("delete-columns")]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Real CLI and MCP structural-edit acceptance verifies multi-column deletion, values, formulas, failed-input isolation and save/reopen persistence.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Apple Events delete range.")]
     OperationResult DeleteColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     // === FIND/REPLACE OPERATIONS ===

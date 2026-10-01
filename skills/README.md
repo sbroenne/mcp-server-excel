@@ -9,10 +9,16 @@ from native CLI help or MCP tool schemas, not a second catalog in the skill.
 There are two packages — pick the one that matches how you connect to Excel (or
 install both):
 
+**Platform scope:** Windows has the complete feature set. Apple Silicon macOS
+is an experimental beta with a verified subset; skills do not enable gated
+features. See [macOS support and limitations](../specs/MACOS-SUPPORT.md).
+The executables are `excelcli` and `mcp-excel` on Mac, with `.exe` suffixes on
+Windows.
+
 | Skill | Component | Distribution | Best For |
 |-------|-----------|--------------|----------|
-| **[excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
-| **[excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
+| **[excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli)** | CLI Tool (`excelcli`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
+| **[excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp)** | MCP Server (`mcp-excel`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
 
 **Shared guidance:** `skills/shared/*.md` is the source of shared explanations.
 Generation selects the authored examples for each entry point.

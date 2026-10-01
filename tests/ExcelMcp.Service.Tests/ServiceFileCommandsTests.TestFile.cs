@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -9,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceFileCommandsTests
 {
     [Fact]
-    public void Test_ExistingValidFile_ReturnsSuccess()
+    public void Test_ExistingWorkbookRemainsStructurallyUnvalidated()
     {
         // Arrange - Create a valid file
         var testFile = _fixture.CreateTestFile();
@@ -20,14 +19,18 @@ public sealed partial class ServiceFileCommandsTests
 
         // Assert
         Assert.True(info.Exists);
-        Assert.True(info.IsValid);
+        Assert.False(info.IsValid);
+        Assert.True(info.PreflightPassed);
         Assert.True(info.Success);
-        Assert.True(info.CanOpen);
+        Assert.False(info.CanOpen);
         Assert.False(info.WillOpenReadOnly);
         Assert.False(info.RequiresVisibleSession);
         Assert.Equal(".xlsx", info.Extension);
         Assert.True(info.Size > 0);
-        Assert.Null(info.Message);
+        Assert.NotNull(info.Message);
+        Assert.Contains("opaque", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("file(action: 'open')", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("session open", info.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(lastWriteTime, File.GetLastWriteTimeUtc(testFile));
         Assert.Equal(0, _fixture.SessionCount);
     }
@@ -43,6 +46,7 @@ public sealed partial class ServiceFileCommandsTests
         // Assert
         Assert.False(info.Exists);
         Assert.False(info.IsValid);
+        Assert.False(info.PreflightPassed);
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.Null(info.IsError);
@@ -60,41 +64,27 @@ public sealed partial class ServiceFileCommandsTests
 
         Assert.True(info.Exists);
         Assert.False(info.IsValid);
-        Assert.False(info.Success);
+        Assert.True(info.PreflightPassed);
+        Assert.True(info.Success);
         Assert.False(info.CanOpen);
         Assert.NotNull(info.Message);
-        Assert.Contains("valid Excel workbook", info.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("already open", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not inspected", info.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Theory]
-    [InlineData("timeout", nameof(TimeoutException))]
-    [InlineData("cancellation", nameof(OperationCanceledException))]
-    public void Test_ValidationControlFlowFailure_ReturnsServiceError(
-        string failure,
-        string expectedExceptionType)
+    [Fact]
+    public void Test_DoesNotInferValidityFromWorkbookContents()
     {
-        var testFile = _fixture.CreateTestFile();
-        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => throw failure switch
-        {
-            "timeout" => new TimeoutException("Validation timed out."),
-            "cancellation" => new OperationCanceledException("Validation cancelled."),
-            _ => throw new InvalidOperationException($"Unknown failure type: {failure}")
-        };
+        var testFile = Path.Join(_fixture.TempDir, $"Opaque_{Guid.NewGuid():N}.xlsx");
+        System.IO.File.WriteAllBytes(testFile, [0x50, 0x4B, 0x03, 0x04]);
 
-        try
-        {
-            var response = _fileCommands.TestRaw(testFile);
+        var info = _fileCommands.Test(testFile);
 
-            Assert.False(response.Success);
-            Assert.NotNull(response.ErrorMessage);
-            Assert.True(string.IsNullOrEmpty(response.Result));
-            Assert.Equal(expectedExceptionType, response.ExceptionType);
-        }
-        finally
-        {
-            ExcelBatch.BeforeWorkbookOpenHook = null;
-        }
+        Assert.True(info.Exists);
+        Assert.False(info.IsValid);
+        Assert.True(info.PreflightPassed);
+        Assert.True(info.Success);
+        Assert.False(info.CanOpen);
+        Assert.Contains("not inspected", info.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -111,6 +101,7 @@ public sealed partial class ServiceFileCommandsTests
 
         Assert.True(info.Exists);
         Assert.False(info.IsValid);
+        Assert.False(info.PreflightPassed);
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.NotNull(info.Message);
@@ -135,6 +126,7 @@ public sealed partial class ServiceFileCommandsTests
         // Assert
         Assert.True(info.Exists);
         Assert.False(info.IsValid);
+        Assert.False(info.PreflightPassed);
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.Equal(expectedExt, info.Extension);

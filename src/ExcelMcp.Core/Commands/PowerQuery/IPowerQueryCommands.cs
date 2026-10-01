@@ -31,6 +31,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// most 80 characters. Use view for one query's full M code.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
+[MacCapability(
+    MacCapabilityTier.Unsupported,
+    MacImplementationStatus.Blocked,
+    false,
+    Evidence = "Excel for Mac 16.113.1 Apple Events exposes no Workbook.Queries surface, and Office.js exposes no equivalent Power Query lifecycle API.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js API review.",
+    Blocker = "no supported local macOS API can satisfy the Power Query public contract; ExcelMcp does not ship a VBA helper or inspect workbook package internals")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
     Description = "Power Query M code and data loading. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. List returns metadata, exact load state, and an M preview of at most 80 characters; view returns full M code. Load detection and cleanup use exact case-insensitive mashup Location, preserving similarly named queries. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
 public interface IPowerQueryCommands

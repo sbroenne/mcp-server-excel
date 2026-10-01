@@ -1,5 +1,11 @@
 # Worksheets
 
+**Mac experimental beta:** list/create/rename/delete, tab color, and visibility
+are enabled for the exact session workbook. Copy/move, cross-file transfers,
+protection, notes, page setup, and outlines below are Windows-only. A path
+cannot select a different workbook on Mac; open its own session. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Same-workbook lifecycle operations create, list, rename, copy, move, and delete
 sheets. Always use the captured session. Rename requires the old and new names,
 not the source/target parameters used for copying.

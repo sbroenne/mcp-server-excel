@@ -6,6 +6,12 @@ Run VBA and Python, control Excel windows, solve What-If scenarios, and work wit
 
 ---
 
+> **Platform scope:** Windows supports the full reference below. The experimental
+> macOS beta supports Goal Seek, one-/two-variable Data Tables, and licensed Python
+> formula writes. Python result reads, all Scenario actions, VBA, window/Agent
+> Mode operations, and XML Maps remain unavailable. See
+> [macOS support and limitations](../../specs/MACOS-SUPPORT.md).
+
 ## 📝 VBA Macros (6 operations)
 
 View, import, edit, and run VBA code in `.xlsm` workbooks.
@@ -50,7 +56,8 @@ Write and read `=PY()` formulas that run in Excel's cloud Python engine.
 
 **Notes:**
 - **Requires:** a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel.
-- **Unavailable vs. transient:** `#NAME?` means this Excel session cannot use Python in Excel. `#BUSY!`, `#CONNECT!`, and `#BLOCKED!` remain transient cloud states and keep their existing retry behavior.
+- **Mac availability:** `set-formula` is supported through the native `Formula2` route and has passed literal-formula CLI and MCP acceptance. `get-result` remains unavailable because Excel for Mac does not expose the required result read through the supported Apple Events boundary. Microsoft documents Python in Excel for qualifying Business and Enterprise subscriptions beginning with Excel for Mac 16.96.
+- **Unavailable vs. transient:** `#NAME?` means this Excel session cannot use Python in Excel. `#BUSY!` remains a transient cloud calculation state. At the polling deadline, `#CONNECT!` reports the internet/account/connected-experiences prerequisites and `#BLOCKED!` reports licensing or organization-managed privacy/security policy prerequisites instead of attributing either condition to a generic cold start.
 - **Data binding:** Reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
 
 ---

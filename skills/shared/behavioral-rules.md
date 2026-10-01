@@ -40,6 +40,11 @@ multiple steps. "Leave the workbook open" means retain its session, not show a
 hidden Excel window. Authentication may require visible Excel; explain that exception.
 See [window management](window.md#visibility-and-placement).
 
+Apple Silicon macOS support is experimental beta. Use only the
+[enabled Mac actions](https://excelmcpserver.dev/macos-support/); Windows-only
+styling, model, refresh, and visual workflows below are not Mac workarounds.
+Test on copies of important workbooks.
+
 ## Sessions and failures
 
 - Use the returned session ID on every follow-up. CLI and MCP sessions are
@@ -54,6 +59,9 @@ See [window management](window.md#visibility-and-placement).
   earlier work. There is no tool-level undo for discarded edits.
 - Cancellation is not undo. After failure, inspect the surviving session and
   affected objects before retrying. A failed operation can partly apply.
+  On Mac, an uncertain dispatched mutation or open requires reconciliation,
+  not an automatic retry. Never close an unconfirmed handoff or terminate
+  shared Excel.
 - Save only the intended successful result. For a session opened exclusively for
   a job, close without saving after failure. Do not discard another user's
   existing session or earlier unsaved work.
@@ -61,8 +69,9 @@ See [window management](window.md#visibility-and-placement).
   failure. Do not present an attempted action as a completed result.
 
 Use the file test operation when access or protection is uncertain. It reports
-`canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
-Ordinary files are briefly opened read-only for this check. IRM/AIP workbooks
+`preflightPassed`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
+It does not open or inspect workbook contents, and `isValid`/`canOpen` remain
+false until Excel opens the workbook. IRM/AIP workbooks
 require interactive Excel authentication; do not work around protection.
 
 ## Ordering calls
@@ -93,7 +102,7 @@ Use US number-format codes; Excel displays them in the user's locale. Preserve
 existing formats and fixed layouts unless a change is requested. See
 [ranges and formatting](range.md) for examples.
 
-For costly bulk writes, get the current calculation mode with `get-mode`, switch
+On Windows, for costly bulk writes get the current calculation mode with `get-mode`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
 After a timeout or cancellation, inspect the session listing before attempting
 restoration. If the session was removed or invalidated, do not call `set-mode`;
@@ -107,6 +116,10 @@ recalculates dependent formulas after restoration; manual needs explicit
 calculation. Semi-automatic excludes what-if data tables, not ordinary worksheet
 Tables. Successful writes do not establish completion of asynchronous refreshes
 or Python calculations; check the owning operation's completion state.
+
+macOS does not support calculation-mode mutation. Use only actions available in
+the generated macOS inventory; do not change trust settings, automate dialogs,
+or inspect workbook packages to bypass a capability gate.
 
 ## Inputs and errors
 

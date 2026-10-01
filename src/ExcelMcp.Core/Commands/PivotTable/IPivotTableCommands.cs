@@ -21,6 +21,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// - 'create-from-datamodel': Use a Power Pivot Data Model table as source
 /// </summary>
 [ServiceCategory("pivottable", "PivotTable")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events does not expose a complete PivotTable contract. Office.js routes exist only for methods marked OfficeAddInAction; it has no Data Model creation, PivotCache option, or drill-through parity.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "no supported local macOS API preserves this PivotTable contract; use the Windows COM backend")]
 [McpTool("pivottable", Title = "PivotTable Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable lifecycle: create from various sources, list, read, refresh, delete. BEST PRACTICE: Use list before creating. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. LAYOUT: 0=Compact (default), 1=Tabular (best for export), 2=Outline. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. STYLING: PivotTable visual styles are not supported by this API. Do not apply range_format to PivotTable cells — cell formatting is overwritten on the next refresh. Use pivottable_field for field management, pivottable_calc for calculated fields.")]
 public interface IPivotTableCommands
@@ -54,7 +58,7 @@ public interface IPivotTableCommands
     /// <param name="destinationCell">Destination cell address (e.g., "A1")</param>
     /// <param name="pivotTableName">Name for the new PivotTable</param>
     /// <returns>Created PivotTable name and initial field list</returns>
-    [ServiceAction("create-from-range")]
+    [ServiceAction("create-from-range"), OfficeAddInAction("1.8", mutation: true)]
     PivotTableCreateResult CreateFromRange(IExcelBatch batch,
         string sourceSheet, string sourceRange,
         string destinationSheet, string destinationCell,
@@ -69,7 +73,7 @@ public interface IPivotTableCommands
     /// <param name="destinationCell">Destination cell address (e.g., "A1")</param>
     /// <param name="pivotTableName">Name for the new PivotTable</param>
     /// <returns>Created PivotTable name and available fields</returns>
-    [ServiceAction("create-from-table")]
+    [ServiceAction("create-from-table"), OfficeAddInAction("1.8", mutation: true)]
     PivotTableCreateResult CreateFromTable(IExcelBatch batch,
         string tableName,
         string destinationSheet, string destinationCell,
@@ -96,7 +100,7 @@ public interface IPivotTableCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable to delete</param>
     /// <returns>Operation result</returns>
-    [ServiceAction("delete")]
+    [ServiceAction("delete"), OfficeAddInAction("1.15", mutation: true)]
     OperationResult Delete(IExcelBatch batch, string pivotTableName);
 
     /// <summary>

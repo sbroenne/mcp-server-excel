@@ -2,12 +2,17 @@
 
 Agent Skill for AI coding assistants using the Excel CLI tool (`excelcli`).
 
+**macOS support is experimental beta**, with the same capability gate as the
+runtime. See [unsupported Mac features](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+Windows retains the complete backend.
+
 ## Best For
 
 - **Coding agents** (GitHub Copilot, Cursor, Windsurf, Codex, Gemini CLI, and 38+ more)
 - Token-efficient workflows (no large tool schemas)
 - Discoverable via `excelcli --help`
-- Scriptable in PowerShell pipelines, CI/CD, batch processing
+- Scriptable in PowerShell pipelines and batch processing on an interactive
+  desktop Excel host; headless CI is unsupported
 - Quiet mode (`-q`) outputs clean JSON only
 
 ## Why CLI Over MCP?
@@ -75,7 +80,7 @@ wrapper for the public `@sbroenne/excelcli` package.
 
 ### Via GitHub Copilot Plugin
 
-Use the public npm package directly:
+Use `npx -y @sbroenne/excelcli@latest` directly on Windows or Apple Silicon Mac.
 
 ```powershell
 npx -y @sbroenne/excelcli@latest --help
@@ -93,7 +98,8 @@ unless you have installed a standalone CLI on PATH.
 
 ### Manual Download (Standalone)
 
-For other environments, download `ExcelMcp-CLI-{version}-windows.zip` from the
+Download `ExcelMcp-CLI-{version}-windows.zip` or
+`ExcelMcp-CLI-{version}-macos-arm64.zip` for your supported platform from the
 [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest),
 extract it to a permanent directory, and add that directory to PATH.
 

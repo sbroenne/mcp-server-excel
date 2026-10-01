@@ -1,5 +1,11 @@
 # Worksheet Tables versus model tables
 
+**Windows-only in the experimental macOS beta.** All public Table and column
+actions remain gated on Mac, including plain worksheet Tables. Optional
+Office.js handlers do not enable them. Use accepted range operations for Mac
+cell workflows, not as a substitute for an Excel Table contract. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Create a worksheet Table when requested or required, not for every rectangular
 dataset. Reuse existing Tables: append, resize, or update rather than recreate.
 

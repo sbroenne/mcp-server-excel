@@ -15,13 +15,20 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **⚡ Powered by the Real Excel Engine**
 
-Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drives the **actual Excel application** through its official COM API. That means it can run live operations file-based tools can't — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()` — and edit your existing workbooks with formulas, PivotTables, charts, macros and formatting left intact. Watch it happen in real time.
+Unlike file-parser libraries, ExcelMcp drives the **actual Excel application**. Windows uses the complete COM backend. macOS uses a capability-gated Apple Events backend for the documented initial operation set; unsupported operations fail explicitly.
 
 **🔗 In-Process Service Architecture** - The MCP Server hosts the ExcelMcp Service in-process and calls it directly (no pipe), for low-latency Excel automation. The CLI is an equal entry point that runs the same service as a background daemon.
 
-**CLI also available:** `mcp-excel.exe` (MCP Server) and `excelcli.exe` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
+**CLI also available:** `mcp-excel` (MCP Server) and `excelcli` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
 
-**Requirements:** Windows OS + Excel 2016+
+**Requirements:** Windows 10+ with Excel 2016+, or Apple Silicon macOS with Excel for Mac 16.112+
+
+> **macOS support is experimental beta.** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads are not
+> supported. Windows retains the complete backend. See
+> [macOS beta limitations](../../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta);
+> test on copies of important workbooks.
 
 ## 🚀 Installation
 
@@ -47,8 +54,9 @@ npm resolves `@latest` at launch using its normal cache policy.
 **Standalone executable:**
 
 ```powershell
-# Download ExcelMcp-MCP-Server-{version}-windows.zip from GitHub Releases,
-# extract mcp-excel.exe, and configure the client with { "command": "mcp-excel" }.
+# Download from GitHub Releases:
+# Windows: ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+# macOS ARM64: ExcelMcp-MCP-Server-{version}-macos-arm64.zip → extract mcp-excel
 ```
 
 **Secondary — .NET Global Tool (requires .NET 10 runtime):**
@@ -71,11 +79,18 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**31 specialized tools with 326 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
+**31 specialized tools with 326 operations** are available through the complete
+Windows backend. Apple Silicon macOS exposes only actions marked enabled in the
+[generated capability inventory](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-ACTION-INVENTORY.md);
+the enabled set includes workbook lifecycle, worksheet management, values and
+formulas, number formats, row and column sizing, merged cells, cell locking,
+named ranges, Goal Seek, Data Tables, calculation, and Python formula writes.
+Unavailable operations return `PlatformNotSupported`.
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 326 operations, grouped by category
 
 **AI-Powered Workflows:**
+The Power Query, DAX, and Show Excel/Agent Mode examples require Windows.
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
 - 🔄 Optimize Power Query M code for performance and readability  
 - 📊 Build complex DAX measures with AI guidance
@@ -104,6 +119,9 @@ explicit calculation before relying on dependent values.
 
 ## 💡 Example Use Cases
 
+Plain worksheet values/formulas work on both platforms. PivotTables, charts,
+Power Query/Data Model, and slicers below require Windows in the Mac beta.
+
 **"Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns"**  
 → AI creates the workbook, adds headers, enters sample data, and builds formulas
 
@@ -130,5 +148,6 @@ explicit calculation before relying on dependent values.
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
-**Platform:** Windows only (requires Excel 2016+)  
+**Platform:** Windows x64 (complete backend) and Apple Silicon macOS
+(experimental beta, capability-gated backend).
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)

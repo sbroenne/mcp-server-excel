@@ -27,20 +27,28 @@ if ($Local) {
                 "$($selections['SkillGeneration'])|Feature=PluginPublication"
             } else { 'Feature=PluginPublication' }
         }
-        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service)\.Tests[/\\]') {
+        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Portable|Service)\.Tests[/\\]') {
             $selections[$Matches[1]] = 'RequiresExcel=false'
         }
     }
 }
 else {
-    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration')) {
+    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Portable', 'Service', 'SkillGeneration')) {
         $selections[$project] = 'RequiresExcel=false'
     }
 }
 $results = Join-Path $root "TestResults\excel-free-$([Guid]::NewGuid().ToString('N'))"
 foreach ($entry in $selections.GetEnumerator()) {
+    if (-not [OperatingSystem]::IsWindows() -and $entry.Key -notin @('Portable', 'SkillGeneration')) {
+        Write-Warning "$($entry.Key) tests target Microsoft.WindowsDesktop.App and cannot run on this host."
+        continue
+    }
     $project = Join-Path $root "tests\ExcelMcp.$($entry.Key).Tests\ExcelMcp.$($entry.Key).Tests.csproj"
-    $filter = "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
+    $filter = if ($entry.Key -eq 'Portable') {
+        'RequiresExcel!=true&RunType!=OnDemand'
+    } else {
+        "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
+    }
     $info = [Diagnostics.ProcessStartInfo]::new('dotnet')
     $info.WorkingDirectory = $root
     $info.UseShellExecute = $false

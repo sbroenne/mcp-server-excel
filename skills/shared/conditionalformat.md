@@ -1,5 +1,9 @@
 # Conditional formatting
 
+**Windows-only in the experimental macOS beta.** All conditional-formatting
+actions remain gated on Mac; optional handlers are not accepted support. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Read existing rules before adding or replacing them. Rules are returned in
 priority order with their applies-to ranges and type-specific settings.
 Clear rules only when replacing the existing formatting is intended.

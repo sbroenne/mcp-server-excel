@@ -1,11 +1,13 @@
 ---
 name: excel-mcp
 description: >
-  Workflow and recovery guidance for Excel MCP automation on Windows. Use when handling
+  Workflow and recovery guidance for Excel MCP automation on Windows and Apple Silicon
+  macOS. Use when handling
   Power Query loading failures, Data Model/DAX and PivotTable sequencing,
   preserving existing workbooks, or requested report formatting.
-  Supports Excel workbooks, xlsx, xlsm, Tables, ranges, charts, and dashboards.
-compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required when running through npx. The VS Code extension bundles its server and does not require a separate Node.js or .NET installation.
+  Windows supports Excel workbooks, xlsx, xlsm, Tables, ranges, charts, and
+  dashboards. macOS support is an experimental capability-gated beta.
+compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+ (experimental beta). Node.js 18+ is required when running through npx. The VS Code extension bundles its server and does not require a separate Node.js or .NET installation.
 ---
 
 # Excel MCP workflow guidance
@@ -17,6 +19,18 @@ visibility, and call ordering. Use those directly, not a second command catalog.
 Read only the reference needed for an unresolved decision or recovery. Do not
 read every guide, or the index before each task. Examples use `sessionId` as a
 local variable; MCP inputs use the advertised snake_case names.
+
+## macOS capability gate
+
+On macOS, use only actions marked available in the generated macOS action
+inventory. Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts,
+slicers, connections, QueryTables, XML Maps, screenshots, advanced visual
+formatting, Scenario actions, calculation-mode get/set, and Python result reads
+are unavailable. `Partial` inventory entries are gated, not partially usable.
+Report the limit rather than approximating behavior, inspecting workbook
+packages, or changing security settings. Mac sessions own exact workbooks in
+shared Excel; never terminate the shared application. See
+[Mac support and limitations](https://excelmcpserver.dev/macos-support/).
 
 ## Choose a workflow
 

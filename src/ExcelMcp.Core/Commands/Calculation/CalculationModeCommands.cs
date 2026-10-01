@@ -76,6 +76,10 @@ public class CalculationModeResult : OperationResult
 /// completion of asynchronous refreshes or Python calculations.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Excel for Mac exposes calculation mode only as application-global state. A session-scoped read or mutation would observe or change shared Excel state owned by unrelated workbooks.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi application calculation review.",
+    Blocker = "the public session contract cannot safely read or mutate shared application-global calculation mode; use the Windows COM backend")]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
     Description = "Control Excel recalculation: automatic, manual, or semi-automatic (automatic except what-if data tables, not worksheet Tables). Value/formula writes attempt to restore the prior mode, not unconditional recalculation; restoration can fail without failing the write. Use get-mode when subsequent work depends on the mode. Automatic normally recalculates dependent formulas after restoration; manual needs explicit calculate. Successful writes do not establish completion of asynchronous refreshes or Python calculations. For bulk writes where repeated recalculation is costly, use get-mode to remember the current mode, set-mode(manual), write, calculate, then restore the prior mode, including after failure. Do not change modes just to read formulas or when intermediate calculated results are needed. Calculate scopes: workbook, sheet (requires sheetName), range (requires sheetName and rangeAddress).")]
 public interface ICalculationModeCommands
@@ -105,6 +109,7 @@ public interface ICalculationModeCommands
     /// <param name="sheetName">Sheet name (required for Sheet/Range scope)</param>
     /// <param name="rangeAddress">Range address (required for Range scope)</param>
     /// <returns>Operation result confirming calculation completed</returns>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("calculate")]
     OperationResult Calculate(IExcelBatch batch, [FromString("scope")] CalculationScope scope, string? sheetName = null, string? rangeAddress = null);
 }

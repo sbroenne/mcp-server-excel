@@ -23,6 +23,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
+if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+    if ([Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -ne
+        [Runtime.InteropServices.Architecture]::Arm64) {
+        throw 'Mac Excel E2E requires Apple Silicon. Intel macOS is unsupported.'
+    }
+    & (Join-Path $PSScriptRoot 'Test-MacE2E.ps1') -SkipBuild:$SkipBuild -PipeName $PipeName
+    return
+}
+if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+        [Runtime.InteropServices.OSPlatform]::Windows)) {
+    throw 'Excel E2E requires Windows or Apple Silicon macOS with desktop Excel.'
+}
 $cliTestProject = Join-Path $rootDir 'tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj'
 $mcpTestProject = Join-Path $rootDir 'tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj'
 $staleCleanupAcceptanceFilter = 'FullyQualifiedName~PreBuildGracefulSaveAcceptanceTests.StaleLockedBuildCleanup'

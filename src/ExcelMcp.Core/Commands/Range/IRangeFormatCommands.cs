@@ -31,6 +31,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// MERGE: Combines cells into one. Only top-left cell value is preserved.
 /// </summary>
 [ServiceCategory("rangeformat", "RangeFormat")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "The native backend implements only separately annotated sizing and merge actions. Office.js does not expose exact built-in style identity or the complete validation, border, orientation, and all-target atomicity semantics required by the remaining contracts.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "current supported macOS APIs cannot preserve the remaining range-format contract; use the Windows COM backend")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
         "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +
@@ -221,6 +225,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to auto-fit (e.g., 'A:D' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP auto-fitted complete selected columns and independently read back the persisted width.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("auto-fit-columns")]
     OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -230,6 +237,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to auto-fit (e.g., '1:10' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP auto-fitted complete selected rows and independently read back the persisted height.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("auto-fit-rows")]
     OperationResult AutoFitRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -241,6 +251,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to merge into a single cell (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP invoked the declared merge command and required fresh merged-state verification before success.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("merge-cells")]
     OperationResult MergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -250,6 +263,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to unmerge (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP invoked the declared unmerge command and required fresh unmerged-state verification before success.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("unmerge-cells")]
     OperationResult UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -259,6 +275,10 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to check for merged cells (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+        Evidence = "The declared merge command persists merged cells, but the merge area property returned a missing object through fresh JXA descriptors and typed AppleScript returned parameter error -50.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.",
+        Blocker = "the native routes cannot return exact merge-area addresses for every merged area intersecting the requested range")]
     [ServiceAction("get-merge-info")]
     RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -271,6 +291,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to set width (e.g., 'A:A' or 'A1:D100')</param>
     /// <param name="columnWidth">Width in points (1 point = 1/72 inch, approx 0.35mm). Standard width ~8.43 points. Range: 0.25-409 points.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-column-width")]
     OperationResult SetColumnWidth(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double columnWidth);
 
@@ -281,6 +302,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to set height (e.g., '1:10' or 'A1:D100')</param>
     /// <param name="rowHeight">Height in points (1 point = 1/72 inch, approx 0.35mm). Default row height ~15 points. Range: 0-409 points.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-row-height")]
     OperationResult SetRowHeight(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double rowHeight);
 }

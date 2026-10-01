@@ -57,14 +57,14 @@ function Copy-SharedReferences {
 
 if ($GenerateOnly) {
     if (-not $ManifestPath) {
-        $ManifestPath = Join-Path $RepoRoot 'src\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs'
+        $ManifestPath = Join-Path $RepoRoot 'src/ExcelMcp.Core/obj/GeneratedFiles/ExcelMcp.Generators/Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator/_SkillManifest.g.cs'
     }
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Required manifest not found: $ManifestPath" }
-    if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
+    if (-not $OutputDir) { $OutputDir = 'artifacts/generated-skills' }
     if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
 }
 elseif (-not $OutputDir) {
-    $OutputDir = 'artifacts\skills'
+    $OutputDir = 'artifacts/skills'
 }
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
@@ -78,7 +78,7 @@ if ($OutputPath -eq [IO.Path]::GetPathRoot($OutputPath) -or
     $OutputPath -eq $SkillsDir) {
     throw "Skill output must not overlap source files: $OutputPath"
 }
-if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts\generated-skills' }
+if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts/generated-skills' }
 $StagingDir = Join-Path ([IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 try {
@@ -88,7 +88,7 @@ try {
         $name = "excel-$component"
         $destination = Join-Path $SkillsStagingDir $name
         if ($GenerateOnly) {
-            $assets = Join-Path $SkillsDir "assets\$name"
+            $assets = Join-Path (Join-Path $SkillsDir 'assets') $name
             Copy-Item -LiteralPath $assets -Destination $destination -Recurse
             $projectName = if ($component -eq 'cli') { 'CLI' } else { 'McpServer' }
             $target = if ($component -eq 'cli') { 'GenerateCliSkill' } else { 'GenerateMcpSkill' }

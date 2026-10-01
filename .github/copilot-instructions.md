@@ -1,12 +1,21 @@
 # ExcelMcp repository rules
 
-Windows and PowerShell; use the SDK selected by `global.json`. Desktop Excel
-is required for COM tests. GitHub-hosted runners do not have Excel.
+Windows and Apple Silicon macOS; use PowerShell 7 and the SDK selected by
+`global.json`. macOS support is experimental beta with capability gates.
+Desktop Excel is required for platform-dependent tests; COM tests need Windows.
+GitHub-hosted runners do not have Excel.
 
 MCP Server and `excelcli` are equal entry points: behavior, defaults, validation,
 results, and documentation must agree. Read `CONTEXT.md` for the system map and
 only the `.github/instructions` files matching the work. For extension changes,
 also read `vscode-extension/.github/instructions/extension-development.instructions.md`.
+
+Every action marked supported on macOS must match the Windows Excel/public
+contract 1:1: inputs, defaults, validation, results, workbook effects,
+persistence, and errors. macOS may use a different supported Excel API and has
+different shared-application ownership, but it must not silently narrow,
+approximate, or partially implement a supported action. Gate the whole action
+or an explicitly declared unsupported variant when exact parity is impossible.
 
 ## Implementation
 
@@ -23,16 +32,22 @@ also read `vscode-extension/.github/instructions/extension-development.instructi
   work on duplicate workbooks as a prerequisite to requested edits. Explain
   destructive consequences without adding file-copy steps. Copying or exporting
   is appropriate only when part of the user's request.
-- Production code must access workbook contents through Excel COM. Never open
-  an Excel file as a ZIP/OOXML package or parse/modify its internal XML outside
-  tests. Pre-open binary container detection may read only IRM/AIP protection
-  metadata; it must not parse workbook content.
+- Access workbook contents through supported Excel APIs: COM on Windows,
+  Apple Events or the verified optional Office.js tier on macOS. Pre-open binary
+  container detection may read only IRM/AIP protection metadata; it must not
+  parse workbook content. The opaque-workbook rule below applies everywhere.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - `Success == true` requires an empty or null `ErrorMessage`.
 - MCP Server and `excelcli` are the only supported product entry points. Do not
   preserve or add public Core/ComInterop compatibility APIs for hypothetical
   external consumers when neither entry point uses them.
+- Treat workbook files as opaque. Never create, parse, inspect, or mutate ZIP,
+  OOXML, relationship, custom XML, or DataMashup internals in production code,
+  tests, scripts, or fixtures, including through a package/Open XML library.
+  Use Excel-supported APIs or a trusted helper that automates Excel; otherwise
+  report the capability as unsupported. Copying an intact Excel-authored
+  workbook or template as an opaque whole file is allowed.
 - Keep customer/workbook data, credentials, connection strings, and private
   paths out of public artifacts. Keep temporary notes outside the repository.
 
@@ -48,8 +63,9 @@ Build with zero warnings. Use targeted tests; see
 Run every Excel-dependent test command sequentially; never overlap Excel test
 fixtures, test hosts, or E2E runs.
 Runtime changes in Core, ComInterop, Service, CLI, MCP, or their generators also
-require `scripts\Test-E2E.ps1` locally with Excel. Report it as not run when
-Excel is unavailable; build-only checks do not cover COM.
+require local desktop Excel E2E: `scripts\Test-E2E.ps1` on Windows and
+`scripts/Test-MacE2E.ps1` on macOS. Report unavailable platform execution as
+not run; a cross-target build does not cover Excel behavior.
 
 Run applicable existing checks, not replacement audits:
 

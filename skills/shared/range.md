@@ -1,5 +1,13 @@
 # Ranges and formatting
 
+**Mac experimental beta:** values/formulas, number formats, accepted copy/clear
+variants, cell/row/column insertion and deletion, sizing, merge/unmerge, cell
+locking, and named ranges are enabled. Row/column editing accepts single-area
+ranges; disjoint row/column selections remain unavailable.
+Rich styling, validation, links/comments, UsedRange/CurrentRegion, and merge-area
+inspection remain unavailable. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Values, formulas, and per-cell number formats use rectangular **2D arrays**.
 Even a single value is `[[value]]`. Content writes reject occupied destinations
 by default; use explicit permission for intentional replacement. Use content-only
@@ -12,19 +20,27 @@ For an existing `Sales` worksheet and a captured session:
 ```mcp
 range(action: 'set-values', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B2', values: [['Product','Amount'],['Widget',1250]])
 range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Sales', range_address: 'B2', format_code: '$#,##0.00')
-range_format(action: 'format-range', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B1', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
 range_format(action: 'auto-fit-columns', session_id: sessionId, sheet_name: 'Sales', range_address: 'A:B')
 ```
 
 ```cli
 excelcli -q range set-values --session $sessionId --sheet Sales --range A1:B2 --values '[["Product","Amount"],["Widget",1250]]'
 excelcli -q range set-number-format --session $sessionId --sheet Sales --range B2 --format-code '$#,##0.00'
-excelcli -q rangeformat format-range --session $sessionId --sheet Sales --range A1:B1 --bold true --fill-color '#4472C4' --font-color '#FFFFFF'
 excelcli -q rangeformat auto-fit-columns --session $sessionId --sheet Sales --range A:B
 ```
 
-Check each result before continuing. The header example is for plain cells, not
-an Excel Table. Use [Table styles](table.md) for Table headers/data. Combine all
+Check each result before continuing. For **Windows-only** header styling:
+
+```mcp
+range_format(action: 'format-range', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1:B1', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
+```
+
+```cli
+excelcli -q rangeformat format-range --session $sessionId --sheet Sales --range A1:B1 --bold true --fill-color '#4472C4' --font-color '#FFFFFF'
+```
+
+The header example is for plain cells, not
+an Excel Table. Use [Table styles](table.md) for Table headers/data on Windows. Combine all
 visual properties in one call; use shared `format-ranges` for disjoint ranges on
 one sheet. All target ranges are validated before that operation starts.
 For new user-facing reports or requested formatting, see the scoped
@@ -117,7 +133,7 @@ Semi-automatic excludes what-if data tables, not worksheet Tables. A successful
 write does not guarantee completion of asynchronous refreshes or Python
 calculations. Calculate and read back values when the result depends on them.
 
-The server probes modern `Formula2` support once per session. Older Excel uses
+On Windows, the server probes modern `Formula2` support once per session. Older Excel uses
 `Formula`, with implicit intersection instead of dynamic-array spill behavior.
 This does not add newer functions to Excel 2016/2019. Invalid formulas and
 protected-cell errors fail rather than triggering a legacy retry.
@@ -167,6 +183,9 @@ and returned cell details, not search time; requesting a large limit can
 produce a large response. There is no paging or continuation.
 
 ## Links, comments, and names
+
+Hyperlink and comment operations in this section are **Windows-only** in the
+Mac beta. Named-range lifecycle is supported on both platforms.
 
 Range-link actions manage external and internal hyperlinks. An internal target
 uses a sub-address such as `'Summary'!A1`; removing a link preserves cell content.

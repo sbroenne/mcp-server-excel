@@ -1,27 +1,37 @@
 # Installation Guide - ExcelMcp
 
-ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistants and the **CLI** for scripting, RPA, and CI/CD. Pick the guide that matches how you'll use it (or read both, they're independent):
+ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistants
+and the **CLI** for scripting, RPA, and coding agents on an interactive desktop
+Excel host. Headless CI is unsupported. Pick the guide that matches how you'll
+use it (or read both, they're independent):
 
 | Guide | Best For |
 |-------|----------|
 | 📖 **[Installing the MCP Server](INSTALLATION-MCP-SERVER.md)** | AI assistants — GitHub Copilot, Claude Desktop, Cursor, Windsurf, and any other MCP client |
-| 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
+| 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, and coding agents on a desktop Excel host |
 
-Both require **Windows OS**, **Microsoft Excel 2016+**, and an **interactive
-desktop**. npm and standalone executables need no separate .NET runtime;
-NuGet tools require .NET 10. Manual npm use requires Node.js 18+.
+Both entry points support **Windows with Microsoft Excel 2016+** and
+**Apple Silicon macOS with Excel for Mac 16.112+**. Windows provides the complete
+operation set; macOS support is **experimental beta** with a
+[capability-gated subset and explicit limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+The standalone distributions do not require a .NET runtime.
 
-| Where you work | Recommended installation |
-|---|---|
-| VS Code with GitHub Copilot | VS Code extension; bundles the server and its skill |
-| Claude Desktop | MCPB; configures direct npx with `@latest` (Node.js/npm required) |
-| Another MCP client | npm through `npx -y @sbroenne/mcp-server-excel@latest` |
-| Coding agents and scripts | `npx -y @sbroenne/excelcli@latest`, or global npm for a command on PATH |
-| No npm downloads desired | Standalone ZIP; replace the executable manually for updates |
+> **macOS beta exclusions:** Power Query, VBA, Data Model/DAX/OLAP, Tables,
+> PivotTables, charts, slicers, connections, QueryTables, XML Maps, screenshots,
+> advanced visual formatting, and Python result reads. Test on workbook copies;
+> installing a different entry point or the optional bridge does not enable
+> these features.
 
-`@latest` is resolved when launching, subject to normal npm caching. It does not
-upgrade a running server or CLI background service. The guides below explain
-safe restarts and updates for each method.
+Windows and Apple Silicon macOS use separate native archives; one executable
+file cannot be shared across PE/Windows and Mach-O/macOS. Intel macOS is
+unsupported and fails closed rather than selecting the ARM64 runtime. See
+[macOS distribution readiness](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-DISTRIBUTION.md)
+for package inspection, signing, and notarization details.
+
+The [optional macOS Office.js bridge](MACOS-OFFICEJS.md) is a development-stage
+capability foundation with separate explicit install, activation, health,
+upgrade, and removal steps. It is not needed for the base macOS operation set
+and does not currently enable tables, charts, PivotTables, or formatting.
 
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
 

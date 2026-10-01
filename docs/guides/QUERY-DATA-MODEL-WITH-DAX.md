@@ -1,5 +1,9 @@
 # Query the Excel Data Model with DAX
 
+**Windows-only walkthrough.** Data Model, DAX, DMV, and relationship actions are
+unavailable in the experimental macOS beta; MSOLAP installation does not enable
+them on Mac. See [macOS limitations](../../specs/MACOS-SUPPORT.md).
+
 Excel's Data Model (Power Pivot) is a real tabular analytics engine living inside
 the workbook. ExcelMcp gives an AI assistant direct access to it: create measures,
 run DAX queries, inspect metadata with DMVs, and manage relationships.

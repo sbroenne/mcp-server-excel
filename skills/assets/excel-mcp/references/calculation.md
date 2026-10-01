@@ -1,5 +1,10 @@
 # Calculation Mode
 
+**Platform scope:** Windows supports all actions below. Experimental Apple
+Silicon macOS supports `calculate`, but not `get-mode` or `set-mode`. On Mac,
+write the requested blocks and calculate explicitly without changing the mode.
+See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 `calculation_mode` controls automatic, manual, and semi-automatic recalculation
 (automatic except what-if data tables, not worksheet Tables). All actions
 require `session_id`.
@@ -29,7 +34,7 @@ no universal cell-count threshold: one rectangular write is already batched.
 Reading formula text does not require changing the mode. Keep calculation
 available when intermediate formula results are needed.
 
-## Preserve the Workbook's Mode
+## Preserve the Workbook's Mode (Windows)
 
 1. Call `get-mode` and remember the returned `mode`.
 2. Call `set-mode` with `mode: 'manual'`.

@@ -1,5 +1,10 @@
 # PivotTables
 
+**Windows-only in the experimental macOS beta.** All public PivotTable actions
+remain gated on Mac, including ordinary local PivotTables. Optional Office.js
+candidates do not enable this workflow. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 List before creating. Most operations require the PivotTable name; creating a
 PivotTable does not configure its row, column, or value fields. Add those fields
 with the field operations, then refresh and read the actual data.

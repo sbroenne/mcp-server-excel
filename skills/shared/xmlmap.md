@@ -1,5 +1,9 @@
 # XML Map Reference
 
+**Windows-only in the experimental macOS beta.** All XML Map actions are
+unavailable on Mac. Do not inspect or modify workbook internals as a workaround.
+See [macOS support](https://excelmcpserver.dev/macos-support/).
+
 Use `xmlmap` for Excel XML maps and in-memory XML import/export.
 
 Use tool schemas/native help for action inputs. Deleting a map leaves existing
