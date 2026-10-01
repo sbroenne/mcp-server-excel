@@ -106,7 +106,7 @@ The release shares prepared inputs instead of repeating builds in each package j
 
 1. **version** → Calculates the version from the latest tag and dispatch input
 2. **prepare-release** → Compiles changesets once and uploads the exact metadata patch and notes
-3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, skill and plugin outputs
+3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, skill and plugin outputs. ARM64 archives are checked here; `verify-arm64` then installs and executes both prepared npm distributions on native Windows ARM64 before tag creation.
 4. **create-tag** → Applies the same patch, checks that `main` has not advanced, commits only allowed release metadata, then tags that commit
 5. **create-release** → Publishes GitHub assets, checksums and prepared notes
 6. **publish** → Publishes npm and NuGet packages

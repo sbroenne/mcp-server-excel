@@ -45,6 +45,58 @@ public sealed class ReleaseMetadataScriptTests
         "workflows",
         "publish-mcp-registry.yml");
 
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void VscodePublication_UsesWindowsForWindowsOnlyExtensionTools()
+    {
+        var caller = ExtractWorkflowJob(File.ReadAllText(ReleaseWorkflow), "publish-vscode");
+        var publish = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-vscode.yml"));
+
+        Assert.Contains("uses: ./.github/workflows/publish-vscode.yml", caller, StringComparison.Ordinal);
+        Assert.Contains("needs: [version, create-tag, create-release]", caller, StringComparison.Ordinal);
+        Assert.DoesNotContain("if:", caller, StringComparison.Ordinal);
+        Assert.Contains("runs-on: windows-latest", publish, StringComparison.Ordinal);
+        Assert.Contains("npm ci --ignore-scripts", publish, StringComparison.Ordinal);
+        Assert.Contains("shell: pwsh", publish, StringComparison.Ordinal);
+        Assert.Contains("Publish Windows x64 extension", publish, StringComparison.Ordinal);
+        Assert.Contains("Publish Windows ARM64 extension", publish, StringComparison.Ordinal);
+        Assert.Contains("--skip-duplicate", publish, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void VscodePublication_RepairsExistingReleaseWithoutRebuildingOrRetagging()
+    {
+        var publish = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-vscode.yml"));
+
+        Assert.Contains("workflow_call:", publish, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", publish, StringComparison.Ordinal);
+        Assert.Contains("git merge-base --is-ancestor $commit origin/main", publish, StringComparison.Ordinal);
+        Assert.Contains("ref: ${{ steps.release.outputs.commit }}", publish, StringComparison.Ordinal);
+        Assert.Contains("gh release download $env:TAG", publish, StringComparison.Ordinal);
+        Assert.Contains("Release commit mismatch.", publish, StringComparison.Ordinal);
+        Assert.Contains("Release version mismatch.", publish, StringComparison.Ordinal);
+        Assert.Contains("Draft releases cannot be published.", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("npm run package", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("gh release create", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("git tag -", publish, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseValidation_ExecutesBothArm64PackagesBeforeCreatingTag()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        var nativeTests = ExtractWorkflowJob(workflow, "verify-arm64");
+
+        Assert.Contains("runs-on: windows-11-arm", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("architecture: arm64", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("Test-NpmPackages.ps1", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("@('Cli', 'McpServer')", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("-Architecture arm64", nativeTests, StringComparison.Ordinal);
+        Assert.Contains("verify-arm64", ExtractWorkflowJob(workflow, "create-tag"), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(true, true, false)]
     [InlineData(true, false, false)]

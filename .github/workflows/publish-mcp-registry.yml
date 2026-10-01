@@ -29,7 +29,7 @@ concurrency:
 jobs:
   resolve:
     name: Resolve Exact Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       commit: ${{ steps.release.outputs.commit }}
       version: ${{ steps.release.outputs.version }}

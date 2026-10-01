@@ -27,7 +27,7 @@ env:
 jobs:
   version:
     name: Calculate Version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
@@ -83,6 +83,13 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           ./scripts/Build-Changelog.ps1 -Version $env:VERSION -Date (Get-Date -AsUTC -Format yyyy-MM-dd)
+          $metadataFiles = @('CHANGELOG.md', 'package.json', 'package-lock.json', 'Directory.Build.props',
+            'mcpb/manifest.json', 'src/ExcelMcp.McpServer/.mcp/server.json',
+            'vscode-extension/package.json', 'vscode-extension/package-lock.json')
+          foreach ($path in $metadataFiles) {
+            $content = [IO.File]::ReadAllText((Join-Path $PWD $path))
+            [IO.File]::WriteAllText((Join-Path $PWD $path), ($content -replace '\r?\n', "`r`n"), [Text.UTF8Encoding]::new($false))
+          }
           git diff --binary --output=release-metadata.patch -- CHANGELOG.md package.json package-lock.json Directory.Build.props mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json vscode-extension/package.json vscode-extension/package-lock.json .changeset
       - uses: actions/upload-artifact@v7
         with:
@@ -143,10 +150,41 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  verify-arm64:
+    name: Verify Native Windows ARM64 Packages
+    needs: [version, build-packages]
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          architecture: arm64
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-packages
+          path: artifacts
+      - name: Execute both prepared ARM64 npm packages
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if ((node -p process.arch) -ne 'arm64') { throw 'Native ARM64 Node.js is required.' }
+          foreach ($component in @('Cli', 'McpServer')) {
+            $name = if ($component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
+            .\scripts\Test-NpmPackages.ps1 -Component $component -Architecture arm64 `
+              -LauncherPackage "artifacts/npm/sbroenne-$name-$env:VERSION.tgz" `
+              -RuntimePackage "artifacts/npm/sbroenne-$name-win32-arm64-$env:VERSION.tgz"
+          }
+
   create-tag:
     name: Create Git Tag
-    needs: [version, prepare-release, build-packages]
-    runs-on: ubuntu-latest
+    needs: [version, prepare-release, build-packages, verify-arm64]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -231,7 +269,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [version, prepare-release, create-tag]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -344,35 +382,15 @@ jobs:
 
   publish-vscode:
     name: Publish VS Code Marketplace
-    needs: [version, create-tag]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.create-tag.outputs.commit }}
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          package-manager-cache: false
-      - name: Install locked extension publishing tools
-        working-directory: vscode-extension
-        run: npm ci --ignore-scripts
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-packages
-          path: artifacts
-      - name: Publish Windows x64 extension
-        working-directory: vscode-extension
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
-          RELEASE_VERSION: ${{ needs.version.outputs.version }}
-        run: npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-${RELEASE_VERSION}.vsix" --skip-duplicate
-      - name: Publish Windows ARM64 extension
-        working-directory: vscode-extension
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
-          RELEASE_VERSION: ${{ needs.version.outputs.version }}
-        run: npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-${RELEASE_VERSION}-win32-arm64.vsix" --skip-duplicate
+    needs: [version, create-tag, create-release]
+    uses: ./.github/workflows/publish-vscode.yml
+    with:
+      release_tag: ${{ needs.version.outputs.tag }}
+      release_commit: ${{ needs.create-tag.outputs.commit }}
+      release_version: ${{ needs.version.outputs.version }}
+      package_artifact: release-packages
+    secrets:
+      VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
 
   publish-mcp-registry:
     name: MCP Registry
