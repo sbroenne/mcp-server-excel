@@ -91,7 +91,9 @@ Explicit manual package validation uses the same command as PR CI:
 
 The command writes a new directory under `artifacts\packages`, checks installed
 npm launchers and archive contents, and never publishes packages or creates
-tags. The extension and Claude bundle reuse the prepared MCP executable.
+tags. The extension reuses prepared MCP executables. The Claude bundle copies
+metadata only and configures npx to resolve the npm server at launch; MCPB-only
+packaging does not publish a runtime.
 
 Isolated hook regressions:
 

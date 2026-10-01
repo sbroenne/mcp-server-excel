@@ -327,7 +327,9 @@ Both launcher dependencies are stamped to the same release version.
 `Build-ReleasePackages.ps1` builds both npm architectures and bundles a matching
 native server in each VSIX target. It reuses the prepared ARM64 npm server for
 the ARM64 VSIX, or publishes it when only the extension is selected. Standalone
-ZIPs and MCPB currently bundle x64 executables.
+ZIPs currently bundle x64 executables. MCPB contains metadata only and runs
+`npx -y @sbroenne/mcp-server-excel@latest`; npm selects the runtime matching
+the Node.js process architecture at launch.
 All four npm runtime packages are published before either launcher.
 ARM64 Node.js selects the native ARM64 executable; x64 Node.js selects x64,
 even on ARM64 Windows. Missing matching runtimes fail explicitly.
