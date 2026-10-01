@@ -114,6 +114,13 @@ updater. Its failure is visible in its own job and can be retried independently;
 it does not undo plugin or product publication. See
 [Awesome Copilot setup](awesome-copilot-update-setup.md).
 
+Both reusable-workflow caller jobs (`release.yml`'s `publish-plugins` and
+`publish-plugins.yml`'s `update-awesome-copilot`) must grant `actions: read`,
+`contents: read`, and `pull-requests: read` for the compiled updater's jobs.
+GitHub validates nested permissions before evaluating the optional job's `if`,
+even with the opt-in disabled. These job-scoped read grants do not enable updates
+or change the publisher's default `contents: read` permissions.
+
 ## Manual repair
 
 With publication authorization, rerun an existing release:

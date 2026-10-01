@@ -199,6 +199,7 @@ jobs:
     if: needs.publish.outputs.handoff == 'true' && vars.AWESOME_COPILOT_UPDATES_ENABLED == 'true'
     uses: ./.github/workflows/update-awesome-copilot.lock.yml
     permissions:
+      actions: read
       contents: read
       pull-requests: read
     with:

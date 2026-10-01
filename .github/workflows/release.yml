@@ -436,6 +436,10 @@ jobs:
   publish-plugins:
     needs: [version, create-tag, create-release, publish]
     uses: ./.github/workflows/publish-plugins.yml
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
     with:
       release_tag: ${{ needs.version.outputs.tag }}
       release_commit: ${{ needs.create-tag.outputs.commit }}
