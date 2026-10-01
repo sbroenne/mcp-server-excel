@@ -59,6 +59,12 @@ When you run the release workflow (via `workflow_dispatch`):
 
 ### Publishing failures
 
+Building and publishing use the same `@vscode/vsce` version from the extension's
+lockfile. The Marketplace job checks out the exact release commit, installs its
+locked tools, and uploads the verified VSIX files without rebuilding them.
+Each upload uses `--skip-duplicate`, so retrying a partially completed job can
+publish the missing platform without failing on the already published one.
+
 The Marketplace job reports publication failures. A missing/expired token or
 Marketplace outage can leave one or both platform packages unpublished.
 Inspect both publish steps after every release and use the manual fallback
@@ -124,5 +130,5 @@ VS Code installation, not a new native ARM64 server build.
 ## References
 
 - [VS Code Publishing Documentation](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
-- [HaaLeo/publish-vscode-extension Action](https://github.com/marketplace/actions/publish-vs-code-extension)
+- [VS Code Extension Manager (vsce)](https://github.com/microsoft/vsce)
 - [Azure DevOps PAT Documentation](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)

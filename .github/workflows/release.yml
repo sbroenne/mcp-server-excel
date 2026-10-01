@@ -347,24 +347,32 @@ jobs:
     needs: [version, create-tag]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.create-tag.outputs.commit }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Install locked extension publishing tools
+        working-directory: vscode-extension
+        run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v8
         with:
           name: release-packages
           path: artifacts
       - name: Publish Windows x64 extension
-        uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
-        with:
-          pat: ${{ secrets.VSCE_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: artifacts/excel-mcp-${{ needs.version.outputs.version }}.vsix
-          skipDuplicate: true
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-${RELEASE_VERSION}.vsix" --skip-duplicate
       - name: Publish Windows ARM64 extension
-        uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
-        with:
-          pat: ${{ secrets.VSCE_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: artifacts/excel-mcp-${{ needs.version.outputs.version }}-win32-arm64.vsix
-          skipDuplicate: true
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-${RELEASE_VERSION}-win32-arm64.vsix" --skip-duplicate
 
   publish-mcp-registry:
     name: MCP Registry
