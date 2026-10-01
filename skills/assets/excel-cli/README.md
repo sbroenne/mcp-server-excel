@@ -28,7 +28,7 @@ batch jobs, use the failure-aware lifecycle in [SKILL.md](SKILL.md).
 ### GitHub Copilot
 
 The VS Code extension bundles only the MCP Server skill. Install this CLI skill
-separately with `npx skills`, as shown below, after installing `excelcli`.
+separately with `npx skills`, as shown below, and run the CLI through `npx`.
 
 ### Other Platforms
 
@@ -71,20 +71,21 @@ wrapper for the public `@sbroenne/excelcli` package.
 
 ### Via GitHub Copilot Plugin
 
-Use `npx -y @sbroenne/excelcli@latest` directly, or run the optional global shim
-installer from the installed plugin folder to make `excelcli` available on PATH:
+Use the public npm package directly:
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
+npx -y @sbroenne/excelcli@latest --help
 ```
 
-The global shim uses npx and preserves embedded quotes in JSON arguments from
-Windows PowerShell.
+The plugin also includes `bin\start-cli.ps1`, which runs npx and preserves
+embedded quotes in JSON arguments from Windows PowerShell. No global helper
+or PATH change is required.
 
 ### Via Skill Package
 
-Plain skill-only installs still need `excelcli` available separately on PATH (for example via the standalone ZIP or the NuGet tool below).
+Plain skill-only installs can use `npx -y @sbroenne/excelcli@latest` without a
+separate CLI installation. Replace `excelcli` in the examples with that command
+unless you have installed a standalone CLI on PATH.
 
 ### Manual Download (Standalone)
 

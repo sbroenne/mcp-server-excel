@@ -31,26 +31,30 @@ Each plugin lives in `plugins/` at the published repo:
 ```
 plugins/excel-mcp/
 ├── plugin.json         # Agent Plugins 1.0 manifest
-├── mcp.json            # Portable stdio config that launches the bootstrap wrapper
+├── mcp.json            # Portable stdio config that launches npx
 ├── version.txt         # Published version
-├── bin/                # Portable bootstrap launcher and downloader
-├── com.github.copilot/ # Copilot-only global installation helper
 ├── agents/             # Optional agent definitions
 └── skills/             # Behavioral guidance (excel-mcp skill)
 
 plugins/excel-cli/
 ├── plugin.json         # Agent Plugins 1.0 manifest
 ├── version.txt         # Published version
-├── bin/                # Portable bootstrap launcher and downloader
-├── com.github.copilot/ # Copilot-only global installation helper
+├── bin/                # Argument-safe PowerShell launcher for npx
 └── skills/             # Behavioral guidance (excel-cli skill)
 ```
 
-Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields; any future Copilot-only files must live under `com.github.copilot/`. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows/Excel compatibility.
+Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows/Excel compatibility.
 
 Each generated plugin receives an exact copy of its canonical skill directory, including every referenced file. This prevents stale published references and preserves skill-specific files such as `references/calculation.md`.
 
-Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed. The bootstrap reads the exact release's `SHA256SUMS` asset and verifies the selected ZIP before extraction; cached ZIPs are verified again before reuse. Missing, malformed, unmatched, or incorrect checksum data stops installation. Agent Plugins hosts provide `PLUGIN_DATA`; the bootstrap stores persistent runtime state under `PLUGIN_DATA\runtime`, checks release freshness once per Copilot session, and then reuses the verified runtime. Standalone shims fall back to `~\.copilot\plugin-runtime\mcp-server-excel\<plugin>` and check for updates at most once every 24 hours. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
+Both plugins use the public npm packages through `npx`; no runtime binaries are
+bundled in the plugin package. The MCP plugin's `mcp.json` launches
+`npx -y @sbroenne/mcp-server-excel@latest`. The CLI uses
+`npx -y @sbroenne/excelcli@latest` and includes `bin\start-cli.ps1` to preserve
+quoted JSON arguments on Windows. Node.js 18 or later is required. npm resolves
+the `latest` tag and manages package caching, subject to its cache policy; there
+is no plugin-owned release downloader or update checker. No global installation
+helper, PATH change, or separate global MCP registration is required.
 
 ## Installation
 
@@ -77,11 +81,10 @@ Best for: Claude Desktop, Copilot chat, conversational interfaces.
 
 ### Excel CLI Plugin
 
-Provides the CLI bootstrap wrapper plus skill guidance for coding agents:
+Provides the argument-safe npx wrapper plus skill guidance for coding agents:
 
 ```powershell
 copilot plugin install excel-cli@mcp-server-excel-plugins
-pwsh -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
 ```
 
 Best for: CI/CD, scripts, token-efficient coding agents.

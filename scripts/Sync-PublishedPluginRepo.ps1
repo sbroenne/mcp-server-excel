@@ -171,9 +171,9 @@ foreach ($pluginName in $builtPluginNames) {
     $skillVersion = (Get-Content -LiteralPath (Join-Path $sourcePluginDir "skills\$pluginName\VERSION") -Raw).Trim()
     if ($skillVersion -ne $Version) { throw "Prepared $pluginName skill version must match $Version." }
 
-    $legacyCopilotHelper = Join-Path $sourcePluginDir "bin\install-global.ps1"
-    if (Test-Path $legacyCopilotHelper) {
-        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    $globalHelpers = @(Get-ChildItem -LiteralPath $sourcePluginDir -Recurse -Force -File -Filter "install-global.ps1")
+    if ($globalHelpers.Count) {
+        throw "Global installation helpers are retired; use npx instead: $($globalHelpers.FullName -join ', ')"
     }
 
     $legacyMcpPath = Join-Path $sourcePluginDir ".mcp.json"

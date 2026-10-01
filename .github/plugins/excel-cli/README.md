@@ -24,18 +24,7 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-### Step 2: Install the Optional Global Shim
-
-If you want `excelcli` on PATH for shell usage outside plugin-driven flows, install the plugin-provided shim:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\com.github.copilot\bin\install-global.ps1"
-```
-
-This writes `excelcli.cmd` / `excelcli.ps1` to `~/.copilot/bin` and adds that directory to your user PATH if needed.
-
-### Step 3: Run `excelcli` through npm
+### Step 2: Run `excelcli` through npm
 
 The plugin does not bundle `excelcli.exe`. Its wrapper runs:
 
@@ -43,12 +32,13 @@ The plugin does not bundle `excelcli.exe`. Its wrapper runs:
 npx -y @sbroenne/excelcli@latest --help
 ```
 
-Node.js and npx are required. The optional global shim preserves quoted JSON
-arguments when invoked from Windows PowerShell.
+Node.js and npx are required. The plugin's `bin\start-cli.ps1` wrapper preserves
+quoted JSON arguments when invoked from Windows PowerShell. No global helper,
+PATH change, or separate runtime installation is required.
 
 You do **not** need a separate standalone install just to use the plugin.
 
-### Step 4: Optional Standalone CLI Install
+### Optional Standalone CLI Install
 
 If you still prefer a fully separate non-plugin install, you can use the normal release channels:
 
@@ -109,6 +99,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## Quick Start Example
 
+The examples below use `excelcli` for readability. Plugin installation does not
+put that command on PATH: replace it with `npx -y @sbroenne/excelcli@latest`
+unless you installed a standalone CLI. For quoted JSON arguments in Windows
+PowerShell, use the plugin's `bin\start-cli.ps1` wrapper as the command instead:
+
+```powershell
+& "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\start-cli.ps1" --help
+```
+
 ```powershell
 # Create new workbook
 excelcli -q session create C:\Reports\Sales.xlsx
@@ -138,8 +137,8 @@ excelcli -q session close --session <id> --save
 - **Real Excel Engine** — Drives the actual Excel application via COM, so live operations run for real and existing workbooks stay intact
 - **Session Management** — Open once, run many operations, close cleanly
 - **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
-- **Built-in Help** — `excelcli --help` and `excelcli <command> --help`
-- **Runtime Bootstrap** — Uses the persistent plugin cache and resolves release freshness once per Copilot chat session
+- **Built-in Help** — `npx -y @sbroenne/excelcli@latest --help` and `npx -y @sbroenne/excelcli@latest <command> --help`
+- **npm Launch** — Uses the npm `latest` tag; npm manages package resolution and caching subject to its cache policy
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for sign-in
 
 ---
