@@ -16,6 +16,11 @@ if ($Local) {
         $selections['McpServer'] = 'FullyQualifiedName~CoreCommandsCoverageTests|FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests'
     }
     foreach ($path in $ChangedPaths) {
+        if ($path -match '(PluginPublication|Publish-PreparedPlugins|PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot|update-awesome-copilot|publish-plugins)') {
+            $selections['SkillGeneration'] = if ($selections['SkillGeneration']) {
+                "$($selections['SkillGeneration'])|Feature=PluginPublication"
+            } else { 'Feature=PluginPublication' }
+        }
         if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service)\.Tests[/\\]') {
             $selections[$Matches[1]] = 'RequiresExcel=false'
         }

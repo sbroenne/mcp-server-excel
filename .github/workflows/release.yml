@@ -396,3 +396,5 @@ jobs:
       plugin_artifact: release-plugins
     secrets:
       PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      AWESOME_COPILOT_PR_TOKEN: ${{ secrets.AWESOME_COPILOT_PR_TOKEN }}

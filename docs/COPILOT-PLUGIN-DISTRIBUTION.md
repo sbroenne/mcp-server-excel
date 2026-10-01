@@ -31,7 +31,7 @@ Each plugin lives in `plugins/` at the published repo:
 ```
 plugins/excel-mcp/
 ├── plugin.json         # Agent Plugins 1.0 manifest
-├── mcp.json            # Portable stdio config that launches npx
+├── mcp.json            # Portable stdio config that launches npx @latest
 ├── version.txt         # Published version
 ├── agents/             # Optional agent definitions
 └── skills/             # Behavioral guidance (excel-mcp skill)
@@ -55,6 +55,8 @@ quoted JSON arguments on Windows. Node.js 18 or later is required. npm resolves
 the `latest` tag and manages package caching, subject to its cache policy; there
 is no plugin-owned release downloader or update checker. No global installation
 helper, PATH change, or separate global MCP registration is required.
+The publish workflow validates this launch-configuration/CLI-wrapper/skill payload
+before comparing complete prepared publication output.
 
 ## Installation
 
@@ -91,13 +93,17 @@ Best for: CI/CD, scripts, token-efficient coding agents.
 
 ## Release Cycle
 
-Both plugins are republished automatically after each source repo release:
+Plugin publication follows source releases only when complete distributed output
+changes beyond known release bookkeeping:
 
 1. **Source release** → `.github/workflows/release.yml` builds all components
-2. **Plugin publish** → `.github/workflows/publish-plugins.yml` syncs to marketplace repo
+2. **Plugin comparison** → `.github/workflows/publish-plugins.yml` publishes real
+   changes, or skips commit/push/tag entirely and retains the prior plugin version
 3. **Marketplace sync** → GitHub Copilot CLI discovers both plugins
 
 See [Plugin Publishing Workflow Setup](../.github/workflows/docs/publish-plugins-setup.md) for maintainer details.
+Product/npm releases continue when plugins are unchanged. Plugin tags are sparse:
+not every product release has a matching tag in the published repository.
 
 ## Maintenance
 
@@ -105,10 +111,16 @@ Updates to plugins are handled automatically:
 
 1. **Skill updates** → Modify `skills/templates/`, `skills/shared/`, or `skills/assets/`, then run `Build-AgentSkills.ps1 -GenerateOnly`
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
-3. **Sync to marketplace** → Next release runs `publish-plugins.yml` to update both plugins
-4. **No awesome-copilot PR needed** — Plugins are fetched from the published marketplace repo
+3. **Sync to marketplace** → Next release compares complete prepared output,
+   including generated references and source-owned root overlays
+4. **Awesome Copilot listing** → An optional, disabled-by-default updater maintains
+   one upstream PR for actually changed plugin content, using published output
+   commits. Root-overlay-only updates do not need a listing PR. Independent
+   manual catch-up accepts an existing published tag without republishing.
 
-This approach keeps plugin distribution simple — users always see the latest version from the marketplace, and maintainers only need to manage one source repo and one published repo.
+The published marketplace and the pinned Awesome Copilot listings are separate.
+See [Awesome Copilot update setup](../.github/workflows/docs/awesome-copilot-update-setup.md)
+for permissions, no-write preview and catch-up.
 
 ## Related Documentation
 

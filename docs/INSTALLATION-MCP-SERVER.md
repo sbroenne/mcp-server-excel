@@ -84,7 +84,8 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 ```
 
-**Note:** After each release, there may be a short delay before the plugin appears in the marketplace.
+**Note:** Plugin updates are published only when distributed plugin content changes.
+The plugin version can lag the product release; its npx launcher uses the latest npm runtime.
 
 ---
 
