@@ -133,14 +133,11 @@ GUIDE_SOURCES = {
 
 
 # skills/shared/*.md: the expert reference corpus shipped inside the skill
-# packages and MCP prompts. Published verbatim so the site and the agent
+# packages, not MCP prompts. Published from the same source so site and agent
 # guidance can never disagree. Value = (output name, page title).
 SKILL_SOURCES = {
     "workflows.md": ("skills-workflows.md", "Key Constraints & Sequencing"),
     "behavioral-rules.md": ("skills-behavioral-rules.md", "Behavioral Rules"),
-    "anti-patterns.md": ("skills-anti-patterns.md", "Anti-Patterns to Avoid"),
-    "gotchas.md": ("skills-gotchas.md", "Gotchas & Known Limits"),
-    "excel_agent_mode.md": ("skills-agent-mode.md", "Agent Mode in Excel"),
     "workbook.md": ("skills-workbook.md", "Workbook Lifecycle"),
     "worksheet.md": ("skills-worksheet.md", "Worksheet Operations"),
     "range.md": ("skills-range.md", "Ranges, Number Formats & Formatting"),
@@ -157,7 +154,7 @@ SKILL_SOURCES = {
     "slicer.md": ("skills-slicer.md", "Slicers"),
     "drawing.md": ("skills-drawing.md", "Drawing Objects"),
     "screenshot.md": ("skills-screenshot.md", "Screenshots & Visual Verification"),
-    "dashboard.md": ("skills-dashboard.md", "Dashboards & Reports"),
+    "report-formatting.md": ("skills-report-formatting.md", "Optional Report Formatting"),
     "window.md": ("skills-window.md", "Window Management"),
     "xmlmap.md": ("skills-xmlmap.md", "XML Maps"),
 }

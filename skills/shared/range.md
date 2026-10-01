@@ -175,3 +175,14 @@ reactions, presence, sharing, and coauthoring are not.
 Named ranges refer to cells, not literal values. Create the reference first,
 then write its value. Listings omit hidden/internal names and avoid loading large
 value previews; use a targeted read when values are required.
+
+## Dates and reference spelling
+
+Date reads can return Excel serial numbers, not Unix timestamps or Python
+ordinals. Check the 1900/1904 date system before external conversion; the 1900
+calendar has a historical leap-year exception. Prefer display formatting when
+only readable dates are needed.
+
+Pass actual worksheet names in `sheet_name` (MCP) / `--sheet` (CLI), without
+literal surrounding quotes. In a sheet-qualified Excel reference, spaces use
+`'Sales Data'!A1`, not backticks.

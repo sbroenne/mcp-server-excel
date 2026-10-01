@@ -1,71 +1,87 @@
-# Excel MCP Server - Key Constraints
+# Choosing an Excel workflow
 
-These are the critical constraints and workarounds specific to Excel automation via COM.
+These are alternatives, not steps to run on every workbook. Read only the
+guide needed for an unresolved decision.
 
-## Excel Power Pivot Limitations
+| Need | Surface |
+|------|---------|
+| Existing cell values or formulas | [Ranges](range.md); no query/model setup |
+| Direct CSV or legacy HTML import | [QueryTables](querytable.md) |
+| Modern imports or stored transformations | [Power Query](powerquery.md) |
+| Aggregation over loaded model data | [Data Model/DAX](datamodel.md) |
+| Cross-table filtering | `datamodel_relationship` (MCP) / `datamodelrelationship` (CLI); load tables first |
+| Interactive summary | [PivotTables](pivottable.md); model setup only when needed |
+| A chart following PivotTable fields/filters | [Live PivotCharts](chart.md), not a chart of displayed cells |
+| Requested report layout | [Optional formatting](report-formatting.md) |
 
-Excel's Power Pivot has key limitations compared to Power BI/SSAS:
+## CLI batch jobs
 
-| Feature | Availability | Workaround |
-|---------|--------------|------------|
-| Calculated Tables | NOT SUPPORTED | Create table in Power Query |
-| Calculated Columns | No COM API | Use Power Query or DAX measures |
-| Measures | Full support | - |
-| Relationships | Full support | - |
+MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
+repeated process startup for a known sequence. It is not a transaction.
+Use individual commands when the next step needs inspection.
 
-**Implication**: Design your architecture to put computed columns in Power Query, not DAX.
+Batch arguments use Service camel-case names, not CLI flags. Check every NDJSON success
+flag, the exit status, and expected command count. Use `--stop-on-error`;
+otherwise errors do not stop later commands. Keep save/close outside the batch.
 
-## Architecture: Power Query vs DAX
+This example assumes authorized edits and save/close of a workbook opened
+exclusively for the job. `$path` is the supplied path, `Sales` already exists,
+and target cells have been inspected. `commands.json` is a job-owned file.
+For a reused session, report partial work without discarding earlier edits.
 
-| Layer | Use For | Update Frequency |
-|-------|---------|------------------|
-| Power Query | Data loading, transformations, computed columns | When source changes |
-| Relationships | Star schema structure | Rarely |
-| DAX | Business calculations, aggregations | Frequently |
+```cli
+$path = [IO.Path]::GetFullPath($path)
+$listed = excelcli -q session list | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw "Cannot inspect existing sessions." }
+if ($listed.sessions | Where-Object { $_.filePath -eq $path }) {
+    throw "Reuse the existing session; this job must not discard its unsaved work."
+}
 
-Power Query prepares stored model data; DAX evaluates measures in the query's
-filter context. Refresh source data when it changes before relying on DAX results.
+@'
+[
+  {"command":"range.set-values","args":{"sheetName":"Sales","rangeAddress":"A1:B2","values":[["Product","Amount"],["Widget",1250]]}},
+  {"command":"range.set-number-format","args":{"sheetName":"Sales","rangeAddress":"B2","formatCode":"$#,##0.00"}}
+]
+'@ | Set-Content commands.json -Encoding utf8
 
-## Tool Sequencing
+$opened = excelcli -q session open $path | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or -not $opened.sessionId) { throw "Open failed; inspect session state." }
+$sessionId = $opened.sessionId
+$save = $false
+$jobError = $null
+try {
+    $output = @(excelcli -q batch --session $sessionId --input commands.json --stop-on-error)
+    $exit = $LASTEXITCODE
+    $results = @($output | ConvertFrom-Json)
+    if ($exit -ne 0 -or $results.Count -ne 2 -or ($results | Where-Object { -not $_.success })) {
+        throw "Batch failed; this job will close without saving. Results: $($output -join ' ')"
+    }
+    $save = $true
+}
+catch {
+    $jobError = $_
+    throw
+}
+finally {
+    try {
+        $listed = excelcli -q session list | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0) { throw "Cannot inspect cleanup state." }
+        $owned = $listed.sessions | Where-Object { $_.sessionId -eq $sessionId }
+        if (-not $owned -or -not $owned.canClose) { throw "Session missing or busy; inspect before shutdown." }
+        $close = @('-q', 'session', 'close', '--session', $sessionId)
+        if ($save) { $close += '--save' }
+        excelcli @close
+        if ($LASTEXITCODE -ne 0) { throw "Close failed; inspect the surviving session." }
+    }
+    catch {
+        if ($jobError) {
+            Write-Error "Cleanup also failed after $($jobError.Exception.Message): $_" -ErrorAction Continue
+        }
+        else { throw }
+    }
+}
+```
 
-### Data Model Prerequisites
-
-Load the required tables into the Data Model, or add existing worksheet Tables
-to it, before creating measures: `powerquery load-to` with
-`load_destination: 'data-model'` (MCP) / `--load-destination data-model` (CLI),
-or `table add-to-data-model`. Add relationships only when a calculation needs
-cross-table filtering; a measure over one table does not need a relationship.
-Discover existing model tables and relationships before creating new ones.
-Use `datamodel_relationship` (MCP) / `datamodelrelationship` (CLI) with
-`create-relationship`, then `datamodel create-measure` when needed.
-See [Data Model guidance](datamodel.md) for native examples.
-
-### Power Query Development Lifecycle
-For authorized query development, use `powerquery evaluate`, then
-`powerquery create` or `powerquery update` for the intended query. Create loads its chosen
-destination; update refreshes by default.
-Use `powerquery load-to` when changing destinations and `powerquery refresh`
-when loaded data needs updating.
-Prefer evaluation for new or changed code; trivial or already-validated code with
-unchanged dependencies does not need redundant evaluation. Persisting untested
-code can leave a broken query in the workbook. Evaluation uses temporary workbook
-objects and executes M code; it is not a read-only audit operation.
-See [Power Query](powerquery.md).
-
-### Parameter Setup for Power Query
-When parameter setup is requested, reuse the intended cells and named reference.
-Use `worksheet create` (MCP) / `sheet create` (CLI) only if a setup sheet is
-needed, `range set-values` for the parameter values, and `namedrange create`
-for the named reference to those cells.
-Power Query reads via `Excel.CurrentWorkbook(){[Name = "..."]}`
-
-## Verification Commands
-
-Use `powerquery list`, `powerquery view`, and `powerquery get-load-config`
-for stored definitions and load configuration; those do not
-prove loaded values are current. Read the affected loaded data when that is the
-requested result. Use `datamodel list-measures` and `datamodel evaluate` for
-measures, `datamodel_relationship` (MCP) / `datamodelrelationship` (CLI) with
-`list-relationships` for relationship metadata, and `chart read` for chart
-series/bounds. Screenshots are
-useful for layout when an interactive desktop is available, not for every task.
+Normal daemon shutdown may save remaining sessions; it is not failure cleanup.
+Report cleanup failures rather than killing Excel or claiming rollback.
+See [recovery](behavioral-rules.md#sessions-and-failures).

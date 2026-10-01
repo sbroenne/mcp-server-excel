@@ -102,7 +102,10 @@ public class Program
                     Cancellation is not undo: inspect file list before continuing, and do not blindly retry a change.
                     Range content writes/copies reject occupied destinations by default. Use overwrite_policy:'allow'
                     when the request authorizes replacement; never automatically retry a rejected write with allow.
-                    For bulk writes, read the calculation mode, switch to manual, write, calculate, and restore the prior mode.
+                    For bulk writes where repeated recalculation is costly, read the calculation mode, switch to manual,
+                    write, calculate, and restore the prior mode, including after failure. One rectangular write is already batched.
+                    After timeout or cancellation, inspect file list before restoring.
+                    If the session was removed or invalidated, do not call set-mode; report that restoration could not be completed.
                     Writes do not force calculation in every mode; manual mode needs explicit calculation.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question
                     only when the target, essential result, or destructive permission remains unclear.

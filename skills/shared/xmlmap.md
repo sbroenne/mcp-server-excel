@@ -2,16 +2,8 @@
 
 Use `xmlmap` for Excel XML maps and in-memory XML import/export.
 
-## Actions
-
-| Action | Purpose | MCP inputs | CLI flags |
-|--------|---------|------------|-----------|
-| `list` | List workbook XML maps | none | none |
-| `add` | Add an XSD schema map | `schema` or `schema_file`; optional `root_element_name`, `map_name` | `--schema` or `--schema-file`; optional `--root-element-name`, `--map-name` |
-| `map-range` | Bind a cell or single-column range to an XPath | `map_name`, `sheet_name`, `range_address`, `xpath`; optional `selection_namespace`, `repeating` | `--map-name`, `--sheet`, `--range`, `--xpath`; optional `--selection-namespace`, `--repeating` |
-| `import-xml` | Import XML into an existing map or create an automatically mapped XML table | `xml_data` or `xml_data_file`; either `map_name`, or `sheet_name` plus optional `start_cell` | `--xml-data` or `--xml-data-file`; either `--map-name`, or `--sheet` plus optional `--start-cell` |
-| `export-xml` | Return mapped cell values as XML | `map_name` | `--map-name` |
-| `delete` | Remove a map while leaving existing cell data | `map_name` | `--map-name` |
+Use tool schemas/native help for action inputs. Deleting a map leaves existing
+cell data; it does not clear the imported worksheet.
 
 ## Import Modes
 

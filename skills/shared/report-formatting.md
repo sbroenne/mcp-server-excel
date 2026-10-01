@@ -128,3 +128,19 @@ are optional and require an interactive desktop; do not make them a gate for
 unattended jobs. Save only the intended successful result using the existing
 [session and saving rules](behavioral-rules.md). Report what was checked and any
 remaining limitations.
+
+## Dashboard layout
+
+Use this only when the requested report needs visuals. Inspect the source or
+summary data first, then place [charts](chart.md) in empty cell ranges with gaps
+and consistent sizes. Check actual series, filters, totals, bounds, and overlap
+warnings rather than assuming successful creation proves the layout.
+
+Before adding a chart, use the [chart-building recipes](chart.md#choose-the-source-before-creating)
+to choose source fields, preserve detail behind short labels, group periods,
+and make units clear. Reuse suitable existing data instead of forcing a helper.
+
+Use a separate detail sheet only when it serves the requested report. Do not
+hide inconvenient data or change scales to imply unsupported conclusions.
+An interactive screenshot can verify appearance; otherwise state the visual
+limitation. See [screenshots](screenshot.md), not a mandatory screenshot step.

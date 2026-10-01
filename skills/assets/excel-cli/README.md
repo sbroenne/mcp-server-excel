@@ -22,6 +22,10 @@ excelcli -q range get-values --session $sessionId --sheet Sheet1 --range A1
 
 Here `$sessionId` is the returned ID for the intended workbook. For writes and
 batch jobs, use the failure-aware lifecycle in [SKILL.md](SKILL.md).
+Use `excelcli <command> --help` for actions, flags, and defaults, and the
+[topic index](references/index.md) for optional workflows and recovery.
+For `session` and `service`, use `excelcli session <action> --help` or
+`excelcli service <action> --help` for action-specific flags and defaults.
 
 ## Installation
 
@@ -60,7 +64,7 @@ excel-cli/
 ├── SKILL.md           # Main skill definition with CLI command guidance
 ├── README.md          # This file
 ├── VERSION            # Published plugin version
-└── references/        # CLI command reference and workflow guidance
+└── references/        # Topic index, workflows, and recovery guidance
     └── *.md
 ```
 

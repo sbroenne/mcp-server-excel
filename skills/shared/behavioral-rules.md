@@ -38,7 +38,7 @@ visibility unless a change is requested. For a new session with no known
 preference, Excel is hidden by default; do not ask merely because work has
 multiple steps. "Leave the workbook open" means retain its session, not show a
 hidden Excel window. Authentication may require visible Excel; explain that exception.
-See [working with visible Excel](excel_agent_mode.md).
+See [window management](window.md#visibility-and-placement).
 
 ## Sessions and failures
 
@@ -95,6 +95,10 @@ existing formats and fixed layouts unless a change is requested. See
 
 For costly bulk writes, get the current calculation mode with `get-mode`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
+After a timeout or cancellation, inspect the session listing before attempting
+restoration. If the session was removed or invalidated, do not call `set-mode`;
+report that restoration could not be completed. Do not blindly reopen the
+workbook or repeat writes.
 Reads and operations needing intermediate results do not need manual mode.
 Value/formula writes attempt to restore the prior mode rather than always
 forcing calculation. Restoration can fail without failing the write; use
@@ -120,3 +124,16 @@ settings automatically.
 Remote M/DAX formatting is opt-in and sends code to an external service. Obtain
 explicit consent first. Follow [Power Query](powerquery.md) and
 [Data Model](datamodel.md) guidance rather than repeating writes blindly.
+
+Connection-string keys follow the selected provider, not one universal casing
+rule. Use `connection test` for that connection and never expose credentials or
+full connection strings. Generic failures do not prove a missing provider.
+
+## Python in Excel
+
+`pythoninexcel` runs in Microsoft's cloud, not local Python. It needs licensed
+Microsoft 365 Python in Excel and network access. `#NAME?` means unavailable,
+not pending; use `get-result` for pending cloud work. Its `max_wait_seconds`
+(MCP) / `--max-wait-seconds` (CLI) must be shorter than the session operation
+timeout. Cloud startup can take minutes; do not repeatedly retry policy or
+connection failures as though they were transient.

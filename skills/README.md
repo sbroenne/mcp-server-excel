@@ -3,9 +3,8 @@
 **Skills teach your AI assistant how to use Excel MCP Server well.** A skill is a
 small package of guidance and examples that your coding agent (GitHub Copilot,
 Cursor, Windsurf, Claude Code, and others) loads automatically — so it knows the
-right workflow, the correct parameters, and the common gotchas without you
-having to spell them out each time. Installing a skill makes the assistant
-noticeably more reliable at driving Excel.
+workflows, non-obvious limitations, and recovery choices. Command syntax comes
+from native CLI help or MCP tool schemas, not a second catalog in the skill.
 
 There are two packages — pick the one that matches how you connect to Excel (or
 install both):
@@ -61,9 +60,8 @@ editing output that the next build replaces.
 | Skill rendering behavior | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
 | Minimal MCP server instructions | `src/ExcelMcp.McpServer/Program.cs` |
 
-Release builds generate the manifest. Shared guides are no longer advertised as
-MCP prompts: prompts are optional, user-selected templates, not automatic server
-instructions. The guides remain available as installed skill references. Complete
+Release builds generate the manifest. Shared guides are installed skill
+references, not MCP prompts or automatic server instructions. Complete
 installable skills are generated explicitly, outside the tracked source tree:
 
 ```powershell
@@ -81,8 +79,8 @@ Generation follows two related paths:
 Core interfaces -> ServiceRegistryGenerator -> _SkillManifest.g.cs
   -> GenerateSkillFile + Scriban templates -> both SKILL.md files
 
-skills/shared/*.md -> entry-point-specific references + linked guide index
-excelcli --help -> compact command index + individual command reference pages
+skills/shared/*.md -> entry-point-specific references + linked topic index
+skills/assets -> authored READMEs and entry-point-only references
 
 Core XML documentation + interface attributes -> McpToolGenerator
   -> official SDK tool/parameter descriptions and schemas
@@ -97,9 +95,16 @@ This is explicit selection, not automatic translation of parameter names.
 Include required inputs, describe prerequisites, and use a returned session ID.
 Do not put entry-point-specific calls in unmarked prose or generic code fences.
 
-The generated `references/index.md` links every guide automatically.
-`references/cli-commands.md` is a short index of live-generated pages under
-`references/commands/`; do not rebuild a monolithic command catalog in a guide.
+The generated `references/index.md` links every guide automatically. CLI users
+discover command groups with `excelcli --help` and actions, flags, descriptions,
+applicability, and defaults with `excelcli <command> --help`. Generation does not
+create `references/cli-commands.md` or `references/commands/`. For the branched
+`session` and `service` commands, use `excelcli session <action> --help` or
+`excelcli service <action> --help` for action-specific flags and defaults.
+Keep separate entry skills: MCP uses schemas and server initialization guidance;
+CLI retains its own session, quoting, block-write, and failure-aware batch rules.
+Report formatting, including financial-model conventions, is optional and
+belongs in `report-formatting.md`, not a requirement for unrelated edits.
 Keep shared safety rules in `behavioral-rules.md`, and link domain guidance
 rather than repeating full save/format/refresh workflows everywhere.
 Its intent and permission policy is shared by both entry points: act on clear
@@ -133,5 +138,7 @@ mode resets, or requirements for unrelated formatting and screenshots on
 unattended desktops.
 
 If a tool is misunderstood in an evaluation, fix the relevant source above,
-rebuild, and rerun the affected scenario. See the
+rebuild, and rerun the affected scenario only within an authorized evaluation
+budget. Documentation size alone does not establish improved agent performance.
+See the
 [evaluation authoring guide](../llm-tests/README.md#writing-evaluations).

@@ -6,5 +6,7 @@ keywords: "Excel dashboard automation, build Excel report AI, Excel dashboard be
 
 # Dashboards & Reports
 
---8<-- "_generated/skills-dashboard.md"
-
+Dashboard layout is part of [Optional report formatting](report-formatting.md).
+For visual objects and filters, see [Charts](chart.md), [Slicers](slicer.md),
+and [Screenshots](screenshot.md). Use these only when the requested result
+needs them.

@@ -145,7 +145,8 @@ nav:
       - Slicers: reference/slicer.md
       - Drawing objects: reference/drawing.md
       - Screenshots: reference/screenshot.md
-      - Dashboards & reports: reference/dashboard.md
+      - Optional report formatting: reference/report-formatting.md
+      - Dashboard guidance links: reference/dashboard.md
   - Resources:
     - Usage analytics: usage-analytics.md
     - Examples & use cases: use-cases.md

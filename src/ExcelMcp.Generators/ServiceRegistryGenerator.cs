@@ -742,7 +742,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         // Action argument (always first)
         sb.AppendLine("            [Spectre.Console.Cli.CommandArgument(0, \"<ACTION>\")]");
-        sb.AppendLine("            [System.ComponentModel.Description(\"The action to perform\")]");
+        var availableActions = string.Join(", ", info.Methods.Select(method => method.ActionName));
+        sb.AppendLine($"            [System.ComponentModel.Description(\"The action to perform. Available actions: {availableActions}\")]");
         sb.AppendLine("            public string Action { get; init; } = string.Empty;");
         sb.AppendLine();
 

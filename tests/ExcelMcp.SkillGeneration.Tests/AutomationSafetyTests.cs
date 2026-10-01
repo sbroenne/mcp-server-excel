@@ -180,7 +180,7 @@ public sealed class AutomationSafetyTests
     }
 
     [Fact]
-    public async Task SkillGeneration_StripsAnsiBeforeParsingCliHelp()
+    public async Task SkillGeneration_SelectsNativeExamplesWithoutTranslatingContent()
     {
         var root = NewSandbox();
         try
@@ -188,11 +188,36 @@ public sealed class AutomationSafetyTests
             var script = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
             var result = await RunAsync(root, $$"""
                 $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
-                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'ConvertTo-PlainHelpLines' }, $true)
+                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Copy-SharedReferences' }, $true)
+                if (-not $function) { throw 'Missing shared-reference renderer.' }
                 . ([scriptblock]::Create($function.Extent.Text))
-                $plain = @(ConvertTo-PlainHelpLines @("`e[32mCOMMANDS:`e[0m", "`e[1m    session  Manage sessions`e[0m"))
-                if ($plain[0] -cne 'COMMANDS:' -or $plain[1] -cne '    session  Manage sessions') {
-                    throw "ANSI help was not normalized: $plain"
+                $SharedDir = New-Item -ItemType Directory -Path shared
+                @'
+                # Workflow
+                Shared policy uses sessionId responses.
+                ```cli
+                excelcli -q range get-values --session $sessionId --sheet Sales --range A1
+                ```
+                ```mcp
+                range(action: 'get-values', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1')
+                ```
+                ```json
+                {"mCodeFile":"query.m"}
+                ```
+                '@ | Set-Content -LiteralPath (Join-Path $SharedDir 'workflow.md')
+                foreach ($surface in @('cli', 'mcp')) {
+                    Copy-SharedReferences -SkillPath "excel-$surface" -SkillName "excel-$surface"
+                    $content = Get-Content -LiteralPath "excel-$surface\references\workflow.md" -Raw
+                    if ($content -notmatch 'Shared policy uses sessionId responses.' -or
+                        $content -notmatch '\{"mCodeFile":"query.m"\}' -or
+                        $content -match '(?m)^```(?:cli|mcp)$') { throw 'Shared content was changed or fences were not rendered.' }
+                    if ($surface -eq 'cli') {
+                        if ($content -notmatch '```powershell' -or $content -notmatch 'excelcli -q range' -or
+                            $content -match 'range\(action:') { throw 'CLI examples were not selected.' }
+                    } else {
+                        if ($content -notmatch '```text' -or $content -notmatch "session_id: sessionId" -or
+                            $content -match 'excelcli -q') { throw 'MCP examples were not selected.' }
+                    }
                 }
                 """);
             Assert.True(result.ExitCode == 0, result.Output);

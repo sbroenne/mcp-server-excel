@@ -25,25 +25,9 @@ Check each result. Expression formulas use the top-left target cell's perspectiv
 Use `$A2` for a fixed column and relative row, or `$A$2` for one fixed cell.
 PowerShell single quotes preserve dollar signs in formulas.
 
-## Choosing a rule
-
-| Type | Key requirements |
-|------|------------------|
-| cell-value | Operator plus formula1; between/not-between also need formula2 |
-| expression | A formula returning TRUE/FALSE |
-| color-scale | Minimum/maximum stops; a middle stop creates a three-color scale |
-| data-bar | Color, limits, direction, negative color, and value visibility |
-| icon-set | Icon family and threshold settings for editable bands |
-| top10 | Rank, top/bottom choice, and whether the rank is a percentage |
-| above-average | Above/below average or standard-deviation choice |
-| time-period | Relative date period such as today or this week |
-| unique-values | Unique/duplicate-value highlighting |
-| blanks-condition | Blank-cell highlighting |
-
-Colors use `#RRGGBB`. Visual thresholds may use minimum, maximum, number, percent,
-percentile, or formula as supported by that rule. Supply a value when the chosen
-threshold type needs one. Use the discovered schema or command reference for
-the precise options rather than sending properties from another rule type.
+Use the tool schema or native help for rule types and thresholds.
+Supply only the properties for the selected rule type, not a blanket payload
+containing settings for every kind of rule.
 
 Read-back details include color-scale stops, data-bar limits and direction,
 icon criteria, top/bottom rank, average mode, or date period only for the matching

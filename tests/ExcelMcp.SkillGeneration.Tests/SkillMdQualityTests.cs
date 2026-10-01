@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Xunit;
 
@@ -34,13 +35,14 @@ public class SkillMdQualityTests
     }
 
     [Fact]
-    public void McpSessionGuidance_UsesCanonicalReturnedIdentifiers()
+    public void McpSkill_UsesSchemasAndCanonicalInputNames()
     {
         var content = File.ReadAllText(Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md"));
-        Assert.Contains("session error", content, StringComparison.Ordinal);
-        Assert.Contains("same `session_id` spelling", content, StringComparison.Ordinal);
-        Assert.Contains("`sessionId` is not an accepted input", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("entries instead contain", content, StringComparison.Ordinal);
+        Assert.Contains("server instructions already cover sessions", content, StringComparison.Ordinal);
+        Assert.Contains("MCP inputs use the advertised snake_case names", content, StringComparison.Ordinal);
+        var ranges = File.ReadAllText(Path.Combine(SkillsFolder, "excel-mcp", "references", "range.md"));
+        Assert.Contains("session_id:", ranges, StringComparison.Ordinal);
+        Assert.DoesNotContain("sessionId:", ranges, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -48,13 +50,14 @@ public class SkillMdQualityTests
     [InlineData("excel-mcp")]
     public void Guidance_ExplainsCalculationOrderingAndDestructiveRecovery(string skill)
     {
-        var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, "SKILL.md"));
-        Assert.Contains("concurrent requests and", content, StringComparison.Ordinal);
-        Assert.Contains("no guaranteed order", content, StringComparison.Ordinal);
+        var content = NormalizeLineEndings(File.ReadAllText(
+            Path.Combine(SkillsFolder, skill, "references", "behavioral-rules.md"))).Replace("\n", " ");
+        Assert.Contains("concurrent requests", content, StringComparison.Ordinal);
+        Assert.Contains("no guaranteed caller-defined order", content, StringComparison.Ordinal);
         Assert.Contains("manual needs explicit calculation", content, StringComparison.Ordinal);
         Assert.Contains("attempt to restore the prior mode", content, StringComparison.Ordinal);
         Assert.Contains("Restoration can fail without failing the write", content, StringComparison.Ordinal);
-        Assert.Contains("what-if data tables, not worksheet Tables", content, StringComparison.Ordinal);
+        Assert.Contains("what-if data tables, not ordinary worksheet Tables", content, StringComparison.Ordinal);
         var recovery = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", "behavioral-rules.md"));
         Assert.Contains("no tool-level", recovery, StringComparison.Ordinal);
         Assert.Contains("earlier unsaved work", recovery, StringComparison.Ordinal);
@@ -75,13 +78,15 @@ public class SkillMdQualityTests
     }
 
     [Fact]
-    public void CliCommandReference_IsSmallIndexWithCommandPages()
+    public void CliReferences_UseTopicIndexWithoutDuplicatingNativeHelp()
     {
         var references = Path.Combine(SkillsFolder, "excel-cli", "references");
-        var index = File.ReadAllText(Path.Combine(references, "cli-commands.md"));
-        Assert.True(index.Length < 6000, $"CLI index has {index.Length} characters.");
-        Assert.Contains("commands/range.md", index);
-        Assert.Contains("--values", File.ReadAllText(Path.Combine(references, "commands", "range.md")));
+        var index = File.ReadAllText(Path.Combine(references, "index.md"));
+        Assert.Contains("(range.md)", index);
+        Assert.Contains("(report-formatting.md)", index);
+        Assert.False(File.Exists(Path.Combine(references, "cli-commands.md")));
+        Assert.False(Directory.Exists(Path.Combine(references, "commands")));
+        Assert.Contains("--values", ReadCliHelp("range"));
     }
 
     [Theory]
@@ -177,10 +182,16 @@ public class SkillMdQualityTests
         Assert.Contains("hidden by default", policy);
         Assert.Contains("Authentication may require visible Excel", policy);
         Assert.Contains("not show a", policy);
-        var template = File.ReadAllText(Path.Combine(root, "SKILL.md"));
-        Assert.Contains("known visibility preference", template);
-        Assert.Contains("existing session's visibility", template.Replace("\r\n", "\n").Replace("\n  ", " "));
-        Assert.Contains("does not mean showing a hidden Excel window", template);
+        var windows = File.ReadAllText(Path.Combine(root, "references", "window.md"));
+        Assert.Contains("preserve existing visibility", windows);
+        Assert.Contains("does not request showing Excel", windows);
+        if (skill == "excel-cli")
+        {
+            var template = File.ReadAllText(Path.Combine(root, "SKILL.md"));
+            Assert.Contains("known visibility preference", template);
+            Assert.Contains("existing session's visibility", template);
+            Assert.Contains("does not mean showing a hidden Excel window", template);
+        }
     }
 
     [Fact]
@@ -190,8 +201,7 @@ public class SkillMdQualityTests
         [
             ("analysis.md", "changing_cells", "--changing-cells"),
             ("drawing.md", "linked_cell", "--linked-cell"),
-            ("excel_agent_mode.md", "save: true", "--save"),
-            ("gotchas.md", "pivottable_field", "pivottablefield"),
+            ("window.md", "save: true", "--save"),
             ("powerquery.md", "m_code_file", "--m-code-file"),
             ("querytable.md", "text_qualifier", "--text-qualifier"),
             ("range.md", "max_matches", "--max-matches"),
@@ -209,6 +219,10 @@ public class SkillMdQualityTests
                 Assert.Contains(mcp, content);
                 Assert.Contains(cli, content);
             }
+            Assert.Contains("pivottable_field", File.ReadAllText(
+                Path.Combine(SkillsFolder, "excel-mcp", "references", "pivottable.md")));
+            Assert.Contains("pivottablefield", File.ReadAllText(
+                Path.Combine(SkillsFolder, "excel-cli", "references", "pivottable.md")));
         }
         var cliReadme = File.ReadAllText(Path.Combine(SkillsFolder, "excel-cli", "references", "README.md"));
         Assert.DoesNotContain("translate them", cliReadme);
@@ -256,45 +270,40 @@ public class SkillMdQualityTests
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void CliSkill_HasNoEmptyParameterDescriptions()
+    public void NativeCliHelp_HasDescribedArgumentsAndOptions()
     {
-        foreach (var referencePath in CliCommandPages())
-            AssertNoEmptyDescriptions(referencePath, "CLI command reference");
+        var commandGroups = NativeCliCommandGroups();
+        Assert.True(commandGroups.Length >= 34,
+            $"Expected all command groups, found {commandGroups.Length}.\n{ReadCliHelp()}");
+        foreach (var command in commandGroups)
+        {
+            var help = ReadCliHelp(command);
+            Assert.Contains("USAGE:", help);
+            var options = Regex.Matches(help, @"(?m)^ {4}(?:-[a-z], | {4})?--[a-z][a-z0-9-]*(?: <[^>]+>)?(?<description>[^\r\n]*)");
+            Assert.NotEmpty(options);
+            foreach (Match option in options)
+                Assert.Matches(@" {2,}\S", option.Groups["description"].Value);
+            if (command is not ("session" or "service" or "batch"))
+            {
+                Assert.Contains("<ACTION>", help);
+                Assert.Contains("Available actions:", help);
+                Assert.DoesNotContain("Available actions: OPTIONS:", Regex.Replace(help, @"\s+", " "));
+            }
+        }
     }
 
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_HasCommands()
+    public void McpSkill_LinksWorkflowDecisionsInsteadOfToolCatalogs()
     {
-        var content = ReadCliCommandPages();
-        var commandMatches = Regex.Matches(content, @"^### \w+", RegexOptions.Multiline);
-        Assert.True(commandMatches.Count > 0, "CLI command reference should have command headings");
-        Assert.True(commandMatches.Count >= 10, $"CLI command reference should have at least 10 commands, found {commandMatches.Count}");
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void McpSkill_HasTools()
-    {
-        // MCP SKILL.md contains curated guidance, not auto-generated tool docs
-        // Tools are discovered via MCP schema at runtime
-        // Verify it has the expected curated content
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
         var content = File.ReadAllText(skillPath);
-        Assert.Contains("file", content);
-        Assert.Contains("range", content);
-        Assert.Contains("calculation_mode", content);
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_HasParameterTables()
-    {
-        var content = ReadCliCommandPages();
-        Assert.Contains("| Parameter | Description |", content);
+        Assert.Contains("./references/powerquery.md#recovering-a-failed-create", content);
+        Assert.Contains("./references/range.md", content);
+        Assert.Contains("./references/report-formatting.md", content);
+        Assert.DoesNotContain("| Parameter | Description |", content);
+        Assert.DoesNotContain("**Actions:**", content);
     }
 
     [Fact]
@@ -305,70 +314,26 @@ public class SkillMdQualityTests
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
         var content = File.ReadAllText(skillPath);
         Assert.Contains("Tool schemas describe the available actions and", content);
-        Assert.Contains("Read-only tasks need no writes, formatting, Tables, charts, or PivotTables.", content);
-        Assert.Contains("Do not convert every range automatically.", content);
+        Assert.Contains("unrelated refresh, styling, or screenshots", content);
+        var policy = File.ReadAllText(Path.Combine(SkillsFolder, "excel-mcp", "references", "behavioral-rules.md"));
+        Assert.Contains("read-only unless the user requests", policy);
+        Assert.Contains("not permission to create one", policy);
     }
 
     [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_HasActionsList()
+    public void NativeCliHelp_CoversLifecycleBranchesAndAliases()
     {
-        var content = ReadCliCommandPages();
-        Assert.Contains("**Actions:**", content);
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_CoversBranchAndGeneratedCommands()
-    {
-        var referenceContent = ReadCliCommandPages();
-        var skillContent = File.ReadAllText(Path.Combine(SkillsFolder, "excel-cli", "SKILL.md"));
-        var groupsSection = skillContent[(skillContent.IndexOf("Available command groups:", StringComparison.Ordinal) + "Available command groups:".Length)..];
-        var commandGroups = Regex.Matches(groupsSection.Split("## Common Pitfalls", StringSplitOptions.None)[0], @"`([a-z][a-z0-9-]+)`")
-            .Select(match => match.Groups[1].Value)
-            .Append("diag")
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.True(commandGroups.Length >= 34, $"Expected all live command groups in SKILL.md, found {commandGroups.Length}.");
-        foreach (var commandGroup in commandGroups)
-        {
-            Assert.Contains($"### {commandGroup}", referenceContent);
-        }
-        Assert.Contains("#### session open", referenceContent);
-        Assert.Contains("#### service stop", referenceContent);
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_UsesLiveCliOptionAliases()
-    {
-        var content = ReadCliCommandPages();
-
-        Assert.Contains("`--sheet`", content);
-        Assert.Contains("`--range`", content);
-        Assert.DoesNotContain("`--sheet-name`", content);
-        Assert.DoesNotContain("`--range-address`", content);
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    [Trait("Feature", "SkillGeneration")]
-    public void CliCommandReference_DoesNotSplitActionNamesAcrossHelpLines()
-    {
-        var content = ReadCliCommandPages();
-        var splitAction = Regex.Match(
-            content,
-            @"\(required for:[^)]*\b[a-z]+(?:-[a-z]+)+\s+[a-z]+(?:-[a-z]+)*(?=[,)])");
-        var splitIdentifier = Regex.Match(
-            content,
-            @"'[A-Za-z0-9]*[a-z][A-Z][A-Za-z0-9]*\s+[a-z][A-Za-z0-9]*'");
-
-        Assert.False(splitAction.Success, $"Found a split CLI action name: {splitAction.Value}");
-        Assert.False(splitIdentifier.Success, $"Found a split CLI identifier: {splitIdentifier.Value}");
+        Assert.Contains("open", ReadCliHelp("session"));
+        Assert.Contains("stop", ReadCliHelp("service"));
+        Assert.Contains("--show", ReadCliHelp("session", "open"));
+        Assert.Contains("--save", ReadCliHelp("session", "close"));
+        var rangeHelp = ReadCliHelp("range");
+        Assert.Contains("--sheet", rangeHelp);
+        Assert.Contains("--range", rangeHelp);
+        Assert.DoesNotContain("--sheet-name", rangeHelp);
+        Assert.DoesNotContain("--range-address", rangeHelp);
     }
 
     [Fact]
@@ -379,7 +344,8 @@ public class SkillMdQualityTests
         var skillPath = Path.Combine(SkillsFolder, "excel-cli", "SKILL.md");
         var content = File.ReadAllText(skillPath);
 
-        Assert.Contains("./references/cli-commands.md", content);
+        Assert.Contains("excelcli --help", content);
+        Assert.Contains("excelcli <command> --help", content);
         Assert.Contains("excelcli -q <command> <action>", content);
         Assert.DoesNotContain("### calculationmode", content);
         Assert.DoesNotContain("| Parameter | Description |", content);
@@ -400,7 +366,7 @@ public class SkillMdQualityTests
         Assert.Contains("./references/powerquery.md", content);
         Assert.Contains("./references/worksheet.md", content);
         Assert.Contains("./references/behavioral-rules.md", content);
-        Assert.Contains("./references/anti-patterns.md", content);
+        Assert.Contains("./references/report-formatting.md", content);
         Assert.Contains("./references/workflows.md", content);
         Assert.DoesNotContain("range_format(action:", content);
         Assert.DoesNotContain("chart_config(", content);
@@ -419,14 +385,13 @@ public class SkillMdQualityTests
 
         var expectedFiles = Directory.GetFiles(Path.Combine(SkillsFolder, "shared"), "*.md")
             .Select(path => Path.GetFileName(path)!)
-            .Append("cli-commands.md")
             .Append("index.md")
             .Append("README.md")
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         Assert.Equal(expectedFiles, fileNames);
-        foreach (var sharedFile in expectedFiles.Except(["cli-commands.md", "index.md", "README.md"]))
+        foreach (var sharedFile in expectedFiles.Except(["index.md", "README.md"]))
         {
             var content = File.ReadAllText(Path.Combine(referencesPath, sharedFile));
             Assert.DoesNotContain("```mcp", content);
@@ -458,22 +423,29 @@ public class SkillMdQualityTests
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
         var content = File.ReadAllText(skillPath);
 
-        Assert.Single(Regex.Matches(content, @"^## Bulk writes\r?$", RegexOptions.Multiline));
-        Assert.Contains("calculation_mode(action: 'get-mode'", content);
-        Assert.Contains("scope: 'workbook'", content);
-        Assert.Contains("restore the prior mode", content);
-        Assert.DoesNotContain("### Rule 10: Use Calculation Mode", content);
+        Assert.DoesNotContain("calculation_mode(action:", content);
+        var calculation = File.ReadAllText(Path.Combine(SkillsFolder, "excel-mcp", "references", "calculation.md"));
+        Assert.Contains("calculation_mode(action: 'get-mode'", calculation);
+        Assert.Contains("scope: 'workbook'", calculation);
+        Assert.Contains("restore the prior mode", calculation, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("one rectangular write is already batched", calculation);
     }
 
-    [Fact]
     [Trait("Category", "Unit")]
     [Trait("Feature", "SkillGeneration")]
-    public void McpSkill_HasActionsList()
+    [Theory]
+    [InlineData("excel-cli")]
+    [InlineData("excel-mcp")]
+    public void ReportFormatting_PreservesOptionalFinancialConventionsAndDashboardAdvice(string skill)
     {
-        // MCP SKILL.md has curated action examples, not **Actions:** section
-        var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
-        var content = File.ReadAllText(skillPath);
-        Assert.Contains("action:", content);
+        var content = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", "report-formatting.md"));
+        Assert.Contains("not a requirement for reads, raw exports, or targeted data", content);
+        Assert.Contains("## Optional financial-model conventions", content);
+        foreach (var colour in new[] { "#0000FF", "#000000", "#008000", "#FF0000", "#FFFF00" })
+            Assert.Contains(colour, content);
+        Assert.Contains("Record the source, date, and specific reference", content);
+        Assert.Contains("## Dashboard layout", content);
+        Assert.Contains("not a mandatory screenshot step", content);
     }
 
     private static IEnumerable<Match> UnexpectedCamelCaseTokens(string content)
@@ -635,62 +607,92 @@ public class SkillMdQualityTests
             string.Join('\n', unexpectedTokens));
     }
 
-    private static void AssertNoEmptyDescriptions(string skillPath, string skillType)
+    private static readonly Dictionary<string, string> CliHelpCache = new(StringComparer.Ordinal);
+
+    private static string ReadCliHelp(params string[] command)
     {
-        Assert.True(File.Exists(skillPath), $"{skillType} SKILL.md should exist");
-        var content = File.ReadAllText(skillPath);
-        var lines = content.Split('\n');
-        var emptyDescriptions = new List<string>();
-        for (int i = 0; i < lines.Length; i++)
+        var key = string.Join(' ', command);
+        if (CliHelpCache.TryGetValue(key, out var cached))
+            return cached;
+        var executable = Path.Combine(GeneratedAssetsFixture.RepositoryDirectory,
+            "src", "ExcelMcp.CLI", "bin", "Release", "net10.0-windows", "excelcli.dll");
+        Assert.True(File.Exists(executable), "Build the Release CLI before testing native help.");
+        var info = new ProcessStartInfo("dotnet")
         {
-            var line = lines[i].Trim();
-            if (Regex.IsMatch(line, @"^\|\s*`[^`]+`\s*\|\s*\|$"))
-            {
-                var paramMatch = Regex.Match(line, @"`([^`]+)`");
-                if (paramMatch.Success)
-                {
-                    emptyDescriptions.Add(paramMatch.Groups[1].Value);
-                }
-            }
-        }
-
-        if (emptyDescriptions.Count > 0)
+            WorkingDirectory = GeneratedAssetsFixture.RepositoryDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in new[] { executable, "-q" }.Concat(command).Append("--help"))
+            info.ArgumentList.Add(argument);
+        using var process = Process.Start(info)!;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(30000))
         {
-            var message = $"{skillType} SKILL.md has {emptyDescriptions.Count} parameters with empty descriptions:\n" +
-                          string.Join("\n", emptyDescriptions.Take(10).Select(p => $"  - {p}"));
-            if (emptyDescriptions.Count > 10)
-            {
-                message += $"\n  ... and {emptyDescriptions.Count - 10} more";
-            }
-
-            Assert.Fail(message);
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit();
+            throw new TimeoutException($"CLI help for '{key}' exceeded 30 seconds.");
         }
+        var content = NormalizeCliHelp(stdout.GetAwaiter().GetResult());
+        var error = stderr.GetAwaiter().GetResult();
+        Assert.True(process.ExitCode == 0, $"CLI help for '{key}' failed:\n{content}\n{error}");
+        Assert.Equal(string.Empty, error);
+        CliHelpCache.Add(key, content);
+        return content;
     }
+
+    [Theory]
+    [InlineData("COMMANDS:\n    range <ACTION>    Range operations\n")]
+    [InlineData("COMMANDS:\n    \u001b[32mrange\u001b[0m <ACTION>    Range operations\n")]
+    public void NativeCliCommandGroups_ParsesPlainAndDecoratedHelp(string help)
+    {
+        Assert.Equal(["range"], ParseCliCommandGroups(help));
+    }
+
+    private static string[] NativeCliCommandGroups() => ParseCliCommandGroups(ReadCliHelp());
+
+    private static string[] ParseCliCommandGroups(string help) =>
+        Regex.Matches(NormalizeCliHelp(help).Split("COMMANDS:", StringSplitOptions.None)[1],
+                @"(?m)^ {4}([a-z][a-z0-9-]+)(?: <ACTION>)? {2,}\S")
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    private static string NormalizeCliHelp(string help) =>
+        Regex.Replace(help, @"\x1B\[[0-?]*[ -/]*[@-~]", string.Empty);
 
     private static string NormalizeLineEndings(string content) =>
         content.Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace('\r', '\n');
 
-    private static string[] CliCommandPages() =>
-        Directory.GetFiles(Path.Combine(SkillsFolder, "excel-cli", "references", "commands"), "*.md");
-
-    private static string ReadCliCommandPages() =>
-        string.Join('\n', CliCommandPages().Select(File.ReadAllText));
-
     [Fact]
     public void NativeCliExamples_UseOptionsFromLiveCommandHelp()
     {
         var root = Path.Combine(SkillsFolder, "excel-cli");
-        foreach (var path in Directory.GetFiles(Path.Combine(root, "references"), "*.md"))
+        var paths = Directory.GetFiles(Path.Combine(root, "references"), "*.md")
+            .Append(Path.Combine(root, "SKILL.md"));
+        var exampleCount = 0;
+        foreach (var path in paths)
         {
             foreach (Match match in Regex.Matches(File.ReadAllText(path), @"(?m)^excelcli -q (?<command>[a-z]+) (?<action>[a-z-]+)(?<args>[^\r\n]*)"))
             {
                 var command = match.Groups["command"].Value;
-                var reference = File.ReadAllText(Path.Combine(root, "references", "commands", $"{command}.md"));
-                Assert.Contains(match.Groups["action"].Value, reference);
+                exampleCount++;
+                var reference = ReadCliHelp(command);
+                if (command is "session" or "service")
+                    reference = ReadCliHelp(command, match.Groups["action"].Value);
+                else
+                {
+                    var arguments = Regex.Replace(reference, @"\s+", " ")
+                        .Split("OPTIONS:", StringSplitOptions.None)[0];
+                    Assert.Matches($@"(?<![\w-]){Regex.Escape(match.Groups["action"].Value)}(?![\w-])", arguments);
+                }
                 foreach (Match option in Regex.Matches(match.Groups["args"].Value, @"--[a-z][a-z0-9-]+"))
-                    Assert.Contains($"`{option.Value}`", reference);
+                    Assert.Matches($@"(?<![\w-]){Regex.Escape(option.Value)}(?![\w-])", reference);
             }
         }
+        Assert.True(exampleCount >= 30, $"Expected native examples across the guides, found {exampleCount}.");
     }
 }
