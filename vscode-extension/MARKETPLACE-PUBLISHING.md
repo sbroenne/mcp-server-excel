@@ -72,20 +72,6 @@ Marketplace outage can leave one or both platform packages unpublished.
 Inspect both publish steps after every release and use the manual fallback
 below only with authorization.
 
-### Repair an existing release
-
-The unified release always calls `.github/workflows/publish-vscode.yml` after
-creating the GitHub release. The same workflow supports an authorized repair:
-
-```powershell
-gh workflow run publish-vscode.yml --ref main -f release_tag=v2.1.2
-```
-
-Repair verifies that the tag belongs to `main`, uses publishing tools from that
-exact release, and downloads both existing VSIX assets. It does not rebuild the
-extension, create another release, or change tags. Both uploads retain
-`--skip-duplicate`. A failed Marketplace upload stays a visible workflow failure.
-
 ## Checking Packages Without Publishing
 
 Do not dispatch a release to test packaging. From the repository root, after a

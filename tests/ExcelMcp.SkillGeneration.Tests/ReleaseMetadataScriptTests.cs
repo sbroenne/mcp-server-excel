@@ -49,12 +49,12 @@ public sealed class ReleaseMetadataScriptTests
     [Trait("Feature", "ReleaseMetadata")]
     public void VscodePublication_UsesWindowsForWindowsOnlyExtensionTools()
     {
-        var caller = ExtractWorkflowJob(File.ReadAllText(ReleaseWorkflow), "publish-vscode");
-        var publish = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-vscode.yml"));
+        var publish = ExtractWorkflowJob(File.ReadAllText(ReleaseWorkflow), "publish-vscode");
 
-        Assert.Contains("uses: ./.github/workflows/publish-vscode.yml", caller, StringComparison.Ordinal);
-        Assert.Contains("needs: [version, create-tag, create-release]", caller, StringComparison.Ordinal);
-        Assert.DoesNotContain("if:", caller, StringComparison.Ordinal);
+        Assert.Contains("needs: [version, create-tag]", publish, StringComparison.Ordinal);
+        Assert.DoesNotContain("if:", publish, StringComparison.Ordinal);
+        Assert.Contains("ref: ${{ needs.create-tag.outputs.commit }}", publish, StringComparison.Ordinal);
+        Assert.Contains("name: release-packages", publish, StringComparison.Ordinal);
         Assert.Contains("runs-on: windows-latest", publish, StringComparison.Ordinal);
         Assert.Contains("npm ci --ignore-scripts", publish, StringComparison.Ordinal);
         Assert.Contains("shell: pwsh", publish, StringComparison.Ordinal);
@@ -65,21 +65,20 @@ public sealed class ReleaseMetadataScriptTests
 
     [Fact]
     [Trait("Feature", "ReleaseMetadata")]
-    public void VscodePublication_RepairsExistingReleaseWithoutRebuildingOrRetagging()
+    public void PublicationJobs_UseImmutableActionReferences()
     {
-        var publish = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "publish-vscode.yml"));
-
-        Assert.Contains("workflow_call:", publish, StringComparison.Ordinal);
-        Assert.Contains("workflow_dispatch:", publish, StringComparison.Ordinal);
-        Assert.Contains("git merge-base --is-ancestor $commit origin/main", publish, StringComparison.Ordinal);
-        Assert.Contains("ref: ${{ steps.release.outputs.commit }}", publish, StringComparison.Ordinal);
-        Assert.Contains("gh release download $env:TAG", publish, StringComparison.Ordinal);
-        Assert.Contains("Release commit mismatch.", publish, StringComparison.Ordinal);
-        Assert.Contains("Release version mismatch.", publish, StringComparison.Ordinal);
-        Assert.Contains("Draft releases cannot be published.", publish, StringComparison.Ordinal);
-        Assert.DoesNotContain("npm run package", publish, StringComparison.Ordinal);
-        Assert.DoesNotContain("gh release create", publish, StringComparison.Ordinal);
-        Assert.DoesNotContain("git tag -", publish, StringComparison.Ordinal);
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        foreach (var job in new[] { "publish-vscode", "verify-arm64" })
+        {
+            var body = ExtractWorkflowJob(workflow, job);
+            foreach (var line in body.Split('\n').Where(line => line.Contains("uses: actions/", StringComparison.Ordinal)))
+            {
+                Assert.Matches(@"uses: actions/[a-z-]+@[0-9a-f]{40} # v[0-9.]+", line);
+            }
+            Assert.Contains("uses: actions/checkout@", body, StringComparison.Ordinal);
+            Assert.Contains("uses: actions/setup-node@", body, StringComparison.Ordinal);
+            Assert.Contains("uses: actions/download-artifact@", body, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

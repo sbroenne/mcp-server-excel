@@ -155,15 +155,15 @@ jobs:
     needs: [version, build-packages]
     runs-on: windows-11-arm
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           architecture: arm64
           package-manager-cache: false
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-packages
           path: artifacts
@@ -382,15 +382,44 @@ jobs:
 
   publish-vscode:
     name: Publish VS Code Marketplace
-    needs: [version, create-tag, create-release]
-    uses: ./.github/workflows/publish-vscode.yml
-    with:
-      release_tag: ${{ needs.version.outputs.tag }}
-      release_commit: ${{ needs.create-tag.outputs.commit }}
-      release_version: ${{ needs.version.outputs.version }}
-      package_artifact: release-packages
-    secrets:
-      VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+    needs: [version, create-tag]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.create-tag.outputs.commit }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Install locked extension publishing tools
+        working-directory: vscode-extension
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm ci --ignore-scripts
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-packages
+          path: artifacts
+      - name: Publish Windows x64 extension
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-$env:VERSION.vsix" --skip-duplicate
+      - name: Publish Windows ARM64 extension
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-$env:VERSION-win32-arm64.vsix" --skip-duplicate
 
   publish-mcp-registry:
     name: MCP Registry
