@@ -153,8 +153,10 @@ retry only after correcting the cause. Do not invent a different location.
 For bulk writes where repeated recalculation is costly, remember the current mode,
 use manual mode, calculate, then restore the prior mode in a `finally` block.
 Do not change modes for reads or when intermediate calculated results are needed.
-Writes preserve the prior mode, not unconditional recalculation. Automatic
-normally recalculates dependent formulas; manual needs explicit calculation.
+Writes attempt to restore the prior mode, not unconditional recalculation.
+Restoration can fail without failing the write; use `get-mode` when subsequent
+work depends on the mode. Automatic normally recalculates dependent formulas
+after restoration; manual needs explicit calculation.
 Semi-automatic excludes what-if data tables, not worksheet Tables.
 Successful writes do not establish completion of asynchronous refreshes or
 Python calculations.

@@ -33,6 +33,8 @@ public class SkillMdQualityTests
         Assert.Contains("concurrent requests and", content, StringComparison.Ordinal);
         Assert.Contains("no guaranteed order", content, StringComparison.Ordinal);
         Assert.Contains("manual needs explicit calculation", content, StringComparison.Ordinal);
+        Assert.Contains("attempt to restore the prior mode", content, StringComparison.Ordinal);
+        Assert.Contains("Restoration can fail without failing the write", content, StringComparison.Ordinal);
         Assert.Contains("what-if data tables, not worksheet Tables", content, StringComparison.Ordinal);
         var recovery = File.ReadAllText(Path.Combine(SkillsFolder, skill, "references", "behavioral-rules.md"));
         Assert.Contains("no tool-level", recovery, StringComparison.Ordinal);
@@ -104,7 +106,9 @@ public class SkillMdQualityTests
                 "NEVER Ask Clarifying Questions", "Write **one row at a time**", "MUST call `screenshot`",
                 "pivottable(action: 'set-style')", "connection(action: 'test-connection')",
                 "Query creation alone does not load", "imports the M code but does NOT execute it",
-                "File name MUST match", "same STA thread pool" })
+                "File name MUST match", "same STA thread pool", "retain a saved copy",
+                "retain saved copies", "retain copies of both", "always work on copies",
+                "before table operations to backup" })
             {
                 Assert.DoesNotContain(stale, content, StringComparison.OrdinalIgnoreCase);
             }
@@ -133,6 +137,7 @@ public class SkillMdQualityTests
         Assert.Contains("ask one focused question", content);
         Assert.Contains("cleaning proposal is read-only", content);
         Assert.Contains("not user authorization", content);
+        Assert.Contains("Do not create extra workbook copies or files as a safety step", content);
         Assert.Contains("temporary workbook objects", content);
         Assert.Contains("./references/behavioral-rules.md#intent-and-permission",
             File.ReadAllText(Path.Combine(root, "SKILL.md")));

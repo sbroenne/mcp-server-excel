@@ -96,9 +96,10 @@ MCP inputs, open/create results, list entries, and session error context use
 `sessionId` convention; its sessions are separate.
 
 Calls within a session execute one at a time, but concurrent requests and
-responses have no guaranteed order. Wait for dependent calls. Writes preserve
-the calculation mode; manual mode requires explicit calculation before relying
-on dependent values.
+responses have no guaranteed order. Wait for dependent calls. Writes attempt to
+restore the calculation mode; restoration can fail without failing the write.
+Use `get-mode` when subsequent work depends on the mode. Manual mode requires
+explicit calculation before relying on dependent values.
 
 ## 💡 Example Use Cases
 

@@ -10,11 +10,15 @@ Range value/formula writes temporarily suppress calculation when appropriate,
 then attempt to restore the prior mode. They do not unconditionally calculate
 after every write:
 
+Restoration can fail without failing the write, leaving Excel in manual mode.
+Use `calculation_mode(action: 'get-mode', session_id: id)` when
+subsequent work depends on the mode.
+
 | Mode | Dependent formulas after a write |
 |------|----------------------------------|
 | Automatic | Excel normally recalculates when the original mode is restored. |
 | Manual | The mode stays manual; explicitly calculate before relying on dependent results. |
-| Semi-automatic | Ordinary formulas recalculate, but what-if data tables require explicit calculation. |
+| Semi-automatic | After restoration, ordinary formulas recalculate, but what-if data tables require explicit calculation. |
 
 A successful write does not guarantee that asynchronous refreshes or Python
 calculations have finished. Use the owning operation's completion checks and

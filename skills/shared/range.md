@@ -52,8 +52,10 @@ headers. `Normal` resets formatting.
 
 ## Formulas and merged cells
 
-Value/formula writes preserve the prior calculation mode. Automatic normally
-recalculates dependent formulas; manual requires explicit calculation.
+Value/formula writes attempt to restore the prior calculation mode.
+Restoration can fail without failing the write; use `get-mode` when subsequent
+work depends on the mode. Automatic normally recalculates dependent formulas
+after restoration; manual requires explicit calculation.
 Semi-automatic excludes what-if data tables, not worksheet Tables. A successful
 write does not guarantee completion of asynchronous refreshes or Python
 calculations. Calculate and read back values when the result depends on them.
@@ -76,7 +78,7 @@ before writing a grid.
 `clear-all` removes values, formulas, and formats. `clear-contents` removes
 values/formulas while preserving formats. `clear-formats` removes formatting
 while preserving values/formulas. Each has no tool-level undo: check the exact
-target and retain a saved copy before clearing when recovery matters.
+target before clearing.
 
 These are in-memory changes until saved. An authorized close without saving can
 discard them, but also discards any earlier unsaved work; it is not targeted undo.

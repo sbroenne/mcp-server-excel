@@ -16,7 +16,7 @@ public static partial class ExcelWorksheetTool
     /// <summary>
     /// Worksheet lifecycle: create, rename, copy, delete, move.
     /// delete removes the sheet and all its contents and may break dependent references; no tool-level undo.
-    /// move-to-file removes the source sheet and saves both files; retain copies of both before moving.
+    /// move-to-file removes the source sheet and saves both files; no tool-level undo.
     /// RENAME: Use old_name + new_name.
     /// ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically).
     /// POSITIONING: Use before_sheet or after_sheet (not both) to place a sheet relative to another.
@@ -40,7 +40,7 @@ public static partial class ExcelWorksheetTool
         UseStructuredContent = true, OutputSchemaType = typeof(WorksheetToolOutputSchema))]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
-    [Description("Worksheet lifecycle: create, rename, copy, delete, move. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check dependencies and retain a saved copy. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files; retain copies of both. Closing another session without saving cannot reverse that transfer. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
+    [Description("Worksheet lifecycle: create, rename, copy, delete, move. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check the intended sheet and its dependencies. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files. Closing another session without saving cannot reverse that transfer. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
     public static Task<CallToolResult> ExcelWorksheet(
         [Description("The action to perform")] SheetAction action,
         ServiceBridge.ServiceBridge bridge,

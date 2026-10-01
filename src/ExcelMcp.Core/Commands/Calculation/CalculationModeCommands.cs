@@ -69,13 +69,15 @@ public class CalculationModeResult : OperationResult
 /// <summary>
 /// Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes
 /// when repeated recalculation is costly, then calculate and restore the prior mode, including on failure.
-/// Value/formula writes do not force recalculation in every mode. Manual mode needs explicit calculation;
-/// semi-automatic excludes what-if data tables, not worksheet Tables. Successful writes do not establish
+/// Value/formula writes do not force recalculation in every mode. Manual mode needs explicit calculation.
+/// Restoration of the prior mode is best-effort and can fail without failing the write.
+/// Use get-mode when subsequent work depends on the mode.
+/// Semi-automatic excludes what-if data tables, not worksheet Tables. Successful writes do not establish
 /// completion of asynchronous refreshes or Python calculations.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
-    Description = "Control Excel recalculation: automatic, manual, or semi-automatic (automatic except what-if data tables, not worksheet Tables). Value/formula writes preserve the prior mode, not unconditional recalculation: automatic normally recalculates dependent formulas; manual needs explicit calculate. Successful writes do not establish completion of asynchronous refreshes or Python calculations. For bulk writes where repeated recalculation is costly, use get-mode to remember the current mode, set-mode(manual), write, calculate, then restore the prior mode, including after failure. Do not change modes just to read formulas or when intermediate calculated results are needed. Calculate scopes: workbook, sheet (requires sheetName), range (requires sheetName and rangeAddress).")]
+    Description = "Control Excel recalculation: automatic, manual, or semi-automatic (automatic except what-if data tables, not worksheet Tables). Value/formula writes attempt to restore the prior mode, not unconditional recalculation; restoration can fail without failing the write. Use get-mode when subsequent work depends on the mode. Automatic normally recalculates dependent formulas after restoration; manual needs explicit calculate. Successful writes do not establish completion of asynchronous refreshes or Python calculations. For bulk writes where repeated recalculation is costly, use get-mode to remember the current mode, set-mode(manual), write, calculate, then restore the prior mode, including after failure. Do not change modes just to read formulas or when intermediate calculated results are needed. Calculate scopes: workbook, sheet (requires sheetName), range (requires sheetName and rangeAddress).")]
 public interface ICalculationModeCommands
 {
     /// <summary>

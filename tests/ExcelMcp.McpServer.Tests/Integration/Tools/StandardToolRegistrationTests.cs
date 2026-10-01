@@ -69,6 +69,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Contains("not mandatory", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("does not request confirmation", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("manual needs explicit calculate", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("attempt to restore the prior mode", description, StringComparison.Ordinal);
+        Assert.Contains("restoration can fail without failing the write", description, StringComparison.Ordinal);
         Assert.Contains("what-if data tables, not worksheet Tables", description, StringComparison.Ordinal);
         Assert.Contains("asynchronous refreshes or Python calculations", description, StringComparison.Ordinal);
         Assert.Contains("concurrent requests and responses have no guaranteed order", Client.ServerInstructions, StringComparison.Ordinal);
@@ -98,13 +100,15 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("worksheet", "removes all sheet contents and may break dependent references")]
     [InlineData("worksheet", "removes the source sheet and saves both files")]
     [InlineData("workbook", "replaces linked formulas with their current values")]
-    public async Task DestructiveGuidance_ExposesConsequencesInDiscovery(string toolName, string consequence)
+    public async Task DestructiveGuidance_ExposesConsequencesWithoutBackupInstructions(string toolName, string consequence)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var description = tools.Single(t => t.Name == toolName).Description;
         Assert.Contains(consequence, description, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("no tool-level undo", description, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("retain", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("backup", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("saved cop", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("copies of both", description, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

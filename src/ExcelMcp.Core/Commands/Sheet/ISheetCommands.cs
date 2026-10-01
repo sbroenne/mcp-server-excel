@@ -62,7 +62,7 @@ public interface ISheetCommands
     /// <summary>
     /// Deletes a worksheet.
     /// Removes all sheet contents and may break dependent references. No tool-level undo;
-    /// check dependencies and retain a saved copy before deleting.
+    /// check the intended sheet and its dependencies before deleting.
     /// Throws exception on error.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -111,7 +111,7 @@ public interface ISheetCommands
     /// Creates a temporary Excel instance, opens both files, performs the move,
     /// saves both files, and closes them.
     /// Removes the sheet from the source and saves both workbooks. No tool-level undo;
-    /// closing another session without saving cannot reverse this saved transfer. Retain copies of both files.
+    /// closing another session without saving cannot reverse this saved transfer.
     /// This is the RECOMMENDED way to move sheets between files.
     /// </summary>
     /// <param name="sourceFile">Full path to the source workbook</param>
@@ -127,4 +127,3 @@ public interface ISheetCommands
         string? beforeSheet = null,
         string? afterSheet = null);
 }
-

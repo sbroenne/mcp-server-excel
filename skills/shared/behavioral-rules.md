@@ -16,6 +16,9 @@ on Sales" authorizes that deletion; "clean up Sales" does not specify which rows
 to delete or how to reinterpret ambiguous dates. Discovering an opportunity for
 a Table, chart, or PivotTable is not permission to create one.
 
+Do not create extra workbook copies or files as a safety step. Copy or export
+only when part of the user's request.
+
 An audit, question, or cleaning proposal is read-only unless the user requests
 changes. Inspect existing values, formulas, and metadata; report findings and
 proposed fixes instead of applying them. Do not silently refresh sources,
@@ -76,7 +79,7 @@ Make targeted writes and prefer resize, rename, refresh, or update over rebuildi
 objects. Deleting objects can break formulas, relationships, measures, and charts.
 Check their dependencies first.
 Clearing ranges, deleting sheets, and breaking external links have no tool-level
-undo. Retain a saved copy before destructive work when recovery matters.
+undo.
 Unsaved in-memory changes can be discarded by an authorized no-save close, but
 that also discards earlier unsaved work. Automatically saved cross-file moves
 cannot be reversed by closing another session without saving.
@@ -93,11 +96,13 @@ existing formats and fixed layouts unless a change is requested. See
 For costly bulk writes, get the current calculation mode with `get-mode`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
 Reads and operations needing intermediate results do not need manual mode.
-Value/formula writes preserve the prior mode rather than always forcing
-calculation. Automatic normally recalculates dependent formulas; manual needs
-explicit calculation. Semi-automatic excludes what-if data tables, not ordinary
-worksheet Tables. Successful writes do not establish completion of asynchronous
-refreshes or Python calculations; check the owning operation's completion state.
+Value/formula writes attempt to restore the prior mode rather than always
+forcing calculation. Restoration can fail without failing the write; use
+`get-mode` when subsequent work depends on the mode. Automatic normally
+recalculates dependent formulas after restoration; manual needs explicit
+calculation. Semi-automatic excludes what-if data tables, not ordinary worksheet
+Tables. Successful writes do not establish completion of asynchronous refreshes
+or Python calculations; check the owning operation's completion state.
 
 ## Inputs and errors
 

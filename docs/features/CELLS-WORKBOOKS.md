@@ -39,10 +39,12 @@ Control when and how Excel recalculates formulas — useful for speeding up bulk
 - **Set Mode:** Switch between automatic, manual, and semi-automatic modes
 - **Calculate:** Explicitly recalculate workbook, sheet, or range
 
-Value/formula writes preserve the prior mode rather than always forcing
-calculation. Automatic normally recalculates dependent formulas; manual needs
-explicit calculation. Semi-automatic excludes what-if data tables, not
-worksheet Tables. Successful writes do not guarantee completion of
+Value/formula writes attempt to restore the prior mode rather than always
+forcing calculation. Restoration can fail without failing the write; use
+`get-mode` when subsequent work depends on the mode. Automatic normally
+recalculates dependent formulas after restoration; manual needs explicit
+calculation. Semi-automatic excludes what-if data tables, not worksheet Tables.
+Successful writes do not guarantee completion of
 asynchronous refreshes or Python calculations. For bulk writes, remember and
 restore the prior mode, including after failure.
 
@@ -68,7 +70,7 @@ Read and write cell values, formulas, and formatting across any range of cells.
 
 **Clearing has no tool-level undo:** Clear All removes values, formulas, and
 formats; Clear Contents preserves formats; Clear Formats preserves
-values/formulas. Check the target and retain a saved copy when recovery matters.
+values/formulas. Check the intended target before clearing.
 Until saved, an authorized no-save close can discard changes, but also loses
 earlier unsaved work.
 
@@ -138,9 +140,9 @@ Add, rename, move, and manage worksheets — including tab colors, visibility, p
 - **Move to File:** Move a worksheet to another workbook (atomic)
 
 **Delete has no tool-level undo:** It removes all sheet contents and can break
-dependent references. Retain a saved copy before deleting when recovery matters.
+dependent references. Check the intended sheet and its dependencies.
 **Move to File has no tool-level undo:** It removes the source sheet and saves
-both files; retain copies of both. Closing another session without saving cannot
+both files. Closing another session without saving cannot
 reverse the saved transfer.
 
 **Tab Colors:**
@@ -202,7 +204,7 @@ Manage workbook metadata, protection, document properties, file variants, export
 - **List/Update/Break External Links:** Inspect, refresh, or permanently replace linked-workbook formulas
 
 **Break External Link has no tool-level undo:** Linked formulas become their
-current values. Retain a saved copy before breaking links when recovery matters.
+current values.
 
 > Printing and print preview are intentionally excluded because physical printer output and modal preview are unsafe for unattended automation.
 

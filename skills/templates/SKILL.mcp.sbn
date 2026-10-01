@@ -90,9 +90,9 @@ retry a change or substitute a different session.
   [report formatting](./references/report-formatting.md). Its defaults do not
   apply to reads, raw exports, or unrelated parts of an existing template.
 - Clearing ranges, deleting sheets, and breaking links have no tool-level undo.
-  Check the target and retain saved copies when recovery matters. Discarding
-  in-memory changes also discards earlier unsaved work; cross-file moves save
-  both files and cannot be reversed by closing another session without saving.
+  Check the intended target. Discarding in-memory changes also discards earlier
+  unsaved work; cross-file moves save both files and cannot be reversed by
+  closing another session without saving.
 
 ## Bulk writes
 
@@ -100,8 +100,10 @@ For bulk writes where repeated recalculation is costly, read the current mode, s
 manual, perform the writes, calculate once, and restore the prior mode even
 after an error, as in a `finally` block. Reading values or formulas does not
 require changing the mode, and intermediate results may require calculation.
-Writes preserve the prior mode, not unconditional recalculation. Automatic
-normally recalculates dependent formulas; manual needs explicit calculation.
+Writes attempt to restore the prior mode, not unconditional recalculation.
+Restoration can fail without failing the write; use `get-mode` when subsequent
+work depends on the mode. Automatic normally recalculates dependent formulas
+after restoration; manual needs explicit calculation.
 Semi-automatic excludes what-if data tables, not worksheet Tables.
 Successful writes do not establish completion of asynchronous refreshes or
 Python calculations.

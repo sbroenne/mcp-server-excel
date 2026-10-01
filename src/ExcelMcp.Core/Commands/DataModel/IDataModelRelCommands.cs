@@ -8,8 +8,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Data Model relationships - link tables for cross-table DAX calculations.
 ///
 /// CRITICAL: Deleting or recreating tables removes ALL their relationships.
-/// Use list-relationships before table operations to backup,
-/// then recreate relationships after schema changes.
+/// Use list-relationships to inspect dependencies before replacing tables.
+/// Recreate affected relationships only as part of the requested schema changes.
 ///
 /// RELATIONSHIP REQUIREMENTS:
 /// - Both tables must exist in the Data Model first
