@@ -100,6 +100,8 @@ public class Program
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file list before continuing, and do not blindly retry a change.
+                    Range content writes/copies reject occupied destinations by default. Use overwrite_policy:'allow'
+                    when the request authorizes replacement; never automatically retry a rejected write with allow.
                     For bulk writes, read the calculation mode, switch to manual, write, calculate, and restore the prior mode.
                     Writes do not force calculation in every mode; manual mode needs explicit calculation.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question

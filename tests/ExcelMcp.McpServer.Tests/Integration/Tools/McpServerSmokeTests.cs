@@ -243,6 +243,42 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(setValuesResult, "Set values");
 
+        var rejectedWrite = await _client!.CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<string>> { new() { "Must not overwrite" } }
+        }, cancellationToken: _cts.Token);
+        Assert.True(rejectedWrite.IsError);
+        var rejectionText = Assert.Single(rejectedWrite.Content.OfType<TextContentBlock>()).Text;
+        using (var rejectionJson = JsonDocument.Parse(rejectionText))
+        {
+            Assert.False(rejectionJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("Conflict", rejectionJson.RootElement.GetProperty("errorCategory").GetString());
+            Assert.Contains("$A$1", rejectionJson.RootElement.GetProperty("errorMessage").GetString());
+        }
+        var unchangedHeader = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(unchangedHeader, "Read header after rejected write");
+        Assert.Equal("Name", GetFirstCellValue(unchangedHeader));
+        var intentionalUpdate = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<string>> { new() { "Name" } },
+            ["overwrite_policy"] = "allow"
+        });
+        AssertSuccess(intentionalUpdate, "Explicitly allowed header replacement");
+
         var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",

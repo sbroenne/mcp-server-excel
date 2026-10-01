@@ -76,7 +76,7 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1:D10",
+        _commands.SetValues(batch, sheetName, "A1:D1",
         [
             [1, 2, 3, 4]
         ]);
@@ -158,5 +158,4 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
     }
 
 }
-
 

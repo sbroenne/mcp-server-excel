@@ -1,7 +1,8 @@
 # Ranges and formatting
 
 Values, formulas, and per-cell number formats use rectangular **2D arrays**.
-Even a single value is `[[value]]`. Read before overwriting. Use content-only
+Even a single value is `[[value]]`. Content writes reject occupied destinations
+by default; use explicit permission for intentional replacement. Use content-only
 clearing to preserve formats, and target only the changed cells.
 
 Number display formats belong to range operations. Visual styles, validation,
@@ -28,6 +29,57 @@ visual properties in one call; use shared `format-ranges` for disjoint ranges on
 one sheet. All target ranges are validated before that operation starts.
 For new user-facing reports or requested formatting, see the scoped
 [report-formatting workflow](report-formatting.md); preserve existing templates.
+
+## Protected writes and copies
+
+`set-values`, `set-formulas`, `copy`, `copy-values`, and `copy-formulas`
+default to `reject-nonempty`. The server checks the direct destinations before
+writing. This replaces a separate read used only to check whether cells are
+empty; read when existing content is needed to understand the user's request.
+For intentional replacement authorized by that request, use MCP
+`overwrite_policy: 'allow'` or CLI `--overwrite-policy allow`.
+Existing update scripts must add that option.
+
+For an authorized update of the existing `Sales` worksheet:
+
+```mcp
+range(action: 'set-values', session_id: sessionId, sheet_name: 'Sales', range_address: 'B2', values: [[1500]], overwrite_policy: 'allow')
+```
+
+```cli
+# Batch JSON uses "overwritePolicy": "allow".
+excelcli -q range set-values --session $sessionId --sheet Sales --range B2 --values '[[1500]]' --overwrite-policy allow
+```
+
+Values, whitespace, zero, false, errors, and formulas displaying an empty string
+are occupied. The same-value replacement is still an overwrite. Truly empty
+cells pass even when formatted; blank incoming values or copied source blanks
+do not authorize clearing existing content.
+
+Conflicts return an error with the sheet and at most 10 cell addresses, noting
+when further conflicts are not listed. No destination writes occur on rejection.
+Failed inspection also stops the operation; never treat unknown content as
+empty. Correct the destination or clarify unresolved intent. Do not automatically
+retry with `allow`, clear the conflicting cells, or ask redundant confirmation
+when replacement was already requested.
+
+Copy checks expand a single-cell anchor to the source size. Larger destinations
+must have row and column counts that are whole multiples of the source, and all
+repeated-paste cells are checked. Protected copies require unmerged rectangular
+source and destination ranges; ambiguous shapes and worksheet-edge overflow
+fail before copying. `copy-formulas` follows Excel's formula-paste behavior:
+source constants and blanks are copied too.
+
+Value/formula payload dimensions must match a single rectangular destination.
+Existing merged-write rules still apply. `allow` does not bypass Excel sheet
+protection or other write errors. Formatting-only actions do not use this policy;
+clearing and other tools' writes keep their own behavior.
+
+Checking and writing execute in one session operation, but this is not a
+transaction. Interactive users can still edit Excel. The check does not predict
+future formula spills, dependent calculations, or table-generated changes
+outside direct destinations, and a later Excel failure has no rollback promise.
+Saving remains explicit.
 
 ## Number formats and layout
 

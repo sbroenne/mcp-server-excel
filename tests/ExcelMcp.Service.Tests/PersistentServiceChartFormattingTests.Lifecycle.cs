@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -62,7 +63,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["Category", "Values"],
              ["Q1", 100],
              ["Q2", 150],
-             ["Q3", 200]]);
+             ["Q3", 200]], overwritePolicy: OverwritePolicy.Allow);
         _tableCommands.Create(
             batch,
             _sheetName,

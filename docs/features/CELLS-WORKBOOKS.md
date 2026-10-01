@@ -77,6 +77,30 @@ list, zero counts, and `truncated=false`; exactly the limit is not truncated.
 Exact totals require searching every match even after the return limit is
 reached. The limit bounds cell details, not search time. Paging is not provided.
 
+**Protected writes (new default):** `range` actions `set-values`, `set-formulas`,
+`copy`, `copy-values`, and `copy-formulas` default to `reject-nonempty`. Existing
+values, whitespace, errors, and formulas displaying blank block the operation,
+even for same-value replacements or blank incoming cells. Truly empty cells
+pass regardless of formatting. For intentional updates, pass MCP
+`overwrite_policy: 'allow'`, CLI `--overwrite-policy allow`, or batch JSON
+`"overwritePolicy": "allow"`; existing update scripts must add this explicitly.
+Neither policy bypasses Excel worksheet protection or existing write restrictions.
+
+The check covers the whole direct destination before any write. Copies expand
+single-cell anchors to the source size and check repeated-paste destinations.
+Protected copies require unmerged rectangles and destination dimensions that
+are whole multiples of the source; ambiguous shapes fail before copying.
+Excel formula paste also copies source constants and blanks.
+Value/formula arrays must exactly match one rectangular target.
+
+Conflicts report the sheet and at most 10 cell addresses, with an indication
+when more exist, and make no destination writes. Inspection failures stop the
+operation too. The check and write run together, but do not prevent interactive
+Excel edits, predict future formula spills or table-generated changes outside
+direct destinations, or promise rollback after a later Excel failure.
+Do not automatically retry with `allow` after a rejection. Clearing, formatting,
+and other tools' writes retain their own behavior; saving remains explicit.
+
 **Clearing has no tool-level undo:** Clear All removes values, formulas, and
 formats; Clear Contents preserves formats; Clear Formats preserves
 values/formulas. Check the intended target before clearing.

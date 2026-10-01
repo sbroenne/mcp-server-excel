@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
@@ -321,7 +322,8 @@ public sealed partial class PersistentServicePivotTableTests
                 ["South", "Gadget", 450, "2025-02-10"],
                 ["North", "Gadget", 600, "2025-02-15"],
                 ["South", "Widget", 850, "2025-03-05"],
-            ]);
+            ],
+            overwritePolicy: OverwritePolicy.Allow);
         _commands.SetNumberFormat(batch, _salesSheetName, "C2:C6", "0");
         _commands.SetNumberFormat(batch, _salesSheetName, "D2:D6", "m/d/yyyy");
     }

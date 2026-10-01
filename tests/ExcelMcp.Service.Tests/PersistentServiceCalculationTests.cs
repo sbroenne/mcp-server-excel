@@ -54,8 +54,8 @@ public sealed class PersistentServiceCalculationTests(
 
             Assert.True(_calculation.SetMode(_fixture.BatchToken, mode).Success);
             var write = writeFormula
-                ? range.SetFormulas(_fixture.BatchToken, sheetName, "A1", [["=3"]])
-                : range.SetValues(_fixture.BatchToken, sheetName, "A1", [[3]]);
+                ? range.SetFormulas(_fixture.BatchToken, sheetName, "A1", [["=3"]], overwritePolicy: OverwritePolicy.Allow)
+                : range.SetValues(_fixture.BatchToken, sheetName, "A1", [[3]], overwritePolicy: OverwritePolicy.Allow);
             Assert.True(write.Success, write.ErrorMessage);
             var retainedMode = _calculation.GetMode(_fixture.BatchToken);
             Assert.True(retainedMode.Success, retainedMode.ErrorMessage);

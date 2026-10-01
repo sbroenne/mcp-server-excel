@@ -14,7 +14,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// Clear actions have no tool-level undo: clear-all removes values, formulas, and formats;
 /// clear-contents removes values/formulas; clear-formats removes formats. Check the intended target.
 ///
-/// BEST PRACTICE: Use 'get-values' to check existing data before overwriting.
+/// Content writes/copies default to reject-nonempty: existing content stops the operation before writing.
+/// Use overwritePolicy='allow' only for intentional replacement. A failed inspection stops the write.
+/// The check covers direct destinations, not future formula spills or transactional isolation.
 /// Use 'clear-contents' (not 'clear-all') to preserve cell formatting when clearing data.
 /// set-values preserves existing formatting; use set-number-format after if format change needed.
 ///
@@ -34,7 +36,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents removes values/formulas; clear-formats removes formats. Check the intended target before clearing. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Use calculation_mode get-mode when subsequent work depends on the mode; manual mode needs explicit calculation. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. OVERWRITE POLICY: set-values, set-formulas, copy, copy-values, and copy-formulas default to overwrite_policy='reject-nonempty'. Existing values, whitespace, errors, and formulas displaying blank are occupied. Conflicts or failed inspection stop before writing; errors list at most 10 conflicting addresses. Use overwrite_policy='allow' when the user's request authorizes replacement, without redundant confirmation. Never automatically retry a rejected write with allow. Checks cover direct destinations, including expanded copy targets, not future spills, rollback, or interactive Excel edits. Protected copies require unmerged rectangular sources/destinations and a single-cell anchor or destination dimensions that are whole multiples of the source. CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents removes values/formulas; clear-formats removes formats. Check the intended target before clearing. Use range_edit for insert/delete/find/sort. Use range_format for styling/validation. Use range_link for hyperlinks/protection. Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Use calculation_mode get-mode when subsequent work depends on the mode; manual mode needs explicit calculation. Use calculation_mode for recalculation. EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. Use clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
@@ -69,8 +71,9 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address matching data dimensions (e.g., 'A1' for [[value]], 'A1:B2' for [[v1,v2],[v3,v4]])</param>
     /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Strict ISO dates such as "2025-01-15" become native Excel dates. Optional if valuesFile is provided.</param>
     /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
+    /// <param name="overwritePolicy">reject-nonempty (default) checks all direct destinations and rejects existing content, including formulas displaying blank. allow permits intentional replacement, not bypassing Excel protection. Inspection failure stops the operation; no rollback or interactive-edit isolation.</param>
     [ServiceAction("set-values")]
-    OperationResult SetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null);
+    OperationResult SetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
     // === FORMULA OPERATIONS ===
 
@@ -100,8 +103,9 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address matching formulas dimensions (e.g., 'A1:B2' for 2x2 formula array)</param>
     /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Optional if formulasFile is provided.</param>
     /// <param name="formulasFile">Path to a JSON file containing the formulas as a 2D array. Alternative to inline formulas parameter.</param>
+    /// <param name="overwritePolicy">reject-nonempty (default) rejects existing content before writing, including formulas displaying blank. allow permits authorized replacement. Checks cover direct destinations, not future formula spills; inspection failure stops the write.</param>
     [ServiceAction("set-formulas")]
-    OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
+    OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
     /// <summary>
     /// Validates formulas for syntax errors, undefined functions, and other issues without applying them.
@@ -162,8 +166,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    /// <param name="overwritePolicy">reject-nonempty (default) checks the entire paste destination, including expansion/repetition and cells cleared by source blanks. Protected copies require unmerged rectangles and compatible dimensions. allow permits intentional replacement; inspection errors stop protected writes.</param>
     [ServiceAction("copy")]
-    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
+    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
     /// <summary>
     /// Copies only values (no formulas or formatting).
@@ -174,11 +179,12 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    /// <param name="overwritePolicy">reject-nonempty (default) checks the entire paste destination, including expansion/repetition and cells cleared by source blanks. Protected copies require unmerged rectangles and compatible dimensions. allow permits intentional replacement.</param>
     [ServiceAction("copy-values")]
-    OperationResult CopyValues(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
+    OperationResult CopyValues(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
     /// <summary>
-    /// Copies only formulas (no values or formatting).
+    /// Copies formulas and source constants (no formatting), following Excel formula-paste semantics.
     /// Excel COM: Range.PasteSpecial(xlPasteFormulas)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -186,8 +192,9 @@ public interface IRangeCommands
     /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
     /// <param name="targetSheet">Target worksheet name for copy operations</param>
     /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    /// <param name="overwritePolicy">reject-nonempty (default) checks the entire paste destination, including expansion/repetition and cells cleared by source blanks. Excel formula paste also copies source constants. Protected copies require unmerged rectangles and compatible dimensions. allow permits intentional replacement.</param>
     [ServiceAction("copy-formulas")]
-    OperationResult CopyFormulas(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
+    OperationResult CopyFormulas(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
     // === NUMBER FORMAT OPERATIONS ===
 

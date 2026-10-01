@@ -1,5 +1,6 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -192,7 +193,8 @@ public sealed partial class PersistentServiceRangeSpecializedTests
                     batch,
                     sheetName,
                     "A1",
-                    [[protectSheet ? "=43" : "=1+"]]));
+                    [[protectSheet ? "=43" : "=1+"]],
+                    overwritePolicy: OverwritePolicy.Allow));
             Assert.Contains("COMException", error.Message, StringComparison.Ordinal);
             Assert.Equal("=42", _commands.GetFormulas(batch, sheetName, "A1").Formulas[0][0]);
             Assert.Equal(
