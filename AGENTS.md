@@ -10,7 +10,8 @@ Work requests are tracked in this repository's GitHub Issues. See `docs/agents/i
 
 ### Release notes
 
-Add and commit a patch changeset for every user-visible behavior change.
+Follow the [Git and release rules](.github/copilot-instructions.md#git-and-release)
+for changesets, commit permission, and publication.
 
 ### Domain docs
 

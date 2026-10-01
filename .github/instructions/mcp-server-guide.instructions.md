@@ -21,15 +21,10 @@ excludeAgent: "code-review"
   edits; cancellation is not undo and must not close unrelated workbooks.
 - Stdio stdout is JSON-RPC only, including startup/bootstrap paths; diagnostics
   go to stderr.
-- Descriptions add server-specific constraints and tool-selection hints, not
-  types/enums already in the schema. No emojis in generated guidance/XML docs.
-  Keep destructive/read-only metadata accurate.
-- Server instructions stay minimal and task-focused. Shared skill guides are
-  not MCP prompts; do not advertise optional guides as required instructions.
-- Prompts, resources, and MCP elicitation are not implemented. The client must
-  obtain any needed consent; description text does not enforce confirmation.
-- Preserve Core XML documentation as a generator input. Render known top-level
-  input names in snake_case without changing nested JSON keys or enum values.
-  Verify emitted descriptions through SDK discovery, not only source strings.
+- Keep destructive/read-only tool metadata accurate.
+
+Descriptions, input naming, server instructions, supported MCP capabilities,
+and guidance validation follow
+[Agent guidance sources](mcp-llm-guidance.instructions.md).
 
 Manual routing example and explanation: `docs/DEVELOPMENT.md`.

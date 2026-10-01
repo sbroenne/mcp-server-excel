@@ -22,6 +22,10 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 
 Set a hard execution timeout for every Excel-dependent run. Run only the
 relevant project and filter, not the full integration suite during iteration.
+Returning control while tests keep running is not a timeout. Session/batch
+infrastructure changes require relevant ComInterop OnDemand tests; narrow by
+test name where appropriate. Core OnDemand tests are optional diagnostics,
+not mandatory CI gates.
 
 ### Saved workbook templates
 
@@ -36,6 +40,10 @@ reopen behavior is the subject of the test. Do not pool a live Excel
 application, batch, or workbook across unrelated tests or classes. A reviewed
 class-scoped Service fixture may share one session as described below.
 
+Tests may construct or inspect ZIP/OOXML workbook parts for fixtures and
+concrete verification. This is a test-only exception: never move that package
+access into production code or use it instead of exercising Excel COM behavior.
+
 ### Persistent Service class fixtures
 
 Ordinary workbook behavior tests may share one in-process `ExcelMcpService`
@@ -45,7 +53,8 @@ contracts. Every test creates and cleans its own sheets, tables, maps, or other
 objects, so test order does not matter. Fixture shutdown closes the session,
 checks the Service session count, verifies exact owned process identities, and
 uses the shared assembly exit gate. Cleanup still runs after a primary failure,
-and reports both the primary and cleanup failures.
+and reports both the primary and cleanup failures. A failed shared session
+fails explicitly; do not silently recreate it.
 
 Fresh workbook/process, desktop, registry, or per-test Service isolation is
 independent from the operation boundary and is not by itself a reason to call
@@ -121,6 +130,7 @@ in collection definitions with `DisableParallelization=true`.
 parallelize. Process launches, waits, repository mutation, and global state
 still require review. Collection settings serialize only one testhost;
 orchestration must keep separate Excel testhosts from overlapping.
+Keep pure logic tests fast while preserving separate real lifecycle checks.
 
 The classification architecture test reflects over the built test assembly. It
 fails when a discovered test is missing `RequiresExcel=true/false`, has both
@@ -266,9 +276,9 @@ process counts.
 
 ## Documentation
 
-**For complete testing guidance, see:**
+**Repository requirements and the short instruction checklist:**
 
-- **[Testing Strategy](../.github/instructions/testing-strategy.instructions.md)** - Quick reference, templates, common mistakes
+- **[Testing Strategy](../.github/instructions/testing-strategy.instructions.md)** - Required safeguards; detailed procedures live in this guide
 - **[Repository Rules](../.github/copilot-instructions.md)** - Build, E2E, and contribution requirements
 
 ## Test Architecture
