@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
@@ -15,6 +17,57 @@ public sealed class McpbPackagingScriptTests
         RepoRoot,
         "mcpb",
         "McpbPackaging.ps1");
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "McpbPackaging")]
+    public async Task Build_CreatesMetadataOnlyBundleWithDirectNpxLatest()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var bundleRoot = Directory.CreateDirectory(Path.Combine(sandbox, "mcpb")).FullName;
+            var scripts = Directory.CreateDirectory(Path.Combine(sandbox, "scripts")).FullName;
+            File.Copy(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"), Path.Combine(scripts, "PackageHelpers.ps1"));
+            foreach (var name in new[] { "Build-McpBundle.ps1", "McpbPackaging.ps1", "manifest.json", "README.md", "icon-512.png" })
+            {
+                File.Copy(Path.Combine(RepoRoot, "mcpb", name), Path.Combine(bundleRoot, name));
+            }
+            foreach (var name in new[] { "LICENSE", "CHANGELOG.md" })
+            {
+                File.Copy(Path.Combine(RepoRoot, name), Path.Combine(sandbox, name));
+            }
+
+            var result = await RunPowerShellAsync($$"""
+                function npm.cmd { throw 'The bundle must not install npm dependencies.' }
+                function npm { throw 'The bundle must not install npm dependencies.' }
+                function dotnet { throw 'The bundle must not publish a server executable.' }
+                & '{{EscapePowerShellLiteral(Path.Combine(bundleRoot, "Build-McpBundle.ps1"))}}' -Version '1.2.3'
+                """);
+            Assert.Equal(0, result.ExitCode);
+            using var archive = ZipFile.OpenRead(Path.Combine(bundleRoot, "artifacts", "excel-mcp-1.2.3.mcpb"));
+            var expectedEntries = new[] { "CHANGELOG.md", "LICENSE", "README.md", "icon-512.png", "manifest.json" };
+            Assert.Equal(
+                expectedEntries,
+                archive.Entries.Select(entry => entry.FullName).Order(StringComparer.Ordinal).ToArray());
+            var manifestEntry = archive.GetEntry("manifest.json");
+            Assert.NotNull(manifestEntry);
+            using var stream = manifestEntry.Open();
+            using var manifest = await JsonDocument.ParseAsync(stream);
+            Assert.Equal("1.2.3", manifest.RootElement.GetProperty("version").GetString());
+            var server = manifest.RootElement.GetProperty("server");
+            Assert.Equal("node", server.GetProperty("type").GetString());
+            Assert.Equal("@sbroenne/mcp-server-excel", server.GetProperty("entry_point").GetString());
+            var config = server.GetProperty("mcp_config");
+            Assert.Equal("npx", config.GetProperty("command").GetString());
+            var expectedArgs = new[] { "-y", "@sbroenne/mcp-server-excel@latest" };
+            Assert.Equal(
+                expectedArgs,
+                config.GetProperty("args").EnumerateArray().Select(argument => argument.GetString()).ToArray());
+            Assert.Empty(config.GetProperty("env").EnumerateObject());
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
 
     [Theory]
     [InlineData("wrong-version")]
@@ -59,6 +112,14 @@ public sealed class McpbPackagingScriptTests
             var bundleRoot = Directory.CreateDirectory(Path.Combine(sandbox, "mcpb")).FullName;
             var scripts = Directory.CreateDirectory(Path.Combine(sandbox, "scripts")).FullName;
             File.Copy(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"), Path.Combine(scripts, "PackageHelpers.ps1"));
+            foreach (var name in new[] { "manifest.json", "README.md", "icon-512.png" })
+            {
+                File.Copy(Path.Combine(RepoRoot, "mcpb", name), Path.Combine(bundleRoot, name));
+            }
+            foreach (var name in new[] { "LICENSE", "CHANGELOG.md" })
+            {
+                File.Copy(Path.Combine(RepoRoot, name), Path.Combine(sandbox, name));
+            }
             var builder = Path.Combine(bundleRoot, "Build-McpBundle.ps1");
             File.Copy(Path.Combine(RepoRoot, "mcpb", "Build-McpBundle.ps1"), builder);
             File.Copy(PackagingHelpers, Path.Combine(bundleRoot, "McpbPackaging.ps1"));
@@ -69,12 +130,12 @@ public sealed class McpbPackagingScriptTests
             await File.WriteAllTextAsync(previousPackage, "previous-good-package");
             await File.WriteAllTextAsync(unrelatedFile, "unrelated");
             var result = await RunPowerShellAsync($$"""
-                function dotnet { Write-Host 'publish-root-cause'; $global:LASTEXITCODE = 23 }
+                function Compress-Archive { throw 'archive-root-cause' }
                 & '{{EscapePowerShellLiteral(builder)}}' -Version '1.2.3'
                 exit $LASTEXITCODE
                 """);
             Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("publish-root-cause", result.Stdout + result.Stderr, StringComparison.Ordinal);
+            Assert.Contains("archive-root-cause", result.Stdout + result.Stderr, StringComparison.Ordinal);
             Assert.True(File.Exists(previousPackage), "A failed build must preserve the previous package.");
             Assert.Equal("previous-good-package", await File.ReadAllTextAsync(previousPackage));
             Assert.Equal("unrelated", await File.ReadAllTextAsync(unrelatedFile));

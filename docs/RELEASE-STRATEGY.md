@@ -8,10 +8,10 @@ All ExcelMcp components are released together with a single version tag:
 
 | Component | Primary Distribution | Secondary Distribution | Description |
 |-----------|---------------------|----------------------|-------------|
-| **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/mcp-server-excel` or `mcp-excel.exe` — no .NET runtime required |
-| **CLI** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx @sbroenne/excelcli` or `excelcli.exe` — no .NET runtime required |
+| **MCP Server** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx -y @sbroenne/mcp-server-excel@latest` or `mcp-excel.exe` — no .NET runtime required |
+| **CLI** | npm + standalone exe ZIP | NuGet (.NET tool) | `npx -y @sbroenne/excelcli@latest` or `excelcli.exe` — no .NET runtime required |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server and its skill |
-| **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
+| **MCPB** | Claude Desktop bundle | — | Direct npx configuration with `@latest`; requires Node.js/npm on PATH |
 | **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with npx launch configuration, an argument-safe CLI wrapper, and skills |
 | **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
@@ -59,7 +59,7 @@ When you run the release workflow, all components are released together:
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
 | `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
 | `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; same x64 MCP executable through Windows emulation, plus skill) |
-| `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop bundle, self-contained) |
+| `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop metadata bundle; server fetched through npx with `@latest`) |
 | `excel-plugins-v{version}.zip` | ZIP | GitHub Release (prepared plugin payload for exact-release repairs) |
 
 ## Release Process

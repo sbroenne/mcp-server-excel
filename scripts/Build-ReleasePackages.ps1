@@ -72,7 +72,7 @@ try {
     $prepared = @{}
     $neededRuntimes = @()
     if ($Components -contains 'Cli') { $neededRuntimes += 'Cli' }
-    if (@($Components | Where-Object { $_ -in @('Mcp', 'Extension', 'Mcpb') }).Count) { $neededRuntimes += 'Mcp' }
+    if (@($Components | Where-Object { $_ -in @('Mcp', 'Extension') }).Count) { $neededRuntimes += 'Mcp' }
     foreach ($component in $neededRuntimes) {
         $projectName = if ($component -eq 'Cli') { 'CLI' } else { 'McpServer' }
         $project = Join-Path $root "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj"
@@ -146,7 +146,7 @@ try {
     if ($Components -contains 'Mcpb') {
         Invoke-PackageStep 'Claude Desktop bundle' {
             & (Join-Path $root 'mcpb\Build-McpBundle.ps1') -Version $Version `
-                -RuntimeExecutable $prepared.Mcp -OutputDir (Join-Path $OutputDirectory 'mcpb')
+                -OutputDir (Join-Path $OutputDirectory 'mcpb')
         }
     }
     if (-not $SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {

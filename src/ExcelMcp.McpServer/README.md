@@ -37,11 +37,12 @@ Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drive
 **Primary — npm (no .NET runtime required):**
 
 ```powershell
-npx -y @sbroenne/mcp-server-excel
+npx -y @sbroenne/mcp-server-excel@latest
 ```
 
 Configure MCP clients with `command: "npx"` and
-`args: ["-y", "@sbroenne/mcp-server-excel"]`.
+`args: ["-y", "@sbroenne/mcp-server-excel@latest"]`. Requires Node.js 18+;
+npm resolves `@latest` at launch using its normal cache policy.
 
 **Standalone executable:**
 
