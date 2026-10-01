@@ -38,23 +38,22 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
             .ToHashSet(StringComparer.Ordinal);
         var requiredParameterNames = GetRequiredPropertyNames(calculationTool.JsonSchema);
         var repoRoot = FindRepoRoot();
-        var sourcePaths = new[]
-        {
-            Path.Combine("skills", "assets", "excel-mcp", "references", "calculation.md"),
-            Path.Combine("skills", "shared", "gotchas.md"),
-            Path.Combine("skills", "templates", "SKILL.mcp.sbn")
-        };
+        var sourcePaths = Directory.GetFiles(Path.Combine(repoRoot, "skills", "shared"), "*.md")
+            .Concat(Directory.GetFiles(Path.Combine(repoRoot, "skills", "assets", "excel-mcp", "references"), "*.md"))
+            .Append(Path.Combine(repoRoot, "skills", "templates", "SKILL.mcp.sbn"));
+        var verifiedActions = new HashSet<string>(StringComparer.Ordinal);
+        var exampleCount = 0;
 
         foreach (var sourcePath in sourcePaths)
         {
             var content = await File.ReadAllTextAsync(
-                Path.Combine(repoRoot, sourcePath),
+                sourcePath,
                 TestCancellationToken);
             var examples = Regex.Matches(content, @"\bcalculation_mode\((?<arguments>[^)\r\n]+)\)");
 
-            Assert.NotEmpty(examples);
             foreach (Match example in examples)
             {
+                exampleCount++;
                 var arguments = example.Groups["arguments"].Value.Split(
                     ',',
                     StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -86,12 +85,15 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
 
                 Assert.NotNull(action);
                 Assert.Contains(action, actionNames);
+                verifiedActions.Add(action);
                 foreach (var requiredParameterName in requiredParameterNames)
                 {
                     Assert.Contains(requiredParameterName, parameterNames);
                 }
             }
         }
+        Assert.True(exampleCount >= 5, $"Expected calculation workflow examples, found {exampleCount}.");
+        Assert.Equal(actionNames.Order(StringComparer.Ordinal), verifiedActions.Order(StringComparer.Ordinal));
     }
 
     private static HashSet<string> GetRequiredPropertyNames(JsonElement schema)

@@ -7,7 +7,7 @@ keywords: "Excel automation reference, Excel COM gotchas, Power Query reference,
 # Excel Automation Reference
 
 This is the reference corpus that ships inside the
-[Excel MCP Server agent skills](../skills.md) and as MCP prompts. It is written as
+[Excel MCP Server agent skills](../skills.md), not as MCP prompts. It is written as
 instruction for an AI agent — terse, imperative, and specific about what Excel
 actually does rather than what its documentation implies.
 
@@ -21,9 +21,6 @@ complete operation catalogue, see the [features reference](../features.md).
 
 - [Key Constraints & Sequencing](workflows.md) — what must happen before what
 - [Behavioral Rules](behavioral-rules.md) — verification and destructive-operation safety
-- [Anti-Patterns to Avoid](anti-patterns.md) — common mistakes and the correct approach
-- [Gotchas & Known Limits](gotchas.md) — surprising Excel behaviour and workarounds
-- [Agent Mode in Excel](agent-mode.md) — watching an agent drive the visible Excel window
 
 ## Workbooks, sheets and cells
 
@@ -51,4 +48,4 @@ complete operation catalogue, see the [features reference](../features.md).
 - [Slicers](slicer.md)
 - [Drawing Objects](drawing.md)
 - [Screenshots & Visual Verification](screenshot.md)
-- [Dashboards & Reports](dashboard.md)
+- [Optional Report Formatting](report-formatting.md) — report layout, financial-model conventions, and dashboards

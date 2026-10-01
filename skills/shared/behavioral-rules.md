@@ -38,7 +38,7 @@ visibility unless a change is requested. For a new session with no known
 preference, Excel is hidden by default; do not ask merely because work has
 multiple steps. "Leave the workbook open" means retain its session, not show a
 hidden Excel window. Authentication may require visible Excel; explain that exception.
-See [working with visible Excel](excel_agent_mode.md).
+See [window management](window.md#visibility-and-placement).
 
 ## Sessions and failures
 
@@ -120,3 +120,16 @@ settings automatically.
 Remote M/DAX formatting is opt-in and sends code to an external service. Obtain
 explicit consent first. Follow [Power Query](powerquery.md) and
 [Data Model](datamodel.md) guidance rather than repeating writes blindly.
+
+Connection-string keys follow the selected provider, not one universal casing
+rule. Use `connection test` for that connection and never expose credentials or
+full connection strings. Generic failures do not prove a missing provider.
+
+## Python in Excel
+
+`pythoninexcel` runs in Microsoft's cloud, not local Python. It needs licensed
+Microsoft 365 Python in Excel and network access. `#NAME?` means unavailable,
+not pending; use `get-result` for pending cloud work. Its `max_wait_seconds`
+(MCP) / `--max-wait-seconds` (CLI) must be shorter than the session operation
+timeout. Cloud startup can take minutes; do not repeatedly retry policy or
+connection failures as though they were transient.

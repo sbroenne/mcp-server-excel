@@ -1,41 +1,45 @@
-# powerquery - Server Quirks
+# Power Query: loading and recovery
 
-## Test New or Changed Queries Within the Request
+## Execution and destination decisions
 
-For authorized query development, prefer testing new logic before storing it:
+For authorized development, prefer `evaluate` for new or materially changed M:
+check the preview before storing it. Skip redundant evaluation for trivial
+literal tables or validated code with unchanged dependencies.
 
-```
-Step 1: evaluate → Test M code, verify results (catches syntax errors, missing sources)
-Step 2: create/update → Store the validated query; create also loads its chosen destination
-Step 3: load-to if created connection-only; refresh when loaded data needs updating
-```
+Evaluation is not a read-only operation: it creates temporary workbook objects,
+executes M, then removes them by exact identity. Cleanup failure is an error.
+Execution may contact external sources. For an audit, inspect definitions and
+existing loaded values; follow [permission rules](behavioral-rules.md#intent-and-permission).
 
-**Why this workflow:**
-- `evaluate` executes M code without keeping a permanent query
-- Returns actual data preview with columns and rows in JSON
-- Better error messages than COM exceptions from create/update
-- Temporary queries, sheets, tables, and mashup connections are deleted by exact
-  `Location`; cleanup failures return an error instead of success
-- Skip redundant evaluation for trivial literal tables or already-validated code
-  with unchanged sources and dependencies
+| Decision | Effect |
+|----------|--------|
+| `create` for an absent query | Stores it **and loads** its destination; `worksheet` by default |
+| `update` for an existing query | Changes M and refreshes by default; `refresh: false` (MCP) / `--refresh false` (CLI) stores without refresh |
+| `load-to` to select a destination | Loads immediately, not just configuration |
+| `refresh` for an existing load | Updates data; definitions alone do not prove loaded values are current |
+| `unload` | Removes **all** worksheet/model destinations, retains the query |
+| `delete` | Removes the query and its associated loads; inspect dependencies first |
 
-Evaluation is not a read-only operation: it creates a temporary query, sheet,
-Table, and connection in the current workbook, executes M code, then removes
-those objects. Execution may contact external sources. An audit does not
-authorize evaluation, refresh, or repairs merely because the resulting objects
-are temporary. Use stored definitions, metadata, and existing loaded values for
-inspection; follow the shared [permission policy](behavioral-rules.md#intent-and-permission)
-when a state-changing check is necessary.
+Use `connection-only` to store without execution. It does not validate M.
+A query loaded only to the model is not connection-only.
+
+When creating/loading onto populated sheets, inspect cells and provide
+`target_cell_address` (MCP) / `--target-cell-address` (CLI). Existing Tables
+refresh in place. Moving a load requires unload/reload, which removes **all**
+current destinations; check model dependencies and authorized scope first.
+
+Set explicit M column types for dates and relationship keys. Query refresh
+synchronizes its model load; refresh dependent PivotTables afterward.
+See [Data Model](datamodel.md).
 
 ## Recovering a failed create
 
-Creation adds the query before loading. A failed load can leave the query and
-load objects behind. Inspect `list`, `view`, and `get-load-config` first. Evaluate
-corrected code, then **update if the query survived**; create only if it is absent.
-Do not delete surviving objects blindly.
+Create adds the query before loading; a load failure can leave the query and
+load objects behind. Repeating create then fails with "already exists".
+Inspect `list`, `view`, and `get-load-config`; update the surviving query.
+Create only if it is absent. Do not blindly delete/rebuild it.
 
-For an existing query `SalesQuery`, with corrected code in a known readable
-`query.m` file and the current session already captured:
+For surviving `SalesQuery` and corrected code in a known `query.m` file:
 
 ```mcp
 powerquery(action: 'evaluate', session_id: sessionId, m_code_file: 'query.m')
@@ -49,130 +53,30 @@ excelcli -q powerquery update --session $sessionId --query-name SalesQuery --m-c
 excelcli -q powerquery get-load-config --session $sessionId --query-name SalesQuery
 ```
 
-Check each result. Refresh a surviving intended load, or use `load-to` for the
-required destination after inspecting sheet content. A successful evaluation does
-not prove that loading onto a particular sheet will succeed.
+Check each result. Refresh the surviving intended load, or use `load-to` after
+checking its destination. Successful evaluation does not prove a sheet load
+will succeed. Read affected loaded values before saving.
 
-**M-Code Formatting and reads**:
+Cleanup uses the exact case-insensitive mashup `Location`, not display-name
+prefixes. Queries such as `A` and `AA` are independent; do not remove similarly
+named connections as a shortcut.
 
-- Create and Update preserve M code exactly by default and do not call remote services
-- Set `format_m_code: true` (MCP) / `--format-m-code true` (CLI) only with explicit user consent; it sends M code to powerqueryformatter.com
-- Graceful fallback: saves original M code if the formatting service is unavailable
-- `list` returns compact metadata, exact load mode, character count, and at most
-  80 characters of `formulaPreview`; it never returns full M code
-- Use `view` to retrieve one query's complete M code and exact load mode
-- Read operations return stored text without formatting
+## Code, reads, and waits
 
-**Data Model workflow**:
-
-Power Query can load data to different destinations:
-- `worksheet` / `load-to-table` (default): Creates an Excel Table on a worksheet
-- `data-model` / `load-to-data-model`: Loads directly to Power Pivot for DAX analysis
-- `both` / `load-to-both`: Loads to worksheet AND Power Pivot
-- `connection-only`: Imports query definition without loading data
-
-Destination values are case-insensitive. Unknown values fail before the query is
-changed; they never fall back to connection-only or another enum default.
-
-To create DAX measures on Power Query data:
-1. Use `create`/`load-to` with `load_destination: 'data-model'` (MCP) / `--load-destination data-model` (CLI)
-2. Then use datamodel to create DAX measures
-
-Alternative path (for existing worksheet tables):
-1. Use table with `add-to-data-model` action
-2. Then use datamodel to create DAX measures
-
-**Action disambiguation**:
-
-- evaluate: Execute M code and return results without keeping a permanent query
-- create: Store a new query and load its selected destination (fails if it already exists; use update instead)
-- update: Update an existing query; refresh defaults to true. Use `refresh: false` (MCP) / `--refresh false` (CLI) to disable it.
-- rename: Change query name (requires `old_name` and `new_name` in MCP / `--old-name` and `--new-name` in CLI)
-- load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
-- unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
-- delete: Completely removes query AND all associated data (worksheet, Data Model connections)
-
-**Rename behavior**:
-
-- Names are trimmed and compared case-insensitively for uniqueness
-- Renaming "Query1" to "query1" is allowed (case-only change, no conflict)
-- Renaming "Query1" to " Query1 " is a no-op (trimmed names match)
-- No-op (same normalized name) → success with `oldName` = `newName`
-- Conflict with existing query → error with `errorMessage`
-- M code content is unchanged - only the name changes
-- No auto-save: workbook must be saved separately to persist the rename
-
-**When to use create vs update**:
-
-- Query doesn't exist? → Use create
-- Query already exists? → Use update (create will error "already exists")
-- Not sure? → Check with list action first, then use update if exists or create if new
-- Prefer evaluate for new or changed code to catch errors before persisting
-
-**List/view load state**:
-
-- `list`, `view`, and `get-load-config` use the same exact-identity detector
-- `loadMode` distinguishes `connection-only`, `load-to-table`,
-  `load-to-data-model`, and `load-to-both`
-- `IsConnectionOnly=true` means query has NO data destination (not in worksheet, not in Data Model)
-- `IsConnectionOnly=false` means query loads data SOMEWHERE (worksheet OR Data Model OR both)
-- A query loaded ONLY to Data Model is NOT connection-only
-- If Excel cannot inspect a query, `list` fails explicitly instead of silently
-  omitting that query
-
-**Inline M code**:
-
-- Supply raw M code with `m_code` (MCP) / `--m-code` (CLI), or use
-  `m_code_file` (MCP) / `--m-code-file` (CLI) for a readable file containing
-  longer M code. Do not supply both.
-
-**Create/LoadTo with existing sheets**:
-
-- Use `target_cell_address` (MCP) / `--target-cell-address` (CLI) to place the Table on an existing worksheet without deleting other content
-- Applies to BOTH create and load-to
-- If the worksheet already has data and `target_cell_address` (MCP) /
-  `--target-cell-address` (CLI) is omitted, the
-  tool returns guidance telling you to provide one
-- Existing Tables are refreshed in place. Moving a load requires unload and
-  reload, which removes existing destinations and must be within the authorized
-  scope; a requested new position is not permission to discard unrelated data.
-- Worksheets that exist but are empty behave like new sheets (default destination = A1)
-
-**Common mistakes**:
-
-- Persisting untested code can leave a broken query; prefer evaluate for new logic
-- Using create on existing query → ERROR "Query 'X' already exists" (should use update)
-- Using update on new query → ERROR "Query 'X' not found" (should use create)
-- Loading onto populated sheets without a suitable `target_cell_address` (MCP) / `--target-cell-address` (CLI), or into overlapping content
-- Assuming unload only removes worksheet data → Also removes Data Model connections
-- Assuming rename preserves outer whitespace; the server trims " Query " to "Query"
-- Renaming to conflicting name → Check list first if unsure about existing names
-- Passing an option from another action, such as `m_code` (MCP) / `--m-code`
-  (CLI) on delete, or `timeout_seconds` (MCP) / `--timeout` (CLI) on load-to.
-  Category-wide schemas expose the union of options, but
-  each action validates its own subset.
-
-**Server-specific quirks**:
-
-- Validation = execution: M code only validated when data loads/refreshes
-- connection-only queries: NOT validated until first execution
-- load-to: Applies `load_destination` (MCP) / `--load-destination` (CLI) and refreshes
-- Single cell returns [[value]] not scalar
-- `timeout_seconds` (MCP) / `--timeout` (CLI) uses integer seconds. Refresh/refresh-all accepts
-  0-2147483; zero or omission uses the 30-minute data-operation default.
-- load-to has no caller timeout parameter and uses the fixed 30-minute data-operation timeout; passing `timeout` to load-to is rejected instead of ignored.
-- Refresh/refresh-all data-operation timeouts replace the session operation wait rather than layering with it. The session timeout controls startup and operations without a dedicated data timeout, including create/update/evaluate. Session open/create accepts 10-3600 seconds and defaults to 120.
-
-**Data Model connection cleanup**:
-
-- Unload removes BOTH worksheet ListObjects AND Data Model connections
-- Delete removes query, worksheet ListObjects, AND Data Model connections
-- Ownership uses the exact case-insensitive mashup `Location` value, not connection
-  display names; queries such as `A` and `AA` remain isolated
-
-## M Code Files
-
-See the [M-syntax reference](m-code-syntax.md) for quoted identifiers, named
-parameters, and query chaining. For longer code, store a readable `.pq` or `.m`
-file and use `m_code_file` (MCP) / `--m-code-file` (CLI) for evaluation and create/update. The source
-filename does not need to match the Excel query name.
+- Supply raw `m_code` (MCP) / `--m-code` (CLI), or `m_code_file` (MCP) /
+  `--m-code-file` (CLI), not both. The filename need not match the query name.
+  See [workbook parameters and M identifiers](m-code-syntax.md).
+- `list` returns compact metadata and a bounded preview; use `view` for full
+  stored M and `get-load-config` for destinations. None proves freshness.
+  Rename trims names but does not rewrite M; inspect dependent references.
+- M is preserved by default. Remote formatting needs consent:
+  `format_m_code: true` (MCP) / `--format-m-code true` (CLI) sends code to
+  powerqueryformatter.com; unavailable formatting saves original M.
+- Refresh/refresh-all accepts integer `timeout_seconds` (MCP) / `--timeout`
+  (CLI), with zero/omission using 30 minutes. That wait replaces the session
+  timeout for the refresh, rather than layering another wait over it.
+- `load-to` has a fixed 30-minute wait and no caller timeout input.
+  Create/update/evaluate use the session operation timeout.
+- Category-wide schemas/help contain options for several actions. Irrelevant
+  options are rejected, even if null/default: do not pass M to delete or a
+  refresh timeout to load-to.

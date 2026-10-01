@@ -75,6 +75,9 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Contains("asynchronous refreshes or Python calculations", description, StringComparison.Ordinal);
         Assert.Contains("concurrent requests and responses have no guaranteed order", Client.ServerInstructions, StringComparison.Ordinal);
         Assert.Contains("Await each dependent call", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("where repeated recalculation is costly", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("restore the prior mode, including after failure", Client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("One rectangular write is already batched", Client.ServerInstructions, StringComparison.Ordinal);
     }
 
     [Fact]

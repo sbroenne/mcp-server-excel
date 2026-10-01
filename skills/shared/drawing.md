@@ -2,31 +2,11 @@
 
 Use `drawing` for worksheet images, AutoShapes, text boxes, connectors, safe Forms controls, and sparklines.
 
-## Object lifecycle
-
-| Action | Purpose |
-|--------|---------|
-| `list-objects` | List drawing objects on one worksheet |
-| `get-object` | Read one object by name |
-| `add-image` | Embed a local image |
-| `add-shape` | Add a geometric, arrow, or flowchart AutoShape |
-| `add-text-box` | Add formatted text |
-| `add-connector` | Add straight, elbow, or curved connectors |
-| `add-form-control` | Add a worksheet Forms control |
-| `update-object` | Rename, move, resize, rotate, format, or change bindings |
-| `delete-object` | Delete by object name |
-
 Object names are worksheet-local. Call `list-objects` before updates or deletion when the exact name is unknown.
 
-Colors use `#RRGGBB`. Position and size values use points. Placement values are:
-
-- `1`: move and size with cells
-- `2`: move but do not size with cells
-- `3`: free floating
+Positions use points, not cells; use the schema/help for styles and placement.
 
 ## Safe Forms controls
-
-Supported controls are Button, CheckBox, DropDown, GroupBox, Label, ListBox, OptionButton, ScrollBar, and Spinner.
 
 - `linked_cell` (MCP) / `--linked-cell` (CLI): CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner
 - `input_range` (MCP) / `--input-range` (CLI): DropDown and ListBox only
@@ -36,9 +16,6 @@ ActiveX/OLE controls and macro assignment are intentionally unavailable. Do not 
 
 ## Sparklines
 
-Use `add-sparkline`, `get-sparkline`, `list-sparklines`, `update-sparkline`, and `delete-sparkline`.
-
-- Types: Line, Column, WinLoss
 - `source_range` (MCP) / `--source-range` (CLI): data to visualize
 - `location_range` (MCP) / `--location-range` (CLI): cells that host the sparklines
 - Line sparklines can show markers

@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
@@ -13,6 +15,35 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    public static IEnumerable<object[]> GeneratedCommandNames =>
+        _CliCategoryMetadata.ValidActionsByCommand.Keys
+            .Order(StringComparer.Ordinal)
+            .Select(command => new object[] { command });
+
+    [Theory]
+    [MemberData(nameof(GeneratedCommandNames))]
+    public async Task CommandHelp_ListsEveryValidActionWithoutConnecting(string command)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", command, "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(string.Empty, error.ToString());
+        var help = Regex.Replace(output.ToString(), @"\s+", " ");
+        var argumentSection = help.Split("OPTIONS:", StringSplitOptions.None)[0];
+        Assert.Contains("Available actions:", argumentSection, StringComparison.Ordinal);
+        foreach (var action in _CliCategoryMetadata.ValidActionsByCommand[command])
+        {
+            Assert.Matches($@"(?<![\w-]){Regex.Escape(action)}(?![\w-])", argumentSection);
+        }
+    }
+
     [Fact]
     public async Task SessionOpen_ServiceFailure_PreservesRequestExitAndErrorEnvelope()
     {

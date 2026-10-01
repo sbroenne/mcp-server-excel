@@ -47,29 +47,19 @@ npx skills add https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/pl
 excel-mcp/
 ├── SKILL.md           # Main skill definition with MCP tool guidance
 ├── README.md          # This file
-└── references/        # Detailed domain-specific guidance
-    ├── anti-patterns.md
-    ├── behavioral-rules.md
-    ├── chart.md
-    ├── conditionalformat.md
-    ├── dashboard.md
-    ├── datamodel.md
-    ├── dmv-reference.md
-    ├── excel_agent_mode.md
-    ├── gotchas.md
-    ├── m-code-syntax.md
-    ├── pivottable.md
-    ├── powerquery.md
-    ├── range.md
-    ├── screenshot.md
-    ├── slicer.md
-    ├── table.md
-    ├── window.md
-    └── worksheet.md
+└── references/        # Optional workflows, recovery, and formatting
+    ├── index.md       # Generated topic index
+    └── *.md
 ```
 
 Distributable packages add a `VERSION` file during the build. The canonical skill
 source intentionally has no version metadata so it cannot become a stale build input.
+
+Use MCP tool schemas for actions, parameters, and defaults, and server
+instructions for session and safety rules. Read only the relevant guide from
+the [topic index](references/index.md) when a workflow or recovery decision
+needs more explanation. Report formatting and financial-model conventions
+are optional, not a requirement to restyle existing workbooks.
 
 ## MCP Server Setup
 

@@ -37,5 +37,26 @@ Arranging makes Excel visible. Normal/maximized states also make it visible.
 Positioning uses points and restores a normal window state first.
 
 Use get-info to inspect visibility, bounds, state, and foreground status. Session
-listings reflect show/hide changes. For status-bar feedback and closing visible
-windows, see [working with visible Excel](excel_agent_mode.md).
+listings reflect show/hide changes.
+
+For requested side-by-side work:
+
+```mcp
+window(action: 'show', session_id: sessionId)
+window(action: 'arrange', session_id: sessionId, preset: 'right-half')
+```
+
+```cli
+excelcli -q window show --session $sessionId
+excelcli -q window arrange --session $sessionId --preset right-half
+```
+
+Visible mode needs no extra charts or formatting. Optional status text is useful
+only for long visible work; clear it after success or failure. Do not tell a
+user to inspect a hidden window. [Screenshots](screenshot.md) can bring Excel
+forward and need an interactive desktop.
+
+Confirm before closing a visible window unless authorized. Wait for
+`canClose: true`; close defaults to discarding edits. Use `save: true` (MCP) /
+`--save` (CLI) when authorized changes should be kept. See
+[session recovery](behavioral-rules.md#sessions-and-failures).
