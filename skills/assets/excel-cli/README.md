@@ -24,6 +24,8 @@ Here `$sessionId` is the returned ID for the intended workbook. For writes and
 batch jobs, use the failure-aware lifecycle in [SKILL.md](SKILL.md).
 Use `excelcli <command> --help` for actions, flags, and defaults, and the
 [topic index](references/index.md) for optional workflows and recovery.
+For `session` and `service`, use `excelcli session <action> --help` or
+`excelcli service <action> --help` for action-specific flags and defaults.
 
 ## Installation
 

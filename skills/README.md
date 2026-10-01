@@ -98,7 +98,9 @@ Do not put entry-point-specific calls in unmarked prose or generic code fences.
 The generated `references/index.md` links every guide automatically. CLI users
 discover command groups with `excelcli --help` and actions, flags, descriptions,
 applicability, and defaults with `excelcli <command> --help`. Generation does not
-create `references/cli-commands.md` or `references/commands/`.
+create `references/cli-commands.md` or `references/commands/`. For the branched
+`session` and `service` commands, use `excelcli session <action> --help` or
+`excelcli service <action> --help` for action-specific flags and defaults.
 Keep separate entry skills: MCP uses schemas and server initialization guidance;
 CLI retains its own session, quoting, block-write, and failure-aware batch rules.
 Report formatting, including financial-model conventions, is optional and

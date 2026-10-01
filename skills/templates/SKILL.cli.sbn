@@ -18,8 +18,11 @@ Use `excelcli` if already available; otherwise use
 The plugin's `bin\start-cli.ps1` wrapper preserves embedded JSON quotes in
 Windows PowerShell. No global helper or PATH change is required.
 Use `excelcli --help` for command groups and `excelcli <command> --help` for
-the complete action list, flags, applicability, and defaults. Read only guides
-needed for a decision or recovery; do not load the entire reference library.
+the complete action list, flags, applicability, and defaults. For the branched
+`session` and `service` commands, use `excelcli session <action> --help` or
+`excelcli service <action> --help` for action-specific flags and defaults.
+Read only guides needed for a decision or recovery; do not load the entire
+reference library.
 
 ## Target, scope, and sessions
 
@@ -52,6 +55,7 @@ needed for a decision or recovery; do not load the entire reference library.
 Use `excelcli -q <command> <action> --session <id> --kebab-case-flags ...`.
 MCP snake_case names are not CLI flags; batch arguments use Service camelCase.
 Supply only options applicable to the action.
+For `session` and `service`, check `excelcli <command> <action> --help`.
 
 Range content writes/copies reject existing content by default. Add
 `--overwrite-policy allow` for intentional replacement authorized by the
