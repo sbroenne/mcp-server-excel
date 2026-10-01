@@ -293,6 +293,57 @@ public sealed class ReleaseMetadataScriptTests
     }
 
     [Theory]
+    [InlineData("release.yml", "publish-plugins", "publish-plugins.yml")]
+    [InlineData("publish-plugins.yml", "update-awesome-copilot", "update-awesome-copilot.lock.yml")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void PluginPublication_CallersAllowEveryCompiledUpdaterPermission(
+        string callerFile, string callerJob, string calleeFile)
+    {
+        var workflows = Path.Combine(RepoRoot, ".github", "workflows");
+        var caller = File.ReadAllText(Path.Combine(workflows, callerFile));
+        var callerBody = ExtractWorkflowJob(caller, callerJob);
+        Assert.Contains($"uses: ./.github/workflows/{calleeFile}", callerBody, StringComparison.Ordinal);
+        var granted = ExtractWorkflowPermissions(callerBody, 4)
+            ?? ExtractWorkflowPermissions(caller[..caller.IndexOf("\njobs:", StringComparison.Ordinal)], 0);
+        Assert.NotNull(granted);
+
+        var updater = File.ReadAllText(Path.Combine(workflows, "update-awesome-copilot.lock.yml"));
+        var inherited = ExtractWorkflowPermissions(updater[..updater.IndexOf("\njobs:", StringComparison.Ordinal)], 0);
+        Assert.NotNull(inherited);
+        var required = new HashSet<string>(StringComparer.Ordinal);
+        // GitHub validates every nested job, even when the opt-in condition skips it.
+        foreach (System.Text.RegularExpressions.Match job in System.Text.RegularExpressions.Regex.Matches(
+                     updater[(updater.IndexOf("\njobs:", StringComparison.Ordinal) + 1)..],
+                     @"(?m)^  ([a-z_][a-z_-]*):\r?$"))
+        {
+            var permissions = ExtractWorkflowPermissions(ExtractWorkflowJob(updater, job.Groups[1].Value), 4)
+                ?? inherited;
+            foreach (var permission in permissions.Where(permission => permission.Value != "none"))
+            {
+                Assert.Equal("read", permission.Value);
+                required.Add(permission.Key);
+            }
+        }
+
+        Assert.Equal(["actions", "contents", "pull-requests"], required.Order(StringComparer.Ordinal));
+        foreach (var permission in required)
+        {
+            Assert.True(granted.TryGetValue(permission, out var access) && access == "read",
+                $"{callerFile} job '{callerJob}' must grant {permission}: read to the compiled updater.");
+        }
+        Assert.Equal(required.Order(StringComparer.Ordinal), granted.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["contents"], ExtractWorkflowPermissions(
+            caller[..caller.IndexOf("\njobs:", StringComparison.Ordinal)], 0)!.Keys);
+        if (callerFile == "publish-plugins.yml")
+        {
+            Assert.Contains("if: needs.publish.outputs.handoff == 'true' && vars.AWESOME_COPILOT_UPDATES_ENABLED == 'true'",
+                callerBody, StringComparison.Ordinal);
+            Assert.Null(ExtractWorkflowPermissions(ExtractWorkflowJob(caller, "resolve"), 4));
+            Assert.Null(ExtractWorkflowPermissions(ExtractWorkflowJob(caller, "publish"), 4));
+        }
+    }
+
+    [Theory]
     [InlineData("1.2.2", false, false, "1.2.3", false, true)]
     [InlineData("1.2.3", true, false, "1.2.3", false, true)]
     [InlineData("1.2.3", true, true, "1.2.3", false, true)]
@@ -1033,6 +1084,31 @@ public sealed class ReleaseMetadataScriptTests
     {
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         return document.RootElement.GetProperty(propertyName).GetInt32();
+    }
+
+    private static Dictionary<string, string>? ExtractWorkflowPermissions(string body, int indentation)
+    {
+        var lines = body.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var prefix = new string(' ', indentation);
+        var start = Array.FindIndex(lines, line => line.StartsWith($"{prefix}permissions:", StringComparison.Ordinal));
+        if (start < 0)
+        {
+            return null;
+        }
+        var permissions = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (lines[start] == $"{prefix}permissions: {{}}")
+        {
+            return permissions;
+        }
+        Assert.Equal($"{prefix}permissions:", lines[start]);
+        foreach (var line in lines.Skip(start + 1).TakeWhile(line => line.StartsWith($"{prefix}  ", StringComparison.Ordinal)))
+        {
+            Assert.Matches(@"^[a-z-]+: (read|write|none)$", line.Trim());
+            var entry = line.Trim().Split(": ", StringSplitOptions.None);
+            permissions.Add(entry[0], entry[1]);
+        }
+        Assert.NotEmpty(permissions);
+        return permissions;
     }
 
     private static string ExtractWorkflowJob(string workflow, string jobName)
