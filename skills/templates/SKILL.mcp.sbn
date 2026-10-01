@@ -151,7 +151,7 @@ server instructions. This server advertises tools, not prompts or resources.
 - [Common mistakes](./references/anti-patterns.md)
 - [Calculation mode](./references/calculation.md)
 - [Data Model workflows](./references/workflows.md)
-- [Charts](./references/chart.md)
+- [Charts: sources, labels, periods, units, and placement](./references/chart.md)
 - [Conditional formatting](./references/conditionalformat.md)
 - [Dashboards](./references/dashboard.md)
 - [Data Model and DAX](./references/datamodel.md)
