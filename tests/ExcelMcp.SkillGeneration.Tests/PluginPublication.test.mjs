@@ -849,6 +849,46 @@ test('artifact guards reject missing-leaf link ancestors and regular-file ancest
     } finally { fs.rmSync(fixture, { recursive: true }); }
 });
 
+test('Windows canonical aliases accept long, short and case paths without weakening link or source guards', t => {
+    if (process.platform !== 'win32') { t.skip('Windows path-name APIs only'); return; }
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-long-path-alias-'));
+    const names = target => JSON.parse(command('pwsh', ['-NoProfile', '-NonInteractive', '-Command', `
+        $ErrorActionPreference="Stop"
+        Add-Type 'using System; using System.Text; using System.Runtime.InteropServices; public static class PathNames {
+            [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern uint GetLongPathName(string p, StringBuilder b, uint n);
+            [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern uint GetShortPathName(string p, StringBuilder b, uint n);
+        }'
+        $long=[Text.StringBuilder]::new(32768); $short=[Text.StringBuilder]::new(32768)
+        if ([PathNames]::GetLongPathName($env:ALIAS_TARGET,$long,32768) -eq 0 -or [PathNames]::GetShortPathName($env:ALIAS_TARGET,$short,32768) -eq 0) {
+            throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error())
+        }
+        @{long=$long.ToString();short=$short.ToString()} | ConvertTo-Json -Compress
+    `], repoRoot, { ...externalCommandEnvironment(), ALIAS_TARGET: target }));
+    try {
+        const { long, short } = names(fixture);
+        const canonical = fs.realpathSync.native(fixture);
+        for (const spelling of [long, short, long.toUpperCase()]) {
+            assert.equal(updater.safeUpdaterPath(spelling, { directory: true }), canonical);
+            assert.equal(updater.safeUpdaterPath(path.join(spelling, 'new', 'plan.json'), { allowMissing: true }),
+                path.join(canonical, 'new', 'plan.json'));
+        }
+        if (short.toLowerCase() === long.toLowerCase()) {
+            assert.notEqual(process.env.GITHUB_ACTIONS, 'true', 'Hosted Windows CI must exercise an actual short-name alias.');
+            t.diagnostic('Local volume did not supply a distinct 8.3 alias; real long/case API paths and junction/source checks passed. Hosted Windows CI requires an actual alias.');
+        }
+        const outside = path.join(fixture, 'outside'), link = path.join(fixture, 'junction');
+        fs.mkdirSync(outside);
+        fs.symlinkSync(outside, link, 'junction');
+        for (const spelling of [long, short, long.toUpperCase()]) {
+            assert.throws(() => updater.safeUpdaterPath(path.join(spelling, 'junction', 'missing.json'), { allowMissing: true }), /unsafe|link|reparse/i);
+        }
+        for (const spelling of Object.values(names(repoRoot))) {
+            assert.throws(() => updater.discover({ tag: 'v2.1.0', workDirectory: spelling }), /overlap trusted source/i);
+        }
+        assert.deepEqual(fs.readdirSync(outside), []);
+    } finally { fs.rmSync(fixture, { recursive: true }); }
+});
+
 test('token-bearing writer validates exact prebuilt files without running any upstream npm script', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-prebuilt-writer-'));
     try {

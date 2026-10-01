@@ -164,6 +164,11 @@ ancestors and leaf destinations must be ordinary directories/files: symlinks,
 Windows junctions and all reparse points are rejected before reads/writes,
 including dangling links or missing leaves underneath linked ancestors.
 Windows local runs require `pwsh` for the complete reparse-attribute check.
+Windows 8.3 and case aliases are expanded with `GetLongPathNameW` and compared
+with native realpaths after every-component reparse checks. Subsequent paths and
+trusted-source overlap checks use physical canonical roots, including missing
+file suffixes. Legitimate short names are not treated as escapes; junctions and
+other reparse points remain forbidden. POSIX retains strict lexical/realpath equality.
 Git blob-mode checks also reject tracked links materialized as ordinary text
 by `core.symlinks=false`. Both listing files are checked before any mutation
 and again after upstream build; artifact/template/receipt paths have the same

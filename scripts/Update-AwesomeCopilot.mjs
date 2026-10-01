@@ -98,6 +98,12 @@ export function allPulls(read = api) {
     return [...new Map(result.map(pr => [pr.number, pr])).values()];
 }
 
+function physicalPath(value) {
+    if (process.platform !== 'win32') return value;
+    if (value.startsWith('\\\\?\\UNC\\')) return `\\\\${value.slice(8)}`;
+    return value.startsWith('\\\\?\\') ? value.slice(4) : value;
+}
+
 export function safeUpdaterPath(target, { directory = false, allowMissing = false } = {}) {
     const absolute = path.resolve(target), volume = path.parse(absolute).root;
     const parts = absolute.slice(volume.length).split(path.sep).filter(Boolean);
@@ -107,28 +113,48 @@ export function safeUpdaterPath(target, { directory = false, allowMissing = fals
         if (i >= 0) current = path.join(current, parts[i]);
         const stat = fs.lstatSync(current, { throwIfNoEntry: false });
         if (!stat) {
-            if (allowMissing) break;
+            if (allowMissing && existing.length > 0) break;
             throw new Error('Unsafe updater path: required path is missing.');
         }
         if (stat.isSymbolicLink()) throw new Error('Unsafe updater path: links are forbidden.');
         const isDirectory = i < parts.length - 1 || directory;
         if (isDirectory ? !stat.isDirectory() : !stat.isFile()) throw new Error('Unsafe updater path type.');
         const resolved = fs.realpathSync.native(current);
-        const normalize = value => process.platform === 'win32' ? value.toLowerCase() : value;
-        if (normalize(resolved) !== normalize(current)) throw new Error('Unsafe updater path: realpath escapes its lexical boundary.');
-        existing.push(current);
+        if (process.platform !== 'win32' && resolved !== current) throw new Error('Unsafe updater path: realpath escapes its lexical boundary.');
+        existing.push({ path: current, real: resolved });
     }
     if (process.platform === 'win32') {
-        run('pwsh', ['-NoProfile', '-NonInteractive', '-Command',
-            '$ErrorActionPreference="Stop"; foreach($p in (ConvertFrom-Json $env:EXCEL_UPDATER_PATHS)) { if (([IO.File]::GetAttributes($p) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Unsafe updater path: reparse points are forbidden." } }'],
-        undefined, { ...externalCommandEnvironment(), EXCEL_UPDATER_PATHS: JSON.stringify(existing) });
+        const expanded = parseJson(Buffer.from(run('pwsh', ['-NoProfile', '-NonInteractive', '-Command', `
+            $ErrorActionPreference="Stop"
+            Add-Type 'using System.Text; using System.Runtime.InteropServices; public static class UpdaterLongPaths {
+                [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+                public static extern uint GetLongPathName(string p, StringBuilder b, uint n);
+            }'
+            $names=@(foreach($item in (ConvertFrom-Json $env:EXCEL_UPDATER_PATHS)) {
+                if (([IO.File]::GetAttributes($item.path) -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                    throw "Unsafe updater path: reparse points are forbidden."
+                }
+                $name=[Text.StringBuilder]::new(32768)
+                $length=[UpdaterLongPaths]::GetLongPathName($item.path,$name,32768)
+                if ($length -eq 0) { throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error()) }
+                if ($length -ge 32768) { throw "Unsafe updater path: expanded path exceeds buffer." }
+                $name.ToString()
+            })
+            ConvertTo-Json -InputObject $names -Compress
+        `], undefined, { ...externalCommandEnvironment(), EXCEL_UPDATER_PATHS: JSON.stringify(existing) })));
+        if (!Array.isArray(expanded) || expanded.length !== existing.length ||
+            expanded.some((value, i) => typeof value !== 'string' ||
+                physicalPath(value).toLowerCase() !== physicalPath(existing[i].real).toLowerCase())) {
+            throw new Error('Unsafe updater path: realpath escapes its expanded lexical boundary.');
+        }
     }
-    return absolute;
+    const last = existing.at(-1);
+    return path.join(physicalPath(last.real), path.relative(last.path, absolute));
 }
 
 function workspace(directory, allowMissing = false) {
     const absolute = safeUpdaterPath(directory, { directory: true, allowMissing });
-    const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const source = physicalPath(fs.realpathSync.native(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')));
     const contained = (parent, child) => {
         const relative = path.relative(parent, child);
         return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
