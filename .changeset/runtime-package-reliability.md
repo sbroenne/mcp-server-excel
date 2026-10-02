@@ -11,6 +11,11 @@ Preserve underlying numeric values during formatted range copies, report
 hidden worksheets correctly, and retain exact-workbook recovery ownership
 after uncertain opens. Wait for desktop Excel readiness before handing off a
 workbook and reject unsupported cross-workbook worksheet selection.
+Mac range writes and copies now honor protected-write defaults, compatible
+larger copy destinations repeat source content, and formula reads return
+canonical Excel error metadata. Merged-cell writes fail before mutation
+because Excel's Apple Events API cannot identify the top-left exception
+reliably.
 
 Apple Silicon macOS support is experimental beta, not Windows feature parity.
 Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers,

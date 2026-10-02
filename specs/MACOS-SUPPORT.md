@@ -31,7 +31,7 @@ Use the Windows backend when a workflow requires an unavailable action.
 | Advanced visuals and worksheet features | Conditional formatting, rich font/fill/border styling, validation, comments, drawings, shapes, sparklines, outlines, protection, page setup, and window/Agent Mode control. Basic number formats, sizing, cell locking, tab color, and visibility are enabled. |
 | Screenshots and XML Maps | All public actions remain gated; helper/API presence is not accepted end-to-end support. |
 | Python in Excel | Result reads are unsupported. Licensed `PY()` formula writes are enabled; this does not imply result-read support. |
-| Range and worksheet variants | UsedRange, CurrentRegion, merge-area inspection, find/replace/sort, disjoint row/column editing, worksheet copy/move, and cross-workbook selection via worksheet `filePath`. Cell/row/column insertion/deletion, value/formula copies, merge/unmerge, and the accepted exact-workbook lifecycle variants are enabled. |
+| Range and worksheet variants | UsedRange, CurrentRegion, merge-area inspection, writes to merged cells (including the Windows top-left exception), find/replace/sort, disjoint row/column editing, worksheet copy/move, and cross-workbook selection via worksheet `filePath`. Cell/row/column insertion/deletion, value/formula copies, merge/unmerge, and the accepted exact-workbook lifecycle variants are enabled. |
 | Other What-If and calculation actions | All Scenario actions and application-global calculation-mode get/set. Goal Seek, one-/two-variable Data Tables, and explicit calculation are enabled. |
 | File/platform variants | New `.xlsm` creation, advanced workbook save/export operations, Intel Macs, Linux, and headless servers. `.xlsx` creation uses an intact Excel-authored template. |
 

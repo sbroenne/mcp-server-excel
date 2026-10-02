@@ -39,6 +39,10 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     private static readonly string[] InitialSheetNames = ["Data", "Spare"];
     private static readonly double[][] FormattedCopyValues = [[46000.5, 123.456789]];
     private static readonly string[][] FormattedCopyFormats = [["yyyy-mm-dd", "$0.00"]];
+    private static readonly int[][] ProtectedOverwriteValue = [[999]];
+    private static readonly string[][] MergedTopLeftValue = [["Merged"]];
+    private static readonly string[][] MergedNonTopLeftValue = [["Blocked"]];
+    private static readonly string[][] FormulaError = [["=1/0"]];
     private static readonly int[][] ShutdownValues = [[31415]];
 
     [MacExcelTheory]
@@ -312,6 +316,60 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     "range", "get-values", mainSession, RangeArgs("J5:K6"), deadline.Token));
                 Assert.Equal(8, copiedValues.GetProperty("values")[0][1].GetDouble());
                 Assert.Equal(7, copiedValues.GetProperty("values")[1][1].GetDouble());
+                var protectedWrite = await client.CallAsync(
+                    "range", "set-values", mainSession,
+                    RangeArgs("J5", ("values", ProtectedOverwriteValue)), deadline.Token);
+                Assert.False(protectedWrite.GetProperty("success").GetBoolean());
+                Assert.Contains(
+                    "reject-nonempty",
+                    protectedWrite.GetProperty("errorMessage").GetString(),
+                    StringComparison.Ordinal);
+                var protectedCopy = await client.CallAsync(
+                    "range", "copy-values", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "J5"
+                    },
+                    deadline.Token);
+                Assert.False(protectedCopy.GetProperty("success").GetBoolean());
+                Assert.Contains(
+                    "reject-nonempty",
+                    protectedCopy.GetProperty("errorMessage").GetString(),
+                    StringComparison.Ordinal);
+
+                Success(await client.CallAsync("range", "copy-values", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "U5:X8"
+                    }, deadline.Token));
+                var repeatedValues = Success(await client.CallAsync(
+                    "range", "get-values", mainSession, RangeArgs("U5:X8"), deadline.Token));
+                Assert.Equal(
+                    repeatedValues.GetProperty("values")[0][0].GetDouble(),
+                    repeatedValues.GetProperty("values")[2][2].GetDouble());
+                Assert.Equal(
+                    repeatedValues.GetProperty("values")[1][1].GetDouble(),
+                    repeatedValues.GetProperty("values")[3][3].GetDouble());
+
+                Success(await client.CallAsync("range", "copy", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "AA5:AD8"
+                    }, deadline.Token));
+                var repeatedCopyFormula = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("AD7"), deadline.Token));
+                Assert.Equal(
+                    "=AC7*2",
+                    repeatedCopyFormula.GetProperty("formulas")[0][0].GetString());
 
                 Success(await client.CallAsync("range", "set-values", mainSession,
                     RangeArgs("J10:K10", ("values", FormattedCopyValues)), deadline.Token));
@@ -347,6 +405,19 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     formulasOnlyFormats.GetProperty("formats").EnumerateArray()
                         .SelectMany(row => row.EnumerateArray()),
                     format => Assert.Equal("General", format.GetString()));
+                Success(await client.CallAsync("range", "copy-formulas", mainSession,
+                    new()
+                    {
+                        ["source_sheet"] = "Data",
+                        ["source_range"] = "D5:E6",
+                        ["target_sheet"] = "Data",
+                        ["target_range"] = "AF5:AI8"
+                    }, deadline.Token));
+                var repeatedFormulaOnly = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("AI7"), deadline.Token));
+                Assert.Equal(
+                    "=AH7*2",
+                    repeatedFormulaOnly.GetProperty("formulas")[0][0].GetString());
 
                 Success(await client.CallAsync("rangeformat", "set-column-width", mainSession,
                     RangeArgs("D:E", ("column_width", 5)), deadline.Token));
@@ -372,8 +443,38 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     fittedRow.GetProperty("height").GetDouble()
                     > shortRow.GetProperty("height").GetDouble());
 
+                Success(await client.CallAsync("range", "set-values", mainSession,
+                    RangeArgs(
+                        "P5",
+                        ("values", MergedTopLeftValue),
+                        ("overwrite_policy", "allow")),
+                    deadline.Token));
                 Success(await client.CallAsync("rangeformat", "merge-cells", mainSession,
                     RangeArgs("P5:Q5"), deadline.Token));
+                var topLeftWrite = await client.CallAsync(
+                    "range", "set-values", mainSession,
+                    RangeArgs(
+                        "P5",
+                        ("values", MergedTopLeftValue),
+                        ("overwrite_policy", "allow")),
+                    deadline.Token);
+                Assert.False(topLeftWrite.GetProperty("success").GetBoolean());
+                Assert.Contains(
+                    "top-left",
+                    topLeftWrite.GetProperty("errorMessage").GetString(),
+                    StringComparison.Ordinal);
+                var nonTopLeftWrite = await client.CallAsync(
+                    "range", "set-values", mainSession,
+                    RangeArgs(
+                        "Q5",
+                        ("values", MergedNonTopLeftValue),
+                        ("overwrite_policy", "allow")),
+                    deadline.Token);
+                Assert.False(nonTopLeftWrite.GetProperty("success").GetBoolean());
+                Assert.Contains(
+                    "top-left",
+                    nonTopLeftWrite.GetProperty("errorMessage").GetString(),
+                    StringComparison.Ordinal);
                 var unavailableMergeInfo = await client.CallAsync(
                     "rangeformat", "get-merge-info", mainSession, RangeArgs("P5:Q6"), deadline.Token);
                 Assert.False(unavailableMergeInfo.GetProperty("success").GetBoolean());
@@ -382,6 +483,22 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                     unavailableMergeInfo.GetProperty("errorCategory").GetString());
                 Success(await client.CallAsync("rangeformat", "unmerge-cells", mainSession,
                     RangeArgs("P5:Q5"), deadline.Token));
+                var preservedMergedValue = Success(await client.CallAsync(
+                    "range", "get-values", mainSession, RangeArgs("P5"), deadline.Token));
+                Assert.Equal(
+                    MergedTopLeftValue[0][0],
+                    preservedMergedValue.GetProperty("values")[0][0].GetString());
+
+                Success(await client.CallAsync("range", "set-formulas", mainSession,
+                    RangeArgs("Z5", ("formulas", FormulaError)), deadline.Token));
+                Success(await client.CallAsync("calculation_mode", "calculate", mainSession,
+                    RangeArgs("Z5", ("scope", "range")), deadline.Token));
+                var formulaError = Success(await client.CallAsync(
+                    "range", "get-formulas", mainSession, RangeArgs("Z5"), deadline.Token));
+                Assert.Equal("#DIV/0!", formulaError.GetProperty("values")[0][0].GetString());
+                var cellError = Assert.Single(formulaError.GetProperty("cellErrors").EnumerateArray());
+                Assert.Equal("Z5", cellError.GetProperty("cellAddress").GetString());
+                Assert.Equal("#DIV/0!", cellError.GetProperty("errorName").GetString());
 
                 Success(await client.CallAsync("rangelink", "set-cell-lock", mainSession,
                     RangeArgs("R5:S5", ("locked", false)), deadline.Token));
@@ -427,7 +544,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             var saved = Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("C1"), deadline.Token));
             Assert.Equal(30, saved.GetProperty("values")[0][0].GetDouble());
             Success(await client.CallAsync("range", "set-values", mainSession,
-                RangeArgs("B2", ("values", UnsavedValues)), deadline.Token));
+                RangeArgs(
+                    "B2",
+                    ("values", UnsavedValues),
+                    ("overwrite_policy", "allow")),
+                deadline.Token));
             Success(await client.CallAsync("file", "close", mainSession, new(), deadline.Token));
             mainSession = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = main }, deadline.Token));
             var discarded = Success(await client.CallAsync("range", "get-values", mainSession, RangeArgs("B2"), deadline.Token));

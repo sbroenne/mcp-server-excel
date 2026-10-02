@@ -115,6 +115,8 @@ public interface IRangeCommands
     /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Strict ISO dates such as "2025-01-15" become native Excel dates. Optional if valuesFile is provided.</param>
     /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
     /// <param name="overwritePolicy">reject-nonempty (default) checks all direct destinations and rejects existing content, including formulas displaying blank. allow permits intentional replacement, not bypassing Excel protection. Inspection failure stops the operation; no rollback or interactive-edit isolation.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Value writes have CLI and MCP desktop coverage with shared dimensions, overwrite validation, and returned fields.")]
     [ServiceAction("set-values")]
     OperationResult SetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
@@ -132,6 +134,8 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name</param>
     /// <param name="referenceStyle">a1 (default) or r1c1 native formula notation; range addresses remain A1</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Formula reads have CLI and MCP desktop coverage, including canonical error names and cellErrors metadata derived through Excel's non-mutating ERROR.TYPE evaluation when Apple Events returns a missing value.")]
     [ServiceAction("get-formulas")]
     RangeFormulaResult GetFormulas(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, [FromString] FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1);
@@ -166,6 +170,8 @@ public interface IRangeCommands
     /// <param name="formulasFile">Path to a JSON file containing the cells as a 2D array, with the same cell kinds as formulas. Alternative to inline formulas parameter.</param>
     /// <param name="overwritePolicy">reject-nonempty (default) rejects existing content before writing, including formulas displaying blank. allow permits authorized replacement. Checks cover direct destinations, not future formula spills; inspection failure stops the write.</param>
     /// <param name="referenceStyle">a1 (default) or r1c1 native formula notation; relative R1C1 references use each destination cell</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Native Formula2/Formula2R1C1 writes preserve mixed merge diagnostics: Excel reports false for mixed ranges, so write preflight checks each cell. Public CLI/MCP acceptance verifies top-left allowance, intersecting-range rejection, and unchanged state.")]
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress,
         List<List<object?>>? formulas = null, string? formulasFile = null,
