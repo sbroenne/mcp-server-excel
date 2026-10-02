@@ -138,7 +138,7 @@ async def test_skill_value(
     skill_task.prepare(task)
     if task == "read-only-audit" and transport == "cli":
         skill_task.session = skill_task.cli("session", "open", str(skill_task.path))["sessionId"]
-        skill_task.command("calculationmode", "set-mode", "--mode", "manual")
+        skill_task.command("calculationmode", "set-settings", "--mode", "manual")
         skill_task.values("Sheet1", "B7", [["Unsaved user note"]])
     builder = build_excel_mcp_eval if transport == "mcp" else build_excel_cli_eval
     servers = excel_mcp_servers if transport == "mcp" else isolated_cli_servers(

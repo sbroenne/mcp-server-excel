@@ -60,7 +60,7 @@ copies or edit generated `SKILL.md` files.
 Checks of the harness and transport need neither Excel nor model access:
 
 ```powershell
-uv run python -m unittest test_eval_harness.py test_cli_mcp_server.py test_cli_result_assertions.py test_consent_scenarios.py test_skill_value_checks.py test_spreadsheetbench.py test_aggregate_skill_value.py test_formatting_value.py -v
+uv run python -m unittest test_eval_harness.py test_cli_mcp_server.py test_cli_result_assertions.py test_consent_scenarios.py test_skill_value_checks.py test_skill_value_contracts.py test_spreadsheetbench.py test_aggregate_skill_value.py test_formatting_value.py -v
 ```
 
 Checks of the independent workbook reader and experiment fixtures need Excel

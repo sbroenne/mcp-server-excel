@@ -68,7 +68,7 @@ class SkillTask(ConsentWorkbook):
             self.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B2:B121", "--format-code", "0.00")
             self.command("chart", "create-from-table", "--sheet", "Sheet1", "--table-name", "Items",
                          "--chart-name", "ExistingChart", "--chart-type", "ColumnClustered", "--target-range", "F2:M16")
-            self.command("calculationmode", "set-mode", "--mode", "manual")
+            self.command("calculationmode", "set-settings", "--mode", "manual")
             (self.path.parent / "price-updates.json").write_text(
                 json.dumps([[i, 100 + i * 2] for i in range(1, 61)]), encoding="utf-8")
         elif task == "query-recovery":
@@ -184,7 +184,7 @@ class SkillTask(ConsentWorkbook):
                 sessions = self.cli("session", "list")["sessions"]
                 assert len(sessions) == 1 and sessions[0]["sessionId"] == self.session
                 assert self.command("range", "get-values", "--sheet", "Sheet1", "--range", "B7")["values"] == [["Unsaved user note"]]
-                assert self.command("calculationmode", "get-mode")["mode"] == "manual"
+                assert self.command("calculationmode", "get-settings")["mode"] == "manual"
                 assert self.command("window", "get-info")["isVisible"] is False
                 assert self.command("workbook", "get-info")["saved"] is False
             return {"file_unchanged": True, "no_mutations": True, "correct_total_reported": True}
