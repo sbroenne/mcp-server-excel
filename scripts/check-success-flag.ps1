@@ -15,7 +15,7 @@
     .\check-success-flag.ps1
     
 .NOTES
-    Part of pre-commit validation. See CRITICAL-RULES.md Rule 0.
+    Part of pre-commit validation. See the success/error rule in AGENTS.md.
 #>
 
 $ErrorActionPreference = "Stop"
@@ -99,8 +99,8 @@ foreach ($v in $violations) {
 Write-Host "Action Required:" -ForegroundColor Yellow
 Write-Host "  1. In each catch block, add: result.Success = false;" -ForegroundColor Yellow
 Write-Host "  2. Or move: result.Success = true; to INSIDE try block (after work succeeds)" -ForegroundColor Yellow
-Write-Host "  3. See CRITICAL-RULES.md Rule 0 for pattern examples" -ForegroundColor Yellow
+Write-Host "  3. See AGENTS.md: Implementation for the success/error contract" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "See: .github/instructions/CRITICAL-RULES.md Rule 0" -ForegroundColor Gray
+Write-Host "See: AGENTS.md#implementation" -ForegroundColor Gray
 
 exit 1

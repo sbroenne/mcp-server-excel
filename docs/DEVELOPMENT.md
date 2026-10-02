@@ -142,7 +142,7 @@ dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Featu
 ```
 
 **Before Commit:** Rerun the affected tests and applicable repository checks.
-Follow the [repository validation requirements](../.github/copilot-instructions.md#build-and-validation)
+Follow the [repository validation requirements](../AGENTS.md#build-and-validation)
 for runtime E2E. Do not run the full Excel integration suite during iteration.
 Use a hard execution timeout for every Excel-dependent test run.
 
@@ -157,7 +157,7 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --f
 Use real Excel integration tests for COM behavior and focused non-COM tests for
 pure parsing, mapping, serialization, and generation. The blanket unit-test ban
 in [ADR-001](ADR-001-NO-UNIT-TESTS.md) is superseded by the
-[current testing strategy](../.github/instructions/testing-strategy.instructions.md).
+[current testing strategy](../tests/AGENTS.md).
 
 **Integration Tests (`Category=Integration`)**
 - ✅ Test business logic with real Excel COM interaction

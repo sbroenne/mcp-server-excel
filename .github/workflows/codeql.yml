@@ -167,3 +167,23 @@ jobs:
       with:
         category: "/language:${{matrix.language}}"
         wait-for-processing: true
+
+  completion:
+    name: CodeQL Completion
+    if: always()
+    needs: [changes, analyze]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify detection and all selected analyses
+        env:
+          DETECTION: ${{ needs.changes.result }}
+          HAS_ANY: ${{ needs.changes.outputs.has-any }}
+          ANALYSIS: ${{ needs.analyze.result }}
+        run: |
+          set -euo pipefail
+          [ "$DETECTION" = success ] || { echo "::error::Language detection did not succeed."; exit 1; }
+          case "$HAS_ANY:$ANALYSIS" in
+            true:success) echo 'All selected CodeQL analyses succeeded.' ;;
+            false:skipped) echo 'No changed CodeQL languages; intentional analysis skip.' ;;
+            *) echo "::error::Unexpected analysis result: $HAS_ANY:$ANALYSIS"; exit 1 ;;
+          esac

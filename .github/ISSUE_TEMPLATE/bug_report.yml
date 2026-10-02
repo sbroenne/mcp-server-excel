@@ -1,0 +1,48 @@
+name: Bug report
+description: Report an Excel operation or CLI defect.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, use private vulnerability reporting instead.
+        Remove workbook/customer data, credentials, connection strings, and private paths.
+        For MCP transport or assistant setup failures, use the MCP Server issue form.
+  - type: dropdown
+    id: entry-point
+    attributes:
+      label: Entry point
+      options: ["CLI (excelcli)", "MCP Server", "Both", "Not sure"]
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: ExcelMcp version and installation method; Windows and Excel versions; workbook format. For source builds, include the SDK version.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal workbook setup and exact CLI commands or MCP tool/action/parameters. Attach only synthetic sample data.
+      placeholder: |
+        excelcli <command> <action> <flags>
+        MCP: powerquery, action=list, with sanitized parameters
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and sanitized error
+      description: Include returned fields, observed Excel state, and whether owned Excel sessions remain open. Add VBA trust details only for VBA defects.
+    validations:
+      required: true

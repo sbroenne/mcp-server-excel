@@ -1,9 +1,9 @@
----
-applyTo: "vscode-extension/**"
-excludeAgent: "code-review"
----
-
 # Extension constraints
+
+Follow the [repository rules](../AGENTS.md). These are implementation
+instructions; review tasks use the shared review checklist.
+Excel usage guidance comes from canonical skill templates and shared references,
+not a separate tool reference maintained in this extension.
 
 - The extension bundles a self-contained Windows MCP Server and generated skill;
   no separate user .NET install. Keep provider IDs in `package.json` and
@@ -16,5 +16,5 @@ excludeAgent: "code-review"
   Packaging changes also require `npm run package` and VSIX content inspection.
 
 Build, activation testing, and packaging procedures:
-[DEVELOPMENT.md](../../DEVELOPMENT.md). Authorized publication:
-[MARKETPLACE-PUBLISHING.md](../../MARKETPLACE-PUBLISHING.md).
+[DEVELOPMENT.md](DEVELOPMENT.md). Authorized publication:
+[MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md).

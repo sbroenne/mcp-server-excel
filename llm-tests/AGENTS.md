@@ -1,9 +1,7 @@
----
-applyTo: "llm-tests/**"
-excludeAgent: "code-review"
----
-
 # LLM evaluations
+
+Follow the [repository rules](../AGENTS.md). These are implementation and
+evaluation instructions; review tasks use the shared review checklist.
 
 - Evaluate product discoverability: natural Excel requests, not command/flag
   tutorials. Fix missing guidance in its canonical source, not by coaching the

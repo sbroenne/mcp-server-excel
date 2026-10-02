@@ -1,9 +1,7 @@
----
-applyTo: "tests/**/*.cs"
-excludeAgent: "code-review"
----
-
 # Testing strategy
+
+Follow the [repository rules](../AGENTS.md). These are implementation
+instructions; review tasks use the shared review checklist.
 
 ## Commands
 
@@ -14,7 +12,7 @@ tests. Core OnDemand tests are optional diagnostics, not mandatory CI gates.
 VBA needs Trust Center access; run screenshots separately because they use
 desktop/clipboard resources.
 
-Commands and prerequisites: [tests/README.md](../../tests/README.md#quick-start).
+Commands and prerequisites: [tests/README.md](README.md#quick-start).
 
 ## Fixtures and assertions
 
@@ -39,10 +37,10 @@ Commands and prerequisites: [tests/README.md](../../tests/README.md#quick-start)
   expected error is not a successful positive test.
 - Cleanup may terminate only exact owned identities using PID plus start time
   and retained handles. Never kill unrelated Excel processes. Fixture COM
-  access follows `excel-com-interop.instructions.md`.
+  access follows [COM safety](../docs/agents/rules/excel-com-interop.md).
 
 Fixture, template, raw-COM/OOXML, and parallel-safety procedures:
-[tests/README.md](../../tests/README.md#saved-workbook-templates).
+[tests/README.md](README.md#saved-workbook-templates).
 
 ## Entry-point and migration coverage
 
@@ -51,13 +49,13 @@ matrix. Preserve adapter regressions and real Excel smokes; do not shorten
 production waits for test speed.
 
 Adapter test design:
-[CLI and MCP coverage](../../tests/README.md#cli-and-mcp-coverage).
+[CLI and MCP coverage](README.md#cli-and-mcp-coverage).
 Migration case mapping and final-source evidence:
-[Complete normal-suite verification](../../tests/README.md#complete-normal-suite-verification).
+[Complete normal-suite verification](README.md#complete-normal-suite-verification).
 
 ## Save and round-trip behavior
 
 Do not call `batch.Save()` for in-memory assertions. When testing persistence,
 save/close and reopen in a new batch before asserting. Use `.xlsm` for VBA.
 
-Test design and failure investigation: [tests/README.md](../../tests/README.md).
+Test design and failure investigation: [tests/README.md](README.md).

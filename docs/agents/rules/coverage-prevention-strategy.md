@@ -1,8 +1,3 @@
----
-applyTo: "src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.Core/Models/Actions/**/*.cs,src/ExcelMcp.Service/**/*.cs,src/ExcelMcp.CLI/**/*.cs,src/ExcelMcp.McpServer/**/*.cs,src/ExcelMcp.Generators*/**/*.cs"
-excludeAgent: "code-review"
----
-
 # Generated contract checks
 
 After changing a Core contract or generator, build Release and inspect generated

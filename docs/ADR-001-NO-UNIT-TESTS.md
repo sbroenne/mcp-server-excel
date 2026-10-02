@@ -1,6 +1,6 @@
 # ADR-001: Testing Excel behavior with real Excel
 
-**Status:** Superseded by the current [testing strategy](../.github/instructions/testing-strategy.instructions.md)
+**Status:** Superseded by the current [testing strategy](../tests/AGENTS.md)
 
 **Original decision date:** 2025-11-02
 
@@ -37,7 +37,7 @@ contents require the real application. That does not make a pure parser or
 generated argument conversion dependent on Excel. Both kinds of tests are
 needed, at the layer that owns the behavior.
 
-The [repository instructions](../.github/copilot-instructions.md#build-and-validation)
+The [repository instructions](../AGENTS.md#build-and-validation)
 define build, local Excel E2E, and CI requirements. GitHub-hosted runners do not
 have Excel; Excel-free checks are not a substitute for local COM coverage.
 

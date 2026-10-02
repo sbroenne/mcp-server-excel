@@ -1,8 +1,3 @@
----
-applyTo: "src/ExcelMcp.McpServer/**/*.cs,src/ExcelMcp.Generators.Mcp/**/*.cs"
-excludeAgent: "code-review"
----
-
 # MCP boundaries
 
 - Register with the SDK's `WithToolsFromAssembly`; it owns schemas, dependency
@@ -25,6 +20,6 @@ excludeAgent: "code-review"
 
 Descriptions, input naming, server instructions, supported MCP capabilities,
 and guidance validation follow
-[Agent guidance sources](mcp-llm-guidance.instructions.md).
+[Agent guidance sources](mcp-llm-guidance.md).
 
-Manual routing example and explanation: `docs/DEVELOPMENT.md`.
+Manual routing example and explanation: [DEVELOPMENT](../../DEVELOPMENT.md).

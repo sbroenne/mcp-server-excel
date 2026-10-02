@@ -5,9 +5,23 @@ on:
   push:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - global.json
+      - Directory.Packages.props
+      - '**/*.csproj'
+      - '**/package-lock.json'
+      - gh-pages/requirements.txt
+      - llm-tests/pyproject.toml
+      - llm-tests/uv.lock
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - global.json
+      - Directory.Packages.props
+      - '**/*.csproj'
+      - '**/package-lock.json'
+      - gh-pages/requirements.txt
+      - llm-tests/pyproject.toml
+      - llm-tests/uv.lock
 
 jobs:
   copilot-setup-steps:
@@ -17,24 +31,27 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
             package-lock.json
             vscode-extension/package-lock.json
+            npm-packages/shared/package-lock.json
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
           cache: pip
@@ -42,6 +59,13 @@ jobs:
 
       - name: Restore .NET dependencies
         run: dotnet restore Sbroenne.ExcelMcp.sln
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.16"
+          enable-cache: true
+          cache-dependency-glob: llm-tests/uv.lock
 
       - name: Install repository tooling
         run: npm ci
@@ -52,3 +76,20 @@ jobs:
 
       - name: Install documentation dependencies
         run: python -m pip install -r gh-pages/requirements.txt
+
+      - name: Install shared npm tooling
+        working-directory: npm-packages/shared
+        run: npm ci
+
+      - name: Install LLM evaluation dependencies without running evaluations
+        run: uv sync --project llm-tests --locked --python 3.13
+
+      - name: Verify setup tools and Excel-free boundary
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet --version
+          node --version
+          python --version
+          uv --version
+          Write-Output 'Setup complete. Desktop Excel tests must run locally; no COM behavior was verified.'

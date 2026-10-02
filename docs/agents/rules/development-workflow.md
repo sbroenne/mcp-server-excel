@@ -1,8 +1,3 @@
----
-applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json,Directory.Build.*,scripts/**/*.ps1"
-excludeAgent: "code-review"
----
-
 # Build and release constraints
 
 - Keep workflow SDK setup compatible with `global.json`. Preserve analyzer and

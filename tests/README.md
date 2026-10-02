@@ -301,8 +301,8 @@ process counts.
 
 **Repository requirements and the short instruction checklist:**
 
-- **[Testing Strategy](../.github/instructions/testing-strategy.instructions.md)** - Required safeguards; detailed procedures live in this guide
-- **[Repository Rules](../.github/copilot-instructions.md)** - Build, E2E, and contribution requirements
+- **[Testing Strategy](AGENTS.md)** - Required safeguards; detailed procedures live in this guide
+- **[Repository Rules](../AGENTS.md)** - Build, E2E, and contribution requirements
 
 ## Test Architecture
 
@@ -373,8 +373,8 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 | Scenario | Command |
 |----------|---------|
 | **Daily development** | Run the smallest project and feature/name filter covering the change. |
-| **Before commit** | Rerun affected tests and applicable checks; follow the [runtime E2E requirements](../.github/copilot-instructions.md#build-and-validation). |
-| **Modified session/batch code** | Run relevant OnDemand tests in `ExcelMcp.ComInterop.Tests`; see [Testing Strategy](../.github/instructions/testing-strategy.instructions.md#commands). |
+| **Before commit** | Rerun affected tests and applicable checks; follow the [runtime E2E requirements](../AGENTS.md#build-and-validation). |
+| **Modified session/batch code** | Run relevant OnDemand tests in `ExcelMcp.ComInterop.Tests`; see [Testing Strategy](AGENTS.md#commands). |
 | **VBA development** | `dotnet test --filter "(Feature=VBA\|Feature=VBATrust)&RunType!=OnDemand"` |
 | **LLM behavior validation** | See [LLM Tests](#llm-tests) section below |
 
@@ -505,11 +505,11 @@ assertion merely to make it pass.
   when its behavior requires one
 - ✅ **Binary Assertions** - Pass OR fail, never "accept both"
 - ✅ **Verify Excel State** - Always verify actual Excel state after operations
-- **Explicit persistence** - Call `batch.Save()` only when testing save/close/reopen behavior (see [Testing Strategy](../.github/instructions/testing-strategy.instructions.md#save-and-round-trip-behavior)).
+- **Explicit persistence** - Call `batch.Save()` only when testing save/close/reopen behavior (see [Testing Strategy](AGENTS.md#save-and-round-trip-behavior)).
 
 ## Getting Help
 
 - **Test failures**: Check test output for detailed error messages
 - **Excel issues**: Ensure Excel 2016+ installed and activated
 - **Session/batch issues**: Run OnDemand tests to verify cleanup
-- **Writing tests**: See [Testing Strategy](../.github/instructions/testing-strategy.instructions.md)
+- **Writing tests**: See [Testing Strategy](AGENTS.md)

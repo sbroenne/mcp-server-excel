@@ -1,8 +1,3 @@
----
-applyTo: "src/ExcelMcp.Core/Commands/Connection/**/*.cs,src/ExcelMcp.Core/Utilities/ConnectionStringSanitizer.cs,tests/**/ConnectionCommandsTests*.cs,tests/**/ConnectionTestHelper.cs,tests/**/ConnectionTestsFixture.cs"
-excludeAgent: "code-review"
----
-
 # Connection pitfalls
 
 - `connection create` rejects `TEXT;`/`URL;`. Direct text/web imports belong to
