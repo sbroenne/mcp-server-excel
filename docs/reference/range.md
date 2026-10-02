@@ -19,7 +19,7 @@ range_format(action: 'auto-fit-columns', session_id: sessionId, sheet_name: 'Sal
 ```cli
 excelcli -q range set-values --session $sessionId --sheet Sales --range A1:B2 --values '[["Product","Amount"],["Widget",1250]]'
 excelcli -q range set-number-format --session $sessionId --sheet Sales --range B2 --format-code '$#,##0.00'
-excelcli -q rangeformat format --session $sessionId --sheet-name Sales --range-addresses A1:B1 --format-options '{"bold":true,"fillColor":"#4472C4","fontColor":"#FFFFFF"}'
+excelcli -q rangeformat format --session $sessionId --sheet Sales --range-addresses A1:B1 --format-options '{"bold":true,"fillColor":"#4472C4","fontColor":"#FFFFFF"}'
 excelcli -q rangeformat auto-fit-columns --session $sessionId --sheet Sales --range A:B
 ```
 
@@ -264,8 +264,8 @@ range_edit(action: 'get-filters', session_id: sessionId, sheet_name: 'Sales', ra
 ```
 
 ```cli
-excelcli -q rangeedit apply-filter --session $sessionId --sheet-name Sales --range-address A1:C100 --column-index 3 --filter-options '{"filterOperator":"And","criteria1":">=100","criteria2":"<=500"}'
-excelcli -q rangeedit get-filters --session $sessionId --sheet-name Sales --range-address A1:C100
+excelcli -q rangeedit apply-filter --session $sessionId --sheet Sales --range A1:C100 --column-index 3 --filter-options '{"filterOperator":"And","criteria1":">=100","criteria2":"<=500"}'
+excelcli -q rangeedit get-filters --session $sessionId --sheet Sales --range A1:C100
 ```
 
 Existing ordinary filters must match the exact rectangle; another filter is not
@@ -321,8 +321,8 @@ range_edit(action: 'text-to-columns', session_id: sessionId, sheet_name: 'Sales'
 ```
 
 ```cli
-excelcli -q rangeedit remove-duplicates --session $sessionId --sheet-name Sales --range-address A1:C100 --key-columns '[1,2]' --has-headers true
-excelcli -q rangeedit text-to-columns --session $sessionId --sheet-name Sales --source-range E2:E100 --destination-cell G2 --options '{"comma":true,"fields":[{"position":1,"dataType":"Text"}]}'
+excelcli -q rangeedit remove-duplicates --session $sessionId --sheet Sales --range A1:C100 --key-columns '[1,2]' --has-headers true
+excelcli -q rangeedit text-to-columns --session $sessionId --sheet Sales --source-range E2:E100 --destination-cell G2 --options '{"comma":true,"fields":[{"position":1,"dataType":"Text"}]}'
 ```
 
 ## Native fill and series
@@ -418,7 +418,7 @@ For a cell-category inventory, use MCP `range` `get-special-cells` with
 Batch JSON uses `cellKind`. Unlike text `find`, discovery returns all matching
 `areas` and their exact `cellCount` in the requested range, without a preview
 limit or single-cell expansion. A named range uses an empty `sheet_name` /
-`--sheet-name`; the result identifies its worksheet and resolved scope.
+`--sheet`; the result identifies its worksheet and resolved scope.
 
 Formulas displaying empty text are not blank cells. Error discovery includes
 stored errors and formula results. Visible discovery excludes hidden/filtered

@@ -16,9 +16,9 @@ conditionalformat(action: 'list-worksheet-rules', session_id: sessionId, sheet_n
 ```
 
 ```cli
-excelcli -q conditionalformat add-rule --session $sessionId --sheet-name Data --range-address B2:B100 --rule-type cell-value --operator-type greater --formula1 '100' --interior-color '#FFFF00'
-excelcli -q conditionalformat add-rule --session $sessionId --sheet-name Data --range-address A2:E100 --rule-type expression --formula1 '=$A2="Active"' --interior-color '#90EE90'
-excelcli -q conditionalformat list-worksheet-rules --session $sessionId --sheet-name Data
+excelcli -q conditionalformat add-rule --session $sessionId --sheet Data --range B2:B100 --rule-type cell-value --operator-type greater --formula1 '100' --interior-color '#FFFF00'
+excelcli -q conditionalformat add-rule --session $sessionId --sheet Data --range A2:E100 --rule-type expression --formula1 '=$A2="Active"' --interior-color '#90EE90'
+excelcli -q conditionalformat list-worksheet-rules --session $sessionId --sheet Data
 ```
 
 Check each result. Expression formulas use the top-left target cell's perspective.
@@ -50,8 +50,8 @@ conditionalformat(action: 'set-rule-priority', session_id: sessionId, sheet_name
 ```
 
 ```cli
-excelcli -q conditionalformat update-rule --session $sessionId --sheet-name Data --rule-priority $selectedPriority --expected-fingerprint $selectedFingerprint --options '{"formula1":"150","stopIfTrue":false,"appliesTo":"B2:B100"}'
-excelcli -q conditionalformat set-rule-priority --session $sessionId --sheet-name Data --rule-priority $freshPriority --expected-fingerprint $freshFingerprint --new-priority 1
+excelcli -q conditionalformat update-rule --session $sessionId --sheet Data --rule-priority $selectedPriority --expected-fingerprint $selectedFingerprint --options '{"formula1":"150","stopIfTrue":false,"appliesTo":"B2:B100"}'
+excelcli -q conditionalformat set-rule-priority --session $sessionId --sheet Data --rule-priority $freshPriority --expected-fingerprint $freshFingerprint --new-priority 1
 ```
 
 Only supplied nested settings change; their JSON names stay camelCase in both
