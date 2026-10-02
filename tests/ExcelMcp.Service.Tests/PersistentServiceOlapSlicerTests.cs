@@ -172,6 +172,47 @@ public sealed class PersistentServiceOlapSlicerTests(
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Selection_DataModel_AddToClearedFilterIncludesNewMembersAfterRefresh(bool clearExistingFilter)
+    {
+        CreateModelSlicer();
+        if (clearExistingFilter)
+        {
+            AssertSelection([Captions[1]], true, 50, Captions[1]);
+            AssertSelection([], true, 100, Captions);
+        }
+        AssertFilterCleared();
+        Assert.Throws<ArgumentException>(() =>
+            _slicers.SetSlicerSelection(_fixture.BatchToken, "QuarterSlicer", ["missing"], false));
+        AssertFilterCleared();
+        AssertSelection([Captions[0]], false, 100, Captions);
+        AssertFilterCleared();
+
+        var batch = _fixture.BatchToken;
+        var tables = _fixture.CreateCommands<ITableCommands>();
+        Assert.True(_commands.SetValues(batch, Sheet, "A5:B5", [[4, "2026 Q4"]]).Success);
+        Assert.True(_commands.SetValues(batch, Sheet, "D6:E6", [[4, 60]]).Success);
+        Assert.True(tables.Resize(batch, "SlicerQuarters", "A1:B5").Success);
+        Assert.True(tables.Resize(batch, "SlicerSales", "D1:E6").Success);
+        var model = _fixture.CreateCommands<IDataModelCommands>();
+        var refreshed = model.Refresh(batch);
+        Assert.True(refreshed.Success, refreshed.ErrorMessage);
+        var pivotRefreshed = _pivots.Refresh(batch, "SlicerPivot");
+        Assert.True(pivotRefreshed.Success, pivotRefreshed.ErrorMessage);
+
+        string[] allCaptions = [.. Captions, "2026 Q4"];
+        var listed = _slicers.ListSlicers(batch, "SlicerPivot");
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(listed.ErrorMessage));
+        var slicer = Assert.Single(listed.Slicers);
+        Assert.Equal(allCaptions, slicer.AvailableItems.Order());
+        Assert.Equal(allCaptions, slicer.SelectedItems.Order());
+        AssertPivot(160, allCaptions);
+        AssertFilterCleared();
+    }
+
+    [Theory]
     [InlineData(true, "missing")]
     [InlineData(false, "missing")]
     [InlineData(true, "")]
@@ -422,6 +463,27 @@ public sealed class PersistentServiceOlapSlicerTests(
     private void AssertPivot(double total, params string[] captions)
         => AssertPivotAt(total, "G1:H6", captions);
 
+    private void AssertFilterCleared()
+    {
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Excel.SlicerCaches? caches = null;
+            Excel.SlicerCache? cache = null;
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                caches = ctx.Book.SlicerCaches;
+                cache = caches.Item[1];
+                Assert.True(cache.FilterCleared);
+            }
+            finally
+            {
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref caches);
+            }
+        });
+    }
+
     private void AssertPivotAt(double total, string address, params string[] captions)
     {
         var values = _commands.GetValues(_fixture.BatchToken, Sheet, address);
@@ -438,6 +500,7 @@ public sealed class PersistentServiceOlapSlicerTests(
                 "2026 Q1" => 10d,
                 "2026 Q2" => 50d,
                 "2026 Q3" => 40d,
+                "2026 Q4" => 60d,
                 _ => throw new InvalidOperationException("Unexpected PivotTable caption.")
             }, Convert.ToDouble(row[1], System.Globalization.CultureInfo.InvariantCulture));
         }

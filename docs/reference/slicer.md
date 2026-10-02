@@ -51,7 +51,8 @@ Create with the discovered hierarchy name, such as `[Quarters].[Quarter]`.
 accepts those captions or MDX unique names; unknown or ambiguous values fail
 before changing the filter. An ambiguous-caption error includes the matching MDX
 unique names as a JSON array; retry with the intended name from that array.
-Adding to an unfiltered slicer keeps all items selected.
+Adding to an unfiltered slicer validates the requested items but keeps the filter
+cleared, so new members introduced by a later Data Model refresh remain visible.
 
 For regular PivotTable and Table slicers, unmatched values are not individually
 rejected, and Excel may retain a selection when asked to deselect every item.
