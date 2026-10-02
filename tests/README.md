@@ -112,6 +112,35 @@ The quick groups are not acceptance gates. Complete normal validation still
 uses `RunType!=OnDemand`, including the separately classified real Excel,
 process, deadline, crash, rebuild, and ownership cases below.
 
+### Changed-path CI selection
+
+`scripts\Get-ValidationPlan.ps1` owns the selections used by CI and the local
+hook. Pull requests compare their head with the base branch's merge base.
+Documentation and repository configuration changes avoid unrelated .NET test
+and package jobs. Runtime and shared inputs select conservatively; multiple
+inputs form a union. Main and manual CI runs select complete validation.
+
+Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
+tests except `AdapterTestKind=System`; `Process` contains the CLI system
+regressions; `Tooling` contains the selected SkillGeneration checks. These
+partitions cover the complete normal Excel-free selection without overlap.
+Package, npm launcher, and lockfile checks have their own selections.
+`Docs Site` always runs. The required `CI Gate` always reports and rejects
+failed detection, cancelled or failed work, and unexpectedly skipped jobs.
+Hosted runners do not run real-Excel tests.
+
+After a Release build, the hosted test partitions can also run locally:
+
+```powershell
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Group Fast
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Group Process
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Group Tooling
+```
+
+Use `-PlanFile <plan.json>` with an explicit `-Group` to reproduce a selected
+CI partition. Omitting the group retains the complete Excel-free run; existing
+`-Local`, `-Contracts`, `-HookTests`, and `-SkillTests` selections remain supported.
+
 Generated MCP parameter tests inspect our emitted method declarations directly.
 Protocol checks cover our names, descriptions, selected output fields, and
 request handling, not the SDK's primitive JSON Schema type encoding or
@@ -174,6 +203,46 @@ speed promise before collecting comparable evidence. Keep temporary ledgers
 and result artifacts outside committed instructions.
 
 ## Complete normal-suite verification
+
+### Focused real-Excel groups and acceptance
+
+Build the Release solution first. `Invoke-ExcelTests.ps1` obtains its inventory
+from the built test assemblies and runs groups and projects sequentially.
+Class fixtures stay together; multi-feature classes use one group rather than
+overlapping feature filters.
+
+```powershell
+& .\scripts\Invoke-ExcelTests.ps1 -Groups Editing,Data -ListTests
+& .\scripts\Invoke-ExcelTests.ps1 -Groups Editing,Data
+& .\scripts\Invoke-ExcelTests.ps1 -Groups Infrastructure -IncludeInfrastructureDiagnostics
+& .\scripts\Test-E2E.ps1 -SkipBuild
+```
+
+The available groups are `Editing`, `Reporting`, `Data`, `Lifecycle`,
+`Infrastructure`, `Acceptance`, `VBA`, and `Desktop`. No `-Groups` selects all
+normal groups. VBA and desktop tests require their actual prerequisites.
+`-IncludeInfrastructureDiagnostics` adds ComInterop OnDemand probes except
+configured IRM and Japanese-locale probes; those require separate configured
+runs. Other OnDemand diagnostics and external-service evaluations remain separate.
+
+`Acceptance` runs the complete required E2E stages, then the remaining normal
+adapter acceptance cases without repeating required cases. Local commit checks
+retain their existing scope: selected Excel-free checks and complete E2E for
+runtime paths, not the full workbook-feature suite. Run affected real-Excel
+groups separately, including when changing Excel-dependent tests.
+
+`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
+scenarios, the linked stale-build save/rebuild/reopen regression, and independent
+real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
+execution deadline. Empty selections, skipped tests, failures, and assembly
+cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
+is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
+compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
+
+Reports and ownership journals go into a new `TestResults` directory by default.
+`-ResultsDirectory` can select another new directory. Reusing an existing
+stage report is rejected so stale evidence cannot turn a failed run green.
+`-ListTests` discovers cases without starting workbook operations.
 
 For a full validation pass, run all seven test projects with
 `RunType!=OnDemand`. This filter includes normal Service VBA and screenshot

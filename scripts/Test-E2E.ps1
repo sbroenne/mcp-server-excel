@@ -1,15 +1,15 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Runs all Excel-dependent end-to-end gates required before merge.
+    Runs independently reported Excel-dependent acceptance stages before merge.
 
 .DESCRIPTION
     Builds the Release solution unless -SkipBuild is supplied, then runs:
-    1. The CLI workflow smoke test.
+    1. Independent CLI workflow scenarios.
     2. The stale-build graceful-save acceptance test.
-    3. The MCP all-tools end-to-end smoke test.
+    3. Independent MCP workflow scenarios.
 
-    The script fails if either gate fails or if the MCP filter matches no tests.
+    Defaults to all stages. A focused -Stages run is not complete acceptance.
 
 .EXAMPLE
     & .\scripts\Test-E2E.ps1
@@ -18,15 +18,19 @@
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
-    [string]$PipeName
+    [string]$PipeName,
+    [ValidateNotNullOrEmpty()]
+    [ValidateSet('Cli', 'Rebuild', 'Mcp')][string[]]$Stages = @('Cli', 'Rebuild', 'Mcp'),
+    [string]$ResultsDirectory,
+    [switch]$KeepCliFiles
 )
 
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 $cliTestProject = Join-Path $rootDir 'tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj'
 $mcpTestProject = Join-Path $rootDir 'tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj'
-$staleCleanupAcceptanceFilter = 'FullyQualifiedName~PreBuildGracefulSaveAcceptanceTests.StaleLockedBuildCleanup'
-$smokeTestFilter = 'FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow'
+. (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
+if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $rootDir "TestResults\e2e-$([Guid]::NewGuid().ToString('N'))" }
 $previousPipeName = $env:EXCELMCP_CLI_PIPE
 $selectedPipeName = if ([string]::IsNullOrWhiteSpace($PipeName)) {
     "excelmcp-e2e-$PID-$([Guid]::NewGuid().ToString('N'))"
@@ -35,6 +39,7 @@ else {
     $PipeName
 }
 $env:EXCELMCP_CLI_PIPE = $selectedPipeName
+$failures = [Collections.Generic.List[Exception]]::new()
 
 Push-Location $rootDir
 try {
@@ -42,74 +47,56 @@ try {
 
     if (-not $SkipBuild) {
         Write-Host 'Building Release solution...' -ForegroundColor Cyan
-        dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal
+        dotnet build Sbroenne.ExcelMcp.sln --configuration Release --disable-build-servers -p:NuGetAudit=false --verbosity minimal
         if ($LASTEXITCODE -ne 0) {
             throw "Release build failed with exit code $LASTEXITCODE."
         }
     }
 
-    Write-Host ''
-    Write-Host 'Running CLI workflow E2E test...' -ForegroundColor Cyan
-    & (Join-Path $PSScriptRoot 'Test-CliWorkflow.ps1') -PipeName $selectedPipeName
-    if ($LASTEXITCODE -ne 0) {
-        throw "CLI workflow E2E test failed with exit code $LASTEXITCODE."
+    foreach ($stage in $Stages | Select-Object -Unique) {
+        $parameters = @{
+            ResultsDirectory = $ResultsDirectory
+            Name = $stage
+            Environment = @{
+                EXCELMCP_CLI_PIPE = $selectedPipeName
+                EXCELMCP_CLI_WORKFLOW_KEEP_FILE = $KeepCliFiles.ToString().ToLowerInvariant()
+            }
+        }
+        switch ($stage) {
+            'Cli' {
+                $parameters.Project = $cliTestProject
+                $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~CliWorkflowAcceptanceTests'
+                $parameters.DeadlineSeconds = 600
+                $parameters.HangTimeout = '5m'
+            }
+            'Rebuild' {
+                $parameters.Project = $cliTestProject
+                $parameters.Filter = 'FullyQualifiedName~PreBuildGracefulSaveAcceptanceTests.StaleLockedBuildCleanup'
+                $parameters.DeadlineSeconds = 480
+                $parameters.HangTimeout = '6m'
+            }
+            'Mcp' {
+                $parameters.Project = $mcpTestProject
+                $parameters.Filter = 'RequiresExcel=true&Acceptance=Required&FullyQualifiedName~McpServerSmokeTests'
+                $parameters.DeadlineSeconds = 900
+                $parameters.HangTimeout = '15m'
+            }
+        }
+        & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
+        if ($LASTEXITCODE -ne 0) { throw "Owned CLI cleanup failed before $stage acceptance." }
+        Invoke-TestStage @parameters
     }
-
-    Write-Host ''
-    Write-Host 'Running stale-build graceful-save acceptance test...' -ForegroundColor Cyan
-    $staleCleanupOutput = dotnet test $cliTestProject `
-        --configuration Release `
-        --no-build `
-        --filter $staleCleanupAcceptanceFilter `
-        --verbosity minimal `
-        --blame-hang-timeout 6m `
-        -- RunConfiguration.MaxCpuCount=1 2>&1 | Out-String
-    $staleCleanupExitCode = $LASTEXITCODE
-
-    Write-Host $staleCleanupOutput
-
-    if ($staleCleanupOutput -notmatch 'Passed!.*Passed:\s*[1-9]') {
-        throw "No stale-build graceful-save acceptance test passed. Verify the filter still matches $staleCleanupAcceptanceFilter."
-    }
-
-    if ($staleCleanupExitCode -ne 0) {
-        throw "Stale-build graceful-save acceptance test failed with exit code $staleCleanupExitCode."
-    }
-
-    Write-Host ''
-    Write-Host 'Running MCP all-tools E2E test...' -ForegroundColor Cyan
-    & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
-    if ($LASTEXITCODE -ne 0) {
-        throw "Owned CLI cleanup failed with exit code $LASTEXITCODE before the MCP E2E test."
-    }
-
-    $testOutput = dotnet test $mcpTestProject `
-        --configuration Release `
-        --no-build `
-        --filter $smokeTestFilter `
-        --verbosity minimal `
-        --blame-hang-timeout 15m `
-        -- RunConfiguration.MaxCpuCount=1 2>&1 | Out-String
-    $testExitCode = $LASTEXITCODE
-
-    Write-Host $testOutput
-
-    if ($testOutput -notmatch 'Passed!.*Passed:\s*[1-9]') {
-        throw "No MCP E2E tests passed. Verify the filter still matches $smokeTestFilter."
-    }
-
-    if ($testExitCode -ne 0) {
-        throw "MCP all-tools E2E test failed with exit code $testExitCode."
-    }
-
-    Write-Host 'All Excel-dependent E2E tests passed.' -ForegroundColor Green
+    Write-Host "Selected acceptance stages passed: $($Stages -join ', ')."
+}
+catch {
+    $failures.Add($_.Exception)
 }
 finally {
-    $cleanupExitCode = 0
     try {
         & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
-        $cleanupExitCode = $LASTEXITCODE
+        if ($LASTEXITCODE -ne 0) { throw 'Owned CLI cleanup failed after E2E validation.' }
     }
+    catch { $failures.Add($_.Exception) }
     finally {
         if ($null -eq $previousPipeName) {
             Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
@@ -122,8 +109,6 @@ finally {
 
 }
 
-if ($cleanupExitCode -ne 0) {
-    throw "Owned CLI cleanup failed with exit code $cleanupExitCode after E2E validation."
-}
+if ($failures.Count) { throw [AggregateException]::new('E2E validation failed.', $failures) }
 
 $global:LASTEXITCODE = 0
