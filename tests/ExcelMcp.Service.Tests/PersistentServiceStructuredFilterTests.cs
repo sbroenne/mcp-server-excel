@@ -32,14 +32,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         Assert.Equal("And", filters[1].GetProperty("filterOperator").GetString());
         Assert.Equal(">=20", filters[1].GetProperty("criteria1").GetProperty("value").GetString());
         Assert.Equal("<=40", filters[1].GetProperty("criteria2").GetProperty("value").GetString());
-        var visible = _fixture.Send("range.get-special-cells", new
-        {
-            sheetName = sheet,
-            rangeAddress = "A2:A6",
-            cellKind = "Visible"
-        });
-        using var cells = JsonDocument.Parse(visible.Result!);
-        Assert.Equal(3, cells.RootElement.GetProperty("cellCount").GetInt32());
+        AssertVisibleRows(sheet, 3, 4, 5);
     }
 
     [Fact]
@@ -61,38 +54,55 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         Assert.Equal("Values", first.GetProperty("filterOperator").GetString());
         var criteria = first.GetProperty("criteria1");
         Assert.True(criteria.GetProperty("available").GetBoolean());
-        Assert.Equal(3, criteria.GetProperty("value").GetArrayLength());
+        Assert.Equal(values.Select(value => "=" + value),
+            criteria.GetProperty("value").EnumerateArray().Select(item => item.GetString()));
+        AssertVisibleRows(sheet, 2, 4, 5);
     }
 
     [Theory]
-    [InlineData(false, "Comparison", """{"criteria1":">=30"}""", 3)]
-    [InlineData(true, "Comparison", """{"criteria1":">=30"}""", 3)]
-    [InlineData(false, "Or", """{"criteria1":"<=10","criteria2":">=50"}""", 2)]
-    [InlineData(true, "Or", """{"criteria1":"<=10","criteria2":">=50"}""", 2)]
-    [InlineData(false, "TopItems", """{"count":2}""", 2)]
-    [InlineData(true, "TopItems", """{"count":2}""", 2)]
-    [InlineData(false, "BottomItems", """{"count":2}""", 2)]
-    [InlineData(true, "BottomItems", """{"count":2}""", 2)]
-    [InlineData(false, "TopPercent", """{"count":40}""", 2)]
-    [InlineData(true, "BottomPercent", """{"count":40}""", 2)]
-    [InlineData(false, "Dynamic", """{"dynamicCriteria":"xlFilterAboveAverage"}""", 2)]
-    [InlineData(true, "Dynamic", """{"dynamicCriteria":"xlFilterBelowAverage"}""", 2)]
-    public void NativeNumericFilters_ApplyAndClearOnlyTheirOwnScope(bool tableMode, string kind, string json, int count)
+    [InlineData(false, "Comparison", """{"criteria1":">=30"}""", new[] { 4, 5, 6 })]
+    [InlineData(true, "Comparison", """{"criteria1":">=30"}""", new[] { 4, 5, 6 })]
+    [InlineData(false, "Or", """{"criteria1":"<=10","criteria2":">=50"}""", new[] { 2, 6 })]
+    [InlineData(true, "Or", """{"criteria1":"<=10","criteria2":">=50"}""", new[] { 2, 6 })]
+    [InlineData(false, "TopItems", """{"count":2}""", new[] { 5, 6 })]
+    [InlineData(true, "TopItems", """{"count":2}""", new[] { 5, 6 })]
+    [InlineData(false, "BottomItems", """{"count":2}""", new[] { 2, 3 })]
+    [InlineData(true, "BottomItems", """{"count":2}""", new[] { 2, 3 })]
+    [InlineData(false, "TopPercent", """{"count":40}""", new[] { 5, 6 })]
+    [InlineData(true, "TopPercent", """{"count":40}""", new[] { 5, 6 })]
+    [InlineData(false, "BottomPercent", """{"count":40}""", new[] { 2, 3 })]
+    [InlineData(true, "BottomPercent", """{"count":40}""", new[] { 2, 3 })]
+    [InlineData(false, "Dynamic", """{"dynamicCriteria":"xlFilterAboveAverage"}""", new[] { 5, 6 })]
+    [InlineData(true, "Dynamic", """{"dynamicCriteria":"xlFilterAboveAverage"}""", new[] { 5, 6 })]
+    [InlineData(false, "Dynamic", """{"dynamicCriteria":"xlFilterBelowAverage"}""", new[] { 2, 3 })]
+    [InlineData(true, "Dynamic", """{"dynamicCriteria":"xlFilterBelowAverage"}""", new[] { 2, 3 })]
+    public void NativeNumericFilters_ApplyAndClearOnlyTheirOwnScope(bool tableMode, string kind, string json, int[] expectedRows)
     {
         var sheet = CreateData();
         string? table = tableMode ? CreateTable(sheet) : null;
+        var otherSheet = CreateData();
+        var otherTable = CreateTable(otherSheet);
+        Apply(otherSheet, otherTable, 2, new { criteria1 = "=20" });
+        var original = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B6");
+        Assert.True(original.Success, original.ErrorMessage);
         using var extra = JsonDocument.Parse(json);
         var options = extra.RootElement.EnumerateObject().ToDictionary(property => property.Name,
             property => (object?)property.Value.Clone(), StringComparer.Ordinal);
         options["filterOperator"] = kind;
         Apply(sheet, table, 2, options);
-        Assert.Equal(count, VisibleCount(sheet));
+        AssertVisibleRows(sheet, expectedRows);
+        AssertVisibleRows(otherSheet, 3);
         _fixture.Send(tableMode ? "tablecolumn.clear-filters" : "rangeedit.clear-filters",
             tableMode ? new { tableName = table } : (object)new { sheetName = sheet, rangeAddress = "A1:B6" });
-        Assert.Equal(5, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 2, 3, 4, 5, 6);
+        AssertVisibleRows(otherSheet, 3);
         _fixture.Send(tableMode ? "tablecolumn.clear-filters" : "rangeedit.clear-filters",
             tableMode ? new { tableName = table } : (object)new { sheetName = sheet, rangeAddress = "A1:B6" });
-        Assert.Equal(5, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 2, 3, 4, 5, 6);
+        AssertVisibleRows(otherSheet, 3);
+        var after = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B6");
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.Equal(JsonSerializer.Serialize(original.Values), JsonSerializer.Serialize(after.Values));
     }
 
     [Theory]
@@ -105,14 +115,14 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         string[] values = ["A", "C", "not-present"];
         Apply(sheet, table, 1, new { filterOperator = "Values", values });
         Apply(sheet, table, 2, new { criteria1 = ">=30" });
-        Assert.Equal(2, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 4, 5);
     }
 
     [Theory]
-    [InlineData("Year", "2026-02-01", 3)]
-    [InlineData("Month", "2026-02-01", 2)]
-    [InlineData("Day", "2026-02-03", 1)]
-    public void DateGroups_UseNativeCalendarGroups(string level, string date, int count)
+    [InlineData("Year", "2026-02-01", new[] { 3, 4, 5 })]
+    [InlineData("Month", "2026-02-01", new[] { 4, 5 })]
+    [InlineData("Day", "2026-02-03", new[] { 4 })]
+    public void DateGroups_UseNativeCalendarGroups(string level, string date, int[] expectedRows)
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:B6",
@@ -125,7 +135,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             filterOperator = "Values",
             dateGroups = new[] { new { level, date } }
         });
-        Assert.Equal(count, VisibleCount(sheet));
+        AssertVisibleRows(sheet, expectedRows);
         var response = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
         using var read = JsonDocument.Parse(response.Result!);
         var column = read.RootElement.GetProperty("columnFilters")[1];
@@ -148,7 +158,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         });
         Assert.False(response.Success);
         Assert.Contains("different range", response.ErrorMessage);
-        Assert.Equal(3, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 4, 5, 6);
     }
 
     [Fact]
@@ -169,9 +179,17 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal("Category", result.Values[0][0]);
         Assert.Equal(30d, Convert.ToDouble(result.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("C", result.Values[1][0]);
+        Assert.Equal("A", result.Values[2][0]);
+        Assert.Equal(40d, Convert.ToDouble(result.Values[2][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("B", result.Values[3][0]);
         Assert.Equal(50d, Convert.ToDouble(result.Values[3][1], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Null(result.Values[4][0]);
-        Assert.Equal(5, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 2, 3, 4, 5, 6);
+        var source = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B6");
+        Assert.True(source.Success, source.ErrorMessage);
+        Assert.Equal([10d, 20d, 30d, 40d, 50d],
+            source.Values.Skip(1).Select(row => Convert.ToDouble(row[1], System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Theory]
@@ -188,7 +206,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         };
         _fixture.Send("rangeformat.format", format);
         Apply(sheet, null, 2, new { filterOperator = kind, color = "#FF0000" });
-        Assert.Equal(2, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 2, 3);
         if (kind == "CellColor")
         {
             _fixture.ExecuteRawVerification((context, _) =>
@@ -237,7 +255,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             iconSetId = "3TrafficLights1"
         });
         Apply(sheet, null, 2, new { filterOperator = "Icon", iconSet = "xl3TrafficLights1", iconIndex = 3 });
-        Assert.Equal(2, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 5, 6);
         var response = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
         using var read = JsonDocument.Parse(response.Result!);
         var icon = read.RootElement.GetProperty("columnFilters")[1].GetProperty("criteria1").GetProperty("value");
@@ -257,9 +275,9 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             criteriaRange = "H1:H2",
             mode = "InPlace"
         });
-        Assert.Equal(3, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 4, 5, 6);
         _fixture.Send("rangeedit.clear-filters", new { sheetName = sheet, rangeAddress = "A1:B6", clearAdvanced = true });
-        Assert.Equal(5, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 2, 3, 4, 5, 6);
     }
 
     [Fact]
@@ -307,7 +325,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             filterOptions = options.RootElement
         });
         Assert.False(response.Success);
-        Assert.Equal(3, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 4, 5, 6);
     }
 
     [Fact]
@@ -330,7 +348,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             new { sheetName = sheet, rangeAddress = "A1:B6" });
         Assert.False(response.Success);
         Assert.Contains("clear_advanced", response.ErrorMessage);
-        Assert.Equal(3, VisibleCount(sheet));
+        AssertVisibleRows(sheet, 4, 5, 6);
     }
 
     [Fact]
@@ -377,8 +395,35 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             });
     }
 
-    private int VisibleCount(string sheet)
+    private void AssertVisibleRows(string sheet, params int[] expectedRows)
     {
+        var actualRows = _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? worksheet = null;
+            Excel.Range? rows = null;
+            Excel.Range? row = null;
+            try
+            {
+                worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                rows = worksheet!.Rows;
+                var visibleRows = new List<int>();
+                for (int number = 2; number <= 6; number++)
+                {
+                    row = (Excel.Range)rows[number];
+                    if (!Convert.ToBoolean(row.Hidden, System.Globalization.CultureInfo.InvariantCulture))
+                        visibleRows.Add(number);
+                    ComUtilities.Release(ref row);
+                }
+                return visibleRows.ToArray();
+            }
+            finally
+            {
+                ComUtilities.Release(ref row);
+                ComUtilities.Release(ref rows);
+                ComUtilities.Release(ref worksheet);
+            }
+        });
+        Assert.Equal(expectedRows, actualRows);
         var visible = _fixture.Send("range.get-special-cells", new
         {
             sheetName = sheet,
@@ -386,7 +431,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             cellKind = "Visible"
         });
         using var read = JsonDocument.Parse(visible.Result!);
-        return read.RootElement.GetProperty("cellCount").GetInt32();
+        Assert.Equal(expectedRows.Length, read.RootElement.GetProperty("cellCount").GetInt32());
     }
 
     private string CreateData()

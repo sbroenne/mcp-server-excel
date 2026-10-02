@@ -71,6 +71,9 @@ public sealed class PersistentServiceTableStyleTests(PersistentServiceWorkbookFi
     public void TableStyle_UpdatesPreviouslyUnsetAndFormattedElementsAndCanClearThem(string elementType)
     {
         string styleName = CreateStyle();
+        using var before = JsonDocument.Parse(_fixture.Send("workbook.get-table-style", new { styleName }).Result!);
+        string untouchedType = elementType == "xlHeaderRow" ? "xlWholeTable" : "xlHeaderRow";
+        var untouched = Element(before, untouchedType).GetRawText();
         var update = _fixture.Send("workbook.update-table-style", new
         {
             styleName,
@@ -85,16 +88,49 @@ public sealed class PersistentServiceTableStyleTests(PersistentServiceWorkbookFi
             Assert.True(element.GetProperty("hasFormat").GetBoolean());
             Assert.False(element.GetProperty("font").GetProperty("bold").GetBoolean());
             Assert.True(element.GetProperty("font").GetProperty("italic").GetBoolean());
+            Assert.Equal(5, element.GetProperty("font").GetProperty("color").GetProperty("themeColor").GetInt32());
             Assert.Equal(6, element.GetProperty("fill").GetProperty("color").GetProperty("themeColor").GetInt32());
             Assert.InRange(element.GetProperty("fill").GetProperty("color").GetProperty("tintAndShade").GetDouble(), 0.24995, 0.25005);
+            Assert.Equal(untouched, Element(read, untouchedType).GetRawText());
         }
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.TableStyles? styles = null;
+            Excel.TableStyle? style = null;
+            Excel.TableStyleElements? elements = null;
+            Excel.TableStyleElement? element = null;
+            Excel.Font? font = null;
+            try
+            {
+                styles = context.Book.TableStyles;
+                style = styles[styleName];
+                elements = style.TableStyleElements;
+                element = elements.Item(Enum.Parse<Excel.XlTableStyleElementType>(elementType));
+                font = element.Font;
+                Assert.Equal(5, Convert.ToInt32(font.ThemeColor, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.False(Convert.ToBoolean(font.Bold, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.True(Convert.ToBoolean(font.Italic, System.Globalization.CultureInfo.InvariantCulture));
+            }
+            finally
+            {
+                ComUtilities.Release(ref font);
+                ComUtilities.Release(ref element);
+                ComUtilities.Release(ref elements);
+                ComUtilities.Release(ref style);
+                ComUtilities.Release(ref styles);
+            }
+        });
         var cleared = _fixture.Send("workbook.update-table-style", new
         {
             styleName,
             tableStyleOptions = new { elements = new[] { new { elementType, clear = true } } }
         });
         using var result = JsonDocument.Parse(cleared.Result!);
-        Assert.False(Element(result, elementType).GetProperty("hasFormat").GetBoolean());
+        var clearedElement = Element(result, elementType);
+        Assert.False(clearedElement.GetProperty("hasFormat").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, clearedElement.GetProperty("font").ValueKind);
+        Assert.Equal(JsonValueKind.Null, clearedElement.GetProperty("fill").ValueKind);
+        Assert.Equal(untouched, Element(result, untouchedType).GetRawText());
     }
 
     [Theory]
@@ -150,18 +186,31 @@ public sealed class PersistentServiceTableStyleTests(PersistentServiceWorkbookFi
     public void TableStyle_AvailabilityChangesPreserveOmittedFlags(string flag)
     {
         string styleName = CreateStyle();
-        Assert.True(_fixture.Send("workbook.update-table-style", new
+        string[] flags = ["showAsAvailableTableStyle", "showAsAvailablePivotTableStyle", "showAsAvailableSlicerStyle", "showAsAvailableTimelineStyle"];
+        _fixture.Send("workbook.update-table-style", new
+        {
+            styleName,
+            tableStyleOptions = flags.ToDictionary(name => name, name => name == "showAsAvailableTableStyle")
+        });
+        var disabled = _fixture.Send("workbook.update-table-style", new
         {
             styleName,
             tableStyleOptions = new Dictionary<string, object?> { [flag] = false }
-        }).Success);
+        });
+        using (var definition = JsonDocument.Parse(disabled.Result!))
+            foreach (var name in flags)
+                Assert.Equal(name != flag && name == "showAsAvailableTableStyle",
+                    definition.RootElement.GetProperty("style").GetProperty(name).GetBoolean());
         var changed = _fixture.Send("workbook.update-table-style", new
         {
             styleName,
             tableStyleOptions = new { elements = new[] { new { elementType = "xlHeaderRow", bold = false } } }
         });
         using var read = JsonDocument.Parse(changed.Result!);
-        Assert.False(read.RootElement.GetProperty("style").GetProperty(flag).GetBoolean());
+        foreach (var name in flags)
+            Assert.Equal(name != flag && name == "showAsAvailableTableStyle",
+                read.RootElement.GetProperty("style").GetProperty(name).GetBoolean());
+        Assert.False(Element(read, "xlHeaderRow").GetProperty("font").GetProperty("bold").GetBoolean());
     }
 
     [Theory]

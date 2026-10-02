@@ -17,6 +17,9 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
     public void GroupUngroup_ReturnsMembersAndPreservesOtherObjects()
     {
         var sheet = CreateObjects();
+        _fixture.Send("drawing.update-object", new { sheetName = sheet, objectName = "First", text = "Grouped content", fillColor = "#70AD47" });
+        _fixture.Send("drawing.update-object", new { sheetName = sheet, objectName = "Third", text = "Unselected content", fillColor = "#FF0000" });
+        var before = ReadNativeGeometry(sheet);
         var grouped = _fixture.Send("drawing.group-objects", new
         {
             sheetName = sheet,
@@ -28,12 +31,35 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
             var group = Assert.Single(state.RootElement.GetProperty("drawingObjects").EnumerateArray());
             Assert.Equal("Together", group.GetProperty("name").GetString());
             Assert.Equal("Group", group.GetProperty("kind").GetString());
-            Assert.Equal(2, group.GetProperty("children").GetArrayLength());
+            Assert.Equal(["First", "Second"],
+                group.GetProperty("children").EnumerateArray().Select(child => child.GetProperty("name").GetString()).Order());
+            var first = Assert.Single(group.GetProperty("children").EnumerateArray(),
+                child => child.GetProperty("name").GetString() == "First");
+            Assert.Equal("Grouped content", first.GetProperty("text").GetString());
+            Assert.Equal("#70AD47", first.GetProperty("fillColor").GetString());
         }
+        AssertGeometry(before["Third"], ReadNativeGeometry(sheet)["Third"]);
+        AssertMaterial("Third", "Unselected content", "#FF0000");
         _fixture.Send("drawing.ungroup-object", new { sheetName = sheet, objectName = "Together" });
         var read = _fixture.Send("drawing.list-objects", new { sheetName = sheet });
         using var list = JsonDocument.Parse(read.Result!);
         Assert.Equal(3, list.RootElement.GetProperty("drawingObjects").GetArrayLength());
+        Assert.Equal(before.Keys.Order(),
+            list.RootElement.GetProperty("drawingObjects").EnumerateArray().Select(item => item.GetProperty("name").GetString()).Order());
+        var after = ReadNativeGeometry(sheet);
+        Assert.Equal(before.Keys.Order(), after.Keys.Order());
+        foreach (var name in before.Keys)
+            AssertGeometry(before[name], after[name]);
+        AssertMaterial("First", "Grouped content", "#70AD47");
+        AssertMaterial("Third", "Unselected content", "#FF0000");
+
+        void AssertMaterial(string name, string text, string color)
+        {
+            using var read = JsonDocument.Parse(_fixture.Send("drawing.get-object", new { sheetName = sheet, objectName = name }).Result!);
+            var item = read.RootElement.GetProperty("drawingObject");
+            Assert.Equal(text, item.GetProperty("text").GetString());
+            Assert.Equal(color, item.GetProperty("fillColor").GetString());
+        }
     }
 
     [Fact]
@@ -55,16 +81,17 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
     }
 
     [Theory]
-    [InlineData("Left")]
-    [InlineData("Center")]
-    [InlineData("Right")]
-    [InlineData("Top")]
-    [InlineData("Middle")]
-    [InlineData("Bottom")]
-    public void Alignment_AllNativeModesUseSelectedExtent(string alignment)
+    [InlineData("Left", 20d)]
+    [InlineData("Center", 90d)]
+    [InlineData("Right", 160d)]
+    [InlineData("Top", 20d)]
+    [InlineData("Middle", 70d)]
+    [InlineData("Bottom", 120d)]
+    public void Alignment_AllNativeModesUseSelectedExtent(string alignment, double expectedEdge)
     {
         var sheet = CreateObjects();
         _fixture.Send("drawing.update-object", new { sheetName = sheet, objectName = "Second", width = 60d, height = 50d });
+        var before = ReadNativeGeometry(sheet);
         var response = _fixture.Send("drawing.align-objects", new
         {
             sheetName = sheet,
@@ -74,6 +101,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         using var document = JsonDocument.Parse(response.Result!);
         var objects = document.RootElement.GetProperty("drawingObjects").EnumerateArray().ToArray();
         Assert.Equal(2, objects.Length);
+        Assert.Equal(["First", "Second"], objects.Select(item => item.GetProperty("name").GetString()).Order());
         static double Edge(JsonElement item, string mode) => mode switch
         {
             "Left" => item.GetProperty("left").GetDouble(),
@@ -84,7 +112,29 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
             "Bottom" => item.GetProperty("top").GetDouble() + item.GetProperty("height").GetDouble(),
             _ => throw new ArgumentException("Unknown alignment.", nameof(mode))
         };
-        Assert.Equal(Edge(objects[0], alignment), Edge(objects[1], alignment), 2);
+        Assert.All(objects, item => Assert.Equal(expectedEdge, Edge(item, alignment), 2));
+        var after = ReadNativeGeometry(sheet);
+        bool horizontal = alignment is "Left" or "Center" or "Right";
+        foreach (var name in new[] { "First", "Second" })
+        {
+            var original = before[name];
+            var actual = after[name];
+            Assert.Equal(original.Width, actual.Width, 2);
+            Assert.Equal(original.Height, actual.Height, 2);
+            Assert.Equal(horizontal ? original.Top : original.Left, horizontal ? actual.Top : actual.Left, 2);
+            double nativeEdge = alignment switch
+            {
+                "Left" => actual.Left,
+                "Center" => actual.Left + actual.Width / 2,
+                "Right" => actual.Left + actual.Width,
+                "Top" => actual.Top,
+                "Middle" => actual.Top + actual.Height / 2,
+                "Bottom" => actual.Top + actual.Height,
+                _ => throw new ArgumentException("Unknown alignment.", nameof(alignment))
+            };
+            Assert.Equal(expectedEdge, nativeEdge, 2);
+        }
+        AssertGeometry(before["Third"], after["Third"]);
     }
 
     [Theory]
@@ -267,5 +317,42 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         using var result = JsonDocument.Parse(response.Result!);
         var drawing = result.RootElement.GetProperty("drawingObject");
         return (drawing.GetProperty("left").GetDouble(), drawing.GetProperty("top").GetDouble());
+    }
+
+    private Dictionary<string, (double Left, double Top, double Width, double Height)> ReadNativeGeometry(string sheet) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? worksheet = null;
+            Excel.Shapes? shapes = null;
+            Excel.Shape? shape = null;
+            try
+            {
+                worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                shapes = worksheet!.Shapes;
+                var result = new Dictionary<string, (double Left, double Top, double Width, double Height)>(StringComparer.Ordinal);
+                for (int index = 1; index <= shapes.Count; index++)
+                {
+                    shape = shapes.Item(index);
+                    result.Add(shape.Name, (shape.Left, shape.Top, shape.Width, shape.Height));
+                    ComUtilities.Release(ref shape);
+                }
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref shapes);
+                ComUtilities.Release(ref worksheet);
+            }
+        });
+
+    private static void AssertGeometry(
+        (double Left, double Top, double Width, double Height) expected,
+        (double Left, double Top, double Width, double Height) actual)
+    {
+        Assert.Equal(expected.Left, actual.Left, 2);
+        Assert.Equal(expected.Top, actual.Top, 2);
+        Assert.Equal(expected.Width, actual.Width, 2);
+        Assert.Equal(expected.Height, actual.Height, 2);
     }
 }

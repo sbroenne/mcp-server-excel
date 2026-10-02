@@ -62,6 +62,39 @@ public sealed class ChartDepthProtocolTests(RecordingProgramTransportFixture fix
         Assert.False(call.Result.IsError);
     }
 
+    [Theory]
+    [InlineData(null, "IOException", "Excel failed to export a nonempty Png image.")]
+    [InlineData("Cancelled", "OperationCanceledException", "Chart export was cancelled.")]
+    public async Task ImageExport_ForwardsFailuresWithoutSuccessfulResult(string? category, string exception, string message)
+    {
+        var call = await fixture.CallToolAsync("chart", new Dictionary<string, object?>
+        {
+            ["action"] = "export-image",
+            ["session_id"] = "session-1",
+            ["chart_name"] = "Sales",
+            ["target_path"] = "sales.png"
+        }, new ServiceResponse
+        {
+            Success = false,
+            Command = "chart.export-image",
+            SessionId = "session-1",
+            ErrorCategory = category,
+            ExceptionType = exception,
+            ErrorMessage = message
+        }, "chart.export-image",
+            """{"chartName":"Sales","targetPath":"sales.png"}""");
+        using var json = JsonDocument.Parse(call.JsonResult);
+        var root = json.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        if (category is null)
+            Assert.False(root.TryGetProperty("errorCategory", out _));
+        else
+            Assert.Equal(category, root.GetProperty("errorCategory").GetString());
+        Assert.Equal(exception, root.GetProperty("exceptionType").GetString());
+        Assert.Equal(message, root.GetProperty("errorMessage").GetString());
+        Assert.False(root.TryGetProperty("filePath", out _));
+    }
+
     [Fact]
     public async Task Discovery_AdvertisesDistinctTypedPayloadsAndReadLimits()
     {

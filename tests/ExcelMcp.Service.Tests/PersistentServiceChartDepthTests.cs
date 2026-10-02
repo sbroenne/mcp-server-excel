@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Xml.Linq;
 using Sbroenne.ExcelMcp.ComInterop;
@@ -289,6 +290,46 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         finally
         {
             File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task ImageExport_FailedReplacementRemovesActualNativeTemporaryImage()
+    {
+        var (_, chartName) = CreateChart();
+        var directory = Path.Combine(Path.GetTempPath(), $"chart-export-replace-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "sales.png");
+        try
+        {
+            File.WriteAllText(path, "Keep existing output");
+            var before = _fixture.Send("chartconfig.get-series-settings", new { chartName, seriesIndex = 1 }).Result;
+            using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var createdImages = new ConcurrentQueue<string>();
+                using var watcher = new FileSystemWatcher(directory, ".sales.*.tmp.png");
+                watcher.Created += (_, change) => createdImages.Enqueue(change.FullPath);
+                watcher.EnableRaisingEvents = true;
+                var rejected = await _fixture.SendForFailureAsync("chart.export-image",
+                    new { chartName, targetPath = path, overwrite = true });
+                Assert.Equal(nameof(UnauthorizedAccessException), rejected.ExceptionType);
+                Assert.True(SpinWait.SpinUntil(() => !createdImages.IsEmpty, TimeSpan.FromSeconds(5)),
+                    "Excel must write its temporary image before the replacement failure.");
+                Assert.Equal("Keep existing output", File.ReadAllText(path));
+                Assert.Equal(new[] { path }, Directory.GetFiles(directory));
+            }
+            Assert.Equal(before, _fixture.Send("chartconfig.get-series-settings", new { chartName, seriesIndex = 1 }).Result);
+            var response = _fixture.Send("chart.export-image", new { chartName, targetPath = path, overwrite = true });
+            using var result = JsonDocument.Parse(response.Result!);
+            Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(path, result.RootElement.GetProperty("filePath").GetString());
+            Assert.Equal("export-image", result.RootElement.GetProperty("action").GetString());
+            Assert.Equal((byte)137, File.ReadAllBytes(path)[0]);
+            Assert.Equal(new[] { path }, Directory.GetFiles(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
         }
     }
 

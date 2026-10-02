@@ -36,8 +36,7 @@ public partial class ChartCommands
                     found.Chart = null;
                     ct.ThrowIfCancellationRequested();
                     var filter = imageFormat == ChartImageFormat.Jpeg ? "JPG" : imageFormat.ToString().ToUpperInvariant();
-                    if (!chart.Export(writePath, filter, false) || !File.Exists(writePath) || new FileInfo(writePath).Length == 0)
-                        throw new IOException($"Excel failed to export a nonempty {imageFormat} image. The installed Excel image filter may be unavailable.");
+                    ValidateImageOutput(chart.Export(writePath, filter, false), writePath, imageFormat);
                     return new OperationResult { Success = true, FilePath = output, Action = "export-image" };
                 }
                 finally
@@ -62,5 +61,11 @@ public partial class ChartCommands
             }
             throw;
         }
+    }
+
+    private static void ValidateImageOutput(bool exported, string writePath, ChartImageFormat imageFormat)
+    {
+        if (!exported || !File.Exists(writePath) || new FileInfo(writePath).Length == 0)
+            throw new IOException($"Excel failed to export a nonempty {imageFormat} image. The installed Excel image filter may be unavailable.");
     }
 }

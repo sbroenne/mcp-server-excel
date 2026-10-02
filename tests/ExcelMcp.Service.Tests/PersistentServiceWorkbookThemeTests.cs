@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.IO.Compression;
+using System.Xml.Linq;
 using Sbroenne.ExcelMcp.ComInterop;
 using Excel = Microsoft.Office.Interop.Excel;
 using Xunit;
@@ -24,6 +26,43 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
         Assert.Equal(3, result.RootElement.GetProperty("minorFonts").GetArrayLength());
         Assert.All(result.RootElement.GetProperty("colors").EnumerateArray(),
             color => Assert.Matches("^#[0-9A-F]{6}$", color.GetProperty("rgb").GetString()!));
+        _fixture.ExecuteRawVerification((context, _) => context.Book.Save());
+        using var file = new FileStream(_fixture.WorkbookPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var archive = new ZipArchive(file, ZipArchiveMode.Read);
+        var entry = archive.GetEntry("xl/theme/theme1.xml");
+        Assert.NotNull(entry);
+        using var stream = entry.Open();
+        var theme = XDocument.Load(stream);
+        XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        var scheme = Assert.Single(theme.Descendants(drawing + "clrScheme"));
+        string[] slots = ["dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"];
+        string[] names = ["xlThemeColorDark1", "xlThemeColorLight1", "xlThemeColorDark2", "xlThemeColorLight2",
+            "xlThemeColorAccent1", "xlThemeColorAccent2", "xlThemeColorAccent3", "xlThemeColorAccent4",
+            "xlThemeColorAccent5", "xlThemeColorAccent6", "xlThemeColorHyperlink", "xlThemeColorFollowedHyperlink"];
+        for (int index = 0; index < slots.Length; index++)
+        {
+            var definition = Assert.Single(scheme.Element(drawing + slots[index])!.Elements());
+            string rgb = definition.Name.LocalName == "sysClr"
+                ? definition.Attribute("lastClr")!.Value
+                : definition.Attribute("val")!.Value;
+            var actual = result.RootElement.GetProperty("colors")[index];
+            Assert.Equal(index + 1, actual.GetProperty("index").GetInt32());
+            Assert.Equal(names[index], actual.GetProperty("name").GetString());
+            Assert.Equal("#" + rgb.ToUpperInvariant(), actual.GetProperty("rgb").GetString());
+        }
+        string[] scripts = ["Latin", "EastAsian", "ComplexScript"];
+        string[] nativeScripts = ["latin", "ea", "cs"];
+        foreach (var (property, element) in new[] { ("majorFonts", "majorFont"), ("minorFonts", "minorFont") })
+        {
+            var fonts = Assert.Single(theme.Descendants(drawing + element));
+            for (int index = 0; index < scripts.Length; index++)
+            {
+                var actual = result.RootElement.GetProperty(property)[index];
+                Assert.Equal(scripts[index], actual.GetProperty("script").GetString());
+                Assert.Equal(fonts.Element(drawing + nativeScripts[index])!.Attribute("typeface")!.Value,
+                    actual.GetProperty("name").GetString());
+            }
+        }
     }
 
     [Fact]
@@ -92,7 +131,7 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
     public void ApplyingTheme_UpdatesThemeSensitiveFillButPreservesFixedRgb()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        // The scalar formatting contract does not expose theme indices; prepare the native state directly.
+        // Seed independently of the formatting writer under test.
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
             Excel.Sheets? sheets = null;
