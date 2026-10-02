@@ -200,6 +200,54 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     }
 
     [Theory]
+    [InlineData("printArea", "NoSuchPrintRange")]
+    [InlineData("printTitleRows", "NoSuchPrintRange")]
+    [InlineData("printTitleColumns", "NoSuchPrintRange")]
+    [InlineData("printArea", "XFE1")]
+    [InlineData("printTitleRows", "1048577:1048577")]
+    [InlineData("printTitleColumns", "XFE:XFE")]
+    public async Task PageSetup_UnresolvablePrintScopesReturnInvalidInputWithoutMutation(string option, string address)
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        _fixture.Send("sheet.set-page-setup", new
+        {
+            sheetName,
+            orientation = "portrait",
+            pageSetupOptions = new
+            {
+                printArea = "A1:C20",
+                printTitleRows = "1:2",
+                printTitleColumns = "A:B",
+                leftMargin = 36d,
+                centerHeader = "Keep",
+                zoomPercent = 90
+            }
+        });
+        var before = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var options = new Dictionary<string, object>
+        {
+            ["printArea"] = "D1:F10",
+            ["printTitleRows"] = "3:4",
+            ["printTitleColumns"] = "C:D",
+            ["leftMargin"] = 72d,
+            ["centerHeader"] = "Changed"
+        };
+        options[option] = address;
+        var rejected = await _fixture.SendForFailureAsync("sheet.set-page-setup", new
+        {
+            sheetName,
+            orientation = "landscape",
+            pageSetupOptions = options
+        });
+        Assert.False(rejected.Success);
+        Assert.Equal("InvalidInput", rejected.ErrorCategory);
+        Assert.Contains(address, rejected.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("invalid", rejected.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var after = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        Assert.Equal(before.Result, after.Result);
+    }
+
+    [Theory]
     [InlineData("""{"rows":[1],"columns":[]}""")]
     [InlineData("""{"rows":[1048577],"columns":[]}""")]
     [InlineData("""{"rows":[],"columns":[16385]}""")]
