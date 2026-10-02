@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -67,9 +68,17 @@ public sealed class PersistentServiceOlapSlicerTests(
         Assert.Equal(Captions, created.AvailableItems.Order());
         Assert.Equal(Captions, created.SelectedItems.Order());
         Assert.Equal(["SlicerPivot"], created.ConnectedPivotTables);
+        AssertSelection([Captions[1]], true, 50, Captions[1]);
         var second = _slicers.CreateSlicer(_fixture.BatchToken, "SlicerPivot", Field,
             "SecondQuarterSlicer", Sheet, "N1");
         Assert.True(second.Success, second.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(second.ErrorMessage));
+        Assert.Equal("SecondQuarterSlicer", second.Name);
+        Assert.Equal(Field, second.FieldName);
+        Assert.Equal(Captions, second.AvailableItems.Order());
+        Assert.Equal([Captions[1]], second.SelectedItems);
+        Assert.Equal(["SlicerPivot"], second.ConnectedPivotTables);
+        AssertPivot(50, Captions[1]);
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
             Excel.SlicerCaches? caches = null;
@@ -80,8 +89,6 @@ public sealed class PersistentServiceOlapSlicerTests(
             }
             finally { ComUtilities.Release(ref caches); }
         });
-        var selected = _slicers.SetSlicerSelection(_fixture.BatchToken, "QuarterSlicer", [Captions[1]]);
-        Assert.True(selected.Success, selected.ErrorMessage);
         var list = _slicers.ListSlicers(_fixture.BatchToken, "SlicerPivot");
         Assert.True(list.Success, list.ErrorMessage);
         Assert.Equal(2, list.Slicers.Count);
@@ -93,6 +100,31 @@ public sealed class PersistentServiceOlapSlicerTests(
             Assert.Equal(["SlicerPivot"], slicer.ConnectedPivotTables);
         });
         AssertPivot(50, Captions[1]);
+    }
+
+    [Fact]
+    public void Selection_DataModel_OmittedServiceClearFirstReplacesExistingFilter()
+    {
+        CreateModelSlicer();
+        AssertSelection([Captions[1]], true, 50, Captions[1]);
+        var response = _fixture.Send("slicer.set-slicer-selection", new
+        {
+            slicerName = "QuarterSlicer",
+            selectedItems = new[] { Captions[0] }
+        });
+        Assert.True(response.Success, response.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(response.ErrorMessage));
+        Assert.NotNull(response.Result);
+        using var result = JsonDocument.Parse(response.Result);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(Captions, result.RootElement.GetProperty("availableItems")
+            .EnumerateArray().Select(item => item.GetString()).Order());
+        Assert.Equal([Captions[0]], result.RootElement.GetProperty("selectedItems")
+            .EnumerateArray().Select(item => item.GetString()));
+        var listed = _slicers.ListSlicers(_fixture.BatchToken, "SlicerPivot");
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal([Captions[0]], Assert.Single(listed.Slicers).SelectedItems);
+        AssertPivot(10, Captions[0]);
     }
 
     [Fact]

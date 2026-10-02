@@ -17,7 +17,8 @@ public sealed class OlapSlicerItemMatchingTests
         PivotTableCommands.SlicerItemState[] items =
         [
             new("[Calendar].[Quarter].&[2025]&[Q1]", "Q1", true),
-            new("[Calendar].[Quarter].&[2026]&[Q1]", "Q1", false)
+            new("[Calendar].[Quarter].&[2026]&[Q1]", "q1", false),
+            new("[Calendar].[Quarter].&[2026]&[Q2]", "Q2", false)
         ];
 
         var error = Assert.Throws<ArgumentException>(() =>
@@ -25,13 +26,14 @@ public sealed class OlapSlicerItemMatchingTests
 
         Assert.Equal("requested", error.ParamName);
         Assert.Contains("ambiguous", error.Message);
-        string candidatesJson = JsonSerializer.Serialize(items.Select(item => item.Name));
+        var matchingNames = items.Take(2).Select(item => item.Name).ToArray();
+        string candidatesJson = JsonSerializer.Serialize(matchingNames);
         Assert.Contains(candidatesJson, error.Message);
         const string marker = "matching MDX unique names: ";
         string returnedJson = error.Message
             [(error.Message.IndexOf(marker, StringComparison.Ordinal) + marker.Length)..(error.Message.LastIndexOf(']') + 1)];
         var candidates = JsonSerializer.Deserialize<string[]>(returnedJson)!;
-        Assert.Equal(items.Select(item => item.Name), candidates);
+        Assert.Equal(matchingNames, candidates);
         Assert.All(candidates, name =>
             Assert.Equal(name, PivotTableCommands.ResolveOlapSlicerItemName(items, name)));
     }

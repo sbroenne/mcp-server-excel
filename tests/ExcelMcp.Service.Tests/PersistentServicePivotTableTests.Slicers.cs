@@ -1,3 +1,5 @@
+using System.Globalization;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -151,9 +153,11 @@ public sealed partial class PersistentServicePivotTableTests
     /// <summary>
     /// Tests clearing slicer selection (selecting all items).
     /// </summary>
-    [Fact]
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     [Trait("Speed", "Medium")]
-    public void SetSlicerSelection_EmptyList_ClearsFilterSelectsAll()
+    public void SetSlicerSelection_EmptyList_ClearsFilterSelectsAll(bool clearFirst)
     {
         // Arrange
         var batch = _fixture.BatchToken;
@@ -163,7 +167,8 @@ public sealed partial class PersistentServicePivotTableTests
             batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "ClearFilterTest");
         Assert.True(createResult.Success, $"Failed to create PivotTable: {createResult.ErrorMessage}");
 
-        _pivotCommands.AddRowField(batch, "ClearFilterTest", "Region");
+        Assert.True(_pivotCommands.AddRowField(batch, "ClearFilterTest", "Region").Success);
+        Assert.True(_pivotCommands.AddValueField(batch, "ClearFilterTest", "Sales").Success);
 
         // Create slicer
         var slicerResult = _pivotCommands.CreateSlicer(
@@ -171,19 +176,62 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.True(slicerResult.Success, $"Failed to create slicer: {slicerResult.ErrorMessage}");
 
         // First, filter to just "North"
-        _pivotCommands.SetSlicerSelection(batch, "ClearFilterSlicer", new List<string> { "North" });
+        var filtered = _pivotCommands.SetSlicerSelection(batch, "ClearFilterSlicer", ["North"]);
+        AssertRegularSlicerState(filtered, 325, "North");
 
         // Act - Clear filter by passing empty list
         var clearResult = _pivotCommands.SetSlicerSelection(
-            batch, "ClearFilterSlicer", new List<string>());
+            batch, "ClearFilterSlicer", [], clearFirst);
 
         // Assert
-        Assert.True(clearResult.Success, $"SetSlicerSelection (clear) failed: {clearResult.ErrorMessage}");
-        Assert.NotNull(clearResult.SelectedItems);
-        Assert.True(clearResult.SelectedItems.Count >= 2, "Expected all items to be selected after clear");
-        Assert.Contains("North", clearResult.SelectedItems);
-        Assert.Contains("South", clearResult.SelectedItems);
+        AssertRegularSlicerState(clearResult, 650, "North", "South");
         Assert.Contains("cleared", clearResult.WorkflowHint, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void SetSlicerSelection_ClearFirstFalse_AddsWithoutReplacingAndPreservesUnfilteredState()
+    {
+        var batch = _fixture.BatchToken;
+        var created = _pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "AddSelectionTest");
+        Assert.True(created.Success, created.ErrorMessage);
+        Assert.True(_pivotCommands.AddRowField(batch, "AddSelectionTest", "Region").Success);
+        Assert.True(_pivotCommands.AddValueField(batch, "AddSelectionTest", "Sales").Success);
+        var slicer = _pivotCommands.CreateSlicer(
+            batch, "AddSelectionTest", "Region", "AddSelectionSlicer", _salesSheetName, "I2");
+        AssertRegularSlicerState(slicer, 650, "North", "South");
+        var unfiltered = _pivotCommands.SetSlicerSelection(
+            batch, "AddSelectionSlicer", ["North"], clearFirst: false);
+        AssertRegularSlicerState(unfiltered, 650, "North", "South");
+        var filtered = _pivotCommands.SetSlicerSelection(batch, "AddSelectionSlicer", ["North"]);
+        AssertRegularSlicerState(filtered, 325, "North");
+        var added = _pivotCommands.SetSlicerSelection(
+            batch, "AddSelectionSlicer", ["South"], clearFirst: false);
+        AssertRegularSlicerState(added, 650, "North", "South");
+        var replaced = _pivotCommands.SetSlicerSelection(
+            batch, "AddSelectionSlicer", ["South"], clearFirst: true);
+        AssertRegularSlicerState(replaced, 325, "South");
+    }
+
+    private void AssertRegularSlicerState(SlicerResult result, double total, params string[] regions)
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(["North", "South"], result.AvailableItems.Order());
+        Assert.Equal(regions.Order(), result.SelectedItems.Order());
+        var listed = _pivotCommands.ListSlicers(_fixture.BatchToken);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal(regions.Order(), Assert.Single(listed.Slicers).SelectedItems.Order());
+        var values = _commands.GetValues(_fixture.BatchToken, _salesSheetName, "F2:G6");
+        Assert.True(values.Success, values.ErrorMessage);
+        var rows = values.Values.Where(row => row[0] is not null
+            && double.TryParse(row[1]?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out _)).ToList();
+        Assert.Equal(regions.Length + 1, rows.Count);
+        Assert.Equal(regions.Order(), rows.Take(regions.Length).Select(row => row[0]!.ToString()).Order());
+        Assert.All(rows.Take(regions.Length), row =>
+            Assert.Equal(325, double.Parse(row[1]!.ToString()!, CultureInfo.InvariantCulture)));
+        Assert.Equal(total, double.Parse(rows[^1][1]!.ToString()!, CultureInfo.InvariantCulture));
     }
 
     /// <summary>
@@ -439,7 +487,6 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Contains("ConnPivotTestPivot", slicer.ConnectedPivotTables);
     }
 }
-
 
 
 

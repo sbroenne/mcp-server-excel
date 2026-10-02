@@ -1,3 +1,5 @@
+using System.Globalization;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -130,8 +132,10 @@ public sealed partial class PersistentServiceTablePreflightTests
     /// <summary>
     /// Tests clearing Table slicer selection (selecting all items).
     /// </summary>
-    [Fact]
-    public void SetTableSlicerSelection_EmptyList_ClearsFilterSelectsAll()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SetTableSlicerSelection_EmptyList_ClearsFilterSelectsAll(bool clearFirst)
     {
         // Arrange
         var batch = _fixture.BatchToken;
@@ -142,21 +146,53 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.True(slicerResult.Success, $"Failed to create slicer: {slicerResult.ErrorMessage}");
 
         // First, filter to just "North"
-        _tableCommands.SetTableSlicerSelection(batch, "ClearFilterSlicer", new List<string> { "North" });
+        var filtered = _tableCommands.SetTableSlicerSelection(batch, "ClearFilterSlicer", ["North"]);
+        AssertTableSlicerState(filtered, 100, "North");
 
         // Act - Clear filter by passing empty list
         var clearResult = _tableCommands.SetTableSlicerSelection(
-            batch, "ClearFilterSlicer", new List<string>());
+            batch, "ClearFilterSlicer", [], clearFirst);
 
         // Assert
-        Assert.True(clearResult.Success, $"SetTableSlicerSelection (clear) failed: {clearResult.ErrorMessage}");
-        Assert.NotNull(clearResult.SelectedItems);
-        Assert.True(clearResult.SelectedItems.Count >= 4, "Expected all items to be selected after clear");
-        Assert.Contains("North", clearResult.SelectedItems);
-        Assert.Contains("South", clearResult.SelectedItems);
-        Assert.Contains("East", clearResult.SelectedItems);
-        Assert.Contains("West", clearResult.SelectedItems);
+        AssertTableSlicerState(clearResult, 800, "North", "South", "East", "West");
         Assert.Contains("cleared", clearResult.WorkflowHint, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SetTableSlicerSelection_ClearFirstFalse_AddsWithoutReplacingAndPreservesUnfilteredState()
+    {
+        var batch = _fixture.BatchToken;
+        var slicer = _tableCommands.CreateTableSlicer(
+            batch, "SalesTable", "Region", "AddSelectionSlicer", "Sales", "F2");
+        AssertTableSlicerState(slicer, 800, "North", "South", "East", "West");
+        var unfiltered = _tableCommands.SetTableSlicerSelection(
+            batch, "AddSelectionSlicer", ["North"], clearFirst: false);
+        AssertTableSlicerState(unfiltered, 800, "North", "South", "East", "West");
+        var filtered = _tableCommands.SetTableSlicerSelection(batch, "AddSelectionSlicer", ["North"]);
+        AssertTableSlicerState(filtered, 100, "North");
+        var added = _tableCommands.SetTableSlicerSelection(
+            batch, "AddSelectionSlicer", ["South"], clearFirst: false);
+        AssertTableSlicerState(added, 350, "North", "South");
+        var replaced = _tableCommands.SetTableSlicerSelection(
+            batch, "AddSelectionSlicer", ["South"], clearFirst: true);
+        AssertTableSlicerState(replaced, 250, "South");
+    }
+
+    private void AssertTableSlicerState(SlicerResult result, double total, params string[] regions)
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(["East", "North", "South", "West"], result.AvailableItems.Order());
+        Assert.Equal(regions.Order(), result.SelectedItems.Order());
+        var listed = _tableCommands.ListTableSlicers(_fixture.BatchToken, "SalesTable");
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal(regions.Order(), Assert.Single(listed.Slicers).SelectedItems.Order());
+        var visible = _tableCommands.GetData(_fixture.BatchToken, "SalesTable", visibleOnly: true);
+        Assert.True(visible.Success, visible.ErrorMessage);
+        Assert.Equal(regions.Length, visible.RowCount);
+        Assert.Equal(regions.Length, visible.Data.Count);
+        Assert.Equal(regions.Order(), visible.Data.Select(row => row[0]?.ToString()).Order());
+        Assert.Equal(total, visible.Data.Sum(row => Convert.ToDouble(row[2], CultureInfo.InvariantCulture)));
     }
 
     /// <summary>
@@ -453,6 +489,5 @@ public sealed partial class PersistentServiceTablePreflightTests
 
     #endregion
 }
-
 
 

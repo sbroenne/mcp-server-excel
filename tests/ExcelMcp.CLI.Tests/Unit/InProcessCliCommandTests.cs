@@ -470,6 +470,8 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(selectedItems, args.RootElement.GetProperty("selectedItems").GetRawText());
         if (clearFirst.HasValue)
             Assert.Equal(clearFirst.Value, args.RootElement.GetProperty("clearFirst").GetBoolean());
+        else
+            Assert.False(args.RootElement.TryGetProperty("clearFirst", out _));
         using var returned = JsonDocument.Parse(output.ToString());
         Assert.True(returned.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("2026 Q2", returned.RootElement.GetProperty("selectedItems")[0].GetString());
@@ -502,6 +504,65 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
         Assert.Contains("missing", returned.RootElement.GetProperty("errorMessage").GetString());
         Assert.Empty(error.ToString());
+    }
+
+    [Fact]
+    public async Task SlicerSelection_AmbiguousErrorPreservesCandidateJsonAndRetryName()
+    {
+        string[] candidates =
+        [
+            "[Calendar].[Quarter].&[2025]&[Q\"1\\North]]]",
+            "[Calendar].[Quarter].&[2026]&[Q\"1\\South]]]"
+        ];
+        const string marker = "matching MDX unique names: ";
+        string message = new ArgumentException(
+            $"Slicer caption 'Q1' is ambiguous. Retry with one of these {marker}{JsonSerializer.Serialize(candidates)}",
+            "requested").Message;
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = false,
+            Command = "slicer.set-slicer-selection",
+            ErrorCategory = "InvalidInput",
+            ExceptionType = nameof(ArgumentException),
+            ErrorMessage = message
+        }, new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"selectedItems":["Q1"]}"""
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "slicer", "set-slicer-selection", "--session", "session-1",
+                "--slicer-name", "QuarterSlicer", "--selected-items", "[\"Q1\"]"],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(1, exitCode);
+        Assert.Empty(error.ToString());
+        using var returned = JsonDocument.Parse(output.ToString());
+        Assert.False(returned.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
+        string returnedMessage = returned.RootElement.GetProperty("errorMessage").GetString()!;
+        Assert.Equal(message, returnedMessage);
+        var returnedCandidates = JsonSerializer.Deserialize<string[]>(returnedMessage[
+            (returnedMessage.IndexOf(marker, StringComparison.Ordinal) + marker.Length)..(returnedMessage.LastIndexOf(']') + 1)])!;
+        Assert.Equal(candidates, returnedCandidates);
+
+        output.GetStringBuilder().Clear();
+        exitCode = await Program.RunAsync(
+            ["--quiet", "slicer", "set-slicer-selection", "--session", "session-1",
+                "--slicer-name", "QuarterSlicer", "--selected-items", JsonSerializer.Serialize(new[] { returnedCandidates[1] })],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(0, exitCode);
+        Assert.Empty(error.ToString());
+        Assert.Equal(2, factory.Requests.Count);
+        var retry = factory.Requests[1];
+        Assert.Equal("slicer.set-slicer-selection", retry.Command);
+        Assert.Equal("session-1", retry.SessionId);
+        using var args = JsonDocument.Parse(retry.Args!);
+        Assert.Equal("QuarterSlicer", args.RootElement.GetProperty("slicerName").GetString());
+        Assert.Equal(candidates[1], Assert.Single(args.RootElement.GetProperty("selectedItems").EnumerateArray()).GetString());
+        using var success = JsonDocument.Parse(output.ToString());
+        Assert.True(success.RootElement.GetProperty("success").GetBoolean());
     }
 
     private static CliCommandRuntime CreateRuntime(
