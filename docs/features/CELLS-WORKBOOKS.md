@@ -17,6 +17,17 @@ Open, create, and close Excel workbooks. Every other tool works on a session ope
 - **Create Empty:** Create new .xlsx or .xlsm workbook
 - **Test:** Report existence, extension validity, openability, and IRM/AIP requirements through `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`. Ordinary workbooks are opened read-only in a temporary Excel session and closed without saving.
 
+**Workflow:** List and match the intended workbook; reuse its session or
+open/create; operate; list and check its `canClose`; close only when authorized
+with an explicit save choice. MCP identifiers use `session_id` in inputs,
+results, and list entries; CLI JSON uses `sessionId`.
+Close without saving discards all unsaved edits, including earlier work, and
+has no tool-level undo.
+
+Operations within one session execute serially, but concurrent requests and
+responses have no guaranteed order. Wait for dependent calls; different
+sessions can run independently.
+
 ---
 
 ## 🧮 Calculation Mode (3 operations)
@@ -27,6 +38,15 @@ Control when and how Excel recalculates formulas — useful for speeding up bulk
 - **Get Mode:** Query current calculation mode and calculation state
 - **Set Mode:** Switch between automatic, manual, and semi-automatic modes
 - **Calculate:** Explicitly recalculate workbook, sheet, or range
+
+Value/formula writes attempt to restore the prior mode rather than always
+forcing calculation. Restoration can fail without failing the write; use
+`get-mode` when subsequent work depends on the mode. Automatic normally
+recalculates dependent formulas after restoration; manual needs explicit
+calculation. Semi-automatic excludes what-if data tables, not worksheet Tables.
+Successful writes do not guarantee completion of
+asynchronous refreshes or Python calculations. For bulk writes, remember and
+restore the prior mode, including after failure.
 
 ---
 
@@ -44,9 +64,48 @@ Read and write cell values, formulas, and formatting across any range of cells.
 - **Insert/Delete Cells:** Shift cells to insert or remove space
 - **Insert/Delete Rows:** Insert or delete entire rows
 - **Insert/Delete Columns:** Insert or delete entire columns
-- **Find:** Search a range for matching values
+- **Find:** Search a range for matching values, returning up to 10 cells by default with an exact total
 - **Replace:** Find and replace values in a range
 - **Sort:** Sort a range by one or more columns
+
+**Find coverage:** MCP `range_edit(action: 'find')` accepts `max_matches`;
+CLI `excelcli rangeedit find` accepts `--max-matches`; batch JSON uses
+`maxMatches`. The default is 10, and any positive whole number through
+2147483647 is accepted. Results retain `matchingCells` and include
+`totalCount`, `returnedCount`, and `truncated`. A no-match result returns an empty
+list, zero counts, and `truncated=false`; exactly the limit is not truncated.
+Exact totals require searching every match even after the return limit is
+reached. The limit bounds cell details, not search time. Paging is not provided.
+
+**Protected writes (new default):** `range` actions `set-values`, `set-formulas`,
+`copy`, `copy-values`, and `copy-formulas` default to `reject-nonempty`. Existing
+values, whitespace, errors, and formulas displaying blank block the operation,
+even for same-value replacements or blank incoming cells. Truly empty cells
+pass regardless of formatting. For intentional updates, pass MCP
+`overwrite_policy: 'allow'`, CLI `--overwrite-policy allow`, or batch JSON
+`"overwritePolicy": "allow"`; existing update scripts must add this explicitly.
+Neither policy bypasses Excel worksheet protection or existing write restrictions.
+
+The check covers the whole direct destination before any write. Copies expand
+single-cell anchors to the source size and check repeated-paste destinations.
+Protected copies require unmerged rectangles and destination dimensions that
+are whole multiples of the source; ambiguous shapes fail before copying.
+Excel formula paste also copies source constants and blanks.
+Value/formula arrays must exactly match one rectangular target.
+
+Conflicts report the sheet and at most 10 cell addresses, with an indication
+when more exist, and make no destination writes. Inspection failures stop the
+operation too. The check and write run together, but do not prevent interactive
+Excel edits, predict future formula spills or table-generated changes outside
+direct destinations, or promise rollback after a later Excel failure.
+Do not automatically retry with `allow` after a rejection. Clearing, formatting,
+and other tools' writes retain their own behavior; saving remains explicit.
+
+**Clearing has no tool-level undo:** Clear All removes values, formulas, and
+formats; Clear Contents preserves formats; Clear Formats preserves
+values/formulas. Check the intended target before clearing.
+Until saved, an authorized no-save close can discard changes, but also loses
+earlier unsaved work.
 
 **Discovery & Utilities:**
 - **Get Used Range:** Get the worksheet's used range
@@ -113,6 +172,12 @@ Add, rename, move, and manage worksheets — including tab colors, visibility, p
 - **Copy to File:** Copy a worksheet to another workbook (atomic)
 - **Move to File:** Move a worksheet to another workbook (atomic)
 
+**Delete has no tool-level undo:** It removes all sheet contents and can break
+dependent references. Check the intended sheet and its dependencies.
+**Move to File has no tool-level undo:** It removes the source sheet and saves
+both files. Closing another session without saving cannot
+reverse the saved transfer.
+
 **Tab Colors:**
 - **Set Tab Color:** Set a worksheet tab's RGB color
 - **Get Tab Color:** Read the current tab color
@@ -170,6 +235,9 @@ Manage workbook metadata, protection, document properties, file variants, export
 - **Save Copy As:** Create a same-format copy without changing the active workbook
 - **Export Fixed Format:** Publish PDF or XPS with quality, page-range, and print-area controls
 - **List/Update/Break External Links:** Inspect, refresh, or permanently replace linked-workbook formulas
+
+**Break External Link has no tool-level undo:** Linked formulas become their
+current values.
 
 > Printing and print preview are intentionally excluded because physical printer output and modal preview are unsafe for unattended automation.
 

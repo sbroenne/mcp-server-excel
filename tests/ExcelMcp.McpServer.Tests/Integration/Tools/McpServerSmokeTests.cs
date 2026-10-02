@@ -86,6 +86,78 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         await DisposeAsyncCore();
     }
 
+    [Fact]
+    public async Task DaxMeasureWrites_NativeCommaSyntax_PreserveAndEvaluate()
+    {
+        var created = await CallToolAsync("file", new()
+        {
+            ["action"] = "create",
+            ["path"] = _testExcelFile
+        });
+        AssertSuccess(created, "Create DAX workbook");
+        var session = GetJsonProperty(created, "session_id");
+        Assert.NotNull(session);
+        var loaded = await CallToolAsync("powerquery", new()
+        {
+            ["action"] = "create",
+            ["session_id"] = session,
+            ["query_name"] = "SalesTable",
+            ["m_code"] = "#table(type table [Amount = number], {{1000}, {2500}})",
+            ["load_destination"] = "data-model"
+        });
+        AssertSuccess(loaded, "Load DAX source");
+        const string formula = "DIVIDE(SUM(SalesTable[Amount]), 1000)";
+        foreach (var update in new[] { false, true })
+        {
+            var name = $"Comma_{Guid.NewGuid():N}";
+            var written = await CallToolAsync("datamodel", new()
+            {
+                ["action"] = "create-measure",
+                ["session_id"] = session,
+                ["table_name"] = "SalesTable",
+                ["measure_name"] = name,
+                ["dax_formula"] = update ? "SUM(SalesTable[Amount])" : formula
+            });
+            AssertSuccess(written, "Create comma measure");
+            if (update)
+            {
+                var updated = await CallToolAsync("datamodel", new()
+                {
+                    ["action"] = "update-measure",
+                    ["session_id"] = session,
+                    ["measure_name"] = name,
+                    ["dax_formula"] = formula
+                });
+                AssertSuccess(updated, "Update comma measure");
+            }
+            var read = await CallToolAsync("datamodel", new()
+            {
+                ["action"] = "read",
+                ["session_id"] = session,
+                ["measure_name"] = name
+            });
+            AssertSuccess(read, "Read comma measure");
+            Assert.Equal(formula, GetJsonProperty(read, "daxFormula"));
+            var evaluated = await CallToolAsync("datamodel", new()
+            {
+                ["action"] = "evaluate",
+                ["session_id"] = session,
+                ["dax_query"] = $"EVALUATE ROW(\"Result\", [{name}])"
+            });
+            AssertSuccess(evaluated, "Evaluate comma measure");
+            using var document = JsonDocument.Parse(evaluated);
+            Assert.Equal(3.5m, Assert.Single(Assert.Single(
+                document.RootElement.GetProperty("rows").EnumerateArray()).EnumerateArray()).GetDecimal());
+        }
+        var closed = await CallToolAsync("file", new()
+        {
+            ["action"] = "close",
+            ["session_id"] = session,
+            ["save"] = false
+        });
+        AssertSuccess(closed, "Close DAX workbook");
+    }
+
     async ValueTask IAsyncDisposable.DisposeAsync()
     {
         await DisposeAsyncCore();
@@ -146,6 +218,19 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         Assert.NotNull(sessionId);
         _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
 
+        var listSessionsResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "list"
+        });
+        AssertSuccess(listSessionsResult, "List workbook sessions");
+        using (var listed = JsonDocument.Parse(listSessionsResult))
+        {
+            var session = Assert.Single(listed.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal(sessionId, session.GetProperty("session_id").GetString());
+            Assert.False(session.TryGetProperty("sessionId", out _));
+            Assert.True(session.GetProperty("canClose").GetBoolean());
+        }
+
         // =====================================================================
         // STEP 3: WORKSHEET OPERATIONS
         // =====================================================================
@@ -154,8 +239,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            // Compatibility path for client bridges that rewrite the canonical session_id key.
-            ["sessionId"] = sessionId
+            ["session_id"] = sessionId
         });
         AssertSuccess(listSheetsResult, "List worksheets");
 
@@ -166,6 +250,47 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["sheet_name"] = "Data"
         });
         AssertSuccess(createSheetResult, "Create worksheet");
+
+        var findSheetResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "FindSmoke"
+        });
+        AssertSuccess(findSheetResult, "Create find smoke worksheet");
+        var findValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "FindSmoke",
+            ["range_address"] = "A1:A26",
+            ["values"] = Enumerable.Range(0, 26)
+                .Select(index => new[] { index < 25 ? "Apple" : "Banana" }).ToArray()
+        });
+        AssertSuccess(findValuesResult, "Write find smoke values");
+        foreach (int? limit in new int?[] { null, 5 })
+        {
+            var findArguments = new Dictionary<string, object?>
+            {
+                ["action"] = "find",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "FindSmoke",
+                ["range_address"] = "A1:A26",
+                ["search_value"] = "Apple",
+                ["find_options"] = new { matchEntireCell = true }
+            };
+            if (limit.HasValue)
+            {
+                findArguments["max_matches"] = limit.Value;
+            }
+            var findResult = await CallToolAsync("range_edit", findArguments);
+            AssertSuccess(findResult, "Find bounded matches");
+            using var findJson = JsonDocument.Parse(findResult);
+            Assert.Equal(25, findJson.RootElement.GetProperty("totalCount").GetInt64());
+            Assert.Equal(limit ?? 10, findJson.RootElement.GetProperty("returnedCount").GetInt32());
+            Assert.Equal(limit ?? 10, findJson.RootElement.GetProperty("matchingCells").GetArrayLength());
+            Assert.True(findJson.RootElement.GetProperty("truncated").GetBoolean());
+        }
         _output.WriteLine("  ✓ worksheet: List and Create passed");
 
         // =====================================================================
@@ -189,6 +314,42 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["values"] = values
         });
         AssertSuccess(setValuesResult, "Set values");
+
+        var rejectedWrite = await _client!.CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<string>> { new() { "Must not overwrite" } }
+        }, cancellationToken: _cts.Token);
+        Assert.True(rejectedWrite.IsError);
+        var rejectionText = Assert.Single(rejectedWrite.Content.OfType<TextContentBlock>()).Text;
+        using (var rejectionJson = JsonDocument.Parse(rejectionText))
+        {
+            Assert.False(rejectionJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("Conflict", rejectionJson.RootElement.GetProperty("errorCategory").GetString());
+            Assert.Contains("$A$1", rejectionJson.RootElement.GetProperty("errorMessage").GetString());
+        }
+        var unchangedHeader = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(unchangedHeader, "Read header after rejected write");
+        Assert.Equal("Name", GetFirstCellValue(unchangedHeader));
+        var intentionalUpdate = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<string>> { new() { "Name" } },
+            ["overwrite_policy"] = "allow"
+        });
+        AssertSuccess(intentionalUpdate, "Explicitly allowed header replacement");
 
         var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {

@@ -15,9 +15,24 @@ on:
       plugin_artifact:
         required: true
         type: string
+    outputs:
+      status:
+        value: ${{ jobs.publish.outputs.status }}
+      published_tag:
+        value: ${{ jobs.publish.outputs.published_tag }}
+      published_commit:
+        value: ${{ jobs.publish.outputs.published_commit }}
+      changed_plugins:
+        value: ${{ jobs.publish.outputs.changed_plugins }}
+      handoff:
+        value: ${{ jobs.publish.outputs.handoff }}
     secrets:
       PLUGINS_REPO_TOKEN:
         required: true
+      COPILOT_GITHUB_TOKEN:
+        required: false
+      AWESOME_COPILOT_PR_TOKEN:
+        required: false
   workflow_dispatch:
     inputs:
       release_tag:
@@ -38,13 +53,13 @@ env:
 jobs:
   resolve:
     name: Resolve Exact Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       commit: ${{ steps.release.outputs.commit }}
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Verify tag, commit, version and published assets
@@ -77,25 +92,41 @@ jobs:
     name: Publish Exact Release Plugins
     needs: resolve
     runs-on: windows-latest
+    outputs:
+      status: ${{ steps.publication.outputs.status }}
+      published_tag: ${{ steps.publication.outputs.published_tag }}
+      published_commit: ${{ steps.publication.outputs.published_commit }}
+      changed_plugins: ${{ steps.publication.outputs.changed_plugins }}
+      handoff: ${{ steps.publication.outputs.handoff }}
     env:
       VERSION: ${{ needs.resolve.outputs.version }}
       TAG: ${{ needs.resolve.outputs.tag }}
       SOURCE_COMMIT: ${{ needs.resolve.outputs.commit }}
     steps:
+      - name: Checkout current publication guards
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: automation
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
       - name: Checkout exact released source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.resolve.outputs.commit }}
           path: source
+          fetch-depth: 0
+          persist-credentials: false
       - name: Download already prepared release plugins
         if: inputs.plugin_artifact != ''
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ inputs.plugin_artifact }}
           path: built-plugins
       - name: Setup .NET for manual repair
         if: inputs.plugin_artifact == ''
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: source/global.json
       - name: Recover or rebuild only the requested release
@@ -132,7 +163,7 @@ jobs:
             .\scripts\Build-Plugins.ps1 -Version $env:VERSION -OutputDir ..\built-plugins
           }
       - name: Setup Python for Agent Skills validation
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
       - name: Validate prepared skills
@@ -141,60 +172,48 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           python -m pip install --disable-pip-version-check `
             "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
-          skills-ref validate built-plugins\excel-mcp\skills\excel-mcp
-          skills-ref validate built-plugins\excel-cli\skills\excel-cli
+          foreach ($plugin in @('excel-mcp', 'excel-cli')) {
+            $root = Join-Path 'built-plugins' "$plugin\skills"
+            $skills = @(
+              (Join-Path $root "$plugin-report-formatting")
+              (Join-Path $root $plugin)
+            ) | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'SKILL.md') -PathType Leaf }
+            if (@($skills).Count -ne 1) {
+              throw "$plugin must contain exactly one recognized current or immutable legacy skill."
+            }
+            skills-ref validate (@($skills)[0])
+          }
       - name: Checkout output-only published repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ env.PUBLISHED_REPO }}
           token: ${{ secrets.PLUGINS_REPO_TOKEN }}
           path: published-repo
           fetch-depth: 0
       - name: Guard, synchronize and publish
+        id: publication
         shell: pwsh
         env:
           MANUAL_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.plugin_artifact == '' }}
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
-          $manifestPath = 'published-repo\.github\plugin\marketplace.json'
-          if (-not (Test-Path $manifestPath)) { $manifestPath = 'published-repo\marketplace.json' }
-          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-          $versions = @(if ($manifest.version) { $manifest.version } else { $manifest.plugins.version | Select-Object -Unique })
-          if ($versions.Count -ne 1 -or $versions[0] -notmatch '^\d+\.\d+\.\d+$') {
-            throw 'Published marketplace must have one valid version.'
-          }
-          $current = $versions[0]
-          if ([version]$current -gt [version]$env:VERSION) { throw 'Downgrade publish blocked.' }
-          $tagExists = @(git -C published-repo tag --list $env:TAG).Count -gt 0
-          if ($tagExists -and $current -ne $env:VERSION) { throw 'Existing tag conflicts with marketplace version.' }
-          foreach ($name in @('excel-cli', 'excel-mcp')) {
-            $root = Join-Path built-plugins $name
-            $plugin = Get-Content (Join-Path $root 'plugin.json') -Raw | ConvertFrom-Json
-            if ($plugin.version -ne $env:VERSION -or $plugin.name -ne $name) { throw "Wrong identity in $name payload." }
-            foreach ($stamp in @('version.txt', "skills\$name\VERSION")) {
-              if ((Get-Content (Join-Path $root $stamp) -Raw).Trim() -ne $env:VERSION) { throw "Wrong $stamp in $name." }
-            }
-            $runtimeFiles = @(Get-ChildItem $root -Recurse -File | Where-Object {
-              $_.Extension -in @('.exe', '.dll', '.pdb') -or $_.Name -match '\.(deps|runtimeconfig)\.json$'
-            })
-            if ($runtimeFiles.Count) { throw "Plugin $name contains bundled runtime files." }
-          }
-          if ($tagExists -and $current -eq $env:VERSION -and $env:MANUAL_REPAIR -ne 'true') {
-            "Plugins already published for $env:TAG." >> $env:GITHUB_STEP_SUMMARY
-            exit 0
-          }
-          .\source\scripts\Sync-PublishedPluginRepo.ps1 -PublishedRepoDir published-repo -BuiltPluginsDir built-plugins -Version $env:VERSION
-          git -C published-repo config user.name 'ExcelMcp Publisher Bot'
-          git -C published-repo config user.email 'excelmcp-publisher[bot]@users.noreply.github.com'
-          git -C published-repo add -A
-          $changes = @(git -C published-repo diff --cached --name-only)
-          if ($changes.Count) {
-            git -C published-repo commit -m "Release $env:TAG" -m "Source release commit: $env:SOURCE_COMMIT"
-            git -C published-repo push origin HEAD:main
-          }
-          if (-not $tagExists) {
-            git -C published-repo tag -a $env:TAG -m "Release $env:TAG"
-            git -C published-repo push origin $env:TAG
-          }
-          "Plugins synchronized for $env:TAG from $env:SOURCE_COMMIT." >> $env:GITHUB_STEP_SUMMARY
+          .\automation\scripts\Publish-PreparedPlugins.ps1 `
+            -SourceDirectory source -PublishedRepoDirectory published-repo -BuiltPluginsDirectory built-plugins `
+            -Version $env:VERSION -SourceCommit $env:SOURCE_COMMIT -ManualRepair:($env:MANUAL_REPAIR -eq 'true')
+
+  update-awesome-copilot:
+    name: Optional Awesome Copilot Update
+    needs: publish
+    if: needs.publish.outputs.handoff == 'true' && vars.AWESOME_COPILOT_UPDATES_ENABLED == 'true'
+    uses: ./.github/workflows/update-awesome-copilot.lock.yml
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    with:
+      published_tag: ${{ needs.publish.outputs.published_tag }}
+      preview: false
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      AWESOME_COPILOT_PR_TOKEN: ${{ secrets.AWESOME_COPILOT_PR_TOKEN }}

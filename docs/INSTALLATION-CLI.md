@@ -7,12 +7,17 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 ### Required
 - **Windows OS** (Windows 10 or later)
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
+- **An interactive Windows desktop** with Excel available to the signed-in user;
+  ordinary hosted CI runners do not have desktop Excel
 
 > **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
 
 The npm option also requires **Node.js 18 or later**. Install the current LTS
-with `winget install OpenJS.NodeJS.LTS`. Windows x64 and Arm64 (via x64
-emulation) are supported.
+with `winget install OpenJS.NodeJS.LTS`. Windows x64 and ARM64 are supported;
+ARM64 Node.js uses a native ARM64 executable.
+
+The standalone ZIP currently contains the x64 CLI. For a native ARM64 CLI,
+use the npm installation with ARM64 Node.js.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -23,7 +28,11 @@ emulation) are supported.
 
 ## Quick Start (Recommended)
 
-The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting outside the plugin. For a direct installation:
+The **excel-cli GitHub Copilot plugin** runs the public npm package through
+`npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching.
+No separate CLI installation is needed for plugin-driven flows. The **VS Code
+extension** does *not* include the CLI (it only bundles the MCP server); use
+`npx` or install the CLI separately for scripting outside the plugin. For direct use:
 
 Use npm (below) or download the standalone executable if you prefer not to
 install Node.js.
@@ -31,27 +40,37 @@ install Node.js.
 ### npm (Primary)
 
 ```powershell
-npx -y @sbroenne/excelcli --version
-npx -y @sbroenne/excelcli --help
+npx -y @sbroenne/excelcli@latest --version
+npx -y @sbroenne/excelcli@latest --help
 ```
 
 All CLI arguments follow the package name, for example:
 
 ```powershell
-npx -y @sbroenne/excelcli -q session open "C:\Data\Test.xlsx"
-npx -y @sbroenne/excelcli -q session list
-npx -y @sbroenne/excelcli -q session close --session <id>
+npx -y @sbroenne/excelcli@latest -q session open "C:\Data\Test.xlsx"
+npx -y @sbroenne/excelcli@latest -q session list
+# Replace SESSION_ID with the ID returned by session open:
+npx -y @sbroenne/excelcli@latest -q session close --session "SESSION_ID"
 ```
 
-For repeated use, install the command on your PATH:
+These commands do not install bare `excelcli` on PATH. `@latest` selects the
+current npm release at invocation, subject to normal caching. It does not
+replace an already running background service.
+
+#### Global npm Installation
+
+For repeated use with the bare command, install it on your PATH:
 
 ```powershell
-npm install --global @sbroenne/excelcli
+npm install --global @sbroenne/excelcli@latest
 excelcli --version
 ```
 
-The launcher installs the matching `@sbroenne/excelcli-win32-x64` runtime as an
-optional dependency. Do not use `--omit=optional`. It forwards arguments,
+The launcher installs `@sbroenne/excelcli-win32-x64` or
+`@sbroenne/excelcli-win32-arm64` as an optional dependency, matching the Node.js
+process architecture. x64 Node.js on ARM64 Windows still uses x64 emulation.
+There is no automatic fallback if the matching runtime is missing.
+Do not use `--omit=optional`. It forwards arguments,
 standard input/output, and exit codes to the same `excelcli.exe`; session
 management and Excel behavior are unchanged.
 
@@ -68,7 +87,9 @@ Avoid installing multiple distributions of `excelcli` on the same PATH. Use
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-### Add CLI to PATH
+#### Add the Standalone CLI to PATH
+
+Skip this section for npx and global npm installations.
 
 ```powershell
 $toolsDir = "C:\Tools\ExcelMcp"
@@ -81,7 +102,7 @@ if ($userPath -notlike "*$toolsDir*") {
 
 Or manually: **Settings → System → About → Advanced system settings → Environment Variables → User variables → Path → Edit → New** → add `C:\Tools\ExcelMcp`
 
-### Quick Test
+#### Standalone Quick Test
 
 ```powershell
 excelcli --version
@@ -90,7 +111,8 @@ excelcli --help
 # Test with an existing workbook
 excelcli -q session open "C:\Data\Test.xlsx"
 excelcli -q session list
-excelcli -q session close --session <id>
+# Replace SESSION_ID with the ID returned by session open:
+excelcli -q session close --session "SESSION_ID"
 ```
 
 ---
@@ -107,8 +129,20 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-**After installation:** The plugin downloads, caches, and runs `excelcli`
-automatically. If you also need `excelcli` directly on your PATH, use the
+**After installation:** Use `npx -y @sbroenne/excelcli@latest`. The plugin also
+provides `bin\start-cli.ps1`, which launches the same npm package while preserving
+quoted JSON arguments in Windows PowerShell. npm resolves the `latest` tag and
+manages caching subject to its cache policy; the plugin has no GitHub-release
+downloader or separate update checker. No global installation helper, PATH
+change, or separate .NET runtime is required.
+
+```powershell
+npx -y @sbroenne/excelcli@latest --help
+```
+
+The plugin does not put bare `excelcli` on PATH. For examples that use that
+command, substitute the npx command or invoke the plugin's PowerShell wrapper.
+If you also need `excelcli` directly on your PATH, use the
 global npm installation or standalone executable above, or install the secondary NuGet tool when .NET 10 is
 available:
 
@@ -119,7 +153,8 @@ excelcli --version
 
 > **Note:** The Copilot CLI install command above is specific to the GitHub Copilot plugin marketplace. VS Code and Claude have their own plugin systems with separate installation flows.
 
-Plugins are published automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace.
+Plugins are published when their distributed content changes. Their version can
+lag the ExcelMcp product release; the launcher still uses the latest npm runtime.
 
 ---
 
@@ -156,7 +191,23 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 excelcli --version
 ```
 
+For npx use `npx -y @sbroenne/excelcli@latest --version` instead.
+This reports the foreground CLI executable's version, not necessarily the
+version of an already running background service.
+
 ### Update to New Version
+
+**Before updating:** finish operations, explicitly save and close the intended
+workbook sessions, then stop the CLI service:
+
+```powershell
+npx -y @sbroenne/excelcli@latest -q service stop
+```
+
+For standalone or global installations, use `excelcli -q service stop`.
+Stopping the service may terminate its tracked Excel processes; do not use it
+as an update shortcut while workbooks have unsaved changes. The next workbook
+command starts the service using the selected CLI executable.
 
 **npm:**
 
@@ -195,11 +246,12 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 
 ### npm Runtime Package Missing
 
-If the launcher cannot find `@sbroenne/excelcli-win32-x64`, reinstall with
+If the launcher cannot find `@sbroenne/excelcli-win32-x64` or
+`@sbroenne/excelcli-win32-arm64`, reinstall with
 optional dependencies enabled:
 
 ```powershell
-npm install --global @sbroenne/excelcli --include=optional
+npm install --global @sbroenne/excelcli@latest --include=optional
 ```
 
 The npm launcher reports an error on macOS/Linux and unsupported Windows
@@ -258,7 +310,15 @@ For complete VBA command usage and a macro-enabled workbook example, see
 
 ## Uninstallation
 
+Save and close your intended workbook sessions and stop the service first.
+Remove Copilot's CLI plugin with
+`copilot plugin uninstall excel-cli@mcp-server-excel-plugins` if installed.
+One-off npx use has no global installation to remove.
+
 ```powershell
+# Global npm installation:
+npm uninstall --global @sbroenne/excelcli
+
 # Standalone exe:
 Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
 
@@ -281,11 +341,12 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 After installation:
 
-1. **Learn the basics:** Try `excelcli --help` and open a session against a test workbook
+1. **Learn the basics:** Try `npx -y @sbroenne/excelcli@latest --help`
+   (or `excelcli --help` for global/standalone installs) and open a test workbook
 2. **Explore commands:** See the [Feature Reference](../FEATURES.md) for all 31 feature command categories
 3. **Read the guides:**
    - [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md) - for AI assistants like Claude Desktop and Copilot Chat
-   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli) - token-efficient AI guidance for coding agents
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli-report-formatting) - token-efficient AI guidance for coding agents
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

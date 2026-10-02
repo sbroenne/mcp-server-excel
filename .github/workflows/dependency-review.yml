@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         
       - name: Dependency Review
-        uses: actions/dependency-review-action@v5
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           # Fail the build if vulnerabilities are found
           fail-on-severity: moderate
@@ -32,7 +32,11 @@ jobs:
 
           # PyPI declares typing-extensions as PSF-2.0, but dependency review
           # currently reports a composite expression containing vendored licenses.
-          allow-dependencies-licenses: "pkg:pypi/typing-extensions"
+          # vsce 4 uses Microsoft's VS Code development-only signing tool.
+          # Its reviewed Microsoft license permits our build use; the tool is
+          # excluded from shipped VSIX packages. The action matches exceptions
+          # by package identity, not version.
+          allow-dependencies-licenses: "pkg:pypi/typing-extensions,pkg:npm/%40vscode/vsce-sign"
           
           # Comment on PR with summary
           comment-summary-in-pr: always

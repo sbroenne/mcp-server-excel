@@ -6,6 +6,16 @@ For the complete release history, see [CHANGELOG.md](../CHANGELOG.md).
 AI assistants should discover the current contract through MCP `tools/list` or
 `excelcli --help` rather than relying on hardcoded parameter lists.
 
+## Unreleased - Consistent MCP Session Identifiers
+
+MCP session identifiers now use `session_id` in inputs, open/create results,
+file-list entries, and session error context. Update clients that read
+`sessionId` from file-list entries or errors.
+
+The old `sessionId` input is no longer accepted, even when the same request also
+includes `session_id`. Use only `session_id` for session-based MCP actions.
+CLI JSON still uses `sessionId`; CLI and MCP sessions remain separate.
+
 ## Unreleased - Compact Power Query List Model
 
 The obsolete public `PowerQueryInfo.Formula` property has been removed. Code

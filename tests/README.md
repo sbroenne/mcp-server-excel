@@ -22,6 +22,10 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 
 Set a hard execution timeout for every Excel-dependent run. Run only the
 relevant project and filter, not the full integration suite during iteration.
+Returning control while tests keep running is not a timeout. Session/batch
+infrastructure changes require relevant ComInterop OnDemand tests; narrow by
+test name where appropriate. Core OnDemand tests are optional diagnostics,
+not mandatory CI gates.
 
 ### Saved workbook templates
 
@@ -36,6 +40,10 @@ reopen behavior is the subject of the test. Do not pool a live Excel
 application, batch, or workbook across unrelated tests or classes. A reviewed
 class-scoped Service fixture may share one session as described below.
 
+Tests may construct or inspect ZIP/OOXML workbook parts for fixtures and
+concrete verification. This is a test-only exception: never move that package
+access into production code or use it instead of exercising Excel COM behavior.
+
 ### Persistent Service class fixtures
 
 Ordinary workbook behavior tests may share one in-process `ExcelMcpService`
@@ -45,7 +53,8 @@ contracts. Every test creates and cleans its own sheets, tables, maps, or other
 objects, so test order does not matter. Fixture shutdown closes the session,
 checks the Service session count, verifies exact owned process identities, and
 uses the shared assembly exit gate. Cleanup still runs after a primary failure,
-and reports both the primary and cleanup failures.
+and reports both the primary and cleanup failures. A failed shared session
+fails explicitly; do not silently recreate it.
 
 Fresh workbook/process, desktop, registry, or per-test Service isolation is
 independent from the operation boundary and is not by itself a reason to call
@@ -103,6 +112,34 @@ The quick groups are not acceptance gates. Complete normal validation still
 uses `RunType!=OnDemand`, including the separately classified real Excel,
 process, deadline, crash, rebuild, and ownership cases below.
 
+Generated MCP parameter tests inspect our emitted method declarations directly.
+Protocol checks cover our names, descriptions, selected output fields, and
+request handling, not the SDK's primitive JSON Schema type encoding or
+provider-specific schema restrictions.
+
+Keep representative tests for rules our generators implement, such as optional
+enum strings, whole-second timeouts, file aliases, mixed cell values, and
+injected parameters. One declaration-to-generated-contract completeness check
+replaces repeated per-category inventories; compilation alone does not verify
+that every declared action was emitted. Keep real parser, request, result, and
+custom validation regressions at their owning entry point.
+
+Guidance tests do not establish assistant understanding or performance. Do not
+freeze sentences, editorial phrases, emoji rules, or example-count quotas.
+Retain mechanical checks for metadata, packaged links, native example-block
+selection, package integrity, and failed preparation preserving existing output.
+Check native CLI help through the CLI parser, not by launching it from a skill
+documentation scanner. Authored prose still needs review; API tests do not
+validate its examples automatically.
+
+Shared skill Markdown selects the existing skill-generation checks locally,
+not Excel E2E. Program source, mixed runtime changes, and unknown inputs still
+select Excel validation. Run the focused skill selection after a Release build:
+
+```powershell
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -SkillTests
+```
+
 ### Parallel collections
 
 Each project allows up to four xUnit collection workers, but only
@@ -116,6 +153,7 @@ in collection definitions with `DisableParallelization=true`.
 parallelize. Process launches, waits, repository mutation, and global state
 still require review. Collection settings serialize only one testhost;
 orchestration must keep separate Excel testhosts from overlapping.
+Keep pure logic tests fast while preserving separate real lifecycle checks.
 
 The classification architecture test reflects over the built test assembly. It
 fails when a discovered test is missing `RequiresExcel=true/false`, has both
@@ -261,10 +299,10 @@ process counts.
 
 ## Documentation
 
-**For complete testing guidance, see:**
+**Repository requirements and the short instruction checklist:**
 
-- **[Testing Strategy](../.github/instructions/testing-strategy.instructions.md)** - Quick reference, templates, common mistakes
-- **[Repository Rules](../.github/copilot-instructions.md)** - Build, E2E, and contribution requirements
+- **[Testing Strategy](AGENTS.md)** - Required safeguards; detailed procedures live in this guide
+- **[Repository Rules](../AGENTS.md)** - Build, E2E, and contribution requirements
 
 ## Test Architecture
 
@@ -289,7 +327,7 @@ llm-tests/                          # LLM tool behavior validation (Manual)
 | **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
 | **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
 | **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
-| **LLM Tests** | Slow (varies) | Excel + Azure OpenAI | ❌ No (manual only) |
+| **LLM Tests** | Slow (varies) | Excel + GitHub Copilot | ❌ No (manual only) |
 
 ## Diagnostics Tests
 
@@ -335,34 +373,58 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 | Scenario | Command |
 |----------|---------|
 | **Daily development** | Run the smallest project and feature/name filter covering the change. |
-| **Before commit** | Rerun affected tests and applicable checks; follow the [runtime E2E requirements](../.github/copilot-instructions.md#build-and-validation). |
-| **Modified session/batch code** | Run relevant OnDemand tests in `ExcelMcp.ComInterop.Tests`; see [Testing Strategy](../.github/instructions/testing-strategy.instructions.md#commands). |
+| **Before commit** | Rerun affected tests and applicable checks; follow the [runtime E2E requirements](../AGENTS.md#build-and-validation). |
+| **Modified session/batch code** | Run relevant OnDemand tests in `ExcelMcp.ComInterop.Tests`; see [Testing Strategy](AGENTS.md#commands). |
 | **VBA development** | `dotnet test --filter "(Feature=VBA\|Feature=VBATrust)&RunType!=OnDemand"` |
 | **LLM behavior validation** | See [LLM Tests](#llm-tests) section below |
 
 ## LLM Tests
 
-The `llm-tests/` project validates that LLMs correctly use Excel MCP Server and CLI tools using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
+The `llm-tests/` project checks selected real agent workflows through the MCP
+Server and CLI using [pytest-skill-engineering 1.x](https://github.com/sbroenne/pytest-skill-engineering).
+It complements deterministic behavior tests; it does not prove that agents
+correctly use every operation. Independent workbook checks retain useful
+chart, slicer, and permission coverage. Weak prose-only/API-success scenarios
+have been retired or replaced.
 
 ### When to Run LLM Tests
 
 - **Manual/on-demand only** - Not part of CI/CD
 - After changing tool descriptions or adding new tools
-- To validate LLM behavior patterns (e.g., incremental updates vs rebuild)
+- To check agent behavior, permission handling, and preservation of existing state
+- To compare skill availability against no skill, with fixed requests/model/budgets
 
 ### Running LLM Tests
 
 ```powershell
 # From llm-tests/
 uv sync
-uv run pytest -m aitest -v
+uv run python -m unittest test_eval_harness.py test_cli_mcp_server.py test_consent_scenarios.py test_skill_value_checks.py -v
+uv run pytest mcp_tests\test_mcp_chart_positioning.py --aitest-json TestResults\chart-new-run.json -v
 ```
 
 ### Prerequisites
 
-- `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
-- GitHub auth via `gh auth login` or `GITHUB_TOKEN`
+- GitHub Copilot access and auth via `gh auth login`, `GITHUB_TOKEN`, or `GH_TOKEN`
+- Release binaries and freshly generated skills; see the LLM README for setup
+
+The offline command above needs neither Excel nor authentication. Live runs
+must be sequential and may incur costs. The default model is `gpt-6.1-sol`,
+not `auto`; skill-value runs never fall back to another model.
+The default 60-execution comparison matrix requires explicit `--run-skill-value` and
+a new `--skill-value-output` directory. Native JSON replaces removed AI/HTML
+reports; Azure OpenAI is not a prerequisite. Missing usage is not zero cost.
+The completed single-model comparison found equal verified correctness with
+higher recorded token usage for both skills; it does not justify a general
+reliability claim. See the linked results for the corrected matched comparison,
+all-attempt overhead, and limits of the small sample.
+
+The optional `--skill-value-suite real-world` suite combines four pinned,
+licensed SpreadsheetBench workbook cases with Power Query recovery and Data
+Model/PowerPivot refresh. It defaults to 48 executions; no new paid comparison
+has been run. Dataset setup and no-model checker proofs are documented in the
+[real-world pilot guide](../llm-tests/README.md#real-world-cases-and-native-excel-workflows).
 
 **See [LLM Tests README](../llm-tests/README.md) for complete documentation.**
 
@@ -467,11 +529,11 @@ assertion merely to make it pass.
   when its behavior requires one
 - ✅ **Binary Assertions** - Pass OR fail, never "accept both"
 - ✅ **Verify Excel State** - Always verify actual Excel state after operations
-- **Explicit persistence** - Call `batch.Save()` only when testing save/close/reopen behavior (see [Testing Strategy](../.github/instructions/testing-strategy.instructions.md#save-and-round-trip-behavior)).
+- **Explicit persistence** - Call `batch.Save()` only when testing save/close/reopen behavior (see [Testing Strategy](AGENTS.md#save-and-round-trip-behavior)).
 
 ## Getting Help
 
 - **Test failures**: Check test output for detailed error messages
 - **Excel issues**: Ensure Excel 2016+ installed and activated
 - **Session/batch issues**: Run OnDemand tests to verify cleanup
-- **Writing tests**: See [Testing Strategy](../.github/instructions/testing-strategy.instructions.md)
+- **Writing tests**: See [Testing Strategy](AGENTS.md)

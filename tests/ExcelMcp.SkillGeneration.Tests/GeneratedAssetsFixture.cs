@@ -20,15 +20,6 @@ public sealed class GeneratedAssetsFixture : IDisposable
         try
         {
             Run(repo.FullName, "Build-AgentSkills", "-GenerateOnly", "-OutputDir", SkillsDirectory);
-            foreach (var directory in new[] { "shared", "templates" })
-            {
-                var output = Path.Combine(SkillsDirectory, directory);
-                Directory.CreateDirectory(output);
-                foreach (var file in Directory.GetFiles(Path.Combine(repo.FullName, "skills", directory)))
-                {
-                    File.Copy(file, Path.Combine(output, Path.GetFileName(file)));
-                }
-            }
         }
         catch
         {

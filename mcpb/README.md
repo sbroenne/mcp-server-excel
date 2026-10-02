@@ -20,14 +20,36 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Windows** (required - uses Excel COM automation)
 - **Microsoft Excel 2016 or later**
 - **Claude Desktop** (Windows version)
+- **Node.js 18+ with npm/npx on PATH** (install the current Node.js LTS)
+- **An interactive desktop** and network access for package downloads
 
 ## Installation
 
-1. Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Double-click to install in Claude Desktop
-3. Restart Claude Desktop if prompted
+1. Install [Node.js LTS](https://nodejs.org/) if `npx` is not already available.
+   Restart Claude Desktop after changing PATH.
+2. Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+3. Double-click to install in Claude Desktop
+4. Restart Claude Desktop if prompted
 
 That's it! Start a new conversation and ask Claude to work with Excel.
+
+## Updates
+
+The bundle tells Claude to run
+`npx -y @sbroenne/mcp-server-excel@latest` directly. It contains no custom
+launcher, bundled npm, or fixed server executable. Claude's built-in Node.js
+does not guarantee availability of the external `npx` command.
+
+On each new server launch, npm resolves the `latest` tag using normal caching
+and configuration. Network access is needed for downloads and update checks;
+this is not a guaranteed fresh online check every time. A running server is
+not replaced automatically.
+
+Before restarting, finish work and explicitly save and close the intended
+workbook sessions. Older binary MCPB installations need a one-time installation
+of this npx-based bundle; restarting an old bundle does not migrate it.
+Changes to bundle metadata/configuration still require manually installing
+a new `.mcpb`. To uninstall, remove Excel from Claude's Settings > Extensions.
 
 ## Usage Examples
 
@@ -96,6 +118,9 @@ Claude through the MCP client.
 code and requires explicit consent. Python in Excel runs Python code and
 referenced worksheet data in Microsoft's cloud.
 
+**Package downloads:** npx contacts the npm registry to resolve and download the
+server. This does not upload workbook contents to npm.
+
 **Anonymous telemetry:** The MCP Server collects tool usage, performance, and
 error-rate metrics. Telemetry excludes file contents, file names, paths, and
 personal data.
@@ -106,7 +131,9 @@ See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 
 **Claude says the tool isn't available:**
 - Restart Claude Desktop after installation
-- Check Settings → Integrations to verify Excel MCP Server is enabled
+- Check Settings → Extensions to verify Excel MCP Server is enabled
+- Run `npx -y @sbroenne/mcp-server-excel@latest --version` in PowerShell.
+  If npx is missing, install Node.js LTS and restart Claude Desktop.
 
 **Excel operations fail:**
 - Close the workbook in Excel before asking Claude to modify it
@@ -120,6 +147,6 @@ See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - [Feature Reference](https://excelmcpserver.dev/features/)
-- [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md) - Cross-platform AI guidance
+- [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/AGENT-SKILLS.md) - Cross-platform AI guidance
 - [Privacy Policy](https://excelmcpserver.dev/privacy/)
 - [License (MIT)](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)

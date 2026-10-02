@@ -179,8 +179,11 @@ public sealed class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
-    public async Task SkillGeneration_StripsAnsiBeforeParsingCliHelp()
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [Trait("Feature", "SkillGeneration")]
+    public async Task SkillGeneration_SelectsNativeExamplesWithoutTranslatingContent(string newline)
     {
         var root = NewSandbox();
         try
@@ -188,11 +191,38 @@ public sealed class AutomationSafetyTests
             var script = Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1");
             var result = await RunAsync(root, $$"""
                 $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
-                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'ConvertTo-PlainHelpLines' }, $true)
+                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Copy-SharedReferences' }, $true)
+                if (-not $function) { throw 'Missing shared-reference renderer.' }
                 . ([scriptblock]::Create($function.Extent.Text))
-                $plain = @(ConvertTo-PlainHelpLines @("`e[32mCOMMANDS:`e[0m", "`e[1m    session  Manage sessions`e[0m"))
-                if ($plain[0] -cne 'COMMANDS:' -or $plain[1] -cne '    session  Manage sessions') {
-                    throw "ANSI help was not normalized: $plain"
+                $SharedDir = New-Item -ItemType Directory -Path shared
+                $document = @'
+                # Workflow
+                Shared policy uses sessionId responses.
+                ```cli
+                excelcli -q range get-values --session $sessionId --sheet Sales --range A1
+                ```
+                ```mcp
+                range(action: 'get-values', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1')
+                ```
+                ```json
+                {"mCodeFile":"query.m"}
+                ```
+                '@
+                $newline = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(newline))}}'))
+                [IO.File]::WriteAllText((Join-Path $SharedDir 'report-formatting.md'), (($document -replace "`r`n?", "`n") -replace "`n", $newline))
+                foreach ($surface in @('cli', 'mcp')) {
+                    Copy-SharedReferences -SkillPath "excel-$surface-report-formatting" -Surface $surface
+                    $content = Get-Content -LiteralPath "excel-$surface-report-formatting\references\report-formatting.md" -Raw
+                    if ($content -notmatch 'Shared policy uses sessionId responses.' -or
+                        $content -notmatch '\{"mCodeFile":"query.m"\}' -or
+                        $content -match '(?m)^```(?:cli|mcp)$') { throw 'Shared content was changed or fences were not rendered.' }
+                    if ($surface -eq 'cli') {
+                        if ($content -notmatch '```powershell' -or $content -notmatch 'excelcli -q range' -or
+                            $content -match 'range\(action:') { throw 'CLI examples were not selected.' }
+                    } else {
+                        if ($content -notmatch '```text' -or $content -notmatch "session_id: sessionId" -or
+                            $content -match 'excelcli -q') { throw 'MCP examples were not selected.' }
+                    }
                 }
                 """);
             Assert.True(result.ExitCode == 0, result.Output);

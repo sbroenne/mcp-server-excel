@@ -3,6 +3,9 @@ param(
     [ValidateSet('McpServer', 'Cli')]
     [string]$Component = 'McpServer',
 
+    [ValidateSet('x64', 'arm64')]
+    [string]$Architecture = 'x64',
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$Version,
@@ -18,12 +21,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
 $commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
 $launcherSource = Join-Path $repoRoot "npm-packages\$packageName"
-$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-win32-x64"
+$runtimeSource = Join-Path $repoRoot "npm-packages\$packageName-win32-$Architecture"
 $sharedLauncher = Join-Path $repoRoot 'npm-packages\shared\launcher.js'
 $npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
 $licensePath = Join-Path $repoRoot 'LICENSE'
@@ -31,7 +35,7 @@ $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimeExecutable).Path
 $resolvedOutput = [IO.Path]::GetFullPath($OutputDirectory)
 $stagingRoot = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpm-$([Guid]::NewGuid().ToString('N'))"
 $launcherStage = Join-Path $stagingRoot $packageName
-$runtimeStage = Join-Path $stagingRoot "$packageName-win32-x64"
+$runtimeStage = Join-Path $stagingRoot "$packageName-win32-$Architecture"
 
 function Copy-PackageSource {
     param(
@@ -126,6 +130,7 @@ if (-not (Test-Path -LiteralPath $launcherSource -PathType Container) -or
 if ([IO.Path]::GetExtension($resolvedRuntime) -ne '.exe') {
     throw "Runtime executable must be an .exe file: $resolvedRuntime"
 }
+Assert-PackageRuntimeArchitecture -Path $resolvedRuntime -Architecture $Architecture
 
 New-Item -ItemType Directory -Path $resolvedOutput -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
@@ -151,6 +156,7 @@ try {
         param($manifest)
         $manifest.version = $Version
         $manifest.optionalDependencies."@sbroenne/$packageName-win32-x64" = $Version
+        $manifest.optionalDependencies."@sbroenne/$packageName-win32-arm64" = $Version
     }
 
     $runtimeTarball = New-NpmTarball `

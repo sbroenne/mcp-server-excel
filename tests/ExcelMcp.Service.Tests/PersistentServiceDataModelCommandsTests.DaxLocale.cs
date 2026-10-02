@@ -3,12 +3,74 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
 /// <summary>
-/// Integration tests for DAX formula locale translation.
-/// Tests that DAX formulas with US comma separators work correctly on all locales.
+/// Integration tests for native DAX syntax, formula preservation, and evaluation.
 /// </summary>
 public partial class PersistentServiceDataModelCommandsTests
 {
-    #region DAX Locale Translation Tests
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WriteMeasure_CommaArguments_PreservesFormulaAndEvaluates(bool update)
+    {
+        var batch = _fixture.BatchToken;
+        var baseline = _dataModelCommands.Evaluate(batch,
+            "EVALUATE ROW(\"Total\", SUM(SalesTable[Amount]))");
+        Assert.True(baseline.Success, baseline.ErrorMessage);
+        var total = Convert.ToDecimal(Assert.Single(Assert.Single(baseline.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        var measureName = $"Test_CommaArguments_{Guid.NewGuid():N}";
+        const string formula = "DIVIDE(SUM(SalesTable[Amount]), 1000)";
+        var created = CreateMeasure("SalesTable", measureName,
+            update ? "SUM(SalesTable[Amount])" : formula);
+        Assert.True(created.Success, created.ErrorMessage);
+        if (update)
+        {
+            var updated = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: formula);
+            Assert.True(updated.Success, updated.ErrorMessage);
+        }
+
+        var read = _dataModelCommands.Read(batch, measureName);
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.Equal(formula, read.DaxFormula);
+
+        var evaluated = _dataModelCommands.Evaluate(batch,
+            $"EVALUATE ROW(\"Result\", [{measureName}])");
+        Assert.True(evaluated.Success, evaluated.ErrorMessage);
+        Assert.Equal(total / 1000m,
+            Convert.ToDecimal(Assert.Single(Assert.Single(evaluated.Rows)),
+                System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WriteMeasure_QuotedCommasEscapedQuotesAndDecimalPoint_PreservesAndEvaluates(bool update)
+    {
+        var batch = _fixture.BatchToken;
+        var measureName = $"Test_Literals_{Guid.NewGuid():N}";
+        const string formula = "IF(\"North, \"\"South\"\"\" = \"North, \"\"South\"\"\", 1.5, 0)";
+        var baseline = _dataModelCommands.Evaluate(batch, $"EVALUATE ROW(\"Expected\", {formula})");
+        Assert.True(baseline.Success, baseline.ErrorMessage);
+        Assert.Equal(1.5m, Convert.ToDecimal(Assert.Single(Assert.Single(baseline.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
+        var created = CreateMeasure("SalesTable", measureName, update ? "0" : formula);
+        Assert.True(created.Success, created.ErrorMessage);
+        if (update)
+        {
+            var updated = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: formula);
+            Assert.True(updated.Success, updated.ErrorMessage);
+        }
+        var read = _dataModelCommands.Read(batch, measureName);
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.Equal(formula, read.DaxFormula);
+        var evaluated = _dataModelCommands.Evaluate(batch, $"EVALUATE ROW(\"Result\", [{measureName}])");
+        Assert.True(evaluated.Success, evaluated.ErrorMessage);
+        Assert.Equal(1.5m, Convert.ToDecimal(Assert.Single(Assert.Single(evaluated.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    #region Native DAX Tests
 
     /// <summary>
     /// Tests that DAX formulas with function argument separators (commas) are handled correctly.
@@ -24,19 +86,18 @@ public partial class PersistentServiceDataModelCommandsTests
 
         var batch = _fixture.BatchToken;
 
-        // This should NOT throw - the DaxFormulaTranslator should handle locale conversion
         _ = CreateMeasure("SalesTable", measureName, daxFormula);
 
         // Verify measure was created
         var listResult = _dataModelCommands.ListMeasures(batch);
         Assert.Contains(listResult.Measures, m => m.Name == measureName);
 
-        // Verify the formula was stored (content may vary by locale but should be valid DAX)
         var readResult = _dataModelCommands.Read(batch, measureName);
         Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
         Assert.NotNull(readResult.DaxFormula);
         Assert.Contains("DATEADD", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CALCULATE", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(daxFormula, readResult.DaxFormula);
     }
 
     /// <summary>
@@ -77,7 +138,6 @@ public partial class PersistentServiceDataModelCommandsTests
         // Create measure with simple formula
         _ = CreateMeasure("SalesTable", measureName, originalFormula);
 
-        // Update with complex formula - should handle locale conversion
         _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);
 
         // Verify the formula was updated
@@ -85,6 +145,7 @@ public partial class PersistentServiceDataModelCommandsTests
         Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
         Assert.Contains("AVERAGEX", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("DATESINPERIOD", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(updatedFormula, readResult.DaxFormula);
     }
 
     /// <summary>
@@ -96,7 +157,7 @@ public partial class PersistentServiceDataModelCommandsTests
     {
         var measureName = $"Test_String_{Guid.NewGuid():N}";
         // Formula with comma inside a string literal - this comma should NOT be translated
-        var daxFormula = "IF(SalesTable[Region] = \"North, South\", 1, 0)";
+        var daxFormula = "IF(MAX(SalesTable[Region]) = \"North, South\", 1, 0)";
 
         var batch = _fixture.BatchToken;
         _ = CreateMeasure("SalesTable", measureName, daxFormula);
@@ -105,6 +166,7 @@ public partial class PersistentServiceDataModelCommandsTests
         var readResult = _dataModelCommands.Read(batch, measureName);
         Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
         Assert.Contains("IF", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(daxFormula, readResult.DaxFormula);
     }
 
     /// <summary>
@@ -127,4 +189,3 @@ public partial class PersistentServiceDataModelCommandsTests
 
     #endregion
 }
-

@@ -11,6 +11,78 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.1.2] - 2026-10-01
+
+### Patch Changes
+
+- [#960](https://github.com/sbroenne/mcp-server-excel/pull/960) [`9c7d834`](https://github.com/sbroenne/mcp-server-excel/commit/9c7d834c5c9b09eff65b139536eb3be84e28bf74) Thanks [@sbroenne](https://github.com/sbroenne)! - Clarify that the VS Code extension includes its own Excel MCP server and does not require a separate Node.js or .NET installation. The MCP and CLI skills now distinguish the Windows and Excel requirements from Node.js needed whenever running through npx, and network access needed for package downloads and update checks.
+
+- [#963](https://github.com/sbroenne/mcp-server-excel/pull/963) [`611ee7e`](https://github.com/sbroenne/mcp-server-excel/commit/611ee7ed210dd6dfeca2a05464f3e9c622ccde74) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP session identifiers now consistently use `session_id` in list entries and errors as well as open/create results and inputs. Calls using the old `sessionId` input are rejected; CLI output naming is unchanged. Tool descriptions and both Excel skills now explain safe saving, calculation modes, dependent-call ordering, and destructive actions with no tool-level undo.
+
+  Destructive-action guidance no longer prescribes unsolicited workbook copies. Calculation guidance now states that restoring the prior mode is best-effort and can fail without failing the write.
+
+- [#960](https://github.com/sbroenne/mcp-server-excel/pull/960) [`9c7d834`](https://github.com/sbroenne/mcp-server-excel/commit/9c7d834c5c9b09eff65b139536eb3be84e28bf74) Thanks [@sbroenne](https://github.com/sbroenne)! - Improve the VS Code extension's first-run guidance, setup diagnostics, and
+  launch-time checks for desktop Excel and the bundled server. Include the
+  server version so VS Code can refresh tools after an update. Publish separate
+  Windows x64 and ARM64 extension packages, keeping the existing x64 server
+  through Windows emulation on ARM64. Refresh the Marketplace README to explain
+  real Excel automation, the bundled skill, requirements, and local workbook
+  access in remote workspaces.
+
+  Point Getting Started to the user guides rather than installation instructions,
+  and clarify server startup and approval steps in the installation guide.
+
+  Keep the MCP server available if saving the optional first-run welcome
+  preference fails, and report that the help may appear again.
+
+- [#964](https://github.com/sbroenne/mcp-server-excel/pull/964) [`dee86ad`](https://github.com/sbroenne/mcp-server-excel/commit/dee86ad3904e9d50e66260a6bb2d840a821ae2b6) Thanks [@sbroenne](https://github.com/sbroenne)! - Removed the optional global installation scripts from both Copilot plugins. Use the existing npx launch commands without changing PATH or adding a separate global MCP configuration. The CLI plugin retains its Windows launcher for quoted JSON arguments, and installation guidance now matches the npm-based setup.
+
+- [#959](https://github.com/sbroenne/mcp-server-excel/pull/959) [`a8c3317`](https://github.com/sbroenne/mcp-server-excel/commit/a8c33170f620f984b41bb8b140ad476cc2b7f69e) Thanks [@sbroenne](https://github.com/sbroenne)! - Both Excel skills now use consistent clarification and permission rules: clear requests proceed without repeated approval, audits and proposals remain read-only, and known visibility preferences are reused. Leaving a workbook open no longer implies showing Excel. Guidance preserves exact MCP input and CLI flag names, explains temporary Power Query evaluation changes, distinguishes required from optional workflow steps, and corrects stale CLI reference, screenshot, and workbook-property advice.
+
+## [2.1.1] - 2026-09-30
+
+### Patch Changes
+
+- [#958](https://github.com/sbroenne/mcp-server-excel/pull/958) [`2c3f356`](https://github.com/sbroenne/mcp-server-excel/commit/2c3f356703d2fc05d7e58a3793be45b2c91cc275) Thanks [@sbroenne](https://github.com/sbroenne)! - **Native Windows ARM64 npm packages**: The MCP server and CLI now use native ARM64 executables when run with ARM64 Node.js, without changing existing `npx` commands. x64 Node.js continues to use the x64 packages.
+
+- [#955](https://github.com/sbroenne/mcp-server-excel/pull/955) [`a5c4b9f`](https://github.com/sbroenne/mcp-server-excel/commit/a5c4b9f34edb4ab335c162441144522312202797) Thanks [@sbroenne](https://github.com/sbroenne)! - Both Excel skills now include guidance for creating readable reports and applying requested formatting while preserving existing templates. The guidance covers number formats, layout, optional financial conventions, and checking calculated results without automatically restyling unrelated workbook content.
+
+## [2.1.0] - 2026-09-30
+
+### Patch Changes
+
+- [#937](https://github.com/sbroenne/mcp-server-excel/pull/937) [`d463dfd`](https://github.com/sbroenne/mcp-server-excel/commit/d463dfd97b730bcafe820dc7b21727c36276a6d3) Thanks [@sbroenne](https://github.com/sbroenne)! - **More reliable MCP tools**: Use the official SDK for registration, schemas,
+  injected services, and asynchronous calls. Tool failures now set the real MCP
+  error flag and provide structured results. Every tool now advertises an output
+  schema generated from its action result contracts, including typed session-list
+  entries and screenshot failure messages, so clients can understand the returned
+  fields without parsing prose. Unknown, misspelled, wrongly typed,
+  and action-inapplicable arguments are rejected rather than silently ignored.
+
+  Cancellation now reaches workbook startup and reclaims its eventual session
+  without closing unrelated workbooks. Shutdown cannot publish a late session
+  after its owner has stopped. Normal shutdown still attempts to save open
+  workbooks; explicitly closing without saving still discards edits. Expected
+  client cancellation no longer writes a misleading warning stack trace, while
+  unexpected handler failures remain logged.
+
+  Removed Gemini-specific schema rewriting and generated guide prompts. Shared
+  guides remain in the skills. Server instructions and skill guidance are now
+  task-focused, without forced formatting, Table creation, or presentation menus.
+  Restored detailed parameter documentation in generated tool schemas and corrected
+  input names, query-loading guidance, and stale skill examples. Bulk-write guidance
+  preserves the previous calculation mode, and chart feedback no longer requires
+  screenshots on unavailable desktops. Consent guidance now distinguishes client
+  confirmation from server-side elicitation, which is not implemented.
+
+  Regular PivotTable calculated fields are now recognized as numeric, allowing
+  them to be added to Values with Sum. Skills distinguish aggregate calculations
+  from per-row revenue, require complete slicer inputs, and explain recovery when
+  a failed Power Query load leaves its query behind. The CLI batch example stops
+  on failure and explicitly discards only the failed job's own unsaved changes.
+  Both skills now include native examples, a complete guide index, and less
+  repeated guidance; the CLI command catalog is split into smaller linked pages.
+
 ## [2.0.14] - 2026-09-29
 
 ### Patch Changes

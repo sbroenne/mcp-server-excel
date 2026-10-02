@@ -1,0 +1,18 @@
+instructions: |
+  Read AGENTS.md for repository rules and its matching task guides before changes.
+  Setup and client discovery: docs/agents/development.md.
+scripts:
+  - name: Setup
+    command: >-
+      pwsh -NoProfile -Command '$ErrorActionPreference = "Stop";
+      $PSNativeCommandUseErrorActionPreference = $true;
+      dotnet restore Sbroenne.ExcelMcp.sln;
+      npm ci;
+      npm --prefix vscode-extension ci;
+      npm --prefix npm-packages/shared ci;
+      python -m pip install -r gh-pages/requirements.txt;
+      uv sync --project llm-tests --locked'
+  - name: Release build
+    command: dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
+  - name: Excel-free checks
+    command: pwsh -NoProfile -File scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts

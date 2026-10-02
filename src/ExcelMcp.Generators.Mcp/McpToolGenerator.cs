@@ -305,6 +305,8 @@ public class McpToolGenerator : IIncrementalGenerator
 
         foreach (var property in GetOutputSchemaProperties(info))
         {
+            if (property.Name == "SessionId")
+                sb.AppendLine("    [JsonPropertyName(\"session_id\")]");
             sb.AppendLine("    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]");
             sb.AppendLine($"    public {property.TypeName} {property.Name} {{ get; set; }}");
         }
@@ -318,6 +320,7 @@ public class McpToolGenerator : IIncrementalGenerator
     private static OutputSchemaProperty[] GetOutputSchemaProperties(ServiceInfo info)
     {
         var properties = new Dictionary<string, OutputSchemaProperty>(StringComparer.Ordinal);
+        properties.Add("SessionId", new("SessionId", "string?"));
 
         foreach (var method in info.Methods)
         {

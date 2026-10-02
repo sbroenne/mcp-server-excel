@@ -7,7 +7,7 @@
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+> **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli@latest --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 31 feature command categories with 326 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
@@ -28,15 +28,21 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 ### Primary Installation: npm
 
 ```powershell
-npx -y @sbroenne/excelcli --help
+npx -y @sbroenne/excelcli@latest --help
 # Or install the command on your PATH:
-npm install --global @sbroenne/excelcli
+npm install --global @sbroenne/excelcli@latest
 excelcli --version
 ```
 
 Requires Node.js 18+. Keep optional dependencies enabled so npm installs the
-matching Windows runtime. CLI arguments follow the package name when using
-`npx`, for example `npx -y @sbroenne/excelcli -q session list`.
+matching Windows runtime. ARM64 Node.js selects the native ARM64 package;
+x64 Node.js selects the x64 package, which runs through emulation on ARM64
+Windows. A missing matching runtime fails with reinstall guidance rather than
+falling back to another architecture. CLI arguments follow the package name
+when using `npx`, for example `npx -y @sbroenne/excelcli@latest -q session list`.
+`@latest` uses normal npm caching and does not replace a running CLI service.
+Finish and explicitly save/close workbook sessions before stopping the old
+service for an update.
 
 ### Primary Installation: Standalone Executable
 
@@ -72,7 +78,7 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 ## ⚙️ System Requirements
 
 - **Windows OS** (Windows 10/11 or Server 2016+) + **Microsoft Excel 2016 or later** — COM interop is Windows-specific and requires Excel to be installed
-- **Node.js 18+** only if using npm; Windows x64 and Arm64 (x64 emulation) are supported
+- **Node.js 18+** only if using npm; Windows x64 and ARM64 are supported, with the runtime selected by Node.js architecture
 - **.NET 10 Runtime** only if using the NuGet .NET tool install path (not required for npm or the standalone exe)
 
 📖 **[Full System Requirements & Optional Components](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-CLI.md)** - including DAX/MSOLAP prerequisites

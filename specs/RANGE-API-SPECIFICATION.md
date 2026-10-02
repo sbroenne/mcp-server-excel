@@ -21,6 +21,46 @@ This specification defines a unified **Range API** that consolidates and replace
 4. **Excel parity** - Support operations users expect from Excel UI
 5. **Type safety** - Proper handling of values vs formulas vs formats
 
+### Current overwrite contract (#950)
+
+The historical analysis below predates the current generated Service, MCP, and
+CLI architecture. The current content-write contract adds `overwritePolicy`
+to `set-values`, `set-formulas`, `copy`, `copy-values`, and `copy-formulas`.
+MCP uses `overwrite_policy`, CLI uses `--overwrite-policy`, and batch JSON uses
+`overwritePolicy`.
+
+The default is `reject-nonempty`; `allow` enables intentional replacement.
+This intentionally changes the original opt-in issue proposal and breaks old
+update callers, as approved for this feature. No compatibility default is kept.
+
+Protected operations inspect every direct destination inside the same session
+operation before mutating anything. Occupancy includes stored values, whitespace,
+zero, false, errors, and formulas returning an empty string. Truly blank cells
+are allowed, independent of formatting. Same-value writes and blanks that
+would clear existing content are still replacements. Inspection failures stop
+the operation; unknown content never means empty.
+
+Conflict errors use the shared `Conflict` category, include the destination
+sheet and at most 10 conflicting cell addresses without their contents, and
+indicate when examples are incomplete. Rejection makes no destination writes.
+Copy anchors expand to source dimensions; repeated-paste rectangles must have
+dimensions that are whole multiples of the source. Protected copies require
+unmerged rectangular sources/destinations and reject ambiguous shapes or
+worksheet-edge overflow. Formula paste follows Excel semantics, including
+source constants and blanks. Value/formula payloads must match the exact
+dimensions of a single rectangular target.
+
+Existing merged-cell write restrictions and Excel protection remain errors,
+including with `allow`. Formatting-only and clearing operations, and writes
+owned by other tools, do not acquire this policy. Named references passed to the
+affected range actions are covered.
+
+This is a direct-destination safeguard, not transactional isolation or rollback.
+It cannot prevent interactive edits or predict later formula spill, calculation,
+or table-generated effects outside direct destinations. Saving stays explicit.
+Agent guidance uses `allow` for already-authorized updates without redundant
+confirmation and never automatically escalates a rejected write to `allow`.
+
 ---
 
 ## Current State Analysis
@@ -201,6 +241,16 @@ range.EntireColumn.Delete();  // Delete entire columns
 ```
 
 #### 14. **Find/Replace**
+
+Find returns up to `maxMatches` cell details, defaulting to 10, while counting
+every matching cell. The limit accepts positive 32-bit whole numbers. MCP
+uses `range_edit` / `max_matches`, CLI uses `rangeedit find` /
+`--max-matches`, and batch JSON uses `maxMatches`. The limit bounds retained
+and returned details, not traversal time; there is no paging.
+`totalCount` is exact, `returnedCount` is the list size, and `truncated` means
+more matches exist than were returned. A no-match result has zero counts and
+`truncated=false`; exactly the limit is complete.
+
 ```csharp
 // Excel COM: Range.Find() and Range.Replace()
 dynamic foundCell = range.Find(
@@ -381,9 +431,9 @@ public interface IRangeCommands
     // === FIND/REPLACE OPERATIONS === (⭐ POWER USER ESSENTIAL)
     
     /// <summary>
-    /// Finds all cells matching criteria in range
+    /// Counts all matching cells and returns up to maxMatches cell details
     /// </summary>
-    Task<RangeFindResult> FindAsync(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options);
+    Task<RangeFindResult> FindAsync(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options, int maxMatches = 10);
     
     /// <summary>
     /// Replaces text/values in range
@@ -446,6 +496,9 @@ public class SortColumn
 public class RangeFindResult : OperationResult
 {
     public List<RangeCell> MatchingCells { get; set; } = new();
+    public long TotalCount { get; set; }
+    public int ReturnedCount => MatchingCells.Count;
+    public bool Truncated => TotalCount > ReturnedCount;
 }
 
 public class RangeCell
@@ -1684,7 +1737,7 @@ This demonstrates how both APIs work together seamlessly!
 - [ ] Build succeeds (CLI commands may be missing functionality temporarily)
 
 **Documentation**:
-- [ ] Copilot instructions updated (.github/instructions/)
+- [ ] Shared agent instructions updated (AGENTS.md and matching task guides)
 - [ ] Core architecture documentation updated
 - [ ] Breaking changes documented
 

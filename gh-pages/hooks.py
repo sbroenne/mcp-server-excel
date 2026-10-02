@@ -91,7 +91,7 @@ SITE_PAGE_MAP = {
     "PRIVACY.md": "/privacy/",
     "src/ExcelMcp.McpServer/README.md": "/mcp-server/",
     "src/ExcelMcp.CLI/README.md": "/cli/",
-    "skills/README.md": "/skills/",
+    "docs/AGENT-SKILLS.md": "/skills/",
 }
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
@@ -132,15 +132,11 @@ GUIDE_SOURCES = {
 }
 
 
-# skills/shared/*.md: the expert reference corpus shipped inside the skill
-# packages and MCP prompts. Published verbatim so the site and the agent
-# guidance can never disagree. Value = (output name, page title).
-SKILL_SOURCES = {
+# Canonical documentation references. Only report formatting is also packaged
+# as a narrowly scoped skill reference. Value = (output name, page title).
+REFERENCE_SOURCES = {
     "workflows.md": ("skills-workflows.md", "Key Constraints & Sequencing"),
     "behavioral-rules.md": ("skills-behavioral-rules.md", "Behavioral Rules"),
-    "anti-patterns.md": ("skills-anti-patterns.md", "Anti-Patterns to Avoid"),
-    "gotchas.md": ("skills-gotchas.md", "Gotchas & Known Limits"),
-    "excel_agent_mode.md": ("skills-agent-mode.md", "Agent Mode in Excel"),
     "workbook.md": ("skills-workbook.md", "Workbook Lifecycle"),
     "worksheet.md": ("skills-worksheet.md", "Worksheet Operations"),
     "range.md": ("skills-range.md", "Ranges, Number Formats & Formatting"),
@@ -157,18 +153,21 @@ SKILL_SOURCES = {
     "slicer.md": ("skills-slicer.md", "Slicers"),
     "drawing.md": ("skills-drawing.md", "Drawing Objects"),
     "screenshot.md": ("skills-screenshot.md", "Screenshots & Visual Verification"),
-    "dashboard.md": ("skills-dashboard.md", "Dashboards & Reports"),
+    "report-formatting.md": ("skills-report-formatting.md", "Optional Report Formatting"),
     "window.md": ("skills-window.md", "Window Management"),
     "xmlmap.md": ("skills-xmlmap.md", "XML Maps"),
+    "calculation.md": ("reference-calculation.md", "Calculation Mode"),
 }
 
-_SKILL_SLUGS = {
-    name: output.removeprefix("skills-").removesuffix(".md")
-    for name, (output, _title) in SKILL_SOURCES.items()
+_REFERENCE_SLUGS = {
+    name: name.removesuffix(".md")
+    for name in REFERENCE_SOURCES
 }
 SITE_PAGE_MAP.update(
-    {f"skills/shared/{name}": f"/reference/{slug}/" for name, slug in _SKILL_SLUGS.items()}
+    {f"docs/reference/{name}": f"/reference/{slug}/" for name, slug in _REFERENCE_SLUGS.items()}
 )
+SITE_PAGE_MAP["docs/reference/README.md"] = "/reference/"
+SITE_PAGE_MAP["docs/guides/CLAUDE-DESKTOP.md"] = "/guides/claude-desktop/"
 
 
 def _rewrite_links(text: str, source_rel: str) -> str:
@@ -904,6 +903,14 @@ def _render_usage_analytics() -> str:
 # canonical file it mirrors, not by the two-line wrapper.
 MIRROR_SOURCES: dict[str, str] = {}
 
+_MOVED_SOURCE_PATHS = {
+    **{f"docs/reference/{name}": f"skills/shared/{name}"
+       for name in REFERENCE_SOURCES if name != "calculation.md"},
+    "docs/reference/calculation.md": "skills/assets/excel-mcp/references/calculation.md",
+    "docs/guides/CLAUDE-DESKTOP.md": "skills/assets/excel-mcp/references/claude-desktop.md",
+    "docs/AGENT-SKILLS.md": "skills/README.md",
+}
+
 # Matches the snippet includes in the wrapper pages, e.g.
 #     --8<-- "_generated/features-data.md"
 _GEN_INCLUDE = re.compile(r'--8<--\s*"_generated/([^"]+)"')
@@ -1001,8 +1008,11 @@ def _page_lastmod(files) -> dict[str, str]:
             text = ""
         for name in _GEN_INCLUDE.findall(text):
             source_rel = MIRROR_SOURCES.get(name)
-            if source_rel and source_rel in index:
-                candidates.append(index[source_rel])
+            if source_rel:
+                # Preserve the real source date while a moved file is uncommitted.
+                dated_source = source_rel if source_rel in index else _MOVED_SOURCE_PATHS.get(source_rel)
+                if dated_source in index:
+                    candidates.append(index[dated_source])
         if candidates:
             # git's %cI keeps each committer's UTC offset, so the strings are
             # not directly comparable as instants - parse before taking the max.
@@ -1397,26 +1407,30 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         ),
     )
 
-    # skills/README.md -> skills (drop title, demote H1)
+    # docs/AGENT-SKILLS.md -> skills (drop title, demote H1)
     _write(
         "skills.md",
-        "skills/README.md",
+        "docs/AGENT-SKILLS.md",
         _strip_header(
-            _read("skills/README.md"),
+            _read("docs/AGENT-SKILLS.md"),
             end_on_blank=True,
             demote_h1=True,
         ),
     )
 
-    # skills/shared/*.md -> reference pages (drop the H1, wrapper owns the title)
-    for name, (output_name, _title) in SKILL_SOURCES.items():
+    # Canonical documentation -> reference pages (the wrapper owns the title).
+    for name, (output_name, _title) in REFERENCE_SOURCES.items():
         _write(
             output_name,
-            f"skills/shared/{name}",
+            f"docs/reference/{name}",
             _strip_header(
-                _read(f"skills/shared/{name}"), end_on_blank=True, demote_h1=True
+                _read(f"docs/reference/{name}"), end_on_blank=True, demote_h1=True
             ),
         )
+    _write("reference-index.md", "docs/reference/README.md",
+           _strip_header(_read("docs/reference/README.md"), end_on_blank=True, demote_h1=True))
+    _write("guides-claude-desktop.md", "docs/guides/CLAUDE-DESKTOP.md",
+           _strip_header(_read("docs/guides/CLAUDE-DESKTOP.md"), end_on_blank=True, demote_h1=True))
 
     # Verbatim copies (these keep their own H1 as the page title).
     _write("contributing.md", "docs/CONTRIBUTING.md", _read("docs/CONTRIBUTING.md").strip() + "\n")

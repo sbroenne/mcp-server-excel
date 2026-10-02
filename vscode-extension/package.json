@@ -1,8 +1,8 @@
 {
   "name": "excel-mcp",
   "displayName": "Excel MCP Server",
-  "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
-  "version": "2.0.14",
+  "description": "Automate real Microsoft Excel from VS Code with GitHub Copilot. Refresh Power Query, calculate formulas, build PivotTables, and run DAX and VBA. Requires Windows and desktop Excel.",
+  "version": "2.1.3",
   "publisher": "sbroenne",
   "icon": "icon.png",
   "repository": {
@@ -19,6 +19,9 @@
   },
   "os": [
     "win32"
+  ],
+  "extensionKind": [
+    "ui"
   ],
   "categories": [
     "AI",
@@ -44,7 +47,12 @@
     "copilot",
     "ai",
     "github copilot",
-    "data analysis"
+    "data analysis",
+    "excel automation",
+    "pivot tables",
+    "charts",
+    "python in excel",
+    "m code"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -59,9 +67,9 @@
     ],
     "chatSkills": [
       {
-        "name": "excel-mcp",
-        "description": "Excel MCP Server skill for Windows workbook automation.",
-        "path": "./skills/excel-mcp/SKILL.md"
+        "name": "excel-mcp-report-formatting",
+        "description": "Optional presentation conventions for requested Excel reports.",
+        "path": "./skills/excel-mcp-report-formatting/SKILL.md"
       }
     ]
   },
@@ -71,14 +79,17 @@
     "compile": "npm run validate:features && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "pwsh -NoProfile -File ..\\scripts\\Build-ReleasePackages.ps1 -Components Extension",
-    "lint": "oxlint src -D correctness -D suspicious -D perf --deny-warnings"
+    "lint": "oxlint src tests -D correctness -D suspicious -D perf --deny-warnings",
+    "test": "vitest run",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
     "@types/vscode": "^1.125.0",
-    "@vscode/vsce": "^3.9.2",
+    "@vscode/vsce": "^4.0.0",
     "oxlint": "^1.77.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
   },
   "overrides": {
     "uuid": "^14.0.1"

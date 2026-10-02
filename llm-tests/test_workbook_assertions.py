@@ -48,7 +48,8 @@ class SavedWorkbookChecks(unittest.TestCase):
         self.directory.cleanup()
 
     def _write(self, cells, address):
-        self._command("range", "set-values", "--sheet", "Sheet1", "--range", address, "--values", json.dumps(cells))
+        self._command("range", "set-values", "--sheet", "Sheet1", "--range", address,
+                      "--values", json.dumps(cells), "--overwrite-policy", "allow")
 
     def _inspect(self, source_range="A1:E9"):
         self._command("session", "close", "--save")
@@ -61,10 +62,47 @@ class SavedWorkbookChecks(unittest.TestCase):
     def _reopen(self):
         self.session = self._cli("session", "open", str(self.path))["sessionId"]
 
+    def test_used_range_reader_covers_cells_outside_the_default_window(self):
+        self._write([["Far column"]], "Z3")
+        self._command("session", "close", "--save")
+        self.session = None
+        before = hashlib.sha256(self.path.read_bytes()).digest()
+        snapshot = read_saved_workbook(str(self.path), use_used_range=True, recalculate=True)
+        sheet = snapshot["sheets"][0]
+        self.assertEqual(sheet["sourceRow"], 3)
+        self.assertEqual(sheet["sourceColumn"], 26)
+        self.assertEqual(sheet["sourceValues"], [["Far column"]])
+        self.assertEqual(before, hashlib.sha256(self.path.read_bytes()).digest())
+
+    def test_in_memory_probe_recalculates_without_saving(self):
+        self._write([[6]], "B3")
+        self._command("range", "set-formulas", "--sheet", "Sheet1", "--range", "A3", "--formulas", '[["=B3*2"]]')
+        self._command("session", "close", "--save")
+        self.session = None
+        before = hashlib.sha256(self.path.read_bytes()).digest()
+        snapshot = read_saved_workbook(
+            str(self.path), use_used_range=True, recalculate=True,
+            probe_changes=[{"sheet": "Sheet1", "cell": "B3", "value": 7}],
+        )
+        self.assertEqual(snapshot["sheets"][0]["sourceValues"], [[14, 7]])
+        self.assertEqual(before, hashlib.sha256(self.path.read_bytes()).digest())
+        unchanged = read_saved_workbook(str(self.path), use_used_range=True, recalculate=True)
+        self.assertEqual(unchanged["sheets"][0]["sourceValues"], [[12, 6]])
+
+    def test_used_range_limit_rejects_10001_cells_without_changing_the_file(self):
+        self._write([["Start"]], "A1")
+        self._write([["Outside inspection limit"]], "A10001")
+        self._command("session", "close", "--save")
+        self.session = None
+        before = hashlib.sha256(self.path.read_bytes()).digest()
+        with self.assertRaisesRegex(AssertionError, "10000-cell"):
+            read_saved_workbook(str(self.path), use_used_range=True)
+        self.assertEqual(before, hashlib.sha256(self.path.read_bytes()).digest())
+
     def test_documented_batch_saves_only_a_complete_job(self):
-        template = self.exe.parents[5] / "skills" / "templates" / "SKILL.cli.sbn"
-        content = template.read_text(encoding="utf-8")
-        recipe = content.split("### Rule 8:", 1)[1].split("```powershell\n", 1)[1].split("\n```", 1)[0]
+        guide = self.exe.parents[5] / "docs" / "reference" / "workflows.md"
+        content = guide.read_text(encoding="utf-8")
+        recipe = content.split("```cli\n", 1)[1].split("\n```", 1)[0]
         environment = {**self.env, "PATH": f"{self.exe.parent}{os.pathsep}{self.env['PATH']}"}
         script = Path(self.directory.name) / "batch-example.ps1"
         script.write_text("param([string]$path)\n" + recipe, encoding="utf-8")
@@ -74,17 +112,19 @@ class SavedWorkbookChecks(unittest.TestCase):
             text=True, encoding="utf-8", timeout=180, check=False,
         )
         self.assertNotEqual(refused.returncode, 0)
-        self.assertIn("Workbook already has a session", refused.stderr)
+        self.assertIn("Reuse the existing session", refused.stderr)
         self.assertEqual(self._cli("session", "list")["sessions"][0]["sessionId"], self.session)
+        self._command("sheet", "create", "--sheet", "Sales")
         for fail in (False, True):
             with self.subTest(fail=fail):
                 self._write([["Original1"], ["Original2"]], "A1:A2")
+                self._command("range", "clear-contents", "--sheet", "Sales", "--range", "A1:B2")
                 self._command("session", "close", "--save")
                 self.session = None
                 code = recipe
                 if fail:
-                    code = code.replace('"sheetName": "Sheet1", "rangeAddress": "A2"',
-                                        '"sheetName": "MissingSheet", "rangeAddress": "A2"')
+                    code = code.replace('"sheetName":"Sales","rangeAddress":"B2"',
+                                        '"sheetName":"MissingSheet","rangeAddress":"B2"')
                 script.write_text("param([string]$path)\n" + code, encoding="utf-8")
                 result = subprocess.run(
                     ["pwsh", "-NoProfile", "-File", str(script), "-path", str(self.path)],
@@ -95,7 +135,23 @@ class SavedWorkbookChecks(unittest.TestCase):
                 self.assertEqual(self._cli("session", "list")["sessions"], [])
                 self._reopen()
                 values = self._command("range", "get-values", "--sheet", "Sheet1", "--range", "A1:A2")["values"]
-                self.assertEqual(values, [["Original1"], ["Original2"]] if fail else [["Hello"], ["World"]])
+                self.assertEqual(values, [["Original1"], ["Original2"]])
+                sales = self._command("range", "get-values", "--sheet", "Sales", "--range", "A1:B2")["values"]
+                self.assertEqual(sales, [[None, None], [None, None]] if fail
+                                 else [["Product", "Amount"], ["Widget", 1250]])
+
+    def test_snapshot_distinguishes_formulas_formats_and_query_identity(self):
+        self._write([["X"], [7]], "A1:A2")
+        self._command("range", "set-formulas", "--sheet", "Sheet1", "--range", "B2", "--formulas", '[["=A2*3"]]')
+        self._command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B2", "--format-code", "0.00")
+        self._command("powerquery", "create", "--query-name", "A",
+                      "--load-destination", "connection-only", "--m-code", "#table(type table [X=number], {{1}})")
+        self._command("powerquery", "create", "--query-name", "AA",
+                      "--load-destination", "connection-only", "--m-code", "#table(type table [X=number], {{2}})")
+        snapshot = self._inspect("A1:B2")
+        self.assertEqual(snapshot["sheets"][0]["sourceFormulas"][1][1], "=A2*3")
+        self.assertIn(snapshot["sheets"][0]["sourceFormats"][1][1], ("0.00", "0,00"))
+        self.assertEqual({query["name"] for query in snapshot["queries"]}, {"A", "AA"})
 
     def test_query_recovery_updates_the_surviving_query(self):
         with self.assertRaises(subprocess.CalledProcessError):

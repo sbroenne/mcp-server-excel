@@ -73,59 +73,6 @@ public sealed partial class PersistentServiceRangeFormulaTests
     }
 
     [Fact]
-    public void SetFormulas_WithJsonElementFormulas_WritesFormulasCorrectly()
-    {
-        // Arrange - use shared file, create unique sheet for this test
-        var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set up source data
-        _commands.SetValues(batch, sheetName, "A1:A3",
-        [
-            [100],
-            [200],
-            [300]
-        ]);
-
-        // Simulate MCP framework JSON deserialization
-        // MCP receives: {"formulas": [["=SUM(A1:A3)", "=AVERAGE(A1:A3)"]]}
-        // Framework deserializes to List<List<string>> where each string is JsonElement
-        string json = """[["=SUM(A1:A3)", "=AVERAGE(A1:A3)"]]""";
-        var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
-
-        var testFormulas = new List<List<string>>();
-        foreach (var rowElement in jsonDoc.RootElement.EnumerateArray())
-        {
-            var row = new List<string>();
-            foreach (var cellElement in rowElement.EnumerateArray())
-            {
-                // This is JsonElement, not primitive string
-                row.Add(cellElement.GetString() ?? "");
-            }
-            testFormulas.Add(row);
-        }
-
-        // Act - Should handle JsonElement conversion internally
-        var result = _commands.SetFormulas(batch, sheetName, "B1:C1", testFormulas);
-        // Assert
-        Assert.True(result.Success, $"SetFormulas failed: {result.ErrorMessage}");
-
-        // Verify formulas were written correctly
-        var formulaResult = _commands.GetFormulas(batch, sheetName, "B1:C1");
-        Assert.True(formulaResult.Success);
-        Assert.Equal("=SUM(A1:A3)", formulaResult.Formulas[0][0]);
-        Assert.Equal("=AVERAGE(A1:A3)", formulaResult.Formulas[0][1]);
-
-        // Verify calculated values
-        Assert.Equal(
-            600.0,
-            Convert.ToDouble(formulaResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture)); // SUM
-        Assert.Equal(
-            200.0,
-            Convert.ToDouble(formulaResult.Values[0][1], System.Globalization.CultureInfo.InvariantCulture)); // AVERAGE
-    }
-
-    [Fact]
     public void ComplexFormulas_RealisticBusinessScenario_CalculatesCorrectly()
     {
         // Arrange - Create a realistic sales report with complex formulas

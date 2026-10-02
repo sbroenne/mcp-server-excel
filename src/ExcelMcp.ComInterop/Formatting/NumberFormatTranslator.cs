@@ -5,7 +5,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
 /// <summary>
 /// Translates invariant number and date/time codes for Range.NumberFormatLocal and
-/// chart tick-label formats. Typed Range.NumberFormat reads do not need translation.
+/// TickLabels.NumberFormatLocal. Typed Range.NumberFormat reads do not need translation.
 /// </summary>
 /// <remarks>
 /// <para><b>Why This Is Needed:</b></para>
@@ -147,9 +147,9 @@ public sealed class NumberFormatTranslator
     /// <para>Translation rules:</para>
     /// <list type="bullet">
     /// <item>'d' or 'dd' (day) → locale day code (e.g., 'T' or 'TT' on German)</item>
-    /// <item>'ddd' or 'dddd' (weekday names) → kept as-is (Excel handles these)</item>
+    /// <item>'ddd' or 'dddd' (weekday names) → repeated locale day code</item>
     /// <item>'m' or 'mm' (month, when NOT after time separator) → locale month code</item>
-    /// <item>'mmm' or 'mmmm' (month names) → kept as-is (Excel handles these)</item>
+    /// <item>'mmm' or 'mmmm' (month names) → repeated locale month code</item>
     /// <item>'y' or 'yy' or 'yyyy' (year) → locale year code</item>
     /// <item>'h', 'm' (after :), 's' (time) → locale time codes</item>
     /// <item>'.' (decimal separator in number formats) → locale decimal separator</item>
@@ -163,7 +163,8 @@ public sealed class NumberFormatTranslator
             return usFormat;
 
         // If already English locale for both dates and numbers, no translation needed
-        if (IsEnglishDateLocale && IsEnglishNumberLocale)
+        if (IsEnglishDateLocale && IsEnglishNumberLocale &&
+            GeneralFormatName.Equals("General", StringComparison.OrdinalIgnoreCase))
             return usFormat;
 
         // Don't translate if it already contains locale-specific codes
@@ -310,11 +311,12 @@ public sealed class NumberFormatTranslator
                 continue;
             }
 
-            if (toInvariant && GeneralFormatName.Length > 0 &&
-                format.AsSpan(i).StartsWith(GeneralFormatName, StringComparison.OrdinalIgnoreCase))
+            var sourceGeneral = toInvariant ? GeneralFormatName : "General";
+            if (sourceGeneral.Length > 0 &&
+                format.AsSpan(i).StartsWith(sourceGeneral, StringComparison.OrdinalIgnoreCase))
             {
-                result.Append("General");
-                i += GeneralFormatName.Length;
+                result.Append(toInvariant ? "General" : GeneralFormatName);
+                i += sourceGeneral.Length;
                 continue;
             }
 
@@ -394,16 +396,7 @@ public sealed class NumberFormatTranslator
             {
                 int count = CountRepeatingChar(format, i, c);
 
-                // ddd and dddd are weekday names - keep as-is
-                if (count >= 3 && !toInvariant)
-                {
-                    result.Append(c, count);
-                }
-                else
-                {
-                    // d or dd = day number
-                    result.Append(toInvariant ? 'd' : DayCode[0], count);
-                }
+                result.Append(toInvariant ? 'd' : DayCode[0], count);
                 i += count;
                 continue;
             }
@@ -421,17 +414,7 @@ public sealed class NumberFormatTranslator
                 }
                 else
                 {
-                    // In date context, m = month
-                    // mmm and mmmm are month names - keep as-is (Excel handles translation)
-                    if (count >= 3 && !toInvariant)
-                    {
-                        result.Append(c, count);
-                    }
-                    else
-                    {
-                        // m or mm = month number
-                        result.Append(toInvariant ? 'm' : MonthCode[0], count);
-                    }
+                    result.Append(toInvariant ? 'm' : MonthCode[0], count);
                 }
                 i += count;
                 continue;

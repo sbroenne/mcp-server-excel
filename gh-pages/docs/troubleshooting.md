@@ -23,7 +23,10 @@ already open in Excel can't be opened for automation.
 
 ### `mcp-excel` / `excelcli` is not recognized
 
-The executable isn't on your `PATH`.
+For npx installations, bare `mcp-excel` / `excelcli` is not installed on PATH.
+Use `npx -y @sbroenne/mcp-server-excel@latest` or
+`npx -y @sbroenne/excelcli@latest` instead. For standalone or global
+installations, check PATH:
 
 ```powershell
 # Confirm where it is (if anywhere)
@@ -71,25 +74,37 @@ the authentication prompt is interactable. These files are opened read-only.
 
 ### Changes aren't taking effect / old version still running
 
-Fully restart your MCP client (close VS Code or Claude Desktop completely,
-including any background windows, then reopen). MCP servers are launched by the
-client, so a stale process can linger until you restart it.
+Finish work and explicitly save/close the intended workbook sessions first.
+For an npx-based MCP server, restart the server/client: `@latest` is resolved
+at launch using normal npm caching. Standalone executables and older binary
+MCPBs do not update just because the client restarts; replace the executable or
+install the new npx-based MCPB.
 
 ```powershell
-# Confirm which version you're on
-mcp-excel --version
-excelcli --version
+# Check the npm-launched executables
+npx -y @sbroenne/mcp-server-excel@latest --version
+npx -y @sbroenne/excelcli@latest --version
 ```
+
+The CLI version command reports its foreground executable, not necessarily
+the active background service. After safely closing workbook sessions, use
+`npx -y @sbroenne/excelcli@latest -q service stop`; the next workbook command
+starts the service from the selected CLI version. See the
+[CLI update instructions](installation-cli.md#updating-the-cli) before stopping it.
 
 ### `npx` commands fail
 
-Auto-configuration (`add-mcp`) and skill installation use `npx`, which needs
-**Node.js**:
+The npm server/CLI, npx-based MCPB, auto-configuration (`add-mcp`), and skill
+installation require **Node.js with npm/npx on PATH**. Claude's built-in Node.js
+does not guarantee the external npx command is available:
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
 ```
 
+Restart the client after installation so it receives the new PATH. Package
+downloads and update checks need network access; npm's normal cache policy
+still applies.
 ## Still stuck?
 
 - **General questions:** [FAQ](faq.md)

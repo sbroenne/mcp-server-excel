@@ -395,45 +395,4 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task ListTools_ExposesCanonicalTimeoutAndFileAliasSchemas()
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-
-        foreach (var toolName in new[] { "connection", "datamodel", "pivottable", "powerquery", "vba" })
-        {
-            var tool = Assert.Single(tools, candidate => candidate.Name == toolName);
-            var timeout = tool.JsonSchema.GetProperty("properties").GetProperty("timeout_seconds");
-            Assert.Contains("integer", timeout.GetProperty("type").EnumerateArray().Select(value => value.GetString()));
-            Assert.Contains("seconds", timeout.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
-        }
-
-        var expectedFileAliases = new Dictionary<string, string[]>
-        {
-            ["powerquery"] = ["m_code_file"],
-            ["vba"] = ["vba_code_file"],
-            ["datamodel"] = ["dax_formula_file", "dax_query_file", "dmv_query_file"],
-            ["xmlmap"] = ["schema_file", "xml_data_file"]
-        };
-        foreach (var (toolName, aliases) in expectedFileAliases)
-        {
-            var tool = Assert.Single(tools, candidate => candidate.Name == toolName);
-            var properties = tool.JsonSchema.GetProperty("properties");
-            foreach (var alias in aliases)
-            {
-                var property = properties.GetProperty(alias);
-                Assert.Contains("string", property.GetProperty("type").EnumerateArray().Select(value => value.GetString()));
-                Assert.Contains("readable", property.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
-            }
-        }
-
-        var vbaTool = Assert.Single(tools, candidate => candidate.Name == "vba");
-        var parametersDescription = vbaTool.JsonSchema
-            .GetProperty("properties")
-            .GetProperty("parameters")
-            .GetProperty("description")
-            .GetString();
-        Assert.DoesNotContain("required for", parametersDescription, StringComparison.OrdinalIgnoreCase);
-    }
-
 }

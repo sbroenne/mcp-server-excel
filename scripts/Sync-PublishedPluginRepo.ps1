@@ -154,9 +154,9 @@ foreach ($pluginName in $builtPluginNames) {
     $requiredFiles = @(
         'README.md',
         'version.txt',
-        "skills\$pluginName\SKILL.md",
-        "skills\$pluginName\VERSION",
-        "skills\$pluginName\references\range.md"
+        "skills\$pluginName-report-formatting\SKILL.md",
+        "skills\$pluginName-report-formatting\VERSION",
+        "skills\$pluginName-report-formatting\references\report-formatting.md"
     )
     if ($pluginName -eq 'excel-cli') {
         $requiredFiles += 'bin\start-cli.ps1'
@@ -168,12 +168,12 @@ foreach ($pluginName in $builtPluginNames) {
             throw "Incomplete plugin payload: $pluginName is missing $required."
         }
     }
-    $skillVersion = (Get-Content -LiteralPath (Join-Path $sourcePluginDir "skills\$pluginName\VERSION") -Raw).Trim()
+    $skillVersion = (Get-Content -LiteralPath (Join-Path $sourcePluginDir "skills\$pluginName-report-formatting\VERSION") -Raw).Trim()
     if ($skillVersion -ne $Version) { throw "Prepared $pluginName skill version must match $Version." }
 
-    $legacyCopilotHelper = Join-Path $sourcePluginDir "bin\install-global.ps1"
-    if (Test-Path $legacyCopilotHelper) {
-        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    $globalHelpers = @(Get-ChildItem -LiteralPath $sourcePluginDir -Recurse -Force -File -Filter "install-global.ps1")
+    if ($globalHelpers.Count) {
+        throw "Global installation helpers are retired; use npx instead: $($globalHelpers.FullName -join ', ')"
     }
 
     $legacyMcpPath = Join-Path $sourcePluginDir ".mcp.json"

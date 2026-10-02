@@ -27,12 +27,12 @@ env:
 jobs:
   version:
     name: Calculate Version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Resolve version at the requested source commit
@@ -68,10 +68,10 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm ci
@@ -83,8 +83,15 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           ./scripts/Build-Changelog.ps1 -Version $env:VERSION -Date (Get-Date -AsUTC -Format yyyy-MM-dd)
+          $metadataFiles = @('CHANGELOG.md', 'package.json', 'package-lock.json', 'Directory.Build.props',
+            'mcpb/manifest.json', 'src/ExcelMcp.McpServer/.mcp/server.json',
+            'vscode-extension/package.json', 'vscode-extension/package-lock.json')
+          foreach ($path in $metadataFiles) {
+            $content = [IO.File]::ReadAllText((Join-Path $PWD $path))
+            [IO.File]::WriteAllText((Join-Path $PWD $path), ($content -replace '\r?\n', "`r`n"), [Text.UTF8Encoding]::new($false))
+          }
           git diff --binary --output=release-metadata.patch -- CHANGELOG.md package.json package-lock.json Directory.Build.props mcpb/manifest.json src/ExcelMcp.McpServer/.mcp/server.json vscode-extension/package.json vscode-extension/package-lock.json .changeset
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-metadata
           path: |
@@ -98,17 +105,17 @@ jobs:
     needs: [version, prepare-release]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-metadata
           path: prepared-release
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Build exact prepared source and all deliverables
@@ -124,7 +131,7 @@ jobs:
           dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore -p:NuGetAudit=false
           .\scripts\Build-ReleasePackages.ps1 -Version $env:VERSION -OutputDirectory artifacts\release
       - name: Upload verified packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-packages
           path: |
@@ -136,27 +143,58 @@ jobs:
             artifacts/release/skills/*.zip
           if-no-files-found: error
       - name: Upload prepared plugin payload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-plugins
           path: artifacts/release/plugins/
           include-hidden-files: true
           if-no-files-found: error
 
+  verify-arm64:
+    name: Verify Native Windows ARM64 Packages
+    needs: [version, build-packages]
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          architecture: arm64
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-packages
+          path: artifacts
+      - name: Execute both prepared ARM64 npm packages
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if ((node -p process.arch) -ne 'arm64') { throw 'Native ARM64 Node.js is required.' }
+          foreach ($component in @('Cli', 'McpServer')) {
+            $name = if ($component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
+            .\scripts\Test-NpmPackages.ps1 -Component $component -Architecture arm64 `
+              -LauncherPackage "artifacts/npm/sbroenne-$name-$env:VERSION.tgz" `
+              -RuntimePackage "artifacts/npm/sbroenne-$name-win32-arm64-$env:VERSION.tgz"
+          }
+
   create-tag:
     name: Create Git Tag
-    needs: [version, prepare-release, build-packages]
-    runs-on: ubuntu-latest
+    needs: [version, prepare-release, build-packages, verify-arm64]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
       commit: ${{ steps.release_commit.outputs.sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-metadata
           path: prepared-release
@@ -231,22 +269,22 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [version, prepare-release, create-tag]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.create-tag.outputs.commit }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-packages
           path: artifacts
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-metadata
           path: artifacts/release-metadata
-      - name: Render notes and release payload checksums
+      - name: Render prepared release notes
         shell: pwsh
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -254,24 +292,20 @@ jobs:
           $template = Get-Content '.github/release-notes-template.md' -Raw
           $body = Get-Content 'artifacts/release-metadata/release_notes_body.md' -Raw
           Set-Content release_notes.md ($template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $body.Trim())) -NoNewline
-          $names = @("ExcelMcp-MCP-Server-$env:VERSION-windows.zip", "ExcelMcp-CLI-$env:VERSION-windows.zip", "excel-plugins-v$env:VERSION.zip")
-          $lines = foreach ($name in $names) {
-            $hash = (Get-FileHash (Join-Path artifacts $name) -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $name"
-          }
-          [IO.File]::WriteAllLines((Join-Path $PWD SHA256SUMS), $lines, [Text.UTF8Encoding]::new($false))
       - name: Create Release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
           TAG: ${{ needs.version.outputs.tag }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          RELEASE_COMMIT: ${{ needs.create-tag.outputs.commit }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" artifacts/*.zip artifacts/*.vsix artifacts/mcpb/*.mcpb artifacts/skills/*.zip SHA256SUMS --clobber
-          else
-            gh release create "$TAG" artifacts/*.zip artifacts/*.vsix artifacts/mcpb/*.mcpb artifacts/skills/*.zip SHA256SUMS \
-              --title "ExcelMcp $VERSION" --notes-file release_notes.md
-          fi
+          ./scripts/Publish-GitHubRelease.ps1 -Version $env:VERSION -Repository $env:GITHUB_REPOSITORY `
+            -SourceCommit $env:SOURCE_COMMIT -ReleaseCommit $env:RELEASE_COMMIT `
+            -MetadataPatch artifacts/release-metadata/release-metadata.patch `
+            -AssetDirectory artifacts -PublishDirectory (Join-Path $env:RUNNER_TEMP 'release-payload') `
+            -NotesFile release_notes.md
 
   publish:
     name: Publish NuGet and npm
@@ -283,10 +317,10 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.create-tag.outputs.commit }}
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
       - name: Detect npm authentication mode
@@ -298,17 +332,17 @@ jobs:
           $mode = if ($env:NPM_BOOTSTRAP_TOKEN) { 'token' } else { 'oidc' }
           "mode=$mode" >> $env:GITHUB_OUTPUT
       - if: steps.npm-auth.outputs.mode == 'token'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - if: steps.npm-auth.outputs.mode == 'oidc'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: release-packages
           path: artifacts
@@ -335,7 +369,7 @@ jobs:
           else { Remove-Item Env:NODE_AUTH_TOKEN -ErrorAction SilentlyContinue }
           npm install --global npm@11
           if ($LASTEXITCODE -ne 0) { throw 'npm setup failed.' }
-          foreach ($name in @('excelcli-win32-x64', 'mcp-server-excel-win32-x64', 'excelcli', 'mcp-server-excel')) {
+          foreach ($name in @('excelcli-win32-x64', 'excelcli-win32-arm64', 'mcp-server-excel-win32-x64', 'mcp-server-excel-win32-arm64', 'excelcli', 'mcp-server-excel')) {
             npm view "@sbroenne/$name@$env:VERSION" version --json 2>$null | Out-Null
             if ($LASTEXITCODE -eq 0) { continue }
             npm publish "./artifacts/npm/sbroenne-$name-$env:VERSION.tgz" --access public
@@ -345,17 +379,43 @@ jobs:
   publish-vscode:
     name: Publish VS Code Marketplace
     needs: [version, create-tag]
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.create-tag.outputs.commit }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Install locked extension publishing tools
+        working-directory: vscode-extension
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm ci --ignore-scripts
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-packages
           path: artifacts
-      - uses: HaaLeo/publish-vscode-extension@ca5561daa085dee804bf9f37fe0165785a9b14db # v2.0.0
-        with:
-          pat: ${{ secrets.VSCE_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: artifacts/excel-mcp-${{ needs.version.outputs.version }}.vsix
+      - name: Publish Windows x64 extension
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-$env:VERSION.vsix" --skip-duplicate
+      - name: Publish Windows ARM64 extension
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm exec --no -- vsce publish --packagePath "../artifacts/excel-mcp-$env:VERSION-win32-arm64.vsix" --skip-duplicate
 
   publish-mcp-registry:
     name: MCP Registry
@@ -372,6 +432,10 @@ jobs:
   publish-plugins:
     needs: [version, create-tag, create-release, publish]
     uses: ./.github/workflows/publish-plugins.yml
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
     with:
       release_tag: ${{ needs.version.outputs.tag }}
       release_commit: ${{ needs.create-tag.outputs.commit }}
@@ -379,3 +443,5 @@ jobs:
       plugin_artifact: release-plugins
     secrets:
       PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      AWESOME_COPILOT_PR_TOKEN: ${{ secrets.AWESOME_COPILOT_PR_TOKEN }}

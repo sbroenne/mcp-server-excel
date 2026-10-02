@@ -10,7 +10,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.types import CallToolResult, TextContent
 
 
 def _parse_args() -> argparse.Namespace:
@@ -86,13 +87,13 @@ def main() -> None:
     options = _parse_args()
     env = json.loads(options.env_json)
     tool_name = f"{options.tool_prefix}_execute"
-    server = FastMCP(f"{options.tool_prefix}-cli")
+    server = MCPServer(f"{options.tool_prefix}-cli")
 
     @server.tool(
         name=tool_name,
         description=options.description or f"Run {Path(options.command).name} with an args string.",
     )
-    def execute(args: str = "") -> str:
+    def execute(args: str = "") -> CallToolResult:
         result = _run_command(
             options.command,
             args,
@@ -101,7 +102,7 @@ def main() -> None:
             timeout=options.timeout,
             env=env,
         )
-        return json.dumps(result)
+        return CallToolResult(content=[TextContent(type="text", text=json.dumps(result))])
 
     server.run()
 

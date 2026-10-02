@@ -2,7 +2,11 @@
 
 **Model Context Protocol server for natural language Excel automation**
 
-This plugin provides the `excel-mcp` skill and a plugin-local MCP bootstrap for GitHub Copilot. Use natural language to automate Power Query, DAX measures, PivotTables, Tables, Charts, VBA macros, and more through Windows Excel COM API.
+This plugin provides an npx launch configuration for GitHub Copilot and the
+optional `excel-mcp-report-formatting` skill for requested report presentation.
+Use natural language and native tool schemas for ordinary Excel automation;
+general workflows and recovery remain in the
+[documentation](https://excelmcpserver.dev/reference/).
 
 **Best for:** Conversational AI workflows (GitHub Copilot Chat, Claude Desktop, Cursor) where rich tool schemas and persistent connections matter more than token efficiency.
 
@@ -44,15 +48,8 @@ launches the public npm package directly:
 npx -y @sbroenne/mcp-server-excel@latest
 ```
 
-The optional global helper writes the same npx command to
-`~/.copilot/mcp-config.json`.
-
-If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File `
-  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-mcp\com.github.copilot\bin\install-global.ps1"
-```
+The plugin supplies this configuration itself. No global helper or separate
+entry in `~/.copilot/mcp-config.json` is required.
 
 ---
 

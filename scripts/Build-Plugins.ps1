@@ -5,11 +5,11 @@
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
     2. Strip any runtime payloads from plugin bin/ roots
-    3. Update runtime-bootstrap metadata in plugin.json and version.txt
+    3. Update release metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
-    RUNTIME BOOTSTRAP MODEL:
+    NPM LAUNCH MODEL:
     - Published plugins use the public npm packages through npx
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
@@ -223,9 +223,9 @@ function Assert-AgentPluginPackage {
         throw "$pluginJsonPath repository must be a string."
     }
 
-    $legacyCopilotHelper = Join-Path $PluginDir "bin\install-global.ps1"
-    if (Test-Path $legacyCopilotHelper) {
-        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    $globalHelpers = @(Get-ChildItem -LiteralPath $PluginDir -Recurse -Force -File -Filter "install-global.ps1")
+    if ($globalHelpers.Count) {
+        throw "Global installation helpers are retired; use npx instead: $($globalHelpers.FullName -join ', ')"
     }
 
     $legacyMcpPath = Join-Path $PluginDir ".mcp.json"
@@ -324,8 +324,8 @@ Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputMcp "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
 Write-Host "  Synchronizing complete excel-mcp skill directory..." -ForegroundColor Cyan
-$SourceSkillMcp = Join-Path $SkillsDir "excel-mcp"
-$DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp"
+$SourceSkillMcp = Join-Path $SkillsDir "excel-mcp-report-formatting"
+$DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp-report-formatting"
 Copy-AgentSkill -SourceDir $SourceSkillMcp -DestinationDir $DestSkillMcp -Version $Version
 
 # =============================================================================
@@ -360,8 +360,8 @@ Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
 Write-Host "  Synchronizing complete excel-cli skill directory..." -ForegroundColor Cyan
-$SourceSkillCli = Join-Path $SkillsDir "excel-cli"
-$DestSkillCli = Join-Path $OutputCli "skills\excel-cli"
+$SourceSkillCli = Join-Path $SkillsDir "excel-cli-report-formatting"
+$DestSkillCli = Join-Path $OutputCli "skills\excel-cli-report-formatting"
 Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Version $Version
 
 Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version

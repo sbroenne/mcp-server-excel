@@ -19,8 +19,6 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    reviewers:
-      - "sbroenne"
     # Group minor and patch updates together
     groups:
       production-dependencies:
@@ -36,7 +34,7 @@ updates:
           - "*"
     # Only create PRs for security updates and major version updates immediately
     # Minor/patch updates are grouped
-    ignore:
+    ignore: []
       # Ignore specific packages if needed
       # - dependency-name: "PackageName"
       #   versions: ["1.x", "2.x"]
@@ -57,8 +55,6 @@ updates:
     commit-message:
       prefix: "chore(actions)"
       include: "scope"
-    reviewers:
-      - "sbroenne"
     groups:
       github-actions:
         patterns:
@@ -79,8 +75,6 @@ updates:
       - "automated"
     commit-message:
       prefix: "chore(docs-deps)"
-    reviewers:
-      - "sbroenne"
     groups:
       docs-dependencies:
         patterns:
@@ -102,8 +96,6 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    reviewers:
-      - "sbroenne"
     groups:
       changesets:
         patterns:
@@ -125,9 +117,48 @@ updates:
     commit-message:
       prefix: "chore(vscode-deps)"
       include: "scope"
-    reviewers:
-      - "sbroenne"
     groups:
       vscode-extension:
         patterns:
           - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/npm-packages/shared"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "npm", "automated"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      shared-tooling:
+        patterns: ["*"]
+
+  - package-ecosystem: "uv"
+    directory: "/llm-tests"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "automated"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+  - package-ecosystem: "dotnet-sdk"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "automated"]
+    commit-message:
+      prefix: "chore(sdk)"

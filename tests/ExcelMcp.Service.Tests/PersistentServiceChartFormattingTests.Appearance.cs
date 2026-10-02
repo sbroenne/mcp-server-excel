@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -8,6 +9,68 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServiceChartFormattingTests
 {
+    [Theory]
+    [InlineData("$#,##0.00", 1234.56, "$1{group}234{decimal}56")]
+    [InlineData("0.00,,\"M\"", 1250000, "1{decimal}25M")]
+    [InlineData("[>=1.5]\"high\";\"low\"", 1.25, "low")]
+    [InlineData("[>=1.5]\"high\";\"low\"", 1.75, "high")]
+    [InlineData("yyyy-mm-dd hh:mm:ss", 45000.75, "2023-03-15 18:00:00")]
+    [InlineData("[h]:mm:ss", 1.75, "42:00:00")]
+    [InlineData("0.00 \"a,b.c\"\\m", 12.5, "12{decimal}50 a,b.cm")]
+    public void AxisNumberFormat_LocalProperty_PreservesDisplayMeaning(
+        string format, double value, string expectedText)
+    {
+        var batch = _fixture.BatchToken;
+        var created = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered);
+        Assert.True(created.Success, created.ErrorMessage);
+        var written = _chartCommands.SetAxisNumberFormat(batch, created.ChartName, ChartAxisType.Value, format);
+        Assert.True(written.Success, written.ErrorMessage);
+        Assert.Equal(format, _chartCommands.GetAxisNumberFormat(batch, created.ChartName, ChartAxisType.Value));
+        _fixture.ExecuteRawVerification((ctx, _) =>
+        {
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            Microsoft.Office.Interop.Excel.ChartObjects? objects = null;
+            Microsoft.Office.Interop.Excel.ChartObject? chartObject = null;
+            Microsoft.Office.Interop.Excel.Chart? chart = null;
+            Microsoft.Office.Interop.Excel.Axis? axis = null;
+            Microsoft.Office.Interop.Excel.TickLabels? labels = null;
+            Microsoft.Office.Interop.Excel.Range? cell = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[_sheetName];
+                objects = (Microsoft.Office.Interop.Excel.ChartObjects)sheet.ChartObjects();
+                chartObject = objects.Item(created.ChartName);
+                chart = chartObject.Chart;
+                axis = (Microsoft.Office.Interop.Excel.Axis)chart.Axes(Microsoft.Office.Interop.Excel.XlAxisType.xlValue);
+                labels = axis.TickLabels;
+                Assert.Equal(ctx.FormatTranslator.TranslateToLocale(format), labels.NumberFormatLocal);
+                // Excel's own cell renderer checks the meaning of the actual local axis code.
+                cell = sheet.Range["Z1"];
+                cell.ColumnWidth = 40;
+                cell.Value2 = value;
+                cell.NumberFormatLocal = labels.NumberFormatLocal;
+                Assert.Equal(expectedText
+                    .Replace("{decimal}", ctx.FormatTranslator.DecimalSeparator, StringComparison.Ordinal)
+                    .Replace("{group}", ctx.FormatTranslator.ThousandsSeparator, StringComparison.Ordinal),
+                    cell.Text);
+                Assert.Equal(value, Assert.IsType<double>(cell.Value2));
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref cell);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref labels);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref axis);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref chart);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref chartObject);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref objects);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
+        });
+    }
+
     [Fact]
     public void SetChartType_ExistingChart_ChangesType()
     {
@@ -150,7 +213,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["X", "Series1", "Series2"],
              ["A", 10, 20],
              ["B", 15, 25],
-             ["C", 20, 30]]);
+             ["C", 20, 30]], overwritePolicy: OverwritePolicy.Allow);
 
         var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:C4", ChartType.Line, 50, 50);
 
@@ -290,7 +353,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["Date", "Sales"],
              [45658, 100],
              [45689, 150],
-             [45717, 200]]);
+             [45717, 200]], overwritePolicy: OverwritePolicy.Allow);
 
         var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Line, 50, 50);
 
@@ -316,7 +379,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             [["Item", "Rate"],
              ["A", 0.25],
              ["B", 0.50],
-             ["C", 0.75]]);
+             ["C", 0.75]], overwritePolicy: OverwritePolicy.Allow);
 
         var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.BarClustered, 50, 50);
 

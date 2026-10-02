@@ -191,6 +191,22 @@ Test-Step "Write persisted value" {
     param($r)
     $r.success -eq $true
 }
+Test-Step "Protected write rejects occupied destination without mutation" {
+    $rejected = & $cli -q range set-values --session $sessionId --sheet-name Data --range-address A1 --values '[[1]]' | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 1 -or $rejected.success -ne $false -or $rejected.errorCategory -ne 'Conflict' -or $rejected.errorMessage -notmatch '\$A\$1') {
+        throw "Expected a categorized occupied-cell failure: $($rejected | ConvertTo-Json -Depth 10)"
+    }
+    & $cli -q range get-values --session $sessionId --sheet-name Data --range-address A1 | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true -and $r.values[0][0] -eq 424242
+}
+Test-Step "Explicit allow permits intentional replacement" {
+    & $cli -q range set-values --session $sessionId --sheet-name Data --range-address A1 --values '[[424242]]' --overwrite-policy allow | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true
+}
 Test-Step "Create disposable worksheet" {
     & $cli -q sheet create --session $sessionId --sheet-name Disposable | ConvertFrom-Json
 } -Verify {

@@ -21,86 +21,41 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     private static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     private static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
 
-    [Fact]
-    public async Task InstallMcpGlobal_PreservesUnrelatedConfigurationAndWritesNpxCommand()
-    {
-        var sandbox = CreateSandbox("mcp-config");
-        try
-        {
-            var configDir = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot")).FullName;
-            var configPath = Path.Combine(configDir, "mcp-config.json");
-            File.WriteAllText(configPath, """{"preferences":{"theme":"dark"},"mcpServers":{"existing":{"command":"keep"}}}""");
-            var installer = Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp", "com.github.copilot", "bin", "install-global.ps1");
-
-            var result = await RunPowerShellFileAsync(installer, [],
-                new Dictionary<string, string> { ["USERPROFILE"] = sandbox });
-
-            Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            using var config = JsonDocument.Parse(File.ReadAllText(configPath));
-            Assert.Equal("dark", config.RootElement.GetProperty("preferences").GetProperty("theme").GetString());
-            Assert.Equal("keep", config.RootElement.GetProperty("mcpServers").GetProperty("existing").GetProperty("command").GetString());
-            var excelMcp = config.RootElement.GetProperty("mcpServers").GetProperty("excel-mcp");
-            Assert.Equal("npx", excelMcp.GetProperty("command").GetString());
-            Assert.Equal(["-y", "@sbroenne/mcp-server-excel@latest"],
-                excelMcp.GetProperty("args").EnumerateArray().Select(value => value.GetString()!).ToArray());
-        }
-        finally { DeleteDirectoryIfExists(sandbox); }
-    }
-
     [Theory]
-    [InlineData("excelcli.cmd")]
-    [InlineData("excelcli.ps1")]
-    public async Task InstallCliGlobal_RepairsMissingShimAndPreservesExistingShim(string existingShim)
+    [InlineData("excel-mcp")]
+    [InlineData("excel-cli")]
+    public void SourcePlugin_DoesNotShipGlobalInstaller(string pluginName)
     {
-        var sandbox = CreateSandbox("cli-shims");
-        try
-        {
-            var plugin = Path.Combine(sandbox, "plugin owner's \u00e9");
-            var bin = Directory.CreateDirectory(Path.Combine(plugin, "bin")).FullName;
-            File.WriteAllText(Path.Combine(bin, "start-cli.ps1"), "Write-Output 'wrapper-ran'\n$global:LASTEXITCODE=0");
-            var installerDirectory = Directory.CreateDirectory(Path.Combine(plugin, "com.github.copilot", "bin")).FullName;
-            var installer = Path.Combine(installerDirectory, "install-global.ps1");
-            var source = File.ReadAllText(Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "com.github.copilot", "bin", "install-global.ps1"))
-                .Replace("[Environment]::GetEnvironmentVariable(\"PATH\", \"User\")", "$env:TEST_USER_PATH", StringComparison.Ordinal)
-                .Replace("[Environment]::SetEnvironmentVariable(\"PATH\", $newUserPath, \"User\")", "throw 'Unexpected PATH mutation'", StringComparison.Ordinal);
-            File.WriteAllText(installer, source, new UTF8Encoding(true));
-
-            var userBin = Directory.CreateDirectory(Path.Combine(sandbox, ".copilot", "bin")).FullName;
-            var existingPath = Path.Combine(userBin, existingShim);
-            File.WriteAllText(existingPath, "keep existing shim");
-            var environment = new Dictionary<string, string>
-            {
-                ["USERPROFILE"] = sandbox,
-                ["TEST_USER_PATH"] = userBin
-            };
-
-            var installed = await RunPowerShellFileAsync(installer, [], environment);
-
-            Assert.True(installed.ExitCode == 0, installed.CombinedOutput);
-            Assert.Equal("keep existing shim", File.ReadAllText(existingPath));
-            Assert.True(File.Exists(Path.Combine(userBin, "excelcli.cmd")));
-            Assert.True(File.Exists(Path.Combine(userBin, "excelcli.ps1")));
-
-            var forced = await RunPowerShellFileAsync(installer, ["-Force"], environment);
-            Assert.True(forced.ExitCode == 0, forced.CombinedOutput);
-            Assert.Contains("call npx.cmd -y @sbroenne/excelcli@latest %*",
-                File.ReadAllText(Path.Combine(userBin, "excelcli.cmd")), StringComparison.Ordinal);
-            var launched = await RunPowerShellFileAsync(Path.Combine(userBin, "excelcli.ps1"), [], environment);
-            Assert.True(launched.ExitCode == 0, launched.CombinedOutput);
-            Assert.Contains("wrapper-ran", launched.Stdout, StringComparison.Ordinal);
-        }
-        finally { DeleteDirectoryIfExists(sandbox); }
+        var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
+        Assert.Empty(Directory.GetFiles(pluginRoot, "install-global.ps1", SearchOption.AllDirectories));
     }
 
     [Theory]
     [InlineData("excel-mcp")]
     [InlineData("excel-cli")]
+    [Trait("Feature", "SkillGeneration")]
     public void SourcePluginManifest_ConformsToAgentPluginsV1(string pluginName)
     {
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
         AssertAgentPluginManifest(pluginRoot, "0.0.0");
-        AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, pluginName), pluginName);
-        Assert.True(File.Exists(Path.Combine(pluginRoot, "com.github.copilot", "bin", "install-global.ps1")));
+        var skillName = $"{pluginName}-report-formatting";
+        AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, skillName), skillName);
+    }
+
+    [Theory]
+    [InlineData("description: \"\"", "")]
+    [InlineData("description: ''", "")]
+    [InlineData("description: null", null)]
+    [InlineData("description: \"\" # placeholder", "")]
+    [InlineData("description: null # intentionally omitted", null)]
+    [InlineData("description: \"Useful # skill\" # explanation", "Useful # skill")]
+    [InlineData("description: >-\n  ", "")]
+    [InlineData("description: >-\n  Useful skill", "Useful skill")]
+    [Trait("Feature", "SkillGeneration")]
+    public void SkillDescriptionMetadata_DecodesYamlScalar(string declaration, string? expected)
+    {
+        var lines = declaration.Split('\n');
+        Assert.Equal(expected, DecodeYamlDescription(lines, 0));
     }
 
     [Fact]
@@ -110,14 +65,32 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void BuildAgentSkills_UsesPortableNewlinesForSurfaceExamples()
+    [Trait("Feature", "SkillGeneration")]
+    public void PackagedReferences_AreReachableFromEachSkill()
     {
-        var script = File.ReadAllText(BuildAgentSkillsScript);
-
-        Assert.Contains("-replace \"`r`n?\", \"`n\"", script, StringComparison.Ordinal);
-        Assert.Contains("(?<surface>cli|mcp)", script, StringComparison.Ordinal);
-        Assert.Contains("$match.Groups['body'].Value + '```' + \"`n\"", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("CLI syntax note", script, StringComparison.Ordinal);
+        foreach (var skill in new[] { "excel-cli-report-formatting", "excel-mcp-report-formatting" })
+        {
+            var root = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, skill);
+            var pending = new Stack<string>();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            pending.Push(Path.Combine(root, "SKILL.md"));
+            while (pending.TryPop(out var path))
+            {
+                path = Path.GetFullPath(path);
+                if (!visited.Add(path))
+                    continue;
+                Assert.True(File.Exists(path), $"Missing linked file: {path}");
+                foreach (Match match in Regex.Matches(File.ReadAllText(path), @"\]\(([^)]+)\)"))
+                {
+                    var target = match.Groups[1].Value.Split('#')[0];
+                    if (target.Length > 0 && !target.Contains("://", StringComparison.Ordinal)
+                        && target.EndsWith(".md", StringComparison.Ordinal))
+                        pending.Push(Path.Combine(Path.GetDirectoryName(path)!, target));
+                }
+            }
+            foreach (var reference in Directory.GetFiles(Path.Combine(root, "references"), "*.md", SearchOption.AllDirectories))
+                Assert.Contains(Path.GetFullPath(reference), visited);
+        }
     }
 
     [Fact]
@@ -145,13 +118,14 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             Assert.False(File.Exists(Path.Combine(mcpRoot, "bin", "start-mcp.ps1")));
             Assert.False(File.Exists(Path.Combine(mcpRoot, "bin", "download.ps1")));
             Assert.False(File.Exists(Path.Combine(cliRoot, "bin", "download.ps1")));
+            Assert.Empty(Directory.GetFiles(outputDirectory, "install-global.ps1", SearchOption.AllDirectories));
 
             AssertSkillDirectoryMatchesSource(
-                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp"),
-                Path.Combine(mcpRoot, "skills", "excel-mcp"), version);
+                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp-report-formatting"),
+                Path.Combine(mcpRoot, "skills", "excel-mcp-report-formatting"), version);
             AssertSkillDirectoryMatchesSource(
-                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli"),
-                Path.Combine(cliRoot, "skills", "excel-cli"), version);
+                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli-report-formatting"),
+                Path.Combine(cliRoot, "skills", "excel-cli-report-formatting"), version);
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -179,6 +153,11 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             Assert.True(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "start-cli.ps1")));
             Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-mcp", "bin", "download.ps1")));
             Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "download.ps1")));
+            Assert.Empty(Directory.GetFiles(publishedDirectory, "install-global.ps1", SearchOption.AllDirectories));
+
+            var validation = await RunPowerShellFileAsync(
+                Path.Combine(publishedDirectory, "tests", "Test-Plugins.ps1"), []);
+            Assert.True(validation.ExitCode == 0, validation.CombinedOutput);
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -204,6 +183,37 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
 
             Assert.NotEqual(0, sync.ExitCode);
             Assert.Contains("excel-mcp is missing mcp.json", sync.Stderr, StringComparison.Ordinal);
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
+    }
+
+    [Theory]
+    [InlineData("excel-mcp", "bin")]
+    [InlineData("excel-mcp", "com.github.copilot")]
+    [InlineData("excel-cli", "bin")]
+    [InlineData("excel-cli", "com.github.copilot")]
+    public async Task SyncPublishedPluginRepo_RejectsRetiredGlobalInstaller(string pluginName, string directory)
+    {
+        var sandbox = CreateSandbox("sync-retired-installer");
+        try
+        {
+            var builtDirectory = Path.Combine(sandbox, "built");
+            var publishedDirectory = Directory.CreateDirectory(Path.Combine(sandbox, "published")).FullName;
+            const string version = "9.9.12-test";
+
+            var build = await RunPowerShellFileAsync(
+                BuildPluginsScript, ["-Version", version, "-OutputDir", builtDirectory]);
+            Assert.True(build.ExitCode == 0, build.CombinedOutput);
+            var installerDirectory = Directory.CreateDirectory(Path.Combine(builtDirectory, pluginName, directory)).FullName;
+            File.WriteAllText(Path.Combine(installerDirectory, "install-global.ps1"), "# Retired helper");
+
+            var sync = await RunPowerShellFileAsync(
+                SyncPublishedRepoScript,
+                ["-PublishedRepoDir", publishedDirectory, "-BuiltPluginsDir", builtDirectory, "-Version", version]);
+
+            Assert.NotEqual(0, sync.ExitCode);
+            Assert.Contains("Global installation helpers are retired", sync.Stderr, StringComparison.Ordinal);
+            Assert.Empty(Directory.GetFileSystemEntries(publishedDirectory));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -320,9 +330,62 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     private static void AssertAgentSkill(string skillRoot, string expectedName)
     {
         var content = File.ReadAllText(Path.Combine(skillRoot, "SKILL.md"));
-        Assert.StartsWith("---", content, StringComparison.Ordinal);
-        Assert.Matches($@"(?m)^name:\s*{Regex.Escape(expectedName)}\s*$", content);
-        Assert.Contains("Use when", content, StringComparison.OrdinalIgnoreCase);
+        var header = Regex.Match(content, @"\A---\r?\n(?<header>.*?)\r?\n---(?:\r?\n|\z)", RegexOptions.Singleline);
+        Assert.True(header.Success, "Skill metadata header is missing.");
+        var metadata = header.Groups["header"].Value;
+        Assert.Matches($@"(?m)^name:\s*{Regex.Escape(expectedName)}\s*$", metadata);
+        var lines = metadata.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
+        var index = Array.FindIndex(lines, line => line.StartsWith("description:", StringComparison.Ordinal));
+        Assert.True(index >= 0, "Skill description metadata is missing.");
+        var description = DecodeYamlDescription(lines, index);
+        Assert.False(string.IsNullOrWhiteSpace(description), "Skill description metadata is empty.");
+    }
+
+    private static string? DecodeYamlDescription(string[] lines, int index)
+    {
+        var value = StripYamlInlineComment(lines[index]["description:".Length..].Trim());
+        if (value is ">" or ">-" or ">+" or "|" or "|-" or "|+")
+            return string.Join(" ", lines.Skip(index + 1)
+                .TakeWhile(line => string.IsNullOrWhiteSpace(line) || char.IsWhiteSpace(line[0]))
+                .Select(line => line.Trim()))
+                .Trim();
+        if (value is "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
+            return value[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+            return JsonSerializer.Deserialize<string>(value);
+        return value;
+    }
+
+    private static string StripYamlInlineComment(string value)
+    {
+        var inSingleQuotes = false;
+        var inDoubleQuotes = false;
+        var escaped = false;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var character = value[i];
+            if (inDoubleQuotes && character == '\\' && !escaped)
+            {
+                escaped = true;
+                continue;
+            }
+            if (character == '"' && !inSingleQuotes && !escaped)
+                inDoubleQuotes = !inDoubleQuotes;
+            else if (character == '\'' && !inDoubleQuotes)
+            {
+                if (inSingleQuotes && i + 1 < value.Length && value[i + 1] == '\'')
+                    i++;
+                else
+                    inSingleQuotes = !inSingleQuotes;
+            }
+            else if (character == '#' && !inSingleQuotes && !inDoubleQuotes
+                     && (i == 0 || char.IsWhiteSpace(value[i - 1])))
+                return value[..i].TrimEnd();
+            escaped = false;
+        }
+        return value;
     }
 
     private static void AssertSkillDirectoryMatchesSource(

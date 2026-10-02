@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
@@ -12,32 +13,10 @@ public sealed class PreCommitScriptTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Theory]
-    [InlineData("README.md", false, false)]
-    [InlineData("docs/guide.md", false, false)]
-    [InlineData("gh-pages/docs/index.md", false, false)]
-    [InlineData("videos/excel-mcp-intro/Capture-Evidence.ps1", false, false)]
-    [InlineData("infrastructure/azure/deploy-appinsights.ps1", false, false)]
-    [InlineData("scripts/Update-UsageAnalytics.ps1", false, false)]
-    [InlineData("vscode-extension/src/extension.ts", false, false)]
-    [InlineData("npm-packages/excelcli/package.json", false, false)]
-    [InlineData("mcpb/Build-McpBundle.ps1", false, false)]
-    [InlineData(".github/plugins/excel-cli/bin/start-cli.ps1", false, false)]
-    [InlineData("scripts/Build-AgentSkills.ps1", true, false)]
-    [InlineData("tests/ExcelMcp.Core.Tests/ExampleTests.cs", true, false)]
-    [InlineData("scripts/pre-commit.ps1", true, false)]
-    [InlineData(".github/workflows/ci.yml", true, false)]
     [InlineData("src/ExcelMcp.Core/Command.cs", true, true)]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", true, true)]
-    [InlineData("src/ExcelMcp.Cleanup/Program.cs", true, true)]
-    [InlineData("src/ExcelMcp.Generators.Cli/Generator.cs", true, true)]
-    [InlineData("Directory.Build.props", true, true)]
-    [InlineData("Directory.Packages.props", true, true)]
-    [InlineData("global.json", true, true)]
-    [InlineData(".editorconfig", true, false)]
+    [InlineData("docs/reference/report-formatting.md", true, false)]
+    [InlineData("README.md", false, false)]
     [InlineData("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true)]
-    [InlineData("src/ExcelMcp.Core/Deleted.cs\nvscode-extension/src/renamed.ts", true, true)]
-    [InlineData("skills/shared/range.md", true, true)]
-    [InlineData("unknown-build-input.config", true, true)]
     public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
     {
         var result = await RunHookAsync(path);
@@ -50,22 +29,90 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
+        if (path == "docs/reference/report-formatting.md")
+        {
+            Assert.Matches(@"-SkillTests:\s*True", result.Output);
+        }
         Assert.True(result.ExitCode == 0, result.Output);
     }
 
     [Fact]
-    public async Task RuntimeChange_NeverCreatesDistributablePackages()
+    public async Task ChangedPaths_ClassifyAllInputsInOneInvocation()
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs");
-        Assert.True(result.ExitCode == 0, result.Output);
-        Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
-        Assert.Contains("non-packaging-tests-ran", result.Output, StringComparison.Ordinal);
+        (string Path, bool Build, bool Excel, bool SkillTests)[] cases =
+        [
+            ("README.md", false, false, false),
+            ("docs/guide.md", false, false, false),
+            ("gh-pages/docs/index.md", false, false, false),
+            ("videos/excel-mcp-intro/Capture-Evidence.ps1", false, false, false),
+            ("infrastructure/azure/deploy-appinsights.ps1", false, false, false),
+            ("scripts/Update-UsageAnalytics.ps1", false, false, false),
+            ("vscode-extension/src/extension.ts", false, false, false),
+            ("npm-packages/excelcli/package.json", false, false, false),
+            ("mcpb/Build-McpBundle.ps1", false, false, false),
+            (".github/plugins/excel-cli/bin/start-cli.ps1", true, false, false),
+            ("scripts/Publish-PreparedPlugins.ps1", true, false, false),
+            ("scripts/PluginContent.mjs", true, false, false),
+            ("scripts/Update-AwesomeCopilot.mjs", true, false, false),
+            (".github/workflows/update-awesome-copilot.md", true, false, false),
+            (".github/workflows/publish-plugins.yml", true, false, false),
+            ("scripts/Build-AgentSkills.ps1", true, false, true),
+            ("tests/ExcelMcp.Core.Tests/ExampleTests.cs", true, false, false),
+            ("scripts/pre-commit.ps1", true, false, false),
+            (".github/workflows/ci.yml", true, false, false),
+            ("src/ExcelMcp.Core/Command.cs", true, true, false),
+            ("src/ExcelMcp.CLI/Program.cs", true, true, false),
+            ("src/ExcelMcp.McpServer/Program.cs", true, true, false),
+            ("src/ExcelMcp.Cleanup/Program.cs", true, true, false),
+            ("src/ExcelMcp.Generators.Cli/Generator.cs", true, true, false),
+            ("docs/reference/report-formatting.md", true, false, true),
+            ("Directory.Build.props", true, true, false),
+            ("Directory.Packages.props", true, true, false),
+            ("global.json", true, true, false),
+            (".editorconfig", true, false, false),
+            ("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true, false),
+            ("src/ExcelMcp.Core/Deleted.cs\nvscode-extension/src/renamed.ts", true, true, false),
+            ("docs/reference/range.md", false, false, false),
+            ("skills/excel-cli-report-formatting/SKILL.md", true, false, true),
+            ("unknown-build-input.config", true, true, false)
+        ];
+        var sandbox = Directory.CreateDirectory(Path.Combine(
+            Path.GetTempPath(), $"ExcelMcp.Classification.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            var runner = Path.Combine(sandbox, "run.ps1");
+            var json = JsonSerializer.Serialize(cases.Select(row => new
+            {
+                row.Path,
+                row.Build,
+                row.Excel,
+                row.SkillTests
+            }));
+            await File.WriteAllTextAsync(runner, $$"""
+                $ErrorActionPreference = 'Stop'
+                . '{{Path.Combine(RepoRoot, "scripts", "Get-ValidationPlan.ps1").Replace("'", "''", StringComparison.Ordinal)}}'
+                $cases = ConvertFrom-Json @'
+                {{json}}
+                '@
+                foreach ($case in $cases) {
+                    $plan = Get-ValidationPlan -Paths ($case.Path -split '\r?\n')
+                    foreach ($flag in @('Build', 'Excel', 'SkillTests')) {
+                        if ([bool]$plan.$flag -ne [bool]$case.$flag) {
+                            throw "$($case.Path): incorrect $flag selection."
+                        }
+                    }
+                    if ($case.Excel -and -not $plan.SourceChecks) { throw "$($case.Path): source guards missing." }
+                }
+                """);
+            var result = await RunScriptAsync(sandbox, runner);
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
     }
 
     [Theory]
     [InlineData("src/ExcelMcp.Core/Command.cs")]
-    [InlineData("skills/shared/range.md")]
+    [InlineData("docs/reference/report-formatting.md")]
     [InlineData("Directory.Build.props")]
     [InlineData(".editorconfig")]
     public async Task UnstagedBuildInputs_BlockBeforeBuilding(string unstaged)
@@ -200,28 +247,33 @@ public sealed class PreCommitScriptTests
                 & (Join-Path $PSScriptRoot 'scripts\pre-commit.ps1')
                 exit $LASTEXITCODE
                 """);
-            var info = new ProcessStartInfo("pwsh")
-            {
-                WorkingDirectory = sandbox,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            foreach (var argument in new[] { "-NoLogo", "-NoProfile", "-File", runner }) { info.ArgumentList.Add(argument); }
-            using var process = Process.Start(info)!;
-            var stdout = process.StandardOutput.ReadToEndAsync();
-            var stderr = process.StandardError.ReadToEndAsync();
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            try { await process.WaitForExitAsync(deadline.Token); }
-            catch (OperationCanceledException)
-            {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync();
-                throw new TimeoutException("Pre-commit regression exceeded 30 seconds.");
-            }
-            return (process.ExitCode, await stdout + await stderr);
+            return await RunScriptAsync(sandbox, runner);
         }
         finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    private static async Task<(int ExitCode, string Output)> RunScriptAsync(string sandbox, string runner)
+    {
+        var info = new ProcessStartInfo("pwsh")
+        {
+            WorkingDirectory = sandbox,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (var argument in new[] { "-NoLogo", "-NoProfile", "-File", runner }) { info.ArgumentList.Add(argument); }
+        using var process = Process.Start(info)!;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try { await process.WaitForExitAsync(deadline.Token); }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            throw new TimeoutException("Pre-commit regression exceeded 30 seconds.");
+        }
+        return (process.ExitCode, await stdout + await stderr);
     }
 
     private static string FindRepoRoot()

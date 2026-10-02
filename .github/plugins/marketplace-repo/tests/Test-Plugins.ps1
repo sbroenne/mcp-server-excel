@@ -13,7 +13,8 @@ foreach ($plugin in $marketplace.plugins) {
     $manifestPath = Join-Path $pluginRoot "plugin.json"
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
     $versionPath = Join-Path $pluginRoot "version.txt"
-    $skillVersionPath = Join-Path $pluginRoot "skills\$($plugin.name)\VERSION"
+    $skillName = "$($plugin.name)-report-formatting"
+    $skillVersionPath = Join-Path $pluginRoot "skills\$skillName\VERSION"
 
     $versions = @(
         @(
@@ -36,7 +37,7 @@ foreach ($plugin in $marketplace.plugins) {
         throw "$($plugin.name) does not target the Agent Plugins 1.0.0 manifest schema."
     }
 
-    $skillPath = Join-Path $pluginRoot "skills\$($plugin.name)\SKILL.md"
+    $skillPath = Join-Path $pluginRoot "skills\$skillName\SKILL.md"
     if (-not (Test-Path $skillPath -PathType Leaf)) {
         throw "$($plugin.name) is missing its skill at $skillPath."
     }
@@ -44,6 +45,9 @@ foreach ($plugin in $marketplace.plugins) {
     foreach ($item in Get-ChildItem $pluginRoot -Recurse -Force) {
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "$($plugin.name) contains a reparse point: $($item.FullName)"
+        }
+        if ($item.Name -eq "install-global.ps1") {
+            throw "$($plugin.name) contains a retired global installation helper: $($item.FullName)"
         }
     }
 }
@@ -67,6 +71,7 @@ if (@($server.args).Count -ne 2 -or $server.args[0] -ne "-y" -or
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
     $content = Get-Content $file.FullName -Raw
     $retiredDocumentation = @(
+        @{ Pattern = [regex]::Escape("install-global.ps1"); Description = "retired global installation helper" }
         @{ Pattern = [regex]::Escape("ExcelMcp-CLI-latest-windows.zip"); Description = "nonexistent unversioned CLI release asset" }
         @{ Pattern = [regex]::Escape("excel-mcp-server.exe"); Description = "retired MCP executable name" }
         @{ Pattern = [regex]::Escape("excel-mcp-bundle.mcpb"); Description = "retired MCPB asset name" }

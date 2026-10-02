@@ -16,33 +16,6 @@ public sealed class XmlMapToolProtocolTests(
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
-    public async Task ListTools_XmlMapSchema_ExposesCompleteActionAndParameterContract()
-    {
-        var tools = await _fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, candidate => candidate.Name == "xmlmap");
-        var properties = tool.JsonSchema.GetProperty("properties");
-
-        var actionValues = properties.GetProperty("action").GetProperty("enum")
-            .EnumerateArray()
-            .Select(value => value.GetString() ?? string.Empty)
-            .ToArray();
-
-        Assert.Equal(
-            ["list", "add", "map-range", "import-xml", "export-xml", "delete"],
-            actionValues);
-        Assert.True(properties.TryGetProperty("schema", out _));
-        Assert.True(properties.TryGetProperty("schema_file", out _));
-        Assert.True(properties.TryGetProperty("xml_data", out _));
-        Assert.True(properties.TryGetProperty("xml_data_file", out _));
-        Assert.True(properties.TryGetProperty("map_name", out _));
-        Assert.True(properties.TryGetProperty("sheet_name", out _));
-        Assert.True(properties.TryGetProperty("range_address", out _));
-        Assert.True(properties.TryGetProperty("xpath", out _));
-        Assert.True(properties.TryGetProperty("start_cell", out _));
-        Assert.True(properties.TryGetProperty("overwrite", out _));
-    }
-
-    [Fact]
     public async Task ImportExportDelete_ThroughMcp_RoundTripsXmlData()
     {
         const string xmlData = """

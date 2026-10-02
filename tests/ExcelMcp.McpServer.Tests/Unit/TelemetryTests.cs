@@ -56,6 +56,16 @@ public class TelemetryTests
     }
 
     [Fact]
+    public void Identity_IsStableWithinTheProcessAndSessionIdIsHex()
+    {
+        var user = ExcelMcpTelemetry.UserId;
+        var session = ExcelMcpTelemetry.SessionId;
+        Assert.True(session.All(char.IsAsciiHexDigit));
+        Assert.Equal(user, ExcelMcpTelemetry.UserId);
+        Assert.Equal(session, ExcelMcpTelemetry.SessionId);
+    }
+
+    [Fact]
     public void GetConnectionString_ReturnsNullForPlaceholder()
     {
         // The placeholder should not be treated as a valid connection string

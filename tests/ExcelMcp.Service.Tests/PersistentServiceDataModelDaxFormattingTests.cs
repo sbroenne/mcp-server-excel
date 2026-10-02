@@ -80,7 +80,7 @@ public class PersistentServiceDataModelDaxFormattingTests(
         // Retrieve and verify
         var viewResult = _dataModelCommands.Read(batch, measureName);
         Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Equal(unformattedDax, NormalizeDaxListSeparators(viewResult.DaxFormula));
+        Assert.Equal(unformattedDax, viewResult.DaxFormula);
     }
 
     /// <summary>
@@ -105,7 +105,7 @@ public class PersistentServiceDataModelDaxFormattingTests(
         // Retrieve and verify
         var viewResult = _dataModelCommands.Read(batch, measureName);
         Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Equal(unformattedUpdate, NormalizeDaxListSeparators(viewResult.DaxFormula));
+        Assert.Equal(unformattedUpdate, viewResult.DaxFormula);
     }
 
     /// <summary>
@@ -179,10 +179,5 @@ public class PersistentServiceDataModelDaxFormattingTests(
         return result;
     }
 
-    private static string NormalizeDaxListSeparators(string daxFormula)
-    {
-        return daxFormula.Replace(';', ',');
-    }
 }
-
 

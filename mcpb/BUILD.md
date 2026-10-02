@@ -18,11 +18,11 @@ mcpb/
 
 ## Prerequisites
 
-- .NET 10 SDK
-- Windows to run the packaged executable verification
+- PowerShell 7
+- Node.js/npm when verifying the server launch (not needed to build the archive)
 
-The script can cross-compile on another operating system, but it skips the
-Windows executable launch check.
+Packaging copies metadata only. It does not publish .NET executables, install
+npm dependencies, or download the server.
 
 ## Build the Bundle
 
@@ -53,29 +53,28 @@ excel-mcp-{version}.mcpb
 |-- icon-512.png
 |-- README.md
 |-- LICENSE
-|-- CHANGELOG.md
-`-- server/
-    `-- excel-mcp-server.exe
+`-- CHANGELOG.md
 ```
 
-`Build-McpBundle.ps1` publishes the MCP Server as a self-contained Windows x64
-single-file executable, renames it to match the manifest entry point, copies
-the package metadata, and verifies the executable on Windows.
+`Build-McpBundle.ps1` stamps a staged manifest, copies the package metadata,
+checks the archive entries, and installs the completed output. Failed builds
+preserve existing packages; staging cleanup is restricted to the owned
+temporary directory.
 
 ## Manifest and Tool Metadata
 
-`manifest.json` follows MCPB manifest version 0.3 and declares the packaged
-binary entry point:
+`manifest.json` follows MCPB manifest version 0.3. The entry point identifies
+the npm package, while `mcp_config` specifies the actual command:
 
 ```json
 {
   "manifest_version": "0.3",
   "server": {
-    "type": "binary",
-    "entry_point": "server/excel-mcp-server",
+    "type": "node",
+    "entry_point": "@sbroenne/mcp-server-excel",
     "mcp_config": {
-      "command": "${__dirname}/server/excel-mcp-server",
-      "args": [],
+      "command": "npx",
+      "args": ["-y", "@sbroenne/mcp-server-excel@latest"],
       "env": {}
     }
   }
@@ -83,8 +82,8 @@ binary entry point:
 ```
 
 The build stamps the package version into a staged copy of the manifest. Do not
-add a release download URL or an `install.win32` block; the executable is
-included in the bundle.
+add a release download URL or an `install.win32` block. npx obtains the server
+from npm at launch, subject to normal npm configuration and caching.
 
 The MCP Server generates its 31 tool schemas from the Core contracts and manual
 MCP tool definitions. Destructive metadata is set per tool: most tools can
@@ -121,25 +120,40 @@ Remove-Item $zip
 Remove-Item .\test-extract -Recurse
 ```
 
-The packaging script also prints every archive entry after a successful build.
+Verify the actual configured command on Windows as well:
+
+```powershell
+npx -y @sbroenne/mcp-server-excel@latest --version
+```
+
+This checks startup, not full Claude integration. Install the bundle in Claude
+Desktop and confirm initialization, tool discovery, and a create/save/close
+workbook operation before claiming host integration is verified.
 
 ## Technical Notes
 
-### Why Self-Contained?
+### Why Direct npx?
 
-- Users do not need the .NET runtime or SDK.
-- The package uses the same tested runtime as the standalone release.
-- A single executable avoids local dependency version conflicts.
+- No custom launcher or bundled npm dependencies.
+- The installed bundle does not pin the server to its stamped release version.
+- The npm server contains a self-contained .NET executable.
+- Node.js/npm must be available on PATH; do not assume Claude bundles npx.
 
-### Why No Trimming?
+### Updates and Network Access
 
-Excel COM interop relies on runtime type activation and reflection. Trimming can
-remove required interop metadata, so the package sets `PublishTrimmed=false`.
+The bundle is not offline/self-contained. First launch downloads the server;
+later launches use normal npm resolution and caching. The `latest` tag can
+resolve to a different version than the bundle's metadata version. A running
+server is never hot-swapped. Existing binary MCPB users must install this
+configuration bundle once, and future bundle changes still require replacement.
 
-### Why Windows x64?
+### Architecture and Directory Submission
 
 - Excel COM automation requires Windows.
-- Windows on ARM can run the x64 package through emulation.
+- npm selects the x64 or ARM64 runtime matching the Node.js process architecture.
+- x64 Node.js on ARM64 Windows uses the x64 package through emulation.
+- Directory acceptance of a fetch-on-launch bundle is not verified. Disclose
+  its npm and network requirements; do not claim it bundles all dependencies.
 
 ## Submission References
 

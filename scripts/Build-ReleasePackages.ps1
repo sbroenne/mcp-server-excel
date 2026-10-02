@@ -28,6 +28,14 @@ function Invoke-PackageStep {
     & $Action
     if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
 }
+function Read-VsixEntry {
+    param([IO.Compression.ZipArchive]$Archive, [string]$Name)
+    $entry = $Archive.GetEntry($Name)
+    if (-not $entry) { throw "VSIX is missing $Name." }
+    $reader = [IO.StreamReader]::new($entry.Open())
+    try { $reader.ReadToEnd() }
+    finally { $reader.Dispose() }
+}
 Push-Location $root
 $extensionStage = $null
 try {
@@ -46,7 +54,7 @@ try {
     if (-not $Version) { $Version = (Get-Content package.json -Raw | ConvertFrom-Json).version }
     if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'A valid package version is required.' }
     if ($SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {
-        foreach ($name in @('excel-cli', 'excel-mcp')) {
+        foreach ($name in @('excel-cli-report-formatting', 'excel-mcp-report-formatting')) {
             $stamp = Join-Path $SkillsDirectory "$name\VERSION"
             if (-not (Test-Path -LiteralPath $stamp -PathType Leaf) -or (Get-Content -LiteralPath $stamp -Raw).Trim() -ne $Version) {
                 throw "Prepared $name skill must match package version $Version."
@@ -64,7 +72,7 @@ try {
     $prepared = @{}
     $neededRuntimes = @()
     if ($Components -contains 'Cli') { $neededRuntimes += 'Cli' }
-    if (@($Components | Where-Object { $_ -in @('Mcp', 'Extension', 'Mcpb') }).Count) { $neededRuntimes += 'Mcp' }
+    if (@($Components | Where-Object { $_ -in @('Mcp', 'Extension') }).Count) { $neededRuntimes += 'Mcp' }
     foreach ($component in $neededRuntimes) {
         $projectName = if ($component -eq 'Cli') { 'CLI' } else { 'McpServer' }
         $project = Join-Path $root "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj"
@@ -95,6 +103,7 @@ try {
             $exeName = if ($component -eq 'Cli') { 'excelcli.exe' } else { 'Sbroenne.ExcelMcp.McpServer.exe' }
             $prepared[$component] = Join-Path $runtimeDir $exeName
         }
+        Assert-PackageRuntimeArchitecture -Path $prepared[$component] -Architecture x64
         $productVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($prepared[$component]).ProductVersion
         if (($productVersion -split '\+')[0] -ne $Version) { throw "$component runtime version $productVersion does not match $Version." }
         Invoke-PackageStep "$component runtime version" { & $prepared[$component] --version }
@@ -102,14 +111,30 @@ try {
         $npmComponent = if ($component -eq 'Cli') { 'Cli' } else { 'McpServer' }
         $packageName = if ($component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
         $npmDir = Join-Path $OutputDirectory 'npm'
-        Invoke-PackageStep "$component npm packages" {
-            & (Join-Path $PSScriptRoot 'Build-NpmPackages.ps1') -Component $npmComponent -Version $Version `
-                -RuntimeExecutable $prepared[$component] -OutputDirectory $npmDir
-        }
-        Invoke-PackageStep "$component installed npm package" {
-            & (Join-Path $PSScriptRoot 'Test-NpmPackages.ps1') -Component $npmComponent `
-                -LauncherPackage (Join-Path $npmDir "sbroenne-$packageName-$Version.tgz") `
-                -RuntimePackage (Join-Path $npmDir "sbroenne-$packageName-win32-x64-$Version.tgz")
+        foreach ($architecture in @('x64', 'arm64')) {
+            $npmRuntime = $prepared[$component]
+            if ($architecture -eq 'arm64') {
+                $armRuntimeDir = Join-Path $runtimeRoot "$component-arm64"
+                Invoke-PackageStep "$component ARM64 npm runtime" {
+                    Publish-PackageRuntime -Component $component -RepoRoot $root -Version $Version `
+                        -Architecture arm64 -OutputDirectory $armRuntimeDir
+                }
+                $exeName = if ($component -eq 'Cli') { 'excelcli.exe' } else { 'Sbroenne.ExcelMcp.McpServer.exe' }
+                $npmRuntime = Join-Path $armRuntimeDir $exeName
+                $armVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($npmRuntime).ProductVersion
+                if (($armVersion -split '\+')[0] -ne $Version) { throw "$component ARM64 runtime version $armVersion does not match $Version." }
+                $prepared["$component-arm64"] = $npmRuntime
+            }
+            Invoke-PackageStep "$component $architecture npm packages" {
+                & (Join-Path $PSScriptRoot 'Build-NpmPackages.ps1') -Component $npmComponent -Version $Version `
+                    -Architecture $architecture -RuntimeExecutable $npmRuntime -OutputDirectory $npmDir
+            }
+            Invoke-PackageStep "$component $architecture installed npm package" {
+                & (Join-Path $PSScriptRoot 'Test-NpmPackages.ps1') -Component $npmComponent -Architecture $architecture `
+                    -ArchiveOnly:($architecture -eq 'arm64') `
+                    -LauncherPackage (Join-Path $npmDir "sbroenne-$packageName-$Version.tgz") `
+                    -RuntimePackage (Join-Path $npmDir "sbroenne-$packageName-win32-$architecture-$Version.tgz")
+            }
         }
         $zipStage = Join-Path $OutputDirectory "zip-$component"
         New-Item -ItemType Directory -Path $zipStage | Out-Null
@@ -122,7 +147,7 @@ try {
     if ($Components -contains 'Mcpb') {
         Invoke-PackageStep 'Claude Desktop bundle' {
             & (Join-Path $root 'mcpb\Build-McpBundle.ps1') -Version $Version `
-                -RuntimeExecutable $prepared.Mcp -OutputDir (Join-Path $OutputDirectory 'mcpb')
+                -OutputDir (Join-Path $OutputDirectory 'mcpb')
         }
     }
     if (-not $SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {
@@ -144,6 +169,18 @@ try {
             -DestinationPath (Join-Path $OutputDirectory "excel-plugins-v$Version.zip")
     }
     if ($Components -contains 'Extension') {
+        if (-not $prepared.ContainsKey('Mcp-arm64')) {
+            $armRuntimeDir = Join-Path $runtimeRoot 'Mcp-arm64'
+            Invoke-PackageStep 'Mcp ARM64 extension runtime' {
+                Publish-PackageRuntime -Component Mcp -RepoRoot $root -Version $Version `
+                    -Architecture arm64 -OutputDirectory $armRuntimeDir
+            }
+            $armRuntime = Join-Path $armRuntimeDir 'Sbroenne.ExcelMcp.McpServer.exe'
+            Assert-PackageRuntimeArchitecture -Path $armRuntime -Architecture arm64
+            $armVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($armRuntime).ProductVersion
+            if (($armVersion -split '\+')[0] -ne $Version) { throw "Mcp ARM64 runtime version $armVersion does not match $Version." }
+            $prepared['Mcp-arm64'] = $armRuntime
+        }
         $extensionStage = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpExtension-$([Guid]::NewGuid().ToString('N'))"
         $extension = $extensionStage
         New-Item -ItemType Directory -Path $extension | Out-Null
@@ -153,8 +190,8 @@ try {
         $bin = New-Item -ItemType Directory -Path (Join-Path $extension 'bin')
         Copy-Item -LiteralPath $prepared.Mcp -Destination $bin.FullName
         $skills = New-Item -ItemType Directory -Path (Join-Path $extension 'skills')
-        Copy-Item (Join-Path $SkillsDirectory 'excel-mcp') $skills.FullName -Recurse
-        Set-Content (Join-Path $skills.FullName 'excel-mcp\VERSION') $Version -NoNewline
+        Copy-Item (Join-Path $SkillsDirectory 'excel-mcp-report-formatting') $skills.FullName -Recurse
+        Set-Content (Join-Path $skills.FullName 'excel-mcp-report-formatting\VERSION') $Version -NoNewline
         Copy-Item (Join-Path $root 'CHANGELOG.md') $extension -Force
         $manifestPath = Join-Path $extension 'package.json'
         $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
@@ -162,25 +199,72 @@ try {
         $manifest.scripts.'vscode:prepublish' = 'npm run compile'
         $manifest | ConvertTo-Json -Depth 20 | Set-Content $manifestPath -Encoding utf8
         Push-Location $extension
+        $extensionPackages = @(
+            @{ Target = 'win32-x64'; Architecture = 'x64'; Runtime = $prepared.Mcp; FileName = "excel-mcp-$Version.vsix" },
+            @{ Target = 'win32-arm64'; Architecture = 'arm64'; Runtime = $prepared['Mcp-arm64']; FileName = "excel-mcp-$Version-win32-arm64.vsix" }
+        )
         try {
             Invoke-PackageStep 'Extension dependencies' { npm.cmd ci --ignore-scripts }
+            Invoke-PackageStep 'Extension compile and metadata' { npm.cmd run compile }
             Invoke-PackageStep 'Extension lint' { npm.cmd run lint }
-            Invoke-PackageStep 'Extension package' { npm.cmd exec -- vsce package --no-dependencies --out (Join-Path $OutputDirectory "excel-mcp-$Version.vsix") }
+            Invoke-PackageStep 'Extension test types' { npm.cmd run typecheck:tests }
+            Invoke-PackageStep 'Extension tests' { npm.cmd test }
+            foreach ($package in $extensionPackages) {
+                Copy-Item -LiteralPath $package.Runtime -Destination $bin.FullName -Force
+                Invoke-PackageStep "Extension package ($($package.Target))" {
+                    npm.cmd exec -- vsce package --no-dependencies --target $package.Target --out (Join-Path $OutputDirectory $package.FileName)
+                }
+            }
         }
         finally { Pop-Location }
-        $vsix = [IO.Compression.ZipFile]::OpenRead((Join-Path $OutputDirectory "excel-mcp-$Version.vsix"))
-        try {
-            foreach ($required in @('extension/bin/Sbroenne.ExcelMcp.McpServer.exe', 'extension/skills/excel-mcp/SKILL.md', 'extension/skills/excel-mcp/references/range.md', 'extension/out/extension.js')) {
-                if (-not $vsix.GetEntry($required)) { throw "VSIX is missing $required." }
-            }
-            $versionEntry = $vsix.GetEntry('extension/skills/excel-mcp/VERSION')
-            if (-not $versionEntry) { throw 'VSIX is missing its skill version.' }
-            $reader = [IO.StreamReader]::new($versionEntry.Open())
+        foreach ($package in $extensionPackages) {
+            $vsix = [IO.Compression.ZipFile]::OpenRead((Join-Path $OutputDirectory $package.FileName))
             try {
-                if ($reader.ReadToEnd().Trim() -ne $Version) { throw 'VSIX skill version does not match the package.' }
-            } finally { $reader.Dispose() }
+                foreach ($required in @('extension/bin/Sbroenne.ExcelMcp.McpServer.exe', 'extension/out/extension.js', 'extension/out/prerequisites.js')) {
+                    if (-not $vsix.GetEntry($required)) { throw "VSIX is missing $required." }
+                }
+                $inspectionRuntime = Join-Path $OutputDirectory "$($package.Target)-server-inspection.exe"
+                try {
+                    [IO.Compression.ZipFileExtensions]::ExtractToFile(
+                        $vsix.GetEntry('extension/bin/Sbroenne.ExcelMcp.McpServer.exe'), $inspectionRuntime, $false)
+                    Assert-PackageRuntimeArchitecture -Path $inspectionRuntime -Architecture $package.Architecture
+                }
+                finally {
+                    if (Test-Path -LiteralPath $inspectionRuntime) {
+                        Remove-Item -LiteralPath $inspectionRuntime -Force
+                    }
+                }
+                foreach ($skillFile in Get-ChildItem (Join-Path $skills.FullName 'excel-mcp-report-formatting') -File -Recurse) {
+                    $relative = [IO.Path]::GetRelativePath($extension, $skillFile.FullName).Replace('\', '/')
+                    if (-not $vsix.GetEntry("extension/$relative")) { throw "VSIX is missing $relative." }
+                }
+                if ((Read-VsixEntry $vsix 'extension/skills/excel-mcp-report-formatting/VERSION').Trim() -ne $Version) {
+                    throw 'VSIX skill version does not match the package.'
+                }
+                $packagedManifest = Read-VsixEntry $vsix 'extension/package.json' | ConvertFrom-Json
+                if ($packagedManifest.version -ne $Version -or
+                    ($packagedManifest.extensionKind -join ',') -ne 'ui' -or
+                    ($packagedManifest.os -join ',') -ne 'win32') {
+                    throw 'VSIX version or local Windows host metadata is incorrect.'
+                }
+                [xml]$metadata = Read-VsixEntry $vsix 'extension.vsixmanifest'
+                if ($metadata.PackageManifest.Metadata.Identity.TargetPlatform -ne $package.Target) {
+                    throw "VSIX target does not match $($package.Target)."
+                }
+                foreach ($entry in $vsix.Entries) {
+                    if ($entry.FullName -match '^extension/(node_modules|tests|scripts|\.vitest|coverage|out/tests)/' -or
+                        $entry.FullName -match '^extension/(vitest\.config\.|tsconfig(?:\.test)?\.json$|bin/excelcli)') {
+                        throw "VSIX contains development files or the CLI: $($entry.FullName)"
+                    }
+                }
+                Write-Host "Verified VSIX target: $($package.Target)"
+            }
+            finally { $vsix.Dispose() }
         }
-        finally { $vsix.Dispose() }
+        $debugRuntime = if ([Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [Runtime.InteropServices.Architecture]::Arm64) {
+            $prepared['Mcp-arm64']
+        } else { $prepared.Mcp }
+        Copy-Item -LiteralPath $debugRuntime -Destination $bin.FullName -Force
         $debugDirectory = New-Item -ItemType Directory -Path (Join-Path $OutputDirectory 'extension')
         Get-ChildItem $extension -Force | Where-Object Name -ne 'node_modules' |
             Copy-Item -Destination $debugDirectory.FullName -Recurse

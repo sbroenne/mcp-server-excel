@@ -29,8 +29,10 @@ internal static class ToolArgumentFilter
 
                 foreach (var (name, value) in arguments)
                 {
-                    if (name is "sessionId" or "session_id")
-                        continue; // SessionIdentityFilter owns alias normalization and recovery guidance.
+                    if (name == "sessionId")
+                        throw new ArgumentException("sessionId is not a valid MCP parameter. Use session_id for session-based actions.");
+                    if (name == "session_id")
+                        continue; // SessionIdentityFilter validates required session identity before binding.
                     if (!properties.TryGetProperty(name, out var schema))
                         throw new ArgumentException($"Unknown parameter '{name}'.");
                     ValidateValueKind(name, value, schema);
@@ -42,7 +44,7 @@ internal static class ToolArgumentFilter
                 }
                 else
                 {
-                    var names = arguments.Keys.Where(name => name is not ("action" or "session_id" or "sessionId")).ToArray();
+                    var names = arguments.Keys.Where(name => name is not ("action" or "session_id")).ToArray();
                     try
                     {
                         ServiceRegistry.ValidateMcpActionParameters(
@@ -54,7 +56,7 @@ internal static class ToolArgumentFilter
                         throw new ArgumentException($"{ex.Message} Supplied MCP parameters: {string.Join(", ", names)}.");
                     }
                     if (tool.ProtocolTool.Name == "worksheet" && canonicalAction is "copy-to-file" or "move-to-file"
-                        && (arguments.ContainsKey("session_id") || arguments.ContainsKey("sessionId")))
+                        && arguments.ContainsKey("session_id"))
                         throw new ArgumentException("session_id is not used by atomic cross-file worksheet actions.");
                 }
             }

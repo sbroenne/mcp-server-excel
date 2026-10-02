@@ -142,7 +142,7 @@ dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Featu
 ```
 
 **Before Commit:** Rerun the affected tests and applicable repository checks.
-Follow the [repository validation requirements](../.github/copilot-instructions.md#build-and-validation)
+Follow the [repository validation requirements](../AGENTS.md#build-and-validation)
 for runtime E2E. Do not run the full Excel integration suite during iteration.
 Use a hard execution timeout for every Excel-dependent test run.
 
@@ -157,7 +157,7 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --f
 Use real Excel integration tests for COM behavior and focused non-COM tests for
 pure parsing, mapping, serialization, and generation. The blanket unit-test ban
 in [ADR-001](ADR-001-NO-UNIT-TESTS.md) is superseded by the
-[current testing strategy](../.github/instructions/testing-strategy.instructions.md).
+[current testing strategy](../tests/AGENTS.md).
 
 **Integration Tests (`Category=Integration`)**
 - ✅ Test business logic with real Excel COM interaction
@@ -357,7 +357,7 @@ The server exposes tools, not prompts or resources, and sends no MCP elicitation
 requests. Consent advice in descriptions and instructions must be handled by
 the client; it is not an enforced server dialog. For generated
 skills and minimal server instructions, see
-[Maintaining skills and server guidance](../skills/README.md#maintaining-skills-and-server-guidance).
+[Maintaining skills and server guidance](../docs/AGENT-SKILLS.md#authoring-and-packaging).
 
 ## 📋 **MCP Registry Manifest**
 
@@ -464,12 +464,6 @@ The Application Insights connection string is **embedded at build time** via MSB
   failure site; messages and stack traces are not transmitted
 - **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
 - **Session ID**: Random GUID per process (8 chars)
-- **Session alias compatibility**: A fixed event when a declared session-bound
-  action uses the top-level `sessionId` fallback. Its custom properties contain
-  only tool, declared action, alias name, and application version. Standard
-  telemetry context also carries the anonymous user ID, random MCP server
-  process telemetry session ID, role, role instance, and component version.
-
 ### **What is NOT Tracked**
 
 - File paths, file names, or file contents

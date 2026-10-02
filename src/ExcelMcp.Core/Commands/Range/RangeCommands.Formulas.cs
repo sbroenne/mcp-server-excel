@@ -165,8 +165,9 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null)
+    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null, OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty)
     {
+        ValidateOverwritePolicy(overwritePolicy);
         // Resolve formulas from inline parameter or file
         var resolvedFormulas = ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile);
 
@@ -187,6 +188,8 @@ public partial class RangeCommands
                 }
 
                 ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
+                ValidateContentWriteDimensions((Excel.Range)range, resolvedFormulas, nameof(formulas), "Formula");
+                EnsureDestinationWritable(ctx, (Excel.Range)range, overwritePolicy, ct);
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
@@ -200,8 +203,6 @@ public partial class RangeCommands
                 // Excel COM requires 1-based arrays for multi-cell ranges
                 int rows = resolvedFormulas.Count;
                 int cols = resolvedFormulas.Count > 0 ? resolvedFormulas[0].Count : 0;
-
-                ValidateRectangularRowWidths(resolvedFormulas, Convert.ToInt32(range.Columns.Count), nameof(formulas), "Formula");
 
                 if (rows > 0 && cols > 0)
                 {

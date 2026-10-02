@@ -8,6 +8,9 @@ param(
     [ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')]
     [string]$Version,
 
+    [ValidateNotNullOrEmpty()]
+    [string]$NpmLauncherManifestPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'npm-packages\mcp-server-excel\package.json'),
+
     [ValidateRange(1, 100)]
     [int]$Attempts = 3,
 
@@ -20,7 +23,15 @@ $registryName = 'io.github.sbroenne/mcp-server-excel'
 $repositoryUrl = 'https://github.com/sbroenne/mcp-server-excel'
 $nugetPackage = 'Sbroenne.ExcelMcp.McpServer'
 $npmLauncherPackage = '@sbroenne/mcp-server-excel'
-$npmRuntimePackage = '@sbroenne/mcp-server-excel-win32-x64'
+$sourceLauncher = Get-Content -LiteralPath $NpmLauncherManifestPath -Raw | ConvertFrom-Json
+if ($sourceLauncher.name -ne $npmLauncherPackage -or
+    -not $sourceLauncher.optionalDependencies.PSObject.Properties['@sbroenne/mcp-server-excel-win32-x64']) {
+    throw 'Source npm launcher manifest must declare its Windows x64 runtime.'
+}
+$runtimeArchitectures = @('x64')
+if ($sourceLauncher.optionalDependencies.PSObject.Properties['@sbroenne/mcp-server-excel-win32-arm64']) {
+    $runtimeArchitectures += 'arm64'
+}
 
 if (-not (Test-Path -LiteralPath $ServerJsonPath -PathType Leaf)) {
     throw "MCP Registry metadata file was not found: $ServerJsonPath"
@@ -62,16 +73,21 @@ for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
         }
         $nuget = Invoke-RestMethod $nugetRegistration.catalogEntry
         $launcher = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel/$Version"
-        $runtime = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-x64/$Version"
+        foreach ($architecture in $runtimeArchitectures) {
+            $runtimeName = "@sbroenne/mcp-server-excel-win32-$architecture"
+            $runtime = Invoke-RestMethod "https://registry.npmjs.org/@sbroenne%2fmcp-server-excel-win32-$architecture/$Version"
+            if ($runtime.name -ne $runtimeName -or $runtime.version -ne $Version -or
+                $launcher.optionalDependencies.$runtimeName -ne $Version) {
+                throw "Published $architecture npm runtime metadata is not ready."
+            }
+        }
 
         if ($readme -notmatch 'mcp-name:\s+io\.github\.sbroenne/mcp-server-excel' -or
             $nuget.id -ne $nugetPackage -or
             $nuget.version -ne $Version -or
             $launcher.name -ne $npmLauncherPackage -or
             $launcher.version -ne $Version -or
-            $launcher.mcpName -ne $registryName -or
-            $runtime.name -ne $npmRuntimePackage -or
-            $runtime.version -ne $Version) {
+            $launcher.mcpName -ne $registryName) {
             throw 'Published package metadata is not ready.'
         }
 

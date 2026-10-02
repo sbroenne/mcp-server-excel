@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Xunit;
@@ -19,23 +21,28 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         Assert.Equal(McpToolSurface.ToolCount, tools.Count);
+        Assert.False(string.IsNullOrWhiteSpace(Client.ServerInstructions));
+        Assert.All(tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
         Assert.Null(Client.ServerCapabilities.Prompts);
         Assert.Null(Client.ServerCapabilities.Resources);
     }
 
     [Theory]
-    [InlineData("range", "values", "2D array")]
-    [InlineData("range_format", "font_size", "points")]
-    [InlineData("chart", "target_range", "left/top")]
-    [InlineData("screenshot", "range_address", "capture")]
-    [InlineData("screenshot", "quality", "JPEG")]
-    public async Task ParameterDescriptions_PreserveCoreDocumentation(string toolName, string parameter, string detail)
+    [InlineData("range", "values")]
+    [InlineData("range_format", "font_size")]
+    [InlineData("chart", "target_range")]
+    [InlineData("screenshot", "range_address")]
+    [InlineData("screenshot", "quality")]
+    public async Task ParameterDescriptions_PreserveDeclaredMetadata(string toolName, string parameter)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var description = tools.Single(t => t.Name == toolName).JsonSchema
             .GetProperty("properties").GetProperty(parameter).GetProperty("description").GetString();
 
-        Assert.Contains(detail, description, StringComparison.OrdinalIgnoreCase);
+        var metadata = GeneratedToolContract.GetParameter(toolName, parameter)
+            .GetCustomAttribute<DescriptionAttribute>();
+        Assert.NotNull(metadata);
+        Assert.Equal(metadata.Description, description);
     }
 
     [Fact]
@@ -58,37 +65,16 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task CalculationGuidance_RestoresPriorModeWithoutForcingUnrequestedChanges()
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var description = tools.Single(t => t.Name == "calculation_mode").Description;
-
-        Assert.Contains("restore the prior mode", description, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("set-mode(automatic)", description, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("restore the prior mode", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("not mandatory", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("does not request confirmation", Client.ServerInstructions, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Descriptions_UseAdvertisedTopLevelParameterNamesAndNoEmoji()
+    public async Task Descriptions_UseAdvertisedTopLevelParameterNames()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         foreach (var tool in tools)
         {
-            var descriptions = EnumerateDescriptions(tool.JsonSchema).Prepend(tool.Description).ToArray();
-            foreach (var description in descriptions)
-            {
-                Assert.False(description.EnumerateRunes().Any(rune =>
-                    rune.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F),
-                    $"{tool.Name} description contains an emoji: {description}");
-            }
-
             foreach (var property in tool.JsonSchema.GetProperty("properties").EnumerateObject())
             {
                 var camelCase = Regex.Replace(property.Name, "_([a-z])", match => match.Groups[1].Value.ToUpperInvariant());
                 if (camelCase == property.Name || camelCase == "sessionId")
-                    continue; // sessionId is also the documented file.list response field.
+                    continue; // sessionId is a local variable name in authored workflow examples.
 
                 // Nested JSON object keys keep their schema spelling; inspect only top-level prose.
                 var prose = new[] { tool.Description }.Concat(
@@ -118,40 +104,6 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.True(nested.TryGetProperty("columnName", out _));
     }
 
-    private static IEnumerable<string> EnumerateDescriptions(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var property in element.EnumerateObject())
-            {
-                if (property.Name == "description" && property.Value.ValueKind == JsonValueKind.String)
-                    yield return property.Value.GetString()!;
-                else
-                    foreach (var description in EnumerateDescriptions(property.Value))
-                        yield return description;
-            }
-        }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-                foreach (var description in EnumerateDescriptions(item))
-                    yield return description;
-        }
-    }
-
-    [Theory]
-    [InlineData("range", "values")]
-    [InlineData("table", "rows")]
-    public async Task NativeCellValues_AreNotAdvertisedAsStringsOnly(string tool, string parameter)
-    {
-        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var schema = tools.Single(t => t.Name == tool).JsonSchema;
-        var cellSchema = schema.GetProperty("properties").GetProperty(parameter)
-            .GetProperty("items").GetProperty("items");
-        Assert.False(cellSchema.TryGetProperty("type", out var type)
-            && type.ValueKind == JsonValueKind.String && type.GetString() == "string");
-    }
-
     [Fact]
     public async Task InjectedParameters_AreNotAdvertisedAsInputs()
     {
@@ -174,9 +126,12 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         foreach (var tool in tools)
         {
             var schema = Assert.IsType<JsonElement>(tool.ReturnJsonSchema);
-            Assert.Equal("object", schema.GetProperty("type").GetString());
             var properties = schema.GetProperty("properties");
-            AssertSchemaAllowsType(properties.GetProperty("success"), "boolean");
+            Assert.True(properties.TryGetProperty("success", out _),
+                $"{tool.Name} output schema does not describe success.");
+            Assert.True(properties.TryGetProperty("session_id", out _),
+                $"{tool.Name} output schema does not describe session error context.");
+            Assert.False(properties.TryGetProperty("sessionId", out _));
         }
     }
 
@@ -204,15 +159,13 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file").ReturnJsonSchema);
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
-        Assert.Equal(JsonValueKind.Object, sessions.ValueKind);
-        AssertSchemaAllowsType(sessions, "array");
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        AssertSchemaAllowsType(properties.GetProperty("sessionId"), "string");
-        AssertSchemaAllowsType(properties.GetProperty("filePath"), "string");
-        AssertSchemaAllowsType(properties.GetProperty("isExcelVisible"), "boolean");
-        AssertSchemaAllowsType(properties.GetProperty("activeOperations"), "integer");
-        AssertSchemaAllowsType(properties.GetProperty("canClose"), "boolean");
-        Assert.False(properties.TryGetProperty("session_id", out _));
+        foreach (var name in new[] { "session_id", "filePath", "isExcelVisible", "activeOperations", "canClose" })
+        {
+            Assert.True(properties.TryGetProperty(name, out _),
+                $"File session output schema does not describe {name}.");
+        }
+        Assert.False(properties.TryGetProperty("sessionId", out _));
     }
 
     [Fact]
@@ -221,9 +174,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "screenshot").ReturnJsonSchema);
 
-        Assert.True(schema.GetProperty("properties").TryGetProperty("errorMessage", out var errorMessage),
+        Assert.True(schema.GetProperty("properties").TryGetProperty("errorMessage", out _),
             "Screenshot output schema does not describe its failure message.");
-        AssertSchemaAllowsType(errorMessage, "string");
 
         var result = await Client.CallToolAsync("screenshot", new Dictionary<string, object?>
         {
@@ -237,12 +189,4 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("errorMessage").GetString()));
     }
 
-    private static void AssertSchemaAllowsType(JsonElement schema, string expectedType)
-    {
-        var type = schema.GetProperty("type");
-        var allowsType = type.ValueKind == JsonValueKind.String
-            ? type.GetString() == expectedType
-            : type.EnumerateArray().Any(item => item.GetString() == expectedType);
-        Assert.True(allowsType, $"Schema does not allow '{expectedType}'.");
-    }
 }

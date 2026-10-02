@@ -34,15 +34,47 @@ function Publish-PackageRuntime {
         [ValidateSet('Cli', 'Mcp')][string]$Component,
         [string]$RepoRoot,
         [string]$Version,
-        [string]$OutputDirectory
+        [string]$OutputDirectory,
+        [ValidateSet('x64', 'arm64')][string]$Architecture = 'x64'
     )
     $projectName = if ($Component -eq 'Cli') { 'CLI' } else { 'McpServer' }
     dotnet publish (Join-Path $RepoRoot "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj") `
-        -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true `
+        -c Release -r "win-$Architecture" --self-contained true -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false `
         -p:PublishReadyToRun=false -p:NuGetAudit=false "-p:Version=$Version" `
         -o $OutputDirectory --verbosity minimal
     if ($LASTEXITCODE -ne 0) { throw "$Component runtime publish failed with exit code $LASTEXITCODE." }
+}
+
+function Assert-PackageRuntimeArchitecture {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][ValidateSet('x64', 'arm64')][string]$Architecture
+    )
+    $stream = [IO.File]::OpenRead($Path)
+    $reader = [IO.BinaryReader]::new($stream)
+    try {
+        if ($stream.Length -lt 64 -or $reader.ReadUInt16() -ne 0x5a4d) {
+            throw "Runtime is not a Windows executable: $Path"
+        }
+        $stream.Position = 0x3c
+        $headerOffset = $reader.ReadUInt32()
+        if ($headerOffset -lt 64 -or $headerOffset -gt $stream.Length - 6) {
+            throw "Runtime has an invalid executable header: $Path"
+        }
+        $stream.Position = $headerOffset
+        if ($reader.ReadUInt32() -ne 0x00004550) {
+            throw "Runtime has an invalid PE signature: $Path"
+        }
+        $machine = $reader.ReadUInt16()
+        $expected = if ($Architecture -eq 'arm64') { 0xaa64 } else { 0x8664 }
+        if ($machine -ne $expected) {
+            throw ("Runtime machine type 0x{0:x4} does not match {1}: {2}" -f $machine, $Architecture, $Path)
+        }
+    } finally {
+        $reader.Dispose()
+        $stream.Dispose()
+    }
 }
 
 function Install-PackageOutput {

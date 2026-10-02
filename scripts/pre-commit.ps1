@@ -41,7 +41,7 @@ try {
             Read-Git @('-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard')
         )
         $inputs = @($workingPaths | Where-Object {
-            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
+            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
         })
         if ($inputs.Count -gt 0) {
             throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
@@ -60,7 +60,7 @@ try {
             dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
         }
         Invoke-Check 'Running focused non-packaging tests' {
-            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -ChangedPaths $paths
+            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -ChangedPaths $paths
         }
     }
     if ($plan.Excel) {

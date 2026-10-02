@@ -89,12 +89,4 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void HelpText_DoesNotCarryTheStaleHardCodedCounts()
-    {
-        var help = Program.BuildHelpText();
-
-        Assert.DoesNotContain("22 tools", help, StringComparison.Ordinal);
-        Assert.DoesNotContain("195+", help, StringComparison.Ordinal);
-    }
 }

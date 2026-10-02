@@ -4,16 +4,22 @@ This directory contains ready-to-use MCP configuration files for various AI codi
 
 ## Quick Setup Guide
 
-### 1. Install ExcelMcp MCP Server
+### 1. Install Node.js for Direct npx Setup
 
 ```powershell
-# Primary: Download standalone exe (no .NET runtime required)
-Download ExcelMcp-MCP-Server-{version}-windows.zip from https://github.com/sbroenne/mcp-server-excel/releases/latest
-Extract mcp-excel.exe to a permanent location and add to PATH
-
-# Secondary: Install via .NET tool (requires .NET 10 runtime)
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+winget install OpenJS.NodeJS.LTS
+npx -y @sbroenne/mcp-server-excel@latest --version
 ```
+
+The supplied configurations use `npx -y @sbroenne/mcp-server-excel@latest`.
+Windows, desktop Excel 2016+, and an interactive desktop are required; .NET is
+not. Restart your client after installing Node.js so it sees the updated PATH.
+Network access is needed for downloads and update checks. `@latest` uses normal
+npm caching and does not upgrade an already running server.
+
+For standalone ZIP or NuGet setup, see the
+[installation guide](../../docs/INSTALLATION-MCP-SERVER.md) and replace the
+example's command with `mcp-excel`, removing its npx arguments.
 
 ### 2. Choose Your Client and Copy the Config
 
@@ -47,7 +53,7 @@ Create an Excel file called "test.xlsx"
 **Config File:** `cursor-mcp-config.json`
 
 **Location:** 
-- Windows: `%APPDATA%\Cursor\User\globalStorage\mcp\mcp.json`
+- Windows: `%USERPROFILE%\.cursor\mcp.json`
 - Or: Project-specific `.cursor/mcp.json` in your workspace
 
 **Setup Steps:**
@@ -94,8 +100,10 @@ Create an Excel file called "test.xlsx"
 **Config File:** `windsurf-mcp-config.json`
 
 **Location:** 
-- Windows: `%APPDATA%\Windsurf\User\mcp_settings.json`
-- Or check Windsurf's MCP settings panel
+- Use **Open MCP config file** in the client's MCP settings; do not create a
+  guessed file under `%APPDATA%\Windsurf`.
+- In older Windsurf versions, the file is
+  `%USERPROFILE%\.codeium\windsurf\mcp_config.json`.
 
 **Setup Steps:**
 
@@ -141,21 +149,18 @@ Create an Excel file called "test.xlsx"
 
 1. **Verify installation:**
    ```powershell
-   dotnet tool list --global | Select-String "ExcelMcp"
+   npx -y @sbroenne/mcp-server-excel@latest --version
    ```
 
-2. **Check .NET is installed:**
+2. **Check Node.js/npm is installed:**
    ```powershell
-   dotnet --version
-   # Should show 10.0.x or higher
+   node --version
+   npm --version
    ```
 
-3. **Reinstall if needed:**
+3. **If npx is missing, install Node.js LTS and restart the client:**
    ```powershell
-   # Via NuGet:
-   dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
-   dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-   # Or for standalone exe: replace the exe file in your installation directory
+   winget install OpenJS.NodeJS.LTS
    ```
 
 ### Excel Not Found

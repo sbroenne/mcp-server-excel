@@ -6,9 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4",
-    "python-dotenv>=1.2.2",
-    "pytest-skill-engineering>=0.6.19",
-    "azure-identity>=1.25.3",
+    "pytest-skill-engineering==1.0.3",
     "pytest-timeout>=2.4.0",
     "pillow>=12.3.0",
 ]
@@ -19,13 +17,11 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
-addopts = """
---aitest-summary-model=azure/gpt-5.2-chat
---aitest-html=TestResults/report.html
-"""
 markers = [
     "aitest: LLM integration tests",
     "copilot: GitHub Copilot-backed skill engineering tests",
     "mcp: MCP server tests",
     "cli: CLI tests",
+    "skill_value: explicitly selected skill/no-skill comparisons",
+    "offline: checks requiring neither Excel nor model access",
 ]
