@@ -34,7 +34,7 @@ updates:
           - "*"
     # Only create PRs for security updates and major version updates immediately
     # Minor/patch updates are grouped
-    ignore:
+    ignore: []
       # Ignore specific packages if needed
       # - dependency-name: "PackageName"
       #   versions: ["1.x", "2.x"]
