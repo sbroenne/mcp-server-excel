@@ -72,6 +72,42 @@ public sealed class CalculationSettingsProtocolTests(RecordingProgramTransportFi
     }
 
     [Theory]
+    [InlineData("sheet", null, "sheetName")]
+    [InlineData("range", null, "sheetName")]
+    [InlineData("range", "Sheet1", "rangeAddress")]
+    public async Task Calculation_MissingTargetForwardsInvalidInputAsToolError(
+        string scope, string? sheetName, string parameter)
+    {
+        Dictionary<string, object?> arguments = new()
+        {
+            ["action"] = "calculate",
+            ["session_id"] = "session-1",
+            ["scope"] = scope
+        };
+        if (sheetName is not null)
+            arguments["sheet_name"] = sheetName;
+        var expected = sheetName is null
+            ? JsonSerializer.Serialize(new { scope }, ServiceProtocol.JsonOptions)
+            : JsonSerializer.Serialize(new { scope, sheetName }, ServiceProtocol.JsonOptions);
+        var call = await fixture.CallToolAsync("calculation_mode", arguments, new ServiceResponse
+        {
+            Success = false,
+            Command = "calculation.calculate",
+            SessionId = "session-1",
+            ErrorCategory = "InvalidInput",
+            ExceptionType = nameof(ArgumentException),
+            ErrorMessage = $"{parameter} is required for calculation."
+        }, "calculation.calculate", expected);
+
+        Assert.True(call.Result.IsError);
+        using var json = JsonDocument.Parse(call.JsonResult);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", json.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal(nameof(ArgumentException), json.RootElement.GetProperty("exceptionType").GetString());
+        Assert.Contains(parameter, json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("get-mode")]
     [InlineData("set-mode")]
     public async Task RemovedActions_DoNotDispatch(string action)

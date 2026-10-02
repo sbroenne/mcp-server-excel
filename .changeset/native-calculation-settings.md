@@ -7,3 +7,5 @@ controls, and explicit workbook precision-as-displayed permission. Add full
 recalculation and dependency rebuild. Rename the former workbook scope to
 application to accurately describe all open workbooks in the owned Excel process.
 Report actual native calculation state without assuming unavailable state is done.
+Reject missing or blank sheet/range calculation targets as `InvalidInput` failures
+instead of successful requests containing a nested failure.

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -110,6 +111,65 @@ public sealed class PersistentServiceCalculationSettingsTests(
             result.RootElement.GetProperty("modeValue").GetInt32());
         Assert.Equal(original.RootElement.GetProperty("maximumIterations").GetInt32(),
             result.RootElement.GetProperty("maximumIterations").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("sheet", null, null, "sheetName")]
+    [InlineData("sheet", "", null, "sheetName")]
+    [InlineData("sheet", " \t ", null, "sheetName")]
+    [InlineData("range", null, "A1", "sheetName")]
+    [InlineData("range", "", "A1", "sheetName")]
+    [InlineData("range", " \t ", "A1", "sheetName")]
+    [InlineData("range", "target", null, "rangeAddress")]
+    [InlineData("range", "target", "", "rangeAddress")]
+    [InlineData("range", "target", " \t ", "rangeAddress")]
+    public async Task Calculate_MissingTargetsReturnInvalidInputWithoutCalculation(
+        string scope, string? sheetName, string? rangeAddress, string parameter)
+    {
+        var targetSheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var previous = _fixture.Send("calculation.get-settings", new { });
+        using var original = JsonDocument.Parse(previous.Result!);
+        try
+        {
+            _fixture.Send("calculation.set-settings", new { mode = "manual" });
+            Assert.True(_commands.SetValues(_fixture.BatchToken, targetSheet, "A1", [[10d]]).Success);
+            Assert.True(_commands.SetFormulas(_fixture.BatchToken, targetSheet, "B1", [["=A1+5"]]).Success);
+            _fixture.Send("calculation.calculate", new { scope = "application" });
+            Assert.True(_commands.SetValues(_fixture.BatchToken, targetSheet, "A1", [[99d]],
+                overwritePolicy: OverwritePolicy.Allow).Success);
+            var beforeValues = _commands.GetValues(_fixture.BatchToken, targetSheet, "B1");
+            Assert.True(beforeValues.Success);
+            Assert.Equal(15d, Convert.ToDouble(beforeValues.Values[0][0],
+                System.Globalization.CultureInfo.InvariantCulture));
+            var beforeSettings = _fixture.Send("calculation.get-settings", new { });
+
+            var rejected = await _fixture.SendForFailureAsync("calculation.calculate", new
+            {
+                scope,
+                sheetName = sheetName == "target" ? targetSheet : sheetName,
+                rangeAddress
+            });
+
+            Assert.False(rejected.Success);
+            Assert.Equal("InvalidInput", rejected.ErrorCategory);
+            Assert.Equal(nameof(ArgumentException), rejected.ExceptionType);
+            Assert.Equal("calculation.calculate", rejected.Command);
+            Assert.Null(rejected.Result);
+            Assert.Contains(parameter, rejected.ErrorMessage, StringComparison.Ordinal);
+            var afterSettings = _fixture.Send("calculation.get-settings", new { });
+            Assert.Equal(beforeSettings.Result, afterSettings.Result);
+            var afterValues = _commands.GetValues(_fixture.BatchToken, targetSheet, "B1");
+            Assert.True(afterValues.Success);
+            Assert.Equal(15d, Convert.ToDouble(afterValues.Values[0][0],
+                System.Globalization.CultureInfo.InvariantCulture));
+        }
+        finally
+        {
+            _fixture.Send("calculation.set-settings", new
+            {
+                mode = original.RootElement.GetProperty("mode").GetString()
+            });
+        }
     }
 
     [Fact]

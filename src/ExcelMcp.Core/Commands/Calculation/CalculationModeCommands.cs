@@ -199,9 +199,9 @@ public sealed class CalculationModeCommands : ICalculationModeCommands
         if (scope != CalculationScope.Application && kind != CalculationKind.Normal)
             throw new ArgumentException("Full/rebuild calculation requires application scope.", nameof(kind));
         if (scope != CalculationScope.Application && string.IsNullOrWhiteSpace(sheetName))
-            return new OperationResult { ErrorMessage = "sheetName is required for Sheet/Range scope calculation" };
+            throw new ArgumentException("sheetName is required for Sheet/Range scope calculation.", nameof(sheetName));
         if (scope == CalculationScope.Range && string.IsNullOrWhiteSpace(rangeAddress))
-            return new OperationResult { ErrorMessage = "Both sheetName and rangeAddress are required for Range scope calculation" };
+            throw new ArgumentException("rangeAddress is required for Range scope calculation.", nameof(rangeAddress));
         if (scope == CalculationScope.Application && !string.IsNullOrEmpty(sheetName) ||
             scope != CalculationScope.Range && !string.IsNullOrEmpty(rangeAddress))
             throw new ArgumentException("Sheet/range inputs must match the requested calculation scope.");

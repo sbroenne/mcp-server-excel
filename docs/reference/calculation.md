@@ -66,6 +66,8 @@ continuing and surface both the original failure and any restoration failure.
 | `set-precision` | Change workbook precision-as-displayed | Required `precision_as_displayed`; enabling also requires `allow_precision_loss: true` |
 
 Sheet scope requires `sheet_name`. Range scope also requires `range_address`.
+Missing or blank targets are rejected as `InvalidInput` before calculation starts,
+not reported as successful requests. CLI target flags are `--sheet` and `--range`.
 Use `scope: 'application'` when dependencies cross sheets: it affects all open
 workbooks in the session's owned Excel process. `kind: 'full'` recalculates every
 formula; `kind: 'rebuild'` also rebuilds dependencies. Both require application
