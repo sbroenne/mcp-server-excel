@@ -83,8 +83,12 @@ New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 if ($RuntimeIdentifier -eq "win-x64") {
     $MetadataStage = Join-Path $OutputDir "staging-windows"
+    $StagedMcpbPath = Join-Path $OutputDir "staging-windows.mcpb"
     if (Test-Path -LiteralPath $MetadataStage) {
         Remove-McpbStagingDirectory -Path $MetadataStage
+    }
+    if (Test-Path -LiteralPath $StagedMcpbPath) {
+        Remove-Item -LiteralPath $StagedMcpbPath -Force
     }
     New-Item -ItemType Directory -Path $MetadataStage | Out-Null
     try {
@@ -101,12 +105,16 @@ if ($RuntimeIdentifier -eq "win-x64") {
             Copy-Item (Join-Path $RootDir $name) $MetadataStage
         }
         $McpbPath = Join-Path $OutputDir "excel-mcp-$Version.mcpb"
-        New-McpbArchive -SourceDirectory $MetadataStage -DestinationPath $McpbPath
+        New-McpbArchive -SourceDirectory $MetadataStage -DestinationPath $StagedMcpbPath
+        Install-PackageOutput -Source $StagedMcpbPath -Destination $McpbPath
         Copy-Item (Join-Path $MetadataStage "manifest.json") (Join-Path $OutputDir "manifest.json") -Force
         Write-Output $McpbPath
         return
     }
     finally {
+        if (Test-Path -LiteralPath $StagedMcpbPath) {
+            Remove-Item -LiteralPath $StagedMcpbPath -Force
+        }
         Remove-McpbStagingDirectory -Path $MetadataStage
     }
 }

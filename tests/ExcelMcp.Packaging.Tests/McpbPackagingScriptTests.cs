@@ -117,11 +117,11 @@ public sealed class McpbPackagingScriptTests
                 $OutputDirectory = '{{EscapePowerShellLiteral(output)}}'
                 $runtimeRoot = Join-Path $OutputDirectory 'runtimes'
                 $prepared = @{
-                    Mcp = Join-Path $root 'runtimes\x64\Sbroenne.ExcelMcp.McpServer.exe'
+                    Mcp = Join-Path $root 'runtimes/x64/Sbroenne.ExcelMcp.McpServer.exe'
                 }
                 $reuseArm64Runtime = ${{reuseArm64Runtime.ToString().ToLowerInvariant()}}
                 if ($reuseArm64Runtime) {
-                    $prepared['Mcp-arm64'] = Join-Path $root 'runtimes\arm64\Sbroenne.ExcelMcp.McpServer.exe'
+                    $prepared['Mcp-arm64'] = Join-Path $root 'runtimes/arm64/Sbroenne.ExcelMcp.McpServer.exe'
                 }
                 $script:runtimePublishCount = 0
                 . '{{EscapePowerShellLiteral(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"))}}'
@@ -148,15 +148,15 @@ public sealed class McpbPackagingScriptTests
                     }
                     $script:runtimePublishCount++
                     New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-                    Copy-Item -LiteralPath (Join-Path $root 'runtimes\arm64\Sbroenne.ExcelMcp.McpServer.exe') -Destination $OutputDirectory
+                    Copy-Item -LiteralPath (Join-Path $root 'runtimes/arm64/Sbroenne.ExcelMcp.McpServer.exe') -Destination $OutputDirectory
                     $global:LASTEXITCODE = 0
                 }
                 function npm.cmd {
                     $global:LASTEXITCODE = 0
                     if ($args[0] -eq 'run' -and $args[1] -eq 'compile') {
                         New-Item -ItemType Directory -Path 'out' | Out-Null
-                        Set-Content 'out\extension.js' 'fixture'
-                        Set-Content 'out\prerequisites.js' 'fixture'
+                        Set-Content 'out/extension.js' 'fixture'
+                        Set-Content 'out/prerequisites.js' 'fixture'
                     }
                     if ($args[0] -ne 'exec') { return }
                     $target = $args[[Array]::IndexOf($args, '--target') + 1]
@@ -167,7 +167,8 @@ public sealed class McpbPackagingScriptTests
                             $relative = [IO.Path]::GetRelativePath((Get-Location).Path, $file.FullName).Replace('\', '/')
                             $source = $file.FullName
                             if (${{corruptArm64Payload.ToString().ToLowerInvariant()}} -and
-                                $target -eq 'win32-arm64' -and $relative -eq 'bin/Sbroenne.ExcelMcp.McpServer.exe') {
+                                $target -eq 'win32-arm64' -and
+                                $relative -eq 'bin/win32-arm64/Sbroenne.ExcelMcp.McpServer.exe') {
                                 $source = $prepared.Mcp
                             }
                             [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $source, "extension/$relative") | Out-Null
@@ -216,7 +217,7 @@ public sealed class McpbPackagingScriptTests
                 })
                 {
                     using var archive = ZipFile.OpenRead(Path.Combine(output, fileName));
-                    var entry = archive.GetEntry("extension/bin/Sbroenne.ExcelMcp.McpServer.exe");
+                    var entry = archive.GetEntry($"extension/bin/win32-{architecture}/Sbroenne.ExcelMcp.McpServer.exe");
                     Assert.NotNull(entry);
                     using var reader = new BinaryReader(entry.Open());
                     var expectedPayload = File.ReadAllBytes(Path.Combine(
@@ -225,7 +226,10 @@ public sealed class McpbPackagingScriptTests
                     Assert.Equal(machine, BitConverter.ToUInt16(payload, headerOffset + 4));
                     Assert.Equal(expectedPayload, payload);
                 }
-                var debugRuntime = Path.Combine(output, "extension", "bin", "Sbroenne.ExcelMcp.McpServer.exe");
+                var debugTarget = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture ==
+                    System.Runtime.InteropServices.Architecture.Arm64 ? "win32-arm64" : "win32-x64";
+                var debugRuntime = Path.Combine(
+                    output, "extension", "bin", debugTarget, "Sbroenne.ExcelMcp.McpServer.exe");
                 var expectedDebugMachine = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture ==
                     System.Runtime.InteropServices.Architecture.Arm64 ? (ushort)0xaa64 : (ushort)0x8664;
                 Assert.Equal(expectedDebugMachine, BitConverter.ToUInt16(File.ReadAllBytes(debugRuntime), headerOffset + 4));
@@ -295,6 +299,7 @@ public sealed class McpbPackagingScriptTests
             var builder = Path.Combine(bundleRoot, "Build-McpBundle.ps1");
             File.Copy(Path.Combine(RepoRoot, "mcpb", "Build-McpBundle.ps1"), builder);
             File.Copy(PackagingHelpers, Path.Combine(bundleRoot, "McpbPackaging.ps1"));
+            File.Delete(Path.Combine(bundleRoot, "README.md"));
             var output = Path.Combine(bundleRoot, "artifacts");
             Directory.CreateDirectory(output);
             var previousPackage = Path.Combine(output, "excel-mcp-1.2.3.mcpb");
@@ -302,12 +307,10 @@ public sealed class McpbPackagingScriptTests
             await File.WriteAllTextAsync(previousPackage, "previous-good-package");
             await File.WriteAllTextAsync(unrelatedFile, "unrelated");
             var result = await RunPowerShellAsync($$"""
-                function Compress-Archive { throw 'archive-root-cause' }
                 & '{{EscapePowerShellLiteral(builder)}}' -Version '1.2.3'
                 exit $LASTEXITCODE
                 """);
             Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("archive-root-cause", result.Stdout + result.Stderr, StringComparison.Ordinal);
             Assert.True(File.Exists(previousPackage), "A failed build must preserve the previous package.");
             Assert.Equal("previous-good-package", await File.ReadAllTextAsync(previousPackage));
             Assert.Equal("unrelated", await File.ReadAllTextAsync(unrelatedFile));

@@ -66,7 +66,9 @@ try {
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory, $root)
     Assert-PackageOutputPath -Path $OutputDirectory -RepoRoot $root -Inputs @($SkillsDirectory, $McpRuntimeExecutable, $CliRuntimeExecutable)
     if (Test-Path -LiteralPath $OutputDirectory) { throw "Use a new package output directory: $OutputDirectory" }
-    if (-not $IsWindows) { throw 'Package installation checks require Windows (not Excel).' }
+    if (-not $IsWindows -and @($Components | Where-Object { $_ -ne 'Mcpb' }).Count) {
+        throw 'Package installation checks require Windows (not Excel).'
+    }
     New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
     $runtimeRoot = Join-Path $OutputDirectory 'runtimes'
     $prepared = @{}

@@ -74,7 +74,6 @@ function New-McpbArchive {
         [Parameter(Mandatory)]
         [string]$DestinationPath,
 
-        [Parameter(Mandatory)]
         [AllowEmptyString()]
         [string[]]$MacExecutableRelativePath = @()
     )

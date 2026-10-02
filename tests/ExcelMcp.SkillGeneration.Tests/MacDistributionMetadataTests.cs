@@ -29,7 +29,7 @@ public sealed class MacDistributionMetadataTests
         Assert.Contains("runtime: 'osx-arm64'", extensionBuild, StringComparison.Ordinal);
         Assert.DoesNotContain("runtime: 'osx-x64'", extensionBuild, StringComparison.Ordinal);
         Assert.Contains("platform === 'darwin' && architecture === 'arm64'", extensionRuntime, StringComparison.Ordinal);
-        Assert.Contains("Supported platforms are Windows x64 and Apple Silicon macOS", extensionRuntime, StringComparison.Ordinal);
+        Assert.Contains("Supported platforms are Windows x64/ARM64 and Apple Silicon macOS", extensionRuntime, StringComparison.Ordinal);
         Assert.Contains("'darwin-arm64'", extensionPackage, StringComparison.Ordinal);
         Assert.DoesNotContain("'darwin-x64'", extensionPackage, StringComparison.Ordinal);
     }
@@ -125,15 +125,14 @@ public sealed class MacDistributionMetadataTests
 
     [Fact]
     [Trait("Feature", "Distribution")]
-    public void AgentSkillsBuild_UsesTheNativeCliForReferenceGeneration()
+    public void AgentSkillsBuild_UsesPortableGeneratedSkillPaths()
     {
         var buildScript = Read("scripts/Build-AgentSkills.ps1");
 
-        Assert.Contains("if ($IsWindows) { \"excelcli.exe\" } else { \"excelcli\" }", buildScript, StringComparison.Ordinal);
-        Assert.Contains("if ($IsWindows) { \"net10.0-windows\" } else { \"net10.0\" }", buildScript, StringComparison.Ordinal);
-        Assert.Contains("\"src/ExcelMcp.CLI/bin/Release/$targetFramework/$executableName\"", buildScript, StringComparison.Ordinal);
+        Assert.DoesNotContain("Generate-CliReference", buildScript, StringComparison.Ordinal);
         Assert.Contains("$OutputDir = 'artifacts/generated-skills'", buildScript, StringComparison.Ordinal);
         Assert.Contains("$OutputDir = 'artifacts/skills'", buildScript, StringComparison.Ordinal);
+        Assert.Contains("Join-Path (Join-Path $SkillsDir 'assets') $name", buildScript, StringComparison.Ordinal);
     }
 
     [Fact]
