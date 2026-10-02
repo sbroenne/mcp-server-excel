@@ -440,6 +440,70 @@ public sealed class InProcessCliCommandTests
             telemetry);
     }
 
+    [Theory]
+    [InlineData(null, "[\"2026 Q2\"]")]
+    [InlineData(false, "[\"2026 Q1\"]")]
+    [InlineData(true, "[]")]
+    public async Task SlicerSelection_MapsNamesSelectionAndClearFirst(bool? clearFirst, string selectedItems)
+    {
+        const string result = """{"success":true,"availableItems":["2026 Q1","2026 Q2"],"selectedItems":["2026 Q2"],"connectedPivotTables":["RevenuePivot"]}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var arguments = new List<string>
+        {
+            "--quiet", "slicer", "set-slicer-selection", "--session", "session-1",
+            "--slicer-name", "QuarterSlicer", "--selected-items", selectedItems
+        };
+        if (clearFirst.HasValue)
+            arguments.AddRange(["--clear-first", clearFirst.Value ? "true" : "false"]);
+
+        var exitCode = await Program.RunAsync(arguments.ToArray(), CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(error.ToString());
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("slicer.set-slicer-selection", request.Command);
+        Assert.Equal("session-1", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal("QuarterSlicer", args.RootElement.GetProperty("slicerName").GetString());
+        Assert.Equal(selectedItems, args.RootElement.GetProperty("selectedItems").GetRawText());
+        if (clearFirst.HasValue)
+            Assert.Equal(clearFirst.Value, args.RootElement.GetProperty("clearFirst").GetBoolean());
+        using var returned = JsonDocument.Parse(output.ToString());
+        Assert.True(returned.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("2026 Q2", returned.RootElement.GetProperty("selectedItems")[0].GetString());
+        Assert.Equal("RevenuePivot", returned.RootElement.GetProperty("connectedPivotTables")[0].GetString());
+    }
+
+    [Fact]
+    public async Task SlicerSelection_InvalidItemReturnsErrorAndNonzeroExit()
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = false,
+            Command = "slicer.set-slicer-selection",
+            ErrorCategory = "InvalidInput",
+            ExceptionType = nameof(ArgumentException),
+            ErrorMessage = "Slicer item 'missing' was not found."
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "slicer", "set-slicer-selection", "--session", "session-1",
+                "--slicer-name", "QuarterSlicer", "--selected-items", "[\"missing\"]"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal("slicer.set-slicer-selection", Assert.Single(factory.Requests).Command);
+        using var returned = JsonDocument.Parse(output.ToString());
+        Assert.False(returned.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", returned.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Contains("missing", returned.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Empty(error.ToString());
+    }
+
     private static CliCommandRuntime CreateRuntime(
         RecordingClientFactory factory,
         StringWriter output,

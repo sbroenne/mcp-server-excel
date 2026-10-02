@@ -1,8 +1,7 @@
-using System.Runtime.InteropServices;
-
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -26,6 +25,7 @@ public partial class PivotTableCommands
             dynamic? slicer = null;
             dynamic? destSheet = null;
             dynamic? destRange = null;
+            Excel.Sheets? sheets = null;
 
             try
             {
@@ -34,7 +34,7 @@ public partial class PivotTableCommands
 
                 // Check if a SlicerCache already exists for this field+PivotTable
                 // If so, we add a new visual Slicer to the existing cache
-                slicerCache = FindExistingSlicerCache(slicerCaches, pivot, fieldName);
+                slicerCache = FindExistingSlicerCache(slicerCaches, pivot, fieldName, ct);
 
                 if (slicerCache == null)
                 {
@@ -50,7 +50,8 @@ public partial class PivotTableCommands
                 }
 
                 // Get destination sheet and calculate position from cell reference
-                destSheet = ctx.Book.Worksheets[destinationSheet];
+                sheets = ctx.Book.Worksheets;
+                destSheet = sheets[destinationSheet];
                 destRange = destSheet.Range[position];
 
                 // Get position in points from the cell reference
@@ -64,7 +65,7 @@ public partial class PivotTableCommands
                 slicer = slicers.Add(destSheet, Type.Missing, slicerName, slicerName, top, left);
 
                 // Build result
-                var result = BuildSlicerResult(slicer, slicerCache, fieldName);
+                var result = BuildSlicerResult(slicer, slicerCache, fieldName, ct);
                 result.Success = true;
                 result.WorkflowHint = $"Slicer '{slicerName}' created for field '{fieldName}'. Use SetSlicerSelection to filter data, or connect additional PivotTables to this slicer.";
 
@@ -72,10 +73,11 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref destRange);
-                ComUtilities.Release(ref destSheet);
                 ComUtilities.Release(ref slicer);
                 ComUtilities.Release(ref slicers);
+                ComUtilities.Release(ref destRange);
+                ComUtilities.Release(ref destSheet);
+                ComUtilities.Release(ref sheets);
                 ComUtilities.Release(ref slicerCache);
                 ComUtilities.Release(ref slicerCaches);
                 ComUtilities.Release(ref pivot);
@@ -106,6 +108,7 @@ public partial class PivotTableCommands
 
                 for (int cacheIndex = 1; cacheIndex <= slicerCaches.Count; cacheIndex++)
                 {
+                    ct.ThrowIfCancellationRequested();
                     dynamic? cache = null;
                     dynamic? slicers = null;
 
@@ -122,11 +125,12 @@ public partial class PivotTableCommands
                         slicers = cache.Slicers;
                         for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                         {
+                            ct.ThrowIfCancellationRequested();
                             dynamic? slicer = null;
                             try
                             {
                                 slicer = slicers.Item(slicerIndex);
-                                var slicerInfo = BuildSlicerInfo(slicer, cache);
+                                var slicerInfo = BuildSlicerInfo(slicer, cache, ct);
                                 result.Slicers.Add(slicerInfo);
                             }
                             finally
@@ -158,11 +162,13 @@ public partial class PivotTableCommands
     public SlicerResult SetSlicerSelection(IExcelBatch batch, string slicerName,
         List<string> selectedItems, bool clearFirst = true)
     {
+        ArgumentNullException.ThrowIfNull(selectedItems);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? slicerCaches = null;
-            dynamic? targetCache = null;
-            dynamic? targetSlicer = null;
+            Excel.SlicerCache? targetCache = null;
+            Excel.Slicer? targetSlicer = null;
             dynamic? slicerItems = null;
 
             try
@@ -170,7 +176,7 @@ public partial class PivotTableCommands
                 slicerCaches = ctx.Book.SlicerCaches;
 
                 // Find the slicer by name
-                var searchResult = FindSlicerByName(slicerCaches, slicerName);
+                var searchResult = FindSlicerByName(slicerCaches, slicerName, ct);
                 targetCache = searchResult.Cache;
                 targetSlicer = searchResult.Slicer;
 
@@ -183,55 +189,56 @@ public partial class PivotTableCommands
                     };
                 }
 
-                // Get slicer items from the cache
-                slicerItems = targetCache.SlicerItems;
-
                 // Build set of items to select for fast lookup
                 var itemsToSelect = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
 
                 // If no items specified, select all (clear filter)
                 bool selectAll = selectedItems.Count == 0;
 
-                // Iterate through slicer items and set selection
-                for (int i = 1; i <= slicerItems.Count; i++)
+                if (targetCache.OLAP)
                 {
-                    dynamic? item = null;
-                    try
+                    SetOlapSlicerSelection(targetSlicer, targetCache,
+                        selectedItems, clearFirst, ct);
+                }
+                else
+                {
+                    slicerItems = targetCache.SlicerItems;
+                    for (int i = 1; i <= slicerItems.Count; i++)
                     {
-                        item = slicerItems.Item(i);
-                        string itemName = item.Name?.ToString() ?? string.Empty;
+                        ct.ThrowIfCancellationRequested();
+                        dynamic? item = null;
+                        try
+                        {
+                            item = slicerItems.Item(i);
+                            string itemName = item.Name?.ToString() ?? string.Empty;
 
-                        if (selectAll)
-                        {
-                            item.Selected = true;
-                        }
-                        else if (clearFirst)
-                        {
-                            // Clear first mode: select only specified items
-                            item.Selected = itemsToSelect.Contains(itemName);
-                        }
-                        else
-                        {
-                            // Additive mode: add to existing selection
-                            if (itemsToSelect.Contains(itemName))
+                            if (selectAll)
+                            {
+                                item.Selected = true;
+                            }
+                            else if (clearFirst)
+                            {
+                                item.Selected = itemsToSelect.Contains(itemName);
+                            }
+                            else if (itemsToSelect.Contains(itemName))
                             {
                                 item.Selected = true;
                             }
                         }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
+                        finally
+                        {
+                            ComUtilities.Release(ref item);
+                        }
                     }
                 }
 
                 // Build result with updated state
                 string fieldName = GetSlicerCacheFieldName(targetCache);
-                var result = BuildSlicerResult(targetSlicer, targetCache, fieldName);
+                var result = BuildSlicerResult(targetSlicer, targetCache, fieldName, ct);
                 result.Success = true;
                 result.WorkflowHint = selectAll
                     ? $"Slicer '{slicerName}' filter cleared - all items are now visible."
-                    : $"Slicer '{slicerName}' selection updated to {selectedItems.Count} item(s).";
+                    : $"Slicer '{slicerName}' selection updated to {result.SelectedItems.Count} item(s).";
 
                 return result;
             }
@@ -261,7 +268,7 @@ public partial class PivotTableCommands
                 slicerCaches = ctx.Book.SlicerCaches;
 
                 // Find the slicer by name
-                var searchResult = FindSlicerByName(slicerCaches, slicerName);
+                var searchResult = FindSlicerByName(slicerCaches, slicerName, ct);
                 targetCache = searchResult.Cache;
                 targetSlicer = searchResult.Slicer;
 
@@ -305,11 +312,13 @@ public partial class PivotTableCommands
     /// <summary>
     /// Finds an existing SlicerCache for a field on a specific PivotTable
     /// </summary>
-    private static dynamic? FindExistingSlicerCache(dynamic slicerCaches, dynamic pivot, string fieldName)
+    private static dynamic? FindExistingSlicerCache(dynamic slicerCaches, dynamic pivot, string fieldName, CancellationToken ct)
     {
         for (int i = 1; i <= slicerCaches.Count; i++)
         {
+            ct.ThrowIfCancellationRequested();
             dynamic? cache = null;
+            bool found = false;
             try
             {
                 cache = slicerCaches.Item(i);
@@ -318,22 +327,20 @@ public partial class PivotTableCommands
                 string cacheFieldName = GetSlicerCacheFieldName(cache);
                 if (!string.Equals(cacheFieldName, fieldName, StringComparison.OrdinalIgnoreCase))
                 {
-                    ComUtilities.Release(ref cache);
                     continue;
                 }
 
                 // Check if this cache is connected to our PivotTable
                 if (IsSlicerCacheConnectedToPivot(cache, pivot))
                 {
+                    found = true;
                     return cache; // Don't release - returning to caller
                 }
-
-                ComUtilities.Release(ref cache);
             }
-            catch (COMException)
+            finally
             {
-                // COM property access may fail for certain cache types - continue searching
-                ComUtilities.Release(ref cache);
+                if (!found)
+                    ComUtilities.Release(ref cache);
             }
         }
 
@@ -345,58 +352,7 @@ public partial class PivotTableCommands
     /// </summary>
     private static string GetSlicerCacheFieldName(dynamic cache)
     {
-        dynamic? sourceField = null;
-        try
-        {
-            // Try to get SourceName first (OLAP), then fall back to checking PivotField
-            try
-            {
-                string? sourceName = cache.SourceName?.ToString();
-                if (!string.IsNullOrEmpty(sourceName))
-                    return sourceName;
-            }
-            catch (COMException)
-            {
-                // SourceName property not available for this cache type - fall back to Name
-            }
-
-            // For regular slicers, get from PivotTables collection
-            dynamic? pivotTables = null;
-            try
-            {
-                pivotTables = cache.PivotTables;
-                if (pivotTables != null && pivotTables.Count > 0)
-                {
-                    dynamic? pt = null;
-                    try
-                    {
-                        pt = pivotTables.Item(1);
-                        // The cache Name often contains the field name
-                        string cacheName = cache.Name?.ToString() ?? string.Empty;
-                        // SlicerCache names are typically "Slicer_FieldName" format
-                        if (cacheName.StartsWith("Slicer_", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return cacheName[7..]; // Remove "Slicer_" prefix
-                        }
-                        return cacheName;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref pt);
-                    }
-                }
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivotTables);
-            }
-
-            return cache.Name?.ToString() ?? "Unknown";
-        }
-        finally
-        {
-            ComUtilities.Release(ref sourceField);
-        }
+        return cache.SourceName;
     }
 
     /// <summary>
@@ -447,12 +403,14 @@ public partial class PivotTableCommands
     /// <summary>
     /// Finds a slicer by name across all SlicerCaches
     /// </summary>
-    private static SlicerSearchResult FindSlicerByName(dynamic slicerCaches, string slicerName)
+    private static SlicerSearchResult FindSlicerByName(dynamic slicerCaches, string slicerName, CancellationToken ct)
     {
         for (int cacheIndex = 1; cacheIndex <= slicerCaches.Count; cacheIndex++)
         {
+            ct.ThrowIfCancellationRequested();
             dynamic? cache = null;
             dynamic? slicers = null;
+            bool found = false;
 
             try
             {
@@ -461,6 +419,7 @@ public partial class PivotTableCommands
 
                 for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                 {
+                    ct.ThrowIfCancellationRequested();
                     dynamic? slicer = null;
                     try
                     {
@@ -470,26 +429,22 @@ public partial class PivotTableCommands
                         if (string.Equals(name, slicerName, StringComparison.OrdinalIgnoreCase))
                         {
                             // Found it - return both cache and slicer (don't release)
-                            ComUtilities.Release(ref slicers);
+                            found = true;
                             return new SlicerSearchResult { Cache = cache, Slicer = slicer };
                         }
-                        ComUtilities.Release(ref slicer);
                     }
-                    catch (COMException)
+                    finally
                     {
-                        // COM access may fail for certain slicer types - continue searching
-                        ComUtilities.Release(ref slicer);
+                        if (!found)
+                            ComUtilities.Release(ref slicer);
                     }
                 }
-
-                ComUtilities.Release(ref slicers);
-                ComUtilities.Release(ref cache);
             }
-            catch (COMException)
+            finally
             {
-                // COM access may fail for certain cache types - continue searching
                 ComUtilities.Release(ref slicers);
-                ComUtilities.Release(ref cache);
+                if (!found)
+                    ComUtilities.Release(ref cache);
             }
         }
 
@@ -499,7 +454,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Builds a SlicerInfo from COM objects
     /// </summary>
-    private static SlicerInfo BuildSlicerInfo(dynamic slicer, dynamic cache)
+    private static SlicerInfo BuildSlicerInfo(dynamic slicer, dynamic cache, CancellationToken ct)
     {
         var info = new SlicerInfo
         {
@@ -538,7 +493,7 @@ public partial class PivotTableCommands
         }
 
         // Get selected and available items from cache
-        var items = GetSlicerItems(cache);
+        SlicerItemsResult items = GetSlicerItems((Excel.Slicer)slicer, (Excel.SlicerCache)cache, ct);
         info.SelectedItems = items.Selected;
         info.AvailableItems = items.Available;
 
@@ -551,7 +506,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Builds a SlicerResult from COM objects
     /// </summary>
-    private static SlicerResult BuildSlicerResult(dynamic slicer, dynamic cache, string fieldName)
+    private static SlicerResult BuildSlicerResult(dynamic slicer, dynamic cache, string fieldName, CancellationToken ct)
     {
         var result = new SlicerResult
         {
@@ -589,7 +544,7 @@ public partial class PivotTableCommands
         }
 
         // Get items
-        var items = GetSlicerItems(cache);
+        SlicerItemsResult items = GetSlicerItems((Excel.Slicer)slicer, (Excel.SlicerCache)cache, ct);
         result.SelectedItems = items.Selected;
         result.AvailableItems = items.Available;
 
@@ -611,32 +566,46 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets selected and available items from a SlicerCache
     /// </summary>
-    private static SlicerItemsResult GetSlicerItems(dynamic cache)
+    private static SlicerItemsResult GetSlicerItems(Excel.Slicer slicer, Excel.SlicerCache cache, CancellationToken ct)
     {
-        var selected = new List<string>();
-        var available = new List<string>();
-        dynamic? slicerItems = null;
+        var items = ReadSlicerItems(slicer, cache, ct);
+        return new SlicerItemsResult
+        {
+            Selected = items.Where(item => item.Selected).Select(item => item.Caption).ToList(),
+            Available = items.Select(item => item.Caption).ToList()
+        };
+    }
 
+    private sealed record SlicerItemState(string Name, string Caption, bool Selected);
+
+    private static List<SlicerItemState> ReadSlicerItems(Excel.Slicer slicer, Excel.SlicerCache cache,
+        CancellationToken ct)
+    {
+        var result = new List<SlicerItemState>();
+        Excel.SlicerCacheLevel? level = null;
+        Excel.SlicerItems? items = null;
         try
         {
-            slicerItems = cache.SlicerItems;
-
-            for (int i = 1; i <= slicerItems.Count; i++)
+            bool olap = cache.OLAP;
+            if (olap)
             {
-                dynamic? item = null;
+                // OLAP items belong to the visual slicer's level, not SlicerCache.SlicerItems.
+                level = slicer.SlicerCacheLevel;
+                items = level.SlicerItems;
+            }
+            else
+            {
+                items = cache.SlicerItems;
+            }
+
+            for (int i = 1; i <= items.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                Excel.SlicerItem? item = null;
                 try
                 {
-                    item = slicerItems.Item(i);
-                    string itemName = item.Name?.ToString() ?? string.Empty;
-
-                    if (!string.IsNullOrEmpty(itemName))
-                    {
-                        available.Add(itemName);
-                        if (item.Selected)
-                        {
-                            selected.Add(itemName);
-                        }
-                    }
+                    item = items.Item[i];
+                    result.Add(new SlicerItemState(item.Name, olap ? item.Caption : item.Name, item.Selected));
                 }
                 finally
                 {
@@ -644,16 +613,53 @@ public partial class PivotTableCommands
                 }
             }
         }
-        catch (COMException)
-        {
-            // SlicerItems collection may not be accessible for certain cache types
-        }
         finally
         {
-            ComUtilities.Release(ref slicerItems);
+            ComUtilities.Release(ref items);
+            ComUtilities.Release(ref level);
         }
 
-        return new SlicerItemsResult { Selected = selected, Available = available };
+        return result;
+    }
+
+    private static void SetOlapSlicerSelection(Excel.Slicer slicer, Excel.SlicerCache cache,
+        List<string> selectedItems, bool clearFirst, CancellationToken ct)
+    {
+        if (selectedItems.Count == 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            cache.ClearManualFilter();
+            return;
+        }
+
+        var items = ReadSlicerItems(slicer, cache, ct);
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string requested in selectedItems)
+        {
+            ct.ThrowIfCancellationRequested();
+            var matches = items.Where(item => string.Equals(item.Name, requested, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matches.Count == 0)
+                matches = items.Where(item => string.Equals(item.Caption, requested, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matches.Count == 0)
+                throw new ArgumentException($"Slicer item '{requested}' was not found. Use availableItems from list-slicers.", nameof(selectedItems));
+            if (matches.Count > 1)
+                throw new ArgumentException($"Slicer caption '{requested}' is ambiguous. Use the item's MDX unique name.", nameof(selectedItems));
+            names.Add(matches[0].Name);
+        }
+
+        if (!clearFirst)
+        {
+            names.UnionWith(items.Where(item => item.Selected).Select(item => item.Name));
+            // Preserve manual filters on other levels of a shared OLAP hierarchy.
+            if (!cache.FilterCleared)
+            {
+                if (cache.VisibleSlicerItemsList is not Array visible)
+                    throw new InvalidOperationException("Excel did not return the OLAP slicer's manual selection.");
+                names.UnionWith(visible.Cast<string>());
+            }
+        }
+        ct.ThrowIfCancellationRequested();
+        cache.VisibleSlicerItemsList = names.ToArray();
     }
 
     /// <summary>
@@ -704,5 +710,3 @@ public partial class PivotTableCommands
 
     #endregion
 }
-
-

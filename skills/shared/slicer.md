@@ -39,8 +39,15 @@ array argument in MCP. `'[]'` clears the filter. The default replaces the
 selection; disabling clear-first adds to it. The implementation compares names
 case-insensitively, but use the actual item names returned by Excel.
 
-Unmatched values are not individually rejected, and Excel may retain a selection
-when asked to deselect every item. Never infer success from the requested values:
+Data Model/OLAP PivotTable slicers use the same PivotTable slicer actions.
+Create with the discovered hierarchy name, such as `[Quarters].[Quarter]`.
+`availableItems` and `selectedItems` contain the displayed captions. Selection
+accepts those captions or MDX unique names; unknown or ambiguous values fail
+before changing the filter. Adding to an unfiltered slicer keeps all items selected.
+
+For regular PivotTable and Table slicers, unmatched values are not individually
+rejected, and Excel may retain a selection when asked to deselect every item.
+Never infer success from the requested values:
 read the slicer selection and the filtered Table rows or PivotTable data.
 Check combined filters together. Deleting a slicer is not the same operation as
 clearing its filter; explicitly clear first if that is the intended result.
