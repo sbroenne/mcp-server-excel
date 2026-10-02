@@ -2,6 +2,11 @@
 
 This document tracks the status of `Microsoft.Office.Interop.Excel` type coverage across ExcelMcp, explains why some casts remain `dynamic`, and documents the verified methodology for checking PIA coverage.
 
+**Platform scope:** PIA/COM coverage describes the Windows backend only.
+Experimental Apple Silicon macOS uses supported Apple Events/optional APIs and
+separate acceptance gates; a PIA member's presence does not enable a Mac action.
+See [Mac support](../specs/MACOS-SUPPORT.md).
+
 ---
 
 ## TL;DR — Current Status

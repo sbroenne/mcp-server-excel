@@ -2,10 +2,14 @@
 
 LLM-powered integration tests for both ExcelMcp MCP Server and Excel CLI using pytest-skill-engineering.
 
+**Platform scope:** the existing workbook/COM evaluations below target Windows.
+They do not establish support for the experimental Apple Silicon macOS beta or
+its gated features; use the separate [Mac acceptance requirements](../specs/MACOS-SUPPORT.md).
+
 ## Prerequisites
 
 - Windows desktop with Microsoft Excel installed
-- .NET 10 SDK
+- The .NET SDK selected by `global.json`
 - GitHub Copilot access and authentication
 - Azure OpenAI endpoint for the optional AI report summary (enabled by default)
 - ExcelMcp MCP Server and CLI built/installed
@@ -89,7 +93,7 @@ Missing results fail the evaluation rather than hiding command failures.
 Example:
 
 ```powershell
-$env:EXCEL_MCP_SERVER_COMMAND = "d:\\source\\mcp-server-excel\\src\\ExcelMcp.McpServer\\bin\\Release\\net10.0-windows\\Sbroenne.ExcelMcp.McpServer.exe"
+$env:EXCEL_MCP_SERVER_COMMAND = "d:\\source\\mcp-server-excel\\src\\ExcelMcp.McpServer\\bin\\Release\\net10.0\\Sbroenne.ExcelMcp.McpServer.exe"
 $env:EXCEL_CLI_COMMAND = "excelcli"
 ```
 

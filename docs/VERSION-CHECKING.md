@@ -7,6 +7,11 @@ This document describes how version checking and update notifications work in Ex
 ExcelMcp checks for updates against the latest GitHub Release. Both the CLI and MCP Server
 use the GitHub Releases API to compare the current version with the latest published release.
 
+Apple Silicon macOS support is experimental beta with
+[limited features](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+Updating a package does not enable gated actions. Windows tray notifications
+below do not exist on Mac; console version checking is platform-independent.
+
 ## CLI Version Checking
 
 ### Manual Version Check
@@ -111,13 +116,18 @@ When a new version is available:
 **Standalone exe (primary):**
 1. Download the latest release from:
    - [https://github.com/sbroenne/mcp-server-excel/releases/latest](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Extract the new exe(s):
+2. Extract the archive for your platform:
    - `ExcelMcp-MCP-Server-{version}-windows.zip` → `mcp-excel.exe`
    - `ExcelMcp-CLI-{version}-windows.zip` → `excelcli.exe`
-3. Replace the existing exe(s) in your installation directory
+   - `ExcelMcp-MCP-Server-{version}-macos-arm64.zip` → `mcp-excel`
+   - `ExcelMcp-CLI-{version}-macos-arm64.zip` → `excelcli`
+3. Replace the matching executable(s) in your installation directory
 4. Restart your MCP client
 
 **NuGet (secondary):**
+The release installation check is Windows-only; use native primary packages
+for the Mac beta.
+
 ```powershell
 dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 dotnet tool update --global Sbroenne.ExcelMcp.CLI

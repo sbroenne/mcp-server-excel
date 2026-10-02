@@ -1,10 +1,9 @@
 ---
 title: Power Query
-description: Power Query behaviour reference - load destinations, refresh semantics, M code handling, and the errors you will hit.
+description: Windows Excel Power Query reference for load destinations, refresh, M code, and errors. All Power Query actions are unsupported in the experimental Mac beta.
 keywords: "Power Query reference, Power Query automation, M code errors"
 ---
 
 # Power Query
 
 --8<-- "_generated/skills-powerquery.md"
-

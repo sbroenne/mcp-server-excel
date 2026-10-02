@@ -1,5 +1,9 @@
 # Slicers
 
+**Windows-only in the experimental macOS beta.** All public slicer actions are
+gated on Mac; source-identifiable Office.js candidates are not enabled. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 PivotTable slicers filter their connected PivotTables. Table slicers filter one
 Excel Table. Filtering source-table rows does not automatically filter a
 separate PivotTable cache. Use the matching creation, listing, selection, and

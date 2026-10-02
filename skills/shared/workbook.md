@@ -1,5 +1,11 @@
 # Workbook Lifecycle
 
+**Windows-only workbook-tool reference.** Advanced metadata, properties,
+protection, save/export, and external-link actions below are unavailable in the
+experimental macOS beta. Mac lifecycle uses `file`/`session` open/create/close,
+not these advanced actions. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Use workbook operations for metadata, file variants, publishing, and external
 links. Session lifecycle is separate.
 

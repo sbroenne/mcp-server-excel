@@ -151,6 +151,9 @@ public interface IRangeLinkCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <param name="locked">Lock status: true = locked (protected when sheet protection enabled), false = unlocked (editable)</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP set locked false and true across the requested range and read back each state.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("set-cell-lock")]
     OperationResult SetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] bool locked);
 
@@ -160,6 +163,9 @@ public interface IRangeLinkCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP read the first cell's locked state after both false and true range mutations.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("get-cell-lock")]
     RangeLockInfoResult GetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }

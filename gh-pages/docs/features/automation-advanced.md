@@ -1,6 +1,6 @@
 ---
 title: Excel VBA, Python & Automation
-description: Automate Excel with VBA macros, Python in Excel, What-If Analysis, Goal Seek, window management, and XML Maps.
+description: Windows Excel automation for VBA, Python, What-If, windows, and XML Maps. The experimental Mac beta supports Goal Seek, Data Tables, and Python formula writes only.
 keywords: "Excel VBA automation, Python in Excel, Excel Goal Seek automation, What-If Analysis, Excel XML Maps, Excel window automation"
 ---
 
@@ -8,7 +8,10 @@ keywords: "Excel VBA automation, Python in Excel, Excel Goal Seek automation, Wh
 
 Extend Excel workflows with code and specialized automation. Run macros and
 Python, solve scenarios with Goal Seek and data tables, control windows, and
-integrate structured XML data.
+integrate structured XML data on Windows. The experimental Apple Silicon Mac
+beta supports Goal Seek, Data Tables, and licensed Python formula writes, not
+Scenarios, result reads, VBA, window control, or XML Maps; see
+[Mac limitations](../macos-support.md).
 
 [View all feature categories](../features.md){ .md-button }
 

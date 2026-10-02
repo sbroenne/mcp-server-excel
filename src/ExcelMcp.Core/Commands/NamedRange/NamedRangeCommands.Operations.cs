@@ -14,7 +14,6 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class NamedRangeCommands
 {
     private const long MaxListValuePreviewCellCount = 10_000;
-
     /// <inheritdoc />
     public NamedRangeListResult List(IExcelBatch batch)
     {

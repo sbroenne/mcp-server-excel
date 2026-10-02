@@ -1,9 +1,9 @@
 ---
 title: Frequently Asked Questions
 description: >-
-  Answers to common questions about Excel MCP Server - Windows and Excel
-  requirements, CLI vs. MCP Server, workbook safety, cost, and privacy.
-keywords: "Excel MCP FAQ, does Excel MCP need Excel installed, Excel MCP Windows only, Excel MCP vs openpyxl, Excel MCP CLI or MCP Server, is Excel MCP free"
+  Answers about Windows support, experimental Apple Silicon macOS support,
+  Excel requirements, CLI vs. MCP Server, workbook safety, cost, and privacy.
+keywords: "Excel MCP FAQ, Excel installed, Excel MCP macOS experimental beta, Excel MCP Windows, Excel MCP vs openpyxl, Excel MCP CLI or MCP Server"
 ---
 
 # Frequently Asked Questions
@@ -25,13 +25,15 @@ Hitting an actual error rather than a question? See
 ### Do I need to know how Excel automation works to use this?
 
 No. You talk to your AI assistant in plain language ("build a PivotTable of
-sales by product and chart it") and it drives Excel for you. The
+sales by product and chart it" on Windows) and it drives Excel for you. The
 [feature reference](features.md) is there when you want to see everything that's
 possible - you don't need to memorize it.
 
 ### CLI or MCP Server - which should I install?
 
-Both expose the **same 326 operations**. Use the **MCP Server** for
+Both expose the same 326 operations on Windows. Windows supports the complete
+surface; the experimental macOS beta enables only its verified subset. The
+[platform limitations](macos-support.md) apply equally to both. Use the **MCP Server** for
 conversational AI (Claude Desktop, VS Code Chat); use the **CLI** (`excelcli`)
 for coding agents and scripting, where it uses ~64% fewer tokens. You can
 install both. See [Installation](installation.md).
@@ -47,9 +49,21 @@ shell commands can use the CLI directly instead. See
 
 ### Does it require Microsoft Excel to be installed?
 
-Yes. Excel MCP Server drives the **real Excel application** through its COM API,
-so it's **Windows-only** and needs **Excel 2016 or later** installed locally. It
-is not a file-format parser and does not run on macOS or Linux.
+Yes. Windows uses Excel's COM API and requires **Excel 2016 or later** locally.
+Apple Silicon macOS uses Apple Events against **Excel for Mac 16.112 or later**
+for an **experimental beta subset**, not full Windows parity. Both require an
+interactive desktop; Intel Macs, Linux, and headless hosts are unsupported.
+It is not a file-format parser. See [installation](installation.md).
+
+### Which features are unavailable in the macOS beta?
+
+Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers,
+connections, QueryTables, XML Maps, screenshots, and advanced visual formatting
+are unavailable. Python formula writes are enabled, but result reads are not;
+Goal Seek and Data Tables are enabled, but Scenarios are not. Basic number
+formats and sizing do not imply rich styling or window/Agent Mode support.
+See the [complete macOS limitations and action inventory](macos-support.md).
+Installing the optional bridge does not enable unverified candidates.
 
 ### Why drive real Excel instead of parsing the file?
 
@@ -62,12 +76,12 @@ for the full comparison with tools like openpyxl and pandas.
 
 ### Will it damage my existing workbooks?
 
-Excel itself opens and saves the file, rather than a file-parser library
-rewriting it. That avoids file-parser limitations, but it is not a guarantee
-that a workbook stays unchanged. Requested edits can change or remove data,
-formulas, formatting, charts, PivotTables, macros, or Data Model features.
-Review the requested changes before saving; some operations are destructive
-and have no tool-level undo.
+Excel itself opens and saves the file rather than ExcelMcp rewriting its
+internal package. That avoids file-parser substitutions, but it is not a
+guarantee against mistakes: requested edits, format conversion, partial failures,
+and interrupted saves can affect a workbook. Keep backups and test the
+experimental macOS beta on copies of important workbooks. Cancellation is not
+undo; inspect the actual result before retrying.
 
 ## Cost, privacy and support
 

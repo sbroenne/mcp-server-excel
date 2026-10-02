@@ -377,15 +377,18 @@ internal static class DaemonAutoStart
                         $"Could not acquire the daemon starting marker for CLI pipe '{pipeName}'.");
                 }
 
-                var cleanupResult = OwnedProcessCleanup
-                    .CleanupAsync(pipeName, cancellationToken)
-                    .GetAwaiter()
-                    .GetResult();
-                if (!cleanupResult.Success)
+                if (OperatingSystem.IsWindows())
                 {
-                    throw new InvalidOperationException(
-                        $"{cleanupResult.ErrorMessage ?? $"Tracked processes for CLI pipe '{pipeName}' could not be stopped."} " +
-                        "Run 'excelcli service stop' and retry.");
+                    var cleanupResult = OwnedProcessCleanup
+                        .CleanupAsync(pipeName, cancellationToken)
+                        .GetAwaiter()
+                        .GetResult();
+                    if (!cleanupResult.Success)
+                    {
+                        throw new InvalidOperationException(
+                            $"{cleanupResult.ErrorMessage ?? $"Tracked processes for CLI pipe '{pipeName}' could not be stopped."} " +
+                            "Run 'excelcli service stop' and retry.");
+                    }
                 }
 
                 // No daemon running — start it.
@@ -447,12 +450,28 @@ internal static class DaemonAutoStart
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
-            Arguments = $"service run --pipe-name \"{pipeName}\"",
-            UseShellExecute = true,
+            UseShellExecute = OperatingSystem.IsWindows(),
+            RedirectStandardInput = !OperatingSystem.IsWindows(),
+            RedirectStandardOutput = !OperatingSystem.IsWindows(),
+            RedirectStandardError = !OperatingSystem.IsWindows(),
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden,
             WorkingDirectory = Path.GetDirectoryName(exePath) ?? Environment.CurrentDirectory
         };
+        if (string.Equals(Path.GetFileNameWithoutExtension(exePath), "dotnet", StringComparison.OrdinalIgnoreCase))
+        {
+            var assemblyPath = Path.Combine(AppContext.BaseDirectory, "excelcli.dll");
+            if (!File.Exists(assemblyPath))
+            {
+                throw new InvalidOperationException(
+                    $"CLI assembly '{assemblyPath}' is unavailable for daemon startup.");
+            }
+            startInfo.ArgumentList.Add(assemblyPath);
+        }
+        startInfo.ArgumentList.Add("service");
+        startInfo.ArgumentList.Add("run");
+        startInfo.ArgumentList.Add("--pipe-name");
+        startInfo.ArgumentList.Add(pipeName);
 
         var daemonProcess = StartDaemonProcess(
             startupDeadline,
@@ -462,6 +481,10 @@ internal static class DaemonAutoStart
 
         using (daemonProcess)
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                daemonProcess.StandardInput.Close();
+            }
             while (!startupDeadline.IsExpired)
             {
                 await Task.Delay(

@@ -1,5 +1,11 @@
 # Excel Range API Specification
 
+**Platform scope:** this document retains the original Windows COM design and
+proposal. It does not define Mac availability. Experimental Apple Silicon
+macOS supports an accepted range subset, not all actions/variants below; use
+[current cell guidance](../docs/features/CELLS-WORKBOOKS.md) and
+[Mac support](MACOS-SUPPORT.md).
+
 > **Comprehensive range operations for ExcelMcp - replacing fragmented cell/sheet operations**
 
 ## Executive Summary

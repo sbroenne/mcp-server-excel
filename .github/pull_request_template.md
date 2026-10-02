@@ -23,10 +23,11 @@ Relates to #[issue number]
 
 ## Testing Performed
 - [ ] If Core/CLI/MCP runtime paths changed: ran `& .\scripts\Test-E2E.ps1` locally and confirmed it completed with no failures or unresolved issues
+- [ ] If Mac runtime paths changed: ran `pwsh -NoProfile -File scripts/Test-MacE2E.ps1` locally with desktop Excel; Windows COM execution is recorded separately
 - [ ] Excel E2E not applicable because no Core/CLI/MCP runtime path changed
 - [ ] Ran the relevant feature-specific integration tests and recorded the exact command and result below
 - [ ] Tested manually with various Excel files
-- [ ] Verified Excel process cleanup (no excel.exe remains after 5 seconds)
+- [ ] Verified owned Excel cleanup: Windows session processes exit; Mac closes only confirmed owned workbooks and leaves shared Excel/unrelated workbooks untouched
 - [ ] Tested error conditions (missing files, invalid arguments, etc.)
 - [ ] All existing commands still work
 - [ ] VBA script execution tested (if applicable)

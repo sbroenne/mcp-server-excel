@@ -1,14 +1,15 @@
 ---
 name: excel-cli
 description: >
-  Excel CLI automation skill for Windows workbooks. Use when a coding agent needs
+  Excel CLI automation skill for Windows and Apple Silicon macOS workbooks. Use when a coding agent needs
   scriptable or unattended Excel automation via excelcli commands.
   Best for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk
-  workbook edits. Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts,
-  VBA, Data Models, screenshots, and formatting. Triggers: excelcli, Excel CLI,
+  workbook edits. Windows supports Power Query, DAX, PivotTables, Tables, Ranges,
+  Charts, VBA, Data Models, screenshots, and formatting. macOS support is an
+  experimental capability-gated beta. Triggers: excelcli, Excel CLI,
   command line, batch, script, automation, CI/CD, scheduled, PowerShell, unattended,
   coding agent, workbook processing.
-compatibility: Requires Windows and Microsoft Excel 2016 or later. Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks.
+compatibility: Requires Windows with Excel 2016+ or Apple Silicon macOS with Excel 16.112+ (experimental beta). Node.js 18+ is required whenever running through npx; network access is needed for package downloads and update checks.
 ---
 
 # Excel Automation with excelcli
@@ -24,10 +25,22 @@ the complete action list, flags, applicability, and defaults. For the branched
 Read only guides needed for a decision or recovery; do not load the entire
 reference library.
 
+## macOS capability gate
+
+On macOS, use only actions marked available in the generated macOS action
+inventory. Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts,
+slicers, connections, QueryTables, XML Maps, screenshots, advanced visual
+formatting, Scenario actions, calculation-mode get/set, and Python result reads
+are unavailable. `Partial` inventory entries are gated, not partially usable.
+Report the limit rather than approximating behavior, inspecting workbook
+packages, or changing security settings. Mac sessions own exact workbooks in
+shared Excel; never terminate the shared application. See
+[Mac support and limitations](https://excelmcpserver.dev/macos-support/).
+
 ## Target, scope, and sessions
 
 - Run `excelcli -q session list` before opening; reuse the intended workbook,
-  not any open session. `session open` needs an existing full Windows path;
+  not any open session. `session open` needs an existing full native path;
   `session create` creates a new file. Never guess a path or session ID.
 - JSON returns `sessionId`; use it as `--session $sessionId`. CLI and MCP
   sessions are separate. Calls are serialized, but concurrent requests and
@@ -41,7 +54,8 @@ reference library.
   unrelated reads or edits.
 - Reuse a known visibility preference; preserve an existing session's visibility.
   Leaving a workbook open does not mean showing a hidden Excel window.
-  New sessions default to hidden; authentication may require `--show`.
+  New Windows sessions default to hidden; authentication may require `--show`.
+  Mac uses shared desktop Excel.
 - Check each exit code and result. Failures can partly apply; inspect the
   session and affected objects before retrying. Cancellation is not undo.
 - Close only when authorized and `session list` reports `canClose: true`.
@@ -77,7 +91,7 @@ embedded JSON quotes; use the wrapper or file input when affected.
 Follow help for each input's shape; supply inline content or its file option,
 never both.
 
-One block is already batched. Only for costly repeated recalculation, remember
+One block is already batched. On Windows, only for costly repeated recalculation, remember
 the mode with `calculationmode get-mode`, use manual, write, calculate, and
 restore the prior mode in `finally`, including failure. Reads need no mode change.
 After a timeout or cancellation, inspect `excelcli -q session list` before
@@ -88,6 +102,7 @@ Writes attempt to restore the prior mode, not unconditional recalculation.
 Restoration can fail without failing the write; use `get-mode` when subsequent
 results depend on it; manual needs explicit calculation.
 Semi-automatic excludes what-if data tables, not worksheet Tables.
+On Mac, calculation-mode get/set is unavailable; use explicit calculation when needed.
 Read back required outputs; writes do not prove asynchronous refresh/Python completion.
 See [calculation and formatting](./references/behavioral-rules.md#changes-and-formatting)
 when these distinctions matter.

@@ -1,5 +1,11 @@
 # Data Model and DAX Management Feature Specification
 
+**Platform scope:** this Windows COM feature proposal is retained as design
+context, not a Mac roadmap or current action catalog. Data Model/DAX/OLAP
+actions are unsupported in the experimental Apple Silicon macOS beta. Use
+[current feature guidance](../docs/features/DATA-ANALYTICS.md) and
+[Mac limitations](MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 ## Overview
 
 Add comprehensive Data Model (PowerPivot) and DAX management capabilities to ExcelMcp, enabling programmatic manipulation of Excel's embedded Tabular data model. This provides AI-assisted development workflows for business intelligence features including measures, calculated columns, relationships, and perspectives.

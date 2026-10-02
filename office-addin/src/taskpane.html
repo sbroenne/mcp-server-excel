@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://officeapis.public.onecdn.static.microsoft; script-src 'self' https://officeapis.public.onecdn.static.microsoft; connect-src 'self'; style-src 'unsafe-inline'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ExcelMcp capability bridge</title>
+  <script src="https://officeapis.public.onecdn.static.microsoft/1/office.js"></script>
+</head>
+<body>
+  <p id="status" role="status" aria-live="polite">Waiting for Excel...</p>
+  <script type="module" src="/addin.mjs"></script>
+</body>
+</html>

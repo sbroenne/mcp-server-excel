@@ -77,6 +77,7 @@ public static class ServiceInfoExtractor
 
         // Extract interface-level XML documentation
         var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);
+        var interfaceMacCapability = ExtractMacCapabilityInfo(interfaceSymbol, null);
 
         var methods = new List<MethodInfo>();
 
@@ -104,7 +105,8 @@ public static class ServiceInfoExtractor
                     parameters,
                     xmlDoc?.Summary,
                     hasBatchParameter,
-                    hasProgressParameter));
+                    hasProgressParameter,
+                    ExtractMacCapabilityInfo(method, interfaceMacCapability)));
             }
         }
 
@@ -122,7 +124,122 @@ public static class ServiceInfoExtractor
             mcpToolDestructive,
             mcpToolCategory,
             mcpToolDescription,
-            hasMcpToolAttribute: mcpTool != null);
+            hasMcpToolAttribute: mcpTool != null,
+            macCapability: interfaceMacCapability);
+    }
+
+    public static MacCapabilityInfo ExtractMacCapabilityInfo(
+        ISymbol symbol,
+        MacCapabilityInfo? inherited)
+    {
+        var attribute = symbol.GetAttributes()
+            .FirstOrDefault(candidate => candidate.AttributeClass?.Name == "MacCapabilityAttribute");
+        if (attribute is null)
+        {
+            var office = symbol.GetAttributes()
+                .FirstOrDefault(candidate =>
+                    candidate.AttributeClass?.Name == "OfficeAddInActionAttribute");
+            if (office is not null)
+            {
+                var requirementSet = office.ConstructorArguments.Length > 0
+                    ? office.ConstructorArguments[0].Value?.ToString()
+                    : null;
+                return new MacCapabilityInfo(
+                    "OfficeAddIn",
+                    "Partial",
+                    false,
+                    "The repository Office.js handler, exact action registration, requirement-set gate, and Excel-free contract tests are complete; source and mock evidence do not establish desktop Excel parity.",
+                    $"Office.js ExcelApi {requirementSet ?? "requirement set unspecified"}; desktop Excel build not yet accepted.",
+                    "Office.js real Excel acceptance requires the user to trust the localhost leaf certificate and activate the task-pane for the exact saved workbook");
+            }
+
+            return inherited ?? MacCapabilityInfo.Unclassified;
+        }
+
+        var tier = attribute.ConstructorArguments.Length > 0
+            ? GetEnumArgumentName(attribute.ConstructorArguments[0], "Unsupported")
+            : "Unsupported";
+        var status = attribute.ConstructorArguments.Length > 1
+            ? GetEnumArgumentName(attribute.ConstructorArguments[1], "NotTested")
+            : "NotTested";
+        var isAvailable = attribute.ConstructorArguments.Length > 2
+            && attribute.ConstructorArguments[2].Value is true;
+        string? evidence = null;
+        string? excelApiVersion = null;
+        string? blocker = null;
+        foreach (var argument in attribute.NamedArguments)
+        {
+            switch (argument.Key)
+            {
+                case "Evidence":
+                    evidence = argument.Value.Value?.ToString();
+                    break;
+                case "ExcelApiVersion":
+                    excelApiVersion = argument.Value.Value?.ToString();
+                    break;
+                case "Blocker":
+                    blocker = argument.Value.Value?.ToString();
+                    break;
+            }
+        }
+
+        var defaults = GetMacCapabilityDefaults(tier, isAvailable);
+        return new MacCapabilityInfo(
+            tier,
+            status,
+            isAvailable,
+            evidence ?? defaults.Evidence,
+            excelApiVersion ?? defaults.ExcelApiVersion,
+            isAvailable ? string.Empty : blocker ?? defaults.Blocker);
+    }
+
+    private static MacCapabilityInfo GetMacCapabilityDefaults(string tier, bool isAvailable)
+    {
+        if (isAvailable && tier == "Native")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "Implemented",
+                true,
+                "Real desktop Excel coverage exercises the native Apple Events action through CLI and MCP.",
+                "Excel for Mac 16.112.3; Apple Events dictionary inspected for the same version.",
+                string.Empty);
+        }
+
+        if (tier == "OfficeAddIn")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "NotTested",
+                false,
+                "Office.js API review identifies a candidate tier; no repository add-in is installed or verified.",
+                "Office.js requirement and Excel build not yet established.",
+                "the optional Office.js add-in tier, which is not installed in this release");
+        }
+
+        return new MacCapabilityInfo(
+            "Unsupported",
+            "Blocked",
+            false,
+            "The Apple Events and Office.js catalogs expose no action-specific route proven to preserve this generated Windows contract.",
+            "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi requirement-set review.",
+            "current supported macOS APIs cannot preserve the exact public contract; use the Windows COM backend");
+    }
+
+    private static string GetEnumArgumentName(TypedConstant argument, string fallback)
+    {
+        if (argument.Type is not INamedTypeSymbol enumType || argument.Value is null)
+        {
+            return fallback;
+        }
+
+        return enumType.GetMembers()
+            .OfType<IFieldSymbol>()
+            .FirstOrDefault(field =>
+                field.HasConstantValue
+                && Equals(field.ConstantValue, argument.Value))
+            ?.Name
+            ?? fallback;
     }
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)

@@ -10,8 +10,10 @@ excludeAgent: "code-review"
 - Core commands are synchronous. Validate .NET inputs before `IExcelBatch.Execute`;
   COM work belongs on its STA callback. Do not wrap it in a catch returning a
   second result: batch/Service own failure transport and diagnostic context.
-- ComInterop owns thread, session, and shutdown lifetime. Follow
-  `excel-com-interop.instructions.md` for COM changes.
+- ComInterop owns Windows thread, session, and shutdown lifetime. Mac session
+  ownership lives in Service and must not terminate shared Excel. Follow
+  `excel-com-interop.instructions.md` for COM changes and `specs/MACOS-SUPPORT.md`
+  for capability gates and uncertain-handoff recovery.
 - Public interface parameters use camelCase; generated MCP names use snake_case.
   Use naming attributes only for exceptions. Unknown action/enum values must
   fail rather than select a default.

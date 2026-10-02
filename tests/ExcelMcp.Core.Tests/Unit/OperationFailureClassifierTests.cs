@@ -36,6 +36,15 @@ public sealed class OperationFailureClassifierTests
     }
 
     [Fact]
+    public void Classify_PlatformNotSupported_PreservesPublicCategory()
+    {
+        Assert.Equal(
+            "PlatformNotSupported",
+            OperationFailureClassifier.Classify(
+                new PlatformNotSupportedException("Capability is unavailable.")));
+    }
+
+    [Fact]
     public void Classify_MixedAggregate_DoesNotSelectFirstFailure()
     {
         Assert.Null(OperationFailureClassifier.Classify(new AggregateException(

@@ -1,5 +1,10 @@
 # Screenshots and Visual Verification
 
+**Windows-only in the experimental macOS beta.** Both public screenshot actions
+remain gated on Mac. Native capture/bridge infrastructure is not accepted support;
+granting Screen Recording permission alone does not enable these actions. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 Use screenshots when appearance matters, such as chart placement or a report
 layout, and an interactive desktop is available. Do not add a screenshot step
 to an unrelated read or data-only task. A successful data operation does not

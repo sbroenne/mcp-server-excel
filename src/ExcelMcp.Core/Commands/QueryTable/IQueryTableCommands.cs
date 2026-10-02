@@ -9,6 +9,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Use powerquery for modern connectors and transformations.
 /// </summary>
 [ServiceCategory("querytable", "QueryTable")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Partial, false,
+    Evidence = "The installed Apple Events dictionary exposes QueryTables; exact command behavior is unverified.",
+    ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events.",
+    Blocker = "exact source, refresh completion, and cleanup semantics must pass a prompt-free real-Excel fixture")]
 [McpTool("querytable", Title = "QueryTable Import Operations", Destructive = true, Category = "query",
     Description = "Local Excel COM QueryTable lifecycle and configuration. Supports text and CSV imports from local files, plus legacy HTML web imports. Use powerquery for modern connectors and transformations. QueryTables do not expose Power Query M, cloud data types, workbook coauthor presence, sharing, mentions, assignments, or other Microsoft 365 service APIs.")]
 public interface IQueryTableCommands
@@ -22,6 +26,13 @@ public interface IQueryTableCommands
     /// <param name="sheetName">Worksheet containing the QueryTable</param>
     /// <param name="queryTableName">Name of the QueryTable</param>
     [ServiceAction("view")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes core QueryTable properties but omits refresh period, preserve formatting, and web selection, tables, and formatting fields required by the view result.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "the native dictionary cannot return the complete public contract; select another proven tier or record bounded limitation evidence rather than returning partial success")]
     QueryTableViewResult View(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
@@ -42,6 +53,13 @@ public interface IQueryTableCommands
     /// <param name="encoding">Windows code page; 65001 is UTF-8</param>
     /// <param name="hasHeaders">Whether the first row contains column headings</param>
     [ServiceAction("create-text")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a text source and destination.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "no faithful creation route is selected; a bounded live probe or another supported tier must prove source identity, destination ownership, refresh completion, and cleanup")]
     OperationResult CreateText(
         IExcelBatch batch,
         [RequiredParameter] string queryTableName,
@@ -67,6 +85,13 @@ public interface IQueryTableCommands
     /// <param name="webTables">Comma-separated table names or indices for specified-tables selection</param>
     /// <param name="formatting">Imported web formatting: none, rich-text, or all</param>
     [ServiceAction("create-web")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes QueryTable elements and properties but no construction command or signature for a web source and destination.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "no faithful creation route is selected; a bounded live probe or another supported tier must prove source identity, destination ownership, refresh completion, and cleanup")]
     OperationResult CreateWeb(
         IExcelBatch batch,
         [RequiredParameter] string queryTableName,
@@ -87,6 +112,13 @@ public interface IQueryTableCommands
     /// <param name="adjustColumnWidth">Resize columns to fit refreshed data</param>
     /// <param name="preserveFormatting">Preserve cell formatting when refreshing</param>
     [ServiceAction("set-properties")]
+    [MacCapability(
+        MacCapabilityTier.Unsupported,
+        MacImplementationStatus.Blocked,
+        false,
+        Evidence = "Excel for Mac 16.113.1 exposes background query, refresh-on-open, and column-width settings but omits refresh period and preserve formatting required by the public mutation contract.",
+        ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+        Blocker = "the native dictionary cannot satisfy every public property variant; select another proven tier or record bounded limitation evidence rather than silently ignoring inputs")]
     OperationResult SetProperties(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,

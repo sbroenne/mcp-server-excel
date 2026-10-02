@@ -1,8 +1,8 @@
 ---
 title: Troubleshooting
 description: >-
-  Fixes for the most common Excel MCP Server issues - Excel must be closed,
-  VBA trust, DAX/MSOLAP setup, PATH problems, and protected workbooks.
+  Fixes for Windows and experimental macOS Excel automation: exact-workbook
+  access, Automation permissions, platform limits, PATH, and protected files.
 keywords: "Excel MCP troubleshooting, VBA trust, MSOLAP DAX, workbook locked, mcp-excel not recognized, IRM AIP Excel"
 ---
 
@@ -17,9 +17,33 @@ general questions about what the tool is and what it needs, see the
 
 ### "Workbook is locked" or "Cannot open file"
 
-Close **all** open Excel windows before running Excel MCP Server. It needs
-exclusive access to the workbook (an Excel COM limitation), so a file that's
-already open in Excel can't be opened for automation.
+Check whether the **target workbook** is already open or owned by another
+session. Save/reconcile that workbook before reopening it for automation.
+Do not close unrelated Excel windows or kill shared Excel. Mac sessions own
+only their exact workbook, and an uncertain open may require manual
+reconciliation rather than another open attempt.
+
+### macOS returns `PlatformNotSupported`
+
+Check [macOS beta support and limitations](macos-support.md). Unsupported or
+unproven actions are deliberately gated, regardless of installation method.
+Use the Windows backend for that workflow; retries, macro trust changes, and
+installing the optional bridge do not make candidates supported.
+
+### macOS Automation permission is denied
+
+Follow the returned permission guidance for the actual CLI/MCP process identity.
+Manually review **System Settings > Privacy & Security > Automation** and the
+permission to control Microsoft Excel. ExcelMcp does not grant permissions,
+click dialogs, or reset your privacy settings. File-access permission and
+Automation permission are separate; reconcile the specific denied access.
+
+### macOS reports `RecoveryRequired`
+
+The file handoff may already have reached Excel. Inspect the exact workbook and
+any pending Excel dialogs; do not retry open/create or delete the target file.
+Session inventory reports `requiresRecovery: true` and `canClose: false` for an
+unconfirmed handoff. Reconcile manually before restarting that client.
 
 ### `mcp-excel` / `excelcli` is not recognized
 
@@ -29,19 +53,26 @@ Use `npx -y @sbroenne/mcp-server-excel@latest` or
 installations, check PATH:
 
 ```powershell
-# Confirm where it is (if anywhere)
+# Windows
 where.exe mcp-excel
 where.exe excelcli
 ```
 
-Either add the folder containing the `.exe` to your `PATH` (see the
+```bash
+# macOS
+command -v mcp-excel
+command -v excelcli
+```
+
+Either add the executable's folder to your `PATH` (see the
 [MCP Server](installation-mcp-server.md) or [CLI](installation-cli.md)
 installation guide), or use the full path in your MCP client config, e.g.
 `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`.
 
 ### VBA commands fail: "Programmatic access to Visual Basic Project is not trusted"
 
-VBA operations need one manual Excel setting turned on:
+**Windows only.** VBA is unavailable in the Mac beta; these settings do not
+enable it there. Reading/changing VBA modules needs one manual Excel setting:
 
 1. Open Excel → **File → Options → Trust Center**
 2. Click **Trust Center Settings**
@@ -54,6 +85,7 @@ Also remember VBA lives in **`.xlsm`** workbooks, not `.xlsx`.
 
 ### DAX queries fail (`evaluate`, `execute-dmv`)
 
+**Windows only.** Data Model/DAX actions are unavailable in the Mac beta.
 DAX query execution needs the **Microsoft Analysis Services OLE DB Provider
 (MSOLAP)**, which isn't always installed with Office.
 
@@ -66,11 +98,12 @@ Rights-managed files need Excel visible so the sign-in or policy prompt can
 appear. Keep Excel on screen while opening:
 
 ```powershell
-excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
+excelcli session open "<absolute-workbook-path>" --show --timeout 120
 ```
 
-With the MCP Server, ask your assistant to *"show me Excel while you work"* so
-the authentication prompt is interactable. These files are opened read-only.
+With the MCP Server, use `file(action: 'open')` with its `show` option. Do not
+request the Windows-only `window` actions on Mac. Reconcile authentication
+interactively; detected IRM/AIP files are opened read-only.
 
 ### Changes aren't taking effect / old version still running
 
@@ -97,6 +130,9 @@ starts the service from the selected CLI version. See the
 The npm server/CLI, npx-based MCPB, auto-configuration (`add-mcp`), and skill
 installation require **Node.js with npm/npx on PATH**. Claude's built-in Node.js
 does not guarantee the external npx command is available:
+
+Install Node.js using the [platform-specific installation guide](installation.md).
+For Windows:
 
 ```powershell
 winget install OpenJS.NodeJS.LTS

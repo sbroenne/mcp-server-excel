@@ -35,7 +35,7 @@ function Get-ValidationPlan {
             '^\.github/plugins/|^\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$' { 'plugins'; break }
             '^scripts/Build-AgentSkills\.ps1$' { 'skills'; break }
             '^scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|^scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$' { 'plugins'; break }
-            '^scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/release\.yml$' { 'packages'; break }
+            '^scripts/(Build-MacReleasePackages|Build-MacScreenCaptureHelper|Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/release\.yml$' { 'packages'; break }
             '^scripts/(pre-commit|Get-ValidationPlan|Invoke-ExcelFreeTests|check-|Test-NpmLockfiles)' { 'tests'; break }
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }
             '^scripts/(Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata)\.ps1$' { 'packages'; break }

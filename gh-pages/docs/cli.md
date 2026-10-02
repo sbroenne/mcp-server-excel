@@ -1,6 +1,6 @@
 ---
 title: CLI Documentation
-description: Full command-line interface reference for Excel automation — token-efficient Excel control for coding agents like GitHub Copilot, Cursor and Windsurf.
+description: Excel CLI reference for coding agents, with full Windows automation and an experimental Apple Silicon Mac subset. Platform gates apply to shared commands.
 keywords: "Excel CLI, excelcli, command line Excel automation, coding agent Excel, Copilot CLI"
 ---
 

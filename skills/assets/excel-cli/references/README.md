@@ -10,7 +10,8 @@ For `session` and `service`, use `excelcli session <action> --help` or
 `excelcli service <action> --help` for action-specific options and defaults.
 The [topic index](index.md) links optional guides. Shared domain guides contain
 native CLI examples selected during generation; no translation from MCP calls
-is needed.
+is needed. Use their platform notices to distinguish complete Windows workflows
+from the experimental Apple Silicon macOS subset.
 
 ## Contents
 

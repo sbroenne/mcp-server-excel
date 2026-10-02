@@ -15,6 +15,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "The interface default covers sheet actions without a separately verified native or Office.js route.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "current supported macOS APIs cannot preserve this sheet contract; use the Windows COM backend")]
 public interface ISheetCommands
 {
     // === LIFECYCLE OPERATIONS ===
@@ -25,6 +29,7 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, uses primary workbook.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("list")]
     WorksheetListResult List(IExcelBatch batch, string? filePath = null);
 
@@ -36,6 +41,7 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name for the new worksheet</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, creates in primary workbook.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("create")]
     OperationResult Create(IExcelBatch batch, [RequiredParameter] string sheetName, string? filePath = null);
 
@@ -46,6 +52,7 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="oldName">Current name of the worksheet</param>
     /// <param name="newName">New name for the worksheet</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("rename")]
     OperationResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
 
@@ -56,7 +63,7 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sourceName">Name of the source worksheet</param>
     /// <param name="targetName">Name for the copied worksheet</param>
-    [ServiceAction("copy")]
+    [ServiceAction("copy"), OfficeAddInAction("1.7", mutation: true)]
     OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter] string targetName);
 
     /// <summary>
@@ -67,6 +74,7 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet to delete</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string sheetName);
 
@@ -80,7 +88,7 @@ public interface ISheetCommands
     /// <param name="sheetName">Name of the sheet to move</param>
     /// <param name="beforeSheet">Optional: Name of sheet to position before</param>
     /// <param name="afterSheet">Optional: Name of sheet to position after</param>
-    [ServiceAction("move")]
+    [ServiceAction("move"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult Move(IExcelBatch batch, [RequiredParameter] string sheetName, string? beforeSheet = null, string? afterSheet = null);
 
     // === ATOMIC CROSS-FILE OPERATIONS ===

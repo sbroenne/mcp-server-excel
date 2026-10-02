@@ -8,6 +8,9 @@ param(
 
     [switch]$ArchiveOnly,
 
+    [ValidateSet('win-x64', 'win-arm64', 'osx-arm64')]
+    [string]$RuntimeIdentifier = 'win-x64',
+
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
     [string]$LauncherPackage,
@@ -24,12 +27,18 @@ Set-StrictMode -Version Latest
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $packageName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-server-excel' }
 $commandName = if ($Component -eq 'Cli') { 'excelcli' } else { 'mcp-excel' }
+if (-not $PSBoundParameters.ContainsKey('RuntimeIdentifier')) {
+    $RuntimeIdentifier = if ($IsMacOS) { 'osx-arm64' } else { "win-$Architecture" }
+}
+$isMacRuntime = $RuntimeIdentifier -eq 'osx-arm64'
+$runtimeOs = if ($isMacRuntime) { 'darwin' } else { 'win32' }
+$runtimeArchitecture = $RuntimeIdentifier.Substring(4)
+$runtimeFileName = if ($isMacRuntime) { $commandName } else { "$commandName.exe" }
 $smokeScript = Join-Path $repoRoot "npm-packages\$packageName\scripts\verify-runtime.mjs"
 $resolvedLauncher = (Resolve-Path -LiteralPath $LauncherPackage).Path
 $resolvedRuntime = (Resolve-Path -LiteralPath $RuntimePackage).Path
-if (-not $IsWindows) {
-    throw 'npm runtime smoke tests require Windows.'
-}
+$npmCommand = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
+$nodeCommand = if ($IsWindows) { 'node.exe' } else { 'node' }
 $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpNpmTest-$([Guid]::NewGuid().ToString('N'))"
 
 function Remove-Sandbox {
@@ -52,7 +61,7 @@ New-Item -ItemType Directory -Path $sandbox -Force | Out-Null
 
 try {
     foreach ($entry in @(
-        @{ Archive = $resolvedRuntime; Name = "$packageName-win32-$Architecture"; Kind = 'runtime' },
+        @{ Archive = $resolvedRuntime; Name = "$packageName-$runtimeOs-$runtimeArchitecture"; Kind = 'runtime' },
         @{ Archive = $resolvedLauncher; Name = $packageName; Kind = 'launcher' }
     )) {
         $inspection = Join-Path $sandbox $entry.Kind
@@ -69,19 +78,25 @@ try {
         }
         if ($entry.Kind -eq 'runtime') {
             $runtimeVersion = $manifest.version
-            if ($manifest.main -ne "$commandName.exe" -or
-                @($manifest.os).Count -ne 1 -or $manifest.os[0] -ne 'win32' -or
-                @($manifest.cpu).Count -ne 1 -or $manifest.cpu[0] -ne $Architecture) {
+            if ($manifest.main -ne $runtimeFileName -or
+                @($manifest.os).Count -ne 1 -or $manifest.os[0] -ne $runtimeOs -or
+                @($manifest.cpu).Count -ne 1 -or $manifest.cpu[0] -ne $runtimeArchitecture) {
                 throw 'npm runtime metadata does not match the requested architecture.'
             }
-            Assert-PackageRuntimeArchitecture -Path (Join-Path $packageRoot $manifest.main) -Architecture $Architecture
+            if ($isMacRuntime) {
+                if (-not (Test-Path -LiteralPath (Join-Path $packageRoot 'helpers/excelmcp-screencapture') -PathType Leaf)) {
+                    throw 'Mac npm runtime is missing the ScreenCaptureKit helper.'
+                }
+            } else {
+                Assert-PackageRuntimeArchitecture -Path (Join-Path $packageRoot $manifest.main) -Architecture $runtimeArchitecture
+            }
         } else {
             if ($manifest.version -ne $runtimeVersion -or $manifest.bin.$commandName -ne "bin/$commandName.js") {
                 throw 'npm launcher metadata does not match the runtime.'
             }
-            foreach ($arch in @('x64', 'arm64')) {
-                if ($manifest.optionalDependencies."@sbroenne/$packageName-win32-$arch" -ne $runtimeVersion) {
-                    throw "npm launcher must depend on the matching $arch release version."
+            foreach ($suffix in @('win32-x64', 'win32-arm64', 'darwin-arm64')) {
+                if ($manifest.optionalDependencies."@sbroenne/$packageName-$suffix" -ne $runtimeVersion) {
+                    throw "npm launcher must depend on the matching $suffix release version."
                 }
             }
             foreach ($file in @("bin/$commandName.js", 'lib/launcher.js')) {
@@ -91,19 +106,21 @@ try {
             }
         }
     }
-    Write-Output "$Component $Architecture npm archives validated."
+    Write-Output "$Component $RuntimeIdentifier npm archives validated."
     if ($ArchiveOnly) {
-        Write-Output "$Component $Architecture archive-only validation requested; native execution is a separate check."
+        Write-Output "$Component $RuntimeIdentifier archive-only validation requested; native execution is a separate check."
         return
     }
-    $nodeArchitecture = (& node.exe -p 'process.arch' | Out-String).Trim()
+    $nodeArchitecture = (& $nodeCommand -p 'process.arch' | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Could not determine Node.js architecture.' }
-    if ($nodeArchitecture -ne $Architecture) {
-        Write-Warning "$Component $Architecture execution NOT RUN: Node.js is $nodeArchitecture. Archive validation passed."
+    $nodePlatform = (& $nodeCommand -p 'process.platform' | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Could not determine Node.js platform.' }
+    if ($nodeArchitecture -ne $runtimeArchitecture -or $nodePlatform -ne $runtimeOs) {
+        Write-Warning "$Component $RuntimeIdentifier execution NOT RUN: Node.js is $nodePlatform/$nodeArchitecture. Archive validation passed."
         return
     }
 
-    & npm.cmd install `
+    & $npmCommand install `
         --prefix $sandbox `
         --ignore-scripts `
         --no-audit `
@@ -114,14 +131,14 @@ try {
         throw "npm package installation failed with exit code $LASTEXITCODE."
     }
 
-    $launcherScript = Join-Path $sandbox "node_modules\@sbroenne\$packageName\bin\$commandName.js"
-    $versionOutput = & node.exe $launcherScript --version 2>&1 | Out-String
+    $launcherScript = Join-Path $sandbox "node_modules/@sbroenne/$packageName/bin/$commandName.js"
+    $versionOutput = & $nodeCommand $launcherScript --version 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "npm launcher --version failed with exit code $LASTEXITCODE. $versionOutput"
     }
     Write-Output ($versionOutput.Trim())
 
-    $smokeOutput = & node.exe $smokeScript $launcherScript 2>&1 | Out-String
+    $smokeOutput = & $nodeCommand $smokeScript $launcherScript 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "$Component npm runtime smoke test failed with exit code $LASTEXITCODE. $smokeOutput"
     }

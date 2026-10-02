@@ -10,13 +10,13 @@
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
     NPM LAUNCH MODEL:
-    - Published plugins use the public npm packages through npx
+    - Published plugins use the cross-platform public npm packages through npx
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
     OUTPUT:
     plugins/
-      excel-mcp/     → MCP plugin (npx config + updated version + fresh skills)
-      excel-cli/     → CLI plugin (argument-safe npx wrapper + updated version + fresh skills)
+      excel-mcp/     → MCP plugin (npx config, updated version, fresh skills)
+      excel-cli/     → CLI plugin (argument-safe npx wrapper, updated version, fresh skills)
 
 .PARAMETER Version
     Plugin version. Required for distributable builds.
@@ -277,20 +277,6 @@ Write-Host "Output:   $OutputDir`n"
 
 $FinalOutput = [IO.Path]::GetFullPath($OutputDir, $RepoRoot)
 Assert-PackageOutputPath -Path $FinalOutput -RepoRoot $RepoRoot -Inputs @($SkillsDir)
-if ($FinalOutput -eq [IO.Path]::GetPathRoot($FinalOutput) -or $FinalOutput -eq $RepoRoot -or
-    ($FinalOutput.StartsWith("$RepoRoot\", [StringComparison]::OrdinalIgnoreCase) -and
-     -not $FinalOutput.StartsWith("$RepoRoot\artifacts\", [StringComparison]::OrdinalIgnoreCase) -and
-     $FinalOutput -ne "$RepoRoot\plugins")) {
-    throw "Unsafe plugin output directory: $FinalOutput"
-}
-$ancestor = $FinalOutput
-while ($ancestor) {
-    if ((Test-Path -LiteralPath $ancestor) -and
-        ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-        throw "Plugin output must not traverse a link: $ancestor"
-    }
-    $ancestor = Split-Path $ancestor -Parent
-}
 $OutputDir = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpPlugins-$([Guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $OutputDir | Out-Null
 try {

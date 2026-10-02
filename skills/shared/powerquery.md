@@ -1,5 +1,13 @@
 # Power Query: loading and recovery
 
+## macOS limitation
+
+All Power Query actions are unavailable in the experimental macOS beta. Apple
+Events and Office.js do not expose faithful query-management APIs. Use the
+Windows COM backend; never inspect workbook packages, install a VBA helper, or
+change trust settings as a workaround. See
+[macOS support](https://excelmcpserver.dev/macos-support/).
+
 ## Execution and destination decisions
 
 For authorized development, prefer `evaluate` for new or materially changed M:

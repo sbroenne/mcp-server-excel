@@ -1,5 +1,11 @@
 # Report formatting
 
+**Mac experimental beta:** number-format get/set and range sizing are enabled.
+Rich cell formatting, Table/PivotTable/chart styles, and window freeze panes
+remain gated, so the complete example below is Windows-only. Use the
+[enabled action inventory](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-ACTION-INVENTORY.md)
+to select supported steps instead of treating the shared workflow as Mac parity.
+
 Use this workflow when creating a new user-facing report or when formatting is
 requested. It is not a requirement for reads, raw exports, or targeted data
 updates. These are suggested defaults, not a universal financial or corporate

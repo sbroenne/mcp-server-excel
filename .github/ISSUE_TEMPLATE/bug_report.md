@@ -13,7 +13,7 @@ A clear and concise description of what the bug is.
 ## Component
 Which component is this bug related to?
 - [ ] **MCP Server** (Model Context Protocol server for AI assistants - `mcp-excel`)
-- [ ] **CLI** (Command-line interface - `excelcli.exe`)
+- [ ] **CLI** (Command-line interface - `excelcli`)
 - [ ] **Core Library** (Shared functionality)
 - [ ] **Not sure**
 
@@ -41,13 +41,14 @@ If applicable, paste the full error message:
 ```
 
 ## Environment
-- **Windows Version**: [e.g. Windows 11, Windows 10]
+- **OS and Architecture**: [e.g. Windows 11 x64, macOS on Apple Silicon]
 - **Excel Version**: [e.g. Excel 365, Excel 2019]
 - **ExcelMcp Version**: [e.g. v1.0.0]
-- **.NET Version**: [Run `dotnet --version`]
-- **Installation Method**: [VS Code extension / MCPB / Copilot plugin / .NET tool / Binary download / Source build]
+- **.NET Version**: [Only for .NET tool/source builds; otherwise N/A]
+- **Node.js Version**: [For npm/plugin installations; otherwise N/A]
+- **Installation Method**: [npm / VS Code extension / MCPB / Copilot plugin / .NET tool / Binary download / Source build]
 - **File Format**: [e.g. .xlsx, .xlsm]
-- **VBA Trust Enabled**: [Yes/No - if VBA-related issue]
+- **VBA Trust Enabled**: [Yes/No - Windows VBA issues only; VBA is unsupported in the Mac beta]
 - **AI Assistant** (if using MCP Server): [e.g., GitHub Copilot, Claude Desktop, ChatGPT, etc.]
 
 ## Sample File
@@ -67,6 +68,8 @@ the problem.
 Add any other context about the problem here.
 
 ## Excel Process Cleanup
-- [ ] Excel processes clean up properly after the command
-- [ ] Excel processes remain running (this is part of the bug)
+- [ ] Windows: the session-owned Excel process cleans up properly
+- [ ] Windows: the session-owned Excel process remains running
+- [ ] Mac: the confirmed session-owned workbook closes; shared Excel and unrelated workbooks remain untouched
+- [ ] Mac: an uncertain open reports RecoveryRequired and retains the exact workbook for manual reconciliation
 - [ ] Not applicable/unsure

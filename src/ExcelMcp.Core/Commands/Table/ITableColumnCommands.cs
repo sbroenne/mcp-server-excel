@@ -24,6 +24,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', '0%', 'yyyy-mm-dd')
 /// </summary>
 [ServiceCategory("tablecolumn", "TableColumn")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Apple Events exposes no table-column object model. Office.js routes exist only for methods marked OfficeAddInAction.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; Office.js ExcelApi through 1.21.",
+    Blocker = "no supported local macOS API preserves this table-column contract; use the Windows COM backend")]
 [McpTool("table_column", Title = "Table Column Operations", Destructive = true, Category = "data",
     Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter (criteria like >100, =Active), apply-filter-values (JSON array of exact values), clear-filters, get-filters. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}). COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use table for lifecycle and data operations.")]
 public interface ITableColumnCommands
@@ -37,7 +41,7 @@ public interface ITableColumnCommands
     /// <param name="columnName">Name of the column to filter</param>
     /// <param name="criteria">Filter criteria string (e.g., '&gt;100', '=Active', '&lt;&gt;Closed')</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("apply-filter")]
+    [ServiceAction("apply-filter"), OfficeAddInAction("1.2", mutation: true)]
     OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria);
 
     /// <summary>
@@ -47,7 +51,7 @@ public interface ITableColumnCommands
     /// <param name="columnName">Name of the column to filter</param>
     /// <param name="values">List of exact values to include in the filter</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("apply-filter-values")]
+    [ServiceAction("apply-filter-values"), OfficeAddInAction("1.2", mutation: true)]
     OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values);
 
     /// <summary>
@@ -55,14 +59,14 @@ public interface ITableColumnCommands
     /// </summary>
     /// <param name="tableName">Name of the Excel table</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
-    [ServiceAction("clear-filters")]
+    [ServiceAction("clear-filters"), OfficeAddInAction("1.2", mutation: true)]
     OperationResult ClearFilters(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets current filter state for all columns in a table
     /// </summary>
     /// <param name="tableName">Name of the Excel table</param>
-    [ServiceAction("get-filters")]
+    [ServiceAction("get-filters"), OfficeAddInAction("1.2", mutation: false)]
     TableFilterResult GetFilters(IExcelBatch batch, string tableName);
 
     // === COLUMN OPERATIONS ===
@@ -74,7 +78,7 @@ public interface ITableColumnCommands
     /// <param name="columnName">Name for the new column</param>
     /// <param name="position">1-based column position (optional, defaults to end of table)</param>
     /// <exception cref="InvalidOperationException">Table not found or position invalid</exception>
-    [ServiceAction("add-column")]
+    [ServiceAction("add-column"), OfficeAddInAction("1.4", mutation: true)]
     OperationResult AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null);
 
     /// <summary>
@@ -83,7 +87,7 @@ public interface ITableColumnCommands
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="columnName">Name of the column to remove</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("remove-column")]
+    [ServiceAction("remove-column"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult RemoveColumn(IExcelBatch batch, string tableName, string columnName);
 
     /// <summary>
@@ -93,7 +97,7 @@ public interface ITableColumnCommands
     /// <param name="oldName">Current column name</param>
     /// <param name="newName">New column name</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("rename-column")]
+    [ServiceAction("rename-column"), OfficeAddInAction("1.4", mutation: true)]
     OperationResult RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName);
 
     // === STRUCTURED REFERENCE OPERATIONS ===
@@ -104,7 +108,7 @@ public interface ITableColumnCommands
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="region">Table region: 'Data', 'Headers', 'Totals', or 'All'</param>
     /// <param name="columnName">Optional column name for column-specific reference</param>
-    [ServiceAction("get-structured-reference")]
+    [ServiceAction("get-structured-reference"), OfficeAddInAction("1.1", mutation: false)]
     TableStructuredReferenceResult GetStructuredReference(IExcelBatch batch, string tableName, [FromString] TableRegion region, string? columnName = null);
 
     // === SORT OPERATIONS ===
@@ -116,7 +120,7 @@ public interface ITableColumnCommands
     /// <param name="columnName">Column to sort by</param>
     /// <param name="ascending">Sort order: true = ascending (A-Z, 0-9), false = descending (default: true)</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("sort")]
+    [ServiceAction("sort"), OfficeAddInAction("1.2", mutation: true)]
     OperationResult Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
 
     /// <summary>
@@ -125,7 +129,7 @@ public interface ITableColumnCommands
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="sortColumns">List of sort specifications: [{columnName: 'Col1', ascending: true}, ...] - applied in order</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("sort-multi")]
+    [ServiceAction("sort-multi"), OfficeAddInAction("1.2", mutation: true)]
     OperationResult SortMulti(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
 
     // === NUMBER FORMATTING ===
@@ -137,7 +141,7 @@ public interface ITableColumnCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="tableName">Table name</param>
     /// <param name="columnName">Column name</param>
-    [ServiceAction("get-column-number-format")]
+    [ServiceAction("get-column-number-format"), OfficeAddInAction("1.1", mutation: false)]
     RangeNumberFormatResult GetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName);
 
     /// <summary>
@@ -149,6 +153,6 @@ public interface ITableColumnCommands
     /// <param name="columnName">Name of the column to format</param>
     /// <param name="formatCode">Number format code in US locale (e.g., '#,##0.00', '0%', 'yyyy-mm-dd')</param>
     /// <exception cref="InvalidOperationException">Table or column not found, or format code invalid</exception>
-    [ServiceAction("set-column-number-format")]
+    [ServiceAction("set-column-number-format"), OfficeAddInAction("1.1", mutation: true)]
     OperationResult SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode);
 }

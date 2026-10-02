@@ -69,6 +69,11 @@ root) - the single generated include file every count consumer reads.
 headline changes in the source PR. CI rejects stale counts before merge;
 do not substitute manual file or folder counts.
 
+The catalogue describes the full Windows surface, not Mac availability.
+`tools.json` separately declares experimental beta Mac support, unsupported
+feature families, and the generated per-action inventory link. The `llms.txt`
+summary carries the same platform boundary; the site audit rejects omissions.
+
 ## Theme overrides
 
 `overrides/` holds the templates that change MkDocs/Material output:
@@ -89,11 +94,24 @@ the build instead of silently regressing accessibility.
 
 ## Setup (one-time)
 
+Windows:
+
 ```powershell
 cd gh-pages
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+macOS:
+
+```bash
+cd gh-pages
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+The site build is Excel-independent. On Mac use `.venv/bin/python` in the
+commands below instead of the Windows `.venv\Scripts\python.exe` path.
 
 ## ⚠️ Always use the venv Python
 

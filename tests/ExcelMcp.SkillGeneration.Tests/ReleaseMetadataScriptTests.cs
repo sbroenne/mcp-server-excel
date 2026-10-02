@@ -218,6 +218,7 @@ public sealed class ReleaseMetadataScriptTests
             var runner = Path.Combine(sandbox, "run.ps1");
             File.WriteAllText(runner, $$"""
                 $ErrorActionPreference = 'Stop'
+                $ErrorView = 'NormalView'
                 git init --bare '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
                 git init '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
                 Set-Location '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'

@@ -23,21 +23,29 @@ const products = [
   ['Cli', 'excelcli', 'excelcli']
 ];
 
-for (const [component, packageName, commandName, arch] of products.flatMap(product =>
-  ['x64', 'arm64'].map(arch => [...product, arch])
+for (const [component, packageName, commandName, arch, platform] of products.flatMap(product =>
+  [['x64', 'win32'], ['arm64', 'win32'], ['arm64', 'darwin']].map(([arch, platform]) => [...product, arch, platform])
 )) {
-  test(`${component} ${arch} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
+  const isMac = platform === 'darwin';
+  const runtimeIdentifier = isMac ? 'osx-arm64' : `win-${arch}`;
+  const executableName = isMac ? commandName : `${commandName}.exe`;
+  test(`${component} ${platform}/${arch} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
-    const executable = join(sandbox, `${commandName}.exe`);
-    const payload = executableFixture(arch);
+    const executable = join(sandbox, executableName);
+    const payload = isMac ? Buffer.from('opaque native package fixture') : executableFixture(arch);
     const sourceManifest = join(repoRoot, 'npm-packages', packageName, 'package.json');
     const originalManifest = readFileSync(sourceManifest, 'utf8');
     try {
       writeFileSync(executable, payload);
+      if (isMac) {
+        mkdirSync(join(sandbox, 'helpers'));
+        writeFileSync(join(sandbox, 'helpers', 'excelmcp-screencapture'), payload);
+      }
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version,
         '-Architecture', arch,
+        '-RuntimeIdentifier', runtimeIdentifier,
         '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
       ], { encoding: 'utf8', timeout: 90_000 });
       assert.ifError(result.error);
@@ -46,7 +54,7 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
 
       for (const [kind, archive, name] of [
         ['launcher', packages.LauncherPackage, packageName],
-        ['runtime', packages.RuntimePackage, `${packageName}-win32-${arch}`]
+        ['runtime', packages.RuntimePackage, `${packageName}-${platform}-${arch}`]
       ]) {
         const destination = join(sandbox, kind);
         mkdirSync(destination);
@@ -62,13 +70,17 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
         assert.equal(manifest.version, version);
         assert.equal(readFileSync(join(root, 'LICENSE'), 'utf8'), readFileSync(join(repoRoot, 'LICENSE'), 'utf8'));
         if (kind === 'runtime') {
-          assert.equal(manifest.main, `${commandName}.exe`);
-          assert.deepEqual(manifest.os, ['win32']);
+          assert.equal(manifest.main, executableName);
+          assert.deepEqual(manifest.os, [platform]);
           assert.deepEqual(manifest.cpu, [arch]);
           assert.deepEqual(readFileSync(join(root, manifest.main)), payload);
+          if (isMac) {
+            assert.deepEqual(readFileSync(join(root, 'helpers', 'excelmcp-screencapture')), payload);
+          }
         } else {
           assert.deepEqual(manifest.optionalDependencies, {
             [`@sbroenne/${packageName}-win32-x64`]: version,
+            [`@sbroenne/${packageName}-darwin-arm64`]: version,
             [`@sbroenne/${packageName}-win32-arm64`]: version
           });
           assert.equal(manifest.bin[commandName], `bin/${commandName}.js`);
@@ -80,7 +92,7 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
         }
       }
       assert.equal(readFileSync(sourceManifest, 'utf8'), originalManifest, 'Packaging must not stamp the source tree.');
-      if (process.platform === 'win32' && process.arch !== arch) {
+      if (!isMac && process.platform === 'win32' && process.arch !== arch) {
         const inspection = spawnSync('pwsh', [
           '-NoProfile', '-File', join(repoRoot, 'scripts', 'Test-NpmPackages.ps1'),
           '-Component', component, '-Architecture', arch,
@@ -95,6 +107,7 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
       rmSync(sandbox, { recursive: true, force: true });
     }
   });
+  if (!isMac) {
   test(`${component} rejects a mislabeled ${arch} runtime`, { timeout: 30_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmMismatch-'));
     try {
@@ -112,6 +125,7 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
       rmSync(sandbox, { recursive: true, force: true });
     }
   });
+  }
 }
 
 for (const [name, payload] of [

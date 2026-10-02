@@ -25,7 +25,7 @@ A clear and concise description of what you want to happen.
 
 **For CLI:**
 ```bash
-ExcelMcp new-command <file.xlsx> <parameters>
+excelcli new-command <parameters>
 ```
 
 **For MCP Server:**
@@ -50,12 +50,15 @@ Describe the specific use case this feature would address:
 Who would benefit from this feature?
 - [ ] **AI Assistants** (GitHub Copilot, Claude, ChatGPT via MCP Server)
 - [ ] **Direct CLI Users** (Command-line automation)
-- [ ] **CI/CD Pipelines** (Automated Excel development workflows)
+- [ ] **Desktop CI/CD Pipelines** (Interactive Excel hosts; headless hosts are unsupported)
 - [ ] **Excel Developers** (Power Query, VBA development)
 - [ ] **Data Engineers** (ETL workflows)
 - [ ] Other: [please specify]
 
 ## Excel Operations Involved
+Specify whether the request targets Windows, the experimental Apple Silicon
+Mac beta, or both. Existing COM APIs do not imply Mac support.
+
 What Excel APIs or operations would this feature likely use?
 - [ ] Power Query (Workbook.Queries)
 - [ ] Worksheets (Worksheet operations)

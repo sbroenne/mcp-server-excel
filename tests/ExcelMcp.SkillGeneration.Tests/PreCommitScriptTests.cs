@@ -20,9 +20,15 @@ public sealed class PreCommitScriptTests
     public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
     {
         var result = await RunHookAsync(path);
+        var supportedExcelHost = OperatingSystem.IsWindows()
+            || OperatingSystem.IsMacOS()
+                && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+                    == System.Runtime.InteropServices.Architecture.Arm64;
 
         Assert.Equal(build, result.Output.Contains("dotnet build", StringComparison.Ordinal));
-        Assert.Equal(excel, result.Output.Contains("e2e-ran", StringComparison.Ordinal));
+        Assert.Equal(
+            excel && supportedExcelHost,
+            result.Output.Contains("e2e-ran", StringComparison.Ordinal));
         Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm ci", result.Output, StringComparison.Ordinal);
@@ -33,7 +39,18 @@ public sealed class PreCommitScriptTests
         {
             Assert.Matches(@"-SkillTests:\s*True", result.Output);
         }
-        Assert.True(result.ExitCode == 0, result.Output);
+        if (excel && !supportedExcelHost)
+        {
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(
+                "Desktop Excel validation requires Windows or Apple Silicon macOS",
+                result.Output,
+                StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
     }
 
     [Fact]

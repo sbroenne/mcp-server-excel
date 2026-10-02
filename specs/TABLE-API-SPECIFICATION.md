@@ -1,5 +1,11 @@
 # Excel Table (ListObject) API Specification
 
+**Platform scope:** this Windows COM design/review is not a Mac action catalog.
+All Table and column actions are unsupported in the experimental Apple Silicon
+macOS beta; optional Office.js handlers remain candidates. See
+[current feature guidance](../docs/features/CELLS-WORKBOOKS.md) and
+[Mac limitations](MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 > **Comprehensive specification for Excel Table operations - reviewing current implementation and future refactoring needs**
 
 ## Executive Summary

@@ -28,6 +28,29 @@ Commands and prerequisites: [tests/README.md](../../tests/README.md#quick-start)
   actual boundary and isolation their subject requires.
 - Cleanup always runs, preserves primary and cleanup failures, and never
   silently recreates a failed shared session.
+- Treat workbook files as opaque in tests and fixtures. Do not construct,
+  inspect, parse, or mutate ZIP/OOXML workbook parts. Copy intact
+  Excel-authored templates when a saved fixture is required, and verify
+  behavior only through supported Excel APIs.
+- Use a unique workbook per isolated test or per reviewed persistent Service
+  class. Do not combine `IClassFixture<T>` with a collection fixture on the same
+  class: it can create competing Excel sessions.
+- For a saved empty or populated baseline, create one immutable workbook
+  template and copy it to a unique destination for each test. Copying must not
+  start Excel. Keep workbook-creation, format, lifecycle, and persistence tests
+  on their explicit creation/open/save/reopen paths.
+- Keep independent scenarios as separate Facts/Theories and isolate their
+  sheets, tables, maps, and other objects. Fixture cleanup must always run and
+  preserve both the primary failure and every cleanup failure. A failed shared
+  session fails explicitly; do not silently recreate it.
+- Lifecycle/ownership/crash/timeout, transport, global-state, locale-rendering,
+  clipboard, protected-file, concurrency, and raw-COM capability tests retain
+  their actual boundary when that boundary is the test subject. Public VBA
+  behavior may use a persistent macro-enabled Service class when modules are
+  isolated and removed. Public screenshot behavior stays at Service, but cases
+  that mutate window, selection, protection, or rendering state use an isolated
+  visible Service session per test. Persistence requires explicit
+  save/close/reopen and assertions against the reopened session.
 - Follow nearby trait conventions: `Category`, `Feature`, `Layer`,
   `RequiresExcel`, `Speed`, and `RunType` where applicable. Every discovered
   test must resolve to exactly one `RequiresExcel=true` or `false` value.

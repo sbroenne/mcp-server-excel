@@ -3,6 +3,11 @@
 These are alternatives, not steps to run on every workbook. Read only the
 guide needed for an unresolved decision.
 
+Power Query, Data Model/DAX, charts, and screenshots are unavailable in the
+experimental macOS beta. Basic worksheet/range/named-range setup can be used
+on Mac but does not enable a Windows-only workflow. Check
+[macOS support](https://excelmcpserver.dev/macos-support/) before selecting actions.
+
 | Need | Surface |
 |------|---------|
 | Existing cell values or formulas | [Ranges](range.md); no query/model setup |

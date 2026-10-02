@@ -1,5 +1,10 @@
 # Sheet Enhancement Specification - Tab Color & Visibility
 
+**Platform scope:** this document retains the Windows COM design. Experimental
+Apple Silicon macOS has accepted tab-color and visibility variants through
+Apple Events, not COM; use the exact enabled actions and recovery rules in
+[Mac support](MACOS-SUPPORT.md).
+
 > **Enhanced worksheet commands for tab color and visibility management**
 > 
 > **🤖 Primary Audience:** LLMs using MCP Server tools to automate Excel workbook organization

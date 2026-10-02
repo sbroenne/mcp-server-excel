@@ -6,6 +6,11 @@ Create charts, slicers, conditional formatting, screenshots, drawing objects, an
 
 ---
 
+> **Windows-only feature reference.** Charts, slicers, conditional formatting,
+> screenshots, drawings, and sparklines below are unavailable in the experimental
+> macOS beta. Optional bridge/helper infrastructure does not enable them. See
+> [macOS support and limitations](../../specs/MACOS-SUPPORT.md).
+
 ## 📉 Charts (33 operations)
 
 Create and format charts and PivotCharts, with full control over series, axes, labels, and trendlines.
