@@ -2,7 +2,9 @@ using System.Runtime.InteropServices;
 
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -189,9 +191,8 @@ public partial class TableCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? slicerCaches = null;
-            dynamic? targetCache = null;
-            dynamic? targetSlicer = null;
-            dynamic? slicerItems = null;
+            Excel.SlicerCache? targetCache = null;
+            Excel.Slicer? targetSlicer = null;
 
             try
             {
@@ -211,47 +212,10 @@ public partial class TableCommands
                     };
                 }
 
-                // Get slicer items from the cache
-                slicerItems = targetCache.SlicerItems;
-
-                // Build set of items to select for fast lookup
-                var itemsToSelect = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
-
                 // If no items specified, select all (clear filter)
                 bool selectAll = selectedItems.Count == 0;
 
-                // Iterate through slicer items and set selection
-                for (int i = 1; i <= slicerItems.Count; i++)
-                {
-                    dynamic? item = null;
-                    try
-                    {
-                        item = slicerItems.Item(i);
-                        string itemName = item.Name?.ToString() ?? string.Empty;
-
-                        if (selectAll)
-                        {
-                            item.Selected = true;
-                        }
-                        else if (clearFirst)
-                        {
-                            // Clear first mode: select only specified items
-                            item.Selected = itemsToSelect.Contains(itemName);
-                        }
-                        else
-                        {
-                            // Additive mode: add to existing selection
-                            if (itemsToSelect.Contains(itemName))
-                            {
-                                item.Selected = true;
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref item);
-                    }
-                }
+                SlicerSelection.SetNonOlapSelection(targetCache, selectedItems, clearFirst, ct);
 
                 // Build result with updated state
                 string columnName = GetSlicerCacheColumnName(targetCache);
@@ -266,7 +230,6 @@ public partial class TableCommands
             }
             finally
             {
-                ComUtilities.Release(ref slicerItems);
                 ComUtilities.Release(ref targetSlicer);
                 ComUtilities.Release(ref targetCache);
                 ComUtilities.Release(ref slicerCaches);

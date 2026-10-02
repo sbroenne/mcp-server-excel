@@ -96,6 +96,7 @@ Add interactive slicers to filter PivotTables and Excel Tables visually.
 
 **Notes:**
 - **Use cases:** Interactive data filtering without modifying PivotTable/Table structure, dashboard creation with visual filter controls, and multi-slicer filtering for complex data analysis.
+- **Data Model slicers:** The same PivotTable slicer actions support Data Model/OLAP fields such as `[Quarters].[Quarter]`. Available and selected items return displayed captions; selection accepts captions or MDX unique names. Unknown or ambiguous items fail before changing the filter. An empty selection clears the filter; selection replaces by default, or adds when MCP `clear_first: false` / CLI `--clear-first false` is supplied. Read the selected items and PivotTable data to verify the result.
 
 ---
 

@@ -10,14 +10,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer.
 /// TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer.
 ///
-/// NAMING: Auto-generate descriptive names like {FieldName}Slicer (e.g., RegionSlicer).
+/// NAMING: Supply unique descriptive names like {FieldName}Slicer (e.g., RegionSlicer).
 ///
-/// SELECTION: selectedItems as list of strings.
+/// SELECTION: selectedItems as list of strings. Data Model/OLAP slicers return item captions
+/// and accept captions or MDX unique names; unknown or ambiguous items fail before changing the filter.
 /// Empty list clears filter (shows all items). Set clearFirst=false to add to existing selection.
 /// </summary>
 [ServiceCategory("slicer", "Slicer")]
 [McpTool("slicer", Title = "Slicer Operations", Destructive = true, Category = "analysis",
-    Description = "Slicer management: create, list, configure, delete visual filtering controls for PivotTables and Tables. NAMING: Auto-generate descriptive names like RegionSlicer, CategorySlicer. PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer. SELECTION: selectedItems as JSON array of strings. Use clearFirst=false to add to existing selection.")]
+    Description = "Slicer management: create, list, configure, delete visual filtering controls for PivotTables and Tables. NAMING: Supply a unique descriptive slicer_name like RegionSlicer. PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer. SELECTION: selected_items as JSON-array text; [] clears the filter. Data Model/OLAP item lists contain captions; selection accepts captions or MDX unique names and rejects unknown/ambiguous items before changing the filter. Use clear_first=false to add to existing selection.")]
 public interface ISlicerCommands
 {
     /// <summary>
@@ -26,7 +27,7 @@ public interface ISlicerCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable to create slicer for</param>
-    /// <param name="fieldName">Name of the field to use for the slicer</param>
+    /// <param name="fieldName">Name of the field to use for the slicer; Data Model/OLAP uses its discovered hierarchy name, e.g. [Quarters].[Quarter]</param>
     /// <param name="slicerName">Name for the new slicer</param>
     /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
     /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
@@ -49,7 +50,7 @@ public interface ISlicerCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="slicerName">Name of the slicer to modify</param>
-    /// <param name="selectedItems">Items to select (show in PivotTable)</param>
+    /// <param name="selectedItems">Items to select (show in PivotTable); empty clears the filter. Data Model/OLAP accepts returned captions or MDX unique names; unknown or ambiguous items fail without changing the filter.</param>
     /// <param name="clearFirst">If true, clears existing selection before setting new items (default: true)</param>
     /// <returns>Updated slicer state with current selection</returns>
     [ServiceAction("set-slicer-selection")]

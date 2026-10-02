@@ -16,7 +16,7 @@ public sealed class DaemonStateObservationTests
         var pipeName = $"legacy-daemon-{Guid.NewGuid():N}";
         using var acquired = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
-        var holder = Task.Run(() =>
+        var holder = Task.Factory.StartNew(() =>
         {
             using var legacyMutex = new Mutex(
                 initiallyOwned: false,
@@ -33,11 +33,11 @@ public sealed class DaemonStateObservationTests
             {
                 legacyMutex.ReleaseMutex();
             }
-        });
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        Assert.True(acquired.Wait(TimeSpan.FromSeconds(5)));
         try
         {
+            Assert.True(acquired.Wait(TimeSpan.FromSeconds(5)));
             Assert.True(DaemonAutoStart.IsDaemonMutexHeld(pipeName));
         }
         finally
@@ -54,7 +54,7 @@ public sealed class DaemonStateObservationTests
         var callerPipeName = legacyPipeName.ToUpperInvariant();
         using var acquired = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
-        var holder = Task.Run(() =>
+        var holder = Task.Factory.StartNew(() =>
         {
             using var legacyMutex = new Mutex(
                 initiallyOwned: false,
@@ -71,11 +71,11 @@ public sealed class DaemonStateObservationTests
             {
                 legacyMutex.ReleaseMutex();
             }
-        });
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-        Assert.True(acquired.Wait(TimeSpan.FromSeconds(5)));
         try
         {
+            Assert.True(acquired.Wait(TimeSpan.FromSeconds(5)));
             Assert.True(DaemonAutoStart.IsDaemonMutexHeld(callerPipeName));
         }
         finally
