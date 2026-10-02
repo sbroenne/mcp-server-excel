@@ -24,7 +24,7 @@
     self-test category but EXCLUDES the hand-written `file`/session tool (FileAction is not a
     Core [ServiceCategory]).
 
-    The user-facing surface (what README/FEATURES/SKILL.md advertise) is:
+    The user-facing surface (what README/FEATURES advertise) is:
 
         canonical operations = manifest.TotalOperations
                                - diag operations        (CLI-only self-test, not user-facing)
@@ -34,9 +34,8 @@
                                - 1 (diag)
                                + 1 (file)
 
-    These MUST stay in lock-step with the ExcludeCommands/ExtraOperationCount/ExtraToolCount
-    values passed to GenerateSkillFile in the CLI and MCP .csproj files, and with the ground
-    truth (the actual [McpServerTool(Name=...)] surface). All of that is cross-checked below,
+    These MUST stay in lock-step with the ground
+    truth (the actual [McpServerTool(Name=...)] surface). That is cross-checked below,
     so if anyone adds an action, adds/removes a tool, or renames diag/file, this fails until the
     docs are updated.
 
@@ -168,28 +167,18 @@ foreach ($dir in $mcpSearchDirs) {
 }
 
 if ($mcpToolNames.Count -ne $canonicalTools) {
-    Add-Failure ("MCP tool surface has {0} tools ([McpServerTool(Name=...)]) but the manifest-derived canonical tool count is {1}. If you added/removed a tool, update the docs; if diag/file assumptions changed, update this script and the csproj GenerateSkillFile parameters." -f $mcpToolNames.Count, $canonicalTools)
+    Add-Failure ("MCP tool surface has {0} tools ([McpServerTool(Name=...)]) but the manifest-derived canonical tool count is {1}. If you added/removed a tool, update the docs; if diag/file assumptions changed, update this script." -f $mcpToolNames.Count, $canonicalTools)
 }
 if ($mcpToolNames.Contains('diag')) {
-    Add-Failure "A 'diag' MCP tool now exists - the user-facing count assumption (diag is CLI-only) is broken. Update this script and the csproj ExcludeCommands."
+    Add-Failure "A 'diag' MCP tool now exists - the user-facing count assumption (diag is CLI-only) is broken. Update this script."
 }
 if (-not $mcpToolNames.Contains('file')) {
-    Add-Failure "No 'file' MCP tool found - the user-facing count assumption (file adds $fileOps ops) is broken. Update this script and the csproj ExtraOperationCount."
+    Add-Failure "No 'file' MCP tool found - the user-facing count assumption (file adds $fileOps ops) is broken. Update this script."
 }
 
 # ---------------------------------------------------------------------------
-# 4. Cross-check the csproj GenerateSkillFile parameters stay in sync
+# 4. Canonical counts
 # ---------------------------------------------------------------------------
-foreach ($proj in @("src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj", "src\ExcelMcp.CLI\ExcelMcp.CLI.csproj")) {
-    $projPath = Join-Path $rootDir $proj
-    if (-not (Test-Path $projPath)) { continue }
-    $projContent = Get-Content $projPath -Raw
-    $extraOpsMatch = [regex]::Match($projContent, 'ExtraOperationCount\s*=\s*"(\d+)"')
-    if ($extraOpsMatch.Success -and [int]$extraOpsMatch.Groups[1].Value -ne $fileOps) {
-        Add-Failure ("$proj sets ExtraOperationCount={0} but FileAction has {1} operations. They must match so the generated SKILL.md count is correct." -f $extraOpsMatch.Groups[1].Value, $fileOps)
-    }
-}
-
 Write-Host "Canonical (from code): $canonicalTools tools, $canonicalOps operations" -ForegroundColor Cyan
 Write-Host "  manifest: $manifestTools tools / $manifestOps ops; - diag($diagOps) + file($fileOps); MCP tool surface: $($mcpToolNames.Count) tools" -ForegroundColor DarkGray
 
@@ -223,12 +212,12 @@ $checks = @(
     @{ File = "docs\guides\EXCEL-COM-VS-FILE-PARSERS.md"; Pattern = '(?<o>\d+)\s+operations across (?<t>\d+) tools' }
     @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<t>\d+) tools \((?<o>\d+) operations\)' }
 )
-$generatedSkill = Join-Path $SkillsDirectory 'excel-mcp\SKILL.md'
+$generatedSkill = Join-Path $SkillsDirectory 'excel-mcp-report-formatting\SKILL.md'
 if (-not (Test-Path -LiteralPath $generatedSkill)) {
     Add-Failure 'Generated MCP skill is missing. Run scripts\Build-AgentSkills.ps1 -GenerateOnly after the Release build.'
 }
-elseif ((Get-Content -LiteralPath $generatedSkill -Raw) -notmatch "Provides $canonicalOps Excel operations") {
-    Add-Failure 'Generated MCP skill counts are stale. Regenerate the skill; do not edit its output.'
+elseif ((Get-Content -LiteralPath $generatedSkill -Raw) -notmatch '(?m)^name: excel-mcp-report-formatting\r?$') {
+    Add-Failure 'Prepared MCP formatting skill has the wrong identity. Regenerate the skill; do not edit its output.'
 }
 
 # The website feature overview includes FEATURES.md; audit_site.py enforces

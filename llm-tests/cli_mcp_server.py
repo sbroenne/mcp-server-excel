@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
+from mcp.types import CallToolResult, TextContent
 
 
 def _parse_args() -> argparse.Namespace:
@@ -92,7 +93,7 @@ def main() -> None:
         name=tool_name,
         description=options.description or f"Run {Path(options.command).name} with an args string.",
     )
-    def execute(args: str = "") -> str:
+    def execute(args: str = "") -> CallToolResult:
         result = _run_command(
             options.command,
             args,
@@ -101,7 +102,7 @@ def main() -> None:
             timeout=options.timeout,
             env=env,
         )
-        return json.dumps(result)
+        return CallToolResult(content=[TextContent(type="text", text=json.dumps(result))])
 
     server.run()
 

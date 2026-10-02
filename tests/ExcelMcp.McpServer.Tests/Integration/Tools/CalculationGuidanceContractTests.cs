@@ -38,9 +38,7 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
             .ToHashSet(StringComparer.Ordinal);
         var requiredParameterNames = GetRequiredPropertyNames(calculationTool.JsonSchema);
         var repoRoot = FindRepoRoot();
-        var sourcePaths = Directory.GetFiles(Path.Combine(repoRoot, "skills", "shared"), "*.md")
-            .Concat(Directory.GetFiles(Path.Combine(repoRoot, "skills", "assets", "excel-mcp", "references"), "*.md"))
-            .Append(Path.Combine(repoRoot, "skills", "templates", "SKILL.mcp.sbn"));
+        var sourcePaths = Directory.GetFiles(Path.Combine(repoRoot, "docs", "reference"), "*.md");
         var verifiedActions = new HashSet<string>(StringComparer.Ordinal);
         var exampleCount = 0;
 

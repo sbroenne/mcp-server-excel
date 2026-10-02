@@ -57,7 +57,7 @@ When you run the release workflow, all components are released together:
 | `RELEASE-INPUTS.json` and `release-metadata.patch` | Build-input record and exact metadata patch | GitHub Release (workflow path/source commit, patch digest, final release commit/tag, and artifact digests; not a signed provenance attestation) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
-| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
+| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli-report-formatting` + `excel-mcp-report-formatting` skills for direct extraction) |
 | `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
 | `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; self-contained native ARM64 MCP executable and skill) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop metadata bundle; server fetched through npx with `@latest`) |

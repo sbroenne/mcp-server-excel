@@ -1,0 +1,556 @@
+{
+  "reserved_attempts": 50,
+  "verified_cases": 48,
+  "incomplete_or_unverified_attempts": 2,
+  "groups": [
+    {
+      "transport": "cli",
+      "condition": "with-skill",
+      "verified": 12,
+      "recorded_tokens": 3092967,
+      "skill_reads": 12
+    },
+    {
+      "transport": "cli",
+      "condition": "without-skill",
+      "verified": 12,
+      "recorded_tokens": 1794556,
+      "skill_reads": 0
+    },
+    {
+      "transport": "mcp",
+      "condition": "with-skill",
+      "verified": 12,
+      "recorded_tokens": 5320118,
+      "skill_reads": 12
+    },
+    {
+      "transport": "mcp",
+      "condition": "without-skill",
+      "verified": 12,
+      "recorded_tokens": 4312584,
+      "skill_reads": 0
+    }
+  ],
+  "token_increase_percent": {
+    "mcp": 23.4,
+    "cli": 72.4
+  },
+  "cases": [
+    {
+      "task": "model-refresh",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 268060,
+      "skill_read": true
+    },
+    {
+      "task": "model-refresh",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 245040,
+      "skill_read": true
+    },
+    {
+      "task": "model-refresh",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 146098,
+      "skill_read": false
+    },
+    {
+      "task": "model-refresh",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 239364,
+      "skill_read": false
+    },
+    {
+      "task": "model-refresh",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 454284,
+      "skill_read": true
+    },
+    {
+      "task": "model-refresh",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 495192,
+      "skill_read": true
+    },
+    {
+      "task": "model-refresh",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 361790,
+      "skill_read": false
+    },
+    {
+      "task": "model-refresh",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 396847,
+      "skill_read": false
+    },
+    {
+      "task": "query-recovery",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 209710,
+      "skill_read": true
+    },
+    {
+      "task": "query-recovery",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 217795,
+      "skill_read": true
+    },
+    {
+      "task": "query-recovery",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 121917,
+      "skill_read": false
+    },
+    {
+      "task": "query-recovery",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 120782,
+      "skill_read": false
+    },
+    {
+      "task": "query-recovery",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 430750,
+      "skill_read": true
+    },
+    {
+      "task": "query-recovery",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 393333,
+      "skill_read": true
+    },
+    {
+      "task": "query-recovery",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 362793,
+      "skill_read": false
+    },
+    {
+      "task": "query-recovery",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 294787,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 286602,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 516627,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 144863,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 203153,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 493795,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 708271,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 385312,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-13-1",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 568759,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 235052,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 200386,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 140906,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 124550,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 345923,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 345968,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 296334,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-267-21",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 294441,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 233237,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 235262,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 119318,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 165509,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 517130,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 372711,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 389170,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-280-17",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 355266,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 228172,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "cli",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 217024,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 134840,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "cli",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 133256,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 1,
+      "tokens": 381394,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "mcp",
+      "condition": "with-skill",
+      "repetition": 2,
+      "tokens": 381367,
+      "skill_read": true
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 1,
+      "tokens": 287924,
+      "skill_read": false
+    },
+    {
+      "task": "spreadsheetbench-38823",
+      "transport": "mcp",
+      "condition": "without-skill",
+      "repetition": 2,
+      "tokens": 319161,
+      "skill_read": false
+    }
+  ],
+  "usage_scope": "Verified completed cases only. Interrupted usage is unknown, not zero.",
+  "model": "gpt-6.1-sol",
+  "packages": {
+    "pytest-skill-engineering": "1.0.3",
+    "github-copilot-sdk": "1.0.16",
+    "mcp": "2.2.0"
+  },
+  "suite": "real-world",
+  "source_commit": "792511e47ff07d22b3c01beaf646b00ccafefebe",
+  "skill_hashes": {
+    "mcp": {
+      "README.md": "90abd21658e58005a473b018412148851e4c7f6c6189e9d193a77a288855229e",
+      "references\\analysis.md": "0750b22487b18a6d5f221d12c66a6f263bfd56bff23aaaadb6c825e518106b89",
+      "references\\behavioral-rules.md": "a895b4a310714744309122f3cd0615c6536ca8af31e2eaf382459abfa0fd314a",
+      "references\\calculation.md": "56f8cdc0b25120bdfa3030548d6ea967eef985591a038a86982ceb3213f825e1",
+      "references\\chart.md": "f466951ea181f8bf99a5b28f48be96b32d5a28f4c1096a6377a8663becffefbf",
+      "references\\claude-desktop.md": "e489ca30a67b989698702591399bfef77ce99ff471aa17454a44668f12cf0aa1",
+      "references\\conditionalformat.md": "3edd92171482ab48e73065834e438156dfe8d80e9ccac848d87e9ec02207095d",
+      "references\\datamodel.md": "c124255ab69f797646fc2a81ade5105742c12a22b3dd0806e6f8a72adbbfcbfd",
+      "references\\dmv-reference.md": "037d7542fa4a045e73b32f734125defbf19b96daa6801ebb326e9b0c48ffd976",
+      "references\\drawing.md": "c5713612dd527a849b52227f29a468788fd3fea8727fac0d7bea9794d948dc61",
+      "references\\index.md": "3acd84d9ce0032979d6e85729634f743277a748d7cd5abffe8b0cc2be4ce091f",
+      "references\\m-code-syntax.md": "ef8a6752045d97ad804de0ae1c60aa571bb72ba68a0e0eeb29169b899795b4d5",
+      "references\\pivottable.md": "6f767738be4547b879ee37373e9c208f54e924649c827e4e45ea331abcb30741",
+      "references\\powerquery.md": "42c321689c704800ef8df6b9750405534670bc37642b1d002c8461f6b08c038a",
+      "references\\querytable.md": "eecefb6c328f43a7f934ed5928e969af16b9a34224e13204062c7b5690988910",
+      "references\\range.md": "3a42525387e481b8d31da0422f718a79c34fb691ad3e06b13c7ca4a2f8ad13f2",
+      "references\\report-formatting.md": "c4e969e4801a79f6cb768e7d6d241fafd1adad5a952e51ce84f5db336042e189",
+      "references\\screenshot.md": "528f273374a50243e8f27d156bd99d3958c2468d94fed30a05b4b9b36a7dab87",
+      "references\\slicer.md": "9b69162361c642ae06d9c66936550085cc160d169350b7977a9806d2a76acab6",
+      "references\\table.md": "acf11d0c2db6106bbf4606d65e198e644fd49f3c75d76df40f2df4bc293e9021",
+      "references\\window.md": "f62be82b728b8630162d94f742227fef9a759e0d21159dd23d0e7b26c40f3bce",
+      "references\\workbook.md": "b9afddefda6413b298d990068fe239b76ab2f2cbc52eaaf2c22ab92958ede142",
+      "references\\workflows.md": "d16b7ddd64f7de3345d34ff97a91b39a97da4801ca1cec772a190c452f411b95",
+      "references\\worksheet.md": "1def6bbc0185da0f52cf78357c8bddf9cbac71ca86e35d29f1e1d6d098390821",
+      "references\\xmlmap.md": "c1ccb1a404ca486ad3b31805604432ee0341d78427facc41fce30d277e39d09d",
+      "SKILL.md": "9a73798ee922b88a2ce0764e5f9162610582980fe33d2acdb2ffd2f726a730e6",
+      "VERSION": "06e19dead69dcc16bc573cc9f24b68b69907f4cfd4afb9d70372cc6b462a9862"
+    },
+    "cli": {
+      "README.md": "59cc2496535d19477609626f1036e5acfc4261ff6deeb08bc90f112861440dd6",
+      "references\\analysis.md": "794bfcbc882a143e563de25fe50b40eb2f46d1619a1bdae5708be5c4881341d9",
+      "references\\behavioral-rules.md": "a895b4a310714744309122f3cd0615c6536ca8af31e2eaf382459abfa0fd314a",
+      "references\\chart.md": "ea25cdd2084e0db959d54f9f5f789427423bb38f94fa1a2719eea89eb8aae19c",
+      "references\\conditionalformat.md": "32fe86d72a3630e9d963dd5e41c74e4b87b461b525a24588f1f129999c9a3b0d",
+      "references\\datamodel.md": "aeec36cb4dd5c7108d171e6e69eb19b47f2223ec3e700849858906280791041e",
+      "references\\dmv-reference.md": "037d7542fa4a045e73b32f734125defbf19b96daa6801ebb326e9b0c48ffd976",
+      "references\\drawing.md": "61e9b178098225da5b5ccadba7ab364f3736af61bbed2a58f9864d53da71033e",
+      "references\\index.md": "485ad8a3db50f4dcc38e95f0f9b24189f8d10d1d2bf22db3c3c404844e63219e",
+      "references\\m-code-syntax.md": "ef8a6752045d97ad804de0ae1c60aa571bb72ba68a0e0eeb29169b899795b4d5",
+      "references\\pivottable.md": "541bb853006acb657ce9ae9a6e0ac1746cda61db9769d7609534124f0e43c22f",
+      "references\\powerquery.md": "ec2c970dd49b621b6bfe902899f85350e487877b0552fad454ed5e24e39eac95",
+      "references\\querytable.md": "aaab93dd24b70d17bf17052811e878f63eb07db8b2dbda82441e9adb818f162f",
+      "references\\range.md": "f8603df6ae9e17f50558f026a30abb04ca915a616619efc160b197c2a16f0fe8",
+      "references\\README.md": "c0197c69a42d2f2b72c2787142bda681abc2c6a746d8fcbbc51d7e44e88df40f",
+      "references\\report-formatting.md": "2763b88f326b7870781a3019f492632cda1230cf34f5d806fec40cb07a8c7f11",
+      "references\\screenshot.md": "08b2df16fb8ed5707a7660658715f01b02a0f3c4cd43603141c408ae785900c2",
+      "references\\slicer.md": "223954d4ba47f710f900c01fb815fb59b5bebf791e6d93f428bb19af2079f4d3",
+      "references\\table.md": "80c7aa8c7b0405cde3290b06941e5b7b34a6d1f2b5a31950d67666ba172596a4",
+      "references\\window.md": "bd9b0e83499732f7bc79b8ec21ea75faae18b4841341a6c1e3f8d7805e77e0fe",
+      "references\\workbook.md": "9422d4c73177f7a3a3decb00c2fad1be30f1be74b8deee6537e37cd348ca6711",
+      "references\\workflows.md": "02c5519b5780aeb332df18319c09fb37e184df2ffe6230f223208c4de080f8f9",
+      "references\\worksheet.md": "378bc577ad3584987105b534aec420fa03b82681134f7de090fecf0544aef568",
+      "references\\xmlmap.md": "1372401f075111ef3a7a06af89187aeddfcdb0dcf15c520a1c445d84044d5812",
+      "SKILL.md": "7059b14495d60045af1d0554fadfa043abcc8cd0cd59889b2627887114154d7a",
+      "VERSION": "06e19dead69dcc16bc573cc9f24b68b69907f4cfd4afb9d70372cc6b462a9862"
+    }
+  },
+  "invocations": [
+    {
+      "prior_attempts": 0,
+      "checker_hashes": {
+        "test_skill_value.py": "61be68cd728c98369290b6b3cb9aede0ed2efd5f7314dd98d2ae9e0e58e3252c",
+        "skill_value_tasks.py": "02a7917a3b528f3f6493b6741d9f8b76c34bb723f87c230b867fbedb88e90e44",
+        "skill_value.py": "34f4b5a7e621c4c78127417b8f9fd6a48473ba1d1df3017d54d2737b62823be3",
+        "workbook_assertions.py": "b39653b1f449dd2d13d6ba5dab15d4166b49dcc43ce49cd07535e62f932ab70b",
+        "Inspect-SavedWorkbook.ps1": "ec6a98a8ce9ed0afe3700e4d5b23b208c495726238b6bafbfad425abc7b3be7a",
+        "conftest.py": "25cdb477906c3f7a65071f38af22c810826a3098f5bb25183ed6d0ccdeebf5f2",
+        "skill_discovery.py": "31cbc76110e48574dd5f95a0c04ee857ee98f6a83c54bf28772af91b037c93d7",
+        "cli_mcp_server.py": "0382dcd6c2c674173320c020ddf0e4b35be5298905b3be93494e5aa5e4647bea",
+        "cli_evidence.py": "2fed6764b59b031591ac0d6a90c03db23d782fe8633ce3373a9e2157a61b45fb",
+        "consent_scenarios.py": "f9993180e1cfeefffbe7faad9dcae81a78d0a069e3fb2f11814349d89f034151",
+        "Close-OwnedWorkbook.ps1": "2a08b43168d6718f78e04dcb5279180491d547df9f5f6942f0ca05b524e37df6",
+        "spreadsheetbench.py": "74e08e7976806f33240bb843e1b880ec1586d7ea1265e44d6841b6140b363f05",
+        "uv.lock": "cc5e6d0f4068ead1041f9f75eccb3b6fba0db7fac9e3d2d94e99d5be92628fa4"
+      }
+    },
+    {
+      "prior_attempts": 6,
+      "checker_hashes": {
+        "test_skill_value.py": "61be68cd728c98369290b6b3cb9aede0ed2efd5f7314dd98d2ae9e0e58e3252c",
+        "skill_value_tasks.py": "02a7917a3b528f3f6493b6741d9f8b76c34bb723f87c230b867fbedb88e90e44",
+        "skill_value.py": "34f4b5a7e621c4c78127417b8f9fd6a48473ba1d1df3017d54d2737b62823be3",
+        "workbook_assertions.py": "b39653b1f449dd2d13d6ba5dab15d4166b49dcc43ce49cd07535e62f932ab70b",
+        "Inspect-SavedWorkbook.ps1": "ec6a98a8ce9ed0afe3700e4d5b23b208c495726238b6bafbfad425abc7b3be7a",
+        "conftest.py": "25cdb477906c3f7a65071f38af22c810826a3098f5bb25183ed6d0ccdeebf5f2",
+        "skill_discovery.py": "31cbc76110e48574dd5f95a0c04ee857ee98f6a83c54bf28772af91b037c93d7",
+        "cli_mcp_server.py": "0382dcd6c2c674173320c020ddf0e4b35be5298905b3be93494e5aa5e4647bea",
+        "cli_evidence.py": "2fed6764b59b031591ac0d6a90c03db23d782fe8633ce3373a9e2157a61b45fb",
+        "consent_scenarios.py": "f9993180e1cfeefffbe7faad9dcae81a78d0a069e3fb2f11814349d89f034151",
+        "Close-OwnedWorkbook.ps1": "2a08b43168d6718f78e04dcb5279180491d547df9f5f6942f0ca05b524e37df6",
+        "spreadsheetbench.py": "74e08e7976806f33240bb843e1b880ec1586d7ea1265e44d6841b6140b363f05",
+        "uv.lock": "cc5e6d0f4068ead1041f9f75eccb3b6fba0db7fac9e3d2d94e99d5be92628fa4"
+      }
+    },
+    {
+      "prior_attempts": 16,
+      "checker_hashes": {
+        "test_skill_value.py": "61be68cd728c98369290b6b3cb9aede0ed2efd5f7314dd98d2ae9e0e58e3252c",
+        "skill_value_tasks.py": "02a7917a3b528f3f6493b6741d9f8b76c34bb723f87c230b867fbedb88e90e44",
+        "skill_value.py": "72971ca31328e4ff2d233fb43104c214aded1b89991708864dfcbe7cdabdae82",
+        "workbook_assertions.py": "b39653b1f449dd2d13d6ba5dab15d4166b49dcc43ce49cd07535e62f932ab70b",
+        "Inspect-SavedWorkbook.ps1": "ec6a98a8ce9ed0afe3700e4d5b23b208c495726238b6bafbfad425abc7b3be7a",
+        "conftest.py": "25cdb477906c3f7a65071f38af22c810826a3098f5bb25183ed6d0ccdeebf5f2",
+        "skill_discovery.py": "31cbc76110e48574dd5f95a0c04ee857ee98f6a83c54bf28772af91b037c93d7",
+        "cli_mcp_server.py": "0382dcd6c2c674173320c020ddf0e4b35be5298905b3be93494e5aa5e4647bea",
+        "cli_evidence.py": "2fed6764b59b031591ac0d6a90c03db23d782fe8633ce3373a9e2157a61b45fb",
+        "consent_scenarios.py": "f9993180e1cfeefffbe7faad9dcae81a78d0a069e3fb2f11814349d89f034151",
+        "Close-OwnedWorkbook.ps1": "2a08b43168d6718f78e04dcb5279180491d547df9f5f6942f0ca05b524e37df6",
+        "spreadsheetbench.py": "74e08e7976806f33240bb843e1b880ec1586d7ea1265e44d6841b6140b363f05",
+        "uv.lock": "cc5e6d0f4068ead1041f9f75eccb3b6fba0db7fac9e3d2d94e99d5be92628fa4"
+      }
+    }
+  ],
+  "limitations": [
+    "One capable model, two repetitions, and no observed correctness difference.",
+    "Resumed invocations cross a recorder-code version boundary.",
+    "The configured event callback received zero live events; live journaling is unverified.",
+    "Recorded tokens are not invoice cost; incomplete attempt usage is unknown.",
+    "Public benchmark problems may have appeared in model training."
+  ]
+}

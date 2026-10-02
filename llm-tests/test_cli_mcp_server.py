@@ -28,6 +28,7 @@ class CliEvaluationTransportTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual([tool.name for tool in tools.tools], ["test_execute"])
                 called = await session.call_tool("test_execute", {"args": '-c "print(42)"'})
                 self.assertFalse(called.is_error)
+                self.assertIsNone(called.structured_content, "CLI JSON must not be duplicated by the SDK")
                 content = called.content[0]
                 assert isinstance(content, TextContent), content
                 result = json.loads(content.text)

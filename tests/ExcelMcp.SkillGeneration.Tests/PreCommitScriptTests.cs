@@ -14,7 +14,7 @@ public sealed class PreCommitScriptTests
 
     [Theory]
     [InlineData("src/ExcelMcp.Core/Command.cs", true, true)]
-    [InlineData("skills/shared/range.md", true, false)]
+    [InlineData("docs/reference/report-formatting.md", true, false)]
     [InlineData("README.md", false, false)]
     [InlineData("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true)]
     public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
@@ -29,7 +29,7 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
-        if (path == "skills/shared/range.md")
+        if (path == "docs/reference/report-formatting.md")
         {
             Assert.Matches(@"-SkillTests:\s*True", result.Output);
         }
@@ -65,15 +65,15 @@ public sealed class PreCommitScriptTests
             ("src/ExcelMcp.McpServer/Program.cs", true, true, false),
             ("src/ExcelMcp.Cleanup/Program.cs", true, true, false),
             ("src/ExcelMcp.Generators.Cli/Generator.cs", true, true, false),
-            ("src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs", true, false, true),
+            ("docs/reference/report-formatting.md", true, false, true),
             ("Directory.Build.props", true, true, false),
             ("Directory.Packages.props", true, true, false),
             ("global.json", true, true, false),
             (".editorconfig", true, false, false),
             ("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true, false),
             ("src/ExcelMcp.Core/Deleted.cs\nvscode-extension/src/renamed.ts", true, true, false),
-            ("skills/shared/range.md", true, false, true),
-            ("skills/templates/SKILL.cli.sbn", true, false, true),
+            ("docs/reference/range.md", false, false, false),
+            ("skills/excel-cli-report-formatting/SKILL.md", true, false, true),
             ("unknown-build-input.config", true, true, false)
         ];
         var sandbox = Directory.CreateDirectory(Path.Combine(
@@ -112,7 +112,7 @@ public sealed class PreCommitScriptTests
 
     [Theory]
     [InlineData("src/ExcelMcp.Core/Command.cs")]
-    [InlineData("skills/shared/range.md")]
+    [InlineData("docs/reference/report-formatting.md")]
     [InlineData("Directory.Build.props")]
     [InlineData(".editorconfig")]
     public async Task UnstagedBuildInputs_BlockBeforeBuilding(string unstaged)

@@ -123,12 +123,13 @@ hide:
     Write and run `=PY()` formulas that execute in Excel's cloud Python engine —
     process worksheet data with pandas, NumPy and more, from your AI assistant.
 
--   :material-test-tube:{ .lg .middle } __LLM-tested quality__
+-   :material-test-tube:{ .lg .middle } __Agent workflow checks__
 
     ---
 
-    Tool behavior validated with real LLM workflows, so AI assistants reliably
-    understand and use every operation.
+    Selected MCP and CLI workflows are checked with real agents and independent
+    workbook inspection. Skill-value comparisons measure whether guidance helps;
+    they do not guarantee every agent can use every operation.
 
 </div>
 

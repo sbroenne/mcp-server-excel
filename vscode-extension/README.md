@@ -68,10 +68,13 @@ Excel MCP Server (excel-mcp) provides **31 specialized tools with 326 operations
 Tool workflows are tested with real AI assistants using
 [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
 
-### Excel Guidance Included
+### Optional Report Formatting Included
 
-Copilot loads the bundled [Excel guidance](https://excelmcpserver.dev/skills/)
-as needed. No separate skill installation or preview setting is required.
+Copilot can load the bundled
+[`excel-mcp-report-formatting` skill](https://excelmcpserver.dev/skills/)
+for requested report presentation. Ordinary workbook work uses native MCP
+guidance rather than a broad automatically loaded skill.
+No separate skill installation or preview setting is required.
 Use ordinary natural-language requests; `/skills` opens VS Code's Configure
 Skills menu if you want to inspect available skills.
 

@@ -252,7 +252,7 @@ risk, not a fixed number of tests or documentation edits.
 
 Keep entry READMEs focused on their audience: repository acquisition and quick
 start, component installation/use, or Marketplace benefits. Put detailed feature
-behavior in `docs/features/` and shared agent workflows in `skills/shared/`.
+behavior in `docs/features/` and shared agent workflows in `docs/reference/`.
 There is no fixed README length or requirement to edit every README.
 
 Before shortening or moving a page, identify where each substantive caveat,

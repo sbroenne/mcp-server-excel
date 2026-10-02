@@ -745,15 +745,17 @@ When this feature is implemented, **ALL** these files require updates:
 | `FEATURES.md` | Add new section | Full tool documentation |
 | `tests/.../McpServerSmokeTests.cs` | Line ~179 | Update expected tool count (22 → 23) |
 
-### Skills (LLM Guidance)
+### Current calculation guidance
+
+General automation guidance is documentation, not a formatting skill. The
+following sources supersede this proposal's former broad-skill references:
 
 | File | Change |
 |------|--------|
-| `skills/shared/workflows.md` | Add "Batch Operations with Calculation Mode" workflow |
-| `skills/shared/behavioral-rules.md` | Add rule: "Use manual mode for batch operations" |
-| `skills/excel-mcp/SKILL.md` | Add `calculation_mode` to tool reference |
-| `skills/excel-cli/SKILL.md` | Add `calculation` command reference |
-| **NEW:** `skills/shared/excel_calculation.md` | Dedicated calculation mode guidance |
+| `docs/reference/workflows.md` | Add "Batch Operations with Calculation Mode" workflow |
+| `docs/reference/behavioral-rules.md` | Preserve the prior mode; temporary manual mode is only for bulk writes |
+| `docs/reference/calculation.md` | MCP `calculation_mode` actions and native defaults |
+| `docs/reference/workflows.md` | CLI `calculationmode` actions and equivalent MCP workflows |
 
 ### MCP Prompts
 
@@ -775,85 +777,30 @@ When this feature is implemented, **ALL** these files require updates:
 
 ## LLM Testing with pytest-skill-engineering
 
-This feature should be validated using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering), which tests whether LLMs can correctly understand and use the new tools.
+The current [agent evaluations](../llm-tests/README.md) use
+[pytest-skill-engineering 1.x](https://github.com/sbroenne/pytest-skill-engineering):
+single attempts, native JSON traces, and independently checked workbook state.
+The removed AI-generated reports and retry/report-model settings are not used.
 
-### Why pytest-skill-engineering?
+`test_skill_value.py` supplies the same bulk-update request through MCP and CLI,
+with and without the matching generated skill. The agent receives an existing
+120-row workbook and 60 price changes, not a tutorial on calculation-mode flags.
+Checks verify saved values, preserved formulas/formats/objects, recalculated
+totals, and restoration of the **original** calculation mode. An initially
+manual workbook must stay manual; unconditional reset to automatic is a failure.
 
-- **Tests the AI interface, not just code** - Validates tool descriptions, not just implementations
-- **AI-powered reports** - Tells you *what to fix*, not just *what failed*
-- **Native pytest** - Integrates with existing Python test infrastructure
-- **Supports both MCP and CLI** - Test both interfaces with same framework
+The read-only comparison additionally rejects calculation-mode changes,
+recalculation/refresh, and writes. For CLI it preserves an existing unsaved
+session, including its manual mode and note. The model-backed task verifies
+actual refreshed totals and a genuine PivotChart link, not just a refresh call.
 
-### Proposed Test Cases
+Deterministic API behavior remains in `PersistentServiceCalculationTests.cs`.
+Agent comparisons use a fixed model, equivalent permissions/tools, three
+independent repetitions, a 600-second limit, and 80 admitted tool calls.
+They record correctness and complete model usage, including failures and skill
+reading. Expected totals must not be leaked into user prompts.
 
-```python
-# llm-tests/cli/test_cli_calculation_mode.py
-import pytest
-
-from conftest import build_excel_cli_eval, assert_cli_exit_codes, assert_regex, unique_path
-
-
-@pytest.mark.asyncio
-async def test_cli_calculation_mode_batch(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
-    agent = build_excel_cli_eval(
-        "cli-calculation-batch",
-        servers=excel_cli_servers,
-        skill_dir=excel_cli_skill_dir,
-        max_turns=15,
-    )
-
-    result = await copilot_eval(
-        agent,
-        f"Create a workbook at {unique_path('calc-batch')} with 20 rows of sample data, "
-        "use calculation mode appropriately for efficient writes, then restore automatic "
-        "calculation before saving and report what you did."
-    )
-
-    assert result.success
-    assert_cli_exit_codes(result)
-
-
-@pytest.mark.asyncio
-async def test_cli_calculation_mode_debugging(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
-    agent = build_excel_cli_eval(
-        "cli-calculation-debug",
-        servers=excel_cli_servers,
-        skill_dir=excel_cli_skill_dir,
-        max_turns=20,
-    )
-
-    result = await copilot_eval(
-        agent,
-        f"Create a workbook at {unique_path('calc-debug')} with A1=10, A2=20, and "
-        "A3=SUM(A1:A2). Use manual calculation mode to verify the formula, change A1 "
-        "to 100, recalculate, save the workbook, and report the new value."
-    )
-
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"\b120\b")
-```
-
-### Test Categories
-
-| Category | What It Tests |
-|----------|---------------|
-| **Discovery** | LLM finds and uses `calculation_mode` appropriately |
-| **Batch Optimization** | LLM uses manual mode for bulk operations |
-| **Debugging Workflow** | LLM uses range-scope calculation for step-through |
-| **Safety** | LLM restores automatic mode after batch |
-| **Data Model** | LLM uses manual mode with DAX-heavy workbooks |
-
-### Report Insights Expected
-
-With pytest-skill-engineering's AI-powered reports, we expect insights like:
-
-```
-🎯 RECOMMENDATION
-Tool description is clear - 100% of models correctly identified when to use manual mode.
-
-🔧 MCP TOOL FEEDBACK
-⚠️ calculation_mode(action='calculate', scope='range')
-   Low usage (2 calls across 15 tests)
-   Suggested: Add example to tool description showing range-scope debugging workflow
-```
+Whether skill guidance helps is a measured question, not an expected report
+recommendation. Better verified results, or at least 20% less recorded usage
+without worse correctness/safety, are the predeclared positive signals. Missing
+usage is unknown, and small or inconsistent differences remain inconclusive.

@@ -1084,7 +1084,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("gh-pages", "hooks.py"),
             Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
             Path.Combine(".github", "plugins", "excel-cli", "README.md"),
-            Path.Combine("artifacts", "generated-skills", "excel-mcp", "SKILL.md"),
+            Path.Combine("artifacts", "generated-skills", "excel-mcp-report-formatting", "SKILL.md"),
             Path.Combine("docs", "INSTALLATION-CLI.md"),
             Path.Combine("docs", "guides", "EXCEL-COM-VS-FILE-PARSERS.md"),
             Path.Combine("docs", "COPILOT-PLUGIN-DISTRIBUTION.md"),

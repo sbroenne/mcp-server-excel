@@ -57,7 +57,9 @@ The comparison ignores only:
 - Each `plugins/<name>/plugin.json` **top-level** `version`, after validating the
   manifest identity, schema and version.
 - Exactly `plugins/<name>/version.txt` and
-  `plugins/<name>/skills/<name>/VERSION`, after verifying their release stamps.
+  `plugins/<name>/skills/<name>-report-formatting/VERSION`, after verifying their
+  release stamps. Legacy immutable baselines retain their old `<name>/VERSION`
+  path for comparison; mixed skill layouts are rejected.
 - The `version` of the corresponding `excel-cli` and `excel-mcp` entries in the
   generated root `.github/plugin/marketplace.json` (or the validated legacy
   `marketplace.json` before migration).
@@ -165,8 +167,9 @@ visibly rather than allowing a false no-change result.
 Unsynchronized hand edits in the published repository are prohibited and may be
 overwritten. For every change:
 
-1. Edit canonical inputs under `.github/plugins/`, `skills/templates`,
-   `skills/shared`, `skills/assets`, or their owning build/workflow files.
+1. Edit canonical inputs under `.github/plugins/`, the actual `skills/<name>`
+   directories, `docs/reference/report-formatting.md`, or their owning
+   build/workflow files. General reference docs are not packaged into plugins.
 2. Build Release and generate complete skills using
    `scripts\Build-AgentSkills.ps1 -GenerateOnly`.
 3. Build versioned plugins using `scripts\Build-Plugins.ps1 -Version <version>`.

@@ -1437,8 +1437,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates a JSON manifest as a constant string for skill documentation generation.
-    /// The Build.Tasks project extracts this JSON to generate SKILL.md files.
+    /// Generates the command manifest used by documentation count validation.
     /// </summary>
     private static string GenerateSkillManifest(List<ServiceInfo> categories)
     {
@@ -1451,8 +1450,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("namespace Sbroenne.ExcelMcp.Generated;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// JSON manifest for skill file generation.");
-        sb.AppendLine("/// Used by ExcelMcp.Build.Tasks to generate SKILL.md files from templates.");
+        sb.AppendLine("/// JSON command manifest for documentation count validation.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine("internal static class _SkillManifest");
         sb.AppendLine("{");

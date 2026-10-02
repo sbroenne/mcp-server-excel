@@ -54,7 +54,7 @@ If YES, verify all steps completed:
 - [ ] Ran `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts`
 - [ ] Verified CLI and MCP names, parameters, defaults, validation, and results match
 - [ ] Updated focused integration tests for the affected entry points
-- [ ] Updated canonical guidance in `skills/shared` and user documentation when behavior changed
+- [ ] Updated canonical guidance in `docs/reference`, affected formatting skills, and user documentation when behavior changed
 
 **Coverage Impact**: +___ methods, ___% → ___% coverage
 
