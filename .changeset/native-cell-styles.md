@@ -1,6 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": minor
-"Sbroenne.ExcelMcp.CLI": minor
+"excelmcp": minor
 ---
 
 Add workbook cell-style listing, complete native inspection, creation from one

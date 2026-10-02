@@ -1,6 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": minor
-"Sbroenne.ExcelMcp.CLI": minor
+"excelmcp": minor
 ---
 
 Add native precedent/dependent graph inspection to MCP and CLI. Return all

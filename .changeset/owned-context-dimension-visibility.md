@@ -1,6 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": minor
-"Sbroenne.ExcelMcp.CLI": minor
+"excelmcp": minor
 ---
 
 Read active sheet, selection, cell, and chart context from every window owned by

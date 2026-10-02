@@ -1,6 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": minor
-"Sbroenne.ExcelMcp.CLI": minor
+"excelmcp": minor
 ---
 
 Replace separate Table comparison/value filters with shared typed native filter

@@ -1,6 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": minor
-"Sbroenne.ExcelMcp.CLI": minor
+"excelmcp": minor
 ---
 
 Add native PivotTable Show Values As calculations independently of aggregation,

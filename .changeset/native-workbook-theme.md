@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.Core": minor
+"excelmcp": minor
 ---
 
 Add complete native workbook theme color/font inspection and Office theme

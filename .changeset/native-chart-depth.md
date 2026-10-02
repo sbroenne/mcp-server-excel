@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.Core": minor
+"excelmcp": minor
 ---
 
 Add selected-series reads and primary/secondary axis assignment, native error

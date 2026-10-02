@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.Core": minor
+"excelmcp": minor
 ---
 
 Extend worksheet page setup with native print areas, repeated titles, point

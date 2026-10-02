@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.Core": minor
+"excelmcp": minor
 ---
 
 Add native date timelines, complete selected-control reads, shared-PivotCache

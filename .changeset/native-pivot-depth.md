@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.Core": minor
+"excelmcp": minor
 ---
 
 Add native PivotTable label/value/date/top-bottom filters, selected parent-item

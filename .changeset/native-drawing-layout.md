@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.Core": minor
+"excelmcp": minor
 ---
 
 Add native drawing grouping, ungrouping, selected-object alignment and equal-gap
