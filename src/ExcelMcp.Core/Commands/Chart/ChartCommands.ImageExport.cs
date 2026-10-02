@@ -50,9 +50,17 @@ public partial class ChartCommands
             WorkbookCommands.CommitOutput(writePath, output);
             return result;
         }
-        finally
+        catch (Exception exportError)
         {
-            WorkbookCommands.DeleteTemporaryOutput(writePath, output);
+            try
+            {
+                File.Delete(writePath);
+            }
+            catch (Exception cleanupError)
+            {
+                throw new AggregateException("Chart image export and removal of its failed output both failed.", exportError, cleanupError);
+            }
+            throw;
         }
     }
 }

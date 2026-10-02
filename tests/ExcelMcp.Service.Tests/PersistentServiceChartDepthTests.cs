@@ -390,6 +390,39 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         });
     }
 
+    [Theory]
+    [InlineData("Secondary")]
+    [InlineData("CategorySecondary")]
+    public void SecondaryHorizontalTitle_DoesNotChangePrimaryValueAxis(string axis)
+    {
+        var (sheet, chartName) = CreateChart();
+        _fixture.Send("chartconfig.set-series-axis-group", new { chartName, seriesIndex = 2, axisGroup = "Secondary" });
+        WithChart(sheet, chartName, chart =>
+            chart.HasAxis[Excel.XlAxisType.xlCategory, Excel.XlAxisGroup.xlSecondary] = true);
+        _fixture.Send("chartconfig.set-axis-title", new { chartName, axis, title = "Secondary categories" });
+        WithChart(sheet, chartName, chart =>
+        {
+            Excel.Axis? secondary = null;
+            Excel.Axis? primary = null;
+            Excel.AxisTitle? title = null;
+            try
+            {
+                secondary = (Excel.Axis)chart.Axes(Excel.XlAxisType.xlCategory, Excel.XlAxisGroup.xlSecondary);
+                primary = (Excel.Axis)chart.Axes(Excel.XlAxisType.xlValue, Excel.XlAxisGroup.xlPrimary);
+                Assert.True(secondary.HasTitle);
+                Assert.False(primary.HasTitle);
+                title = secondary.AxisTitle;
+                Assert.Equal("Secondary categories", title.Text);
+            }
+            finally
+            {
+                ComUtilities.Release(ref title);
+                ComUtilities.Release(ref primary);
+                ComUtilities.Release(ref secondary);
+            }
+        });
+    }
+
     private (string Sheet, string Chart) CreateChart()
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);

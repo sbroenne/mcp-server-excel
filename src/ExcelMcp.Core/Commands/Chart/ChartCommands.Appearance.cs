@@ -828,7 +828,7 @@ public partial class ChartCommands
             ChartAxisType.Category => (1, 1),           // xlCategory, xlPrimary
             ChartAxisType.Value => (2, 1),              // xlValue, xlPrimary
             ChartAxisType.Primary => (1, 1),            // xlCategory, xlPrimary
-            ChartAxisType.Secondary => (2, 1),          // xlValue, xlPrimary
+            ChartAxisType.Secondary => (1, 2),          // xlCategory, xlSecondary
             ChartAxisType.CategorySecondary => (1, 2),  // xlCategory, xlSecondary
             ChartAxisType.ValueSecondary => (2, 2),     // xlValue, xlSecondary
             _ => throw new ArgumentOutOfRangeException(nameof(axis), axis, "Unknown chart axis.")

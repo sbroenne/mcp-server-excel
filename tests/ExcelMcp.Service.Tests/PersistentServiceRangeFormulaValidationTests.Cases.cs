@@ -228,7 +228,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
                 "=NA()"
             ]
         ]);
-        _fixture.Send("calculation.calculate", new { scope = "workbook" });
+        _fixture.Send("calculation.calculate", new { scope = "application" });
 
         var formulaResult = _commands.GetFormulas(batch, sheetName, "A1:G1");
         var valueResult = _commands.GetValues(batch, sheetName, "A1:G1");

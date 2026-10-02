@@ -90,7 +90,8 @@ the series. Native image export supports both regular charts and PivotCharts.
 Use `chart` `export-image` with `target_path` / `--target-path`; extensions must
 match the requested format and existing files require `overwrite:true` /
 `--overwrite true`. The operation checks Excel's native result and nonempty
-output, and does not silently replace an existing image on failure.
+output, and does not silently replace an existing image on failure. Failed
+exports remove their newly created output, including empty or partial images.
 
 ## Short labels without losing detail
 
