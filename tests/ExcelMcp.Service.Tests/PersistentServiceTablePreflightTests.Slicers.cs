@@ -195,6 +195,33 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal(total, visible.Data.Sum(row => Convert.ToDouble(row[2], CultureInfo.InvariantCulture)));
     }
 
+    [Theory]
+    [InlineData("North", 100d, "South", 250d)]
+    [InlineData("South", 250d, "North", 100d)]
+    public void SetTableSlicerSelection_ReplaceSoleSelectedItem_SelectsOnlyReplacement(
+        string initial, double initialTotal, string replacement, double replacementTotal)
+    {
+        var batch = _fixture.BatchToken;
+        var slicer = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Region",
+            "ReplaceSoleItemSlicer", "Sales", "F2");
+        AssertTableSlicerState(slicer, 800, "North", "South", "East", "West");
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [initial]), initialTotal, initial);
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [replacement], clearFirst: true), replacementTotal, replacement);
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [initial], clearFirst: true), initialTotal, initial);
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [replacement], clearFirst: false), 350, "North", "South");
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [replacement], clearFirst: true), replacementTotal, replacement);
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [initial.ToLowerInvariant(), initial, "missing"],
+            clearFirst: true), initialTotal, initial);
+        AssertTableSlicerState(_tableCommands.SetTableSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", []), 800, "North", "South", "East", "West");
+    }
+
     /// <summary>
     /// Tests deleting a Table slicer from the workbook.
     /// </summary>
@@ -489,5 +516,3 @@ public sealed partial class PersistentServiceTablePreflightTests
 
     #endregion
 }
-
-

@@ -234,6 +234,40 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Equal(total, double.Parse(rows[^1][1]!.ToString()!, CultureInfo.InvariantCulture));
     }
 
+    [Theory]
+    [InlineData("North", "South")]
+    [InlineData("South", "North")]
+    [Trait("Speed", "Medium")]
+    public void SetSlicerSelection_ReplaceSoleSelectedItem_SelectsOnlyReplacement(
+        string initial, string replacement)
+    {
+        var batch = _fixture.BatchToken;
+        var created = _pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "ReplaceSoleItemPivot");
+        Assert.True(created.Success, created.ErrorMessage);
+        Assert.True(_pivotCommands.AddRowField(batch, "ReplaceSoleItemPivot", "Region").Success);
+        Assert.True(_pivotCommands.AddValueField(batch, "ReplaceSoleItemPivot", "Sales").Success);
+        var slicer = _pivotCommands.CreateSlicer(batch, "ReplaceSoleItemPivot", "Region",
+            "ReplaceSoleItemSlicer", _salesSheetName, "I2");
+        AssertRegularSlicerState(slicer, 650, "North", "South");
+
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [initial]), 325, initial);
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [replacement], clearFirst: true), 325, replacement);
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [initial], clearFirst: true), 325, initial);
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [replacement], clearFirst: false), 650, "North", "South");
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [replacement], clearFirst: true), 325, replacement);
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", [initial.ToLowerInvariant(), initial, "missing"],
+            clearFirst: true), 325, initial);
+        AssertRegularSlicerState(_pivotCommands.SetSlicerSelection(
+            batch, "ReplaceSoleItemSlicer", []), 650, "North", "South");
+    }
+
     /// <summary>
     /// Tests deleting a slicer from the workbook.
     /// </summary>
@@ -487,6 +521,4 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Contains("ConnPivotTestPivot", slicer.ConnectedPivotTables);
     }
 }
-
-
 

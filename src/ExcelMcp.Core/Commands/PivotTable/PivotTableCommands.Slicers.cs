@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -172,7 +173,6 @@ public partial class PivotTableCommands
             dynamic? slicerCaches = null;
             Excel.SlicerCache? targetCache = null;
             Excel.Slicer? targetSlicer = null;
-            dynamic? slicerItems = null;
 
             try
             {
@@ -192,9 +192,6 @@ public partial class PivotTableCommands
                     };
                 }
 
-                // Build set of items to select for fast lookup
-                var itemsToSelect = new HashSet<string>(selectedItems, StringComparer.OrdinalIgnoreCase);
-
                 // If no items specified, select all (clear filter)
                 bool selectAll = selectedItems.Count == 0;
 
@@ -205,34 +202,7 @@ public partial class PivotTableCommands
                 }
                 else
                 {
-                    slicerItems = targetCache.SlicerItems;
-                    for (int i = 1; i <= slicerItems.Count; i++)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        dynamic? item = null;
-                        try
-                        {
-                            item = slicerItems.Item(i);
-                            string itemName = item.Name?.ToString() ?? string.Empty;
-
-                            if (selectAll)
-                            {
-                                item.Selected = true;
-                            }
-                            else if (clearFirst)
-                            {
-                                item.Selected = itemsToSelect.Contains(itemName);
-                            }
-                            else if (itemsToSelect.Contains(itemName))
-                            {
-                                item.Selected = true;
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref item);
-                        }
-                    }
+                    SlicerSelection.SetNonOlapSelection(targetCache, selectedItems, clearFirst, ct);
                 }
 
                 // Build result with updated state
@@ -247,7 +217,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref slicerItems);
                 ComUtilities.Release(ref targetSlicer);
                 ComUtilities.Release(ref targetCache);
                 ComUtilities.Release(ref slicerCaches);
