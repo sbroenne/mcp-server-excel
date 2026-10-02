@@ -76,7 +76,7 @@ public partial class WorkbookCommands
     private static List<WorkbookThemeFont> ReadThemeFonts(dynamic fontScheme, bool major, CancellationToken ct)
     {
         List<WorkbookThemeFont> result = [];
-        string[] scripts = ["Latin", "EastAsian", "ComplexScript"];
+        string[] scripts = ["Latin", "ComplexScript", "EastAsian"];
         for (int index = 1; index <= scripts.Length; index++)
         {
             ct.ThrowIfCancellationRequested();

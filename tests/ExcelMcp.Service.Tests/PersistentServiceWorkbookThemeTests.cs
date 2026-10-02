@@ -18,6 +18,40 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
     [Fact]
     public void GetTheme_ReturnsAllNativeColorsAndFontScripts()
     {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            dynamic? nativeTheme = null;
+            dynamic? fontScheme = null;
+            try
+            {
+                nativeTheme = ((dynamic)context.Book).Theme;
+                fontScheme = nativeTheme.ThemeFontScheme;
+                string[] majorNames = ["Cambria", "Tahoma", "Yu Mincho"];
+                string[] minorNames = ["Calibri", "Arial", "Yu Gothic"];
+                for (int index = 1; index <= majorNames.Length; index++)
+                {
+                    dynamic? majorFont = null;
+                    dynamic? minorFont = null;
+                    try
+                    {
+                        majorFont = fontScheme.MajorFont(index);
+                        minorFont = fontScheme.MinorFont(index);
+                        majorFont.Name = majorNames[index - 1];
+                        minorFont.Name = minorNames[index - 1];
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref minorFont);
+                        ComUtilities.Release(ref majorFont);
+                    }
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref fontScheme);
+                ComUtilities.Release(ref nativeTheme);
+            }
+        });
         var response = _fixture.Send("workbook.get-theme", new { });
         using var result = JsonDocument.Parse(response.Result!);
         Assert.True(result.RootElement.GetProperty("success").GetBoolean());
@@ -50,11 +84,13 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             Assert.Equal(names[index], actual.GetProperty("name").GetString());
             Assert.Equal("#" + rgb.ToUpperInvariant(), actual.GetProperty("rgb").GetString());
         }
-        string[] scripts = ["Latin", "EastAsian", "ComplexScript"];
-        string[] nativeScripts = ["latin", "ea", "cs"];
+        string[] scripts = ["Latin", "ComplexScript", "EastAsian"];
+        string[] nativeScripts = ["latin", "cs", "ea"];
         foreach (var (property, element) in new[] { ("majorFonts", "majorFont"), ("minorFonts", "minorFont") })
         {
             var fonts = Assert.Single(theme.Descendants(drawing + element));
+            Assert.Equal(3, nativeScripts.Select(script => fonts.Element(drawing + script)!.Attribute("typeface")!.Value)
+                .Distinct(StringComparer.Ordinal).Count());
             for (int index = 0; index < scripts.Length; index++)
             {
                 var actual = result.RootElement.GetProperty(property)[index];

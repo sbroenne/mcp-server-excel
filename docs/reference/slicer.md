@@ -47,7 +47,9 @@ the items have no overlap.
 
 Data Model/OLAP PivotTable slicers use the same PivotTable slicer actions.
 Create with the discovered hierarchy name, such as `[Quarters].[Quarter]`.
-`availableItems` and `selectedItems` contain the displayed captions. Selection
+For `create-slicer` and `list-slicers`, `availableItems` and `selectedItems`
+contain the displayed captions. `get-slicer` returns native item names instead,
+including MDX unique names for Data Model/OLAP items. Selection
 accepts those captions or MDX unique names; unknown or ambiguous values fail
 before changing the filter. An ambiguous-caption error includes the matching MDX
 unique names as a JSON array; retry with the intended name from that array.
