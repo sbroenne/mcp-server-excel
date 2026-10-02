@@ -49,7 +49,10 @@ public sealed class DataModelFormulaExcelParityTests : IAsyncLifetime
             [
                 "datamodel", "read", "--session", _workbook.SessionId, "--measure-name", name
             ]);
-            Assert.Equal(formula, read.GetProperty("daxFormula").GetString());
+            var storedFormula = read.GetProperty("daxFormula").GetString();
+            Assert.True(
+                storedFormula == formula || storedFormula == formula.Replace(",", ";", StringComparison.Ordinal),
+                $"Unexpected native Excel formula: {storedFormula}");
             var evaluated = await RunAsync(
             [
                 "datamodel", "evaluate", "--session", _workbook.SessionId,

@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 ///
 /// PURPOSE: Validates the complete MCP protocol stack works correctly with real Excel operations.
 /// PATTERN: Uses Program.RunAsync with host-owned in-memory transport and the real service.
-/// RUNTIME: ~30-60 seconds (requires Excel COM automation).
+/// Each scenario owns its prerequisites and workbook (requires Excel COM automation).
 ///
 /// These tests exercise:
 /// - Full DI pipeline (exact same as production)
@@ -197,7 +197,8 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     /// This validates the complete E2E flow: MCP protocol → DI → Tool → Core → Excel COM.
     /// </summary>
     [Fact]
-    public async Task SmokeTest_AllTools_E2EWorkflow()
+    [Trait("Acceptance", "Required")]
+    public async Task Smoke_WorkbookLifecycle_PersistsValues()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
         _output.WriteLine("Testing all tools via MCP protocol with real Excel...\n");
@@ -230,6 +231,28 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.False(session.TryGetProperty("sessionId", out _));
             Assert.True(session.GetProperty("canClose").GetBoolean());
         }
+        await CallSuccessfulToolAsync("worksheet", new()
+        {
+            ["action"] = "create",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data"
+        });
+        await CallSuccessfulToolAsync("range", new()
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<string>> { new() { "persisted-smoke-value" } }
+        });
+        await SaveAndVerifyAsync(sessionId, "persisted-smoke-value");
+    }
+
+    [Fact]
+    [Trait("Acceptance", "Required")]
+    public async Task Smoke_WorksheetAndRange_SearchAndOverwriteContracts()
+    {
+        var sessionId = await CreateSmokeWorkbookAsync();
 
         // =====================================================================
         // STEP 3: WORKSHEET OPERATIONS
@@ -359,7 +382,20 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["range_address"] = "A1:C3"
         });
         AssertSuccess(getValuesResult, "Get values");
+        using (var read = JsonDocument.Parse(getValuesResult))
+        {
+            Assert.Equal("Name", read.RootElement.GetProperty("values")[0][0].GetString());
+            Assert.Equal(100, read.RootElement.GetProperty("values")[1][1].GetInt32());
+        }
         _output.WriteLine("  ✓ range: SetValues and GetValues passed");
+        await CloseSmokeWorkbookAsync(sessionId);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "Required")]
+    public async Task Smoke_TablesNamedRangesAndReports_UseWorksheetData()
+    {
+        var sessionId = await CreateSmokeWorkbookAsync(withData: true);
 
         // =====================================================================
         // STEP 5: TABLE OPERATIONS
@@ -432,6 +468,15 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(readParamResult, "Read named range");
         _output.WriteLine("  ✓ namedrange: Create and Read passed");
+        await VerifyReportsAsync(sessionId);
+        await CloseSmokeWorkbookAsync(sessionId);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "Required")]
+    public async Task Smoke_PowerQueryConnectionsAndModel_PreserveIdentity()
+    {
+        var sessionId = await CreateSmokeWorkbookAsync();
 
         // =====================================================================
         // STEP 7: POWER QUERY OPERATIONS
@@ -500,59 +545,6 @@ in
         });
         AssertSuccess(listConnectionsResult, "List connections");
         _output.WriteLine("  ✓ connection: List passed");
-
-        // =====================================================================
-        // STEP 9: PIVOTTABLE OPERATIONS
-        // =====================================================================
-        _output.WriteLine("\n✓ Step 9: PivotTable operations...");
-
-        var createPivotResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
-        {
-            ["action"] = "create-from-table",
-            ["session_id"] = sessionId,
-            ["table_name"] = "DataTable",
-            ["destination_sheet"] = "Data",
-            ["destination_cell"] = "E1",
-            ["pivot_table_name"] = "SalesPivot"
-        });
-        AssertSuccess(createPivotResult, "Create PivotTable");
-
-        var listPivotsResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        });
-        AssertSuccess(listPivotsResult, "List PivotTables");
-        _output.WriteLine("  ✓ pivottable: Create and List passed");
-
-        // =====================================================================
-        // STEP 10: CHART OPERATIONS
-        // =====================================================================
-        _output.WriteLine("\n✓ Step 10: Chart operations...");
-
-        var createChartResult = await CallToolAsync("chart", new Dictionary<string, object?>
-        {
-            ["action"] = "create-from-range",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Data",
-            ["source_range_address"] = "A1:C3",
-            ["chart_type"] = "ColumnClustered",
-            ["left"] = 50,
-            ["top"] = 50,
-            ["width"] = 400,
-            ["height"] = 300,
-            ["chart_name"] = "DataChart"
-        });
-        AssertSuccess(createChartResult, "Create Chart");
-
-        var listChartsResult = await CallToolAsync("chart", new Dictionary<string, object?>
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        });
-        AssertSuccess(listChartsResult, "List Charts");
-        Assert.Contains("DataChart", listChartsResult);
-        _output.WriteLine("  ✓ chart: Create and List passed");
 
         // =====================================================================
         // STEP 11: DATA MODEL OPERATIONS
@@ -625,6 +617,14 @@ in
         _output.WriteLine("  ✓ datamodel: RenameTable correctly returns error (Excel limitation)");
 
         _output.WriteLine("  ✓ datamodel: ListTables passed");
+        await CloseSmokeWorkbookAsync(sessionId);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "Required")]
+    public async Task Smoke_TypedFormattingAndInvalidMacroWorkbook_ReturnConcreteResults()
+    {
+        var sessionId = await CreateSmokeWorkbookAsync(withData: true);
 
         // =====================================================================
         // STEP 12: CONDITIONAL FORMAT OPERATIONS
@@ -697,7 +697,11 @@ in
                 listVbaJson.RootElement.GetProperty("error").GetString());
         }
         _output.WriteLine("  ✓ vba: List rejected the unsupported .xlsx format");
+        await CloseSmokeWorkbookAsync(sessionId);
+    }
 
+    private async Task SaveAndVerifyAsync(string sessionId, string expectedValue)
+    {
         // =====================================================================
         // STEP 14: CLOSE SESSION (save changes)
         // =====================================================================
@@ -736,6 +740,14 @@ in
 
             // Verify Data sheet exists
             Assert.Contains("Data", finalSheetsResult);
+            var values = await CallSuccessfulToolAsync("range", new()
+            {
+                ["action"] = "get-values",
+                ["session_id"] = verifySessionId,
+                ["sheet_name"] = "Data",
+                ["range_address"] = "A1"
+            });
+            Assert.Equal(expectedValue, GetFirstCellValue(values));
             _output.WriteLine("  ✓ All changes persisted correctly");
         }
         finally
@@ -748,16 +760,94 @@ in
             });
         }
 
-        // =====================================================================
-        // FINAL SUMMARY
-        // =====================================================================
-        _output.WriteLine("\n=== E2E SMOKE TEST COMPLETE ===");
-        _output.WriteLine("✅ All 12 MCP tools tested via SDK client");
-        _output.WriteLine("✅ Full MCP protocol stack validated");
-        _output.WriteLine("✅ DI pipeline exercised (same as Program.cs)");
-        _output.WriteLine("✅ Real Excel operations verified");
-        _output.WriteLine("✅ Data persistence confirmed");
-        _output.WriteLine("\n🚀 MCP Server E2E functionality working correctly!");
+    }
+
+    private async Task<string> CreateSmokeWorkbookAsync(bool withData = false)
+    {
+        var created = await CallSuccessfulToolAsync("file", new()
+        {
+            ["action"] = "create",
+            ["path"] = _testExcelFile
+        });
+        var session = GetJsonProperty(created, "session_id");
+        Assert.NotNull(session);
+        if (withData)
+        {
+            await CallSuccessfulToolAsync("worksheet", new()
+            {
+                ["action"] = "create",
+                ["session_id"] = session,
+                ["sheet_name"] = "Data"
+            });
+            await CallSuccessfulToolAsync("range", new()
+            {
+                ["action"] = "set-values",
+                ["session_id"] = session,
+                ["sheet_name"] = "Data",
+                ["range_address"] = "A1:C3",
+                ["values"] = new object?[][]
+                {
+                    ["Name", "Value", "Date"],
+                    ["Item1", 100, "2024-01-01"],
+                    ["Item2", 200, "2024-01-02"]
+                }
+            });
+        }
+        return session;
+    }
+
+    private Task<string> CloseSmokeWorkbookAsync(string session) =>
+        CallSuccessfulToolAsync("file", new()
+        {
+            ["action"] = "close",
+            ["session_id"] = session,
+            ["save"] = false
+        });
+
+    private async Task<string> CallSuccessfulToolAsync(string tool, Dictionary<string, object?> arguments)
+    {
+        var response = await CallToolAsync(tool, arguments);
+        AssertSuccess(response, $"{tool}.{arguments["action"]}");
+        return response;
+    }
+
+    private async Task VerifyReportsAsync(string sessionId)
+    {
+        var createPivotResult = await CallToolAsync("pivottable", new()
+        {
+            ["action"] = "create-from-table",
+            ["session_id"] = sessionId,
+            ["table_name"] = "DataTable",
+            ["destination_sheet"] = "Data",
+            ["destination_cell"] = "E1",
+            ["pivot_table_name"] = "SalesPivot"
+        });
+        AssertSuccess(createPivotResult, "Create PivotTable");
+        var pivots = await CallSuccessfulToolAsync("pivottable", new()
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        });
+        Assert.Contains("SalesPivot", pivots, StringComparison.Ordinal);
+        await CallSuccessfulToolAsync("chart", new()
+        {
+            ["action"] = "create-from-range",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["source_range_address"] = "A1:C3",
+            ["chart_type"] = "ColumnClustered",
+            ["left"] = 50,
+            ["top"] = 50,
+            ["width"] = 400,
+            ["height"] = 300,
+            ["chart_name"] = "DataChart"
+        });
+        var charts = await CallSuccessfulToolAsync("chart", new()
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        });
+        Assert.Contains("DataChart", charts, StringComparison.Ordinal);
     }
 
     /// <summary>

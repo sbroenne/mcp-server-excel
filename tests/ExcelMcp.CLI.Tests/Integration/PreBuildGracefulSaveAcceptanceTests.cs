@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "ServiceDaemon")]
 [Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
+[Trait("Acceptance", "Required")]
 [Trait("Speed", "Slow")]
 public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDirectoryFixture>
 {

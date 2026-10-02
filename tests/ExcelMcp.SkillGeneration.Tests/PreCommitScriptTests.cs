@@ -29,6 +29,7 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("excel-feature-tests-ran", result.Output, StringComparison.Ordinal);
         if (path == "docs/reference/report-formatting.md")
         {
             Assert.Matches(@"-SkillTests:\s*True", result.Output);
@@ -206,6 +207,7 @@ public sealed class PreCommitScriptTests
                 ("check-workbook-package-access", "package-access-check-ran"),
                 ("Stop-ExcelMcpProcesses", "cleanup-ran"),
                 ("Invoke-ExcelFreeTests", "non-packaging-tests-ran"),
+                ("Invoke-ExcelTests", "excel-feature-tests-ran"),
                 ("Test-E2E", "e2e-ran"),
             })
             {

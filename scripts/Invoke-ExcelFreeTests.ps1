@@ -4,12 +4,37 @@ param(
     [switch]$HookTests,
     [switch]$Contracts,
     [switch]$SkillTests,
-    [string[]]$ChangedPaths = @()
+    [string[]]$ChangedPaths = @(),
+    [ValidateSet('Fast', 'Process', 'Tooling')][string]$Group,
+    [string]$PlanFile,
+    [string]$ResultsDirectory
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
 $selections = [ordered]@{}
-if ($Local) {
+if ($Group) {
+    $plan = if ($PlanFile) {
+        Get-Content -LiteralPath $PlanFile -Raw | ConvertFrom-Json
+    } else {
+        . (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
+        Get-ValidationPlan -Full
+    }
+    if ($Group -notin $plan.CiTestGroups) { throw "The requested $Group group was not selected." }
+    switch ($Group) {
+        'Fast' {
+            foreach ($project in $plan.FastProjects) { $selections[$project] = 'AdapterTestKind!=System' }
+        }
+        'Process' {
+            foreach ($project in $plan.ProcessProjects) {
+                $selections[$project] = 'AdapterTestKind=System'
+            }
+        }
+        'Tooling' { $selections['SkillGeneration'] = $plan.ToolingFilter }
+    }
+}
+elseif ($PlanFile) { throw 'PlanFile requires an explicit Group.' }
+elseif ($Local) {
     if ($HookTests) { $selections['SkillGeneration'] = 'Feature=PreCommit|Feature=AutomationSafety' }
     if ($SkillTests) {
         $selections['SkillGeneration'] = if ($selections['SkillGeneration']) {
@@ -37,34 +62,14 @@ else {
         $selections[$project] = 'RequiresExcel=false'
     }
 }
-$results = Join-Path $root "TestResults\excel-free-$([Guid]::NewGuid().ToString('N'))"
+if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $root "TestResults\excel-free-$([Guid]::NewGuid().ToString('N'))" }
+if ($selections.Count -eq 0) {
+    if ($Group) { throw "$Group has no selected test projects." }
+    Write-Host 'No local Excel-free tests selected.'
+}
 foreach ($entry in $selections.GetEnumerator()) {
     $project = Join-Path $root "tests\ExcelMcp.$($entry.Key).Tests\ExcelMcp.$($entry.Key).Tests.csproj"
     $filter = "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
-    $info = [Diagnostics.ProcessStartInfo]::new('dotnet')
-    $info.WorkingDirectory = $root
-    $info.UseShellExecute = $false
-    foreach ($argument in @('test', $project, '-c', 'Release', '--no-build', '--no-restore',
-        '--filter', $filter, '--blame-hang-timeout', '5m',
-        '--results-directory', $results, '--logger', "trx;LogFileName=$($entry.Key).trx")) {
-        $info.ArgumentList.Add($argument)
-    }
-    $process = [Diagnostics.Process]::Start($info)
-    try {
-        if (-not $process.WaitForExit(1800000)) {
-            $process.Kill($true)
-            $process.WaitForExit()
-            throw "$($entry.Key) tests exceeded the 30-minute deadline."
-        }
-        if ($process.ExitCode -ne 0) { throw "$($entry.Key) tests failed with exit code $($process.ExitCode)." }
-    }
-    finally { $process.Dispose() }
-    $report = Join-Path $results "$($entry.Key).trx"
-    if (-not (Test-Path -LiteralPath $report)) { throw "No test report for $($entry.Key)." }
-    [xml]$trx = Get-Content -LiteralPath $report -Raw
-    $counters = $trx.TestRun.ResultSummary.Counters
-    if ([int]$counters.total -le 0 -or [int]$counters.passed -ne [int]$counters.total) {
-        throw "$($entry.Key) selection was empty, skipped, or failed. See $report."
-    }
+    Invoke-TestStage -Project $project -Filter $filter -ResultsDirectory $ResultsDirectory -Name $entry.Key
 }
 $global:LASTEXITCODE = 0
