@@ -317,18 +317,155 @@ function matrixRange(excel, sheet, anchor, rowCount, columnCount) {
     return sheet.ranges.byName(address);
 }
 
+const excelErrors = {
+    "-2146826288": ["#NULL!", "Invalid intersection of ranges", "Check the intersection operator and referenced ranges."],
+    "-2146826281": ["#DIV/0!", "Division by zero", "Ensure the formula does not divide by zero."],
+    "-2146826273": ["#VALUE!", "Wrong type of argument", "Check function names and argument types."],
+    "-2146826265": ["#REF!", "Invalid cell reference", "Check that referenced cells and ranges still exist."],
+    "-2146826259": ["#NAME?", "Unrecognized formula name", "Check function names and defined names for spelling errors."],
+    "-2146826252": ["#NUM!", "Invalid numeric value", "Check numeric inputs and supported value ranges."],
+    "-2146826246": ["#N/A", "Value not available", "Check that the lookup value and source data are available."],
+    "-2146826245": ["#GETTING_DATA", "Data is still being retrieved", "Wait for external data retrieval to finish, then read the range again."],
+    "-2146826243": ["#SPILL!", "Dynamic array result cannot spill", "Clear or move cells that block the dynamic array result."],
+    "-2146826242": ["#CONNECT!", "Connection is not ready", "Check the data connection and retry after it finishes connecting."],
+    "-2146826241": ["#BLOCKED!", "Required resource is blocked", "Check Excel privacy, security, and connected-service settings."],
+    "-2146826240": ["#UNKNOWN!", "Excel cannot identify the data type", "Check the linked data type or service that supplies this value."],
+    "-2146826239": ["#FIELD!", "Referenced data field is unavailable", "Check the field name and linked data type."],
+    "-2146826238": ["#CALC!", "Excel cannot complete the calculation", "Check the formula for unsupported or empty array calculations."],
+    "-2146826237": ["#BUSY!", "Calculation or connected data is still in progress", "Wait for calculation to finish, then read the range again."],
+    "-2146826233": ["#PYTHON!", "Python code raised an error (syntax or runtime exception)", "Check the Python formula syntax and runtime inputs."],
+    "2000": ["#NULL!", "Invalid intersection of ranges", "Check the intersection operator and referenced ranges."],
+    "2007": ["#DIV/0!", "Division by zero", "Ensure the formula does not divide by zero."],
+    "2015": ["#VALUE!", "Wrong type of argument", "Check function names and argument types."],
+    "2023": ["#REF!", "Invalid cell reference", "Check that referenced cells and ranges still exist."],
+    "2029": ["#NAME?", "Unrecognized formula name", "Check function names and defined names for spelling errors."],
+    "2036": ["#NUM!", "Invalid numeric value", "Check numeric inputs and supported value ranges."],
+    "2042": ["#N/A", "Value not available", "Check that the lookup value and source data are available."]
+};
+
+const excelErrorCodesByName = {
+    "#NULL!": -2146826288,
+    "#DIV/0!": -2146826281,
+    "#VALUE!": -2146826273,
+    "#REF!": -2146826265,
+    "#NAME?": -2146826259,
+    "#NUM!": -2146826252,
+    "#N/A": -2146826246,
+    "#GETTING_DATA": -2146826245,
+    "#SPILL!": -2146826243,
+    "#CONNECT!": -2146826242,
+    "#BLOCKED!": -2146826241,
+    "#UNKNOWN!": -2146826240,
+    "#FIELD!": -2146826239,
+    "#CALC!": -2146826238,
+    "#BUSY!": -2146826237,
+    "#PYTHON!": -2146826233
+};
+
+const excelErrorCodesByType = {
+    "1": -2146826288,
+    "2": -2146826281,
+    "3": -2146826273,
+    "4": -2146826265,
+    "5": -2146826259,
+    "6": -2146826252,
+    "7": -2146826246,
+    "8": -2146826245
+};
+
+function formulaErrorCode(excel, externalPrefix, row, column) {
+    const address = `$${columnName(column)}$${row}`;
+    const reference = `${externalPrefix}${address}`;
+    const errorType = firstScalar(excel.evaluate({
+        name: `IF(ISERROR(${reference}),ERROR.TYPE(${reference}),0)`
+    }));
+    if (Number(errorType) === 0) {
+        return null;
+    }
+    const errorCode = excelErrorCodesByType[String(Number(errorType))];
+    if (errorCode == null) {
+        throw new Error(
+            `Excel returned unsupported formula error type '${errorType}' for '${address}' on macOS.`);
+    }
+    return errorCode;
+}
+
+function normalizedRangeRead(excel, range, rawValues, rawFormulas, rawFallbackValues) {
+    const values = normalizeMatrix(rawValues);
+    const formulas = normalizeMatrix(rawFormulas);
+    const fallbackValues = normalizeMatrix(rawFallbackValues);
+    const start = rangeTopLeft(excel, range);
+    let externalPrefix = null;
+    const cellErrors = [];
+    for (let row = 0; row < values.length; row++) {
+        for (let column = 0; column < values[row].length; column++) {
+            const currentValue = values[row][column];
+            const formulaValue = formulas[row] && formulas[row][column];
+            const formula = typeof formulaValue === "string" && formulaValue.startsWith("=")
+                ? formulaValue
+                : null;
+            const fallbackValue = fallbackValues[row] && fallbackValues[row][column];
+            let errorCode = typeof currentValue === "number" && Number.isInteger(currentValue)
+                ? currentValue
+                : null;
+            if (errorCode == null && currentValue == null && formula) {
+                if (typeof fallbackValue === "number" && Number.isInteger(fallbackValue) &&
+                    excelErrors[String(fallbackValue)]) {
+                    errorCode = fallbackValue;
+                } else if (typeof fallbackValue === "string") {
+                    errorCode = excelErrorCodesByName[fallbackValue] || null;
+                }
+                if (errorCode == null) {
+                    if (externalPrefix == null) {
+                        const externalAddress = String(excel.getAddress(range, { external: true }));
+                        const separator = externalAddress.lastIndexOf("!");
+                        if (separator < 0) {
+                            throw new Error(
+                                `Excel did not return an external address for '${externalAddress}'.`);
+                        }
+                        externalPrefix = externalAddress.substring(0, separator + 1);
+                    }
+                    errorCode = formulaErrorCode(
+                        excel, externalPrefix, start.row + row, start.column + column);
+                }
+            }
+            const error = errorCode == null ? null : excelErrors[String(errorCode)];
+            if (!error) {
+                continue;
+            }
+            const cellRow = start.row + row;
+            const cellColumn = start.column + column;
+            values[row][column] = error[0];
+            cellErrors.push({
+                cellAddress: `${columnName(cellColumn)}${cellRow}`,
+                errorName: error[0],
+                formula,
+                row: cellRow,
+                column: cellColumn,
+                currentValue: currentValue == null ? errorCode : currentValue,
+                errorCode,
+                errorMessage: `${error[0]} - ${error[1]}`,
+                suggestion: error[2]
+            });
+        }
+    }
+    return { values, cellErrors };
+}
+
 function rangeValueResult(excel, filePath, sheetName, range, emptyAsNoCells) {
     const rawValue = range.value2();
-    const values = emptyAsNoCells && rawValue == null ? [] : normalizeMatrix(rawValue);
+    const read = emptyAsNoCells && rawValue == null
+        ? { values: [], cellErrors: [] }
+        : normalizedRangeRead(excel, range, rawValue, range.formula(), range.value());
     return {
         success: true,
         filePath,
         sheetName,
         rangeAddress: absoluteRangeAddress(excel, range),
-        values,
-        rowCount: values.length,
-        columnCount: values.length ? values[0].length : 0,
-        cellErrors: []
+        values: read.values,
+        rowCount: read.values.length,
+        columnCount: read.values.length ? read.values[0].length : 0,
+        cellErrors: read.cellErrors
     };
 }
 
@@ -369,10 +506,75 @@ function requireMatrixShape(matrix, rowCount, columnCount, parameterName) {
     }
 }
 
-function requireUnmergedWriteTarget(range) {
-    if (range.mergeCells() !== false) {
-        throw new Error("Cannot write values or formulas to a range containing merged cells.");
+function requireWritableMergeTarget(excel, range) {
+    if (range.mergeCells() === false) {
+        return;
     }
+    throw new Error(
+        "Cannot write values or formulas to merged cells on macOS because Excel's Apple Events API " +
+        "cannot reliably identify the merged range's top-left cell. Unmerge it first or use the Windows backend.");
+}
+
+function requireUnmergedCopyRange(range) {
+    if (range.mergeCells() !== false) {
+        throw new Error("Copy source and destination ranges must not contain merged cells.");
+    }
+}
+
+function requireWritableDestination(excel, range, overwritePolicy) {
+    const policy = overwritePolicy || "reject-nonempty";
+    if (policy === "allow") {
+        return;
+    }
+    if (policy !== "reject-nonempty") {
+        throw new Error(`Unknown overwrite policy '${policy}'.`);
+    }
+    const values = normalizeMatrix(range.value2());
+    const formulas = normalizeMatrix(range.formula());
+    const start = rangeTopLeft(excel, range);
+    const conflicts = [];
+    for (let row = 0; row < range.rows.length; row++) {
+        for (let column = 0; column < range.columns.length; column++) {
+            const value = values[row] && values[row][column];
+            const formula = formulas[row] && formulas[row][column];
+            const occupied = typeof formula === "string" && formula.startsWith("=")
+                || value !== null && value !== "";
+            if (occupied && conflicts.length < 10) {
+                conflicts.push(`${columnName(start.column + column)}${start.row + row}`);
+            }
+        }
+    }
+    if (conflicts.length) {
+        throw new Error(
+            "Cannot write to occupied cells with overwrite_policy='reject-nonempty'. " +
+            `Conflicting cells: ${conflicts.join(", ")}. Use overwrite_policy='allow' ` +
+            "only when replacement is intentional.");
+    }
+}
+
+function copyTargetRange(excel, sheet, requested, sourceRows, sourceColumns) {
+    if (requested.rows.length === 1 && requested.columns.length === 1) {
+        return matrixRange(excel, sheet, requested, sourceRows, sourceColumns);
+    }
+    if (requested.rows.length % sourceRows !== 0
+        || requested.columns.length % sourceColumns !== 0) {
+        throw new Error(
+            "Copy destination dimensions must be whole multiples of the source dimensions.");
+    }
+    return requested;
+}
+
+function tileMatrix(matrix, rowCount, columnCount) {
+    const source = normalizeMatrix(matrix);
+    const result = [];
+    for (let row = 0; row < rowCount; row++) {
+        const targetRow = [];
+        for (let column = 0; column < columnCount; column++) {
+            targetRow.push(source[row % source.length][column % source[0].length]);
+        }
+        result.push(targetRow);
+    }
+    return result;
 }
 
 function autofitColumns(excel, sheet, range) {
@@ -715,14 +917,19 @@ function run(argv) {
                 const targetSheet = worksheetByName(workbook, args.targetSheet);
                 const source = sourceSheet.ranges.byName(args.sourceRange);
                 const targetAnchor = targetSheet.ranges.byName(args.targetRange);
-                const target = matrixRange(
+                const target = copyTargetRange(
                     excel, targetSheet, targetAnchor, source.rows.length, source.columns.length);
+                requireUnmergedCopyRange(source);
+                requireUnmergedCopyRange(target);
+                requireWritableDestination(excel, target, args.overwritePolicy);
                 if (command === "range.copy") {
                     source.copyRange({ destination: target });
                 } else if (command === "range.copy-values") {
-                    target.value2 = normalizeMatrix(source.value2());
+                    target.value2 = tileMatrix(
+                        source.value2(), target.rows.length, target.columns.length);
                 } else {
-                    target.formulaR1c1 = normalizeMatrix(source.formulaR1c1());
+                    target.formulaR1c1 = tileMatrix(
+                        source.formulaR1c1(), target.rows.length, target.columns.length);
                 }
                 return json({
                     success: true,
@@ -746,44 +953,48 @@ function run(argv) {
                     excel, args.filePath, args.sheetName, range.currentRegion(), true));
             }
             if (command === "range.get-values") {
-                const values = normalizeMatrix(range.value2());
+                const read = normalizedRangeRead(
+                    excel, range, range.value2(), range.formula(), range.value());
                 return json({
                     success: true,
                     filePath: args.filePath,
                     sheetName: args.sheetName,
                     rangeAddress: range.address(),
-                    values,
-                    rowCount: values.length,
-                    columnCount: values.length ? values[0].length : 0,
-                    cellErrors: []
+                    values: read.values,
+                    rowCount: read.values.length,
+                    columnCount: read.values.length ? read.values[0].length : 0,
+                    cellErrors: read.cellErrors
                 });
             }
             if (command === "range.set-values") {
-                requireUnmergedWriteTarget(range);
+                requireWritableMergeTarget(excel, range);
                 requireMatrixShape(
                     args.values, range.rows.length, range.columns.length, "values");
+                requireWritableDestination(excel, range, args.overwritePolicy);
                 range.value2 = args.values;
                 return json({ success: true, filePath: args.filePath, action: "set-values" });
             }
             if (command === "range.get-formulas") {
                 const formulas = normalizeMatrix(range.formula());
-                const values = normalizeMatrix(range.value2());
+                const read = normalizedRangeRead(
+                    excel, range, range.value2(), formulas, range.value());
                 return json({
                     success: true,
                     filePath: args.filePath,
                     sheetName: args.sheetName,
                     rangeAddress: range.address(),
                     formulas,
-                    values,
+                    values: read.values,
                     rowCount: formulas.length,
                     columnCount: formulas.length ? formulas[0].length : 0,
-                    cellErrors: []
+                    cellErrors: read.cellErrors
                 });
             }
             if (command === "range.set-formulas") {
-                requireUnmergedWriteTarget(range);
+                requireWritableMergeTarget(excel, range);
                 requireMatrixShape(
                     args.formulas, range.rows.length, range.columns.length, "formulas");
+                requireWritableDestination(excel, range, args.overwritePolicy);
                 range.formula = args.formulas;
                 return json({ success: true, filePath: args.filePath, action: "set-formulas" });
             }

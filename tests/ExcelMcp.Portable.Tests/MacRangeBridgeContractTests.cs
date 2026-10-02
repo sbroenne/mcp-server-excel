@@ -13,8 +13,12 @@ public sealed class MacRangeBridgeContractTests
     {
         var script = ReadBridgeScript();
 
-        Assert.Contains("target.value2 = normalizeMatrix(source.value2())", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("range.value()", script, StringComparison.Ordinal);
+        Assert.Contains("target.value2 = tileMatrix(", script, StringComparison.Ordinal);
+        Assert.Contains("source.value2(), target.rows.length, target.columns.length", script, StringComparison.Ordinal);
+        Assert.Contains(
+            "formulaErrorCode(",
+            script,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("formulaRange.value()", script, StringComparison.Ordinal);
         Assert.DoesNotContain("changingRange.value()", script, StringComparison.Ordinal);
     }
@@ -89,7 +93,7 @@ public sealed class MacRangeBridgeContractTests
     [Theory]
     [InlineData("range.set-values", "args.values", "values")]
     [InlineData("range.set-formulas", "args.formulas", "formulas")]
-    public void MatrixWrites_ValidateMergedTargetsAndExactShape(
+    public void MatrixWrites_ValidateMergedTargetsShapeAndOverwritePolicy(
         string command,
         string matrixExpression,
         string parameterName)
@@ -103,12 +107,63 @@ public sealed class MacRangeBridgeContractTests
         Assert.True(commandEnd > commandStart);
         var branch = script[commandStart..commandEnd];
 
-        Assert.Contains("requireUnmergedWriteTarget(range)", branch, StringComparison.Ordinal);
+        Assert.Contains("requireWritableMergeTarget(excel, range)", branch, StringComparison.Ordinal);
         Assert.Contains("requireMatrixShape(", branch, StringComparison.Ordinal);
+        Assert.Contains(
+            "requireWritableDestination(excel, range, args.overwritePolicy)",
+            branch,
+            StringComparison.Ordinal);
         Assert.Contains(
             $"{matrixExpression}, range.rows.length, range.columns.length, \"{parameterName}\")",
             branch,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MergedWriteValidation_FailsClosedWithoutMergeAreaReadback()
+    {
+        var script = ReadBridgeScript();
+
+        Assert.Contains(
+            "cannot reliably identify the merged range's top-left cell",
+            script,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("const mergeArea = range.mergeArea()", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProtectedCopies_KeepCompatibleExplicitTargetsAndRepeatMatrices()
+    {
+        var script = ReadBridgeScript();
+
+        Assert.Contains("const target = copyTargetRange(", script, StringComparison.Ordinal);
+        Assert.Contains("requested.rows.length % sourceRows !== 0", script, StringComparison.Ordinal);
+        Assert.Contains("requested.columns.length % sourceColumns !== 0", script, StringComparison.Ordinal);
+        Assert.Contains(
+            "requireWritableDestination(excel, target, args.overwritePolicy)",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "source.value2(), target.rows.length, target.columns.length",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "source.formulaR1c1(), target.rows.length, target.columns.length",
+            script,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RangeReads_NormalizeFormulaErrorsAndReturnCellMetadata()
+    {
+        var script = ReadBridgeScript();
+
+        Assert.Contains("function normalizedRangeRead(", script, StringComparison.Ordinal);
+        Assert.Contains("\"-2146826265\": [\"#REF!\"", script, StringComparison.Ordinal);
+        Assert.Contains("\"2023\": [\"#REF!\"", script, StringComparison.Ordinal);
+        Assert.Contains("ERROR.TYPE(${reference})", script, StringComparison.Ordinal);
+        Assert.Contains("cellAddress: `${columnName(cellColumn)}${cellRow}`", script, StringComparison.Ordinal);
+        Assert.Contains("cellErrors: read.cellErrors", script, StringComparison.Ordinal);
     }
 
     private static string ReadBridgeScript()

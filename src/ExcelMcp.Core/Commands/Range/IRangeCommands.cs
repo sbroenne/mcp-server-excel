@@ -77,7 +77,8 @@ public interface IRangeCommands
     /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Strict ISO dates such as "2025-01-15" become native Excel dates. Optional if valuesFile is provided.</param>
     /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
     /// <param name="overwritePolicy">reject-nonempty (default) checks all direct destinations and rejects existing content, including formulas displaying blank. allow permits intentional replacement, not bypassing Excel protection. Inspection failure stops the operation; no rollback or interactive-edit isolation.</param>
-    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Value writes have CLI and MCP desktop coverage. Merged-cell writes fail before mutation on macOS because Excel's Apple Events merge-area property is unreliable, so the Windows-only top-left exception cannot be identified exactly.")]
     [ServiceAction("set-values")]
     OperationResult SetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
@@ -93,7 +94,8 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name</param>
-    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Formula reads have CLI and MCP desktop coverage, including canonical error names and cellErrors metadata derived through Excel's non-mutating ERROR.TYPE evaluation when Apple Events returns a missing value.")]
     [ServiceAction("get-formulas")]
     RangeFormulaResult GetFormulas(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -111,7 +113,8 @@ public interface IRangeCommands
     /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Optional if formulasFile is provided.</param>
     /// <param name="formulasFile">Path to a JSON file containing the formulas as a 2D array. Alternative to inline formulas parameter.</param>
     /// <param name="overwritePolicy">reject-nonempty (default) rejects existing content before writing, including formulas displaying blank. allow permits authorized replacement. Checks cover direct destinations, not future formula spills; inspection failure stops the write.</param>
-    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Formula writes have CLI and MCP desktop coverage. Merged-cell writes fail before mutation on macOS because Excel's Apple Events merge-area property is unreliable, so the Windows-only top-left exception cannot be identified exactly.")]
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null, [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty);
 
