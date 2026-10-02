@@ -63,6 +63,38 @@ named connections as a shortcut.
 
 ## Code, reads, and waits
 
+### Staging queries and batch refresh
+
+`refresh-all` attempts every stored query. A definition-only staging query has
+no independently refreshable connection or table, so it makes the action fail.
+This is not a transaction: other loaded queries may already have refreshed.
+Engine errors are also reported, not skipped or converted into success.
+
+Inspect `get-load-config` to identify loaded destinations. Refresh each intended
+loaded query by name; Excel evaluates its referenced staging definitions as part
+of that refresh. Refresh dependent PivotTables separately afterward. Do not load
+a staging query onto a sheet or into the model merely to make batch refresh pass.
+
+For a staging definition used by the already-loaded `Financials` query:
+
+```mcp
+powerquery(action: 'get-load-config', session_id: sessionId, query_name: 'Financials')
+powerquery(action: 'refresh', session_id: sessionId, query_name: 'Financials')
+pivottable(action: 'refresh', session_id: sessionId, pivot_table_name: 'RevenuePivot')
+```
+
+```cli
+excelcli -q powerquery get-load-config --session $sessionId --query-name Financials
+excelcli -q powerquery refresh --session $sessionId --query-name Financials
+excelcli -q pivottable refresh --session $sessionId --pivot-table-name RevenuePivot
+```
+
+Check each result and actual loaded values. Repeat for each requested loaded
+query and dependent pivot. Refresh executes the stored M sources; it does not
+discover new reports or replace a frozen data snapshot with current data.
+
+### Inputs and timeouts
+
 - Supply raw `m_code` (MCP) / `--m-code` (CLI), or `m_code_file` (MCP) /
   `--m-code-file` (CLI), not both. The filename need not match the query name.
   See [workbook parameters and M identifiers](m-code-syntax.md).

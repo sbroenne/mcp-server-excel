@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Power Query M code and data loading. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. List returns metadata, exact load state, and an M preview of at most 80 characters; view returns full M code. Load detection and cleanup use exact case-insensitive mashup Location, preserving similarly named queries. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
+    Description = "Power Query M code and data loading. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. refresh-all attempts every stored query and fails if any has no refreshable destination or an engine error; other loads may already have refreshed. For definition-only staging queries, refresh their loaded dependents by queryName, then dependent PivotTables separately. List returns metadata, exact load state, and an M preview of at most 80 characters; view returns full M code. Load detection and cleanup use exact case-insensitive mashup Location. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
 public interface IPowerQueryCommands
 {
     /// <summary>
@@ -132,8 +132,10 @@ public interface IPowerQueryCommands
     // Validation only happens during refresh, making syntax-only validation unreliable.
 
     /// <summary>
-    /// Refreshes all Power Queries in the workbook.
-    /// Batch refresh with error tracking.
+    /// Attempts to refresh every stored query, including definition-only staging queries.
+    /// Fails if any query has no refreshable destination or reports an engine error.
+    /// Other loaded queries may already have refreshed before failure; inspect the result.
+    /// For staging-query workflows, refresh loaded dependents by name, then their PivotTables.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="timeout">Public input is whole seconds from 0 through 2147483. Omitted or 0 uses the 30-minute data-operation default.</param>

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -43,6 +44,27 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             .GetCustomAttribute<DescriptionAttribute>();
         Assert.NotNull(metadata);
         Assert.Equal(metadata.Description, description);
+    }
+
+    [Theory]
+    [InlineData("axis", typeof(ChartAxisType))]
+    [InlineData("legend_position", typeof(LegendPosition))]
+    [InlineData("marker_style", typeof(MarkerStyle))]
+    [InlineData("label_position", typeof(DataLabelPosition))]
+    [InlineData("plot_by", typeof(ChartPlotBy))]
+    [InlineData("display_blanks_as", typeof(ChartDisplayBlanksAs))]
+    [InlineData("area", typeof(ChartAreaTarget))]
+    public async Task EnumParameterDiscovery_AdvertisesEveryAcceptedName(string parameter, Type enumType)
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "chart_config").JsonSchema
+            .GetProperty("properties").GetProperty(parameter).GetProperty("description").GetString();
+
+        Assert.NotNull(description);
+        foreach (var name in Enum.GetNames(enumType))
+        {
+            Assert.Matches($@"\b{Regex.Escape(name)}\b", description);
+        }
     }
 
     [Fact]

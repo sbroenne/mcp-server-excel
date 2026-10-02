@@ -111,7 +111,7 @@ public interface IChartConfigCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
-    /// <param name="axis">Which axis to set title for (Category, Value, SeriesAxis)</param>
+    /// <param name="axis">Axis selector: Category/Value for primary axes, CategorySecondary/ValueSecondary for secondary axes. Primary aliases Category; Secondary aliases Value on the primary group. The requested axis must exist.</param>
     /// <param name="title">Axis title text</param>
     [ServiceAction("set-axis-title")]
     OperationResult SetAxisTitle(

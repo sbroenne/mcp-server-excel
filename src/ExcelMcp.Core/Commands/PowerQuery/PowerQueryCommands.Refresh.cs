@@ -67,7 +67,7 @@ public partial class PowerQueryCommands
                     {
                         throw new OperationFailureException(
                             OperationFailureCategory.Prerequisite,
-                            $"Could not find connection or table for query '{queryName}'.");
+                            MissingRefreshDestinationMessage(queryName));
                     }
 
                     result.HasErrors = false;
@@ -147,7 +147,7 @@ public partial class PowerQueryCommands
 
                         if (!refreshed)
                         {
-                            errors.Add($"{queryName}: Could not find connection or table for query.");
+                            errors.Add(MissingRefreshDestinationMessage(queryName));
                         }
                     }
                     finally
@@ -182,5 +182,11 @@ public partial class PowerQueryCommands
         TimeSpan maximum = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
         return timeout > maximum ? maximum : timeout;
     }
+
+    private static string MissingRefreshDestinationMessage(string queryName) =>
+        $"Could not find connection or table for query '{queryName}'. " +
+        "For definition-only staging queries, refresh the loaded dependent queries by name " +
+        "using powerquery refresh (MCP: action='refresh', query_name; CLI: --query-name). " +
+        "Inspect powerquery get-load-config first, then refresh dependent PivotTables.";
 
 }

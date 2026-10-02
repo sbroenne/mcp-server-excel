@@ -91,22 +91,13 @@ public partial class ChartCommands
 
             dynamic? axes = null;
             dynamic? targetAxis = null;
+            Excel.AxisTitle? axisTitle = null;
 
             try
             {
                 axes = findResult.Chart.Axes;
-
-                // Map axis type to Excel constants
-                int axisType = axis switch
-                {
-                    ChartAxisType.Category => 1,    // xlCategory
-                    ChartAxisType.Value => 2,       // xlValue
-                    ChartAxisType.Primary => 1,     // Primary = Category
-                    ChartAxisType.Secondary => 2,   // Secondary = Value
-                    _ => 1
-                };
-
-                targetAxis = axes.Item(axisType);
+                var (axisType, axisGroup) = MapAxisType(axis);
+                targetAxis = axes.Item(axisType, axisGroup);
 
                 // Set axis title (empty string hides title)
                 if (string.IsNullOrEmpty(title))
@@ -116,13 +107,15 @@ public partial class ChartCommands
                 else
                 {
                     targetAxis.HasTitle = true;
-                    targetAxis.AxisTitle.Text = title;
+                    axisTitle = targetAxis.AxisTitle;
+                    axisTitle.Text = title;
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
+                ComUtilities.Release(ref axisTitle);
                 ComUtilities.Release(ref targetAxis!);
                 ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
@@ -154,17 +147,8 @@ public partial class ChartCommands
             {
                 axes = findResult.Chart.Axes;
 
-                // Map axis type to Excel constants
-                int axisType = axis switch
-                {
-                    ChartAxisType.Category => 1,    // xlCategory
-                    ChartAxisType.Value => 2,       // xlValue
-                    ChartAxisType.Primary => 1,     // Primary = Category
-                    ChartAxisType.Secondary => 2,   // Secondary = Value
-                    _ => 1
-                };
-
-                targetAxis = axes.Item(axisType);
+                var (axisType, axisGroup) = MapAxisType(axis);
+                targetAxis = axes.Item(axisType, axisGroup);
                 tickLabels = targetAxis.TickLabels;
 
                 return ctx.FormatTranslator.TranslateFromLocale(((Excel.TickLabels)tickLabels).NumberFormatLocal ?? "General");
@@ -204,17 +188,8 @@ public partial class ChartCommands
             {
                 axes = findResult.Chart.Axes;
 
-                // Map axis type to Excel constants
-                int axisType = axis switch
-                {
-                    ChartAxisType.Category => 1,    // xlCategory
-                    ChartAxisType.Value => 2,       // xlValue
-                    ChartAxisType.Primary => 1,     // Primary = Category
-                    ChartAxisType.Secondary => 2,   // Secondary = Value
-                    _ => 1
-                };
-
-                targetAxis = axes.Item(axisType);
+                var (axisType, axisGroup) = MapAxisType(axis);
+                targetAxis = axes.Item(axisType, axisGroup);
                 tickLabels = targetAxis.TickLabels;
 
                 // Set the number format for axis tick labels
@@ -849,7 +824,7 @@ public partial class ChartCommands
             ChartAxisType.Secondary => (2, 1),          // xlValue, xlPrimary
             ChartAxisType.CategorySecondary => (1, 2),  // xlCategory, xlSecondary
             ChartAxisType.ValueSecondary => (2, 2),     // xlValue, xlSecondary
-            _ => (1, 1)
+            _ => throw new ArgumentOutOfRangeException(nameof(axis), axis, "Unsupported chart axis.")
         };
     }
 

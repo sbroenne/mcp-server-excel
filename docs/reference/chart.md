@@ -201,6 +201,11 @@ an axis scaled to thousands does not establish that labels use the same scale.
 
 ## Configuration
 
+Accepted option names are generated from the shared contracts into MCP parameter
+descriptions and CLI help, including optional string-valued enum inputs.
+Use those exact names rather than guessing Excel COM constant names or numeric
+codes. The same values and case-insensitive validation apply to both entry points.
+
 - Series indices are 1-based. Adding a series requires a values range; supply its
   category range when the axis labels are not implicit.
 - Replacing the source range can change all series. Verify names, values, and
@@ -210,12 +215,36 @@ an axis scaled to thousands does not establish that labels use the same scale.
 - Use Category and Value for primary axis titles. Use US number formats for
   currency/percentage tick labels; do not assume an axis format also formats
   data labels.
+- CategorySecondary and ValueSecondary target the secondary axis group, which
+  must already exist. The legacy Primary alias means Category, and Secondary
+  means Value in the primary group; use the explicit names to avoid ambiguity.
 - Built-in chart styles are 1-48. Area formatting controls chart/plot backgrounds;
   series formatting controls fills, lines, and markers.
 - Placement 1 moves and sizes with cells, 2 moves only, 3 is free floating.
 - Trendlines include Linear, Exponential, Logarithmic, Polynomial, Power, and
   MovingAverage. Polynomial order is 2-6; moving-average period is at least 2.
   Respect Excel's data/domain requirements for the selected fit.
+
+For the existing `MonthlyRevenue` chart, use the owning chart controls:
+
+```mcp
+chart_config(action: 'show-legend', session_id: sessionId, chart_name: 'MonthlyRevenue', visible: true, legend_position: 'Bottom')
+chart_config(action: 'set-series-format', session_id: sessionId, chart_name: 'MonthlyRevenue', series_index: 1, marker_style: 'Circle', marker_size: 5, line_color: '#0073BB')
+chart_config(action: 'set-plot-options', session_id: sessionId, chart_name: 'MonthlyRevenue', plot_by: 'Columns', display_blanks_as: 'Gaps')
+chart_config(action: 'set-area-format', session_id: sessionId, chart_name: 'MonthlyRevenue', area: 'Plot', fill_color: '#FFFFFF')
+chart(action: 'read', session_id: sessionId, chart_name: 'MonthlyRevenue')
+```
+
+```cli
+excelcli -q chartconfig show-legend --session $sessionId --chart-name MonthlyRevenue --visible true --legend-position Bottom
+excelcli -q chartconfig set-series-format --session $sessionId --chart-name MonthlyRevenue --series-index 1 --marker-style Circle --marker-size 5 --line-color '#0073BB'
+excelcli -q chartconfig set-plot-options --session $sessionId --chart-name MonthlyRevenue --plot-by Columns --display-blanks-as Gaps
+excelcli -q chartconfig set-area-format --session $sessionId --chart-name MonthlyRevenue --area Plot --fill-color '#FFFFFF'
+excelcli -q chart read --session $sessionId --chart-name MonthlyRevenue
+```
+
+Check each result and the chart's actual data. Formatting a PivotChart does not
+authorize changing its field configuration or filter scope.
 
 For multiple charts, use explicit non-overlapping cell ranges with consistent
 sizes and spacing. Auto-placement is suitable for a vertical stack. Read the
@@ -230,12 +259,18 @@ formulas or PivotTable totals. Compare representative amounts with the original
 rows; check category/value alignment, period order, and the treatment of totals,
 hidden rows, blanks, and errors.
 
-For regular charts, `sourceRange` currently contains the first series' `SERIES`
-formula, not a complete source rectangle. `valuesRange` and `categoryRange` may
-contain an array type name rather than cell addresses or plotted values.
-Do not treat those strings as proof of every series' bindings or values.
-PivotCharts instead report `isPivotChart` and `linkedPivotTable`; verify that
-link and the actual PivotTable fields, filters, and data.
+For both regular charts and PivotCharts, `series` includes the actual plotted
+names, `values`, and `categories` in point order. The listed `seriesCount` counts
+plotted series, not PivotTable value fields: one revenue measure can produce
+three provider series. Filtering the linked pivot changes those plotted series.
+
+For regular charts, `sourceRange` still contains the first series' `SERIES`
+formula, not a complete source rectangle. On read, `valuesRange` is empty and
+`categoryRange` is null rather than inventing cell addresses from Excel's value
+arrays. Series-creation operations can return the supplied ranges separately.
+Use the plotted arrays for data checks; a formula alone does not establish every
+binding. PivotCharts also report `isPivotChart` and `linkedPivotTable`; verify
+that link and the actual PivotTable fields, filters, and data.
 
 Keep checks and changes within the request. Changing a title or unit display
 does not authorize replacing the source, rebuilding unrelated data, restyling

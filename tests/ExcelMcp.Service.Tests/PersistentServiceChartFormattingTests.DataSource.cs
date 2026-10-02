@@ -8,6 +8,39 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServiceChartFormattingTests
 {
+    private static readonly string[] ReadbackQuarters = ["Q1", "Q2"];
+    private static readonly string[] ReadbackSeriesNames = ["Alpha", "Beta", "Gamma"];
+
+    [Fact]
+    public void ReadAndList_RegularChart_ReturnActualValuesAndCategoriesForEverySeries()
+    {
+        var batch = _fixture.BatchToken;
+        Assert.True(_commands.SetValues(batch, _sheetName, "E1:H3",
+        [
+            ["Quarter", "Alpha", "Beta", "Gamma"],
+            ["Q1", 10, 20, 30],
+            ["Q2", 40, 50, 60]
+        ]).Success);
+        var created = _chartCommands.CreateFromRange(batch, _sheetName, "E1:H3", ChartType.Line);
+        Assert.True(created.Success, created.ErrorMessage);
+        var read = _chartCommands.Read(batch, created.ChartName);
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.False(read.IsPivotChart);
+        Assert.Equal(ReadbackSeriesNames, read.Series.Select(series => series.Name));
+        var expected = new[] { new[] { 10d, 40d }, new[] { 20d, 50d }, new[] { 30d, 60d } };
+        for (var index = 0; index < expected.Length; index++)
+        {
+            Assert.Equal(expected[index], read.Series[index].Values.Select(value =>
+                Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)));
+            Assert.Equal(ReadbackQuarters, read.Series[index].Categories.Select(value => value?.ToString()));
+            Assert.Equal(string.Empty, read.Series[index].ValuesRange);
+            Assert.Null(read.Series[index].CategoryRange);
+        }
+        var list = _chartCommands.List(batch);
+        Assert.True(list.Success, list.ErrorMessage);
+        Assert.Equal(3, Assert.Single(list.Charts, chart => chart.Name == created.ChartName).SeriesCount);
+    }
+
     [Fact]
     public void SetSourceRange_RegularChart_UpdatesDataSource()
     {
@@ -155,5 +188,3 @@ public sealed partial class PersistentServiceChartFormattingTests
         Assert.Contains("$5", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
     }
 }
-
-

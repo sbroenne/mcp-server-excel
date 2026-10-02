@@ -4,6 +4,7 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -26,12 +27,85 @@ public class PersistentServiceChartOlapTests(
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceDataModelFixture>
 {
+    private static readonly string[] ReadbackQuarters = ["Q1", "Q2"];
+
     private readonly IPersistentChartCommands _chartCommands =
         fixture.CreateCommands<IPersistentChartCommands>();
     private readonly IPersistentPivotTableCommands _pivotCommands =
         fixture.CreateCommands<IPersistentPivotTableCommands>();
     private readonly IDataModelCommands _dataModelCommands =
         fixture.CreateCommands<IDataModelCommands>();
+
+    [Fact]
+    public void ReadAndList_OlapColumnMembers_ReportPlottedSeriesAndFollowFilters()
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        var pivotName = $"SeriesPivot_{Guid.NewGuid():N}";
+        var pivot = _pivotCommands.CreateFromDataModel(
+            batch, "RegionalSalesTable", sheet, "A1", pivotName);
+        Assert.True(pivot.Success, pivot.ErrorMessage);
+        Assert.True(_pivotCommands.AddRowField(
+            batch, pivotName, "[RegionalSalesTable].[Quarter]", null).Success);
+        Assert.True(_pivotCommands.AddColumnField(
+            batch, pivotName, "[RegionalSalesTable].[Region]", null).Success);
+        Assert.True(_pivotCommands.AddValueField(
+            batch, pivotName, "[Measures].[TotalRevenue]",
+            AggregationFunction.Sum, "Revenue").Success);
+
+        var slicers = _fixture.CreateCommands<ISlicerCommands>();
+        var slicerName = $"SeriesFilter_{Guid.NewGuid():N}";
+        var slicer = slicers.CreateSlicer(
+            batch, pivotName, "[RegionalSalesTable].[Region]",
+            slicerName, sheet, "J1");
+        Assert.True(slicer.Success, slicer.ErrorMessage);
+        var members = slicer.AvailableItems.Order(StringComparer.Ordinal).Take(3).ToList();
+        Assert.Equal(3, members.Count);
+        Assert.True(slicers.SetSlicerSelection(batch, slicerName, members).Success);
+
+        var created = _chartCommands.CreateFromPivotTable(
+            batch, pivotName, sheet, ChartType.Line, chartName: $"SeriesChart_{Guid.NewGuid():N}");
+        Assert.True(created.Success, created.ErrorMessage);
+        AssertSeries(members);
+
+        Assert.True(slicers.SetSlicerSelection(batch, slicerName, [members[0]]).Success);
+        AssertSeries([members[0]]);
+        Assert.True(slicers.SetSlicerSelection(batch, slicerName, []).Success);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName, null).Success);
+        AssertSeries(slicer.AvailableItems.Order(StringComparer.Ordinal).ToList());
+
+        void AssertSeries(List<string> expected)
+        {
+            var listed = _chartCommands.List(batch);
+            Assert.True(listed.Success, listed.ErrorMessage);
+            var chart = Assert.Single(listed.Charts, c => c.Name == created.ChartName);
+            Assert.True(chart.IsPivotChart);
+            Assert.Equal(pivotName, chart.LinkedPivotTable);
+            Assert.Equal(expected.Count, chart.SeriesCount);
+
+            var read = _chartCommands.Read(batch, created.ChartName);
+            Assert.True(read.Success, read.ErrorMessage);
+            Assert.True(read.IsPivotChart);
+            Assert.Equal(pivotName, read.LinkedPivotTable);
+            Assert.Equal(expected.Count, read.Series.Count);
+            Assert.Equal(expected, read.Series.Select(s => s.Name).Order(StringComparer.Ordinal).ToList());
+            var expectedValues = new Dictionary<string, double[]>(StringComparer.Ordinal)
+            {
+                ["East"] = [5500, 6000],
+                ["North"] = [5000, 5500],
+                ["South"] = [6000, 6500],
+                ["West"] = [7000, 7500]
+            };
+            foreach (var series in read.Series)
+            {
+                Assert.Equal(ReadbackQuarters, series.Categories.Select(value => value?.ToString()));
+                Assert.Equal(expectedValues[series.Name], series.Values.Select(value =>
+                    Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)));
+                Assert.Equal(string.Empty, series.ValuesRange);
+                Assert.Null(series.CategoryRange);
+            }
+        }
+    }
 
     [Fact]
     public void CreateFromPivotTable_OlapDataModelPivot_CreatesPivotChart()

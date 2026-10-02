@@ -5,6 +5,12 @@ Excel Table. Filtering source-table rows does not automatically filter a
 separate PivotTable cache. Use the matching creation, listing, selection, and
 deletion actions for each type.
 
+Use `list-slicers` and its `connectedPivotTables` field to check the actual
+scope. A slicer on a dashboard does not automatically control every chart.
+A live PivotChart follows its linked PivotTable, so a revenue-only connection
+does not filter unrelated margin or growth pivots/charts. These actions do not
+add a connection to another PivotTable; do not promise a shared dashboard filter.
+
 ## Required creation inputs
 
 Every creation needs a session, a unique slicer name, a destination worksheet, and

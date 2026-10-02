@@ -5,10 +5,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 public enum ChartAxisType
 {
-    /// <summary>Primary horizontal axis (category axis for most charts)</summary>
+    /// <summary>Legacy alias for Category on the primary axis group.</summary>
     Primary,
 
-    /// <summary>Secondary horizontal axis</summary>
+    /// <summary>Legacy alias for Value on the primary axis group, not a secondary-group selector.</summary>
     Secondary,
 
     /// <summary>Category axis (X-axis)</summary>
@@ -23,5 +23,4 @@ public enum ChartAxisType
     /// <summary>Secondary value axis (Y-axis on secondary axis group)</summary>
     ValueSecondary
 }
-
 

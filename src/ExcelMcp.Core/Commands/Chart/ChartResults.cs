@@ -124,7 +124,7 @@ public class ChartInfoResult : OperationResult
     /// <summary>True if legend is visible</summary>
     public bool HasLegend { get; set; }
 
-    /// <summary>Data series (Regular Charts only)</summary>
+    /// <summary>Currently plotted series for regular charts and PivotCharts.</summary>
     public List<SeriesInfo> Series { get; set; } = new();
 }
 
@@ -136,11 +136,17 @@ public class SeriesInfo
     /// <summary>Series name</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Range containing Y values</summary>
+    /// <summary>Source range supplied by series operations; read does not infer addresses from arrays.</summary>
     public string ValuesRange { get; set; } = string.Empty;
 
-    /// <summary>Range containing X values/categories (optional)</summary>
+    /// <summary>Source category range when available; read does not infer addresses from arrays.</summary>
     public string? CategoryRange { get; set; }
+
+    /// <summary>Actual plotted values returned by chart read, in point order.</summary>
+    public List<object?> Values { get; set; } = new();
+
+    /// <summary>Actual plotted categories returned by chart read, in point order.</summary>
+    public List<object?> Categories { get; set; } = new();
 }
 
 /// <summary>
@@ -388,6 +394,5 @@ public class TrendlineResult : OperationResult
     /// <summary>Custom name for the trendline</summary>
     public string? Name { get; set; }
 }
-
 
 
