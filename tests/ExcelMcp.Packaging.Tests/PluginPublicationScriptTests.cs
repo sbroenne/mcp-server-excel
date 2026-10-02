@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.Packaging.Tests;
 
 [Collection("Sequential")]
 [Trait("RequiresExcel", "false")]
@@ -25,7 +25,7 @@ public sealed class PluginPublicationScriptTests
         // Bound each independent group, rather than sharing one deadline across the suite.
         await RunNodeAsync(root.FullName,
             [
-                "--test", Path.Combine("tests", "ExcelMcp.SkillGeneration.Tests", testFile)
+                "--test", Path.Combine("tests", "ExcelMcp.Packaging.Tests", testFile)
             ],
             TimeSpan.FromMinutes(3));
     }

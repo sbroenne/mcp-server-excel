@@ -12,12 +12,6 @@ on:
       release_version:
         required: true
         type: string
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Existing exact release tag to register (for example, v2.0.12)
-        required: true
-        type: string
 
 permissions:
   contents: read

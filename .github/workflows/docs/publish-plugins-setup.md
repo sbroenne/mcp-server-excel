@@ -41,7 +41,8 @@ source for synchronization. It never searches for a tag on the workflow's
 original source commit or stamps current `main` with an older version.
 
 Marketplace publication does not depend on MCP registry registration. A partial
-publication failure stays visible and can be repaired independently.
+publication failure stays visible. Plugin publication retains its independent
+repair path; registry failures are recovered through a new patch release.
 
 ## Publish only changed output
 
@@ -217,5 +218,6 @@ These commands create local output only. Do not dispatch a real release as a tes
   product tag.
 - **Missing current publication tag:** use authorized exact-release manual repair;
   normal publication will not silently invent a baseline.
-- **Registry failed but plugins succeeded:** repair registry registration
-  separately; do not rebuild or republish already successful plugins.
+- **Registry failed but plugins succeeded:** fix the registry failure and create
+  a new patch release. Do not manually replay the already successful plugin
+  publication; normal release publication skips unchanged plugin content.

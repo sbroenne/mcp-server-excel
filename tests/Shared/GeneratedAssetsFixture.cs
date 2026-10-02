@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.Tests.Infrastructure;
 
 [CollectionDefinition("GeneratedAssets", DisableParallelization = true)]
 public sealed class GeneratedAssetsCollectionDefinition : ICollectionFixture<GeneratedAssetsFixture>;

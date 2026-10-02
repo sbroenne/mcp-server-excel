@@ -4,6 +4,7 @@ param(
     [switch]$HookTests,
     [switch]$Contracts,
     [switch]$SkillTests,
+    [switch]$PackagingTests,
     [string[]]$ChangedPaths = @(),
     [ValidateSet('Fast', 'Process', 'Tooling')][string]$Group,
     [string]$PlanFile,
@@ -12,6 +13,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
+. (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
 $selections = [ordered]@{}
 if ($Group) {
     $plan = if ($PlanFile) {
@@ -30,35 +32,35 @@ if ($Group) {
                 $selections[$project] = 'AdapterTestKind=System'
             }
         }
-        'Tooling' { $selections['SkillGeneration'] = $plan.ToolingFilter }
+        'Tooling' {
+            foreach ($project in $plan.ToolingProjects) { $selections[$project] = $plan.ToolingFilter }
+        }
     }
 }
 elseif ($PlanFile) { throw 'PlanFile requires an explicit Group.' }
 elseif ($Local) {
-    if ($HookTests) { $selections['SkillGeneration'] = 'Feature=PreCommit|Feature=AutomationSafety' }
-    if ($SkillTests) {
-        $selections['SkillGeneration'] = if ($selections['SkillGeneration']) {
-            "$($selections['SkillGeneration'])|Feature=SkillGeneration"
-        } else { 'Feature=SkillGeneration' }
-    }
+    $plan = Get-ValidationPlan -Paths $ChangedPaths
+    if ($HookTests -or $plan.HookTests) { $selections['ScriptSafety'] = 'RequiresExcel=false' }
+    if ($SkillTests -or $plan.SkillTests) { $selections['SkillGeneration'] = 'Feature=SkillGeneration' }
+    if ($PackagingTests -or $plan.PackagingTests) { $selections['Packaging'] = 'RequiresExcel=false' }
     if ($Contracts) {
         $selections['Core'] = 'Feature=GeneratedContracts'
         $selections['CLI'] = 'FullyQualifiedName~GeneratedActionContractCliTests'
         $selections['McpServer'] = 'FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests'
     }
     foreach ($path in $ChangedPaths) {
-        if ($path -match '(PluginPublication|Publish-PreparedPlugins|PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot|update-awesome-copilot|publish-plugins)') {
-            $selections['SkillGeneration'] = if ($selections['SkillGeneration']) {
-                "$($selections['SkillGeneration'])|Feature=PluginPublication"
-            } else { 'Feature=PluginPublication' }
-        }
-        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service)\.Tests[/\\]') {
+        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service|SkillGeneration|Packaging|ScriptSafety)\.Tests[/\\]') {
             $selections[$Matches[1]] = 'RequiresExcel=false'
+        }
+        if ($path -match '^tests[/\\]Shared[/\\]' -and $path -notmatch '[/\\](GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$') {
+            foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
+                $selections[$project] = 'RequiresExcel=false'
+            }
         }
     }
 }
 else {
-    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration')) {
+    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
         $selections[$project] = 'RequiresExcel=false'
     }
 }

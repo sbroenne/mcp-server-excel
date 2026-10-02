@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 
 [Collection("Sequential")]
 [Trait("RequiresExcel", "false")]
@@ -45,12 +45,12 @@ public sealed class PreCommitScriptTests
             ("README.md", false, false, false),
             ("docs/guide.md", false, false, false),
             ("gh-pages/docs/index.md", false, false, false),
-            ("videos/excel-mcp-intro/Capture-Evidence.ps1", false, false, false),
-            ("infrastructure/azure/deploy-appinsights.ps1", false, false, false),
+            ("videos/excel-mcp-intro/Capture-Evidence.ps1", true, false, false),
+            ("infrastructure/azure/deploy-appinsights.ps1", true, false, false),
             ("scripts/Update-UsageAnalytics.ps1", false, false, false),
             ("vscode-extension/src/extension.ts", false, false, false),
             ("npm-packages/excelcli/package.json", false, false, false),
-            ("mcpb/Build-McpBundle.ps1", false, false, false),
+            ("mcpb/Build-McpBundle.ps1", true, false, false),
             (".github/plugins/excel-cli/bin/start-cli.ps1", true, false, false),
             ("scripts/Publish-PreparedPlugins.ps1", true, false, false),
             ("scripts/PluginContent.mjs", true, false, false),
@@ -60,7 +60,7 @@ public sealed class PreCommitScriptTests
             ("scripts/Build-AgentSkills.ps1", true, false, true),
             ("tests/ExcelMcp.Core.Tests/ExampleTests.cs", true, false, false),
             ("scripts/pre-commit.ps1", true, false, false),
-            (".github/workflows/ci.yml", true, false, false),
+            (".github/workflows/ci.yml", true, false, true),
             ("src/ExcelMcp.Core/Command.cs", true, true, false),
             ("src/ExcelMcp.CLI/Program.cs", true, true, false),
             ("src/ExcelMcp.McpServer/Program.cs", true, true, false),
@@ -206,7 +206,7 @@ public sealed class PreCommitScriptTests
                 ("check-dynamic-casts", "casts-check-ran"),
                 ("check-workbook-package-access", "package-access-check-ran"),
                 ("Stop-ExcelMcpProcesses", "cleanup-ran"),
-                ("Invoke-ExcelFreeTests", "non-packaging-tests-ran"),
+                ("Invoke-ExcelFreeTests", "excel-free-tests-ran"),
                 ("Invoke-ExcelTests", "excel-feature-tests-ran"),
                 ("Test-E2E", "e2e-ran"),
             })

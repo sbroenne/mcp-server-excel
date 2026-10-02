@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 
 [Collection("Sequential")]
 [Trait("RequiresExcel", "false")]

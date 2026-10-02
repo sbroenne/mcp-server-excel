@@ -1,8 +1,9 @@
 # Pre-commit checks
 
-The hook validates the proposed commit. It never creates release packages,
-installs packaging dependencies, automatically stages generated files, or
-stashes your work. Required PR checks build and inspect affected packages.
+The hook validates the proposed commit. It never prepares release artifacts for
+publication, installs packaging dependencies, automatically stages generated
+files, or stashes your work. Packaging regression tests use temporary fixtures;
+required PR checks build and inspect the actual affected release packages.
 
 ## Install and run
 
@@ -32,10 +33,11 @@ Every commit is checked for direct commits to `main` and nonportable staged
 npm lockfiles. Further checks are selected from staged paths by
 `scripts\Get-ValidationPlan.ps1`.
 
-| Changed inputs | Release build | Local Excel E2E | Package creation |
+| Changed inputs | Release build | Local Excel E2E | Release artifact creation |
 |---|---|---|---|
-| Documentation, website, videos, Azure or analytics maintenance | No | No | Never |
-| Extension, npm wrappers, or Claude bundle inputs | No | No | Never |
+| Documentation, website, videos, Azure or analytics maintenance without script regressions | No | No | Never |
+| Extension, npm wrappers, or Claude bundle inputs without packaging regressions | No | No | Never |
+| Packaging/release scripts, tested Azure scripts, or evidence capture script | Yes | No | Never |
 | Tests, hook, CI policy, analyzer settings, or skill templates | Yes | No | Never |
 | Core, COM, Service, Cleanup, either entry point, runtime generators | Yes | Yes | Never |
 | Central build/dependency settings or embedded shared skill guidance | Yes | Yes | Never |
@@ -51,8 +53,11 @@ The guards flag suspicious patterns; they do not prove every COM lifetime or
 error-result path is correct. Local build cleanup remains pipe-scoped and must
 not stop another worktree's sessions.
 
-Changed test projects run their normal Excel-free tests. Hook regressions never
-build packages. Package tests belong to CI or explicit manual validation.
+Changed test projects run their normal Excel-free tests. Skill preparation,
+packaging/release, and script safety checks live in separate test projects.
+Packaging changes select their regression tests, which may build packages in
+temporary folders and use disposable local publication repositories. Actual
+release artifact creation belongs to CI or explicit manual validation.
 Feature-specific Excel tests remain the author's responsibility; the E2E
 sequence is not the full feature suite.
 
@@ -98,5 +103,5 @@ packaging does not publish a runtime.
 Isolated hook regressions:
 
 ```powershell
-dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PreCommit" --blame-hang-timeout 60s
+dotnet test tests\ExcelMcp.ScriptSafety.Tests\ExcelMcp.ScriptSafety.Tests.csproj -c Release --filter "Feature=PreCommit" --blame-hang-timeout 60s
 ```
