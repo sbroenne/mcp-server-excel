@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chartconfig", "ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
-    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series indices are 1-based. PivotChart series follow their PivotTable fields: use pivottable_field rather than changing series directly. Axis selectors are Category, Value, CategorySecondary, and ValueSecondary. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for create/delete/move and fit-to-range.")]
+    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series indices are 1-based. PivotChart series follow their PivotTable fields: use pivottable_field rather than changing series directly. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for create/delete/move and fit-to-range.")]
 public interface IChartConfigCommands
 {
     // === DATA SOURCE OPERATIONS ===

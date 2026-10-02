@@ -68,6 +68,18 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task AxisSelectorDescription_DoesNotExcludeAcceptedLegacyAliases()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "chart_config").Description;
+        Assert.NotNull(description);
+        Assert.Contains("Primary=Category", description);
+        Assert.Contains("Secondary=Value", description);
+        Assert.Contains("both use the primary axis group", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("legacy", description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task EveryInput_HasSubstantiveDescription()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
