@@ -71,9 +71,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**31 specialized tools with 326 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
+**31 specialized tools with 387 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
 
-📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 326 operations, grouped by category
+📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 387 operations, grouped by category
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
@@ -99,7 +99,7 @@ MCP inputs, open/create results, list entries, and session error context use
 Calls within a session execute one at a time, but concurrent requests and
 responses have no guaranteed order. Wait for dependent calls. Writes attempt to
 restore the calculation mode; restoration can fail without failing the write.
-Use `get-mode` when subsequent work depends on the mode. Manual mode requires
+Use `get-settings` when subsequent work depends on the mode. Manual mode requires
 explicit calculation before relying on dependent values.
 
 ## 💡 Example Use Cases

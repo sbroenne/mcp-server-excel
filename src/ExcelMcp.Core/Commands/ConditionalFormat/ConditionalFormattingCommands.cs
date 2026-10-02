@@ -57,13 +57,23 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         bool? top10Percent = null,
         string? topBottom = null,
         string? aboveBelow = null,
-        string? datePeriod = null)
+        string? datePeriod = null,
+        int? priority = null,
+        bool? stopIfTrue = null)
     {
+        var normalizedType = NormalizeRuleType(ruleType);
+        if (priority is < 1)
+            throw new ArgumentOutOfRangeException(nameof(priority));
+        if (stopIfTrue.HasValue && normalizedType is "colorscale" or "databar" or "iconset")
+            throw new ArgumentException("StopIfTrue is not available for color-scale, data-bar, or icon-set rules.", nameof(stopIfTrue));
         return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
             dynamic? formatConditions = null;
+            dynamic? cells = null;
+            dynamic? worksheetConditions = null;
+            object? createdRule = null;
 
             try
             {
@@ -74,31 +84,40 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 range = sheet.Range[rangeAddress];
                 formatConditions = range.FormatConditions;
 
-                var normalizedType = NormalizeRuleType(ruleType);
+                if (priority.HasValue)
+                {
+                    cells = sheet.Cells;
+                    worksheetConditions = cells.FormatConditions;
+                    int count = Convert.ToInt32(worksheetConditions.Count, System.Globalization.CultureInfo.InvariantCulture);
+                    List<ConditionalFormatRuleInfo> existing = ReadFormatConditions(worksheetConditions, ct);
+                    int lastPriority = Math.Max(count, existing.Select(item => item.Priority ?? 0).DefaultIfEmpty(0).Max());
+                    if (priority.Value > lastPriority + 1)
+                        throw new ArgumentOutOfRangeException(nameof(priority), "Priority must not exceed the greatest native worksheet priority plus one.");
+                }
 
                 switch (normalizedType)
                 {
                     case "cellvalue":
                     case "expression":
-                        AddBasicRule(formatConditions, normalizedType, operatorType, formula1, formula2,
+                        createdRule = AddBasicRule(formatConditions, normalizedType, operatorType, formula1, formula2,
                             interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
                         break;
 
                     case "colorscale":
-                        AddColorScaleRule(formatConditions,
+                        createdRule = AddColorScaleRule(formatConditions,
                             colorScaleMinType, colorScaleMinValue, colorScaleMinColor,
                             colorScaleMidType, colorScaleMidValue, colorScaleMidColor,
                             colorScaleMaxType, colorScaleMaxValue, colorScaleMaxColor);
                         break;
 
                     case "databar":
-                        AddDataBarRule(formatConditions,
+                        createdRule = AddDataBarRule(formatConditions,
                             dataBarColor, dataBarNegativeColor, dataBarDirection, dataBarShowValue,
                             dataBarMinType, dataBarMinValue, dataBarMaxType, dataBarMaxValue);
                         break;
 
                     case "iconset":
-                        AddIconSetRule(ctx.Book, formatConditions,
+                        createdRule = AddIconSetRule(ctx.Book, formatConditions,
                             iconSetId, iconSetReverse, iconSetShowIconOnly,
                             new[]
                             {
@@ -110,27 +129,27 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                         break;
 
                     case "top10":
-                        AddTop10Rule(formatConditions, rank, top10Percent, topBottom,
+                        createdRule = AddTop10Rule(formatConditions, rank, top10Percent, topBottom,
                             interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
                         break;
 
                     case "aboveaverage":
-                        AddAboveAverageRule(formatConditions, aboveBelow,
+                        createdRule = AddAboveAverageRule(formatConditions, aboveBelow,
                             interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
                         break;
 
                     case "uniquevalues":
-                        AddUniqueValuesRule(formatConditions, false,
+                        createdRule = AddUniqueValuesRule(formatConditions, false,
                             interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
                         break;
 
                     case "timeperiod":
-                        AddTimePeriodRule(formatConditions, datePeriod,
+                        createdRule = AddTimePeriodRule(formatConditions, datePeriod,
                             interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
                         break;
 
                     case "blankscondition":
-                        AddSimpleRule(formatConditions, 10 /* xlBlanksCondition */,
+                        createdRule = AddSimpleRule(formatConditions, 10 /* xlBlanksCondition */,
                             interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
                         break;
 
@@ -140,10 +159,19 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                             "Valid values: cellValue, expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage");
                 }
 
+                if (stopIfTrue.HasValue)
+                    SetNativeStopIfTrue(createdRule!, stopIfTrue.Value);
+                if (priority.HasValue && GetNativePriority(createdRule!) != priority.Value)
+                    SetNativePriority(createdRule!, priority.Value);
+                if (priority.HasValue && GetNativePriority(createdRule!) != priority.Value)
+                    throw new InvalidOperationException("Excel did not apply the requested new-rule priority. List worksheet rules before retrying.");
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
             finally
             {
+                ComUtilities.Release(ref createdRule);
+                ComUtilities.Release(ref worksheetConditions!);
+                ComUtilities.Release(ref cells!);
                 ComUtilities.Release(ref formatConditions!);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
@@ -154,7 +182,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     /// <summary>
     /// Adds a basic (cellValue/expression) rule and applies interior/font/border formatting.
     /// </summary>
-    private static void AddBasicRule(
+    private static object AddBasicRule(
         dynamic formatConditions,
         string normalizedType,
         string? operatorType,
@@ -187,6 +215,9 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
             ApplyRuleFormatting(formatCondition,
                 interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+            object created = formatCondition;
+            formatCondition = null;
+            return created;
         }
         finally
         {
@@ -344,7 +375,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 formatConditions = range.FormatConditions;
 
                 result.SheetName = sheet.Name;
-                result.Rules = ReadFormatConditions(formatConditions);
+                result.Rules = ReadFormatConditions(formatConditions, ct);
                 result.Success = true;
 
                 return result;
@@ -386,7 +417,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 formatConditions = cells.FormatConditions;
 
                 result.SheetName = sheet.Name;
-                result.Rules = ReadFormatConditions(formatConditions);
+                result.Rules = ReadFormatConditions(formatConditions, ct);
                 result.Success = true;
 
                 return result;
@@ -406,13 +437,14 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     /// Reads a FormatConditions collection into a list of rule descriptors.
     /// Each optional COM property read is guarded so unsupported rule types degrade gracefully.
     /// </summary>
-    private static List<ConditionalFormatRuleInfo> ReadFormatConditions(dynamic formatConditions)
+    private static List<ConditionalFormatRuleInfo> ReadFormatConditions(dynamic formatConditions, CancellationToken cancellationToken)
     {
         var rules = new List<ConditionalFormatRuleInfo>();
 
         int count = Convert.ToInt32(formatConditions.Count, System.Globalization.CultureInfo.InvariantCulture);
         for (int i = 1; i <= count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             dynamic? fc = null;
             dynamic? appliesTo = null;
             dynamic? interior = null;
@@ -508,6 +540,12 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     case 12: rule.AboveBelow = ReadAboveBelow(fc); break;          // xlAboveAverageCondition
                 }
 
+                if (typeNum == 8)
+                    rule.DuplicateValues = Convert.ToInt32(fc.DupeUnique, System.Globalization.CultureInfo.InvariantCulture) == 1;
+                if (typeNum == 12)
+                    rule.StandardDeviations = Convert.ToInt32(fc.NumStdDev, System.Globalization.CultureInfo.InvariantCulture);
+                rule.Fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(rule)));
                 rules.Add(rule);
             }
             finally
@@ -728,5 +766,3 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         };
     }
 }
-
-

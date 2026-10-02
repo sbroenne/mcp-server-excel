@@ -103,18 +103,13 @@ public sealed partial class PersistentServiceRangeSetStyleTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Act - 'middle' is a common alias for 'center'
-        var result = _commands.FormatRange(
-            batch, sheetName, "A1:C3",
-            fontName: null, fontSize: null, bold: null, italic: null, underline: null,
-            fontColor: null, fillColor: null, borderStyle: null, borderColor: null, borderWeight: null,
-            horizontalAlignment: null, verticalAlignment: "middle",
-            wrapText: null, orientation: null);
+        var result = _commands.Format(
+            batch, sheetName, ["A1:C3"], new() { VerticalAlignment = "middle" });
 
         // Assert
         Assert.True(result.Success, $"FormatRange with verticalAlignment=middle failed: {result.ErrorMessage}");
     }
 }
-
 
 
 

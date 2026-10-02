@@ -133,6 +133,10 @@ public class ChartInfoResult : OperationResult
 /// </summary>
 public class SeriesInfo
 {
+    /// <summary>Native chart type when included in chart inspection.</summary>
+    public ChartType? ChartType { get; set; }
+    /// <summary>Native primary/secondary assignment when included in chart inspection.</summary>
+    public ChartAxisGroup? AxisGroup { get; set; }
     /// <summary>Series name</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -388,6 +392,5 @@ public class TrendlineResult : OperationResult
     /// <summary>Custom name for the trendline</summary>
     public string? Name { get; set; }
 }
-
 
 

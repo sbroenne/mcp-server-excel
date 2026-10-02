@@ -15,7 +15,7 @@ public sealed class CalculationModeValidationTests
     public void SetMode_UnknownMode_ThrowsBeforeBatchExecution()
     {
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            _commands.SetMode(null!, (CalculationMode)int.MaxValue));
+            _commands.SetSettings(null!, (CalculationMode)int.MaxValue));
 
         Assert.Equal("mode", exception.ParamName);
         Assert.Contains("Unknown calculation mode", exception.Message);

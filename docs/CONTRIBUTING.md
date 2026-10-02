@@ -229,7 +229,29 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 2. **Implement it** in the corresponding partial class (e.g. `SheetCommands.Lifecycle.cs`), following the batch-API pattern above.
 3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
 4. **Add integration tests** for the new operation (TDD: write them first).
-5. **Update the appropriate `docs/features/*.md` file** with the new operation and its section count. Do not hand-edit repeated headline totals; release automation refreshes those advertised claims from code.
+5. **Update the appropriate `docs/features/*.md` file** with the new operation and its section count. Run `scripts\check-doc-counts.ps1 -Update` and review its generated headline changes; it checks but does not rewrite feature-section totals.
+
+### Capability boundaries
+
+Expand practical Excel desktop automation, not every historical COM member.
+New operations must work reliably through both entry points, be verified in real
+Excel, and not weaken Office security or block on interactive prompts.
+
+| Area | Boundary |
+|------|----------|
+| Printing and dialogs | Use PDF/XPS export for unattended reports; do not add physical printer output, print preview, or blocking dialogs. |
+| Application/workbook events | Add callbacks only when their lifetime and cleanup are deterministic across MCP and CLI calls. |
+| Host UI customization | Exclude deprecated command bars and Ribbon customization unrelated to workbook automation. |
+| Mail and collaboration | Exclude mail APIs requiring Outlook profiles or security prompts, and cloud collaboration not exposed through local Excel COM. |
+| Executable controls and add-ins | Do not add ActiveX creation or code injection, assume optional add-ins are installed, or enable them by changing macro security. Solver remains excluded. |
+| Office security | Never enable VBA trust, lower macro security, bypass Protected View, or change Trust Center settings. |
+| Version-specific APIs | Detect availability and return a clear failure when unavailable. Prove a PIA gap with a compile probe and runtime behavior in Excel before using late binding. |
+
+PIA member presence alone does not prove reliable behavior or persistence.
+Advanced Data Model structural changes need separate real Excel feasibility
+and persistence checks. Distinguish implemented behavior, missing capabilities,
+partial support, and exclusions; an untested draft or unavailable prerequisite
+does not establish support.
 
 ### Tracing a bug or contract change
 
@@ -258,8 +280,10 @@ There is no fixed README length or requirement to edit every README.
 Before shortening or moving a page, identify where each substantive caveat,
 example, installation option, and workflow will remain. Update that destination
 first, then replace duplicate material with a link. Permanent guides belong in
-`docs/`, decisions in `docs/ADR-*.md`, and feature requirements in `specs/`.
-Temporary investigations belong in issue/PR discussions, not SUMMARY/FIX files.
+`docs/` and decisions in `docs/ADR-*.md`. Track proposed feature requirements and
+temporary investigations in GitHub issues or PR discussions, not separate
+specification or SUMMARY/FIX files. Core contracts and implementations define
+operation behavior; keep the feature guides and shared guidance aligned with them.
 
 Use current declared action names and verify operation tables and category
 counts. After a Release build and explicit skill generation, run

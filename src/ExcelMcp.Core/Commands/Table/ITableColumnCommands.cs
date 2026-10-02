@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Attributes;
+using Sbroenne.ExcelMcp.Core.Commands.Filtering;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -9,8 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// Use table for table-level lifecycle and data operations.
 ///
 /// FILTERING:
-/// - 'apply-filter': Simple criteria filter (e.g., ">100", "=Active", "&lt;>Closed")
-/// - 'apply-filter-values': Filter by exact values (provide list of values to include)
+/// - 'apply-filter': Typed native comparison, value/date, top/bottom, color, icon, or dynamic filter
 /// - 'clear-filters': Remove all active filters
 /// - 'get-filters': See current filter state
 ///
@@ -25,30 +25,20 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 [ServiceCategory("tablecolumn", "TableColumn")]
 [McpTool("table_column", Title = "Table Column Operations", Destructive = true, Category = "data",
-    Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter (criteria like >100, =Active), apply-filter-values (JSON array of exact values), clear-filters, get-filters. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}). COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use table for lifecycle and data operations.")]
+    Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter uses typed options for comparisons, AND/OR, values, date groups, top/bottom, colors, icons, and dynamic filters. Nested options use camelCase. get-filters preserves operators, arrays, both criteria and inactive columns, with explicit native getter failures. clear-filters affects only the selected table. apply-filter-values is removed, not an alias. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}). COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use range_edit for ordinary-range filters and table for lifecycle/data.")]
 public interface ITableColumnCommands
 {
     // === FILTER OPERATIONS ===
 
     /// <summary>
-    /// Applies a filter to a table column with single criteria
+    /// Applies a typed native filter to one table column while preserving other column filters
     /// </summary>
     /// <param name="tableName">Name of the Excel table</param>
     /// <param name="columnName">Name of the column to filter</param>
-    /// <param name="criteria">Filter criteria string (e.g., '&gt;100', '=Active', '&lt;&gt;Closed')</param>
+    /// <param name="options">Native operator and its applicable criteria; nested keys remain camelCase</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("apply-filter")]
-    OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria);
-
-    /// <summary>
-    /// Applies a filter to a table column with multiple values
-    /// </summary>
-    /// <param name="tableName">Name of the Excel table</param>
-    /// <param name="columnName">Name of the column to filter</param>
-    /// <param name="values">List of exact values to include in the filter</param>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    [ServiceAction("apply-filter-values")]
-    OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values);
+    OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, [RequiredParameter] FilterOptions options);
 
     /// <summary>
     /// Clears all filters from a table

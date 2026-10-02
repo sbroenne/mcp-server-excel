@@ -27,13 +27,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("pivottablefield", "PivotTableField")]
 [McpTool("pivottable_field", Title = "PivotTable Field Operations", Destructive = true, Category = "analysis",
-    Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field operations modify structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
+    Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field placement modifies structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). SHOW VALUES AS: set-field-calculation targets an exact displayed Values name, independently of aggregation, and verifies native settings. list-fields returns every valueFields instance without a cap. OLAP/Data Model BaseField/BaseItem are unavailable; ignored native calculations fail with source-measure guidance. GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
 public interface IPivotTableFieldCommands
 {
     // === FIELD MANAGEMENT (WITH IMMEDIATE VALIDATION) ===
 
     /// <summary>
-    /// Lists all available fields and their current placement
+    /// Lists all available fields and their current placement.
+    /// valueFields reads every displayed Values instance, including repeated source fields,
+    /// native aggregation, Show Values As, and applicable base settings without a cap.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
@@ -126,6 +128,25 @@ public interface IPivotTableFieldCommands
         string fieldName, [FromString] AggregationFunction aggregationFunction);
 
     /// <summary>
+    /// Sets native Show Values As on one displayed Values instance, independently of aggregation.
+    /// Use list-fields valueFields.fieldName, not a source name shared by repeated value fields.
+    /// Normal resets additional calculation. Base-dependent calculations require a row/column field;
+    /// OLAP/Data Model BaseField/BaseItem are unavailable. Native failures do not promise rollback.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Exact PivotTable name</param>
+    /// <param name="fieldName">Exact displayed value-field name from list-fields valueFields</param>
+    /// <param name="calculation">Native additional calculation; Normal preserves aggregation</param>
+    /// <param name="baseFieldName">Required exact row/column field for differences, running totals, parent-field percentage, and ranks; otherwise omit</param>
+    /// <param name="baseItemKind">Required for DifferenceFrom, PercentOf, PercentDifferenceFrom: Named, Previous, or Next; otherwise omit</param>
+    /// <param name="baseItemName">Exact native item name, required only with Named; never a numeric index</param>
+    /// <returns>Actual native calculation and applicable base settings</returns>
+    [ServiceAction("set-field-calculation")]
+    PivotFieldCalculationResult SetFieldCalculation(IExcelBatch batch, string pivotTableName,
+        string fieldName, [FromString] PivotFieldCalculation calculation, string? baseFieldName = null,
+        [FromString] PivotCalculationBaseItemKind? baseItemKind = null, string? baseItemName = null);
+
+    /// <summary>
     /// Sets custom name for field in any area
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -162,6 +183,45 @@ public interface IPivotTableFieldCommands
     [ServiceAction("set-field-filter")]
     PivotFieldFilterResult SetFieldFilter(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues);
+
+    /// <summary>Reads every native calculated filter on a placed regular PivotTable field. Manual item visibility is separate.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed field caption.</param>
+    [ServiceAction("get-field-filters")]
+    PivotFiltersResult GetFieldFilters(IExcelBatch batch, string pivotTableName, string fieldName);
+
+    /// <summary>Adds a native label, value, date, or top/bottom filter without clearing existing filters. Regular PivotTables only.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column/filter field caption.</param>
+    /// <param name="filterOptions">Typed filter type and matching text, number, or date criteria. Value/top filters require an exact dataFieldName caption.</param>
+    [ServiceAction("add-field-filter")]
+    PivotFiltersResult AddFieldFilter(IExcelBatch batch, string pivotTableName, string fieldName, PivotFilterOptions filterOptions);
+
+    /// <summary>Deletes only native calculated filters from the selected field. Does not clear manual item visibility or filters on other fields.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected regular PivotTable.</param>
+    /// <param name="fieldName">Exact placed field caption.</param>
+    [ServiceAction("clear-field-filters")]
+    PivotFiltersResult ClearFieldFilters(IExcelBatch batch, string pivotTableName, string fieldName);
+
+    /// <summary>Reads a regular PivotTable parent item's native expansion state. OLAP/provider-dependent expansion is unsupported.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Placed non-innermost row or column field.</param>
+    /// <param name="itemName">Exact item caption.</param>
+    [ServiceAction("get-item-expansion")]
+    PivotItemExpansionResult GetItemExpansion(IExcelBatch batch, string pivotTableName, string fieldName, string itemName);
+
+    /// <summary>Expands or collapses only the named regular PivotTable parent item.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Placed non-innermost row or column field.</param>
+    /// <param name="itemName">Exact item caption.</param>
+    /// <param name="expanded">True expands; false collapses.</param>
+    [ServiceAction("set-item-expansion")]
+    PivotItemExpansionResult SetItemExpansion(IExcelBatch batch, string pivotTableName, string fieldName, string itemName, bool expanded);
 
     /// <summary>
     /// Sorts field with immediate layout update

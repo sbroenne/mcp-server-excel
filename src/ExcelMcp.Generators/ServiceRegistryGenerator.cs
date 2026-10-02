@@ -877,7 +877,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             {
                 // Expose as string
                 var exposedName = p.ExposedName ?? p.Name;
-                methodParams.Add($"string? {exposedName} = null");
+                var defaultStr = p.HasDefault ? " = null" : "";
+                methodParams.Add($"string? {exposedName}{defaultStr}");
             }
             else
             {

@@ -13,8 +13,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, string rangeAddress)
+    public RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, string rangeAddress,
+        FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1)
     {
+        ValidateFormulaReferenceStyle(referenceStyle);
         var result = new RangeFormulaResult
         {
             FilePath = batch.WorkbookPath,
@@ -39,7 +41,7 @@ public partial class RangeCommands
                 int startColumn = Convert.ToInt32(range.Column);
 
                 // Preserve dynamic arrays where supported; older Excel uses legacy semantics.
-                object formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
+                object formulaOrArray = ReadFormulas(ctx, (Excel.Range)range, referenceStyle);
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -165,9 +167,13 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null, OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty)
+    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress,
+        List<List<string>>? formulas = null, string? formulasFile = null,
+        OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty,
+        FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1)
     {
         ValidateOverwritePolicy(overwritePolicy);
+        ValidateFormulaReferenceStyle(referenceStyle);
         // Resolve formulas from inline parameter or file
         var resolvedFormulas = ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile);
 
@@ -223,11 +229,17 @@ public partial class RangeCommands
                     // not missing API support, and must never trigger a legacy retry.
                     if (ctx.Capabilities.SupportsFormula2)
                     {
-                        ((Excel.Range)range).Formula2 = arrayFormulas;
+                        if (referenceStyle == FormulaReferenceStyle.R1C1)
+                            ((Excel.Range)range).Formula2R1C1 = arrayFormulas;
+                        else
+                            ((Excel.Range)range).Formula2 = arrayFormulas;
                     }
                     else
                     {
-                        ((Excel.Range)range).Formula = arrayFormulas;
+                        if (referenceStyle == FormulaReferenceStyle.R1C1)
+                            ((Excel.Range)range).FormulaR1C1 = arrayFormulas;
+                        else
+                            ((Excel.Range)range).Formula = arrayFormulas;
                     }
                 }
 
@@ -257,6 +269,15 @@ public partial class RangeCommands
         });
     }
 
-    private static object ReadFormulas(ExcelContext context, Excel.Range range) =>
-        context.Capabilities.SupportsFormula2 ? range.Formula2 : range.Formula;
+    private static object ReadFormulas(ExcelContext context, Excel.Range range,
+        FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1) =>
+        referenceStyle == FormulaReferenceStyle.R1C1
+            ? context.Capabilities.SupportsFormula2 ? range.Formula2R1C1 : range.FormulaR1C1
+            : context.Capabilities.SupportsFormula2 ? range.Formula2 : range.Formula;
+
+    private static void ValidateFormulaReferenceStyle(FormulaReferenceStyle referenceStyle)
+    {
+        if (!Enum.IsDefined(referenceStyle))
+            throw new ArgumentOutOfRangeException(nameof(referenceStyle));
+    }
 }

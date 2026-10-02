@@ -19,8 +19,17 @@ public sealed partial class PersistentServiceRangeAdvancedTests
 
         _commands.SetValues(batch, sheetName, "A1", [["Test"]]);
         _fixture.Send(
-            "rangeformat.format-range",
-            new { sheetName, rangeAddress = "A1", bold = true, fillColor = "#FF0000" });
+            "rangeformat.format",
+            new
+            {
+                sheetName,
+                rangeAddresses = (string[])["A1"],
+                formatOptions = new
+                {
+                    bold = true,
+                    fillColor = "#FF0000"
+                }
+            });
 
         // Act - Clear only formats
         var result = _commands.ClearFormats(batch, sheetName, "A1");
@@ -45,7 +54,7 @@ public sealed partial class PersistentServiceRangeAdvancedTests
         _commands.SetFormulas(batch, sheetName, "A3", [["=A1+A2"]]);
 
         // Act - Copy formulas to B3
-        var result = _commands.CopyFormulas(batch, sheetName, "A3", sheetName, "B3");
+        var result = _commands.Copy(batch, sheetName, "A3", sheetName, "B3", PasteKind.Formulas);
 
         // Assert
         Assert.True(result.Success, $"CopyFormulas failed: {result.ErrorMessage}");
@@ -329,4 +338,3 @@ public sealed partial class PersistentServiceRangeAdvancedTests
         Assert.Equal(["$A$1:$B$1", "$C$1:$D$1"], result.MergedRanges);
     }
 }
-

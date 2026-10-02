@@ -39,7 +39,7 @@ function Get-ValidationPlan {
             '^src/ExcelMcp\.McpServer/' { 'mcp'; break }
             '^src/ExcelMcp\.Build\.Tasks/|^skills/|^docs/reference/report-formatting\.md$' { 'skills'; break }
             '^src/ExcelMcp\.Diagnostics/|^\.editorconfig$' { 'build'; break }
-            '^scripts/(Test-E2E|Test-CliWorkflow|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests|CliWorkflowAcceptanceTests)\.cs$' { 'runtime'; break }
+            '^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests|CliWorkflowAcceptanceTests)\.cs$' { 'runtime'; break }
             '^tests/' { 'tests'; break }
             '^vscode-extension/' { 'extension'; break }
             '^mcpb/' { 'mcpb'; break }
@@ -55,7 +55,7 @@ function Get-ValidationPlan {
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }
             '^scripts/(Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata)\.ps1$' { 'packages'; break }
             '^scripts/(Update|Restore|Persist|Test)-StarHistory\.ps1$|^scripts/.*UsageAnalytics.*\.ps1$' { 'maintenance'; break }
-            '^docs/|^gh-pages/|^videos/|^infrastructure/|^specs/|^\.changeset/|^\.github/|\.md$|^\.(gitignore|gitattributes)$' { 'documentation'; break }
+            '^docs/|^gh-pages/|^videos/|^infrastructure/|^\.changeset/|^\.github/|\.md$|^\.(gitignore|gitattributes)$' { 'documentation'; break }
             '^(package(-lock)?\.json|\.npmrc)$' { 'packages'; break }
             default { 'unknown' }
         }

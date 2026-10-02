@@ -31,6 +31,20 @@ public class ConditionalFormatListResult : ResultBase
 public class ConditionalFormatRuleInfo
 {
     /// <summary>
+    /// Fingerprint of the listed settings and worksheet priority. Read again after
+    /// changes; this is a stale-selection guard, not a persistent rule identifier.
+    /// </summary>
+    public string Fingerprint { get; set; } = "";
+
+    /// <summary>Whether a unique-values rule highlights duplicates.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? DuplicateValues { get; set; }
+
+    /// <summary>Standard-deviation multiplier for above/below-average rules.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? StandardDeviations { get; set; }
+
+    /// <summary>
     /// Rule type (e.g. cellValue, expression, colorScale, dataBar, top10, iconSet,
     /// uniqueValues, blanksCondition, timePeriod, aboveAverage).
     /// </summary>
@@ -62,7 +76,7 @@ public class ConditionalFormatRuleInfo
     public string? AppliesTo { get; set; }
 
     /// <summary>
-    /// Priority of the rule within the collection (1-based, lower = higher priority).
+    /// Worksheet-wide priority of the rule (1-based, lower = higher priority).
     /// Null when the rule type does not expose a priority.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

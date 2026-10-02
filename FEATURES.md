@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**31 specialized tools with 326 operations for comprehensive Excel automation**
+**31 specialized tools with 387 operations for comprehensive Excel automation**
 
 Excel MCP Server automates the real Microsoft Excel application through four focused capability areas. Start with the category that matches your goal, or use the quick reference below to find a tool for a specific task.
 
@@ -39,5 +39,5 @@ cover the most common jobs end to end:
 | Visualize data | `chart` | [Charts](https://excelmcpserver.dev/features/charts-visuals/#charts) |
 | Update parameters | `namedrange` (write operation) | [Cells & Workbooks](docs/features/CELLS-WORKBOOKS.md) |
 | Read or write cells and manage formulas | `range` (including `set-formulas`) | [Ranges](https://excelmcpserver.dev/features/cells-workbooks/#ranges) |
-| Format or validate data | `range_format` (`format-range`, `format-ranges`, `validate-range`) | [Ranges](https://excelmcpserver.dev/features/cells-workbooks/#ranges) |
+| Format or validate data | `range_format` (`format`, `validate-range`) | [Ranges](https://excelmcpserver.dev/features/cells-workbooks/#ranges) |
 | Run a macro | `vba` | [VBA Macros](https://excelmcpserver.dev/features/automation-advanced/#vba-macros) |

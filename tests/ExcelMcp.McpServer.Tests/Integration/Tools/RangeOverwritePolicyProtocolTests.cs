@@ -24,16 +24,16 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
     [InlineData("copy", null)]
     [InlineData("copy", "reject-nonempty")]
     [InlineData("copy", "allow")]
-    [InlineData("copy-values", null)]
-    [InlineData("copy-values", "reject-nonempty")]
-    [InlineData("copy-values", "allow")]
-    [InlineData("copy-formulas", null)]
-    [InlineData("copy-formulas", "reject-nonempty")]
-    [InlineData("copy-formulas", "allow")]
-    public async Task ContentAction_MapsOptionalPolicy(string action, string? policy)
+    [InlineData("copy", null, "values")]
+    [InlineData("copy", "reject-nonempty", "values")]
+    [InlineData("copy", "allow", "values")]
+    [InlineData("copy", null, "formulas")]
+    [InlineData("copy", "reject-nonempty", "formulas")]
+    [InlineData("copy", "allow", "formulas")]
+    public async Task ContentAction_MapsOptionalPolicy(string action, string? policy, string pasteKind = "all")
     {
-        var arguments = Arguments(action);
-        var serviceArgs = ServiceArguments(action);
+        var arguments = Arguments(action, pasteKind);
+        var serviceArgs = ServiceArguments(action, pasteKind);
         if (policy is not null)
         {
             arguments["overwrite_policy"] = policy;
@@ -95,7 +95,7 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
         Assert.True(result.IsError);
     }
 
-    private static Dictionary<string, object?> Arguments(string action)
+    private static Dictionary<string, object?> Arguments(string action, string pasteKind = "all")
     {
         var args = new Dictionary<string, object?> { ["action"] = action, ["session_id"] = "session-1" };
         if (action.StartsWith("copy", StringComparison.Ordinal))
@@ -104,6 +104,7 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
             args["source_range"] = "A1:B2";
             args["target_sheet"] = "Sheet1";
             args["target_range"] = "D1";
+            args["paste_kind"] = pasteKind;
         }
         else
         {
@@ -117,10 +118,10 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
         return args;
     }
 
-    private static Dictionary<string, object?> ServiceArguments(string action)
+    private static Dictionary<string, object?> ServiceArguments(string action, string pasteKind = "all")
     {
         var args = new Dictionary<string, object?>();
-        foreach (var (key, value) in Arguments(action))
+        foreach (var (key, value) in Arguments(action, pasteKind))
         {
             if (key is "action" or "session_id")
                 continue;

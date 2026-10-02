@@ -5,6 +5,19 @@ captured session ID; do not create another session to change visibility.
 
 ## Worksheet views
 
+Use `get-context` to read the active sheet, selection, active cell, and chart
+from every window belonging to the session workbook. It does not activate,
+select, or show anything. Unsupported or unavailable selections are explicit;
+another workbook's selection is never used as a substitute.
+
+```mcp
+window(action: 'get-context', session_id: sessionId)
+```
+
+```cli
+excelcli -q window get-context --session $sessionId
+```
+
 The named worksheet must exist. Freeze counts describe the rows above and columns
 left of the boundary; at least one must be positive. A movable split disables
 frozen panes. Set zoom/display options before a split when exact counts matter.

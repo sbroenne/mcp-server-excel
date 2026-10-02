@@ -30,13 +30,19 @@ public partial class PivotTableCommands
                 // For OLAP PivotTables, use CubeFields instead of PivotFields
                 if (isOlap)
                 {
-                    return ListCubeFieldsAsync(cubeFields, batch.WorkbookPath);
+                    var result = ListCubeFieldsAsync(cubeFields, batch.WorkbookPath);
+                    result.ValueFields = ReadAllValueFieldCalculations(
+                        (Microsoft.Office.Interop.Excel.PivotTable)pivot, batch.WorkbookPath, ct);
+                    return result;
                 }
                 else
                 {
                     // Regular PivotTable - use PivotFields
                     pivotFields = pivot.PivotFields;
-                    return ListRegularFieldsAsync(pivotFields, batch.WorkbookPath);
+                    var result = ListRegularFieldsAsync(pivotFields, batch.WorkbookPath);
+                    result.ValueFields = ReadAllValueFieldCalculations(
+                        (Microsoft.Office.Interop.Excel.PivotTable)pivot, batch.WorkbookPath, ct);
+                    return result;
                 }
             }
             finally
@@ -324,5 +330,4 @@ public partial class PivotTableCommands
         });
     }
 }
-
 

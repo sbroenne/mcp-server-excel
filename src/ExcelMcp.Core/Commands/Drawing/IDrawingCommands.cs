@@ -7,7 +7,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 /// <summary>
 /// Worksheet drawing objects and sparklines.
 ///
-/// OBJECTS: list/read/update/delete images, AutoShapes, text boxes, connectors, and worksheet Forms controls.
+/// OBJECTS: list/read/update/delete images, AutoShapes, text boxes, connectors, groups, and worksheet Forms controls.
+/// LAYOUT: group/ungroup, align/distribute within the selection, duplicate with point offsets, and change stacking order.
 /// SHAPE TYPES: common geometric, arrow, and flowchart AutoShapes.
 /// FORMATTING: geometry, text, fill/line/font colors, rotation, visibility, locking, placement, and alternative text.
 /// FORMS CONTROLS: safe worksheet Forms controls only. linkedCell applies to CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner; inputRange applies only to DropDown and ListBox. ActiveX/OLE controls and macro assignment are intentionally excluded.
@@ -16,9 +17,64 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 /// </summary>
 [ServiceCategory("drawing", "Drawing")]
 [McpTool("drawing", Title = "Drawing Object Operations", Destructive = true, Category = "structure",
-    Description = "Worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, and safe worksheet Forms controls with list/read/update/delete lifecycle and formatting. Add common geometric, arrow, and flowchart AutoShapes. Colors use #RRGGBB. Forms controls exclude ActiveX/OLE and macro assignment. Manage line, column, and win/loss sparklines. ")]
+    Description = "Worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, groups, and safe worksheet Forms controls. Group/ungroup, align/distribute within the selection, duplicate, change stacking order, and inspect complete group members. Layout excludes charts, ActiveX/OLE and unknown drawing types; duplication rejects macro assignments. Add common AutoShapes and line, column, or win/loss sparklines. Colors use #RRGGBB. ")]
 public interface IDrawingCommands
 {
+    /// <summary>Groups two or more named, eligible top-level objects on one unprotected worksheet. Returns the real group name and complete members.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing every selected object</param>
+    /// <param name="objectNames">JSON array string of distinct top-level names returned by list-objects; at least two</param>
+    /// <param name="groupName">Optional unique name for the new group; otherwise keep Excel's generated name</param>
+    [ServiceAction("group-objects")]
+    DrawingObjectListResult GroupObjects(IExcelBatch batch, [RequiredParameter] string sheetName,
+        [RequiredParameter] List<string> objectNames, string? groupName = null);
+
+    /// <summary>Ungroups one named group and returns its newly exposed direct members with their real names and geometry.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the group</param>
+    /// <param name="objectName">Existing top-level group name</param>
+    [ServiceAction("ungroup-object")]
+    DrawingObjectListResult UngroupObject(IExcelBatch batch, [RequiredParameter] string sheetName,
+        [RequiredParameter] string objectName);
+
+    /// <summary>Aligns named objects within their selected bounding box, not against the worksheet or page. Other objects are unchanged.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing every selected object</param>
+    /// <param name="objectNames">JSON array string of distinct top-level names; at least two</param>
+    /// <param name="alignment">Edges or centers to align: Left, Center, Right, Top, Middle, Bottom</param>
+    [ServiceAction("align-objects")]
+    DrawingObjectListResult AlignObjects(IExcelBatch batch, [RequiredParameter] string sheetName,
+        [RequiredParameter] List<string> objectNames, [RequiredParameter][FromString] DrawingAlignment alignment);
+
+    /// <summary>Distributes at least three named objects with equal gaps within their current selected extent. Other objects are unchanged.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing every selected object</param>
+    /// <param name="objectNames">JSON array string of distinct top-level names; at least three</param>
+    /// <param name="distribution">Horizontal or vertical spacing direction</param>
+    [ServiceAction("distribute-objects")]
+    DrawingObjectListResult DistributeObjects(IExcelBatch batch, [RequiredParameter] string sheetName,
+        [RequiredParameter] List<string> objectNames, [RequiredParameter][FromString] DrawingDistribution distribution);
+
+    /// <summary>Duplicates a named drawing object on the same worksheet, preserving its appearance and group members. ActiveX/OLE, unknown types and macro-bound objects are rejected.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the source</param>
+    /// <param name="objectName">Existing top-level drawing object name</param>
+    /// <param name="newName">Optional unique name; otherwise keep Excel's generated name</param>
+    /// <param name="offsetLeft">Horizontal offset in points from the source, default 10</param>
+    /// <param name="offsetTop">Vertical offset in points from the source, default 10</param>
+    [ServiceAction("duplicate-object")]
+    DrawingObjectListResult DuplicateObject(IExcelBatch batch, [RequiredParameter] string sheetName,
+        [RequiredParameter] string objectName, string? newName = null, double offsetLeft = 10, double offsetTop = 10);
+
+    /// <summary>Changes a drawing object's native front-to-back order and returns its actual stacking position.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet containing the object</param>
+    /// <param name="objectName">Existing top-level drawing object name</param>
+    /// <param name="zOrder">Native order change: BringToFront, SendToBack, BringForward, SendBackward</param>
+    [ServiceAction("set-z-order")]
+    DrawingObjectListResult SetZOrder(IExcelBatch batch, [RequiredParameter] string sheetName,
+        [RequiredParameter] string objectName, [RequiredParameter][FromString] DrawingZOrder zOrder);
+
     /// <summary>Lists drawing objects on a worksheet.</summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet containing the drawing objects or sparklines</param>

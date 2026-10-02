@@ -18,9 +18,60 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
 [McpTool("conditionalformat", Title = "Conditional Formatting", Destructive = true, Category = "structure",
-    Description = "Conditional formatting - visual rules based on cell values. TYPES: cellValue, expression, colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition (accepts both camelCase and kebab-case). For cellValue: requires operatorType + formula1. Visual types use dedicated add-rule parameters and list-rules returns their type-specific config (colorScaleCriteria, dataBar, iconSet, top10, aboveBelow, datePeriod). FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
+    Description = "Conditional formatting - visual rules based on cell values. TYPES: cellValue, expression, colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition (accepts both camelCase and kebab-case). For cellValue: requires operatorType + formula1. Visual types use dedicated add-rule parameters and list-rules returns their type-specific config. SELECTED EDITS: update-rule, delete-rule, set-rule-priority require current worksheet-wide rule_priority and expected_fingerprint from listing; fingerprints cover listed settings, not persistent IDs. Updates retain type and unrelated rules; supply only applicable nested options. add-rule accepts priority and stop_if_true; stop flags are unavailable for colorScale/dataBar/iconSet. Native failures do not promise rollback. FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 public interface IConditionalFormattingCommands
 {
+    /// <summary>
+    /// Updates only supplied settings on the selected existing rule without replacing
+    /// it or clearing other rules. Rule type is retained. Uses current worksheet-wide
+    /// priority and the fingerprint from list-rules/list-worksheet-rules; stale
+    /// selections fail before writes. Applies-to accepts exact or named/disjoint
+    /// worksheet ranges. Native failures do not promise rollback.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name, empty for active sheet</param>
+    /// <param name="rulePriority">Current worksheet-wide rule priority from listing</param>
+    /// <param name="expectedFingerprint">Fingerprint of the selected listed rule, not a persistent ID</param>
+    /// <param name="options">Only supplied settings change; type-specific settings must match the existing rule type</param>
+    [ServiceAction("update-rule")]
+    ConditionalFormatListResult UpdateRule(IExcelBatch batch,
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
+        [RequiredParameter] int rulePriority,
+        [RequiredParameter, FromString("expectedFingerprint")] string expectedFingerprint,
+        [RequiredParameter] ConditionalRuleUpdateOptions options);
+
+    /// <summary>
+    /// Deletes only the selected rule, using its current worksheet-wide priority
+    /// and listed fingerprint. Stale selections fail. Excel renumbers remaining
+    /// priorities; list again before another selected-rule operation.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name, empty for active sheet</param>
+    /// <param name="rulePriority">Current worksheet-wide priority from listing</param>
+    /// <param name="expectedFingerprint">Fingerprint of the selected listed rule</param>
+    [ServiceAction("delete-rule")]
+    ConditionalFormatListResult DeleteRule(IExcelBatch batch,
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
+        [RequiredParameter] int rulePriority,
+        [RequiredParameter, FromString("expectedFingerprint")] string expectedFingerprint);
+
+    /// <summary>
+    /// Moves only the selected rule to an exact worksheet-wide priority, retaining
+    /// all rules. Uses current priority and listed fingerprint to reject stale
+    /// selections. Excel shifts other priorities; returned rules have fresh fingerprints.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name, empty for active sheet</param>
+    /// <param name="rulePriority">Current worksheet-wide priority from listing</param>
+    /// <param name="expectedFingerprint">Fingerprint of the selected listed rule</param>
+    /// <param name="newPriority">New worksheet-wide priority from 1 through the greatest listed native priority</param>
+    [ServiceAction("set-rule-priority")]
+    ConditionalFormatListResult SetRulePriority(IExcelBatch batch,
+        [RequiredParameter, AllowEmptyString, FromString("sheetName")] string sheetName,
+        [RequiredParameter] int rulePriority,
+        [RequiredParameter, FromString("expectedFingerprint")] string expectedFingerprint,
+        [RequiredParameter] int newPriority);
+
     /// <summary>
     /// Adds a conditional formatting rule to a range.
     /// Excel COM: Range.FormatConditions.Add / AddColorScale / AddDatabar /
@@ -84,6 +135,8 @@ public interface IConditionalFormattingCommands
     /// <param name="topBottom">top10 direction: top or bottom</param>
     /// <param name="aboveBelow">aboveAverage selector: aboveAverage, belowAverage, aboveStdDev, belowStdDev, equalAboveAverage, equalBelowAverage</param>
     /// <param name="datePeriod">timePeriod period: today, yesterday, tomorrow, last7Days, thisWeek, lastWeek, nextWeek, thisMonth, lastMonth, nextMonth</param>
+    /// <param name="priority">Optional exact worksheet-wide priority for the new rule</param>
+    /// <param name="stopIfTrue">Optional evaluation stop flag; unavailable for colorScale/dataBar/iconSet rules</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     /// <exception cref="ArgumentException">Invalid rule type, operator, color, or format value</exception>
     [ServiceAction("add-rule")]
@@ -134,7 +187,9 @@ public interface IConditionalFormattingCommands
         bool? top10Percent = null,
         [FromString("topBottom")] string? topBottom = null,
         [FromString("aboveBelow")] string? aboveBelow = null,
-        [FromString("datePeriod")] string? datePeriod = null);
+        [FromString("datePeriod")] string? datePeriod = null,
+        int? priority = null,
+        bool? stopIfTrue = null);
 
     /// <summary>
     /// Removes all conditional formatting from range

@@ -1,0 +1,399 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
+using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
+
+namespace Sbroenne.ExcelMcp.Service.Tests;
+
+[Collection("ServiceWorkflow")]
+[Trait("Category", "Integration")]
+[Trait("Layer", "Service")]
+[Trait("Feature", "StructuredFilters")]
+[Trait("RequiresExcel", "true")]
+public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWorkbookFixture fixture) :
+    PersistentServiceWorkbookTestBase(fixture), IClassFixture<PersistentServiceWorkbookFixture>
+{
+    [Fact]
+    public void OrdinaryRange_CombinesBothConditionsAndReturnsEveryColumn()
+    {
+        var sheet = CreateData();
+        _fixture.Send("rangeedit.apply-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            columnIndex = 2,
+            filterOptions = new { filterOperator = "And", criteria1 = ">=20", criteria2 = "<=40" }
+        });
+        var response = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using var read = JsonDocument.Parse(response.Result!);
+        var filters = read.RootElement.GetProperty("columnFilters");
+        Assert.Equal(2, filters.GetArrayLength());
+        Assert.False(filters[0].GetProperty("isFiltered").GetBoolean());
+        Assert.Equal("And", filters[1].GetProperty("filterOperator").GetString());
+        Assert.Equal(">=20", filters[1].GetProperty("criteria1").GetProperty("value").GetString());
+        Assert.Equal("<=40", filters[1].GetProperty("criteria2").GetProperty("value").GetString());
+        var visible = _fixture.Send("range.get-special-cells", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A2:A6",
+            cellKind = "Visible"
+        });
+        using var cells = JsonDocument.Parse(visible.Result!);
+        Assert.Equal(3, cells.RootElement.GetProperty("cellCount").GetInt32());
+    }
+
+    [Fact]
+    public void Table_ReadPreservesNativeValueArrays()
+    {
+        var sheet = CreateData();
+        var table = "Filter_" + Guid.NewGuid().ToString("N");
+        _fixture.Send("table.create", new { sheetName = sheet, tableName = table, rangeAddress = "A1:B6", hasHeaders = true });
+        string[] values = ["A", "C", "not-present"];
+        _fixture.Send("tablecolumn.apply-filter", new
+        {
+            tableName = table,
+            columnName = "Category",
+            options = new { filterOperator = "Values", values }
+        });
+        var response = _fixture.Send("tablecolumn.get-filters", new { tableName = table });
+        using var read = JsonDocument.Parse(response.Result!);
+        var first = read.RootElement.GetProperty("columnFilters")[0];
+        Assert.Equal("Values", first.GetProperty("filterOperator").GetString());
+        var criteria = first.GetProperty("criteria1");
+        Assert.True(criteria.GetProperty("available").GetBoolean());
+        Assert.Equal(3, criteria.GetProperty("value").GetArrayLength());
+    }
+
+    [Theory]
+    [InlineData(false, "Comparison", """{"criteria1":">=30"}""", 3)]
+    [InlineData(true, "Comparison", """{"criteria1":">=30"}""", 3)]
+    [InlineData(false, "Or", """{"criteria1":"<=10","criteria2":">=50"}""", 2)]
+    [InlineData(true, "Or", """{"criteria1":"<=10","criteria2":">=50"}""", 2)]
+    [InlineData(false, "TopItems", """{"count":2}""", 2)]
+    [InlineData(true, "TopItems", """{"count":2}""", 2)]
+    [InlineData(false, "BottomItems", """{"count":2}""", 2)]
+    [InlineData(true, "BottomItems", """{"count":2}""", 2)]
+    [InlineData(false, "TopPercent", """{"count":40}""", 2)]
+    [InlineData(true, "BottomPercent", """{"count":40}""", 2)]
+    [InlineData(false, "Dynamic", """{"dynamicCriteria":"xlFilterAboveAverage"}""", 2)]
+    [InlineData(true, "Dynamic", """{"dynamicCriteria":"xlFilterBelowAverage"}""", 2)]
+    public void NativeNumericFilters_ApplyAndClearOnlyTheirOwnScope(bool tableMode, string kind, string json, int count)
+    {
+        var sheet = CreateData();
+        string? table = tableMode ? CreateTable(sheet) : null;
+        using var extra = JsonDocument.Parse(json);
+        var options = extra.RootElement.EnumerateObject().ToDictionary(property => property.Name,
+            property => (object?)property.Value.Clone(), StringComparer.Ordinal);
+        options["filterOperator"] = kind;
+        Apply(sheet, table, 2, options);
+        Assert.Equal(count, VisibleCount(sheet));
+        _fixture.Send(tableMode ? "tablecolumn.clear-filters" : "rangeedit.clear-filters",
+            tableMode ? new { tableName = table } : (object)new { sheetName = sheet, rangeAddress = "A1:B6" });
+        Assert.Equal(5, VisibleCount(sheet));
+        _fixture.Send(tableMode ? "tablecolumn.clear-filters" : "rangeedit.clear-filters",
+            tableMode ? new { tableName = table } : (object)new { sheetName = sheet, rangeAddress = "A1:B6" });
+        Assert.Equal(5, VisibleCount(sheet));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NativeFilters_ComposeAcrossColumns(bool tableMode)
+    {
+        var sheet = CreateData();
+        string? table = tableMode ? CreateTable(sheet) : null;
+        string[] values = ["A", "C", "not-present"];
+        Apply(sheet, table, 1, new { filterOperator = "Values", values });
+        Apply(sheet, table, 2, new { criteria1 = ">=30" });
+        Assert.Equal(2, VisibleCount(sheet));
+    }
+
+    [Theory]
+    [InlineData("Year", "2026-02-01", 3)]
+    [InlineData("Month", "2026-02-01", 2)]
+    [InlineData("Day", "2026-02-03", 1)]
+    public void DateGroups_UseNativeCalendarGroups(string level, string date, int count)
+    {
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:B6",
+            [["Category", "Date"], ["A", new DateTime(2025, 12, 1).ToOADate()],
+                ["B", new DateTime(2026, 1, 2).ToOADate()], ["C", new DateTime(2026, 2, 3).ToOADate()],
+                ["A", new DateTime(2026, 2, 4).ToOADate()], ["B", new DateTime(2027, 1, 1).ToOADate()]]).Success);
+        Assert.True(_commands.SetNumberFormat(_fixture.BatchToken, sheet, "B2:B6", "yyyy-mm-dd").Success);
+        Apply(sheet, null, 2, new
+        {
+            filterOperator = "Values",
+            dateGroups = new[] { new { level, date } }
+        });
+        Assert.Equal(count, VisibleCount(sheet));
+        var response = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using var read = JsonDocument.Parse(response.Result!);
+        var column = read.RootElement.GetProperty("columnFilters")[1];
+        Assert.True(column.GetProperty("isFiltered").GetBoolean());
+        Assert.True(column.TryGetProperty("criteria1", out _));
+        Assert.True(column.TryGetProperty("criteria2", out _));
+    }
+
+    [Fact]
+    public async Task OrdinaryFilter_DifferentScopeDoesNotReplaceAnExistingFilter()
+    {
+        var sheet = CreateData();
+        Apply(sheet, null, 2, new { criteria1 = ">=30" });
+        var response = await _fixture.SendForFailureAsync("rangeedit.apply-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B5",
+            columnIndex = 2,
+            filterOptions = new { criteria1 = "<=20" }
+        });
+        Assert.False(response.Success);
+        Assert.Contains("different range", response.ErrorMessage);
+        Assert.Equal(3, VisibleCount(sheet));
+    }
+
+    [Fact]
+    public void AdvancedFilter_CopiesMatchingRecordsWithoutModifyingSource()
+    {
+        var sheet = CreateData();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
+        _fixture.Send("rangeedit.advanced-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            criteriaRange = "H1:H2",
+            mode = "Copy",
+            copyToRange = "D1",
+            uniqueOnly = false
+        });
+        var result = _commands.GetValues(_fixture.BatchToken, sheet, "D1:E5");
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("Category", result.Values[0][0]);
+        Assert.Equal(30d, Convert.ToDouble(result.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(50d, Convert.ToDouble(result.Values[3][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Null(result.Values[4][0]);
+        Assert.Equal(5, VisibleCount(sheet));
+    }
+
+    [Theory]
+    [InlineData("CellColor", "fillColor")]
+    [InlineData("FontColor", "fontColor")]
+    public void ColorFilters_UseNativeDisplayedColors(string kind, string property)
+    {
+        var sheet = CreateData();
+        var format = new Dictionary<string, object?>
+        {
+            ["sheetName"] = sheet,
+            ["rangeAddresses"] = (string[])["B2:B3"],
+            ["formatOptions"] = new Dictionary<string, object?> { [property] = "#FF0000" }
+        };
+        _fixture.Send("rangeformat.format", format);
+        Apply(sheet, null, 2, new { filterOperator = kind, color = "#FF0000" });
+        Assert.Equal(2, VisibleCount(sheet));
+        if (kind == "CellColor")
+        {
+            _fixture.ExecuteRawVerification((context, _) =>
+            {
+                Excel.Worksheet? worksheet = null;
+                Excel.AutoFilter? filter = null;
+                Excel.Filters? filters = null;
+                Excel.Filter? column = null;
+                object? criterion = null;
+                try
+                {
+                    worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                    filter = worksheet!.AutoFilter;
+                    filters = filter.Filters;
+                    column = filters[2];
+                    criterion = column.Criteria1;
+                    Assert.True(criterion is Excel.Interior,
+                        $"Interior={criterion is Excel.Interior}; FormatColor={criterion is Excel.FormatColor}; Font={criterion is Excel.Font}; Range={criterion is Excel.Range}");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref criterion);
+                    ComUtilities.Release(ref column);
+                    ComUtilities.Release(ref filters);
+                    ComUtilities.Release(ref filter);
+                    ComUtilities.Release(ref worksheet);
+                }
+            });
+        }
+        var response = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using var read = JsonDocument.Parse(response.Result!);
+        var column = read.RootElement.GetProperty("columnFilters")[1];
+        Assert.Equal(kind, column.GetProperty("filterOperator").GetString());
+        Assert.Equal(255, column.GetProperty("criteria1").GetProperty("value").GetInt32());
+    }
+
+    [Fact]
+    public void IconFilter_ReadsTheActualNativeIconIdentity()
+    {
+        var sheet = CreateData();
+        _fixture.Send("conditionalformat.add-rule", new
+        {
+            sheetName = sheet,
+            rangeAddress = "B2:B6",
+            ruleType = "iconSet",
+            iconSetId = "3TrafficLights1"
+        });
+        Apply(sheet, null, 2, new { filterOperator = "Icon", iconSet = "xl3TrafficLights1", iconIndex = 3 });
+        Assert.Equal(2, VisibleCount(sheet));
+        var response = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using var read = JsonDocument.Parse(response.Result!);
+        var icon = read.RootElement.GetProperty("columnFilters")[1].GetProperty("criteria1").GetProperty("value");
+        Assert.Equal("xl3TrafficLights1", icon.GetProperty("iconSet").GetString());
+        Assert.Equal(3, icon.GetProperty("iconIndex").GetInt32());
+    }
+
+    [Fact]
+    public void AdvancedFilter_InPlaceCanBeClearedWithoutLosingRecords()
+    {
+        var sheet = CreateData();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
+        _fixture.Send("rangeedit.advanced-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            criteriaRange = "H1:H2",
+            mode = "InPlace"
+        });
+        Assert.Equal(3, VisibleCount(sheet));
+        _fixture.Send("rangeedit.clear-filters", new { sheetName = sheet, rangeAddress = "A1:B6", clearAdvanced = true });
+        Assert.Equal(5, VisibleCount(sheet));
+    }
+
+    [Fact]
+    public async Task AdvancedFilter_RejectsOccupiedMaximumCopyExtentBeforeWriting()
+    {
+        var sheet = CreateData();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "E6", [["keep"]]).Success);
+        var response = await _fixture.SendForFailureAsync("rangeedit.advanced-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            criteriaRange = "H1:H2",
+            mode = "Copy",
+            copyToRange = "D1"
+        });
+        Assert.False(response.Success);
+        Assert.Contains("$E$6", response.ErrorMessage);
+        var read = _commands.GetValues(_fixture.BatchToken, sheet, "D1:E6");
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.Null(read.Values[0][0]);
+        Assert.Equal("keep", read.Values[5][1]);
+    }
+
+    [Theory]
+    [InlineData("""{"filterOperator":"And","criteria1":">=20"}""")]
+    [InlineData("""{"filterOperator":"TopItems","count":0}""")]
+    [InlineData("""{"filterOperator":"TopPercent","count":101}""")]
+    [InlineData("""{"filterOperator":"Values","values":[]}""")]
+    [InlineData("""{"filterOperator":"Values","values":["A"],"criteria1":"=A"}""")]
+    [InlineData("""{"filterOperator":"CellColor","color":"invalid"}""")]
+    [InlineData("""{"filterOperator":"Icon","iconSet":"wrong","iconIndex":1}""")]
+    [InlineData("""{"filterOperator":"Dynamic","dynamicCriteria":"wrong"}""")]
+    [InlineData("""{"criteria1":">=20","unknown":true}""")]
+    public async Task InvalidSettings_DoNotChangeAnExistingFilter(string json)
+    {
+        var sheet = CreateData();
+        Apply(sheet, null, 2, new { criteria1 = ">=30" });
+        using var options = JsonDocument.Parse(json);
+        var response = await _fixture.SendForFailureAsync("rangeedit.apply-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            columnIndex = 2,
+            filterOptions = options.RootElement
+        });
+        Assert.False(response.Success);
+        Assert.Equal(3, VisibleCount(sheet));
+    }
+
+    [Fact]
+    public async Task AdvancedFilter_ClearRequiresExplicitWorksheetWidePermission()
+    {
+        var sheet = CreateData();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
+        _fixture.Send("rangeedit.advanced-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            criteriaRange = "H1:H2",
+            mode = "InPlace"
+        });
+        var read = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using var state = JsonDocument.Parse(read.Result!);
+        Assert.True(state.RootElement.GetProperty("worksheetFilterMode").GetBoolean());
+        Assert.False(state.RootElement.GetProperty("advancedCriteriaAvailable").GetBoolean());
+        var response = await _fixture.SendForFailureAsync("rangeedit.clear-filters",
+            new { sheetName = sheet, rangeAddress = "A1:B6" });
+        Assert.False(response.Success);
+        Assert.Contains("clear_advanced", response.ErrorMessage);
+        Assert.Equal(3, VisibleCount(sheet));
+    }
+
+    [Fact]
+    public void AdvancedFilter_UniqueCopyKeepsOnlyDistinctRequestedFields()
+    {
+        var sheet = CreateData();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=10"]]).Success);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "D1", [["Category"]]).Success);
+        _fixture.Send("rangeedit.advanced-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            criteriaRange = "H1:H2",
+            mode = "Copy",
+            copyToRange = "D1",
+            uniqueOnly = true,
+            overwritePolicy = "allow"
+        });
+        var read = _commands.GetValues(_fixture.BatchToken, sheet, "D1:D5");
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.Equal("Category", read.Values[0][0]);
+        Assert.Equal(["A", "B", "C"], read.Values.Skip(1).Take(3).Select(row => row[0]));
+        Assert.Null(read.Values[4][0]);
+    }
+
+    private string CreateTable(string sheet)
+    {
+        var table = "Filter_" + Guid.NewGuid().ToString("N");
+        _fixture.Send("table.create", new { sheetName = sheet, tableName = table, rangeAddress = "A1:B6", hasHeaders = true });
+        return table;
+    }
+
+    private void Apply(string sheet, string? table, int column, object options)
+    {
+        if (table is not null)
+            _fixture.Send("tablecolumn.apply-filter", new { tableName = table, columnName = column == 1 ? "Category" : "Amount", options });
+        else
+            _fixture.Send("rangeedit.apply-filter", new
+            {
+                sheetName = sheet,
+                rangeAddress = "A1:B6",
+                columnIndex = column,
+                filterOptions = options
+            });
+    }
+
+    private int VisibleCount(string sheet)
+    {
+        var visible = _fixture.Send("range.get-special-cells", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A2:A6",
+            cellKind = "Visible"
+        });
+        using var read = JsonDocument.Parse(visible.Result!);
+        return read.RootElement.GetProperty("cellCount").GetInt32();
+    }
+
+    private string CreateData()
+    {
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:B6",
+            [["Category", "Amount"], ["A", 10], ["B", 20], ["C", 30], ["A", 40], ["B", 50]]).Success);
+        return sheet;
+    }
+}

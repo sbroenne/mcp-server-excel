@@ -40,6 +40,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("RequiresExcel", "true")]
 public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 {
+    private static readonly string[] DrawingPair = ["DrawFirst", "DrawSecond"];
+    private static readonly string[] DrawingSelection = ["DrawFirst", "DrawSecond", "DrawThird"];
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly string _testExcelFile;
@@ -393,6 +395,170 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 
     [Fact]
     [Trait("Acceptance", "Required")]
+    public async Task Smoke_NativeFormattingAndStyles_RoundTrip()
+    {
+        var sessionId = await CreateSmokeWorkbookAsync(withData: true);
+        var discoverCellsResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-special-cells",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1:C4",
+            ["cell_kind"] = "constants"
+        });
+        AssertSuccess(discoverCellsResult, "Discover all constant cells");
+        using (var discoveryJson = JsonDocument.Parse(discoverCellsResult))
+        {
+            Assert.Equal("Data", discoveryJson.RootElement.GetProperty("sheetName").GetString());
+            Assert.Equal("$A$1:$C$4", discoveryJson.RootElement.GetProperty("rangeAddress").GetString());
+            Assert.Equal("constants", discoveryJson.RootElement.GetProperty("cellKind").GetString());
+            Assert.Equal(9, discoveryJson.RootElement.GetProperty("cellCount").GetInt64());
+            var area = Assert.Single(discoveryJson.RootElement.GetProperty("areas").EnumerateArray());
+            Assert.Equal("$A$1:$C$3", area.GetString());
+        }
+        _output.WriteLine("  ✓ range: SetValues and GetValues passed");
+        var fineFormatResult = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "format",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_addresses"] = (string[])["AA10:AB11"],
+            ["format_options"] = new
+            {
+                fontThemeColor = 5,
+                fillThemeColor = 6,
+                indentLevel = 2,
+                horizontalAlignment = "left",
+                borders = new[] { new { position = "DiagonalUp", lineStyle = "dash", color = "#123456" } }
+            }
+        });
+        AssertSuccess(fineFormatResult, "Apply native fine formatting");
+        var fineFormatRead = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "get-format",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "AA10"
+        });
+        AssertSuccess(fineFormatRead, "Read native fine formatting");
+        using (var fineJson = JsonDocument.Parse(fineFormatRead))
+        {
+            var cell = fineJson.RootElement.GetProperty("cells")[0].GetProperty("stored");
+            Assert.Equal(5, cell.GetProperty("font").GetProperty("color").GetProperty("themeColor").GetInt32());
+            Assert.Equal(6, cell.GetProperty("fill").GetProperty("color").GetProperty("themeColor").GetInt32());
+            Assert.Equal(2, cell.GetProperty("indentLevel").GetInt32());
+            var border = Assert.Single(cell.GetProperty("borders").EnumerateArray(),
+                item => item.GetProperty("edge").GetString() == "xlDiagonalUp");
+            Assert.Equal(-4115, border.GetProperty("lineStyle").GetInt32());
+            Assert.Equal("#123456", border.GetProperty("color").GetProperty("rgb").GetString());
+        }
+        var styleCreate = await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "create-cell-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowHighlight",
+            ["source_sheet_name"] = "Data",
+            ["source_cell_address"] = "AA10"
+        });
+        AssertSuccess(styleCreate, "Create native cell style");
+        var styleApply = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "set-style",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "AD10",
+            ["style_name"] = "WorkflowHighlight"
+        });
+        AssertSuccess(styleApply, "Apply native custom style");
+        var styleUpdate = await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "update-cell-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowHighlight",
+            ["style_options"] = new { includeFont = true, formatOptions = new { bold = true } }
+        });
+        AssertSuccess(styleUpdate, "Update native custom style");
+        var styleRead = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "get-style",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "AD10"
+        });
+        AssertSuccess(styleRead, "Read native custom style user");
+        using (var styleJson = JsonDocument.Parse(styleRead))
+        {
+            Assert.Equal("WorkflowHighlight", styleJson.RootElement.GetProperty("styleName").GetString());
+            Assert.False(styleJson.RootElement.GetProperty("isBuiltInStyle").GetBoolean());
+        }
+        var styleDelete = await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "delete-cell-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowHighlight"
+        });
+        AssertSuccess(styleDelete, "Delete native custom style");
+        AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "create-table-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowTableStyle",
+            ["source_style_name"] = "TableStyleMedium2"
+        }), "Clone native table style");
+        var tableStyleUpdate = await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "update-table-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowTableStyle",
+            ["table_style_options"] = new { elements = new[] { new { elementType = "xlHeaderRow", fillColor = "#123456", bold = false } } }
+        });
+        AssertSuccess(tableStyleUpdate, "Update native table-style element");
+        using (var definition = JsonDocument.Parse(tableStyleUpdate))
+        {
+            var elements = definition.RootElement.GetProperty("style").GetProperty("elements");
+            Assert.Equal(43, elements.GetArrayLength());
+            var header = Assert.Single(elements.EnumerateArray(), item => item.GetProperty("elementType").GetString() == "xlHeaderRow");
+            Assert.Equal("#123456", header.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
+        }
+        AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "get-table-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowTableStyle"
+        }), "Read complete native table-style definition");
+        AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "list-table-styles",
+            ["session_id"] = sessionId
+        }), "List native table-style catalogue");
+        AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "delete-table-style",
+            ["session_id"] = sessionId,
+            ["style_name"] = "WorkflowTableStyle"
+        }), "Delete native custom table style");
+        var formatReadResult = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "get-format",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A1:C3",
+            ["view"] = "both"
+        });
+        AssertSuccess(formatReadResult, "Read complete stored and displayed formatting");
+        using (var formatJson = JsonDocument.Parse(formatReadResult))
+        {
+            Assert.Equal(9, formatJson.RootElement.GetProperty("cellCount").GetInt64());
+            var cells = formatJson.RootElement.GetProperty("cells");
+            Assert.Equal(9, cells.GetArrayLength());
+            Assert.True(cells[0].TryGetProperty("stored", out _));
+            Assert.True(cells[0].TryGetProperty("displayed", out _));
+        }
+        await CloseSmokeWorkbookAsync(sessionId);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "Required")]
     public async Task Smoke_TablesNamedRangesAndReports_UseWorksheetData()
     {
         var sessionId = await CreateSmokeWorkbookAsync(withData: true);
@@ -401,6 +567,573 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // STEP 5: TABLE OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 5: Table operations...");
+        var spillFormulaResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-formulas",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "G1",
+            ["formulas"] = new List<List<string>> { new() { "=SEQUENCE(3)" } }
+        });
+        AssertSuccess(spillFormulaResult, "Write dynamic-array formula");
+        var pasteTargetResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "I1",
+            ["values"] = new List<List<int>> { new() { 123 } }
+        });
+        AssertSuccess(pasteTargetResult, "Prepare occupied formatting-only paste target");
+        var pasteFormatsResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "copy",
+            ["session_id"] = sessionId,
+            ["source_sheet"] = "Data",
+            ["source_range"] = "A1:C3",
+            ["target_sheet"] = "Data",
+            ["target_range"] = "I1",
+            ["paste_kind"] = "formats"
+        });
+        AssertSuccess(pasteFormatsResult, "Native formatting-only paste");
+        using (var pasteJson = JsonDocument.Parse(pasteFormatsResult))
+        {
+            Assert.Equal("$I$1:$K$3", pasteJson.RootElement.GetProperty("destinationAddress").GetString());
+            Assert.Equal("formats", pasteJson.RootElement.GetProperty("pasteKind").GetString());
+        }
+        var pasteContentResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "I1"
+        });
+        AssertSuccess(pasteContentResult, "Read occupied paste target");
+        using (var pasteContentJson = JsonDocument.Parse(pasteContentResult))
+        {
+            Assert.Equal(123d, pasteContentJson.RootElement.GetProperty("values")[0][0].GetDouble());
+        }
+        var spillReadResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-spill-info",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "G1:G3"
+        });
+        AssertSuccess(spillReadResult, "Read native spill source and result relationships");
+        using (var spillJson = JsonDocument.Parse(spillReadResult))
+        {
+            Assert.Equal("supported", spillJson.RootElement.GetProperty("capability").GetString());
+            var cells = spillJson.RootElement.GetProperty("cells");
+            Assert.Equal(3, cells.GetArrayLength());
+            Assert.Equal("source", cells[0].GetProperty("state").GetString());
+            Assert.Equal("result", cells[2].GetProperty("state").GetString());
+            Assert.Equal("$G$1", cells[2].GetProperty("sourceAddress").GetString());
+            Assert.Equal("$G$1:$G$3", cells[2].GetProperty("spillAddress").GetString());
+        }
+
+        var patternSeeds = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "P1:P2",
+            ["values"] = new List<List<int>> { new() { 1 }, new() { 3 } }
+        });
+        AssertSuccess(patternSeeds, "Write native pattern seeds");
+        var patternFill = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "auto-fill",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["source_range"] = "P1:P2",
+            ["destination_range"] = "P1:P4",
+            ["fill_type"] = "series"
+        });
+        AssertSuccess(patternFill, "Extend native pattern");
+        var patternRead = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "P4"
+        });
+        AssertSuccess(patternRead, "Read native pattern result");
+        using (var patternJson = JsonDocument.Parse(patternRead))
+        {
+            Assert.Equal(7d, patternJson.RootElement.GetProperty("values")[0][0].GetDouble());
+        }
+        var relativeFormula = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-formulas",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "Q1",
+            ["reference_style"] = "r1c1",
+            ["formulas"] = new List<List<string>> { new() { "=RC[-1]*2" } }
+        });
+        AssertSuccess(relativeFormula, "Write native R1C1 formula");
+        var directionalFill = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "fill",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "Q1:Q4",
+            ["direction"] = "down"
+        });
+        AssertSuccess(directionalFill, "Fill relative formulas down");
+        var formulaRead = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-formulas",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "Q4",
+            ["reference_style"] = "r1c1"
+        });
+        AssertSuccess(formulaRead, "Read native R1C1 formula");
+        using (var formulaJson = JsonDocument.Parse(formulaRead))
+        {
+            Assert.Equal("=RC[-1]*2", formulaJson.RootElement.GetProperty("formulas")[0][0].GetString());
+            Assert.Equal(14, formulaJson.RootElement.GetProperty("values")[0][0].GetDouble());
+        }
+        var nativePrecedents = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "trace-precedents",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "Q4"
+        });
+        AssertSuccess(nativePrecedents, "Trace native local precedents");
+        using (var traceJson = JsonDocument.Parse(nativePrecedents))
+        {
+            Assert.Equal(2, traceJson.RootElement.GetProperty("nodes").GetArrayLength());
+            Assert.Single(traceJson.RootElement.GetProperty("edges").EnumerateArray());
+            Assert.Empty(traceJson.RootElement.GetProperty("unresolved").EnumerateArray());
+            var coverage = traceJson.RootElement.GetProperty("coverage");
+            Assert.False(coverage.GetProperty("workbookComplete").GetBoolean());
+            Assert.True(coverage.GetProperty("nativeTraversalComplete").GetBoolean());
+        }
+        var nativeDependents = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "trace-dependents",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "P4"
+        });
+        AssertSuccess(nativeDependents, "Trace native dependents with unresolved leaf coverage");
+        using (var traceJson = JsonDocument.Parse(nativeDependents))
+        {
+            Assert.Equal(2, traceJson.RootElement.GetProperty("nodes").GetArrayLength());
+            Assert.Single(traceJson.RootElement.GetProperty("edges").EnumerateArray());
+            Assert.Single(traceJson.RootElement.GetProperty("unresolved").EnumerateArray());
+            Assert.False(traceJson.RootElement.GetProperty("coverage").GetProperty("nativeTraversalComplete").GetBoolean());
+        }
+
+        var protectionFlags = await CallToolAsync("range_link", new Dictionary<string, object?>
+        {
+            ["action"] = "set-cell-protection",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "S1,S3",
+            ["locked"] = false,
+            ["formula_hidden"] = true
+        });
+        AssertSuccess(protectionFlags, "Set exact cell protection flags");
+        var protectionRead = await CallToolAsync("range_link", new Dictionary<string, object?>
+        {
+            ["action"] = "get-cell-protection",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "S1:S3"
+        });
+        AssertSuccess(protectionRead, "Read complete cell protection flags");
+        using (var protectionJson = JsonDocument.Parse(protectionRead))
+        {
+            var cells = protectionJson.RootElement.GetProperty("cells");
+            Assert.Equal(3, cells.GetArrayLength());
+            Assert.False(cells[0].GetProperty("locked").GetBoolean());
+            Assert.True(cells[0].GetProperty("formulaHidden").GetBoolean());
+            Assert.True(cells[1].GetProperty("locked").GetBoolean());
+            Assert.False(cells[1].GetProperty("formulaHidden").GetBoolean());
+        }
+        try
+        {
+            var protectSheet = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+            {
+                ["action"] = "set-protection",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["is_protected"] = true,
+                ["options"] = new { allowFormattingRows = true }
+            });
+            AssertSuccess(protectSheet, "Protect sheet with row formatting permission");
+            var readSheetProtection = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+            {
+                ["action"] = "get-protection",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data"
+            });
+            AssertSuccess(readSheetProtection, "Read sheet permissions");
+            using var permissionsJson = JsonDocument.Parse(readSheetProtection);
+            Assert.True(permissionsJson.RootElement.GetProperty("protectContents").GetBoolean());
+            Assert.True(permissionsJson.RootElement.GetProperty("permissions").GetProperty("allowFormattingRows").GetBoolean());
+            Assert.False(permissionsJson.RootElement.GetProperty("permissions").GetProperty("allowSorting").GetBoolean());
+        }
+        finally
+        {
+            var unprotectSheet = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+            {
+                ["action"] = "set-protection",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["is_protected"] = false
+            });
+            AssertSuccess(unprotectSheet, "Unprotect sheet for remaining workflow");
+        }
+
+        foreach (var (name, left) in new[] { ("DrawFirst", 20d), ("DrawSecond", 100d) })
+        {
+            var shape = await CallToolAsync("drawing", new Dictionary<string, object?>
+            {
+                ["action"] = "add-shape",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["name"] = name,
+                ["left"] = left,
+                ["width"] = 40d,
+                ["height"] = 30d
+            });
+            AssertSuccess(shape, "Create drawing for layout");
+        }
+        var duplicatedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
+        {
+            ["action"] = "duplicate-object",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["object_name"] = "DrawFirst",
+            ["new_name"] = "DrawThird",
+            ["offset_left"] = 180d
+        });
+        AssertSuccess(duplicatedDrawing, "Duplicate native drawing");
+        var groupedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
+        {
+            ["action"] = "group-objects",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["object_names"] = JsonSerializer.Serialize(DrawingPair),
+            ["group_name"] = "DrawGroup"
+        });
+        AssertSuccess(groupedDrawing, "Group native drawings");
+        using (var grouped = JsonDocument.Parse(groupedDrawing))
+            Assert.Equal(2, grouped.RootElement.GetProperty("drawingObjects")[0].GetProperty("children").GetArrayLength());
+        var ungroupedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
+        {
+            ["action"] = "ungroup-object",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["object_name"] = "DrawGroup"
+        });
+        AssertSuccess(ungroupedDrawing, "Ungroup native drawings");
+        var alignedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
+        {
+            ["action"] = "align-objects",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["object_names"] = JsonSerializer.Serialize(DrawingSelection),
+            ["alignment"] = "Top"
+        });
+        AssertSuccess(alignedDrawing, "Align selected drawings");
+        var distributedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
+        {
+            ["action"] = "distribute-objects",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["object_names"] = JsonSerializer.Serialize(DrawingSelection),
+            ["distribution"] = "Horizontal"
+        });
+        AssertSuccess(distributedDrawing, "Distribute selected drawings");
+        using (var distributed = JsonDocument.Parse(distributedDrawing))
+            Assert.Equal(110d, distributed.RootElement.GetProperty("drawingObjects")[1].GetProperty("left").GetDouble(), 2);
+        var orderedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
+        {
+            ["action"] = "set-z-order",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["object_name"] = "DrawThird",
+            ["z_order"] = "SendToBack"
+        });
+        AssertSuccess(orderedDrawing, "Reorder native drawing");
+        using (var ordered = JsonDocument.Parse(orderedDrawing))
+            Assert.Equal(1, ordered.RootElement.GetProperty("drawingObjects")[0].GetProperty("zOrderPosition").GetInt32());
+
+        var nativeTheme = await CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "get-theme",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(nativeTheme, "Read complete native workbook theme");
+        using (var themeJson = JsonDocument.Parse(nativeTheme))
+        {
+            Assert.Equal(12, themeJson.RootElement.GetProperty("colors").GetArrayLength());
+            Assert.Equal(3, themeJson.RootElement.GetProperty("majorFonts").GetArrayLength());
+            Assert.Equal(3, themeJson.RootElement.GetProperty("minorFonts").GetArrayLength());
+        }
+        var calculationSettings = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
+        {
+            ["action"] = "get-settings",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(calculationSettings, "Read native calculation settings");
+        string previousMode;
+        using (var settingsJson = JsonDocument.Parse(calculationSettings))
+        {
+            previousMode = settingsJson.RootElement.GetProperty("mode").GetString()!;
+            Assert.Equal("application", settingsJson.RootElement.GetProperty("settingsScope").GetString());
+        }
+        try
+        {
+            var manualSettings = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
+            {
+                ["action"] = "set-settings",
+                ["session_id"] = sessionId,
+                ["mode"] = "manual"
+            });
+            AssertSuccess(manualSettings, "Set manual calculation");
+            var rebuildCalculation = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
+            {
+                ["action"] = "calculate",
+                ["session_id"] = sessionId,
+                ["scope"] = "application",
+                ["kind"] = "rebuild"
+            });
+            AssertSuccess(rebuildCalculation, "Rebuild native formula dependencies");
+        }
+        finally
+        {
+            var restoredSettings = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
+            {
+                ["action"] = "set-settings",
+                ["session_id"] = sessionId,
+                ["mode"] = previousMode
+            });
+            AssertSuccess(restoredSettings, "Restore previous calculation mode");
+        }
+        var retainPrecision = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
+        {
+            ["action"] = "set-precision",
+            ["session_id"] = sessionId,
+            ["precision_as_displayed"] = false
+        });
+        AssertSuccess(retainPrecision, "Keep stored numeric precision");
+
+        var ownedContext = await CallToolAsync("window", new Dictionary<string, object?>
+        {
+            ["action"] = "get-context",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(ownedContext, "Read owned window context");
+        using (var contextJson = JsonDocument.Parse(ownedContext))
+        {
+            Assert.Equal("available", contextJson.RootElement.GetProperty("availability").GetString());
+            Assert.NotEmpty(contextJson.RootElement.GetProperty("windows").EnumerateArray());
+        }
+        var hideRows = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "set-visibility",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A40,A42",
+            ["axis"] = "rows",
+            ["hidden"] = true
+        });
+        AssertSuccess(hideRows, "Hide exact rows");
+        var inspectRows = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "get-visibility",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A40:A42",
+            ["axis"] = "rows"
+        });
+        AssertSuccess(inspectRows, "Read exact row visibility");
+        using (var rowsJson = JsonDocument.Parse(inspectRows))
+        {
+            var rows = rowsJson.RootElement.GetProperty("items");
+            Assert.Equal(3, rows.GetArrayLength());
+            Assert.True(rows[0].GetProperty("hidden").GetBoolean());
+            Assert.False(rows[1].GetProperty("hidden").GetBoolean());
+            Assert.True(rows[2].GetProperty("hidden").GetBoolean());
+            Assert.Equal("undetermined", rows[0].GetProperty("hiddenCause").GetString());
+        }
+        var showRows = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "set-visibility",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "A40,A42",
+            ["axis"] = "rows",
+            ["hidden"] = false
+        });
+        AssertSuccess(showRows, "Restore row visibility");
+
+        var seriesSeed = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "R1",
+            ["values"] = new List<List<int>> { new() { 5 } }
+        });
+        AssertSuccess(seriesSeed, "Write series seed");
+        var seriesCreate = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "create-series",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "R1:R4",
+            ["orientation"] = "columns",
+            ["step_value"] = 5d
+        });
+        AssertSuccess(seriesCreate, "Create native DataSeries");
+        var seriesRead = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "R4"
+        });
+        AssertSuccess(seriesRead, "Read native DataSeries");
+        using (var seriesJson = JsonDocument.Parse(seriesRead))
+        {
+            Assert.Equal(20d, seriesJson.RootElement.GetProperty("values")[0][0].GetDouble());
+        }
+
+        var filterSheet = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Filters"
+        });
+        AssertSuccess(filterSheet, "Create filtering worksheet");
+        var filterSeed = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Filters",
+            ["range_address"] = "A1:B4",
+            ["values"] = new List<List<object?>> { new() { "Category", "Amount" }, new() { "A", 10 }, new() { "B", 20 }, new() { "C", 30 } }
+        });
+        AssertSuccess(filterSeed, "Write filtering source");
+        var filtered = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "apply-filter",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Filters",
+            ["range_address"] = "A1:B4",
+            ["column_index"] = 2,
+            ["filter_options"] = new { filterOperator = "And", criteria1 = ">=20", criteria2 = "<=30" }
+        });
+        AssertSuccess(filtered, "Apply two native filter conditions");
+        var filterRead = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "get-filters",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Filters",
+            ["range_address"] = "A1:B4"
+        });
+        AssertSuccess(filterRead, "Read native filtering criteria");
+        using (var filterJson = JsonDocument.Parse(filterRead))
+        {
+            var columns = filterJson.RootElement.GetProperty("columnFilters");
+            Assert.Equal(2, columns.GetArrayLength());
+            Assert.Equal(">=20", columns[1].GetProperty("criteria1").GetProperty("value").GetString());
+            Assert.Equal("<=30", columns[1].GetProperty("criteria2").GetProperty("value").GetString());
+        }
+
+        var reportLayout = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        {
+            ["action"] = "set-page-setup",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Filters",
+            ["page_setup_options"] = new { printArea = "A1:B4", leftMargin = 36, centerHeader = "Report", zoomPercent = 100 }
+        });
+        AssertSuccess(reportLayout, "Set native report layout");
+        var reportRead = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        {
+            ["action"] = "get-page-setup",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Filters"
+        });
+        AssertSuccess(reportRead, "Read native report layout");
+        using (var reportJson = JsonDocument.Parse(reportRead))
+        {
+            Assert.Equal("$A$1:$B$4", reportJson.RootElement.GetProperty("printArea").GetString());
+            Assert.Equal(36d, reportJson.RootElement.GetProperty("leftMargin").GetDouble(), 2);
+        }
+        var duplicateSeed = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "X20:Y23",
+            ["values"] = new List<List<object?>> { new() { "Key", "Amount" }, new() { 1, 10 }, new() { 1, 20 }, new() { 2, 30 } }
+        });
+        AssertSuccess(duplicateSeed, "Write duplicate records");
+        var duplicates = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "remove-duplicates",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "X20:Y23",
+            ["key_columns"] = new List<int> { 1 },
+            ["has_headers"] = true
+        });
+        AssertSuccess(duplicates, "Remove duplicates");
+        using (var duplicateJson = JsonDocument.Parse(duplicates))
+        {
+            Assert.Equal(1, duplicateJson.RootElement.GetProperty("removedRows").GetInt32());
+            Assert.Equal(2, duplicateJson.RootElement.GetProperty("remainingRows").GetInt32());
+            Assert.Equal("$X$20:$Y$22", duplicateJson.RootElement.GetProperty("remainingRange").GetString());
+        }
+        var parsingSeed = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "AB20:AB21",
+            ["values"] = new List<List<string>> { new() { "001,10," }, new() { "002,20," } }
+        });
+        AssertSuccess(parsingSeed, "Write text parsing input");
+        var parsed = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        {
+            ["action"] = "text-to-columns",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["source_range"] = "AB20:AB21",
+            ["destination_cell"] = "AD20",
+            ["options"] = new { comma = true, fields = new[] { new { position = 1, dataType = "Text" } } }
+        });
+        AssertSuccess(parsed, "Split text");
+        using (var parsedJson = JsonDocument.Parse(parsed))
+        {
+            Assert.Equal(3, parsedJson.RootElement.GetProperty("outputColumns").GetInt32());
+            Assert.Equal("$AD$20:$AF$21", parsedJson.RootElement.GetProperty("destinationRange").GetString());
+        }
+        var parsedRead = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "AD20:AF21"
+        });
+        AssertSuccess(parsedRead, "Read parsed text");
+        using (var parsedJson = JsonDocument.Parse(parsedRead))
+        {
+            var parsedValues = parsedJson.RootElement.GetProperty("values");
+            Assert.Equal("001", parsedValues[0][0].GetString());
+            Assert.Equal("002", parsedValues[1][0].GetString());
+            Assert.Equal(20d, parsedValues[1][1].GetDouble());
+        }
 
         var preflightTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
@@ -546,6 +1279,239 @@ in
         AssertSuccess(listConnectionsResult, "List connections");
         _output.WriteLine("  ✓ connection: List passed");
 
+        await VerifyModelAsync(sessionId);
+        await CloseSmokeWorkbookAsync(sessionId);
+    }
+
+    private async Task VerifyReportsAsync(string sessionId)
+    {
+        // =====================================================================
+        // STEP 9: PIVOTTABLE OPERATIONS
+        // =====================================================================
+        _output.WriteLine("\n✓ Step 9: PivotTable operations...");
+
+        var createPivotResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
+        {
+            ["action"] = "create-from-table",
+            ["session_id"] = sessionId,
+            ["table_name"] = "DataTable",
+            ["destination_sheet"] = "Data",
+            ["destination_cell"] = "E1",
+            ["pivot_table_name"] = "SalesPivot"
+        });
+        AssertSuccess(createPivotResult, "Create PivotTable");
+
+        AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        {
+            ["action"] = "add-row-field",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["field_name"] = "Name"
+        }), "Add PivotTable calculation row field");
+        AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        {
+            ["action"] = "add-value-field",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["field_name"] = "Value",
+            ["custom_name"] = "Total Value"
+        }), "Add named PivotTable calculation value field");
+        var showValues = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        {
+            ["action"] = "set-field-calculation",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["field_name"] = "Total Value",
+            ["calculation"] = "PercentOfTotal"
+        });
+        AssertSuccess(showValues, "Set native percentage of grand total");
+        var pivotValues = await CallToolAsync("pivottable_calc", new Dictionary<string, object?>
+        {
+            ["action"] = "get-data",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot"
+        });
+        AssertSuccess(pivotValues, "Read actual native Pivot percentages");
+        using (var pivotJson = JsonDocument.Parse(pivotValues))
+        {
+            var rows = pivotJson.RootElement.GetProperty("values");
+            Assert.Equal(1d / 3d, rows[1][1].GetDouble(), precision: 8);
+            Assert.Equal(2d / 3d, rows[2][1].GetDouble(), precision: 8);
+        }
+        var calculationFields = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        {
+            ["action"] = "list-fields",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot"
+        });
+        AssertSuccess(calculationFields, "Read complete Values instances");
+        var nativeLayout = await CallToolAsync("pivottable_calc", new Dictionary<string, object?>
+        {
+            ["action"] = "set-layout-options",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["layout_options"] = new { rowLayout = 1, repeatLabels = true, styleName = "PivotStyleMedium9", preserveFormatting = true }
+        });
+        AssertSuccess(nativeLayout, "Apply native Pivot style and repeated labels");
+        using (var layoutJson = JsonDocument.Parse(nativeLayout))
+            Assert.Equal("PivotStyleMedium9", layoutJson.RootElement.GetProperty("styleName").GetString());
+        var nativeFilter = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        {
+            ["action"] = "add-field-filter",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["field_name"] = "Name",
+            ["filter_options"] = new { type = "ValueIsGreaterThan", number1 = 15, dataFieldName = "Total Value" }
+        });
+        AssertSuccess(nativeFilter, "Add native Pivot value filter");
+        using (var filterJson = JsonDocument.Parse(nativeFilter))
+            Assert.Single(filterJson.RootElement.GetProperty("filters").EnumerateArray());
+        AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        {
+            ["action"] = "clear-field-filters",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["field_name"] = "Name"
+        }), "Clear selected native Pivot filters");
+        var sourceReplacement = await CallToolAsync("pivottable", new Dictionary<string, object?>
+        {
+            ["action"] = "set-source",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["source_sheet_name"] = "Data",
+            ["table_name"] = "DataTable"
+        });
+        AssertSuccess(sourceReplacement, "Replace only selected native Pivot cache");
+        using (var sourceJson = JsonDocument.Parse(sourceReplacement))
+            Assert.Equal("SalesPivot", Assert.Single(sourceJson.RootElement.GetProperty("sharedPivotTables").EnumerateArray()).GetString());
+        AssertSuccess(await CallToolAsync("slicer", new Dictionary<string, object?>
+        {
+            ["action"] = "create-slicer",
+            ["session_id"] = sessionId,
+            ["pivot_table_name"] = "SalesPivot",
+            ["field_name"] = "Name",
+            ["slicer_name"] = "ReportNames",
+            ["destination_sheet"] = "Data",
+            ["position"] = "AC1"
+        }), "Create native report control");
+        var controlUpdate = await CallToolAsync("slicer", new Dictionary<string, object?>
+        {
+            ["action"] = "update-slicer",
+            ["session_id"] = sessionId,
+            ["slicer_name"] = "ReportNames",
+            ["slicer_options"] = new { width = 240, columnCount = 2, caption = "Names", displayHeader = false }
+        });
+        AssertSuccess(controlUpdate, "Update native control layout");
+        var controlRead = await CallToolAsync("slicer", new Dictionary<string, object?>
+        {
+            ["action"] = "get-slicer",
+            ["session_id"] = sessionId,
+            ["slicer_name"] = "ReportNames"
+        });
+        AssertSuccess(controlRead, "Read complete native control");
+        using (var controlJson = JsonDocument.Parse(controlRead))
+        {
+            var state = controlJson.RootElement.GetProperty("slicer");
+            Assert.Equal("Names", state.GetProperty("caption").GetString());
+            Assert.Equal(240d, state.GetProperty("width").GetDouble(), 2);
+            Assert.Equal(2, state.GetProperty("columnCount").GetInt32());
+        }
+        using (var fieldJson = JsonDocument.Parse(calculationFields))
+        {
+            var value = Assert.Single(fieldJson.RootElement.GetProperty("valueFields").EnumerateArray());
+            Assert.Equal("Total Value", value.GetProperty("fieldName").GetString());
+            Assert.Equal("PercentOfTotal", value.GetProperty("calculation").GetString());
+            Assert.Equal("Sum", value.GetProperty("function").GetString());
+        }
+
+        var listPivotsResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(listPivotsResult, "List PivotTables");
+        Assert.Contains("SalesPivot", listPivotsResult, StringComparison.Ordinal);
+        _output.WriteLine("  ✓ pivottable: Create and List passed");
+
+        // =====================================================================
+        // STEP 10: CHART OPERATIONS
+        // =====================================================================
+        _output.WriteLine("\n✓ Step 10: Chart operations...");
+
+        var createChartResult = await CallToolAsync("chart", new Dictionary<string, object?>
+        {
+            ["action"] = "create-from-range",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["source_range_address"] = "A1:C3",
+            ["chart_type"] = "ColumnClustered",
+            ["left"] = 50,
+            ["top"] = 50,
+            ["width"] = 400,
+            ["height"] = 300,
+            ["chart_name"] = "DataChart"
+        });
+        AssertSuccess(createChartResult, "Create Chart");
+
+        var secondarySeries = await CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = "set-series-axis-group",
+            ["session_id"] = sessionId,
+            ["chart_name"] = "DataChart",
+            ["series_index"] = 1,
+            ["axis_group"] = "Secondary"
+        });
+        AssertSuccess(secondarySeries, "Assign native secondary axes");
+        var formattedPoint = await CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = "set-point-format",
+            ["session_id"] = sessionId,
+            ["chart_name"] = "DataChart",
+            ["series_index"] = 1,
+            ["point_index"] = 1,
+            ["point_options"] = new { fillColor = "#FF0000" }
+        });
+        AssertSuccess(formattedPoint, "Format selected chart point");
+        using (var point = JsonDocument.Parse(formattedPoint))
+            Assert.Equal("#FF0000", point.RootElement.GetProperty("fillColor").GetString());
+        var errorBars = await CallToolAsync("chart_config", new Dictionary<string, object?>
+        {
+            ["action"] = "set-error-bars",
+            ["session_id"] = sessionId,
+            ["chart_name"] = "DataChart",
+            ["series_index"] = 1,
+            ["error_bar_options"] = new { kind = "Fixed", amount = 2d, endStyle = "NoCap" }
+        });
+        AssertSuccess(errorBars, "Set native chart error bars");
+        using (var bars = JsonDocument.Parse(errorBars))
+        {
+            Assert.True(bars.RootElement.GetProperty("hasErrorBars").GetBoolean());
+            Assert.False(bars.RootElement.GetProperty("settingsReadable").GetBoolean());
+        }
+        var chartImage = Path.Combine(_tempDir, "chart-image.png");
+        var exportedChart = await CallToolAsync("chart", new Dictionary<string, object?>
+        {
+            ["action"] = "export-image",
+            ["session_id"] = sessionId,
+            ["chart_name"] = "DataChart",
+            ["target_path"] = chartImage
+        });
+        AssertSuccess(exportedChart, "Export native chart image");
+        Assert.True(new FileInfo(chartImage).Length > 1000);
+
+        var listChartsResult = await CallToolAsync("chart", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(listChartsResult, "List Charts");
+        Assert.Contains("DataChart", listChartsResult);
+        _output.WriteLine("  ✓ chart: Create and List passed");
+
+    }
+
+    private async Task VerifyModelAsync(string sessionId)
+    {
         // =====================================================================
         // STEP 11: DATA MODEL OPERATIONS
         // =====================================================================
@@ -617,7 +1583,6 @@ in
         _output.WriteLine("  ✓ datamodel: RenameTable correctly returns error (Excel limitation)");
 
         _output.WriteLine("  ✓ datamodel: ListTables passed");
-        await CloseSmokeWorkbookAsync(sessionId);
     }
 
     [Fact]
@@ -673,6 +1638,50 @@ in
             var typedRule = Assert.Single(typedRuleJson.RootElement.GetProperty("rules").EnumerateArray());
             Assert.Equal(7, typedRule.GetProperty("top10").GetProperty("rank").GetInt32());
             Assert.True(typedRule.GetProperty("top10").GetProperty("percent").GetBoolean());
+            var updatedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
+            {
+                ["action"] = "update-rule",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["rule_priority"] = typedRule.GetProperty("priority").GetInt32(),
+                ["expected_fingerprint"] = typedRule.GetProperty("fingerprint").GetString(),
+                ["options"] = new { rank = 5, stopIfTrue = false, appliesTo = "C2:C4" }
+            });
+            AssertSuccess(updatedRuleResult, "Update only selected conditional rule");
+            using var updatedRules = JsonDocument.Parse(updatedRuleResult);
+            var updated = Assert.Single(updatedRules.RootElement.GetProperty("rules").EnumerateArray(),
+                rule => rule.GetProperty("type").GetString() == "top10");
+            Assert.Equal(5, updated.GetProperty("top10").GetProperty("rank").GetInt32());
+            Assert.False(updated.GetProperty("stopIfTrue").GetBoolean());
+            Assert.Equal("$C$2:$C$4", updated.GetProperty("appliesTo").GetString());
+            var reorderedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
+            {
+                ["action"] = "set-rule-priority",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["rule_priority"] = updated.GetProperty("priority").GetInt32(),
+                ["expected_fingerprint"] = updated.GetProperty("fingerprint").GetString(),
+                ["new_priority"] = 1
+            });
+            AssertSuccess(reorderedRuleResult, "Move selected conditional rule");
+            using var reorderedRules = JsonDocument.Parse(reorderedRuleResult);
+            var moved = Assert.Single(reorderedRules.RootElement.GetProperty("rules").EnumerateArray(),
+                rule => rule.GetProperty("type").GetString() == "top10");
+            Assert.Equal(1, moved.GetProperty("priority").GetInt32());
+            var deletedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
+            {
+                ["action"] = "delete-rule",
+                ["session_id"] = sessionId,
+                ["sheet_name"] = "Data",
+                ["rule_priority"] = moved.GetProperty("priority").GetInt32(),
+                ["expected_fingerprint"] = moved.GetProperty("fingerprint").GetString()
+            });
+            AssertSuccess(deletedRuleResult, "Delete only selected conditional rule");
+            using var remainingRules = JsonDocument.Parse(deletedRuleResult);
+            var remaining = Assert.Single(remainingRules.RootElement.GetProperty("rules").EnumerateArray());
+            Assert.Equal("cellValue", remaining.GetProperty("type").GetString());
+            Assert.Equal("=100", remaining.GetProperty("formula1").GetString());
+            Assert.Equal("#00FF00", remaining.GetProperty("interiorColor").GetString());
         }
         _output.WriteLine("  ✓ conditionalformat: Typed integer/boolean arguments round-tripped");
 
@@ -809,45 +1818,6 @@ in
         var response = await CallToolAsync(tool, arguments);
         AssertSuccess(response, $"{tool}.{arguments["action"]}");
         return response;
-    }
-
-    private async Task VerifyReportsAsync(string sessionId)
-    {
-        var createPivotResult = await CallToolAsync("pivottable", new()
-        {
-            ["action"] = "create-from-table",
-            ["session_id"] = sessionId,
-            ["table_name"] = "DataTable",
-            ["destination_sheet"] = "Data",
-            ["destination_cell"] = "E1",
-            ["pivot_table_name"] = "SalesPivot"
-        });
-        AssertSuccess(createPivotResult, "Create PivotTable");
-        var pivots = await CallSuccessfulToolAsync("pivottable", new()
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        });
-        Assert.Contains("SalesPivot", pivots, StringComparison.Ordinal);
-        await CallSuccessfulToolAsync("chart", new()
-        {
-            ["action"] = "create-from-range",
-            ["session_id"] = sessionId,
-            ["sheet_name"] = "Data",
-            ["source_range_address"] = "A1:C3",
-            ["chart_type"] = "ColumnClustered",
-            ["left"] = 50,
-            ["top"] = 50,
-            ["width"] = 400,
-            ["height"] = 300,
-            ["chart_name"] = "DataChart"
-        });
-        var charts = await CallSuccessfulToolAsync("chart", new()
-        {
-            ["action"] = "list",
-            ["session_id"] = sessionId
-        });
-        Assert.Contains("DataChart", charts, StringComparison.Ordinal);
     }
 
     /// <summary>

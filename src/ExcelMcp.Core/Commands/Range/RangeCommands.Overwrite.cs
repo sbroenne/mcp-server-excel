@@ -58,9 +58,13 @@ public partial class RangeCommands
         }
     }
 
-    private static Excel.Range ResolveProtectedCopyDestination(Excel.Range source, Excel.Range target)
+    private static Excel.Range ResolveCopyDestination(Excel.Range source, Excel.Range target, bool transpose)
     {
         var sourceSize = GetContentDimensions(source);
+        if (transpose)
+        {
+            sourceSize = (sourceSize.Columns, sourceSize.Rows);
+        }
         var targetSize = GetContentDimensions(target);
         int rows = targetSize.Rows;
         int columns = targetSize.Columns;
@@ -73,8 +77,8 @@ public partial class RangeCommands
         {
             throw new OperationFailureException(
                 OperationFailureCategory.InvalidInput,
-                "Cannot determine a protected copy destination: use a single-cell anchor or " +
-                "a rectangle whose row and column counts are whole multiples of the source.");
+                "Cannot determine the copy destination: use a single-cell anchor or " +
+                "a rectangle whose row and column counts are whole multiples of the source's paste dimensions.");
         }
 
         if ((long)target.Row + rows - 1 > 1_048_576 ||
@@ -94,7 +98,7 @@ public partial class RangeCommands
             {
                 throw new OperationFailureException(
                     OperationFailureCategory.Conflict,
-                    "Cannot determine a protected copy's complete destination when source or destination " +
+                    "Cannot determine the copy's complete destination when source or destination " +
                     "intersects merged cells. Use unmerged rectangular ranges; allow is only for authorized replacement.");
             }
 
@@ -109,7 +113,8 @@ public partial class RangeCommands
     }
 
     private static void EnsureDestinationWritable(
-        ExcelContext context, Excel.Range destination, OverwritePolicy overwritePolicy, CancellationToken cancellationToken)
+        ExcelContext context, Excel.Range destination, OverwritePolicy overwritePolicy,
+        CancellationToken cancellationToken, Func<int, int, bool>? writesCell = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (overwritePolicy == OverwritePolicy.Allow)
@@ -151,6 +156,10 @@ public partial class RangeCommands
                             object? value = GetInspectionCell(values, rows, dimensions.Columns, row, column);
                             object? formula = GetInspectionCell(formulas, rows, dimensions.Columns, row, column);
                             if (value is null && !(formula is string text && text.StartsWith('=')))
+                            {
+                                continue;
+                            }
+                            if (writesCell is not null && !writesCell(rowOffset + row, column))
                             {
                                 continue;
                             }

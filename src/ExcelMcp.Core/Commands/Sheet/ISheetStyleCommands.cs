@@ -15,14 +15,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - 'hidden': Hidden but accessible via Format > Sheet > Unhide
 /// - 'veryhidden': Only accessible via VBA (protection against casual unhiding)
 ///
-/// PROTECTION: Protect a worksheet to lock its contents and structure, or unprotect it.
+/// PROTECTION: Protect selected worksheet components with explicit native permissions, or unprotect.
+/// UserInterfaceOnly is runtime-only and must be explicitly reapplied after reopening when wanted.
 ///
 /// OUTLINES: Group or ungroup row/column ranges, configure summary positions,
 /// show a specific row/column outline level, inspect grouping state, or clear all groups.
 /// </summary>
 [ServiceCategory("sheet", "SheetStyle")]
 [McpTool("worksheet_style", Title = "Worksheet Style Operations", Destructive = true, Category = "structure",
-    Description = "Worksheet styling, visibility, protection, grouping, and outlines. OUTLINES: group/ungroup row or column ranges with axis Rows or Columns; get-outline-info reads level, hidden state, summary positions, and automatic styles; set-outline-settings accepts summaryRow above/below and summaryColumn left/right; show-outline-levels expands or collapses to row/column levels; clear-outline removes all groups. TAB COLORS: RGB values 0-255. VISIBILITY: visible, hidden, veryhidden. PROTECTION: protect or unprotect a worksheet. Use worksheet for lifecycle operations.")]
+    Description = "Worksheet styling, visibility, protection, grouping, and outlines. OUTLINES: group/ungroup row or column ranges with axis Rows or Columns; get-outline-info reads level, hidden state, summary positions, and automatic styles; set-outline-settings accepts summaryRow above/below and summaryColumn left/right; show-outline-levels expands or collapses to row/column levels; clear-outline removes all groups. TAB COLORS: RGB values 0-255. VISIBILITY: visible, hidden, veryhidden. PROTECTION: set-protection accepts typed options replacing native permissions; omitted options use restrictive native defaults. get-protection reads all protected components, permissions and selection mode. userInterfaceOnly is runtime-only, not persisted after reopening. Filtering permission changes existing filters; sorting/deletion still require unlocked cells. Passwords are not returned. Use worksheet for lifecycle operations.")]
 public interface ISheetStyleCommands
 {
     // === TAB COLOR OPERATIONS ===
@@ -67,22 +68,26 @@ public interface ISheetStyleCommands
 
     /// <summary>
     /// Protects or unprotects a worksheet.
-    /// When protecting, Excel locks the sheet contents and structure unless a password is supplied.
+    /// When protecting, omitted options use Excel's restrictive native defaults.
+    /// Supplied options replace the protection configuration, not patch existing permissions.
+    /// UserInterfaceOnly is runtime-only; passwords are never returned.
     /// Throws exception on error.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="isProtected">Whether the worksheet should be protected</param>
     /// <param name="password">Optional password for protecting/unprotecting the sheet</param>
+    /// <param name="options">Optional native protection permissions; valid only when protecting. Nested JSON uses camelCase.</param>
     [ServiceAction("set-protection")]
     OperationResult SetProtection(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
         [RequiredParameter] bool isProtected,
-        string? password = null);
+        string? password = null,
+        SheetProtectionOptions? options = null);
 
     /// <summary>
-    /// Gets whether a worksheet is protected.
+    /// Reads protected components, all native permission flags, selection restriction, and runtime-only UI protection.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
@@ -177,20 +182,22 @@ public interface ISheetStyleCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="orientation">Page orientation: 'portrait' or 'landscape'</param>
-    /// <param name="fitToPagesWide">Number of pages wide to fit the printout to</param>
-    /// <param name="fitToPagesTall">Number of pages tall to fit the printout to</param>
+    /// <param name="orientation">Optional page orientation: 'portrait' or 'landscape'; omitted leaves unchanged</param>
+    /// <param name="fitToPagesWide">Number of pages wide, or zero for unlimited; selects fit mode</param>
+    /// <param name="fitToPagesTall">Number of pages tall, or zero for unlimited; selects fit mode</param>
     /// <param name="centerHorizontally">Whether to center the printout horizontally on the page</param>
     /// <param name="centerVertically">Whether to center the printout vertically on the page</param>
+    /// <param name="pageSetupOptions">Native print scope, titles, point margins, headers/footers, paper, order and scaling. Nested camelCase; null preserves, empty text clears. Zoom conflicts with fit settings. Does not print or open preview.</param>
     [ServiceAction("set-page-setup")]
     OperationResult SetPageSetup(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
-        [RequiredParameter] string orientation,
+        string? orientation = null,
         int? fitToPagesWide = null,
         int? fitToPagesTall = null,
         bool? centerHorizontally = null,
-        bool? centerVertically = null);
+        bool? centerVertically = null,
+        PageSetupOptions? pageSetupOptions = null);
 
     /// <summary>
     /// Reads worksheet page setup properties such as orientation and fit-to-page settings.
@@ -199,6 +206,19 @@ public interface ISheetStyleCommands
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("get-page-setup")]
     SheetPageSetupResult GetPageSetup(IExcelBatch batch, [RequiredParameter] string sheetName);
+
+    /// <summary>Reads every native horizontal/vertical page break in the worksheet's current print scope, including automatic/manual status and extent. Printer and scaling affect automatic breaks.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet to inspect</param>
+    [ServiceAction("get-page-breaks")]
+    SheetPageBreaksResult GetPageBreaks(IExcelBatch batch, [RequiredParameter] string sheetName);
+
+    /// <summary>Replaces ALL manual page breaks on this worksheet; does not remove automatic breaks. Validates all positions before resetting. Empty lists explicitly clear. Excel allows at most 1026 breaks per axis.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet to change</param>
+    /// <param name="pageBreakOptions">Required rows and columns lists with one-based positions before which to break. Both lists replace existing manual breaks, including those outside the current print scope.</param>
+    [ServiceAction("set-page-breaks")]
+    OperationResult SetPageBreaks(IExcelBatch batch, [RequiredParameter] string sheetName, [RequiredParameter] PageBreakOptions pageBreakOptions);
 
     // === VISIBILITY OPERATIONS ===
 

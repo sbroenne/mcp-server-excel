@@ -30,9 +30,9 @@ public sealed class RangeFormatIssue585CliParityTests(
         try
         {
             var (formatted, formatJson) = await CliProcessHelper.RunJsonAsync(
-                ["rangeformat", "format-ranges", "--session", sessionId,
+                ["rangeformat", "format", "--session", sessionId,
                  "--sheet-name", sheetName, "--range-addresses", "A1:A2",
-                 "--number-format", "0.00%"],
+                 "--format-options", """{"numberFormat":"0.00%"}"""],
                 timeoutMs: 60000);
             Assert.True(
                 formatted.ExitCode == 0,
@@ -68,9 +68,9 @@ public sealed class RangeFormatIssue585CliParityTests(
         try
         {
             var (result, json) = await CliProcessHelper.RunJsonAsync(
-                ["rangeformat", "format-range", "--session", sessionId,
-                 "--sheet-name", sheetName, "--range-address", "A1:J1",
-                 "--fill-color", "not-a-color"],
+                ["rangeformat", "format", "--session", sessionId,
+                 "--sheet-name", sheetName, "--range-addresses", "A1:J1",
+                 "--format-options", """{"fillColor":"not-a-color"}"""],
                 timeoutMs: 60000);
 
             _output.WriteLine($"CLI stdout: {result.Stdout}");
@@ -86,7 +86,7 @@ public sealed class RangeFormatIssue585CliParityTests(
                 "InvalidInput",
                 root.GetProperty("errorCategory").GetString());
             Assert.Equal(
-                "rangeformat.format-range",
+                "rangeformat.format",
                 root.GetProperty("command").GetString());
             Assert.Equal(
                 sessionId,
