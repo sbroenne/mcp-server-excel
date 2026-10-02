@@ -47,6 +47,7 @@ public partial class PivotTableCommands
 
                     // For regular PivotTables, use field name directly
                     // For OLAP, may need the hierarchical name
+                    ct.ThrowIfCancellationRequested();
                     slicerCache = slicerCaches.Add2(pivot, fieldName);
                 }
 
@@ -63,6 +64,7 @@ public partial class PivotTableCommands
                 // Slicers.Add(SlicerDestination, Level, Name, Caption, Top, Left, Width, Height)
                 // For non-OLAP sources, Level should be Type.Missing or omitted
                 slicers = slicerCache.Slicers;
+                ct.ThrowIfCancellationRequested();
                 slicer = slicers.Add(destSheet, Type.Missing, slicerName, slicerName, top, left);
 
                 // Build result
@@ -118,7 +120,7 @@ public partial class PivotTableCommands
                         cache = slicerCaches.Item(cacheIndex);
 
                         // If filtering by PivotTable, check if this cache is connected
-                        if (targetPivot != null && !IsSlicerCacheConnectedToPivot(cache, targetPivot))
+                        if (targetPivot != null && !IsSlicerCacheConnectedToPivot(cache, targetPivot, ct))
                         {
                             continue;
                         }
@@ -332,7 +334,7 @@ public partial class PivotTableCommands
                 }
 
                 // Check if this cache is connected to our PivotTable
-                if (IsSlicerCacheConnectedToPivot(cache, pivot))
+                if (IsSlicerCacheConnectedToPivot(cache, pivot, ct))
                 {
                     found = true;
                     return cache; // Don't release - returning to caller
@@ -360,8 +362,9 @@ public partial class PivotTableCommands
     /// Checks if a SlicerCache is connected to a specific PivotTable.
     /// Returns false for Table slicers (cache.List == true) since they don't connect to PivotTables.
     /// </summary>
-    private static bool IsSlicerCacheConnectedToPivot(dynamic cache, dynamic targetPivot)
+    private static bool IsSlicerCacheConnectedToPivot(dynamic cache, dynamic targetPivot, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         // Per MS docs: List property is true for Table slicers, false for PivotTable slicers
         // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.list
         // Table slicers don't connect to PivotTables
@@ -378,11 +381,13 @@ public partial class PivotTableCommands
 
             for (int i = 1; i <= pivotTables.Count; i++)
             {
+                ct.ThrowIfCancellationRequested();
                 dynamic? pt = null;
                 try
                 {
                     pt = pivotTables.Item(i);
                     string ptName = pt.Name?.ToString() ?? string.Empty;
+                    ct.ThrowIfCancellationRequested();
                     if (string.Equals(ptName, targetName, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
@@ -499,7 +504,7 @@ public partial class PivotTableCommands
         info.AvailableItems = items.Available;
 
         // Get connected PivotTables
-        info.ConnectedPivotTables = GetConnectedPivotTableNames(cache);
+        info.ConnectedPivotTables = GetConnectedPivotTableNames(cache, ct);
 
         return info;
     }
@@ -550,7 +555,7 @@ public partial class PivotTableCommands
         result.AvailableItems = items.Available;
 
         // Get connected PivotTables
-        result.ConnectedPivotTables = GetConnectedPivotTableNames(cache);
+        result.ConnectedPivotTables = GetConnectedPivotTableNames(cache, ct);
 
         return result;
     }
@@ -677,8 +682,9 @@ public partial class PivotTableCommands
     /// Gets names of PivotTables connected to a SlicerCache.
     /// Returns empty list for Table slicers (cache.List == true).
     /// </summary>
-    private static List<string> GetConnectedPivotTableNames(dynamic cache)
+    private static List<string> GetConnectedPivotTableNames(dynamic cache, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var names = new List<string>();
 
         // Per MS docs: List property is true for Table slicers
@@ -695,11 +701,13 @@ public partial class PivotTableCommands
 
             for (int i = 1; i <= pivotTables.Count; i++)
             {
+                ct.ThrowIfCancellationRequested();
                 dynamic? pt = null;
                 try
                 {
                     pt = pivotTables.Item(i);
                     string name = pt.Name?.ToString() ?? string.Empty;
+                    ct.ThrowIfCancellationRequested();
                     if (!string.IsNullOrEmpty(name))
                     {
                         names.Add(name);
