@@ -1,5 +1,14 @@
 # ExcelMcp agent evaluations
 
+**This entire Python suite is on-demand only, not part of the normal development
+lifecycle**, including its offline, Excel fixture, SDK-discovery, and live-agent
+checks. It is not required for ordinary product validation, commits, PRs, or
+merges. Follow the
+[repository's on-demand evaluation policy](../AGENTS.md#build-and-validation):
+use the setup and commands below only for explicitly requested evaluation work.
+Missing evaluation dependencies do not block product delivery; required .NET,
+Excel, and normal Git-hook checks remain unchanged.
+
 These manual tests ask real agents to use the MCP Server and `excelcli`. They
 answer a different question from integration tests: can an agent discover the
 right workflow, complete it correctly, and respect the user's permissions?

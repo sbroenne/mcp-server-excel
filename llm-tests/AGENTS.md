@@ -3,6 +3,11 @@
 Follow the [repository rules](../AGENTS.md). These are implementation and
 evaluation instructions; review tasks use the shared review checklist.
 
+These Python evaluations are on-demand only, outside the normal development
+lifecycle. Follow the
+[on-demand evaluation policy](../AGENTS.md#build-and-validation); the instructions
+below apply only when evaluation work is explicitly requested.
+
 - Evaluate product discoverability: natural Excel requests, not command/flag
   tutorials. Fix missing guidance in its canonical source, not by coaching the
   test agent through the failing step.
@@ -31,5 +36,6 @@ evaluation instructions; review tasks use the shared review checklist.
   Supplied directories are not availability evidence; `empty` mode requires
   explicit `enable_skills=True`. An available but unread skill is not
   demonstrated practical benefit; missing usage is unknown, not zero.
-- Setup and commands live in `llm-tests/README.md`. Run affected scenarios only:
-  these require Excel and external model access and may incur costs.
+- On-demand setup and commands live in `llm-tests/README.md`. When requested, run
+  affected scenarios only; live scenarios require Excel and external model
+  access and may incur costs.
