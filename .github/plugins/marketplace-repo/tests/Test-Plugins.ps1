@@ -13,7 +13,8 @@ foreach ($plugin in $marketplace.plugins) {
     $manifestPath = Join-Path $pluginRoot "plugin.json"
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
     $versionPath = Join-Path $pluginRoot "version.txt"
-    $skillVersionPath = Join-Path $pluginRoot "skills\$($plugin.name)\VERSION"
+    $skillName = "$($plugin.name)-report-formatting"
+    $skillVersionPath = Join-Path $pluginRoot "skills\$skillName\VERSION"
 
     $versions = @(
         @(
@@ -36,7 +37,7 @@ foreach ($plugin in $marketplace.plugins) {
         throw "$($plugin.name) does not target the Agent Plugins 1.0.0 manifest schema."
     }
 
-    $skillPath = Join-Path $pluginRoot "skills\$($plugin.name)\SKILL.md"
+    $skillPath = Join-Path $pluginRoot "skills\$skillName\SKILL.md"
     if (-not (Test-Path $skillPath -PathType Leaf)) {
         throw "$($plugin.name) is missing its skill at $skillPath."
     }

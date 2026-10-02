@@ -34,13 +34,13 @@ plugins/excel-mcp/
 ├── mcp.json            # Portable stdio config that launches npx @latest
 ├── version.txt         # Published version
 ├── agents/             # Optional agent definitions
-└── skills/             # Behavioral guidance (excel-mcp skill)
+└── skills/             # Optional excel-mcp-report-formatting skill
 
 plugins/excel-cli/
 ├── plugin.json         # Agent Plugins 1.0 manifest
 ├── version.txt         # Published version
 ├── bin/                # Argument-safe PowerShell launcher for npx
-└── skills/             # Behavioral guidance (excel-cli skill)
+└── skills/             # Optional excel-cli-report-formatting skill
 ```
 
 Agent Plugins discovers skills from the fixed `skills/` directory and MCP servers from root `mcp.json`. The root manifests contain only Agent Plugins 1.0 fields. Skill metadata follows the Agent Skills specification, including name/directory matching and explicit Windows/Excel compatibility.
@@ -109,7 +109,7 @@ not every product release has a matching tag in the published repository.
 
 Updates to plugins are handled automatically:
 
-1. **Skill updates** → Modify `skills/templates/`, `skills/shared/`, or `skills/assets/`, then run `Build-AgentSkills.ps1 -GenerateOnly`
+1. **Skill updates** → Modify the actual `skills/<name>/SKILL.md` entries or `docs/reference/report-formatting.md`, then run `Build-AgentSkills.ps1 -GenerateOnly`. Other reference documentation is not bundled.
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
 3. **Sync to marketplace** → Next release compares complete prepared output,
    including generated references and source-owned root overlays

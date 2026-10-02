@@ -327,7 +327,7 @@ llm-tests/                          # LLM tool behavior validation (Manual)
 | **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
 | **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
 | **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
-| **LLM Tests** | Slow (varies) | Excel + Azure OpenAI | ❌ No (manual only) |
+| **LLM Tests** | Slow (varies) | Excel + GitHub Copilot | ❌ No (manual only) |
 
 ## Diagnostics Tests
 
@@ -380,27 +380,51 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 
 ## LLM Tests
 
-The `llm-tests/` project validates that LLMs correctly use Excel MCP Server and CLI tools using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
+The `llm-tests/` project checks selected real agent workflows through the MCP
+Server and CLI using [pytest-skill-engineering 1.x](https://github.com/sbroenne/pytest-skill-engineering).
+It complements deterministic behavior tests; it does not prove that agents
+correctly use every operation. Independent workbook checks retain useful
+chart, slicer, and permission coverage. Weak prose-only/API-success scenarios
+have been retired or replaced.
 
 ### When to Run LLM Tests
 
 - **Manual/on-demand only** - Not part of CI/CD
 - After changing tool descriptions or adding new tools
-- To validate LLM behavior patterns (e.g., incremental updates vs rebuild)
+- To check agent behavior, permission handling, and preservation of existing state
+- To compare skill availability against no skill, with fixed requests/model/budgets
 
 ### Running LLM Tests
 
 ```powershell
 # From llm-tests/
 uv sync
-uv run pytest -m aitest -v
+uv run python -m unittest test_eval_harness.py test_cli_mcp_server.py test_consent_scenarios.py test_skill_value_checks.py -v
+uv run pytest mcp_tests\test_mcp_chart_positioning.py --aitest-json TestResults\chart-new-run.json -v
 ```
 
 ### Prerequisites
 
-- `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
-- GitHub auth via `gh auth login` or `GITHUB_TOKEN`
+- GitHub Copilot access and auth via `gh auth login`, `GITHUB_TOKEN`, or `GH_TOKEN`
+- Release binaries and freshly generated skills; see the LLM README for setup
+
+The offline command above needs neither Excel nor authentication. Live runs
+must be sequential and may incur costs. The default model is `gpt-6.1-sol`,
+not `auto`; skill-value runs never fall back to another model.
+The default 60-execution comparison matrix requires explicit `--run-skill-value` and
+a new `--skill-value-output` directory. Native JSON replaces removed AI/HTML
+reports; Azure OpenAI is not a prerequisite. Missing usage is not zero cost.
+The completed single-model comparison found equal verified correctness with
+higher recorded token usage for both skills; it does not justify a general
+reliability claim. See the linked results for the corrected matched comparison,
+all-attempt overhead, and limits of the small sample.
+
+The optional `--skill-value-suite real-world` suite combines four pinned,
+licensed SpreadsheetBench workbook cases with Power Query recovery and Data
+Model/PowerPivot refresh. It defaults to 48 executions; no new paid comparison
+has been run. Dataset setup and no-model checker proofs are documented in the
+[real-world pilot guide](../llm-tests/README.md#real-world-cases-and-native-excel-workflows).
 
 **See [LLM Tests README](../llm-tests/README.md) for complete documentation.**
 

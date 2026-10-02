@@ -40,6 +40,12 @@ class ConsentOutcomeTests(unittest.TestCase):
         return {"success": True}
 
     def assert_outcome(self, calls):
+        for call in calls:
+            if call.result is None:
+                call.result = ('{"exit_code":0,"stdout":"{\\"success\\":true}"}'
+                               if "execute" in call.name else '{"success":true}')
+                call.completion_received = True
+                call.success = True
         result = CopilotResult(turns=[Turn("assistant", "Changed Food to 480.", calls)])
         assert_consent_outcome(result, self.workbook, "clear-edit", [])
 
@@ -81,6 +87,13 @@ class ConsentOutcomeTests(unittest.TestCase):
         for call in calls:
             with self.subTest(call=call):
                 self.assert_outcome([call])
+
+    def test_rejects_a_completed_but_failed_save(self):
+        with self.assertRaises(AssertionError):
+            self.assert_outcome([ToolCall(
+                "excel-mcp-file", {"action": "close", "session_id": "test", "save": True},
+                result='{"success":false}', completion_received=True, success=True,
+            )])
 
 
 if __name__ == "__main__":

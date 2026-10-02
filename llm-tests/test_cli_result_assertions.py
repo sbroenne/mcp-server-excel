@@ -18,6 +18,7 @@ def execution(name: str, exit_code: int = 0, args: str = "chart read") -> ToolCa
     return ToolCall(
         name, {"args": args},
         json.dumps({"exit_code": exit_code, "stdout": "", "stderr": ""}),
+        completion_received=True, success=True,
     )
 
 
@@ -63,7 +64,8 @@ class CliResultAssertionTests(unittest.TestCase):
             assert_cli_exit_codes(result)
 
     def test_rejects_malformed_namespaced_output(self):
-        result = recorded(ToolCall("excel-cli-excel_execute", {"args": "chart read"}, "not JSON"))
+        result = recorded(ToolCall("excel-cli-excel_execute", {"args": "chart read"}, "not JSON",
+                                   completion_received=True, success=True))
         with self.assertRaisesRegex(AssertionError, "Final CLI call failed.*exit_code=-1"):
             assert_cli_exit_codes(result)
 
@@ -80,15 +82,17 @@ class CliResultAssertionTests(unittest.TestCase):
         self.assertEqual(len(_parse_cli_results(result)), 1)
         assert_cli_exit_codes(result, strict=True)
 
-    def test_reads_results_from_tool_turns_when_call_results_are_missing(self):
+    def test_reads_legacy_tool_turns_but_rejects_uncorrelated_execution(self):
         for name in ("excel_execute", "excel-cli-excel_execute"):
             with self.subTest(name=name):
                 result = CopilotResult(turns=[
                     Turn("tool", f"[{name}] {execution(name).result}\n\n" + '{"result":"trace"}'),
-                    Turn("assistant", "", [ToolCall(name, {"args": "chart read"})]),
+                    Turn("assistant", "", [ToolCall(name, {"args": "chart read"},
+                                                    completion_received=True, success=True)]),
                 ])
                 self.assertEqual([output["exit_code"] for output in _parse_cli_results(result)], [0])
-                assert_cli_exit_codes(result, strict=True)
+                with self.assertRaisesRegex(AssertionError, "Incomplete CLI execution evidence"):
+                    assert_cli_exit_codes(result, strict=True)
 
     def test_does_not_double_count_results_present_in_both_recordings(self):
         call = execution("excel-cli-excel_execute")
@@ -100,14 +104,16 @@ class CliResultAssertionTests(unittest.TestCase):
 
     def test_uses_complete_tool_turn_results_when_only_some_calls_have_results(self):
         first = execution("excel_execute")
-        second = ToolCall("excel-cli-excel_execute", {"args": "chart read"})
+        second = ToolCall("excel-cli-excel_execute", {"args": "chart read"},
+                          completion_received=True, success=True)
         result = CopilotResult(turns=[
             Turn("tool", f"[{first.name}] {first.result}"),
             Turn("assistant", "", [first]),
             Turn("tool", f"[{second.name}] {execution(second.name, 1).result}"),
             Turn("assistant", "", [second]),
         ])
-        with self.assertRaisesRegex(AssertionError, "Final CLI call failed"):
+        self.assertEqual([output["exit_code"] for output in _parse_cli_results(result)], [0, 1])
+        with self.assertRaisesRegex(AssertionError, "Incomplete CLI execution evidence"):
             assert_cli_exit_codes(result)
 
     def test_rejects_incomplete_tool_turn_recording(self):

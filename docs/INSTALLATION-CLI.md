@@ -346,7 +346,7 @@ After installation:
 2. **Explore commands:** See the [Feature Reference](../FEATURES.md) for all 31 feature command categories
 3. **Read the guides:**
    - [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md) - for AI assistants like Claude Desktop and Copilot Chat
-   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli) - token-efficient AI guidance for coding agents
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli/skills/excel-cli-report-formatting) - token-efficient AI guidance for coding agents
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

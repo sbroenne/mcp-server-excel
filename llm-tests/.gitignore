@@ -1,6 +1,7 @@
 # LLM Test Artifacts
 output/
 TestResults/
+aitest-reports/
 
 # Python artifacts
 .venv/

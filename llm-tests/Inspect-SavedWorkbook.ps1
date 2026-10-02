@@ -1,6 +1,11 @@
 param(
     [Parameter(Mandatory)][string]$Path,
-    [string]$SourceRange = 'A1:E9'
+    [string]$SourceRange = 'A1:E9',
+    [switch]$IncludeAnalysis,
+    [switch]$IncludePresentation,
+    [switch]$UseUsedRange,
+    [switch]$Recalculate,
+    [string]$ProbeChangesJson
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,8 +23,9 @@ function Track-Com {
 }
 
 function Read-Values {
-    param([object]$Range)
+    param([object]$Range, [switch]$Formulas)
     $values = $Range.Value2
+    if ($Formulas) { $values = $Range.Formula2 }
     $rows = [System.Collections.Generic.List[object]]::new()
     if ($null -ne $values) {
         if ($values -is [Array] -and $values.Rank -eq 2) {
@@ -46,11 +52,61 @@ try {
     $excel.AutomationSecurity = 3
     $books = Track-Com $excel.Workbooks
     $book = Track-Com ($books.Open($resolved, 0, $true))
+    if ($ProbeChangesJson) {
+        if (-not $Recalculate) { throw 'A formula probe requires recalculation.' }
+        $changes = ConvertFrom-Json -InputObject $ProbeChangesJson -NoEnumerate
+        if ($changes -isnot [array] -or $changes.Count -eq 0 -or $changes.Count -gt 10) {
+            throw 'A formula probe requires between one and ten numeric cell changes.'
+        }
+        $probeSheets = Track-Com $book.Worksheets
+        foreach ($change in $changes) {
+            if ($change.sheet -isnot [string] -or $change.cell -notmatch '^[A-Z]+[1-9][0-9]*$' -or
+                ($change.value -isnot [long] -and $change.value -isnot [double])) {
+                throw 'A formula probe requires a sheet, single cell, and numeric value.'
+            }
+            $probeSheet = Track-Com ($probeSheets.Item($change.sheet))
+            $probeCell = Track-Com ($probeSheet.Range($change.cell))
+            $probeCell.Value2 = [double]$change.value
+        }
+    }
+    if ($Recalculate) { $excel.CalculateFull() }
     $sheets = Track-Com $book.Worksheets
     $sheetResults = @()
     for ($s = 1; $s -le $sheets.Count; $s++) {
         $sheet = Track-Com ($sheets.Item($s))
-        $source = Track-Com ($sheet.Range($SourceRange))
+        if ($UseUsedRange) {
+            $source = Track-Com $sheet.UsedRange
+        } else {
+            $source = Track-Com ($sheet.Range($SourceRange))
+        }
+        $sourceRows = Track-Com $source.Rows
+        $sourceColumns = Track-Com $source.Columns
+        if ($UseUsedRange -and ([long]$sourceRows.Count * $sourceColumns.Count) -gt 10000) {
+            throw "InspectionLimitExceeded: Worksheet '$($sheet.Name)' exceeds the 10000-cell independent inspection limit."
+        }
+        $sourceCells = Track-Com $source.Cells
+        $formats = @()
+        $presentation = @()
+        for ($r = 1; $r -le $sourceRows.Count; $r++) {
+            $formatRow = @()
+            $presentationRow = @()
+            for ($c = 1; $c -le $sourceColumns.Count; $c++) {
+                $cell = Track-Com ($sourceCells.Item($r, $c))
+                $formatRow += $cell.NumberFormat
+                if ($IncludePresentation) {
+                    $font = Track-Com $cell.Font
+                    $interior = Track-Com $cell.Interior
+                    $presentationRow += @{
+                        bold = [bool]$font.Bold
+                        fontColor = [long]$font.Color
+                        fillColor = [long]$interior.Color
+                        text = [string]$cell.Text
+                    }
+                }
+            }
+            $formats += ,$formatRow
+            if ($IncludePresentation) { $presentation += ,$presentationRow }
+        }
         $positions = @{}
         foreach ($address in @('D2', 'E2', 'F2', 'G2', 'H2')) {
             $cell = Track-Com ($sheet.Range($address))
@@ -71,6 +127,14 @@ try {
                     categories = @($series.XValues)
                 }
             }
+            $pivotName = $null
+            if ($IncludeAnalysis) {
+                $layout = Track-Com $chart.PivotLayout
+                if ($null -ne $layout) {
+                    $linkedPivot = Track-Com $layout.PivotTable
+                    $pivotName = $linkedPivot.Name
+                }
+            }
             $chartResults += @{
                 name = $object.Name
                 type = [int]$chart.ChartType
@@ -79,6 +143,7 @@ try {
                 width = $object.Width
                 height = $object.Height
                 series = $seriesResults
+                pivot = $pivotName
             }
         }
         $tables = Track-Com $sheet.ListObjects
@@ -97,18 +162,47 @@ try {
                     if (-not $entireRow.Hidden) { $visibleRows += ,$data[$r - 1] }
                 }
             }
-            $tableResults += @{ name = $table.Name; rows = $data; visibleRows = $visibleRows }
+            $connectionName = $null
+            $queryName = $null
+            if ($table.SourceType -in @(0, 3)) {
+                $queryTable = Track-Com $table.QueryTable
+                $connection = Track-Com $queryTable.WorkbookConnection
+                $connectionName = $connection.Name
+                $oleDb = Track-Com $connection.OLEDBConnection
+                $connectionString = [string]$oleDb.Connection
+                if ($connectionString -match '(?i)Microsoft\.Mashup\.OleDb\.1' -and
+                    $connectionString -match '(?i)(?:^|;)\s*Location=([^;]+)') {
+                    $queryName = $Matches[1].Trim('"')
+                }
+            }
+            $tableRange = Track-Com $table.Range
+            $tableStyle = Track-Com $table.TableStyle
+            $tableResults += @{
+                name = $table.Name; rows = $data; visibleRows = $visibleRows
+                address = $tableRange.Address($false, $false)
+                connection = $connectionName; style = $tableStyle.Name
+                query = $queryName
+            }
         }
         $pivots = Track-Com ($sheet.PivotTables())
         $pivotResults = @()
         for ($i = 1; $i -le $pivots.Count; $i++) {
             $pivot = Track-Com ($pivots.Item($i))
             $range = Track-Com $pivot.TableRange2
-            $pivotResults += @{ name = $pivot.Name; values = (Read-Values $range) }
+            $cache = Track-Com ($pivot.PivotCache())
+            $pivotResults += @{
+                name = $pivot.Name; values = (Read-Values $range)
+                layout = [int]$pivot.LayoutRowDefault; olap = [bool]$cache.OLAP
+            }
         }
         $sheetResults += @{
             name = $sheet.Name
+            sourceRow = [int]$source.Row
+            sourceColumn = [int]$source.Column
             sourceValues = (Read-Values $source)
+            sourceFormulas = (Read-Values $source -Formulas)
+            sourceFormats = $formats
+            sourcePresentation = $presentation
             bounds = @{ left = $source.Left; top = $source.Top; width = $source.Width; height = $source.Height }
             positions = $positions
             charts = $chartResults
@@ -156,7 +250,48 @@ try {
             }
         }
     }
-    @{ sheets = $sheetResults; slicers = $slicerResults } | ConvertTo-Json -Depth 15 -Compress
+    $queries = Track-Com $book.Queries
+    $queryResults = @()
+    for ($i = 1; $i -le $queries.Count; $i++) {
+        $query = Track-Com ($queries.Item($i))
+        $queryResults += @{ name = $query.Name; formula = $query.Formula }
+    }
+    $modelResult = $null
+    if ($IncludeAnalysis) {
+        $model = Track-Com $book.Model
+        $modelTables = Track-Com $model.ModelTables
+        $modelNames = @()
+        for ($i = 1; $i -le $modelTables.Count; $i++) {
+            $modelTable = Track-Com ($modelTables.Item($i))
+            $modelNames += $modelTable.Name
+        }
+        $relationships = Track-Com $model.ModelRelationships
+        $relationshipResults = @()
+        for ($i = 1; $i -le $relationships.Count; $i++) {
+            $relationship = Track-Com ($relationships.Item($i))
+            $foreignTable = Track-Com $relationship.ForeignKeyTable
+            $foreignColumn = Track-Com $relationship.ForeignKeyColumn
+            $primaryTable = Track-Com $relationship.PrimaryKeyTable
+            $primaryColumn = Track-Com $relationship.PrimaryKeyColumn
+            $relationshipResults += @{
+                fromTable = $foreignTable.Name; fromColumn = $foreignColumn.Name
+                toTable = $primaryTable.Name; toColumn = $primaryColumn.Name
+                active = $relationship.Active
+            }
+        }
+        $measures = Track-Com $model.ModelMeasures
+        $measureResults = @()
+        for ($i = 1; $i -le $measures.Count; $i++) {
+            $measure = Track-Com ($measures.Item($i))
+            $measureResults += @{ name = $measure.Name; formula = $measure.Formula }
+        }
+        $modelResult = @{ tables = $modelNames; relationships = $relationshipResults; measures = $measureResults }
+    }
+    @{
+        sheets = $sheetResults; slicers = $slicerResults; queries = $queryResults; model = $modelResult
+        calculationMode = [int]$excel.Calculation
+    } |
+        ConvertTo-Json -Depth 15 -Compress
 }
 finally {
     try {

@@ -23,7 +23,6 @@ async def test_cli_consent(copilot_eval, excel_cli_servers, excel_cli_skill_dir,
         f"cli-consent-{scenario}",
         servers=isolated_cli_servers(excel_cli_servers, consent_workbook.pipe),
         skill_dir=excel_cli_skill_dir,
-        allowed_tools=["excel-cli-excel_execute", "excel_execute", "skill", "view", "ask_user"],
     ), questions)
     result = await copilot_eval(agent, consent_prompt(consent_workbook.path, scenario))
     assert_consent_outcome(result, consent_workbook, scenario, questions)
@@ -44,7 +43,6 @@ async def test_cli_audit_preserves_existing_unsaved_session(
         "cli-audit-existing-session",
         servers=isolated_cli_servers(excel_cli_servers, workbook.pipe),
         skill_dir=excel_cli_skill_dir,
-        allowed_tools=["excel-cli-excel_execute", "excel_execute", "skill", "view", "ask_user"],
     ), questions)
     result = await copilot_eval(agent, consent_prompt(workbook.path, "audit"))
     assert result.success, result.error

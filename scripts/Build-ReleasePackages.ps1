@@ -54,7 +54,7 @@ try {
     if (-not $Version) { $Version = (Get-Content package.json -Raw | ConvertFrom-Json).version }
     if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'A valid package version is required.' }
     if ($SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {
-        foreach ($name in @('excel-cli', 'excel-mcp')) {
+        foreach ($name in @('excel-cli-report-formatting', 'excel-mcp-report-formatting')) {
             $stamp = Join-Path $SkillsDirectory "$name\VERSION"
             if (-not (Test-Path -LiteralPath $stamp -PathType Leaf) -or (Get-Content -LiteralPath $stamp -Raw).Trim() -ne $Version) {
                 throw "Prepared $name skill must match package version $Version."
@@ -190,8 +190,8 @@ try {
         $bin = New-Item -ItemType Directory -Path (Join-Path $extension 'bin')
         Copy-Item -LiteralPath $prepared.Mcp -Destination $bin.FullName
         $skills = New-Item -ItemType Directory -Path (Join-Path $extension 'skills')
-        Copy-Item (Join-Path $SkillsDirectory 'excel-mcp') $skills.FullName -Recurse
-        Set-Content (Join-Path $skills.FullName 'excel-mcp\VERSION') $Version -NoNewline
+        Copy-Item (Join-Path $SkillsDirectory 'excel-mcp-report-formatting') $skills.FullName -Recurse
+        Set-Content (Join-Path $skills.FullName 'excel-mcp-report-formatting\VERSION') $Version -NoNewline
         Copy-Item (Join-Path $root 'CHANGELOG.md') $extension -Force
         $manifestPath = Join-Path $extension 'package.json'
         $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
@@ -234,11 +234,11 @@ try {
                         Remove-Item -LiteralPath $inspectionRuntime -Force
                     }
                 }
-                foreach ($skillFile in Get-ChildItem (Join-Path $skills.FullName 'excel-mcp') -File -Recurse) {
+                foreach ($skillFile in Get-ChildItem (Join-Path $skills.FullName 'excel-mcp-report-formatting') -File -Recurse) {
                     $relative = [IO.Path]::GetRelativePath($extension, $skillFile.FullName).Replace('\', '/')
                     if (-not $vsix.GetEntry("extension/$relative")) { throw "VSIX is missing $relative." }
                 }
-                if ((Read-VsixEntry $vsix 'extension/skills/excel-mcp/VERSION').Trim() -ne $Version) {
+                if ((Read-VsixEntry $vsix 'extension/skills/excel-mcp-report-formatting/VERSION').Trim() -ne $Version) {
                     throw 'VSIX skill version does not match the package.'
                 }
                 $packagedManifest = Read-VsixEntry $vsix 'extension/package.json' | ConvertFrom-Json

@@ -23,7 +23,7 @@ function Get-ValidationPlan {
             '^src/ExcelMcp\.(Core|ComInterop|Service|Cleanup|Generators[^/]*)/' { 'runtime'; break }
             '^src/ExcelMcp\.CLI/' { 'cli'; break }
             '^src/ExcelMcp\.McpServer/' { 'mcp'; break }
-            '^src/ExcelMcp\.Build\.Tasks/|^skills/' { 'skills'; break }
+            '^src/ExcelMcp\.Build\.Tasks/|^skills/|^docs/reference/report-formatting\.md$' { 'skills'; break }
             '^src/ExcelMcp\.Diagnostics/|^\.editorconfig$' { 'build'; break }
             '^scripts/(Test-E2E|Test-CliWorkflow|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests)\.cs$' { 'runtime'; break }
             '^tests/' { 'tests'; break }

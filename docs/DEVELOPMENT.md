@@ -357,7 +357,7 @@ The server exposes tools, not prompts or resources, and sends no MCP elicitation
 requests. Consent advice in descriptions and instructions must be handled by
 the client; it is not an enforced server dialog. For generated
 skills and minimal server instructions, see
-[Maintaining skills and server guidance](../skills/README.md#maintaining-skills-and-server-guidance).
+[Maintaining skills and server guidance](../docs/AGENT-SKILLS.md#authoring-and-packaging).
 
 ## 📋 **MCP Registry Manifest**
 

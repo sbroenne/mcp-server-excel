@@ -30,7 +30,7 @@ client does not automatically discover nested `AGENTS.md` files.
 | `tests/**/*.cs` | [Testing strategy](tests/AGENTS.md) |
 | Workflows, project files, SDK/build configuration, PowerShell scripts | [Build and release](docs/agents/rules/development-workflow.md) |
 | README/index files, FEATURES, CHANGELOG, SECURITY, PRIVACY, docs, specs, skills, or website | [Documentation](docs/agents/rules/documentation-structure.md) |
-| Skill sources, Core command metadata, Build.Tasks, generators, MCP, or Build-AgentSkills.ps1 | [Product agent guidance](docs/agents/rules/mcp-llm-guidance.md) |
+| Skill sources, Core command metadata, generators, MCP, or Build-AgentSkills.ps1 | [Product agent guidance](docs/agents/rules/mcp-llm-guidance.md) |
 | MCP Server or MCP generator | [MCP boundaries](docs/agents/rules/mcp-server-guide.md) |
 | `llm-tests/**` | [LLM evaluations](llm-tests/AGENTS.md) |
 | Repository/agent instructions, CONTEXT, or `docs/agents/**` | [Instruction maintenance](docs/agents/rules/meta.md) |

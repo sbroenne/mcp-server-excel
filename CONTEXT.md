@@ -50,6 +50,8 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 - `docs/ARCHITECTURE.md` explains the public architecture.
 - `specs/` defines feature contracts and intended behavior.
 - `docs/features/` documents user-facing behavior.
-- `skills/shared/` is the source for guidance shared by the generated CLI and MCP skills.
+- `docs/reference/` owns general workflows, limitations, and recovery documentation.
+- `skills/` contains only the CLI and MCP report-formatting skills; packaging
+  selects their formatting reference from `docs/reference/report-formatting.md`.
 
 When these sources disagree, confirm the current implementation and update the stale source instead of creating another competing definition.

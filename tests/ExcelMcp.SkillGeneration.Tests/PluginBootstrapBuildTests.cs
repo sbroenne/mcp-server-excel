@@ -38,7 +38,8 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     {
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
         AssertAgentPluginManifest(pluginRoot, "0.0.0");
-        AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, pluginName), pluginName);
+        var skillName = $"{pluginName}-report-formatting";
+        AssertAgentSkill(Path.Combine(GeneratedAssetsFixture.SkillsDirectory, skillName), skillName);
     }
 
     [Theory]
@@ -67,7 +68,7 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
     [Trait("Feature", "SkillGeneration")]
     public void PackagedReferences_AreReachableFromEachSkill()
     {
-        foreach (var skill in new[] { "excel-cli", "excel-mcp" })
+        foreach (var skill in new[] { "excel-cli-report-formatting", "excel-mcp-report-formatting" })
         {
             var root = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, skill);
             var pending = new Stack<string>();
@@ -120,11 +121,11 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
             Assert.Empty(Directory.GetFiles(outputDirectory, "install-global.ps1", SearchOption.AllDirectories));
 
             AssertSkillDirectoryMatchesSource(
-                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp"),
-                Path.Combine(mcpRoot, "skills", "excel-mcp"), version);
+                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-mcp-report-formatting"),
+                Path.Combine(mcpRoot, "skills", "excel-mcp-report-formatting"), version);
             AssertSkillDirectoryMatchesSource(
-                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli"),
-                Path.Combine(cliRoot, "skills", "excel-cli"), version);
+                Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli-report-formatting"),
+                Path.Combine(cliRoot, "skills", "excel-cli-report-formatting"), version);
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }

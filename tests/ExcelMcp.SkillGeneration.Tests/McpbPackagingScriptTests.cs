@@ -93,7 +93,7 @@ public sealed class McpbPackagingScriptTests
                 {"version":"{{{fixtureVersion}}}","extensionKind":["ui"],"os":["win32"],"scripts":{"vscode:prepublish":"npm run compile"}}
                 """);
             File.WriteAllText(Path.Combine(sandbox, "CHANGELOG.md"), "Fixture changelog");
-            var skills = Directory.CreateDirectory(Path.Combine(sandbox, "prepared", "excel-mcp")).FullName;
+            var skills = Directory.CreateDirectory(Path.Combine(sandbox, "prepared", "excel-mcp-report-formatting")).FullName;
             File.WriteAllText(Path.Combine(skills, "VERSION"), fixtureVersion);
             File.WriteAllText(Path.Combine(skills, "SKILL.md"), "Fixture skill");
             foreach (var (architecture, machine) in new[] { ("x64", (ushort)0x8664), ("arm64", (ushort)0xaa64) })
@@ -463,7 +463,7 @@ public sealed class McpbPackagingScriptTests
 
     [Theory]
     [InlineData("version.txt")]
-    [InlineData("skills/excel-cli/SKILL.md")]
+    [InlineData("skills/excel-cli-report-formatting/SKILL.md")]
     [Trait("Feature", "McpbPackaging")]
     public async Task PublicationSync_IncompletePayloadCannotReplaceExistingOutput(string missingFile)
     {
@@ -485,8 +485,9 @@ public sealed class McpbPackagingScriptTests
                 File.WriteAllText(Path.Combine(plugin, "plugin.json"), manifest.Replace("0.0.0", "1.2.3", StringComparison.Ordinal));
                 foreach (var file in new[]
                 {
-                    "README.md", "version.txt", $"skills/{name}/SKILL.md", $"skills/{name}/VERSION",
-                    $"skills/{name}/references/range.md",
+                    "README.md", "version.txt", $"skills/{name}-report-formatting/SKILL.md",
+                    $"skills/{name}-report-formatting/VERSION",
+                    $"skills/{name}-report-formatting/references/report-formatting.md",
                 })
                 {
                     var destination = Path.Combine(plugin, file);

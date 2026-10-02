@@ -25,8 +25,8 @@ Other open-source projects by the author that pair well with Excel MCP Server:
 
     ---
 
-    LLM-powered testing framework for AI agents — the same framework used to
-    validate this project's tools.
+    Agent evaluation framework with native JSON execution evidence — used here
+    for selected workbook workflows and fixed-model skill/no-skill comparisons.
 
     [:octicons-arrow-right-24: View on GitHub](https://github.com/sbroenne/pytest-skill-engineering)
 

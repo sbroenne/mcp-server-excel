@@ -3,15 +3,16 @@
 | Content | Edit here |
 |---------|-----------|
 | Tool/parameter descriptions | Core interface XML docs/attributes; manual MCP metadata only where it owns the tool |
-| Generated command/skill metadata | `src/ExcelMcp.Generators/ServiceRegistryGenerator.cs` and shared generator metadata |
-| Skill prose and selection rules | `skills/templates/SKILL.cli.sbn`, `SKILL.mcp.sbn` |
-| Shared workflows and limitations | `skills/shared/*.md` |
-| Skill rendering | `src/ExcelMcp.Build.Tasks/GenerateSkillFile.cs` |
+| Generated command metadata | `src/ExcelMcp.Generators/ServiceRegistryGenerator.cs` and shared generator metadata |
+| Skill prose and selection rules | `skills/excel-cli-report-formatting/SKILL.md`, `skills/excel-mcp-report-formatting/SKILL.md` |
+| Shared workflows and limitations | `docs/reference/*.md` |
+| Skill reference preparation | `scripts/Build-AgentSkills.ps1` |
 | Minimal MCP server instructions | `Program.cs` in the MCP Server |
 
 Release builds generate the Core manifest. Shared guides are not exposed as MCP prompts.
 `scripts\Build-AgentSkills.ps1 -GenerateOnly` then generates complete skills under
-`artifacts\generated-skills` from templates, authored `skills/assets`, and shared references.
+`artifacts\generated-skills` from the two actual source skills and only the
+canonical report-formatting reference. General documentation stays in `docs`.
 Never edit those outputs or the extension's packaged skill copy.
 Installed plugins and the published plugin repository are outputs too; local
 source edits do not update installed skills or authorize publication.
@@ -28,7 +29,7 @@ Discover existing state where useful; ask rather than guess when the intended
 workbook, destructive change, or requested result is unclear.
 
 Keep tool descriptions, parameter/action guidance, server instructions, both
-skill templates, shared references, and returned recovery messages consistent.
+skill entries, documentation references, and returned recovery messages consistent.
 MCP prose uses advertised snake_case inputs; CLI flags use kebab-case and batch
 JSON uses Service camelCase. Do not rename nested JSON keys, enum values, output
 fields, or external API identifiers when correcting top-level input names.
@@ -47,4 +48,4 @@ required/valid-action suffixes. Verify emitted MCP descriptions through SDK
 discovery, not only source strings. Use existing discovery and generated-skill
 tests to cover recurring guidance defects; do not add a parallel audit framework.
 
-Generation pipeline and authoring procedure: `skills/README.md`.
+Generation pipeline and authoring procedure: `docs/AGENT-SKILLS.md`.

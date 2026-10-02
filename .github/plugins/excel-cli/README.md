@@ -2,7 +2,10 @@
 
 **Command-line Excel automation for coding agents — 64% more token-efficient than MCP Server**
 
-This plugin provides the `excel-cli` skill plus an npx-first launcher for GitHub Copilot CLI agents. The skill guides agents to use `excelcli` commands for Power Query, DAX, PivotTables, Tables, Charts, VBA, and more — all through Windows Excel COM automation.
+This plugin provides an npx-first `excelcli` launcher and the optional
+`excel-cli-report-formatting` skill for requested report presentation.
+Ordinary Excel automation uses native CLI help; general workflows and recovery
+remain in the [documentation](https://excelmcpserver.dev/reference/).
 
 **Best for:** Coding agents (GitHub Copilot, Cursor, Windsurf) that need Excel automation without loading large tool schemas into context.
 

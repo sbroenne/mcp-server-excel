@@ -85,8 +85,8 @@ Actions are separate.
 The repository's `.vscode/mcp.json` configures VS Code, not the CLI/app/cloud.
 Do not enable ExcelMcp on a hosted runner without Excel or automatically
 install it into its own development sessions.
-Product skills are generated from their canonical sources; see
-[skills/README.md](../../skills/README.md). Installed and packaged copies
+Product formatting skills are prepared from their canonical sources; see
+[agent skills](../AGENT-SKILLS.md). Installed and packaged copies
 are outputs, not contributor instruction sources.
 
 ## App configuration and trust
