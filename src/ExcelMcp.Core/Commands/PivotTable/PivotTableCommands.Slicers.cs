@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -576,7 +577,24 @@ public partial class PivotTableCommands
         };
     }
 
-    private sealed record SlicerItemState(string Name, string Caption, bool Selected);
+    internal sealed record SlicerItemState(string Name, string Caption, bool Selected);
+
+    internal static string ResolveOlapSlicerItemName(IReadOnlyList<SlicerItemState> items, string requested)
+    {
+        var matches = items.Where(item => string.Equals(item.Name, requested, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count == 0)
+            matches = items.Where(item => string.Equals(item.Caption, requested, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count == 0)
+            throw new ArgumentException($"Slicer item '{requested}' was not found. Use availableItems from list-slicers.", nameof(requested));
+        if (matches.Count > 1)
+        {
+            string candidates = JsonSerializer.Serialize(matches.Select(item => item.Name));
+            throw new ArgumentException(
+                $"Slicer caption '{requested}' is ambiguous. Retry with one of these matching MDX unique names: {candidates}",
+                nameof(requested));
+        }
+        return matches[0].Name;
+    }
 
     private static List<SlicerItemState> ReadSlicerItems(Excel.Slicer slicer, Excel.SlicerCache cache,
         CancellationToken ct)
@@ -637,14 +655,7 @@ public partial class PivotTableCommands
         foreach (string requested in selectedItems)
         {
             ct.ThrowIfCancellationRequested();
-            var matches = items.Where(item => string.Equals(item.Name, requested, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (matches.Count == 0)
-                matches = items.Where(item => string.Equals(item.Caption, requested, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (matches.Count == 0)
-                throw new ArgumentException($"Slicer item '{requested}' was not found. Use availableItems from list-slicers.", nameof(selectedItems));
-            if (matches.Count > 1)
-                throw new ArgumentException($"Slicer caption '{requested}' is ambiguous. Use the item's MDX unique name.", nameof(selectedItems));
-            names.Add(matches[0].Name);
+            names.Add(ResolveOlapSlicerItemName(items, requested));
         }
 
         if (!clearFirst)
