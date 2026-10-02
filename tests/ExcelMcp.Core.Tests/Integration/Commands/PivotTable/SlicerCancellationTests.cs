@@ -58,10 +58,14 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
         Assert.Equal(["North", "South"], followUp.AvailableItems.Order());
         Assert.Equal(existingCache ? ["North"] : ["North", "South"], followUp.SelectedItems.Order());
         Assert.Equal(existingCache ? (1, 2) : (1, 1), GetSlicerCounts(innerBatch));
-        var selected = commands.SetSlicerSelection(innerBatch, "FollowUpSlicer", ["South"]);
+        var selected = commands.SetSlicerSelection(innerBatch, "FollowUpSlicer", ["South"], false);
         Assert.True(selected.Success, selected.ErrorMessage);
-        Assert.Equal(["South"], selected.SelectedItems);
-        AssertPivot(innerBatch, 20, "South");
+        Assert.Equal(["North", "South"], selected.SelectedItems.Order());
+        AssertPivot(innerBatch, 30, "North", "South");
+        var cleared = commands.SetSlicerSelection(innerBatch, "FollowUpSlicer", []);
+        Assert.True(cleared.Success, cleared.ErrorMessage);
+        Assert.Equal(["North", "South"], cleared.SelectedItems.Order());
+        AssertPivot(innerBatch, 30, "North", "South");
     }
 
     [Theory]
@@ -124,10 +128,10 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
         Assert.Equal(["CancellationPivot"], slicer.ConnectedPivotTables);
         Assert.Equal(["North"], slicer.SelectedItems);
         AssertPivot(batch, 10, "North");
-        var followUp = commands.SetSlicerSelection(batch, "ConnectedSlicer", ["South"]);
+        var followUp = commands.SetSlicerSelection(batch, "ConnectedSlicer", ["South"], false);
         Assert.True(followUp.Success, followUp.ErrorMessage);
-        Assert.Equal(["South"], followUp.SelectedItems);
-        AssertPivot(batch, 20, "South");
+        Assert.Equal(["North", "South"], followUp.SelectedItems.Order());
+        AssertPivot(batch, 30, "North", "South");
     }
 
     // Forward real COM reads and inject cancellation only after the helper has started.
