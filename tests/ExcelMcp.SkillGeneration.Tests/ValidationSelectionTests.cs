@@ -12,6 +12,8 @@ public sealed class ValidationSelectionTests
     [InlineData(".github/dependabot.yml", "", "", false)]
     [InlineData("README.md", "", "", false)]
     [InlineData("tests/README.md", "", "", false)]
+    [InlineData("doc-counts.json", "Tooling", "", false)]
+    [InlineData("scripts/check-doc-counts.ps1", "Tooling", "", false)]
     [InlineData("vscode-extension/package-lock.json", "", "", true)]
     [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process,Tooling", "Acceptance,Lifecycle", true)]
     [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast,Process,Tooling", "Acceptance,Editing", true)]
@@ -33,6 +35,36 @@ public sealed class ValidationSelectionTests
             if (($plan.CiTestGroups -join ',') -ne '{{ciGroups}}') { throw "Wrong CI groups: $($plan.CiTestGroups)" }
             if (($plan.ExcelGroups -join ',') -ne '{{excelGroups}}') { throw "Wrong Excel groups: $($plan.ExcelGroups)" }
             if ($plan.Packages -ne ${{(packages ? "true" : "false")}}) { throw 'Wrong package selection.' }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Theory]
+    [InlineData("doc-counts.json", "Tooling")]
+    [InlineData("scripts/check-doc-counts.ps1", "Tooling")]
+    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast")]
+    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast")]
+    [InlineData("README.md", "")]
+    public async Task SourceChecks_RunInExactlyOneSelectedGroup(string path, string group)
+    {
+        var result = await RunAsync($$"""
+            $plan = Get-ValidationPlan -Paths '{{path}}'
+            if ($plan.SourceChecksGroup -cne '{{group}}') { throw "Wrong source-check group: $($plan.SourceChecksGroup)" }
+            if ($plan.SourceChecksGroup -and $plan.SourceChecksGroup -notin $plan.CiTestGroups) { throw 'Source checks have no selected job.' }
+            if ('{{group}}' -eq 'Tooling' -and $plan.ToolingFilter -cne 'FullyQualifiedName~DocumentationCounts') {
+                throw 'Documentation-count regressions were not selected.'
+            }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
+    public async Task CliAcceptanceChanges_RequireRuntimeAndAcceptanceValidation()
+    {
+        var result = await RunAsync("""
+            $plan = Get-ValidationPlan -Paths 'tests\ExcelMcp.CLI.Tests\Integration\CliWorkflowAcceptanceTests.cs'
+            if (-not $plan.Excel -or -not $plan.Build -or -not $plan.SourceChecks) { throw 'Runtime/E2E validation missing.' }
+            if ('Acceptance' -notin $plan.ExcelGroups) { throw 'Acceptance group missing.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }

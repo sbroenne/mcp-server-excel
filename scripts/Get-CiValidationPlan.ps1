@@ -25,6 +25,7 @@ if ($env:GITHUB_OUTPUT) {
     $matrix = @{ include = $include } | ConvertTo-Json -Compress -Depth 5
     @(
         "matrix=$matrix"
+        "source_checks_group=$($plan.SourceChecksGroup)"
         "tests=$($plan.CiTestGroups.Count -gt 0)".ToLowerInvariant()
         "packages=$($plan.Packages)".ToLowerInvariant()
         "npm=$($plan.NpmTests)".ToLowerInvariant()

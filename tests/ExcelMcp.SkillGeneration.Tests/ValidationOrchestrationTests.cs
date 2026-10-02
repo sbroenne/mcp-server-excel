@@ -7,6 +7,77 @@ namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationOrchestrationTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData(17)]
+    public async Task LockfileRegressions_PublishSuccessIndependentOfAmbientNativeExitCode(int? exitCode)
+    {
+        var initialCode = exitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "$null";
+        var run = await ValidationSelectionTests.RunAsync($$"""
+            $global:LASTEXITCODE = {{initialCode}}
+            & .\scripts\Test-NpmLockfiles.ps1
+            if ($LASTEXITCODE -ne 0) { throw "Successful lockfile regressions left exit code '$LASTEXITCODE'." }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+        Assert.Contains("npm lockfile regression checks.", run.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CiPreparatoryBuilds_DisableBuildServers()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $builds = @(Get-Content .\.github\workflows\ci.yml | Where-Object { $_ -match 'dotnet build Sbroenne.ExcelMcp.sln' })
+            if ($builds.Count -ne 2) { throw "Unexpected preparatory build count: $($builds.Count)" }
+            foreach ($build in $builds) {
+                if ($build -notmatch '--disable-build-servers') { throw 'Preparatory build can retain a locking build server.' }
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
+    public async Task LockfileRegressionFailure_IsNotReportedAsSuccess()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.LockfileFailure.$([Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory -Path $sandbox | Out-Null
+            try {
+                Copy-Item .\scripts\Test-NpmLockfiles.ps1 $sandbox
+                'Write-Host "Incorrect guard response."; exit 0' | Set-Content (Join-Path $sandbox check-npm-lockfiles.ps1)
+                $global:LASTEXITCODE = 0
+                & (Join-Path $sandbox Test-NpmLockfiles.ps1)
+            } finally { Remove-Item -LiteralPath $sandbox -Recurse -Force }
+            """);
+        Assert.NotEqual(0, run.ExitCode);
+        Assert.Contains("Guard assertion failed", run.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CiSelection_ExportsAndUsesTheSourceCheckGroup()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CiOutputs.$([Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory -Path $sandbox | Out-Null
+            $previousOutput = $env:GITHUB_OUTPUT
+            try {
+                $env:GITHUB_OUTPUT = Join-Path $sandbox outputs.txt
+                & .\scripts\Get-CiValidationPlan.ps1 -Full -OutputPath (Join-Path $sandbox plan.json)
+                if ('source_checks_group=Fast' -cnotin (Get-Content -LiteralPath $env:GITHUB_OUTPUT)) {
+                    throw 'Source-check selection was not exported.'
+                }
+                $workflow = Get-Content .\.github\workflows\ci.yml -Raw
+                if (-not $workflow.Contains('source_checks_group: ${{ steps.select.outputs.source_checks_group }}') -or
+                    -not $workflow.Contains('if: matrix.group == needs.changes.outputs.source_checks_group')) {
+                    throw 'Workflow does not route the selected source checks.'
+                }
+            } finally {
+                $env:GITHUB_OUTPUT = $previousOutput
+                Remove-Item -LiteralPath $sandbox -Recurse -Force
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
     [Fact]
     public async Task ChildCommands_IgnoreAmbientGitRepositoryAndIndex()
     {

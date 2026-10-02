@@ -28,6 +28,7 @@ function Get-ValidationPlan {
     $fullTooling = $false
     $npmTests = $false
     $lockfileTests = $false
+    $documentationCounts = $false
     $infrastructureDiagnostics = $false
     foreach ($original in $Paths) {
         $path = $original.Replace('\', '/')
@@ -38,7 +39,7 @@ function Get-ValidationPlan {
             '^src/ExcelMcp\.McpServer/' { 'mcp'; break }
             '^src/ExcelMcp\.Build\.Tasks/|^skills/|^docs/reference/report-formatting\.md$' { 'skills'; break }
             '^src/ExcelMcp\.Diagnostics/|^\.editorconfig$' { 'build'; break }
-            '^scripts/(Test-E2E|Test-CliWorkflow|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests)\.cs$' { 'runtime'; break }
+            '^scripts/(Test-E2E|Test-CliWorkflow|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests|CliWorkflowAcceptanceTests)\.cs$' { 'runtime'; break }
             '^tests/' { 'tests'; break }
             '^vscode-extension/' { 'extension'; break }
             '^mcpb/' { 'mcpb'; break }
@@ -49,11 +50,12 @@ function Get-ValidationPlan {
             '^scripts/Build-AgentSkills\.ps1$' { 'skills'; break }
             '^scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|^scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$' { 'plugins'; break }
             '^scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/release\.yml$' { 'packages'; break }
+            '^doc-counts\.json$|^scripts/check-doc-counts\.ps1$' { 'doc-counts'; break }
             '^scripts/(pre-commit|Get-ValidationPlan|Get-CiValidationPlan|Get-ExcelTestGroups|Invoke-ExcelFreeTests|Invoke-ExcelTests|Invoke-TestStage|Test-CiCompletion|check-|Test-NpmLockfiles)' { 'tests'; break }
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }
             '^scripts/(Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata)\.ps1$' { 'packages'; break }
             '^scripts/(Update|Restore|Persist|Test)-StarHistory\.ps1$|^scripts/.*UsageAnalytics.*\.ps1$' { 'maintenance'; break }
-            '^docs/|^gh-pages/|^videos/|^infrastructure/|^specs/|^\.changeset/|^\.github/|\.md$|^doc-counts\.json$|^\.(gitignore|gitattributes)$' { 'documentation'; break }
+            '^docs/|^gh-pages/|^videos/|^infrastructure/|^specs/|^\.changeset/|^\.github/|\.md$|^\.(gitignore|gitattributes)$' { 'documentation'; break }
             '^(package(-lock)?\.json|\.npmrc)$' { 'packages'; break }
             default { 'unknown' }
         }
@@ -69,7 +71,7 @@ function Get-ValidationPlan {
         if ($kind -in @('extension', 'skills', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown')) { $plan.Extension = $true }
         if ($kind -in @('mcpb', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown')) { $plan.Mcpb = $true }
         if ($kind -in @('plugins', 'skills', 'packages', 'pipeline', 'runtime', 'cli', 'mcp', 'unknown')) { $plan.Plugins = $true }
-        if ($kind -in @('build', 'tests', 'skills', 'plugins', 'pipeline')) { $plan.Build = $true }
+        if ($kind -in @('build', 'tests', 'skills', 'plugins', 'pipeline', 'doc-counts')) { $plan.Build = $true }
         if ($kind -in @('tests', 'pipeline')) { $plan.HookTests = $true }
         if ($kind -eq 'skills' -or $path -match '^tests/ExcelMcp\.SkillGeneration\.Tests/') { $plan.SkillTests = $true }
 
@@ -125,6 +127,10 @@ function Get-ValidationPlan {
         }
         if ($kind -eq 'skills') { [void]$tooling.Add('Feature=SkillGeneration') }
         if ($kind -eq 'plugins') { [void]$tooling.Add('Feature=PluginPublication') }
+        if ($kind -eq 'doc-counts') {
+            $documentationCounts = $true
+            [void]$tooling.Add('FullyQualifiedName~DocumentationCounts')
+        }
         if ($kind -in @('packages', 'mcpb')) {
             foreach ($feature in @('Packaging', 'McpbPackaging', 'PluginSkillVersion', 'ReleaseMetadata', 'PluginPublication')) {
                 [void]$tooling.Add("Feature=$feature")
@@ -161,6 +167,7 @@ function Get-ValidationPlan {
         if ($fullTooling -or $tooling.Count) { 'Tooling' }
     )
     $plan.ExcelGroups = @($excel | Sort-Object)
+    $plan.SourceChecksGroup = if ($fast.Count) { 'Fast' } elseif ($documentationCounts) { 'Tooling' } else { '' }
     $plan.InfrastructureDiagnostics = $infrastructureDiagnostics
     $plan.Packages = [bool](@('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins') | Where-Object { $plan[$_] }).Count
     $plan.NpmTests = $npmTests

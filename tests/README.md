@@ -125,6 +125,11 @@ tests except `AdapterTestKind=System`; `Process` contains the CLI system
 regressions; `Tooling` contains the selected SkillGeneration checks. These
 partitions cover the complete normal Excel-free selection without overlap.
 Package, npm launcher, and lockfile checks have their own selections.
+Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
+`Tooling` documentation-count regressions and source correctness checks,
+without unrelated runtime tests or packages. Source checks run once in `Fast`
+when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
+builds disable build servers so rebuild regressions do not inherit assembly locks.
 `Docs Site` always runs. The required `CI Gate` always reports and rejects
 failed detection, cancelled or failed work, and unexpectedly skipped jobs.
 Hosted runners do not run real-Excel tests.

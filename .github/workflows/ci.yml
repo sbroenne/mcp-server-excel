@@ -83,6 +83,7 @@ jobs:
       packages: ${{ steps.select.outputs.packages }}
       npm: ${{ steps.select.outputs.npm }}
       lockfiles: ${{ steps.select.outputs.lockfiles }}
+      source_checks_group: ${{ steps.select.outputs.source_checks_group }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -136,7 +137,7 @@ jobs:
         run: |
           dotnet restore Sbroenne.ExcelMcp.sln
           if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
-          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore -p:NuGetAudit=false
+          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore --disable-build-servers -p:NuGetAudit=false
           if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
       - name: Generate complete skill inputs
         if: matrix.group != 'Process'
@@ -148,7 +149,7 @@ jobs:
           ./scripts/Invoke-ExcelFreeTests.ps1 -Group '${{ matrix.group }}' `
             -PlanFile artifacts/ci-plan.json -ResultsDirectory 'TestResults/${{ matrix.group }}'
       - name: Source correctness checks
-        if: matrix.group == 'Fast'
+        if: matrix.group == needs.changes.outputs.source_checks_group
         shell: pwsh
         run: |
           foreach ($script in @('check-com-leaks','check-workbook-package-access','check-success-flag','check-dynamic-casts')) {
@@ -203,7 +204,7 @@ jobs:
         run: |
           dotnet restore Sbroenne.ExcelMcp.sln
           if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
-          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore -p:NuGetAudit=false
+          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore --disable-build-servers -p:NuGetAudit=false
           if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
       - name: Generate complete skill inputs
         shell: pwsh
