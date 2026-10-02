@@ -85,6 +85,7 @@ jobs:
         run: uv sync --project llm-tests --locked --python 3.13
 
       - name: Verify setup tools and Excel-free boundary
+        shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
