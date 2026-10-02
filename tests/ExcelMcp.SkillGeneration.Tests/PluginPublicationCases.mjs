@@ -91,6 +91,29 @@ function payload(version = '2.0.1') {
 function edit(files, path, text) { files.set(path, { bytes: Buffer.from(text), mode: '100644' }); }
 
 export function registerPolicyTests() {
+    test('formatting migration changes content and preserves version-only skip behavior', () => {
+        const baseline = payload();
+        function scoped(version) {
+            const files = payload(version);
+            for (const name of ['excel-cli', 'excel-mcp']) {
+                for (const file of ['SKILL.md', 'VERSION']) {
+                    const old = `plugins/${name}/skills/${name}/${file}`;
+                    files.set(`plugins/${name}/skills/${name}-report-formatting/${file}`, files.get(old));
+                    files.delete(old);
+                }
+                files.delete(`plugins/${name}/skills/${name}/references/range.md`);
+                edit(files, `plugins/${name}/skills/${name}-report-formatting/references/report-formatting.md`, 'Formatting conventions');
+            }
+            return files;
+        }
+        const candidate = scoped('2.3.0');
+        validatePublication(candidate);
+        assert.deepEqual(compareTrees(baseline, candidate).changedPlugins, ['excel-cli', 'excel-mcp']);
+        assert.deepEqual(compareTrees(candidate, scoped('2.4.0')).changedPaths, []);
+        edit(candidate, 'plugins/excel-mcp/skills/excel-mcp/SKILL.md', 'Old broad skill');
+        assert.throws(() => validatePublication(candidate), /Mixed/);
+    });
+
     test('identical and release-bookkeeping-only payloads skip every publication write and handoff', () => {
         const baseline = payload(), candidate = payload('2.3.0');
         const comparison = compareTrees(baseline, candidate);

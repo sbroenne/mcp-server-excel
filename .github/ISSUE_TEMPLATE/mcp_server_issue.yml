@@ -1,0 +1,54 @@
+name: MCP Server issue
+description: Report an assistant, discovery, transport, or MCP setup problem.
+title: "[MCP] "
+labels: ["mcp-server"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove credentials, connection strings, customer data, and private paths from all configuration and logs.
+        Report vulnerabilities through the repository's private vulnerability reporting channel, not this form.
+  - type: input
+    id: client
+    attributes:
+      label: Assistant/client and version
+      placeholder: VS Code Copilot, Copilot CLI/app, Claude, or another MCP client
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Server and environment
+      description: ExcelMcp version, installation method, Windows/Excel versions, and workbook format. Include VBA trust state only if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction and tool call
+      description: Exact advertised tool name, action, sanitized parameters, and the steps leading to the failure. For discovery/setup problems, explain when the server fails.
+      placeholder: |
+        Tool: powerquery
+        Action: list
+        Parameters: sanitized session_id and other inputs
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and sanitized logs
+      description: Preserve actual response field names and errors. Remove sensitive content.
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Sanitized client configuration
+      description: Client-specific configuration and launch command, with secrets and private paths removed. Do not assume one client's MCP configuration applies to another.
+      render: json

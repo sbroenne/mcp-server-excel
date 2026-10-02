@@ -168,9 +168,14 @@ export function validatePlugin(tree, name, { expectedVersion, repairStamps = fal
         !Array.isArray(manifest.keywords) || manifest.keywords.some(value => typeof value !== 'string')) {
         throw new Error(`Invalid ${name} manifest metadata.`);
     }
-    for (const file of ['README.md', `skills/${name}/SKILL.md`, `skills/${name}/references/range.md`,
+    const skill = tree.has(`${prefix}skills/${name}-report-formatting/SKILL.md`) ? `${name}-report-formatting` : name;
+    const reference = skill === name ? 'range.md' : 'report-formatting.md';
+    for (const file of ['README.md', `skills/${skill}/SKILL.md`, `skills/${skill}/references/${reference}`,
         name === 'excel-cli' ? 'bin/start-cli.ps1' : 'mcp.json']) requireFile(tree, prefix + file);
-    for (const stamp of ['version.txt', `skills/${name}/VERSION`]) {
+    const skillDirectories = new Set([...tree.keys()].filter(file => file.startsWith(`${prefix}skills/`))
+        .map(file => file.slice(`${prefix}skills/`.length).split('/')[0]));
+    if (skillDirectories.size !== 1 || !skillDirectories.has(skill)) throw new Error('Mixed or unexpected skill layout.');
+    for (const stamp of ['version.txt', `skills/${skill}/VERSION`]) {
         const value = tree.get(prefix + stamp);
         if (!value || decoder.decode(value.bytes).trim() !== version) {
             if (!repairStamps) throw new Error(`Missing or mismatched ${name}/${stamp}.`);
@@ -214,7 +219,9 @@ function normalized(tree, { publication = true, plugin, repairStamps = false } =
     const result = new Map();
     for (const [name, file] of tree) {
         if (plugin && !name.startsWith(`plugins/${plugin}/`)) continue;
-        if (pluginNames.some(value => name === `plugins/${value}/version.txt` || name === `plugins/${value}/skills/${value}/VERSION`)) continue;
+        if (pluginNames.some(value => name === `plugins/${value}/version.txt` ||
+            name === `plugins/${value}/skills/${value}/VERSION` ||
+            name === `plugins/${value}/skills/${value}-report-formatting/VERSION`)) continue;
         let bytes = file.bytes;
         if (name.endsWith('.json')) {
             const json = parseJson(bytes);

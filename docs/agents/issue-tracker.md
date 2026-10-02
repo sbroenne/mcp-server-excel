@@ -11,12 +11,15 @@ work requests.
 
 ## Choose the matching issue template
 
-Read and preserve the headings from the closest template:
+Choose the closest issue form. When creating an issue through a tool rather
+than the website, render each form field as a heading and preserve its order:
 
-- General defect: `.github/ISSUE_TEMPLATE/bug_report.md`
-- MCP Server defect: `.github/ISSUE_TEMPLATE/mcp_server_issue.md`
-- New or changed behavior: `.github/ISSUE_TEMPLATE/feature_request.md`
+- General defect: `.github/ISSUE_TEMPLATE/bug_report.yml`
+- MCP Server defect: `.github/ISSUE_TEMPLATE/mcp_server_issue.yml`
+- New or changed behavior: `.github/ISSUE_TEMPLATE/feature_request.yml`
 
 Use `N/A` when a required section does not apply.
 
-`breaking-changes-issue.md` is a historical implementation plan, not a template for new issues.
+The [pre-1.0 breaking-changes plan](history/breaking-changes-pre-1.0.md) is
+historical, not a template or current API guidance. Report vulnerabilities
+privately through GitHub Security Advisories, never as public work requests.

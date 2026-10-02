@@ -10,7 +10,7 @@ Automatic submissions are disabled unless the source repository variable
 
 | Repository | Role |
 | --- | --- |
-| `sbroenne/mcp-server-excel` | Canonical templates, skills, generators, overlays, comparison, workflows and this guide |
+| `sbroenne/mcp-server-excel` | Canonical formatting skills, reference docs, generators, overlays, comparison, workflows and this guide |
 | `sbroenne/mcp-server-excel-plugins` | Generated output only; immutable plugin tags and the commits used by listings |
 | `github/awesome-copilot` | Upstream listings on `main`; receives a contribution PR |
 | `sbroenne/awesome-copilot` | Writable fork; receives only the automated PR branch, based on **upstream main**, never assumed-synced fork main |

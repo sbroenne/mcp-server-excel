@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
@@ -44,6 +45,164 @@ public sealed class ReleaseMetadataScriptTests
         ".github",
         "workflows",
         "publish-mcp-registry.yml");
+
+    [Theory]
+    [InlineData("absent", false, true)]
+    [InlineData("draft", false, true)]
+    [InlineData("published", false, true)]
+    [InlineData("immutable", false, true)]
+    [InlineData("missing", false, false)]
+    [InlineData("missing", true, true)]
+    [InlineData("immutable-missing", true, false)]
+    [InlineData("mismatch", true, false)]
+    [InlineData("api-error", false, false)]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task GitHubRelease_VerifiesPublishedAssetsAndOnlyReplacesDraftAssets(
+        string mode, bool allowMutableRepair, bool succeeds)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var artifacts = Path.Combine(sandbox, "artifacts");
+            Directory.CreateDirectory(artifacts);
+            foreach (var name in new[]
+            {
+                "ExcelMcp-CLI-1.2.3-windows.zip", "ExcelMcp-MCP-Server-1.2.3-windows.zip",
+                "excel-plugins-v1.2.3.zip", "excel-skills-v1.2.3.zip",
+                "excel-mcp-1.2.3.vsix", "excel-mcp-1.2.3-win32-arm64.vsix", "excel-mcp-1.2.3.mcpb"
+            })
+            {
+                File.WriteAllText(Path.Combine(artifacts, name), name);
+            }
+            File.WriteAllText(Path.Combine(sandbox, "metadata.patch"), "exact metadata patch");
+            var script = Path.Combine(RepoRoot, "scripts", "Publish-GitHubRelease.ps1");
+            var runner = Path.Combine(sandbox, "run.ps1");
+            File.WriteAllText(runner, $$"""
+                $ErrorActionPreference = 'Stop'
+                $global:releaseFixtureCreated = $false
+                $global:releaseFixtureUploaded = $false
+                $global:releaseFixturePublished = $false
+                $global:releaseFixtureCalls = [Collections.Generic.List[string]]::new()
+                function global:gh {
+                    param([Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+                    $global:releaseFixtureCalls.Add(($Arguments -join ' '))
+                    $global:LASTEXITCODE = 0
+                    if ($Arguments[0] -eq 'api') {
+                        if ('{{mode}}' -eq 'api-error') {
+                            $global:LASTEXITCODE = 1
+                            'gh: Forbidden (HTTP 403)'
+                            return
+                        }
+                        if ('{{mode}}' -eq 'absent' -and -not $global:releaseFixtureCreated) {
+                            $global:LASTEXITCODE = 1
+                            'gh: Not Found (HTTP 404)'
+                            return
+                        }
+                        $assets = @(Get-ChildItem publish -File | ForEach-Object {
+                            @{ name = $_.Name; digest = 'sha256:' + (Get-FileHash $_.FullName).Hash.ToLowerInvariant() }
+                        })
+                        if ('{{mode}}' -match 'missing' -and -not $global:releaseFixtureUploaded) {
+                            $assets = @($assets | Where-Object name -ne 'SHA256SUMS')
+                        }
+                        if ('{{mode}}' -eq 'mismatch') { $assets[0].digest = 'sha256:' + ('0' * 64) }
+                        @{
+                            tag_name = 'v1.2.3'
+                            draft = '{{mode}}' -in @('absent', 'draft') -and -not $global:releaseFixturePublished
+                            immutable = '{{mode}}' -like 'immutable*'
+                            assets = $assets
+                        } | ConvertTo-Json -Depth 5
+                    } elseif ($Arguments[1] -eq 'create') {
+                        $global:releaseFixtureCreated = $true
+                    } elseif ($Arguments[1] -eq 'upload') {
+                        $global:releaseFixtureUploaded = $true
+                    } elseif ($Arguments[1] -eq 'edit') {
+                        $global:releaseFixturePublished = $true
+                    }
+                }
+                try {
+                    & '{{script.Replace("'", "''", StringComparison.Ordinal)}}' -Version 1.2.3 -Repository owner/repo `
+                      -SourceCommit ('a' * 40) -ReleaseCommit ('b' * 40) `
+                      -MetadataPatch metadata.patch -AssetDirectory artifacts -PublishDirectory publish `
+                      -NotesFile metadata.patch -AllowMutableRepair:{{(allowMutableRepair ? "$true" : "$false")}}
+                } finally {
+                    ConvertTo-Json -InputObject @($global:releaseFixtureCalls.ToArray()) | Set-Content calls.json
+                }
+                """);
+            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
+            Assert.True(succeeds == (result.ExitCode == 0), result.CombinedOutput);
+            if (!succeeds)
+            {
+                var expectedError = mode switch
+                {
+                    "missing" or "immutable-missing" => "Published assets are missing",
+                    "mismatch" => "Missing or mismatched GitHub SHA-256 digest",
+                    "api-error" => "GitHub command failed",
+                    _ => throw new InvalidOperationException($"Unexpected failure fixture: {mode}")
+                };
+                Assert.Contains(expectedError, result.CombinedOutput, StringComparison.Ordinal);
+            }
+            var calls = File.ReadAllText(Path.Combine(sandbox, "calls.json"));
+            if (mode is "absent" or "draft")
+            {
+                Assert.Contains("release upload", calls, StringComparison.Ordinal);
+                Assert.Contains("--clobber", calls, StringComparison.Ordinal);
+                Assert.Contains("release edit", calls, StringComparison.Ordinal);
+                if (mode == "absent")
+                {
+                    Assert.Contains("--draft", calls, StringComparison.Ordinal);
+                    Assert.Contains("--verify-tag", calls, StringComparison.Ordinal);
+                }
+            }
+            else
+            {
+                Assert.DoesNotContain("--clobber", calls, StringComparison.Ordinal);
+                Assert.DoesNotContain("release edit", calls, StringComparison.Ordinal);
+                Assert.DoesNotContain("release create", calls, StringComparison.Ordinal);
+                if (mode == "missing" && succeeds)
+                {
+                    Assert.Contains("release upload", calls, StringComparison.Ordinal);
+                }
+                else
+                {
+                    Assert.DoesNotContain("release upload", calls, StringComparison.Ordinal);
+                }
+            }
+            if (succeeds)
+            {
+                using var inputs = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox, "publish", "RELEASE-INPUTS.json")));
+                Assert.Equal(".github/workflows/release.yml", inputs.RootElement.GetProperty("workflowPath").GetString());
+                Assert.Equal(new string('a', 40), inputs.RootElement.GetProperty("sourceCommit").GetString());
+                Assert.Equal(new string('b', 40), inputs.RootElement.GetProperty("releaseCommit").GetString());
+                Assert.Equal("v1.2.3", inputs.RootElement.GetProperty("tag").GetString());
+                Assert.Equal("build-input-record-not-attestation", inputs.RootElement.GetProperty("kind").GetString());
+                Assert.Equal(
+                    Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(sandbox, "metadata.patch")))),
+                    inputs.RootElement.GetProperty("metadataPatchSha256").GetString());
+                Assert.Equal(7, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
+                foreach (var artifact in inputs.RootElement.GetProperty("artifacts").EnumerateArray())
+                {
+                    var name = artifact.GetProperty("name").GetString()!;
+                    Assert.Equal(
+                        Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(artifacts, name)))),
+                        artifact.GetProperty("sha256").GetString());
+                }
+                var checksumLines = File.ReadAllLines(Path.Combine(sandbox, "publish", "SHA256SUMS"));
+                Assert.Equal(9, checksumLines.Length);
+                foreach (var line in checksumLines)
+                {
+                    var parts = line.Split("  ", StringSplitOptions.None);
+                    Assert.Equal(2, parts.Length);
+                    Assert.Equal(
+                        Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(sandbox, "publish", parts[1])))),
+                        parts[0]);
+                }
+            }
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
 
     [Fact]
     [Trait("Feature", "ReleaseMetadata")]
@@ -925,7 +1084,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("gh-pages", "hooks.py"),
             Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
             Path.Combine(".github", "plugins", "excel-cli", "README.md"),
-            Path.Combine("artifacts", "generated-skills", "excel-mcp", "SKILL.md"),
+            Path.Combine("artifacts", "generated-skills", "excel-mcp-report-formatting", "SKILL.md"),
             Path.Combine("docs", "INSTALLATION-CLI.md"),
             Path.Combine("docs", "guides", "EXCEL-COM-VS-FILE-PARSERS.md"),
             Path.Combine("docs", "COPILOT-PLUGIN-DISTRIBUTION.md"),

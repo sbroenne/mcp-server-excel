@@ -26,7 +26,7 @@ ExcelMcp includes several security measures:
 
 - **Enhanced Security Rules**: CA2100, CA3003, CA3006, CA5389, CA5390, CA5394 enforced as errors
 - **Treat Warnings as Errors**: All code quality issues must be resolved
-- **CodeQL Scanning**: C#, JavaScript/TypeScript, Python, and GitHub Actions scanning on pull requests to `main`, pushes to `main`, merge groups, and a weekly schedule
+- **CodeQL Scanning**: Changed C#, JavaScript/TypeScript, Python, and GitHub Actions areas on pull requests to `main`; all four languages on pushes to `main`, merge groups, and a weekly schedule
 
 ### COM Security
 
@@ -75,7 +75,7 @@ The [CodeQL workflow](https://github.com/sbroenne/mcp-server-excel/blob/main/.gi
 
 - C# uses a manual Release solution build on Windows with the SDK from `global.json`. This includes source-generated Service, CLI, and MCP code. Excel is not needed for scanning; the workflow does not run COM tests.
 - JavaScript/TypeScript, Python, and Actions use separate no-build scans on Linux, covering the extension, tooling, website code, and workflows.
-- There are no workflow path filters, so documentation-only pull requests also receive security checks. The weekly scan detects newly supported issues even when code has not changed.
+- There are no workflow-level path filters. PRs scan only selected changed languages; `CodeQL Completion` verifies detection and selected analyses, accepting an analysis skip only when no language changed. The weekly scan covers all languages and detects newly supported issues even when code has not changed.
 - Actions are pinned to full commit SHAs and kept current by the existing GitHub Actions Dependabot updates. Only analysis jobs receive `security-events: write`; checkout does not persist credentials. Contributor code runs under `pull_request`, never `pull_request_target`.
 - Results upload directly to GitHub code scanning, without a second downloadable SARIF artifact. Review findings in the repository's Security tab.
 
@@ -98,9 +98,9 @@ C# manual-build coverage is determined by the build, not `paths`/`paths-ignore`.
 
 Workflow files **do not enforce repository settings**. An administrator must verify and maintain the following separately:
 
-1. **Settings → Code security → Code scanning:** use **advanced setup**, with default setup disabled. Do not enable both. After changing languages, confirm successful analyses for all four categories: `/language:csharp`, `/language:javascript-typescript`, `/language:python`, and `/language:actions`, on both `main` and a pull request.
+1. **Settings → Code security → Code scanning:** use **advanced setup**, with default setup disabled. Do not enable both. After changing languages, confirm all four categories on `main` and the selected categories on representative pull requests.
 2. **Settings → Rules → Rulesets → main:** keep the ruleset active and retain existing CI requirements. Add **Require code scanning results → CodeQL**, with **Security alerts: High or higher** and **Alerts: Errors** as the starting policy. This blocks qualifying new findings and missing/in-progress analysis; it is not a gate on every historical alert.
-3. Require the four **Analyze Code with CodeQL (...)** job status checks and **dependency-review**, selecting GitHub Actions as the expected source, after successful runs make them available. This also blocks workflow execution failures. Keep `CI Gate` and `Docs Site` required. If enabling a merge queue, ensure every required workflow supports `merge_group`; the CodeQL workflow already does, but code scanning rulesets themselves do not apply to merge queue groups.
+3. After successful PR runs and separate administrator approval, require **CodeQL Completion**, **Verify changeset present**, and **dependency-review**, selecting GitHub Actions as the expected source. Do not require four individual language jobs: selective PR analysis intentionally omits some. Keep `CI Gate` and `Docs Site` required. If enabling a merge queue later, first ensure every required workflow supports `merge_group`; the CodeQL workflow already does, but code scanning rulesets themselves do not apply to merge queue groups.
 4. Set the **Code scanning pull request check** failure threshold consistently with the ruleset. A successful analysis/upload job does **not** mean no vulnerabilities were found. `security-policy`, `minimum-severity`, `fail-on-severity`, and license checks are not supported CodeQL configuration controls; dependency/license enforcement belongs in Dependency Review.
 5. **Settings → Actions → General:** use read-only default workflow permissions, keep permission to create/approve pull requests disabled unless specifically needed, and require approval for outside-contributor workflows. Do not send secrets or write tokens to untrusted fork runs. Before enforcing SHA pinning repository-wide, migrate the remaining workflows; pinning the CodeQL workflow alone is not sufficient.
 6. **Settings → Code security:** verify the dependency graph, Dependabot alerts and security updates, secret scanning and push protection, and private vulnerability reporting are enabled where available. Dependabot's version-update YAML does not prove these repository features are enabled.
@@ -128,11 +128,8 @@ Report security vulnerabilities using one of these methods:
 2. Click "Report a vulnerability"
 3. Fill out the advisory form with detailed information
 
-**Alternative: GitHub Direct Message**
-
-Contact the maintainer via GitHub: [@sbroenne](https://github.com/sbroenne)
-
-Subject: `[SECURITY] ExcelMcp Vulnerability Report`
+Do not use public issues, PRs, or profile comments for confidential reports.
+GitHub does not provide a general private direct-message channel.
 
 ### 3. Information to Include
 
@@ -147,11 +144,11 @@ Please provide as much information as possible:
 Example:
 
 ```
-Vulnerability: Path traversal in file operations
-Impact: Attacker could read/write files outside intended directory
-Affected Versions: 1.0.0 - 1.0.2
-PoC: excelcli powerquery view --file "../../../etc/passwd" --query-name "Sales"
-Suggested Fix: Validate resolved paths are within allowed directories
+Vulnerability: [describe the suspected defect, without assuming ordinary path access is a sandbox bypass]
+Impact: [capability beyond the documented current-user Excel automation boundary]
+Affected Versions: [exact versions]
+PoC: [minimal reproduction with synthetic, non-confidential data]
+Suggested Fix: [optional]
 ```
 
 ### 4. What to Expect

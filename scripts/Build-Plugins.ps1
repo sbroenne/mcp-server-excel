@@ -324,8 +324,8 @@ Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputMcp "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
 Write-Host "  Synchronizing complete excel-mcp skill directory..." -ForegroundColor Cyan
-$SourceSkillMcp = Join-Path $SkillsDir "excel-mcp"
-$DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp"
+$SourceSkillMcp = Join-Path $SkillsDir "excel-mcp-report-formatting"
+$DestSkillMcp = Join-Path $OutputMcp "skills\excel-mcp-report-formatting"
 Copy-AgentSkill -SourceDir $SourceSkillMcp -DestinationDir $DestSkillMcp -Version $Version
 
 # =============================================================================
@@ -360,8 +360,8 @@ Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
 Write-Host "  Synchronizing complete excel-cli skill directory..." -ForegroundColor Cyan
-$SourceSkillCli = Join-Path $SkillsDir "excel-cli"
-$DestSkillCli = Join-Path $OutputCli "skills\excel-cli"
+$SourceSkillCli = Join-Path $SkillsDir "excel-cli-report-formatting"
+$DestSkillCli = Join-Path $OutputCli "skills\excel-cli-report-formatting"
 Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Version $Version
 
 Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version

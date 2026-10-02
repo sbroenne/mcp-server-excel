@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose an Excel workflow with a clear expected outcome.
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and use case
+      description: Who needs this, and what cannot be done with the current behavior?
+    validations:
+      required: true
+  - type: dropdown
+    id: entry-point
+    attributes:
+      label: Entry points
+      description: Excel workbook operations normally need equivalent CLI and MCP behavior.
+      options: ["Both CLI and MCP", "CLI adapter only", "MCP adapter only", "Documentation or tooling"]
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed behavior and scope
+      description: Desired outcome, constraints, and what is out of scope. Optional syntax should use excelcli or actual MCP tool/action names.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Concrete results that establish success, including workbook state and errors where relevant. This also helps a coding agent implement the request.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and examples
+      description: Existing workarounds and synthetic examples. Do not include private data.

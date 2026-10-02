@@ -69,10 +69,10 @@ Use this order to avoid setup confusion:
    - With VS Code's default settings, the bundled **excel-mcp** server starts
      automatically when your request needs Excel tools. Approve server or
      tool use if prompted.
-   - Copilot can load the bundled `excel-mcp` skill automatically when relevant.
+   - Copilot can load `excel-mcp-report-formatting` for requested report presentation.
      Type `/skills` to open VS Code's Configure Skills menu.
 
-The extension includes a self-contained MCP server and its Excel skill.
+The extension includes a self-contained MCP server and its optional formatting skill.
 No separate .NET, Node.js, CLI, or skill installation is needed. The CLI is
 not included; install it separately if needed. Installing the extension does
 not start an Excel workbook or approve server access for you.
@@ -560,7 +560,7 @@ After installation:
 2. **Explore features:** See the [Feature Reference](../FEATURES.md) for the complete tool list
 3. **Read the guides:**
    - [CLI Installation Guide](INSTALLATION-CLI.md) - for scripting, RPA, and CI/CD
-   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp) - cross-platform AI guidance
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp-report-formatting) - cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**

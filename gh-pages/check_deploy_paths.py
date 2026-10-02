@@ -38,7 +38,7 @@ def mirrored_sources() -> set[str]:
     sources: set[str] = set()
     sources.update(hooks.FEATURE_SOURCES.values())
     sources.update(hooks.GUIDE_SOURCES.values())
-    sources.update(f"skills/shared/{name}" for name in hooks.SKILL_SOURCES)
+    sources.update(f"docs/reference/{name}" for name in hooks.REFERENCE_SOURCES)
     sources.update(_READ_CALL.findall((GH_PAGES / "hooks.py").read_text(encoding="utf-8")))
     return sources
 

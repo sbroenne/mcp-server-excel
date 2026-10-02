@@ -24,25 +24,35 @@ jobs:
   changeset-check:
     name: Verify changeset present
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
     steps:
+      - name: Record intentional changelog exemption
+        if: contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+        run: echo 'skip-changelog exempts this PR from a changeset; the check remains observable.'
+
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
 
       - name: Install changesets CLI
-        run: npm install --no-save
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: npm ci
 
       - name: Check for a changeset
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set +e
-          npx changeset status --since=origin/${{ github.event.pull_request.base.ref }}
+          npx --no-install changeset status --since="origin/$BASE_REF"
           STATUS=$?
           set -e
           if [ $STATUS -ne 0 ]; then

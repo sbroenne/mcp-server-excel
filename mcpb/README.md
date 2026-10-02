@@ -147,6 +147,6 @@ See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - [Feature Reference](https://excelmcpserver.dev/features/)
-- [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md) - Cross-platform AI guidance
+- [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/AGENT-SKILLS.md) - Cross-platform AI guidance
 - [Privacy Policy](https://excelmcpserver.dev/privacy/)
 - [License (MIT)](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)

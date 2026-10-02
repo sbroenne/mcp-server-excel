@@ -53,10 +53,11 @@ When you run the release workflow, all components are released together:
 | `@sbroenne/excelcli-win32-arm64@{version}` | npm | npm registry (self-contained native Windows ARM64 CLI runtime) |
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
-| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers both Windows runtime ZIPs and the prepared plugin ZIP) |
+| `SHA256SUMS` | GNU-style SHA-256 manifest (`<hash>  <filename>`) | GitHub Release (covers every GitHub package asset, the metadata patch, and build-input record) |
+| `RELEASE-INPUTS.json` and `release-metadata.patch` | Build-input record and exact metadata patch | GitHub Release (workflow path/source commit, patch digest, final release commit/tag, and artifact digests; not a signed provenance attestation) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
-| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
+| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli-report-formatting` + `excel-mcp-report-formatting` skills for direct extraction) |
 | `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
 | `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; self-contained native ARM64 MCP executable and skill) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop metadata bundle; server fetched through npx with `@latest`) |
@@ -108,7 +109,7 @@ The release shares prepared inputs instead of repeating builds in each package j
 2. **prepare-release** → Compiles changesets once and uploads the exact metadata patch and notes
 3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, skill and plugin outputs. ARM64 archives are checked here; `verify-arm64` then installs and executes both prepared npm distributions on native Windows ARM64 before tag creation.
 4. **create-tag** → Applies the same patch, checks that `main` has not advanced, commits only allowed release metadata, then tags that commit
-5. **create-release** → Publishes GitHub assets, checksums and prepared notes
+5. **create-release** → Prepares a draft, uploads and verifies all GitHub assets and checksums, then publishes it with prepared notes
 6. **publish** → Publishes npm and NuGet packages
 7. **publish-vscode** → Publishes the already verified VSIX independently
 8. **publish-mcp-registry** → Waits for matching npm/NuGet metadata and registers the release
@@ -116,6 +117,34 @@ The release shares prepared inputs instead of repeating builds in each package j
 
 Registry propagation failures do not suppress plugin publication or GitHub assets.
 Each distribution reports its own result; repair only the failed destination.
+
+### GitHub asset integrity and replay
+
+`scripts\Publish-GitHubRelease.ps1` requires all seven prepared GitHub package
+assets before creating a draft. It includes the exact metadata patch and
+`RELEASE-INPUTS.json`, then calculates checksums for the complete payload.
+Only draft assets may be replaced. Before publishing, every expected GitHub
+asset digest must match; unexpected draft assets block publication.
+
+Replaying an already published release verifies matching assets and does not
+replace them or edit notes. Missing or mismatched immutable assets fail visibly.
+Older mutable releases are a separate repair case: explicitly authorized
+`-AllowMutableRepair` may upload missing assets only, never replace mismatched
+ones. It is not enabled by the normal release workflow. No tags are rewritten.
+
+Build inputs are the recorded workflow path at its original source commit
+**plus** the uploaded metadata patch. The final tagged release commit is
+recorded separately; it
+must not be presented as the untouched checkout from which the earlier build
+ran. The record is deterministic for replay and contains artifact names and
+hashes, not private machine paths or credentials.
+
+These checksums and input records are not an SBOM or signed build provenance.
+Standard provenance attestation is deferred until the patched source can be
+represented truthfully and verified, rather than attesting only the original
+workflow SHA. Release immutability is an administrator setting, not enabled by
+this workflow change. See [the rollout checklist](agents/github-rollout.md)
+before enabling it or tightening release-writer permissions.
 
 ### 4. Verify Release
 

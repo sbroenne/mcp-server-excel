@@ -14,7 +14,7 @@ vscode-extension/
 ├── src/extension.ts          # Extension activation and MCP registration
 ├── out/                      # Compiled JavaScript
 ├── bin/                      # Self-contained MCP Server built for packaging
-├── skills/excel-mcp/         # Build copy of the canonical Agent Skill
+├── skills/excel-mcp-report-formatting/ # Build copy of the formatting skill
 ├── scripts/                  # Build-time manifest validation
 ├── tests/                    # Vitest registration and setup regressions
 ├── vitest.config.mts         # Node tests with a test-only VS Code API replacement
@@ -29,7 +29,7 @@ vscode-extension/
 └── icon.png                  # Marketplace icon
 ```
 
-Do not edit files under `vscode-extension/skills/excel-mcp/` directly. The
+Do not edit files under `vscode-extension/skills/excel-mcp-report-formatting/` directly. The
 shared package command copies the prepared MCP skill from
 `artifacts/generated-skills/` into an isolated extension staging directory.
 
@@ -83,9 +83,9 @@ The `chatSkills` contribution registers the packaged skill:
 ```json
 "chatSkills": [
   {
-    "name": "excel-mcp",
-    "description": "Excel MCP Server skill for Windows workbook automation.",
-    "path": "./skills/excel-mcp/SKILL.md"
+    "name": "excel-mcp-report-formatting",
+    "description": "Optional presentation conventions for requested Excel reports.",
+    "path": "./skills/excel-mcp-report-formatting/SKILL.md"
   }
 ]
 ```

@@ -195,7 +195,7 @@ context. Do not replace that context with a second generic error result.
 - **Input validation** - Check file existence and argument validity early
 - **Performance** - reuse sessions and bulk range operations instead of per-cell COM calls
 
-See the [COM pitfalls](../.github/instructions/excel-com-interop.instructions.md)
+See the [COM pitfalls](agents/rules/excel-com-interop.md)
 for application-state, refresh, numeric conversion, and shutdown constraints.
 
 ### Testing
@@ -242,7 +242,7 @@ For changed actions or parameters, compare the Core contract, generated Service
 arguments, CLI options and batch JSON, MCP schema and manual exceptions, tests,
 and shared guidance. Names, defaults, validation, results, and timeout behavior
 must agree. A successful build does not establish that every operation is exposed;
-run the applicable [repository audits](../.github/copilot-instructions.md#build-and-validation).
+run the applicable [repository audits](../AGENTS.md#build-and-validation).
 
 Reproduce the bug in a focused test, observe the failure, fix the owning layer,
 then rerun that test and the smallest related group. Coverage should follow the
@@ -252,7 +252,7 @@ risk, not a fixed number of tests or documentation edits.
 
 Keep entry READMEs focused on their audience: repository acquisition and quick
 start, component installation/use, or Marketplace benefits. Put detailed feature
-behavior in `docs/features/` and shared agent workflows in `skills/shared/`.
+behavior in `docs/features/` and shared agent workflows in `docs/reference/`.
 There is no fixed README length or requirement to edit every README.
 
 Before shortening or moving a page, identify where each substantive caveat,

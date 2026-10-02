@@ -209,10 +209,10 @@ public sealed class AutomationSafetyTests
                 ```
                 '@
                 $newline = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(newline))}}'))
-                [IO.File]::WriteAllText((Join-Path $SharedDir 'workflow.md'), (($document -replace "`r`n?", "`n") -replace "`n", $newline))
+                [IO.File]::WriteAllText((Join-Path $SharedDir 'report-formatting.md'), (($document -replace "`r`n?", "`n") -replace "`n", $newline))
                 foreach ($surface in @('cli', 'mcp')) {
-                    Copy-SharedReferences -SkillPath "excel-$surface" -SkillName "excel-$surface"
-                    $content = Get-Content -LiteralPath "excel-$surface\references\workflow.md" -Raw
+                    Copy-SharedReferences -SkillPath "excel-$surface-report-formatting" -Surface $surface
+                    $content = Get-Content -LiteralPath "excel-$surface-report-formatting\references\report-formatting.md" -Raw
                     if ($content -notmatch 'Shared policy uses sessionId responses.' -or
                         $content -notmatch '\{"mCodeFile":"query.m"\}' -or
                         $content -match '(?m)^```(?:cli|mcp)$') { throw 'Shared content was changed or fences were not rendered.' }

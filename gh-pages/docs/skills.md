@@ -1,6 +1,6 @@
 ---
 title: Agent Skills
-description: Cross-platform AI agent skills for Excel automation — guidance packages auto-installed for 43+ agents including GitHub Copilot, Cursor and Claude.
+description: Optional MCP and CLI formatting skills for requested Excel reports, with installation instructions and evidence about broad skill costs.
 keywords: "Excel agent skills, AI skills, Copilot skills, MCP skills, pytest-skill-engineering"
 ---
 

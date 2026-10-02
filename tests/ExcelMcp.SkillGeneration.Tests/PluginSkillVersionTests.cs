@@ -29,17 +29,38 @@ public sealed class PluginSkillVersionTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "SkillGeneration")]
-    public async Task GenerateSkills_RejectsMissingManifestWithoutWritingOutput()
+    public void PreparedSkills_ContainOnlyScopedFormattingGuidance()
+    {
+        Assert.Equal(
+            ["excel-cli-report-formatting", "excel-mcp-report-formatting"],
+            Directory.GetDirectories(GeneratedAssetsFixture.SkillsDirectory)
+                .Select(path => new DirectoryInfo(path).Name).Order(StringComparer.Ordinal).ToArray());
+        foreach (var skill in Directory.GetDirectories(GeneratedAssetsFixture.SkillsDirectory))
+        {
+            Assert.Equal(
+                ["report-formatting.md"],
+                Directory.GetFiles(Path.Combine(skill, "references"))
+                    .Select(path => new FileInfo(path).Name).Order(StringComparer.Ordinal).ToArray());
+            Assert.Contains("name: " + Path.GetFileName(skill), File.ReadAllText(Path.Combine(skill, "SKILL.md")), StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(RepoRoot, "docs", "reference", "powerquery.md")));
+            Assert.False(Directory.Exists(Path.Combine(RepoRoot, "skills", "shared")));
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "SkillGeneration")]
+    public async Task GenerateSkills_RejectsSourceOutputWithoutChangingSources()
     {
         var sandbox = CreateSandbox("missing-manifest");
         try
         {
-            var output = Path.Combine(sandbox, "output");
+            var output = Path.Combine(RepoRoot, "skills");
             var result = await RunPowerShellFileAsync(BuildAgentSkillsScript,
-                ["-GenerateOnly", "-ManifestPath", Path.Combine(sandbox, "missing.cs"), "-OutputDir", output]);
+                ["-GenerateOnly", "-OutputDir", output]);
             Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("Required manifest", result.CombinedOutput, StringComparison.Ordinal);
-            Assert.False(Directory.Exists(output));
+            Assert.Contains("Unsafe package output directory", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(output, "excel-mcp-report-formatting", "SKILL.md")));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -98,7 +119,7 @@ public sealed class PluginSkillVersionTests
     public void CanonicalSkillSources_DoNotContainGeneratedVersionFiles()
     {
         var versionFiles = Directory
-            .GetDirectories(Path.Combine(RepoRoot, "skills", "assets"), "excel-*")
+            .GetDirectories(Path.Combine(RepoRoot, "skills"), "excel-*")
             .Select(skillDirectory => Path.Combine(skillDirectory, "VERSION"));
 
         Assert.All(
@@ -182,7 +203,7 @@ public sealed class PluginSkillVersionTests
                 .ToList();
 
             Assert.Equal(
-                ["skills/excel-cli/VERSION", "skills/excel-mcp/VERSION"],
+                ["skills/excel-cli-report-formatting/VERSION", "skills/excel-mcp-report-formatting/VERSION"],
                 versionEntries.Select(entry => entry.FullName).ToArray());
 
             foreach (var entry in versionEntries)

@@ -8,17 +8,32 @@ from pathlib import Path
 from typing import Any
 
 
-def read_saved_workbook(path: str, source_range: str = "A1:E9") -> dict[str, Any]:
+def read_saved_workbook(
+    path: str, source_range: str = "A1:E9", *, include_analysis: bool = False,
+    use_used_range: bool = False, recalculate: bool = False,
+    probe_changes: list[dict[str, Any]] | None = None,
+    include_presentation: bool = False,
+) -> dict[str, Any]:
     workbook = Path(path)
     assert workbook.is_file(), f"Workbook was not saved: {workbook}"
-    inspected = subprocess.run(
-        [
-            "pwsh", "-NoProfile", "-File",
-            str(Path(__file__).with_name("Inspect-SavedWorkbook.ps1")),
-            "-Path", str(workbook.resolve()), "-SourceRange", source_range,
-        ],
-        capture_output=True, text=True, encoding="utf-8", timeout=180, check=True,
-    )
+    command = [
+        "pwsh", "-NoProfile", "-File",
+        str(Path(__file__).with_name("Inspect-SavedWorkbook.ps1")),
+        "-Path", str(workbook.resolve()), "-SourceRange", source_range,
+        *(["-IncludeAnalysis"] if include_analysis else []),
+        *(["-IncludePresentation"] if include_presentation else []),
+        *(["-UseUsedRange"] if use_used_range else []),
+        *(["-Recalculate"] if recalculate else []),
+        *(["-ProbeChangesJson", json.dumps(probe_changes)] if probe_changes is not None else []),
+    ]
+    try:
+        inspected = subprocess.run(
+            command, capture_output=True, text=True, encoding="utf-8", timeout=180, check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        if "InspectionLimitExceeded:" in (error.stderr or ""):
+            raise AssertionError("Saved workbook exceeds the 10000-cell inspection limit") from error
+        raise
     return json.loads(inspected.stdout)
 
 

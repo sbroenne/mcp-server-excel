@@ -23,10 +23,10 @@ plugins/
 ├── excel-mcp/
 │   ├── plugin.json
 │   ├── mcp.json
-│   └── skills/excel-mcp/SKILL.md
+│   └── skills/excel-mcp-report-formatting/SKILL.md
 └── excel-cli/
     ├── plugin.json
-    └── skills/excel-cli/SKILL.md
+    └── skills/excel-cli-report-formatting/SKILL.md
 ```
 
 The canonical marketplace manifest lives at `.github/plugin/marketplace.json`. The `plugins/` directory contains Agent Plugins 1.0 packages generated from source-owned templates by the source repo's `publish-plugins.yml` workflow.
