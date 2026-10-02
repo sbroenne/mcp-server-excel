@@ -36,6 +36,7 @@
     "mcp": 23.4,
     "cli": 72.4
   },
+  "token_comparison_exclusions": {},
   "cases": [
     {
       "task": "model-refresh",
@@ -422,7 +423,7 @@
       "skill_read": false
     }
   ],
-  "usage_scope": "Verified completed cases only. Interrupted usage is unknown, not zero.",
+  "usage_scope": "Verified completed cases only. Interrupted usage is unknown, not zero. Percentages require matching verified task/repetition sets.",
   "model": "gpt-6.1-sol",
   "packages": {
     "pytest-skill-engineering": "1.0.3",

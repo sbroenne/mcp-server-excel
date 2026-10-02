@@ -32,6 +32,11 @@ cross resumed invocations and a recorder-code change. One capable model and two
 repetitions cannot establish universal skill value, and equal success leaves no
 correctness difference to measure.
 
+Skill-read counts include only calls explicitly marked successful. Token
+percentages require the same verified `(task, repetition)` cases in both
+conditions, complete recorded usage, and a nonzero baseline. Otherwise the
+receipt omits that percentage and explains why in `token_comparison_exclusions`.
+
 ## Setup
 
 Live evaluations require Windows, desktop Excel, the SDK selected by

@@ -33,12 +33,19 @@ try {
     $result = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Close-OwnedWorkbook.ps1') -Path $ownedPath | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Owned cleanup failed.' }
     if ($result.closed -ne 1 -or $books.Count -ne 1) { throw 'Owned cleanup did not preserve the peer workbook.' }
-    $remaining = Track-Com ($books.Item(1))
+    $remaining = $peer
     if ($remaining.FullName -ne $peerPath) { throw 'Cleanup closed the wrong workbook.' }
     if ((Get-FileHash -LiteralPath $ownedPath).Hash -ne $before) { throw 'Cleanup saved unauthorized changes.' }
     $again = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Close-OwnedWorkbook.ps1') -Path $ownedPath | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Repeated cleanup failed.' }
     if ($again.matched -ne 0 -or $books.Count -ne 1) { throw 'Repeated cleanup touched another workbook.' }
+    for ($i = 0; $i -lt $references.Count; $i++) {
+        for ($j = $i + 1; $j -lt $references.Count; $j++) {
+            if ([object]::ReferenceEquals($references[$i], $references[$j])) {
+                throw 'Cleanup tracked the same COM wrapper more than once.'
+            }
+        }
+    }
     $peer.Close($false)
     $peer = $null
     $excel.Quit()

@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Any
 
 
+def _skill_was_read(record: dict[str, Any]) -> bool:
+    return any(read.get("success") is True for read in record.get("skill_reads", []))
+
+
 def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
     groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     seen: set[tuple[str, str, str, int]] = set()
@@ -23,7 +27,7 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         groups[(record["transport"], record["condition"])].append(record)
         cases.append({
             "task": key[0], "transport": key[1], "condition": key[2], "repetition": key[3],
-            "tokens": record.get("tokens"), "skill_read": bool(record.get("skill_reads")),
+            "tokens": record.get("tokens"), "skill_read": _skill_was_read(record),
         })
     rows = []
     for (transport, condition), completed in sorted(groups.items()):
@@ -31,20 +35,46 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         rows.append({
             "transport": transport, "condition": condition, "verified": len(completed),
             "recorded_tokens": sum(tokens) if all(value is not None for value in tokens) else None,
-            "skill_reads": sum(bool(record.get("skill_reads")) for record in completed),
+            "skill_reads": sum(_skill_was_read(record) for record in completed),
         })
     effects = {}
+    exclusions = {}
     for transport in ("mcp", "cli"):
         baseline = next((row for row in rows if row["transport"] == transport and row["condition"] == "without-skill"), None)
         treatment = next((row for row in rows if row["transport"] == transport and row["condition"] == "with-skill"), None)
-        if baseline and treatment and baseline["recorded_tokens"] and treatment["recorded_tokens"] is not None:
-            effects[transport] = round(100 * (treatment["recorded_tokens"] / baseline["recorded_tokens"] - 1), 1)
+        if baseline is None and treatment is None:
+            continue
+        if baseline is None or treatment is None:
+            exclusions[transport] = "Both conditions need verified cases."
+            continue
+        baseline_cases = {
+            (record["task"], record["repetition"])
+            for record in groups[(transport, "without-skill")]
+        }
+        treatment_cases = {
+            (record["task"], record["repetition"])
+            for record in groups[(transport, "with-skill")]
+        }
+        if baseline_cases != treatment_cases:
+            exclusions[transport] = "Verified task/repetition sets differ between conditions."
+            continue
+        if baseline["recorded_tokens"] is None or treatment["recorded_tokens"] is None:
+            exclusions[transport] = "Recorded usage is missing in at least one condition."
+            continue
+        if baseline["recorded_tokens"] == 0:
+            exclusions[transport] = "Baseline recorded usage is zero; a percentage is undefined."
+            continue
+        effects[transport] = round(100 * (treatment["recorded_tokens"] / baseline["recorded_tokens"] - 1), 1)
     return {
         "reserved_attempts": len(records), "verified_cases": len(seen),
         "incomplete_or_unverified_attempts": len(records) - len(seen),
         "groups": rows, "token_increase_percent": effects,
+        "token_comparison_exclusions": exclusions,
         "cases": sorted(cases, key=lambda row: (row["task"], row["transport"], row["condition"], row["repetition"])),
-        "usage_scope": "Verified completed cases only. Interrupted usage is unknown, not zero.",
+        "usage_scope": (
+            "Verified completed cases only. Interrupted usage is unknown, not zero. "
+            "Percentages require matching verified task/repetition sets."
+        ),
     }
 
 
