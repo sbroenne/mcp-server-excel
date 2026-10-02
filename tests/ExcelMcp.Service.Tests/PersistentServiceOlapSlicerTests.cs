@@ -190,6 +190,130 @@ public sealed class PersistentServiceOlapSlicerTests(
         var missing = _slicers.SetSlicerSelection(_fixture.BatchToken, "MissingSlicer", [Captions[0]]);
         Assert.False(missing.Success);
         Assert.Contains("not found", missing.ErrorMessage);
+        AssertSelection([Captions[2]], true, 40, Captions[2]);
+    }
+
+    [Fact]
+    public async Task Selection_DataModel_SaveCloseReopenPreservesFilterAndRemainsEditable()
+    {
+        CreateModelSlicer();
+        AssertSelection([Captions[1]], true, 50, Captions[1]);
+
+        await _fixture.SaveAndReopenAsync();
+
+        var listed = _slicers.ListSlicers(_fixture.BatchToken, "SlicerPivot");
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(listed.ErrorMessage));
+        var slicer = Assert.Single(listed.Slicers);
+        Assert.Equal("QuarterSlicer", slicer.Name);
+        Assert.Equal(Field, slicer.FieldName);
+        Assert.Equal(Captions, slicer.AvailableItems.Order());
+        Assert.Equal([Captions[1]], slicer.SelectedItems);
+        Assert.Equal(["SlicerPivot"], slicer.ConnectedPivotTables);
+        AssertPivot(50, Captions[1]);
+
+        AssertSelection([Captions[0]], false, 60, Captions[0], Captions[1]);
+        AssertSelection([], false, 100, Captions);
+        AssertSelection([Captions[2]], true, 40, Captions[2]);
+    }
+
+    [Fact]
+    public void Selection_DataModel_SharedCacheFiltersBothConnectedPivots()
+    {
+        CreateModelSlicer();
+        var batch = _fixture.BatchToken;
+        Assert.True(_pivots.CreateFromDataModel(batch, "SlicerSales", Sheet, "G10",
+            "SecondSlicerPivot").Success);
+        var fields = _fixture.CreateCommands<IPivotTableFieldCommands>();
+        Assert.True(fields.AddRowField(batch, "SecondSlicerPivot", Field).Success);
+        Assert.True(fields.AddValueField(batch, "SecondSlicerPivot", "[Measures].[SlicerTotal]").Success);
+
+        // Connection management has no public action; prepare the native shared-cache state.
+        _fixture.ExecuteRawVerification((ctx, ct) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.SlicerCaches? caches = null;
+            Excel.SlicerCache? cache = null;
+            Excel.SlicerPivotTables? connected = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets.Item[Sheet];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item("SecondSlicerPivot");
+                caches = ctx.Book.SlicerCaches;
+                cache = caches.Item[1];
+                connected = cache.PivotTables;
+                ct.ThrowIfCancellationRequested();
+                connected.AddPivotTable(pivot);
+                Assert.Equal(2, connected.Count);
+            }
+            finally
+            {
+                ComUtilities.Release(ref connected);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref caches);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+        AssertPivot(100, Captions);
+        AssertPivotAt(100, "G10:H15", Captions);
+        var filtered = _slicers.SetSlicerSelection(batch, "QuarterSlicer", [Captions[1]]);
+        Assert.True(filtered.Success, filtered.ErrorMessage);
+        Assert.Equal([Captions[1]], filtered.SelectedItems);
+        Assert.Equal(["SecondSlicerPivot", "SlicerPivot"], filtered.ConnectedPivotTables.Order());
+        AssertPivot(50, Captions[1]);
+        AssertPivotAt(50, "G10:H15", Captions[1]);
+
+        var created = _slicers.CreateSlicer(batch, "SecondSlicerPivot", Field,
+            "SecondQuarterSlicer", Sheet, "N10");
+        Assert.True(created.Success, created.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(created.ErrorMessage));
+        Assert.Equal(Captions, created.AvailableItems.Order());
+        Assert.Equal([Captions[1]], created.SelectedItems);
+        Assert.Equal(["SecondSlicerPivot", "SlicerPivot"], created.ConnectedPivotTables.Order());
+        _fixture.ExecuteRawVerification((ctx, _) =>
+        {
+            Excel.SlicerCaches? caches = null;
+            try
+            {
+                caches = ctx.Book.SlicerCaches;
+                Assert.Equal(1, caches.Count);
+            }
+            finally { ComUtilities.Release(ref caches); }
+        });
+        AssertPivot(50, Captions[1]);
+        AssertPivotAt(50, "G10:H15", Captions[1]);
+        foreach (string pivotName in new[] { "SlicerPivot", "SecondSlicerPivot" })
+        {
+            var listed = _slicers.ListSlicers(batch, pivotName);
+            Assert.True(listed.Success, listed.ErrorMessage);
+            Assert.Equal(2, listed.Slicers.Count);
+            Assert.All(listed.Slicers, slicer =>
+            {
+                Assert.Equal(Captions, slicer.AvailableItems.Order());
+                Assert.Equal([Captions[1]], slicer.SelectedItems);
+                Assert.Equal(["SecondSlicerPivot", "SlicerPivot"], slicer.ConnectedPivotTables.Order());
+            });
+        }
+
+        var added = _slicers.SetSlicerSelection(batch, "SecondQuarterSlicer", [Captions[0]], false);
+        Assert.True(added.Success, added.ErrorMessage);
+        Assert.Equal([Captions[0], Captions[1]], added.SelectedItems.Order());
+        AssertPivot(60, Captions[0], Captions[1]);
+        AssertPivotAt(60, "G10:H15", Captions[0], Captions[1]);
+        var cleared = _slicers.SetSlicerSelection(batch, "QuarterSlicer", [], false);
+        Assert.True(cleared.Success, cleared.ErrorMessage);
+        Assert.Equal(Captions, cleared.SelectedItems.Order());
+        AssertPivot(100, Captions);
+        AssertPivotAt(100, "G10:H15", Captions);
     }
 
     [Theory]
@@ -198,12 +322,16 @@ public sealed class PersistentServiceOlapSlicerTests(
     public void Create_DataModel_InvalidSourceFailsWithoutReturningEmptySuccess(string pivotName, string field, Type errorType)
     {
         CreateModelSlicer();
+        AssertSelection([Captions[1]], true, 50, Captions[1]);
         Assert.Throws(errorType, () =>
             _slicers.CreateSlicer(_fixture.BatchToken, pivotName, field, "InvalidSlicer", Sheet, "N1"));
         var list = _slicers.ListSlicers(_fixture.BatchToken, "SlicerPivot");
         Assert.True(list.Success, list.ErrorMessage);
-        Assert.Equal(Captions, Assert.Single(list.Slicers).AvailableItems.Order());
-        AssertPivot(100, Captions);
+        var existing = Assert.Single(list.Slicers);
+        Assert.Equal(Captions, existing.AvailableItems.Order());
+        Assert.Equal([Captions[1]], existing.SelectedItems);
+        AssertPivot(50, Captions[1]);
+        AssertSelection([Captions[2]], true, 40, Captions[2]);
     }
 
     [Fact]
@@ -292,14 +420,27 @@ public sealed class PersistentServiceOlapSlicerTests(
     }
 
     private void AssertPivot(double total, params string[] captions)
+        => AssertPivotAt(total, "G1:H6", captions);
+
+    private void AssertPivotAt(double total, string address, params string[] captions)
     {
-        var values = _commands.GetValues(_fixture.BatchToken, Sheet, "G1:H6");
+        var values = _commands.GetValues(_fixture.BatchToken, Sheet, address);
         Assert.True(values.Success, values.ErrorMessage);
         var rows = values.Values.Where(row => row[0] is not null
             && double.TryParse(row[1]?.ToString(), System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out _)).ToList();
         Assert.Equal(captions.Length + 1, rows.Count);
         Assert.Equal(captions.Order(), rows.Take(captions.Length).Select(row => row[0]!.ToString()).Order());
+        foreach (var row in rows.Take(captions.Length))
+        {
+            Assert.Equal(row[0]!.ToString() switch
+            {
+                "2026 Q1" => 10d,
+                "2026 Q2" => 50d,
+                "2026 Q3" => 40d,
+                _ => throw new InvalidOperationException("Unexpected PivotTable caption.")
+            }, Convert.ToDouble(row[1], System.Globalization.CultureInfo.InvariantCulture));
+        }
         Assert.Equal(total, double.Parse(rows[^1][1]!.ToString()!, System.Globalization.CultureInfo.InvariantCulture));
     }
 }
