@@ -1,8 +1,3 @@
----
-applyTo: "src/ExcelMcp.Core/**/*.cs,src/ExcelMcp.ComInterop/**/*.cs"
-excludeAgent: "code-review"
----
-
 # Excel COM pitfalls
 
 - Prefer typed Excel PIAs. Late binding needs a documented PIA/runtime gap;

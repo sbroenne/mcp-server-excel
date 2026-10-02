@@ -22,11 +22,11 @@ Relates to #[issue number]
 - Change 3
 
 ## Testing Performed
-- [ ] If Core/CLI/MCP runtime paths changed: ran `& .\scripts\Test-E2E.ps1` locally and confirmed it completed with no failures or unresolved issues
-- [ ] Excel E2E not applicable because no Core/CLI/MCP runtime path changed
+- [ ] If Core/ComInterop/Service/CLI/MCP runtime paths or their generators changed: ran `& .\scripts\Test-E2E.ps1` locally and confirmed it completed with no failures or unresolved issues
+- [ ] Excel E2E not applicable because only documentation/configuration/Excel-free tooling changed
 - [ ] Ran the relevant feature-specific integration tests and recorded the exact command and result below
 - [ ] Tested manually with various Excel files
-- [ ] Verified Excel process cleanup (no excel.exe remains after 5 seconds)
+- [ ] Verified cleanup of this test's owned Excel sessions without terminating unrelated Excel processes (if applicable)
 - [ ] Tested error conditions (missing files, invalid arguments, etc.)
 - [ ] All existing commands still work
 - [ ] VBA script execution tested (if applicable)
@@ -36,9 +36,8 @@ Relates to #[issue number]
 
 ## Test Commands
 ```powershell
-# Commands used for testing
-ExcelMcp command1 "test.xlsx"
-ExcelMcp command2 "test.xlsx" "param"
+# Record each exact command and its result (passed, failed, or not run with reason).
+# Configuration/docs-only work: record the relevant checks; Excel tests are not required.
 ```
 
 ## Screenshots (if applicable)
@@ -66,7 +65,7 @@ If YES, verify all steps completed:
 - [ ] Appropriate error handling added
 - [ ] Updated help text (if adding new commands)
 - [ ] Updated README.md (if needed)
-- [ ] Follows Excel COM best practices from copilot-instructions.md
+- [ ] Follows AGENTS.md and the applicable COM safety guide
 - [ ] Uses batch API with proper disposal (`using var batch` or `await using var batch`)
 - [ ] Properly handles 1-based Excel indexing
 - [ ] Escapes user input with `.EscapeMarkup()`

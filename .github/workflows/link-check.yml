@@ -27,14 +27,14 @@ jobs:
       issues: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # hooks.py derives sitemap dates from git history. A shallow checkout
           # makes the strict MkDocs build fail before the link check can run.
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.13'
           cache: pip
@@ -74,7 +74,7 @@ jobs:
 
       - name: File an issue when links are broken
         if: failure() && steps.lychee.outcome == 'failure'
-        uses: peter-evans/create-issue-from-file@v6
+        uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6
         with:
           title: "Broken links on excelmcpserver.dev"
           content-filepath: lychee-report.md

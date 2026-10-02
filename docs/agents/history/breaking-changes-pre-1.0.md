@@ -1,5 +1,8 @@
 # Breaking Changes for Pre-1.0 Release
 
+Historical implementation plan, retained for context only. It is not current
+API guidance or a template for new issues.
+
 ## Overview
 
 Implement breaking changes from `MCP-BREAKING-CHANGES-PROPOSAL.md` before the 1.0 release. These changes will improve API clarity, consistency, and developer experience but require updates across ~30-40 files.

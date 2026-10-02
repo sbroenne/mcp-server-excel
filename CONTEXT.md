@@ -46,7 +46,7 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 
 ## Sources of truth
 
-- `.github/copilot-instructions.md` and `.github/instructions/` define coding, testing, COM safety, and release rules.
+- `AGENTS.md`, nested `AGENTS.md` files, and `docs/agents/rules/` define coding, testing, COM safety, and release rules. The standalone review checklist remains in `.github/copilot-instructions.md` for VS Code review compatibility.
 - `docs/ARCHITECTURE.md` explains the public architecture.
 - `specs/` defines feature contracts and intended behavior.
 - `docs/features/` documents user-facing behavior.

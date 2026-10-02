@@ -1,6 +1,6 @@
 # Excel MCP introduction video
 
-Follow the [repository rules](../../.github/copilot-instructions.md). Invoke
+Follow the [repository rules](../../AGENTS.md). Invoke
 `/hyperframes` before changing the composition, then load the relevant skills
 it selects. Framework rules, media treatments, and workflow selection belong
 to those skills, not copied instructions in this project.

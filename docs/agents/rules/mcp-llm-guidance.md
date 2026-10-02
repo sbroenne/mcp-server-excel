@@ -1,8 +1,3 @@
----
-applyTo: "skills/**/*.md,skills/templates/**/*.sbn,src/ExcelMcp.Build.Tasks/**/*.cs,src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.Generators*/**/*.cs,src/ExcelMcp.McpServer/**/*.cs,scripts/Build-AgentSkills.ps1"
-excludeAgent: "code-review"
----
-
 # Agent guidance sources
 
 | Content | Edit here |

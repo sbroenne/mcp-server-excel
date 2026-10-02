@@ -1737,7 +1737,7 @@ This demonstrates how both APIs work together seamlessly!
 - [ ] Build succeeds (CLI commands may be missing functionality temporarily)
 
 **Documentation**:
-- [ ] Copilot instructions updated (.github/instructions/)
+- [ ] Shared agent instructions updated (AGENTS.md and matching task guides)
 - [ ] Core architecture documentation updated
 - [ ] Breaking changes documented
 
