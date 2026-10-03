@@ -81,6 +81,62 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
     }
 
     [Theory]
+    [InlineData("a,b,c", 3, "F2")]
+    [InlineData("a,b,,", 4, "G2")]
+    public async Task TextToColumns_LaterWiderRowsProtectTheCompleteDestination(
+        string laterRow, int width, string protectedCell)
+    {
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:A2", [["x"], [laterRow]]).Success);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, protectedCell, [["protected"]]).Success);
+        var before = ReadNativeView();
+        var rejected = await _fixture.SendForFailureAsync("rangeedit.text-to-columns", new
+        {
+            sheetName = sheet,
+            sourceRange = "A1:A2",
+            destinationCell = "D1",
+            options = new { comma = true }
+        });
+        Assert.False(rejected.Success);
+        Assert.Equal("Conflict", rejected.ErrorCategory);
+        Assert.Contains("$" + protectedCell[0] + "$2", rejected.ErrorMessage);
+        Assert.Equal(before, ReadNativeView());
+        var source = _commands.GetValues(_fixture.BatchToken, sheet, "A1:A2");
+        Assert.True(source.Success, source.ErrorMessage);
+        Assert.Equal("x", source.Values[0][0]);
+        Assert.Equal(laterRow, source.Values[1][0]);
+        var untouched = _commands.GetValues(_fixture.BatchToken, sheet, "D1:G2");
+        Assert.True(untouched.Success, untouched.ErrorMessage);
+        for (int row = 0; row < 2; row++)
+        {
+            for (int column = 0; column < 4; column++)
+            {
+                Assert.Equal(row == 1 && column == width - 1 ? "protected" : null,
+                    untouched.Values[row][column]);
+            }
+        }
+        var response = _fixture.Send("rangeedit.text-to-columns", new
+        {
+            sheetName = sheet,
+            sourceRange = "A1:A2",
+            destinationCell = "D1",
+            options = new { comma = true },
+            overwritePolicy = "allow"
+        });
+        using var result = JsonDocument.Parse(response.Result!);
+        Assert.Equal(width, result.RootElement.GetProperty("outputColumns").GetInt32());
+        Assert.Equal($"$D$1:${protectedCell[0]}$2", result.RootElement.GetProperty("destinationRange").GetString());
+        var parsed = _commands.GetValues(_fixture.BatchToken, sheet, "D1:H2");
+        Assert.True(parsed.Success, parsed.ErrorMessage);
+        Assert.Equal("x", parsed.Values[0][0]);
+        Assert.Equal("a", parsed.Values[1][0]);
+        Assert.Equal("b", parsed.Values[1][1]);
+        Assert.True(width == 3 ? Equals("c", parsed.Values[1][2]) : parsed.Values[1][2] is null or "");
+        Assert.True(width == 3 || parsed.Values[1][3] is null or "");
+        Assert.Null(parsed.Values[1][width]);
+    }
+
+    [Theory]
     [InlineData("x", "x,y,z", 3)]
     [InlineData("x,,", "y,,", 3)]
     [InlineData("\"x,y\",z", "\"a,b\",c", 2)]
