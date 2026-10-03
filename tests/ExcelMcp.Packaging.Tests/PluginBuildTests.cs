@@ -37,10 +37,13 @@ public sealed class PluginBuildTests(ITestOutputHelper output) : PluginTestBase(
             Assert.False(File.Exists(Path.Combine(cliRoot, "bin", "download.ps1")));
             Assert.Empty(Directory.GetFiles(outputDirectory, "install-global.ps1", SearchOption.AllDirectories));
 
+            Assert.True(Directory.Exists(Path.Combine(mcpRoot, "skills", "excel-mcp-report-formatting")),
+                "The MCP plugin must contain its matching report-formatting skill.");
+            Assert.True(Directory.Exists(Path.Combine(cliRoot, "skills", "excel-cli-report-formatting")),
+                "The CLI plugin must contain its matching report-formatting skill.");
             var skills = Directory.GetDirectories(outputDirectory)
                 .Select(plugin => Path.Combine(plugin, "skills"))
                 .SelectMany(Directory.GetDirectories).Order(StringComparer.Ordinal).ToArray();
-            Assert.True(skills.Length >= 2, "Expected at least one skill per plugin.");
             foreach (var skill in skills)
             {
                 AssertSkillDirectoryMatchesSource(
