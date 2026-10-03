@@ -79,6 +79,7 @@ public partial class DataModelCommands
                 }
 
                 model = ctx.Book.Model;
+                var engineFormulas = TryReadStoredMeasureFormulas(model!);
 
                 // Iterate through all measures (they're at model level)
                 ForEachMeasure(model!, (measure, index) =>
@@ -102,11 +103,14 @@ public partial class DataModelCommands
                         return;
                     }
 
-                    string formula = ComUtilities.SafeGetString(measure, "Formula");
+                    string measureName = ComUtilities.SafeGetString(measure, "Name");
+                    string formula = engineFormulas != null && engineFormulas.TryGetValue(measureName, out var stored)
+                        ? stored
+                        : ComUtilities.SafeGetString(measure, "Formula");
 
                     var measureInfo = new DataModelMeasureInfo
                     {
-                        Name = ComUtilities.SafeGetString(measure, "Name"),
+                        Name = measureName,
                         Table = measureTableName,
                         FormulaPreview = formula, // Will be formatted after retrieval
                         Description = ComUtilities.SafeGetString(measure, "Description")
@@ -167,7 +171,11 @@ public partial class DataModelCommands
                 }
 
                 // Get measure details using safe helpers
-                result.DaxFormula = ComUtilities.SafeGetString(measure, "Formula");
+                string storedName = ComUtilities.SafeGetString(measure, "Name");
+                var engineFormulas = TryReadStoredMeasureFormulas(model!);
+                result.DaxFormula = engineFormulas != null && engineFormulas.TryGetValue(storedName, out var stored)
+                    ? stored
+                    : ComUtilities.SafeGetString(measure, "Formula");
                 result.Description = ComUtilities.SafeGetString(measure, "Description");
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = GetMeasureTableName(model!, measureName) ?? "";

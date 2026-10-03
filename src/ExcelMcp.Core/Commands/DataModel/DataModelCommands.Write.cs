@@ -207,9 +207,10 @@ public partial class DataModelCommands
     {
         ValidateMeasureFormatType(formatType);
 
-        string daxToSave = formatDax
+        string formattedDax = formatDax
             ? DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult()
             : daxFormula;
+        string daxToSave = PrepareDaxForExcel(formattedDax, out string? adjustmentMessage);
 
         return ExecuteWithRetry(() =>
         {
@@ -271,7 +272,7 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath, Message = adjustmentMessage };
             });
         });
     }
@@ -284,11 +285,13 @@ public partial class DataModelCommands
         ValidateMeasureFormatType(formatType);
 
         string? daxToSave = null;
+        string? adjustmentMessage = null;
         if (!string.IsNullOrEmpty(daxFormula))
         {
-            daxToSave = formatDax
+            string formattedDax = formatDax
                 ? DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult()
                 : daxFormula;
+            daxToSave = PrepareDaxForExcel(formattedDax, out adjustmentMessage);
         }
 
         return ExecuteWithRetry(() =>
@@ -358,9 +361,29 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath, Message = adjustmentMessage };
             });
         });
+    }
+
+    /// <summary>
+    /// Adds the decimal-comma spacing Excel's measure formula property needs (#978).
+    /// </summary>
+    private static string PrepareDaxForExcel(string dax, out string? adjustmentMessage)
+    {
+        adjustmentMessage = null;
+        if (!DaxNumericCommaSpacer.IsNeededOnThisComputer())
+        {
+            return dax;
+        }
+
+        string spaced = DaxNumericCommaSpacer.AddSpaces(dax);
+        if (!string.Equals(spaced, dax, StringComparison.Ordinal))
+        {
+            adjustmentMessage = DaxNumericCommaSpacer.AdjustmentMessage;
+        }
+
+        return spaced;
     }
 
     /// <inheritdoc />

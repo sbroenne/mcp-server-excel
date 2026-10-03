@@ -96,6 +96,90 @@ public partial class DataModelCommands
     }
 
     /// <summary>
+    /// Reads each measure's stored formula from the Data Model engine catalog.
+    /// </summary>
+    /// <remarks>
+    /// <c>ModelMeasure.Formula</c> returns the formula converted to the Windows number format;
+    /// after a workbook is reopened on a decimal-comma computer it reports <c>1.5</c> as <c>1,5</c>.
+    /// The engine catalog holds the DAX the model actually evaluates. Returns null when the
+    /// catalog cannot be read so callers can fall back to <c>ModelMeasure.Formula</c>.
+    /// </remarks>
+    private static Dictionary<string, string>? TryReadStoredMeasureFormulas(Excel.Model model)
+    {
+        Excel.WorkbookConnection? dataModelConn = null;
+        Excel.ModelConnection? modelConn = null;
+        dynamic? adoConnection = null;
+        dynamic? recordset = null;
+        dynamic? fields = null;
+        dynamic? nameField = null;
+        dynamic? expressionField = null;
+        try
+        {
+            dataModelConn = model.DataModelConnection;
+            modelConn = dataModelConn?.ModelConnection;
+            // ADO has no referenced PIA; the existing evaluate path also uses late binding.
+            adoConnection = modelConn?.ADOConnection;
+            if (adoConnection == null)
+            {
+                return null;
+            }
+
+            recordset = adoConnection.Execute(
+                "SELECT [MEASURE_NAME], [EXPRESSION] FROM $SYSTEM.MDSCHEMA_MEASURES");
+            fields = recordset.Fields;
+            nameField = fields.Item(0);
+            expressionField = fields.Item(1);
+
+            var formulas = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            while (!Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
+            {
+                object? nameValue = nameField.Value;
+                object? expressionValue = expressionField.Value;
+                string? name = nameValue is null or DBNull ? null : Convert.ToString(nameValue, CultureInfo.InvariantCulture);
+                string? expression = expressionValue is null or DBNull ? null : Convert.ToString(expressionValue, CultureInfo.InvariantCulture);
+                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(expression))
+                {
+                    formulas.TryAdd(name, expression);
+                }
+
+                recordset.MoveNext();
+            }
+
+            return formulas;
+        }
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException or InvalidCastException or FormatException)
+        {
+            return null;
+        }
+        finally
+        {
+            if (recordset != null)
+            {
+                try
+                {
+                    // 1 = adStateOpen
+                    if (Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) == 1)
+                    {
+                        recordset.Close();
+                    }
+                }
+                catch (Exception ex) when (ex is COMException or RuntimeBinderException)
+                {
+                    // Closing a finished recordset is best effort.
+                }
+            }
+
+            ComUtilities.Release(ref expressionField);
+            ComUtilities.Release(ref nameField);
+            ComUtilities.Release(ref fields);
+            ComUtilities.Release(ref recordset);
+            ComUtilities.Release(ref adoConnection);
+            ComUtilities.Release(ref modelConn);
+            ComUtilities.Release(ref dataModelConn);
+        }
+    }
+
+    /// <summary>
     /// Gets all measure names from the Data Model
     /// </summary>
     /// <param name="model">Model COM object</param>
