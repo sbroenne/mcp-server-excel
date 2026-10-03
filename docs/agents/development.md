@@ -47,7 +47,8 @@ precedence rules to it. A Markdown link is not an automatic file import.
 
 Instructions guide behavior; they do not enforce permissions or prove adherence.
 The checks above inspect loading, not task quality. Shared
-[review checks](review.md) apply when requesting a coding-agent review.
+[review checks](../../AGENTS.md#code-review-rules) are included directly in
+AGENTS.md so reviews do not depend on opening another document.
 
 ## Windows setup
 

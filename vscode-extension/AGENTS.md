@@ -1,7 +1,7 @@
 # Extension constraints
 
 Follow the [repository rules](../AGENTS.md). These are implementation
-instructions; review tasks use the [shared review checks](../docs/agents/review.md).
+instructions; review tasks use the root [Code Review Rules](../AGENTS.md#code-review-rules).
 Excel usage guidance comes from native MCP descriptions and repository docs.
 The optional report-formatting skill is authored under `skills`; do not maintain
 a separate tool reference in this extension.

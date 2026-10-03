@@ -1,7 +1,7 @@
 # LLM evaluations
 
 Follow the [repository rules](../AGENTS.md). These are implementation and
-evaluation instructions; review tasks use the [shared review checks](../docs/agents/review.md).
+evaluation instructions; review tasks use the root [Code Review Rules](../AGENTS.md#code-review-rules).
 
 These Python evaluations are on-demand only, outside the normal development
 lifecycle. Follow the

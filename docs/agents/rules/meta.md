@@ -11,9 +11,10 @@
   not as assumptions that every nested file or Markdown link is auto-loaded.
 - Scope includes owning generators/templates. Link nested extension guidance
   from the root so it is discoverable.
-- Distinguish implementation tasks from review tasks explicitly. Shared
-  review checks belong in `docs/agents/review.md`; do not maintain a separate
-  instruction set for an unused review client.
+- Distinguish implementation tasks from review tasks explicitly. Keep review
+  checks directly in root `AGENTS.md` under `Code Review Rules`, so loading the
+  shared instructions includes the checks without following a link. Do not
+  maintain a second checklist for an unused review client.
 - Audit rules against source, executable checks, and vendor documentation.
   Correct or remove stale rules; code violating a rule is not by itself proof
   that the rule is obsolete. Preserve valid safeguards and update inbound links.
