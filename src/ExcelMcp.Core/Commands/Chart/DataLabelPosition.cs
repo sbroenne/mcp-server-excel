@@ -31,10 +31,6 @@ public enum DataLabelPosition
     InsideEnd = 3,
 
     /// <summary>Outside end of bar/column (xlLabelPositionOutsideEnd)</summary>
-    OutsideEnd = 2,
-
-    /// <summary>Mixed positions (read-only)</summary>
-    Mixed = 6
+    OutsideEnd = 2
 }
-
 

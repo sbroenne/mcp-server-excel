@@ -83,6 +83,14 @@ Saving remains explicit.
 
 ## Number formats and layout
 
+For MCP `range_format` action `validate-range` and CLI
+`excelcli rangeformat validate-range`, invalid `validation_type` /
+`--validation-type`, `validation_operator` / `--validation-operator`, and
+`error_style` / `--error-style` inputs fail before deleting an existing rule.
+An accepted replacement removes the old rule before Excel applies the new one;
+a later Excel error, such as a rejected formula, has no rollback guarantee.
+Inspect the result and use `get-validation` to check the resulting rule.
+
 | Meaning | US format code |
 |---------|----------------|
 | Number | `#,##0.00` |

@@ -68,6 +68,49 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task LabelPositionDiscovery_AdvertisesOnlyWritablePositions()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "chart_config").JsonSchema
+            .GetProperty("properties").GetProperty("label_position").GetProperty("description").GetString();
+        Assert.NotNull(description);
+        foreach (var name in new[] { "BestFit", "Center", "Above", "Below", "Left", "Right", "InsideBase", "InsideEnd", "OutsideEnd" })
+        {
+            Assert.Matches($@"\b{Regex.Escape(name)}\b", description);
+        }
+        Assert.DoesNotContain("Mixed", description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("powerquery", "queryName", "query_name")]
+    [InlineData("slicer", "slicerName", "slicer_name")]
+    [InlineData("slicer", "destinationSheet", "destination_sheet")]
+    [InlineData("slicer", "selectedItems", "selected_items")]
+    [InlineData("slicer", "clearFirst", "clear_first")]
+    public async Task RecoveryDescriptions_UseActualSdkInputNames(
+        string toolName, string sourceName, string inputName)
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var tool = tools.Single(t => t.Name == toolName);
+        Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty(inputName, out _));
+        Assert.Contains(inputName, tool.Description);
+        Assert.DoesNotContain(sourceName, tool.Description);
+    }
+
+    [Fact]
+    public async Task PercentageLabelDescription_DoesNotPromiseHarmlessUnsupportedWrites()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "chart_config").JsonSchema
+            .GetProperty("properties").GetProperty("show_percentage").GetProperty("description").GetString();
+        Assert.NotNull(description);
+        Assert.DoesNotContain("no visual effect", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pie", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("doughnut", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("reject", description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task AxisSelectorDescription_DoesNotExcludeAcceptedLegacyAliases()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
@@ -77,6 +120,18 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Contains("Secondary=Value", description);
         Assert.Contains("both use the primary axis group", description, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("legacy", description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MeasureFormatDescription_ExplainsFailureInsteadOfGeneralSubstitution()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "datamodel").JsonSchema
+            .GetProperty("properties").GetProperty("format_type").GetProperty("description").GetString();
+        Assert.NotNull(description);
+        Assert.Contains("not substituted", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("General", description);
+        Assert.Contains("keeps the existing format", description, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

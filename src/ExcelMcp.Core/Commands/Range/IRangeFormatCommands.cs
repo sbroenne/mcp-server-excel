@@ -159,6 +159,8 @@ public interface IRangeFormatCommands
 
     /// <summary>
     /// Adds data validation rules to range.
+    /// Invalid type, comparison operator, and error style are rejected before replacing an existing rule.
+    /// A later Excel error applying the replacement is not rolled back.
     /// Excel COM: Range.Validation.Add()
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>

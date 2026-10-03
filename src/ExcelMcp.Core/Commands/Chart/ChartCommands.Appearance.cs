@@ -411,7 +411,7 @@ public partial class ChartCommands
                             when (ex.HResult == unchecked((int)0x800A03EC))
                         {
                             throw new InvalidOperationException(
-                                $"ShowPercentage is not supported for this chart type. " +
+                                "Excel rejected the percentage-label setting. " +
                                 "Use show_percentage only with pie or doughnut chart types.", ex);
                         }
                     }

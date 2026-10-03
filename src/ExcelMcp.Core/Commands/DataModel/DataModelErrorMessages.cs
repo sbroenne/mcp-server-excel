@@ -47,6 +47,12 @@ public static class DataModelErrorMessages
     }
 
     /// <summary>
+    /// Error message for a model-level refresh failure.
+    /// </summary>
+    public static string RefreshFailed(string details) =>
+        OperationFailed("Data Model refresh", details);
+
+    /// <summary>
     /// Error message when Excel's Data Model ADO connection reports MSOLAP class registration failure.
     /// </summary>
     internal static string MsolapClassNotRegistered(DataModelAdoDiagnostics? diagnostics)
@@ -89,5 +95,3 @@ public static class DataModelErrorMessages
                "Ensure Power Pivot is enabled in Excel (File > Options > Add-ins > COM Add-ins > Microsoft Power Pivot for Excel).";
     }
 }
-
-

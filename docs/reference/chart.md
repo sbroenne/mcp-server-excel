@@ -53,6 +53,15 @@ Creation, move, and fit operations warn about overlapping data/charts. An
 Use a [screenshot](screenshot.md) when appearance matters and an interactive
 desktop is available; otherwise inspect bounds and state the visual limitation.
 
+## Percentage data labels
+
+Percentage data labels are meaningful for pie and doughnut charts. MCP
+`chart_config` action `set-data-labels` uses `show_percentage`; CLI
+`excelcli chartconfig set-data-labels` uses `--show-percentage`. Excel can reject
+the setting on other chart types; this is reported as an error, not a successful
+no-op. Label settings are applied in sequence, so earlier settings can already
+have changed when Excel rejects a later setting.
+
 ## Short labels without losing detail
 
 Use this only when the existing labels are too long. Keep full descriptions and

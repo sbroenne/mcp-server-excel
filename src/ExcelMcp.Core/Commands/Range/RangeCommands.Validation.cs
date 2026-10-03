@@ -28,6 +28,11 @@ public partial class RangeCommands
         bool? ignoreBlank,
         bool? showDropdown)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(validationType);
+        var xlType = ParseValidationType(validationType);
+        var xlOperator = ParseValidationOperator(validationOperator ?? "between");
+        var xlAlertStyle = ParseErrorStyle(errorStyle ?? "stop");
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
@@ -49,11 +54,6 @@ public partial class RangeCommands
 
                 // Delete existing validation
                 validation.Delete();
-
-                // Parse validation type
-                var xlType = ParseValidationType(validationType);
-                var xlOperator = ParseValidationOperator(validationOperator ?? "between");
-                var xlAlertStyle = ParseErrorStyle(errorStyle ?? "stop");
 
                 // Add validation
                 validation.Add(
@@ -317,6 +317,5 @@ public partial class RangeCommands
         };
     }
 }
-
 
 

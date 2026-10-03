@@ -83,6 +83,7 @@ public partial class RangeCommands
             dynamic? range = null;
             dynamic? styles = null;
             dynamic? style = null;
+            object? rangeStyle = null;
 
             try
             {
@@ -95,7 +96,8 @@ public partial class RangeCommands
                 string styleName;
                 try
                 {
-                    styleName = ComUtilities.SafeGetString(range.Style, "Name");
+                    rangeStyle = range.Style;
+                    styleName = ComUtilities.SafeGetString(rangeStyle, "Name");
                     if (string.IsNullOrEmpty(styleName))
                     {
                         styleName = "Normal";
@@ -147,6 +149,7 @@ public partial class RangeCommands
             {
                 ComUtilities.Release(ref style!);
                 ComUtilities.Release(ref styles!);
+                ComUtilities.Release(ref rangeStyle);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
             }
@@ -487,4 +490,3 @@ public partial class RangeCommands
         };
     }
 }
-

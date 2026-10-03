@@ -198,7 +198,7 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="showValue">Show data values on labels</param>
-    /// <param name="showPercentage">Show percentage values. Only meaningful for pie and doughnut chart types; setting to true on other chart types has no visual effect.</param>
+    /// <param name="showPercentage">Show percentage values for pie and doughnut charts. Excel can reject this setting on other chart types; rejection is an error, not a successful no-op.</param>
     /// <param name="showSeriesName">Show series name on labels</param>
     /// <param name="showCategoryName">Show category name on labels</param>
     /// <param name="showBubbleSize">Show bubble size (bubble charts)</param>
