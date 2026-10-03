@@ -25,7 +25,7 @@ on:
 
 jobs:
   copilot-setup-steps:
-    runs-on: windows-latest
+    runs-on: ${{ vars.EXCEL_COPILOT_ENABLED == 'true' && github.event_name == 'dynamic' && github.workflow == 'Copilot cloud agent' && 'excel-copilot' || 'windows-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -36,11 +36,13 @@ jobs:
           persist-credentials: false
 
       - name: Setup .NET
+        if: runner.environment != 'self-hosted'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
+        if: runner.environment != 'self-hosted'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
@@ -61,6 +63,7 @@ jobs:
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
       - name: Setup uv
+        if: runner.environment != 'self-hosted'
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: "0.11.16"
@@ -82,6 +85,7 @@ jobs:
         run: npm ci
 
       - name: Install LLM evaluation dependencies without running evaluations
+        if: runner.environment != 'self-hosted'
         run: uv sync --project llm-tests --locked --python 3.13
 
       - name: Verify setup tools and Excel-free boundary
@@ -92,5 +96,12 @@ jobs:
           dotnet --version
           node --version
           python --version
-          uv --version
-          Write-Output 'Setup complete. Desktop Excel tests must run locally; no COM behavior was verified.'
+          if ($env:RUNNER_ENVIRONMENT -ne 'self-hosted') {
+            uv --version
+            Write-Output 'Hosted setup complete. Desktop Excel is unavailable; no COM behavior was verified.'
+          } else {
+            . 'C:\ProgramData\ExcelMcp\Desktop\ExcelRunnerPolicy.ps1'
+            Assert-ExcelRunnerReadiness (Get-Content 'C:\ProgramData\ExcelMcp\Desktop\ready.json' -Raw | ConvertFrom-Json) `
+              -BootTime (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+            Write-Output 'Qualified non-admin Excel desktop available. Run requested .NET/Excel tests sequentially; LLM evaluations remain on demand.'
+          }
