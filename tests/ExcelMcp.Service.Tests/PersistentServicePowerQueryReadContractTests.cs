@@ -24,21 +24,20 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         var queryName = $"CompactRead_{Guid.NewGuid():N}";
         var mCode = BuildLongReadContractMCode();
         var batch = _fixture.BatchToken;
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             batch,
             queryName,
             mCode,
-            PowerQueryLoadMode.ConnectionOnly);
+            PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
-        var list = _queries.List(batch);
+        var list = RequireSuccess(_queries.List(batch));
         var query = Assert.Single(
             list.Queries,
             item => item.Name == queryName);
         var listJson = JsonSerializer.Serialize(list, JsonSerializerOptions.Web);
 
-        Assert.True(list.Success);
-        Assert.InRange(query.FormulaPreview.Length, 1, 80);
+        Assert.Equal(mCode[..77] + "...", query.FormulaPreview);
         Assert.Equal(mCode.Length, query.CharacterCount);
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, query.LoadMode);
         Assert.True(
@@ -52,11 +51,12 @@ public sealed class PersistentServicePowerQueryReadContractTests(
             Assert.False(serializedQuery.TryGetProperty("formula", out _));
         }
 
-        var view = _queries.View(batch, queryName);
+        var view = RequireSuccess(_queries.View(batch, queryName));
 
-        Assert.True(view.Success);
         Assert.Equal(mCode, view.MCode);
         Assert.Equal(mCode.Length, view.CharacterCount);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName, mCode,
+            PowerQueryLoadMode.ConnectionOnly, null, ["Value"], [[1]]);
     }
 
     [Fact]
@@ -70,46 +70,49 @@ public sealed class PersistentServicePowerQueryReadContractTests(
                 PowerQueryLoadMode.ConnectionOnly,
                 null,
                 true,
-                false),
+                false,
+                11),
             new ReadLoadStateScenario(
                 $"ReadWorksheet_{suffix}",
                 PowerQueryLoadMode.LoadToTable,
                 $"ReadWorksheet_{suffix}",
                 false,
-                false),
+                false,
+                23),
             new ReadLoadStateScenario(
                 $"ReadDataModel_{suffix}",
                 PowerQueryLoadMode.LoadToDataModel,
                 null,
                 false,
-                true),
+                true,
+                37),
             new ReadLoadStateScenario(
                 $"ReadBoth_{suffix}",
                 PowerQueryLoadMode.LoadToBoth,
                 $"ReadBoth_{suffix}",
                 false,
-                true),
+                true,
+                49),
         };
         var batch = _fixture.BatchToken;
         foreach (var scenario in scenarios)
         {
-            _queries.Create(
+            CreateTracked(
                 batch,
                 scenario.QueryName,
-                "let Source = #table({\"Value\"}, {{1}}) in Source",
+                $"#table({{\"Value\"}}, {{{{{scenario.Seed}}},{{{scenario.Seed + 1}}}}})",
                 scenario.LoadMode,
                 scenario.TargetSheet);
-            _fixture.RegisterPowerQueryForCleanup(scenario.QueryName);
         }
 
-        var list = _queries.List(batch);
+        var list = RequireSuccess(_queries.List(batch));
         foreach (var scenario in scenarios)
         {
             var query = Assert.Single(
                 list.Queries,
                 item => item.Name == scenario.QueryName);
-            var view = _queries.View(batch, scenario.QueryName);
-            var loadConfig = _queries.GetLoadConfig(batch, scenario.QueryName);
+            var view = RequireSuccess(_queries.View(batch, scenario.QueryName));
+            var loadConfig = RequireSuccess(_queries.GetLoadConfig(batch, scenario.QueryName));
 
             Assert.Equal(scenario.IsConnectionOnly, query.IsConnectionOnly);
             Assert.Equal(scenario.IsConnectionOnly, view.IsConnectionOnly);
@@ -130,6 +133,9 @@ public sealed class PersistentServicePowerQueryReadContractTests(
                 scenario.IsLoadedToDataModel,
                 loadConfig.IsLoadedToDataModel);
             Assert.Equal(!scenario.IsConnectionOnly, loadConfig.HasConnection);
+            PowerQueryStateAssertions.AssertStored(_fixture, scenario.QueryName,
+                $"#table({{\"Value\"}}, {{{{{scenario.Seed}}},{{{scenario.Seed + 1}}}}})",
+                scenario.LoadMode, scenario.TargetSheet, ["Value"], [[scenario.Seed], [scenario.Seed + 1]]);
         }
     }
 
@@ -140,22 +146,29 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         const string invalidMCode =
             "let Source = MissingFunction() in Source";
         var batch = _fixture.BatchToken;
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             batch,
             queryName,
             invalidMCode,
-            PowerQueryLoadMode.ConnectionOnly);
+            PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
-        var result = _queries.List(batch);
+        var result = RequireSuccess(_queries.List(batch));
         var query = Assert.Single(
             result.Queries,
             item => item.Name == queryName);
 
-        Assert.True(result.Success);
         Assert.Equal(invalidMCode, query.FormulaPreview);
         Assert.Equal(invalidMCode.Length, query.CharacterCount);
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, query.LoadMode);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName, invalidMCode,
+            PowerQueryLoadMode.ConnectionOnly, null, [], []);
+        var before = JsonSerializer.Serialize(RequireSuccess(_queries.List(batch)).Queries);
+        var error = Assert.Throws<InvalidOperationException>(() => _queries.Evaluate(batch, invalidMCode));
+        Assert.Contains("MissingFunction", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, JsonSerializer.Serialize(RequireSuccess(_queries.List(batch)).Queries));
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName, invalidMCode,
+            PowerQueryLoadMode.ConnectionOnly, null, [], []);
     }
 
     [Fact]
@@ -163,20 +176,20 @@ public sealed class PersistentServicePowerQueryReadContractTests(
     {
         var queryName = "PQ_ConnOnly_" + Guid.NewGuid().ToString("N")[..8];
         var batch = _fixture.BatchToken;
-        _queries.Create(
+        CreateTracked(
             batch,
             queryName,
             "let Source = #table({\"Val\"}, {{1}}) in Source",
             PowerQueryLoadMode.ConnectionOnly);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
+        var result = RequireSuccess(_queries.GetLoadConfig(batch, queryName));
 
-        var result = _queries.GetLoadConfig(batch, queryName);
-
-        Assert.True(result.Success, $"GetLoadConfig failed: {result.ErrorMessage}");
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, result.LoadMode);
         Assert.True(
             string.IsNullOrEmpty(result.TargetSheet),
             "ConnectionOnly should not have a target sheet");
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName,
+            "let Source = #table({\"Val\"}, {{1}}) in Source",
+            PowerQueryLoadMode.ConnectionOnly, null, ["Val"], [[1]]);
     }
 
     private static string BuildLongReadContractMCode()
@@ -198,19 +211,19 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         var queryName = "PQ_Table_" + Guid.NewGuid().ToString("N")[..8];
         const string sheetName = "TableSheet";
         var batch = _fixture.BatchToken;
-        _queries.Create(
+        CreateTracked(
             batch,
             queryName,
             "let Source = #table({\"Val\"}, {{42}}) in Source",
             PowerQueryLoadMode.LoadToTable,
             sheetName);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
+        var result = RequireSuccess(_queries.GetLoadConfig(batch, queryName));
 
-        var result = _queries.GetLoadConfig(batch, queryName);
-
-        Assert.True(result.Success, $"GetLoadConfig failed: {result.ErrorMessage}");
         Assert.Equal(PowerQueryLoadMode.LoadToTable, result.LoadMode);
         Assert.Equal(sheetName, result.TargetSheet);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName,
+            "let Source = #table({\"Val\"}, {{42}}) in Source",
+            PowerQueryLoadMode.LoadToTable, sheetName, ["Val"], [[42]]);
     }
 
     [Fact]
@@ -246,13 +259,15 @@ public sealed class PersistentServicePowerQueryReadContractTests(
             loadMode,
             targetSheet);
 
-        var listResult = _queries.List(batch);
+        var listResult = RequireSuccess(_queries.List(batch));
 
-        Assert.True(listResult.Success, $"List failed: {listResult.ErrorMessage}");
         var query = Assert.Single(
             listResult.Queries,
             item => item.Name == queryName);
         Assert.Equal(expectedConnectionOnly, query.IsConnectionOnly);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName,
+            "let Source = #table({\"Val\"}, {{1}}) in Source",
+            loadMode, targetSheet, ["Val"], [[1]]);
     }
 
     [Fact]
@@ -263,34 +278,38 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         var queryTable = "PQ_Mix_Table_" + suffix;
         var queryDataModel = "PQ_Mix_DataModel_" + suffix;
         var queryBoth = "PQ_Mix_Both_" + suffix;
-        const string mCode = "let Source = #table({\"A\"}, {{1}}) in Source";
+        const string connectionM = "#table({\"A\"}, {{11},{12}})";
+        const string tableM = "#table({\"A\"}, {{23},{24}})";
+        const string modelM = "#table({\"A\"}, {{37},{38}})";
+        const string bothM = "#table({\"A\"}, {{49},{50}})";
+        var tableSheet = $"MixTable_{suffix}";
+        var bothSheet = $"MixBoth_{suffix}";
         var batch = _fixture.BatchToken;
         CreateTracked(
             batch,
             queryConnOnly,
-            mCode,
+            connectionM,
             PowerQueryLoadMode.ConnectionOnly);
         CreateTracked(
             batch,
             queryTable,
-            mCode,
+            tableM,
             PowerQueryLoadMode.LoadToTable,
-            "Sheet1");
+            tableSheet);
         CreateTracked(
             batch,
             queryDataModel,
-            mCode,
+            modelM,
             PowerQueryLoadMode.LoadToDataModel);
         CreateTracked(
             batch,
             queryBoth,
-            mCode,
+            bothM,
             PowerQueryLoadMode.LoadToBoth,
-            "Sheet2");
+            bothSheet);
 
-        var listResult = _queries.List(batch);
+        var listResult = RequireSuccess(_queries.List(batch));
 
-        Assert.True(listResult.Success, $"List failed: {listResult.ErrorMessage}");
         var connectionOnly = Assert.Single(
             listResult.Queries,
             query => query.Name == queryConnOnly);
@@ -307,6 +326,14 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         Assert.False(table.IsConnectionOnly);
         Assert.False(dataModel.IsConnectionOnly);
         Assert.False(both.IsConnectionOnly);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryConnOnly, connectionM,
+            PowerQueryLoadMode.ConnectionOnly, null, ["A"], [[11], [12]]);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryTable, tableM,
+            PowerQueryLoadMode.LoadToTable, tableSheet, ["A"], [[23], [24]]);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryDataModel, modelM,
+            PowerQueryLoadMode.LoadToDataModel, null, ["A"], [[37], [38]]);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryBoth, bothM,
+            PowerQueryLoadMode.LoadToBoth, bothSheet, ["A"], [[49], [50]]);
     }
 
     private void CreateTracked(
@@ -316,8 +343,9 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         PowerQueryLoadMode loadMode,
         string? targetSheet = null)
     {
-        _queries.Create(batch, queryName, mCode, loadMode, targetSheet);
+        RequireSuccess(_queries.Create(batch, queryName, mCode, loadMode, targetSheet));
         _fixture.RegisterPowerQueryForCleanup(queryName);
+        if (targetSheet is not null) { _fixture.RegisterSheetForCleanup(targetSheet); }
     }
 
     private sealed record ReadLoadStateScenario(
@@ -325,5 +353,6 @@ public sealed class PersistentServicePowerQueryReadContractTests(
         PowerQueryLoadMode LoadMode,
         string? TargetSheet,
         bool IsConnectionOnly,
-        bool IsLoadedToDataModel);
+        bool IsLoadedToDataModel,
+        int Seed);
 }

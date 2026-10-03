@@ -47,20 +47,34 @@ public abstract class PersistentServiceWindowTestBase(
             resetFailure = ex;
         }
 
-        await _fixture.DisposeAsync();
+        try
+        {
+            await _fixture.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            resetFailure = PersistentServiceCleanupFailures.Combine(resetFailure, ex);
+        }
         if (resetFailure is not null)
         {
-            throw new InvalidOperationException(
-                "Window state cleanup failed.",
-                resetFailure);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(resetFailure);
         }
     }
 
     private void ResetWindow()
     {
         var batch = _fixture.BatchToken;
-        _commands.ClearStatusBar(batch);
-        _commands.SetState(batch, "normal");
-        _commands.Hide(batch);
+        RequireSuccess(_commands.ClearStatusBar(batch));
+        Assert.False(Assert.IsType<bool>(
+            _fixture.ExecuteRawVerification((context, _) => context.App.StatusBar)));
+        RequireSuccess(_commands.SetState(batch, "normal"));
+        RequireSuccess(_commands.Hide(batch));
+    }
+
+    protected static T RequireSuccess<T>(T result) where T : Sbroenne.ExcelMcp.Core.Models.ResultBase
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
+        return result;
     }
 }

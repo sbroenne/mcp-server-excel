@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -13,11 +14,21 @@ public sealed partial class PersistentServiceNamedRangeTests
         var name = CreateUniqueNamedRangeName();
         _fixture.RegisterNamedRangeForCleanup(name);
         AddName(_fixture, name, $"{sheetName}!$B$4", visible: false);
+        var visibleName = CreateUniqueNamedRangeName();
+        _fixture.RegisterNamedRangeForCleanup(visibleName);
+        SetCellValue(_fixture, sheetName, "$C$4", "Visible value");
+        AddName(_fixture, visibleName, $"{sheetName}!$C$4");
 
         var result = _parameterCommands.List(batch);
 
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
         Assert.DoesNotContain(result.NamedRanges, namedRange => namedRange.Name == name);
+        var visible = Assert.Single(result.NamedRanges);
+        Assert.Equal(visibleName, visible.Name);
+        Assert.Equal($"={sheetName}!$C$4", visible.RefersTo);
+        Assert.Equal("Visible value", visible.Value);
+        Assert.Equal("String", visible.ValueType);
+        Assert.Equal(1, visible.CellCount);
     }
 
     [Fact]
@@ -36,6 +47,7 @@ public sealed partial class PersistentServiceNamedRangeTests
         Assert.Equal("RangeTooLarge", listedRange.ValueType);
         Assert.Null(listedRange.Value);
         Assert.Equal(10001, listedRange.CellCount);
+        Assert.Equal($"={sheetName}!$A$1:$A$10001", listedRange.RefersTo);
         Assert.Contains("exceeds", listedRange.ValueOmittedReason, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -63,6 +75,10 @@ public sealed partial class PersistentServiceNamedRangeTests
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
         var listedRange = Assert.Single(result.NamedRanges);
         Assert.Equal(visibleName, listedRange.Name);
+        Assert.Equal($"={sourceSheet}!$B$4", listedRange.RefersTo);
+        Assert.Equal("C:\\Data", listedRange.Value);
+        Assert.Equal("String", listedRange.ValueType);
+        Assert.Equal(1, listedRange.CellCount);
         Assert.DoesNotContain(
             result.NamedRanges,
             namedRange => namedRange.Name.Contains("ExternalData_1", StringComparison.OrdinalIgnoreCase));
@@ -73,14 +89,14 @@ public sealed partial class PersistentServiceNamedRangeTests
     {
         var batch = _fixture.BatchToken;
         var suffix = Guid.NewGuid().ToString("N")[..6];
-        var settingsSheet = _fixture.CreateNamedTestSheet(batch, $"PQ_設定_{suffix}");
+        var settingsSheet = _fixture.CreateNamedTestSheet(batch, $"PQ_設定 {suffix}");
         var usersSheet = _fixture.CreateNamedTestSheet(batch, $"ユーザーテーブル_{suffix}");
         var notificationsSheet = _fixture.CreateNamedTestSheet(batch, $"通知テーブル_{suffix}");
         var visibleName = CreateUniqueNamedRangeName();
         _fixture.RegisterNamedRangeForCleanup(visibleName);
 
         SetCellValue(_fixture, settingsSheet, "$B$4", "C:\\Data");
-        AddName(_fixture, visibleName, $"{settingsSheet}!$B$4");
+        AddName(_fixture, visibleName, $"'{settingsSheet}'!$B$4");
         AddSheetScopedName(_fixture, usersSheet, "ExternalData_1", $"{usersSheet}!$A$6:$AH$19132");
         AddSheetScopedName(
             _fixture,
@@ -93,8 +109,10 @@ public sealed partial class PersistentServiceNamedRangeTests
         Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
         var listedRange = Assert.Single(result.NamedRanges);
         Assert.Equal(visibleName, listedRange.Name);
-        Assert.Contains("PQ_設定", listedRange.RefersTo, StringComparison.Ordinal);
+        Assert.Equal($"='{settingsSheet}'!$B$4", listedRange.RefersTo);
         Assert.Equal("C:\\Data", listedRange.Value);
+        Assert.Equal("String", listedRange.ValueType);
+        Assert.Equal(1, listedRange.CellCount);
         Assert.DoesNotContain(
             result.NamedRanges,
             namedRange => namedRange.Name.Contains("ExternalData_1", StringComparison.OrdinalIgnoreCase));
@@ -107,8 +125,8 @@ public sealed partial class PersistentServiceNamedRangeTests
         bool visible = true) =>
         scope.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? names = null;
-            dynamic? nameObject = null;
+            Excel.Names? names = null;
+            Excel.Name? nameObject = null;
             try
             {
                 names = ctx.Book.Names;
@@ -129,12 +147,13 @@ public sealed partial class PersistentServiceNamedRangeTests
         string reference) =>
         scope.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? names = null;
-            dynamic? nameObject = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Names? names = null;
+            Excel.Name? nameObject = null;
             try
             {
-                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 names = sheet.Names;
                 nameObject = names.Add(name, $"={reference.TrimStart('=')}");
                 nameObject.Visible = false;
@@ -154,11 +173,12 @@ public sealed partial class PersistentServiceNamedRangeTests
         string value) =>
         scope.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             try
             {
-                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
+                    ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 range = sheet.Range[rangeAddress];
                 range.Value2 = value;
             }

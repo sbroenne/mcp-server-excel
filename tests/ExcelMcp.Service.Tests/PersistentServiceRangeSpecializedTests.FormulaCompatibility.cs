@@ -19,12 +19,12 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var supportsFormula2 = _fixture.ExecuteRawVerification(
             (ctx, ct) => ctx.Capabilities.SupportsFormula2);
         const string formula = "=SUM(SQRT($A$2:$A$3))";
-        _commands.SetValues(batch, sheetName, "A1:C3",
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1:C3",
         [
             ["Input", "Session", "Legacy control"],
             [4, null, null],
             [9, null, null]
-        ]);
+        ]));
         Assert.True(
             tableCommands.Create(batch, sheetName, tableName, "A1:C3").Success);
         Assert.True(
@@ -48,10 +48,10 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             }
         });
 
-        var legacyValues = _commands.GetValues(batch, sheetName, "C2:C3");
+        var legacyValues = RequireSuccess(_commands.GetValues(batch, sheetName, "C2:C3"));
         Assert.Equal(2.0, Convert.ToDouble(legacyValues.Values[0][0], CultureInfo.InvariantCulture));
         Assert.Equal(3.0, Convert.ToDouble(legacyValues.Values[1][0], CultureInfo.InvariantCulture));
-        var result = _commands.GetFormulas(batch, sheetName, "B2:B3");
+        var result = RequireSuccess(_commands.GetFormulas(batch, sheetName, "B2:B3"));
         Assert.Equal(2, result.Formulas.Count);
         Assert.Empty(result.CellErrors);
         if (supportsFormula2)
@@ -84,15 +84,16 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var tableName = $"ReferenceTable_{Guid.NewGuid():N}"[..31];
         var tableCommands = _fixture.CreateCommands<ITableCommands>();
 
-        _commands.SetValues(batch, sheetName, "A1:B2",
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1:B2",
         [
             ["Name", "Amount"],
             ["North", 1]
-        ]);
+        ]));
         Assert.True(
             tableCommands.Create(batch, sheetName, tableName, "A1:B2").Success);
 
-        var structured = _commands.GetValues(batch, sheetName, $"{tableName}[Name]");
+        var structured = RequireSuccess(_commands.GetValues(batch, sheetName, $"{tableName}[Name]"));
+        Assert.Single(structured.Values);
         Assert.Equal("North", structured.Values[0][0]);
 
         var supportsFormula2 = _fixture.ExecuteRawVerification(
@@ -103,7 +104,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         }
 
         Assert.True(_commands.SetFormulas(batch, sheetName, "D1", [["=SEQUENCE(2)"]]).Success);
-        var spilled = _commands.GetValues(batch, sheetName, "D1#");
+        var spilled = RequireSuccess(_commands.GetValues(batch, sheetName, "D1#"));
 
         Assert.Equal(2, spilled.RowCount);
         Assert.Equal(1.0, Convert.ToDouble(spilled.Values[0][0], CultureInfo.InvariantCulture));
@@ -115,9 +116,9 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        _commands.SetValues(batch, sheetName, "A1:A2", [[10], [20]]);
-        Assert.Equal(string.Empty, _commands.GetFormulas(batch, sheetName, "B1").Formulas[0][0]);
-        var constants = _commands.GetFormulas(batch, sheetName, "A1:A2");
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1:A2", [[10], [20]]));
+        Assert.Equal(string.Empty, RequireSuccess(_commands.GetFormulas(batch, sheetName, "B1")).Formulas[0][0]);
+        var constants = RequireSuccess(_commands.GetFormulas(batch, sheetName, "A1:A2"));
         Assert.All(constants.Formulas, row => Assert.Equal(string.Empty, row[0]));
 
         Assert.True(_commands.SetFormulas(batch, sheetName, "A3", [["=A1+A2"]]).Success);
@@ -126,23 +127,23 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         Assert.True(string.IsNullOrEmpty(routed.ErrorMessage));
         Assert.Contains("set-formulas", routed.Message);
 
-        var single = _commands.GetValues(batch, sheetName, "B2");
+        var single = RequireSuccess(_commands.GetValues(batch, sheetName, "B2"));
         Assert.Equal("#DIV/0!", single.Values[0][0]);
         Assert.Equal("=1/0", Assert.Single(single.CellErrors).Formula);
-        var multiple = _commands.GetValues(batch, sheetName, "B1:B2");
+        var multiple = RequireSuccess(_commands.GetValues(batch, sheetName, "B1:B2"));
         Assert.Equal(30.0, Convert.ToDouble(multiple.Values[0][0], CultureInfo.InvariantCulture));
         Assert.Equal("#DIV/0!", multiple.Values[1][0]);
         var error = Assert.Single(multiple.CellErrors);
         Assert.Equal("B2", error.CellAddress);
         Assert.Equal("=1/0", error.Formula);
-        var formulas = _commands.GetFormulas(batch, sheetName, "B1:B2");
+        var formulas = RequireSuccess(_commands.GetFormulas(batch, sheetName, "B1:B2"));
         Assert.Equal("=A1+A2", formulas.Formulas[0][0]);
         Assert.Equal("=1/0", formulas.Formulas[1][0]);
         Assert.Equal("#DIV/0!", formulas.Values[1][0]);
 
         await _fixture.SaveAndReopenAsync();
 
-        var persisted = _commands.GetFormulas(batch, sheetName, "A3");
+        var persisted = RequireSuccess(_commands.GetFormulas(batch, sheetName, "A3"));
         Assert.Equal("=A1+A2", persisted.Formulas[0][0]);
         Assert.Equal(30.0, Convert.ToDouble(persisted.Values[0][0], CultureInfo.InvariantCulture));
     }
@@ -154,7 +155,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        _commands.SetFormulas(batch, sheetName, "A1", [["=42"]]);
+        RequireSuccess(_commands.SetFormulas(batch, sheetName, "A1", [["=42"]]));
         var supported = _fixture.ExecuteRawVerification(
             (ctx, ct) => ctx.Capabilities.SupportsFormula2);
 
@@ -196,7 +197,9 @@ public sealed partial class PersistentServiceRangeSpecializedTests
                     [[protectSheet ? "=43" : "=1+"]],
                     overwritePolicy: OverwritePolicy.Allow));
             Assert.Contains("COMException", error.Message, StringComparison.Ordinal);
-            Assert.Equal("=42", _commands.GetFormulas(batch, sheetName, "A1").Formulas[0][0]);
+            var preserved = RequireSuccess(_commands.GetFormulas(batch, sheetName, "A1"));
+            Assert.Equal("=42", preserved.Formulas[0][0]);
+            Assert.Equal(42d, Convert.ToDouble(preserved.Values[0][0], CultureInfo.InvariantCulture));
             Assert.Equal(
                 supported,
                 _fixture.ExecuteRawVerification(
@@ -212,8 +215,8 @@ public sealed partial class PersistentServiceRangeSpecializedTests
 
         if (supported)
         {
-            _commands.SetFormulas(batch, sheetName, "C1", [["=SEQUENCE(2)"]]);
-            var spilled = _commands.GetValues(batch, sheetName, "C1:C2");
+            RequireSuccess(_commands.SetFormulas(batch, sheetName, "C1", [["=SEQUENCE(2)"]]));
+            var spilled = RequireSuccess(_commands.GetValues(batch, sheetName, "C1:C2"));
             Assert.Equal(1.0, Convert.ToDouble(spilled.Values[0][0], CultureInfo.InvariantCulture));
             Assert.Equal(2.0, Convert.ToDouble(spilled.Values[1][0], CultureInfo.InvariantCulture));
         }

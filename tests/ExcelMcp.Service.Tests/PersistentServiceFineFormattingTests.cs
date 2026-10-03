@@ -56,6 +56,8 @@ public sealed class PersistentServiceFineFormattingTests(PersistentServiceWorkbo
             Assert.True(cell.GetProperty("font").GetProperty("bold").GetBoolean());
             Assert.Equal(5, cell.GetProperty("font").GetProperty("color").GetProperty("themeColor").GetInt32());
             Assert.Equal(6, cell.GetProperty("fill").GetProperty("color").GetProperty("themeColor").GetInt32());
+            Assert.Equal(0.25, cell.GetProperty("font").GetProperty("color").GetProperty("tintAndShade").GetDouble(), 3);
+            Assert.Equal(-0.2, cell.GetProperty("fill").GetProperty("color").GetProperty("tintAndShade").GetDouble(), 3);
             Assert.Equal(2, cell.GetProperty("indentLevel").GetInt32());
             Assert.Equal(5, cell.GetProperty("font").GetProperty("underline").GetInt32());
             Assert.True(cell.GetProperty("font").GetProperty("strikethrough").GetBoolean());
@@ -66,6 +68,47 @@ public sealed class PersistentServiceFineFormattingTests(PersistentServiceWorkbo
                 border => border.GetProperty("edge").GetString() == "xlDiagonalUp" &&
                           border.GetProperty("lineStyle").GetInt32() == -4115);
         }
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Borders? borders = null;
+            Excel.Border? border = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                foreach (var (address, edge, style, weight, theme, tint) in new[]
+                {
+                    // Excel promotes a double border to thick even when thin was requested.
+                    ("A1:B2", Excel.XlBordersIndex.xlEdgeLeft, -4119, 4, 7, 0.1),
+                    ("A1:B2", Excel.XlBordersIndex.xlInsideHorizontal, 1, 2, 8, 0.0),
+                    // Aggregate diagonal color is DBNull; inspect each cell instead.
+                    ("A1", Excel.XlBordersIndex.xlDiagonalUp, -4115, 2, 9, 0.0),
+                    ("B1", Excel.XlBordersIndex.xlDiagonalUp, -4115, 2, 9, 0.0),
+                    ("A2", Excel.XlBordersIndex.xlDiagonalUp, -4115, 2, 9, 0.0),
+                    ("B2", Excel.XlBordersIndex.xlDiagonalUp, -4115, 2, 9, 0.0)
+                })
+                {
+                    range = sheet!.Range[address];
+                    borders = range.Borders;
+                    border = borders[edge];
+                    Assert.Equal(style, Convert.ToInt32(border.LineStyle, CultureInfo.InvariantCulture));
+                    Assert.Equal(weight, Convert.ToInt32(border.Weight, CultureInfo.InvariantCulture));
+                    Assert.Equal(theme, Convert.ToInt32(border.ThemeColor, CultureInfo.InvariantCulture));
+                    Assert.Equal(tint, border.TintAndShade, 3);
+                    ComUtilities.Release(ref border);
+                    ComUtilities.Release(ref borders);
+                    ComUtilities.Release(ref range);
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref border);
+                ComUtilities.Release(ref borders);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+            }
+        });
         await _fixture.SaveAndReopenAsync();
         Assert.Equal(beforeSave, Read(sheetName, "A1"));
         Assert.Equal(beforeSave, Read(sheetName, "D1"));

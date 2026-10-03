@@ -1,4 +1,6 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -20,8 +22,8 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set up test data with a number format
-        _commands.SetValues(batch, sheetName, "A1", [[100]]);
-        _commands.SetNumberFormat(batch, sheetName, "A1", FormatCurrency);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [[100]]).Success);
+        Assert.True(_commands.SetNumberFormat(batch, sheetName, "A1", FormatCurrency).Success);
 
         // Act
         var result = _commands.GetNumberFormats(batch, sheetName, "A1");
@@ -33,8 +35,8 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         Assert.Equal(1, result.ColumnCount);
         Assert.Single(result.Formats);
         Assert.Single(result.Formats[0]);
-        // Excel might normalize format codes slightly
-        Assert.Contains("$", result.Formats[0][0]); // Currency format present
+        AssertFormatMatrix([[FormatCurrency]], result.Formats);
+        AssertNumericValues(sheetName, "A1", [[100]]);
     }
 
     [Fact]
@@ -45,7 +47,7 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set up test data FIRST
-        _commands.SetValues(batch, sheetName, "A1:B2", [[100, 0.5], [200, 0.75]]);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:B2", [[100, 0.5], [200, 0.75]]).Success);
 
         // THEN set different formats for each cell
         var formats = new List<List<string>>
@@ -53,7 +55,7 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
             new List<string> { FormatCurrency, FormatPercentage },
             new List<string> { FormatNumber, FormatPercentageOneDecimal }
         };
-        _commands.SetNumberFormats(batch, sheetName, "A1:B2", formats);
+        Assert.True(_commands.SetNumberFormats(batch, sheetName, "A1:B2", formats).Success);
 
         // Act
         var result = _commands.GetNumberFormats(batch, sheetName, "A1:B2");
@@ -63,10 +65,8 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         Assert.Equal(2, result.RowCount);
         Assert.Equal(2, result.ColumnCount);
         Assert.Equal(2, result.Formats.Count);
-        // Verify currency and percentage symbols are present
-        Assert.Contains("$", result.Formats[0][0]);
-        Assert.Contains("%", result.Formats[0][1]);
-        Assert.Contains("%", result.Formats[1][1]);
+        AssertFormatMatrix(formats, result.Formats);
+        AssertNumericValues(sheetName, "A1:B2", [[100, 0.5], [200, 0.75]]);
     }
 
     [Fact]
@@ -77,7 +77,9 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set up test data
-        _commands.SetValues(batch, sheetName, "A1:A3", [[100], [200], [300]]);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:A3", [[100], [200], [300]]).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "B1", [["Untouched"]]).Success);
+        Assert.True(_commands.SetNumberFormat(batch, sheetName, "B1", FormatText).Success);
 
         // Act
         var result = _commands.SetNumberFormat(batch, sheetName, "A1:A3", FormatCurrency);
@@ -86,11 +88,17 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
         Assert.Equal("set-number-format", result.Action);
 
-        // Verify format was actually applied (check for currency symbol)
         var verifyResult = _commands.GetNumberFormats(batch, sheetName, "A1:A3");
         Assert.True(verifyResult.Success);
         Assert.Equal(3, verifyResult.Formats.Count);
-        Assert.All(verifyResult.Formats, row => Assert.Contains("$", row[0])); // Currency symbol present
+        AssertFormatMatrix([[FormatCurrency], [FormatCurrency], [FormatCurrency]], verifyResult.Formats);
+        AssertNumericValues(sheetName, "A1:A3", [[100], [200], [300]]);
+        var untouchedFormat = _commands.GetNumberFormats(batch, sheetName, "B1");
+        Assert.True(untouchedFormat.Success, untouchedFormat.ErrorMessage);
+        AssertFormatMatrix([[FormatText]], untouchedFormat.Formats);
+        var untouchedValue = _commands.GetValues(batch, sheetName, "B1");
+        Assert.True(untouchedValue.Success, untouchedValue.ErrorMessage);
+        Assert.Equal("Untouched", Assert.Single(Assert.Single(untouchedValue.Values)));
     }
 
     [Fact]
@@ -100,7 +108,7 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "B1:B2", [[0.25], [0.75]]);
+        Assert.True(_commands.SetValues(batch, sheetName, "B1:B2", [[0.25], [0.75]]).Success);
 
         // Act
         var result = _commands.SetNumberFormat(batch, sheetName, "B1:B2", FormatPercentage);
@@ -108,10 +116,10 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         // Assert
         Assert.True(result.Success);
 
-        // Verify format applied (check for percentage symbol)
         var verifyResult = _commands.GetNumberFormats(batch, sheetName, "B1:B2");
         Assert.True(verifyResult.Success);
-        Assert.All(verifyResult.Formats, row => Assert.Contains("%", row[0])); // Percentage symbol present
+        AssertFormatMatrix([[FormatPercentage], [FormatPercentage]], verifyResult.Formats);
+        AssertNumericValues(sheetName, "B1:B2", [[0.25], [0.75]]);
     }
 
     [Fact]
@@ -121,8 +129,8 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        // Excel serial date: 45000 = April 17, 2023
-        _commands.SetValues(batch, sheetName, "C1", [[45000]]);
+        // Excel serial date 45000 is March 15, 2023.
+        Assert.True(_commands.SetValues(batch, sheetName, "C1", [[45000]]).Success);
 
         // Act
         var result = _commands.SetNumberFormat(batch, sheetName, "C1", FormatDateShort);
@@ -130,13 +138,15 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         // Assert
         Assert.True(result.Success);
 
-        // Verify format applied (check for date-related format characters)
         var verifyResult = _commands.GetNumberFormats(batch, sheetName, "C1");
         Assert.True(verifyResult.Success);
-        // Date formats contain d, m, or y characters
-        Assert.Matches(
-            @"[dmy]",
-            verifyResult.Formats[0][0].ToLowerInvariant());
+        AssertFormatMatrix([[FormatDateShort]], verifyResult.Formats);
+        var value = _commands.GetValues(batch, sheetName, "C1");
+        Assert.True(value.Success, value.ErrorMessage);
+        Assert.Equal(new DateTime(2023, 3, 15), DateTime.FromOADate(
+            Convert.ToDouble(Assert.Single(Assert.Single(value.Values)),
+                System.Globalization.CultureInfo.InvariantCulture)));
+        AssertNativeDateDisplay(sheetName, "C1", [45000]);
     }
 
     [Fact]
@@ -147,7 +157,7 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set up test data
-        _commands.SetValues(batch, sheetName, "A1:C2", [[100, 0.5, 45000], [200, 0.75, 45100]]);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:C2", [[100, 0.5, 45000], [200, 0.75, 45100]]).Success);
 
         // Act - Apply different formats to each column
         var formats = new List<List<string>>
@@ -160,19 +170,11 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         // Assert
         Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
 
-        // Verify formats applied correctly (check for expected symbols/characters)
         var verifyResult = _commands.GetNumberFormats(batch, sheetName, "A1:C2");
         Assert.True(verifyResult.Success);
-        Assert.Contains("$", verifyResult.Formats[0][0]); // Currency
-        Assert.Contains("%", verifyResult.Formats[0][1]); // Percentage
-        Assert.Matches(
-            @"[dmy]",
-            verifyResult.Formats[0][2].ToLowerInvariant()); // Date format
-        Assert.Contains("$", verifyResult.Formats[1][0]); // Currency
-        Assert.Contains("%", verifyResult.Formats[1][1]); // Percentage
-        Assert.Matches(
-            @"[dmy]",
-            verifyResult.Formats[1][2].ToLowerInvariant()); // Date format
+        AssertFormatMatrix(formats, verifyResult.Formats);
+        AssertNativeDateDisplay(sheetName, "C1:C2", [45000, 45100]);
+        AssertNumericValues(sheetName, "A1:C2", [[100, 0.5, 45000], [200, 0.75, 45100]]);
     }
 
     [Fact]
@@ -188,10 +190,19 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
             new List<string> { FormatCurrency, FormatPercentage },
             new List<string> { FormatNumber, FormatPercentageOneDecimal }
         };
+        Assert.True(_commands.SetNumberFormat(batch, sheetName, "A1:C3", FormatNumber).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:C3", [[1, 2, 3], [4, 5, 6], [7, 8, 9]]).Success);
+        var original = _commands.GetNumberFormats(batch, sheetName, "A1:C3");
+        Assert.True(original.Success, original.ErrorMessage);
+        Assert.All(original.Formats, row => Assert.All(row, format => Assert.Equal(FormatNumber, format)));
         var exception = Assert.Throws<ArgumentException>(() =>
             _commands.SetNumberFormats(batch, sheetName, "A1:C3", formats));
 
         Assert.Contains("row count", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var retained = _commands.GetNumberFormats(batch, sheetName, "A1:C3");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        AssertFormatMatrix(original.Formats, retained.Formats);
+        AssertNumericValues(sheetName, "A1:C3", [[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
     }
 
     [Fact]
@@ -202,15 +213,112 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // First set text format, then set value (to preserve leading zeros)
-        _commands.SetNumberFormat(batch, sheetName, "D1", FormatText);
-        _commands.SetValues(batch, sheetName, "D1", [["00123"]]);
+        Assert.True(_commands.SetNumberFormat(batch, sheetName, "D1", FormatText).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "D1", [["00123"]]).Success);
 
         // Act - Verify format is text
         var result = _commands.GetNumberFormats(batch, sheetName, "D1");
 
         // Assert
         Assert.True(result.Success);
-        Assert.Contains("@", result.Formats[0][0]); // Text format (@)
+        AssertFormatMatrix([[FormatText]], result.Formats);
+        var value = _commands.GetValues(batch, sheetName, "D1");
+        Assert.True(value.Success, value.ErrorMessage);
+        Assert.Equal("00123", Assert.Single(Assert.Single(value.Values)));
     }
 
+    [Fact]
+    public void SetNumberFormats_LaterRowMismatch_PreservesExistingFormats()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        Assert.True(_commands.SetNumberFormat(batch, sheetName, "A1:B2", FormatPercentageOneDecimal).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:B2", [[0.1, 0.2], [0.3, 0.4]]).Success);
+        var original = _commands.GetNumberFormats(batch, sheetName, "A1:B2");
+        Assert.True(original.Success, original.ErrorMessage);
+        AssertFormatMatrix(
+            [[FormatPercentageOneDecimal, FormatPercentageOneDecimal], [FormatPercentageOneDecimal, FormatPercentageOneDecimal]],
+            original.Formats);
+
+        var rejected = Assert.Throws<ArgumentException>(() =>
+            _commands.SetNumberFormats(batch, sheetName, "A1:B2",
+                [[FormatCurrency, FormatNumber], [FormatText]]));
+        Assert.Contains("row 2 column count", rejected.Message, StringComparison.OrdinalIgnoreCase);
+        var retained = _commands.GetNumberFormats(batch, sheetName, "A1:B2");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        AssertFormatMatrix(original.Formats, retained.Formats);
+        AssertNumericValues(sheetName, "A1:B2", [[0.1, 0.2], [0.3, 0.4]]);
+    }
+
+    private void AssertNumericValues(string sheetName, string address, List<List<double>> expected)
+    {
+        var result = _commands.GetValues(_fixture.BatchToken, sheetName, address);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(expected.Count, result.RowCount);
+        Assert.Equal(expected[0].Count, result.ColumnCount);
+        Assert.Equal(expected.Count, result.Values.Count);
+        for (var row = 0; row < expected.Count; row++)
+        {
+            Assert.Equal(expected[row].Count, result.Values[row].Count);
+            Assert.Equal(expected[row], result.Values[row].Select(value =>
+                Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)));
+        }
+    }
+
+    private static void AssertFormatMatrix(List<List<string>> expected, List<List<string>> actual)
+    {
+        Assert.Equal(expected.Count, actual.Count);
+        for (var row = 0; row < expected.Count; row++)
+        {
+            Assert.Equal(expected[row].Count, actual[row].Count);
+            for (var column = 0; column < expected[row].Count; column++)
+            {
+                Assert.Equal(expected[row][column],
+                    actual[row][column].Replace("\\$", "$", StringComparison.Ordinal)
+                        .Replace("\\/", "/", StringComparison.Ordinal));
+            }
+        }
+
+    }
+
+    private void AssertNativeDateDisplay(string sheetName, string address, double[] serials) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Range? cells = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                range = sheet.Range[address];
+                range.ColumnWidth = 20;
+                cells = range.Cells;
+                Assert.Equal(serials.Length, cells.Count);
+                for (var index = 0; index < serials.Length; index++)
+                {
+                    Excel.Range? cell = null;
+                    try
+                    {
+                        cell = (Excel.Range)cells[index + 1];
+                        Assert.Equal(serials[index], Convert.ToDouble(cell.Value2,
+                            System.Globalization.CultureInfo.InvariantCulture));
+                        Assert.Equal(DateTime.FromOADate(serials[index]).ToString(
+                            "M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture), cell.Text);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                    }
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref cells);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
 }

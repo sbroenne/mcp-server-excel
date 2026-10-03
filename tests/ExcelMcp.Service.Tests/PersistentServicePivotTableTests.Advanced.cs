@@ -12,34 +12,18 @@ public sealed partial class PersistentServicePivotTableTests
     {
         var batch = _fixture.BatchToken;
         var destinationSheet = _fixture.CreateTestSheet(batch);
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            Excel.Worksheet? sheet = null;
-            Excel.Range? sourceRows = null;
-            try
-            {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[_salesSheetName];
-                sourceRows = sheet.Range["A7:D9"];
-                sourceRows.Value2 = new object[,]
-                {
-                    { "West", "Widget", 175, new DateTime(2025, 3, 10) },
-                    { "Group Existing", "Widget", 225, new DateTime(2025, 3, 15) },
-                    { "East", "Gadget", 250, new DateTime(2025, 3, 20) }
-                };
-                return 0;
-            }
-            finally
-            {
-                ComUtilities.Release(ref sourceRows);
-                ComUtilities.Release(ref sheet);
-            }
-        });
+        RequireSuccess(_commands.SetValues(batch, _salesSheetName, "A7:D9",
+            [
+                ["West", "Widget", 175, "2025-03-10"],
+                ["Group Existing", "Widget", 225, "2025-03-15"],
+                ["East", "Gadget", 250, "2025-03-20"]
+            ]));
 
         var createResult = _pivotCommands.CreateFromRange(
             batch, _salesSheetName, "A1:D9", destinationSheet, "A1", "ManualGroupingPivot");
-        Assert.True(createResult.Success, createResult.ErrorMessage);
-        Assert.True(_pivotCommands.AddRowField(batch, "ManualGroupingPivot", "Region").Success);
-        Assert.True(_pivotCommands.AddValueField(batch, "ManualGroupingPivot", "Sales").Success);
+        RequireSuccess(createResult);
+        RequireSuccess(_pivotCommands.AddRowField(batch, "ManualGroupingPivot", "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "ManualGroupingPivot", "Sales"));
 
         var groupResult = _pivotCommands.GroupItems(
             batch,
@@ -48,16 +32,20 @@ public sealed partial class PersistentServicePivotTableTests
             ["North", "South"],
             "All Regions");
 
-        Assert.True(groupResult.Success, groupResult.ErrorMessage);
+        RequireSuccess(groupResult);
         Assert.Equal("All Regions", groupResult.GroupName);
         Assert.Equal(["North", "South"], groupResult.Items);
         Assert.False(string.IsNullOrWhiteSpace(groupResult.GroupedFieldName));
 
         var groupedFields = _pivotCommands.ListFields(batch, "ManualGroupingPivot");
+        RequireSuccess(groupedFields);
         Assert.Contains(groupedFields.Fields, field => field.Name == groupResult.GroupedFieldName);
         var firstGroupItems = ReadPivotItemNames("ManualGroupingPivot", groupResult.GroupedFieldName, destinationSheet);
         Assert.Contains("All Regions", firstGroupItems);
         Assert.Contains("Group Existing", firstGroupItems);
+        var firstGroupedData = RequireSuccess(_pivotCommands.GetData(batch, "ManualGroupingPivot"));
+        var allRegions = Assert.Single(firstGroupedData.Values, row => row[0]?.ToString() == "All Regions");
+        Assert.Equal(650d, Convert.ToDouble(allRegions[^1], System.Globalization.CultureInfo.InvariantCulture));
 
         var secondGroupResult = _pivotCommands.GroupItems(
             batch,
@@ -65,23 +53,35 @@ public sealed partial class PersistentServicePivotTableTests
             "Region",
             ["West", "East"],
             "Outer Regions");
-        Assert.True(secondGroupResult.Success, secondGroupResult.ErrorMessage);
+        RequireSuccess(secondGroupResult);
         Assert.Equal(groupResult.GroupedFieldName, secondGroupResult.GroupedFieldName);
 
         var repeatedGroupItems = ReadPivotItemNames("ManualGroupingPivot", groupResult.GroupedFieldName, destinationSheet);
         Assert.Contains("All Regions", repeatedGroupItems);
         Assert.Contains("Outer Regions", repeatedGroupItems);
         Assert.Contains("Group Existing", repeatedGroupItems);
+        var repeatedData = RequireSuccess(_pivotCommands.GetData(batch, "ManualGroupingPivot"));
+        var outerRegions = Assert.Single(repeatedData.Values, row => row[0]?.ToString() == "Outer Regions");
+        Assert.Equal(425d, Convert.ToDouble(outerRegions[^1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(650d, Convert.ToDouble(
+            Assert.Single(repeatedData.Values, row => row[0]?.ToString() == "All Regions")[^1],
+            System.Globalization.CultureInfo.InvariantCulture));
 
         var ungroupResult = _pivotCommands.UngroupField(
             batch,
             "ManualGroupingPivot",
             groupResult.GroupedFieldName);
-        Assert.True(ungroupResult.Success, ungroupResult.ErrorMessage);
+        RequireSuccess(ungroupResult);
 
         var restoredFields = _pivotCommands.ListFields(batch, "ManualGroupingPivot");
+        RequireSuccess(restoredFields);
         Assert.DoesNotContain(restoredFields.Fields, field => field.Name == groupResult.GroupedFieldName);
         Assert.Contains(restoredFields.Fields, field => field.Name == "Region");
+        Assert.Equal(["East", "Group Existing", "North", "South", "West"],
+            ReadPivotItemNames("ManualGroupingPivot", "Region", destinationSheet).Order(StringComparer.Ordinal));
+        AssertOriginalSales();
+        var data = RequireSuccess(_pivotCommands.GetData(batch, "ManualGroupingPivot"));
+        Assert.Equal(1300d, Convert.ToDouble(data.Values[^1][^1], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]
@@ -93,9 +93,9 @@ public sealed partial class PersistentServicePivotTableTests
 
         var createResult = _pivotCommands.CreateFromRange(
             batch, _salesSheetName, "A1:D6", destinationSheet, "A1", "DrillThroughPivot");
-        Assert.True(createResult.Success, createResult.ErrorMessage);
-        Assert.True(_pivotCommands.AddRowField(batch, "DrillThroughPivot", "Region").Success);
-        Assert.True(_pivotCommands.AddValueField(batch, "DrillThroughPivot", "Sales").Success);
+        RequireSuccess(createResult);
+        RequireSuccess(_pivotCommands.AddRowField(batch, "DrillThroughPivot", "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "DrillThroughPivot", "Sales"));
 
         var dataCellAddress = _fixture.ExecuteRawVerification((ctx, ct) =>
         {
@@ -104,18 +104,21 @@ public sealed partial class PersistentServicePivotTableTests
             Excel.PivotTable? pivot = null;
             Excel.Range? dataBodyRange = null;
             Excel.Range? firstDataCell = null;
+            Excel.Range? cells = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[destinationSheet];
+                sheet = ComUtilities.FindSheet(ctx.Book, destinationSheet);
                 pivotTables = (Excel.PivotTables)sheet.PivotTables();
                 pivot = pivotTables.Item("DrillThroughPivot");
                 dataBodyRange = pivot.DataBodyRange;
-                firstDataCell = (Excel.Range)dataBodyRange.Cells[1, 1];
+                cells = dataBodyRange.Cells;
+                firstDataCell = (Excel.Range)cells[1, 1];
                 return firstDataCell.Address;
             }
             finally
             {
                 ComUtilities.Release(ref firstDataCell);
+                ComUtilities.Release(ref cells);
                 ComUtilities.Release(ref dataBodyRange);
                 ComUtilities.Release(ref pivot);
                 ComUtilities.Release(ref pivotTables);
@@ -125,9 +128,10 @@ public sealed partial class PersistentServicePivotTableTests
 
         var result = _pivotCommands.DrillThrough(batch, "DrillThroughPivot", dataCellAddress);
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         Assert.False(string.IsNullOrWhiteSpace(result.DetailSheetName));
-        Assert.True(result.DetailRowCount > 1);
+        RequireSuccess(result);
+        Assert.Equal(4, result.DetailRowCount);
         _fixture.RegisterSheetForCleanup(result.DetailSheetName);
 
         var detailExists = _fixture.ExecuteRawVerification((ctx, ct) =>
@@ -135,7 +139,7 @@ public sealed partial class PersistentServicePivotTableTests
             Excel.Worksheet? detailSheet = null;
             try
             {
-                detailSheet = (Excel.Worksheet)ctx.Book.Worksheets[result.DetailSheetName];
+                detailSheet = ComUtilities.FindSheet(ctx.Book, result.DetailSheetName);
                 return detailSheet.Name == result.DetailSheetName;
             }
             finally
@@ -144,6 +148,26 @@ public sealed partial class PersistentServicePivotTableTests
             }
         });
         Assert.True(detailExists);
+        var details = RequireSuccess(_commands.GetValues(batch, result.DetailSheetName, "A1:D4")).Values;
+        Assert.Equal(4, details.Count);
+        Assert.Equal(new object?[] { "Region", "Product", "Sales", "Date" }, details[0]);
+        var records = details.Skip(1).OrderBy(row =>
+            Convert.ToDouble(row[3], System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var sales = new[] { 100d, 150d, 75d };
+        var products = new[] { "Widget", "Widget", "Gadget" };
+        var dates = new[] { new DateTime(2025, 1, 15), new DateTime(2025, 1, 20), new DateTime(2025, 2, 15) };
+        for (var index = 0; index < records.Length; index++)
+        {
+            var row = records[index];
+            Assert.Equal(4, row.Count);
+            Assert.Equal("North", row[0]);
+            Assert.Equal(products[index], row[1]);
+            Assert.Equal(sales[index], Convert.ToDouble(row[2], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(dates[index], DateTime.FromOADate(Convert.ToDouble(row[3],
+                System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        AssertOriginalSales();
+        AssertPivotSales(325, 325, "DrillThroughPivot");
     }
 
     private HashSet<string> ReadPivotItemNames(
@@ -160,7 +184,7 @@ public sealed partial class PersistentServicePivotTableTests
             Excel.PivotItems? items = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[sheetName];
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 pivotTables = (Excel.PivotTables)sheet.PivotTables();
                 pivot = pivotTables.Item(pivotTableName);
                 field = (Excel.PivotField)pivot.PivotFields(fieldName);

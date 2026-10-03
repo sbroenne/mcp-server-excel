@@ -11,38 +11,23 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServiceWindowTests
 {
-    [Fact]
-    public void SetStatusBar_SetsText()
+    [Theory]
+    [InlineData("null")]
+    [InlineData("missing")]
+    public void ClearStatusBar_NativeResetControl_ReturnsBooleanFalse(string reset)
     {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act
-        var result = _commands.SetStatusBar(batch, "Building PivotTable...");
-
-        // Assert
-        Assert.True(result.Success, $"SetStatusBar failed: {result.ErrorMessage}");
-        Assert.Equal("set-status-bar", result.Action);
-        Assert.Contains("Building PivotTable...", result.Message);
-
-        // Cleanup
-        _commands.ClearStatusBar(batch);
-    }
-
-    [Fact]
-    public void ClearStatusBar_RestoresDefault()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        _commands.SetStatusBar(batch, "Some progress text");
-
-        // Act
-        var result = _commands.ClearStatusBar(batch);
-
-        // Assert
-        Assert.True(result.Success, $"ClearStatusBar failed: {result.ErrorMessage}");
-        Assert.Equal("clear-status-bar", result.Action);
-        Assert.Contains("default", result.Message, StringComparison.OrdinalIgnoreCase);
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            context.App.StatusBar = "Native reset control";
+            Assert.Equal("Native reset control", context.App.StatusBar);
+            context.App.StatusBar = reset switch
+            {
+                "null" => null!,
+                "missing" => Type.Missing,
+                _ => throw new ArgumentOutOfRangeException(nameof(reset))
+            };
+            Assert.False(Assert.IsType<bool>(context.App.StatusBar));
+        });
     }
 
     [Fact]
@@ -53,31 +38,26 @@ public sealed partial class PersistentServiceWindowTests
 
         // Act & Assert - Set
         var setResult = _commands.SetStatusBar(batch, "Step 1 of 3: Importing data...");
-        Assert.True(setResult.Success);
+        RequireSuccess(setResult);
+        Assert.Equal("set-status-bar", setResult.Action);
+        Assert.Contains("Step 1 of 3: Importing data...", setResult.Message);
+        Assert.Equal("Step 1 of 3: Importing data...", ReadStatusBar());
 
         // Act & Assert - Update
         var updateResult = _commands.SetStatusBar(batch, "Step 2 of 3: Creating chart...");
-        Assert.True(updateResult.Success);
+        RequireSuccess(updateResult);
+        Assert.Equal("set-status-bar", updateResult.Action);
+        Assert.Contains("Step 2 of 3: Creating chart...", updateResult.Message);
+        Assert.Equal("Step 2 of 3: Creating chart...", ReadStatusBar());
 
         // Act & Assert - Clear
         var clearResult = _commands.ClearStatusBar(batch);
-        Assert.True(clearResult.Success);
+        RequireSuccess(clearResult);
+        Assert.Equal("clear-status-bar", clearResult.Action);
+        Assert.Contains("default", clearResult.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Assert.IsType<bool>(ReadStatusBar()));
     }
 
-    [Fact]
-    public void SetStatusBar_MultipleUpdates_AllSucceed()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act - Simulate progress updates
-        for (int i = 1; i <= 5; i++)
-        {
-            var result = _commands.SetStatusBar(batch, $"Processing item {i} of 5...");
-            Assert.True(result.Success, $"SetStatusBar call {i} failed: {result.ErrorMessage}");
-        }
-
-        // Cleanup
-        _commands.ClearStatusBar(batch);
-    }
+    private object ReadStatusBar() =>
+        _fixture.ExecuteRawVerification((ctx, ct) => ctx.App.StatusBar);
 }

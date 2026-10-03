@@ -49,6 +49,11 @@ through Excel's supported automation here. Use Power Query for stored
 transformations and DAX measures for analytical calculations. Remote DAX
 formatting sends code outside the computer and needs consent.
 
+Excel can store a measure definition without evaluating it. Readback proves
+storage, not a valid calculation; evaluate a query referencing the measure to
+check its result. Format readback reports Excel's actual type and available
+properties, distinguishing Decimal from Percentage.
+
 [Model and calculation guidance](../reference/datamodel.md) |
 [DAX walkthrough](../guides/QUERY-DATA-MODEL-WITH-DAX.md)
 

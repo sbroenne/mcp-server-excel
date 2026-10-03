@@ -20,6 +20,13 @@ Metadata and data reads answer different questions. Ordinary data reads include
 filtered rows; explicitly inspect visible rows when the result should reflect
 the active filter.
 
+Every row in `rows` or `rows_file`
+(MCP) / `--rows` or `--rows-file` (CLI) must have exactly the Table's column
+count; include `null` for an intentionally blank cell. All row widths are checked
+before writing cells or changing calculation mode. A mismatched row is rejected
+without truncating values, inserting incomplete records, or expanding the Table.
+This validation does not promise rollback for unrelated later Excel failures.
+
 ## Native filtering
 
 Keep filtering within the intended Table. Clearing its filters does not clear
@@ -48,3 +55,9 @@ After worksheet-source edits, follow the
 A DAX-backed worksheet Table displays a model query result. It is not a DAX
 calculated table inside the model. Use returned query data when no worksheet
 object is needed, or a [PivotTable](pivottable.md) for interactive filtering.
+
+`update-dax` stores the new connection command before executing it. If the
+query fails, do not assume the original command was restored: `get-dax` reports
+the stored command, while worksheet rows can still contain the last successful
+result. Correct the query and call `update-dax` again to establish a successful
+refresh.

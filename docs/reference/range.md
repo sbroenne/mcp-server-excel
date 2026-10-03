@@ -103,6 +103,19 @@ Validation replacement can remove the old rule before Excel rejects the new
 one. Inspect the resulting rule after failure rather than assuming the previous
 validation survived.
 
+## Data validation
+
+MCP `range_format` action `validate-range` and CLI `rangeformat validate-range`
+replace the target's existing validation rule. Invalid validation types,
+comparison operators, and error styles are rejected before removing that rule.
+This does not promise rollback for errors Excel raises while applying a rule.
+
+Explicit `show_input_message: false` / `--show-input-message false` and
+`show_error_alert: false` / `--show-error-alert false` disable those messages.
+Omitting these settings uses the documented defaults: input messages off,
+error alerts on. Blank cells are allowed and list dropdowns are shown by default.
+Use `get-validation` to inspect the resulting rule and message settings.
+
 ## Formulas and merged cells
 
 Formula notation and cell-address notation are separate. Relative row/column

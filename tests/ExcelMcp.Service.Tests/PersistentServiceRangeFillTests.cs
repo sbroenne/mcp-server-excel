@@ -174,6 +174,8 @@ public sealed class PersistentServiceRangeFillTests(
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, sourceRange, [[1], [3]]).Success);
+        var before = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B5");
+        RequireSuccess(before);
         var failure = await _fixture.SendForFailureAsync("rangeedit.auto-fill", new
         {
             sheetName,
@@ -185,6 +187,10 @@ public sealed class PersistentServiceRangeFillTests(
         var source = _commands.GetValues(_fixture.BatchToken, sheetName, sourceRange);
         Assert.True(source.Success);
         Assert.Equal([1d, 3d], source.Values.Select(row => Convert.ToDouble(row[0], CultureInfo.InvariantCulture)));
+        var after = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B5");
+        RequireSuccess(after);
+        for (int row = 0; row < before.Values.Count; row++)
+            Assert.Equal(before.Values[row], after.Values[row]);
     }
 
     [Fact]
@@ -210,12 +216,14 @@ public sealed class PersistentServiceRangeFillTests(
         });
         var read = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:A3");
         Assert.True(read.Success);
+        Assert.Equal(1d, Convert.ToDouble(read.Values[0][0], CultureInfo.InvariantCulture));
         Assert.Equal("keep", read.Values[1][0]);
         Assert.Equal(3d, Convert.ToDouble(read.Values[2][0], CultureInfo.InvariantCulture));
-        var response = _fixture.Send("rangeformat.get-format", new { sheetName, rangeAddress = "A3" });
+        var response = _fixture.Send("rangeformat.get-format", new { sheetName, rangeAddress = "A1:A3" });
         using var format = JsonDocument.Parse(response.Result!);
-        Assert.True(format.RootElement.GetProperty("cells")[0].GetProperty("stored")
-            .GetProperty("font").GetProperty("bold").GetBoolean());
+        Assert.Equal(3, format.RootElement.GetProperty("cells").GetArrayLength());
+        Assert.All(format.RootElement.GetProperty("cells").EnumerateArray(), cell =>
+            Assert.True(cell.GetProperty("stored").GetProperty("font").GetProperty("bold").GetBoolean()));
     }
 
     [Theory]
@@ -291,8 +299,10 @@ public sealed class PersistentServiceRangeFillTests(
             overwritePolicy = "allow"
         });
         Assert.Equal("InvalidInput", failure.ErrorCategory);
-        var unchanged = _commands.GetValues(_fixture.BatchToken, sheetName, "A3");
+        var unchanged = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:A3");
         Assert.True(unchanged.Success);
-        Assert.Null(unchanged.Values[0][0]);
+        Assert.Equal(1d, Convert.ToDouble(unchanged.Values[0][0], CultureInfo.InvariantCulture));
+        Assert.Null(unchanged.Values[1][0]);
+        Assert.Null(unchanged.Values[2][0]);
     }
 }

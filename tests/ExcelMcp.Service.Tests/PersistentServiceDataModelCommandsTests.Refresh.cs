@@ -1,6 +1,9 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Globalization;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -20,11 +23,7 @@ public partial class PersistentServiceDataModelCommandsTests
     [Fact]
     public void Refresh_EntireModel_Succeeds()
     {
-        var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Refresh(batch);
-
-        Assert.True(result.Success, $"Refresh entire model failed: {result.ErrorMessage}");
-        Assert.Equal(_dataModelFile, result.FilePath);
+        AssertRefreshUpdatesSource(specificTable: false);
     }
 
     /// <summary>
@@ -34,11 +33,7 @@ public partial class PersistentServiceDataModelCommandsTests
     [Fact]
     public void Refresh_SpecificTable_Succeeds()
     {
-        var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Refresh(batch, tableName: "SalesTable");
-
-        Assert.True(result.Success, $"Refresh specific table failed: {result.ErrorMessage}");
-        Assert.Equal(_dataModelFile, result.FilePath);
+        AssertRefreshUpdatesSource(specificTable: true);
     }
 
     /// <summary>
@@ -49,11 +44,13 @@ public partial class PersistentServiceDataModelCommandsTests
     public void Refresh_InvalidTableName_ThrowsInvalidOperationException()
     {
         var batch = _fixture.BatchToken;
+        var before = ReadModelTotal("SalesTable");
 
         var ex = Assert.Throws<InvalidOperationException>(
             () => _dataModelCommands.Refresh(batch, tableName: "NonExistentTable"));
 
         Assert.Contains("NonExistentTable", ex.Message);
+        Assert.Equal(before, ReadModelTotal("SalesTable"));
     }
 
     /// <summary>
@@ -62,10 +59,45 @@ public partial class PersistentServiceDataModelCommandsTests
     [Fact]
     public void Refresh_WithExplicitTimeout_Succeeds()
     {
-        var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Refresh(batch, timeout: TimeSpan.FromMinutes(5));
+        AssertRefreshUpdatesSource(specificTable: false, TimeSpan.FromMinutes(5));
+    }
 
-        Assert.True(result.Success, $"Refresh with timeout failed: {result.ErrorMessage}");
+    private void AssertRefreshUpdatesSource(bool specificTable, TimeSpan? timeout = null)
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        var table = $"Refresh_{Guid.NewGuid():N}"[..24];
+        var tables = _fixture.CreateCommands<ITableCommands>();
+        RequireSuccess(_commands.SetValues(batch, sheet, "A1:B3", [["ID", "Amount"], [1, 10], [2, 20]]));
+        RequireSuccess(tables.Create(batch, sheet, table, "A1:B3"));
+        RequireSuccess(tables.AddToDataModel(batch, table));
+        _fixture.RegisterDataModelTableForCleanup(table);
+        Assert.Equal(30m, ReadModelTotal(table));
+        var untouched = ReadModelTotal("SalesTable");
+
+        RequireSuccess(_commands.SetValues(batch, sheet, "B2", [[70]], overwritePolicy: OverwritePolicy.Allow));
+        Assert.Equal(30m, ReadModelTotal(table));
+
+        var result = _dataModelCommands.Refresh(batch, specificTable ? table : null, timeout);
+
+        RequireSuccess(result);
+        Assert.Equal(_dataModelFile, result.FilePath);
+        Assert.Equal(90m, ReadModelTotal(table));
+        Assert.Equal(untouched, ReadModelTotal("SalesTable"));
+        var tableResult = RequireSuccess(_dataModelCommands.ReadTable(batch, table));
+        Assert.Equal(2, tableResult.RecordCount);
+        Assert.Equal(["Amount", "ID"], tableResult.Columns.Select(column => column.Name).Order(StringComparer.Ordinal));
+    }
+
+    private decimal ReadModelTotal(string table)
+    {
+        var result = _dataModelCommands.Evaluate(_fixture.BatchToken,
+            $"EVALUATE ROW(\"Total\", SUM('{table}'[Amount]))");
+        RequireSuccess(result);
+        Assert.Equal(1, result.RowCount);
+        Assert.Equal(1, result.ColumnCount);
+        Assert.Equal("[Total]", Assert.Single(result.Columns));
+        return Convert.ToDecimal(Assert.Single(Assert.Single(result.Rows)), CultureInfo.InvariantCulture);
     }
 
     #endregion

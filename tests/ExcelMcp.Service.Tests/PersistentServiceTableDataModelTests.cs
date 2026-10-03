@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
@@ -16,12 +17,14 @@ public class PersistentServiceTableDataModelTests(
 {
     private readonly ITableCommands _tableCommands =
         fixture.CreateCommands<ITableCommands>();
+    private readonly IDataModelCommands _model =
+        fixture.CreateCommands<IDataModelCommands>();
 
     private void CreateTableWithBracketColumns()
     {
         var batch = _fixture.BatchToken;
         _fixture.CreateNamedTestSheet(batch, "Data");
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             "Data",
             "A1:C3",
@@ -29,7 +32,7 @@ public class PersistentServiceTableDataModelTests(
                 ["ProductName", "[ACR_CM1]", "[ACR_CM2]"],
                 ["Widget", 100.0, 200.0],
                 ["Gadget", 150.0, 250.0]
-            ]);
+            ]));
         var tableResult = _tableCommands.Create(
             batch,
             "Data",
@@ -43,11 +46,11 @@ public class PersistentServiceTableDataModelTests(
     {
         var batch = _fixture.BatchToken;
         _fixture.CreateNamedTestSheet(batch, "Data");
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             "Data",
             "A1:B2",
-            [["ProductName", "Amount"], ["Widget", 100.0]]);
+            [["ProductName", "Amount"], ["Widget", 100.0]]));
         var tableResult = _tableCommands.Create(
             batch,
             "Data",
@@ -95,6 +98,8 @@ public class PersistentServiceTableDataModelTests(
         Assert.Contains("[ACR_CM1]", result.BracketColumnsFound);
         Assert.Contains("[ACR_CM2]", result.BracketColumnsFound);
         Assert.Null(result.BracketColumnsRenamed);
+        AssertLoadedTable("BracketTable", ["ProductName", "[ACR_CM1]", "[ACR_CM2]"],
+            [["Widget", 100, 200], ["Gadget", 150, 250]]);
     }
 
     /// <summary>
@@ -126,11 +131,13 @@ public class PersistentServiceTableDataModelTests(
         Assert.Null(result.BracketColumnsFound);
 
         // Verify the source column headers were actually renamed (brackets removed)
-        var rangeResult = _commands.GetValues(batch, "Data", "A1:C1");
+        var rangeResult = RequireSuccess(_commands.GetValues(batch, "Data", "A1:C1"));
         Assert.NotNull(rangeResult);
         Assert.Equal("ProductName", rangeResult.Values[0][0]?.ToString());
         Assert.Equal("ACR_CM1", rangeResult.Values[0][1]?.ToString());
         Assert.Equal("ACR_CM2", rangeResult.Values[0][2]?.ToString());
+        AssertLoadedTable("BracketTable", ["ProductName", "ACR_CM1", "ACR_CM2"],
+            [["Widget", 100, 200], ["Gadget", 150, 250]]);
     }
 
     /// <summary>
@@ -156,6 +163,7 @@ public class PersistentServiceTableDataModelTests(
         Assert.True(result.Success, $"AddToDataModel failed: {result.ErrorMessage}");
         Assert.Null(result.BracketColumnsFound);
         Assert.Null(result.BracketColumnsRenamed);
+        AssertLoadedTable("NormalTable", ["ProductName", "Amount"], [["Widget", 100]]);
     }
 
     /// <summary>
@@ -180,6 +188,46 @@ public class PersistentServiceTableDataModelTests(
         Assert.True(first.Success, $"First AddToDataModel failed: {first.ErrorMessage}");
 
         // Second add should throw (table already in model)
-        Assert.ThrowsAny<Exception>(() => AddToDataModel("NormalTable"));
+        var before = System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_model.ReadTable(batch, "NormalTable")));
+        var error = Assert.Throws<InvalidOperationException>(() => AddToDataModel("NormalTable"));
+        Assert.Contains("already in the Data Model", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_model.ReadTable(batch, "NormalTable"))));
+        AssertLoadedTable("NormalTable", ["ProductName", "Amount"], [["Widget", 100]]);
+    }
+
+    private void AssertLoadedTable(string name, string[] headers, object[][] rows)
+    {
+        var table = RequireSuccess(_model.ReadTable(_fixture.BatchToken, name));
+        Assert.Equal(name, table.TableName);
+        Assert.Equal(rows.Length, table.RecordCount);
+        Assert.Equal(headers.Order(StringComparer.Ordinal),
+            table.Columns.Select(column => column.Name).Order(StringComparer.Ordinal));
+        var source = RequireSuccess(_tableCommands.GetData(_fixture.BatchToken, name));
+        Assert.Equal(headers, source.Headers);
+        Assert.Equal(rows.Length, source.Data.Count);
+        for (var index = 0; index < rows.Length; index++)
+            Assert.Equal(rows[index], source.Data[index]);
+
+        var modelRows = RequireSuccess(_model.Evaluate(_fixture.BatchToken,
+            $"EVALUATE '{name}' ORDER BY '{name}'[ProductName]"));
+        Assert.Equal(rows.Length, modelRows.RowCount);
+        Assert.Equal(headers.Length, modelRows.ColumnCount);
+        var sorted = rows.OrderBy(row => (string)row[0], StringComparer.Ordinal).ToArray();
+        for (var row = 0; row < sorted.Length; row++)
+        {
+            for (var column = 0; column < headers.Length; column++)
+            {
+                var modelColumn = modelRows.Columns.FindIndex(value => value == $"{name}[{headers[column]}]");
+                Assert.InRange(modelColumn, 0, headers.Length - 1);
+                var value = modelRows.Rows[row][modelColumn];
+                if (column == 0)
+                    Assert.Equal(sorted[row][column], value);
+                else
+                    Assert.Equal(Convert.ToDecimal(sorted[row][column], System.Globalization.CultureInfo.InvariantCulture),
+                        Convert.ToDecimal(value, System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
     }
 }

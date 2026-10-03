@@ -25,6 +25,8 @@ Relates to #[issue number]
 - [ ] If Core/ComInterop/Service/CLI/MCP runtime paths or their generators changed: ran `& .\scripts\Test-E2E.ps1` locally and confirmed it completed with no failures or unresolved issues
 - [ ] Excel E2E not applicable because only documentation/configuration/Excel-free tooling changed
 - [ ] Ran the relevant feature-specific integration tests and recorded the exact command and result below
+- [ ] Ran `scripts\Test-ExcelBehavior.ps1` for affected Excel behavior and recorded its saved results directory (or explained why not applicable)
+- [ ] Outcome assertions check actual Excel state before cleanup; negative cases check preserved state or documented recovery
 - [ ] Tested manually with various Excel files
 - [ ] Verified cleanup of this test's owned Excel sessions without terminating unrelated Excel processes (if applicable)
 - [ ] Tested error conditions (missing files, invalid arguments, etc.)

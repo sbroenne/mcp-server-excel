@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -46,6 +47,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         var bytes = Convert.FromBase64String(result.ImageBase64);
         Assert.True(bytes.Length > 100);
         Assert.Equal([137, 80, 78, 71], bytes[..4]);
+        AssertCapturedRange(result, sheetName);
     }
 
     [Fact]
@@ -69,6 +71,8 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         Assert.True(bytes.Length > 100);
         Assert.Equal(0xFF, bytes[0]);
         Assert.Equal(0xD8, bytes[1]);
+        Assert.Contains("px", result.Message);
+        AssertCapturedRange(result, sheetName);
     }
 
     [Fact]
@@ -89,6 +93,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         Assert.True(result.Width > 0);
         Assert.True(result.Height > 0);
         Assert.True(Convert.FromBase64String(result.ImageBase64).Length > 500);
+        AssertCapturedRange(result, sheetName);
     }
 
     [Fact]
@@ -105,6 +110,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
 
         Assert.True(result.Success, result.ErrorMessage);
         AssertImageContainsChartMarker(result.ImageBase64);
+        AssertCapturedRange(result, sheetName);
     }
 
     [Fact]
@@ -125,6 +131,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         Assert.True(result.Width > 0);
         Assert.True(result.Height > 0);
         Assert.Equal(sheetName, result.SheetName);
+        AssertCapturedRange(result, sheetName);
     }
 
     [Fact]
@@ -141,6 +148,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         Assert.True(result.Success, result.ErrorMessage);
         Assert.NotNull(result.ImageBase64);
         Assert.Equal("image/png", result.MimeType);
+        AssertCapturedRange(result, sheetName);
     }
 
     [Fact]
@@ -159,21 +167,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         Assert.Equal("image/png", result.MimeType);
         Assert.True(result.Width > 0);
         Assert.True(result.Height > 0);
-    }
-
-    [Fact]
-    public void CaptureRange_MessageIncludesDimensions()
-    {
-        var batch = _fixture.BatchToken;
-        var sheetName = PrepareSheet(batch);
-
-        var result = _screenshotCommands.CaptureRange(
-            batch,
-            sheetName,
-            "A1:B5");
-
-        Assert.True(result.Success, result.ErrorMessage);
-        Assert.Contains("px", result.Message);
+        AssertCapturedRange(result, sheetName);
     }
 
     private string PrepareSheet(
@@ -181,7 +175,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         bool addChart = false)
     {
         var sheetName = _fixture.CreateTestSheet(batch);
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             sheetName,
             "A1:B5",
@@ -191,31 +185,44 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
                 ["South", 38000],
                 ["East", 51000],
                 ["West", 42000]
-            ]);
+            ]));
+        Assert.True(_fixture.Send("rangeformat.format",
+            new
+            {
+                sheetName,
+                rangeAddresses = (string[])["A1:B5"],
+                formatOptions = new { fillColor = "#28B4DC" }
+            }).Success);
 
         if (addChart)
         {
             _fixture.ExecuteRawVerification((ctx, ct) =>
             {
-                dynamic? sheet = null;
-                dynamic? chartObjects = null;
-                dynamic? chartObject = null;
-                dynamic? chart = null;
+                Excel.Sheets? sheets = null;
+                Excel.Worksheet? sheet = null;
+                Excel.Range? source = null;
+                Excel.ChartObjects? chartObjects = null;
+                Excel.ChartObject? chartObject = null;
+                Excel.Chart? chart = null;
                 try
                 {
-                    sheet = ctx.Book.Worksheets[sheetName];
-                    chartObjects = sheet.ChartObjects();
+                    sheets = ctx.Book.Worksheets;
+                    sheet = (Excel.Worksheet)sheets[sheetName];
+                    source = sheet.Range["A1:B5"];
+                    chartObjects = (Excel.ChartObjects)sheet.ChartObjects();
                     chartObject = chartObjects.Add(150, 100, 400, 250);
                     chart = chartObject.Chart;
-                    chart.SetSourceData(sheet.Range["A1:B5"]);
-                    chart.ChartType = 51;
+                    chart.SetSourceData(source);
+                    chart.ChartType = Excel.XlChartType.xlColumnClustered;
                 }
                 finally
                 {
                     ComUtilities.Release(ref chart);
                     ComUtilities.Release(ref chartObject);
                     ComUtilities.Release(ref chartObjects);
+                    ComUtilities.Release(ref source);
                     ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
                 }
             });
         }
@@ -223,25 +230,55 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
         return sheetName;
     }
 
+    private void AssertCapturedRange(ScreenshotResult result, string sheetName)
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(sheetName, result.SheetName);
+        Assert.NotNull(result.ImageBase64);
+        using var stream = new MemoryStream(Convert.FromBase64String(result.ImageBase64));
+        using var image = new Bitmap(stream);
+        Assert.Equal(result.Width, image.Width);
+        Assert.Equal(result.Height, image.Height);
+        var matching = 0;
+        for (var y = 0; y < image.Height; y += Math.Max(1, image.Height / 200))
+        {
+            for (var x = 0; x < image.Width; x += Math.Max(1, image.Width / 200))
+            {
+                var pixel = image.GetPixel(x, y);
+                if (Math.Abs(pixel.R - 40) < 25 && Math.Abs(pixel.G - 180) < 25 && Math.Abs(pixel.B - 220) < 25)
+                    matching++;
+            }
+        }
+        Assert.True(matching >= 10, "The captured image is missing the target range's colored marker.");
+        var values = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B5");
+        Assert.True(values.Success, values.ErrorMessage);
+        Assert.Equal(["Region", "North", "South", "East", "West"],
+            values.Values.Select(row => row[0]?.ToString()));
+        Assert.Equal([45000, 38000, 51000, 42000],
+            values.Values.Skip(1).Select(row => Convert.ToInt32(row[1], System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
     private void MoveAndMarkChart(string sheetName) =>
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? chartObjects = null;
-            dynamic? chartObject = null;
-            dynamic? chart = null;
-            dynamic? chartArea = null;
-            dynamic? chartInterior = null;
-            dynamic? targetCell = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.ChartObjects? chartObjects = null;
+            Excel.ChartObject? chartObject = null;
+            Excel.Chart? chart = null;
+            Excel.ChartArea? chartArea = null;
+            Excel.Interior? chartInterior = null;
+            Excel.Range? targetCell = null;
 
             try
             {
-                sheet = ctx.Book.Worksheets[sheetName];
-                chartObjects = sheet.ChartObjects();
-                chartObject = chartObjects.Item(1);
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                chartObjects = (Excel.ChartObjects)sheet.ChartObjects();
+                chartObject = (Excel.ChartObject)chartObjects.Item(1);
                 targetCell = sheet.Range["BA1"];
-                chartObject.Left = targetCell.Left;
-                chartObject.Top = targetCell.Top;
+                chartObject.Left = Convert.ToDouble(targetCell.Left, System.Globalization.CultureInfo.InvariantCulture);
+                chartObject.Top = Convert.ToDouble(targetCell.Top, System.Globalization.CultureInfo.InvariantCulture);
                 chart = chartObject.Chart;
                 chartArea = chart.ChartArea;
                 chartInterior = chartArea.Interior;
@@ -256,6 +293,7 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
                 ComUtilities.Release(ref chartObject);
                 ComUtilities.Release(ref chartObjects);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
 
@@ -287,15 +325,18 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
     private void Activate(string sheetName) =>
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
             try
             {
-                sheet = ctx.Book.Worksheets[sheetName];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
                 sheet.Activate();
             }
             finally
             {
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
 }

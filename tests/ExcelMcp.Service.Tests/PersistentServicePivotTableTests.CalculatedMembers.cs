@@ -16,7 +16,9 @@ public sealed partial class PersistentServicePivotTableTests
             _salesSheetName,
             "F2",
             "RegularPivot");
-        Assert.True(createResult.Success, createResult.ErrorMessage);
+        RequireSuccess(createResult);
+        RequireSuccess(_pivotCommands.CreateCalculatedField(batch, "RegularPivot", "Retained", "=Sales*2"));
+        var before = SnapshotPivot("RegularPivot");
 
         var result = _pivotCommands.ListCalculatedMembers(
             batch,
@@ -25,6 +27,8 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.False(result.Success);
         Assert.Contains("not an OLAP PivotTable", result.ErrorMessage);
         Assert.Contains("create-calculated-field", result.ErrorMessage);
+        Assert.Equal(before, SnapshotPivot("RegularPivot"));
+        AssertOriginalSales();
     }
 
     [Fact]
@@ -38,7 +42,9 @@ public sealed partial class PersistentServicePivotTableTests
             _salesSheetName,
             "F2",
             "RegularPivot");
-        Assert.True(createResult.Success, createResult.ErrorMessage);
+        RequireSuccess(createResult);
+        RequireSuccess(_pivotCommands.CreateCalculatedField(batch, "RegularPivot", "Retained", "=Sales*2"));
+        var before = SnapshotPivot("RegularPivot");
 
         var result = _pivotCommands.CreateCalculatedMember(
             batch,
@@ -49,5 +55,7 @@ public sealed partial class PersistentServicePivotTableTests
 
         Assert.False(result.Success);
         Assert.Contains("not an OLAP PivotTable", result.ErrorMessage);
+        Assert.Equal(before, SnapshotPivot("RegularPivot"));
+        AssertOriginalSales();
     }
 }

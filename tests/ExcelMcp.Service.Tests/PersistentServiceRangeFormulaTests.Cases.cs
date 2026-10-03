@@ -1,4 +1,6 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -61,6 +63,10 @@ public sealed partial class PersistentServiceRangeFormulaTests
 
         // Verify values
         var readResult = _commands.GetValues(batch, sheetName, "B1:D1");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        var stored = _commands.GetFormulas(batch, sheetName, "B1:D1");
+        Assert.True(stored.Success, stored.ErrorMessage);
+        AssertFormulaMatrix(formulas, stored.Formulas);
         Assert.Equal(
             10.0,
             Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
@@ -196,22 +202,16 @@ public sealed partial class PersistentServiceRangeFormulaTests
         Assert.Equal(
             273000.0,
             Convert.ToDouble(summaryTotalsResult.Values[0][4], System.Globalization.CultureInfo.InvariantCulture));
-        var avgText = summaryTotalsResult.Values[0][5]?.ToString() ?? string.Empty;
-        Assert.Contains("68", avgText);
-        Assert.Contains("250", avgText);
+        Assert.Equal("Avg: " + ReadNativeTextFormulaValues("$#,##0", [68250])[0],
+            summaryTotalsResult.Values[0][5]);
 
-        // Verify Growth Rate Calculations
-        Assert.Contains("%", growthRatesResult.Values[0][0]?.ToString() ?? string.Empty);
-        Assert.Contains("%", growthRatesResult.Values[1][0]?.ToString() ?? string.Empty);
-        Assert.Contains("%", growthRatesResult.Values[2][0]?.ToString() ?? string.Empty);
-        Assert.Contains("%", growthRatesResult.Values[3][0]?.ToString() ?? string.Empty);
+        Assert.Equal(ReadNativeTextFormulaValues("0.0%", [2d / 3, 0.5, 0.625, 0.3]),
+            growthRatesResult.Values.Select(row => row[0]?.ToString()));
 
-        // Verify formulas are preserved correctly
-        Assert.Contains("SUM", totalsResult.Formulas[0][0]);
-        Assert.Contains("IF", performanceResult.Formulas[0][0]);
-        Assert.Contains("AVERAGE", performanceResult.Formulas[0][0]);
-        Assert.Contains("CONCATENATE", summaryTotalsResult.Formulas[0][5]);
-        Assert.Contains("TEXT", growthRatesResult.Formulas[0][0]);
+        AssertFormulaMatrix(totalFormulas, totalsResult.Formulas);
+        AssertFormulaMatrix(performanceFormulas, performanceResult.Formulas);
+        AssertFormulaMatrix(summaryFormulas, summaryTotalsResult.Formulas);
+        AssertFormulaMatrix(growthFormulas, growthRatesResult.Formulas);
     }
 
     // === EDGE CASE TESTS ===
@@ -224,7 +224,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Create second sheet (add after the test sheet)
-        string dataSheetName = $"Data_{Guid.NewGuid():N}"[..31]; // Excel sheet name max 31 chars
+        string dataSheetName = $"Data {Guid.NewGuid():N}"[..31];
 
         _fixture.CreateNamedTestSheet(batch, dataSheetName);
 
@@ -252,10 +252,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         var formulaResult = _commands.GetFormulas(batch, sheetName, "A1:C2");
         Assert.True(formulaResult.Success);
 
-        Assert.Contains(dataSheetName, formulaResult.Formulas[0][0]);
-        Assert.Contains(dataSheetName, formulaResult.Formulas[0][1]);
-        Assert.Contains(dataSheetName, formulaResult.Formulas[0][2]);
-        Assert.Contains(dataSheetName, formulaResult.Formulas[1][0]);
+        AssertFormulaMatrix(formulas, formulaResult.Formulas);
 
         // Verify calculated values from cross-sheet references
         Assert.Equal(
@@ -307,6 +304,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
 
         var formulaResult = _commands.GetFormulas(batch, sheetName, "B1:E3");
         Assert.True(formulaResult.Success);
+        AssertFormulaMatrix(formulas, formulaResult.Formulas);
 
         Assert.Equal("=$A$1", formulaResult.Formulas[0][0]);
         Assert.Equal("=A1", formulaResult.Formulas[0][1]);
@@ -393,18 +391,21 @@ public sealed partial class PersistentServiceRangeFormulaTests
             $"Large formula set took too long: {duration.TotalSeconds:F2} seconds (expected < 10s)");
 
         var sampleResult = _commands.GetFormulas(batch, sheetName, "D1");
+        Assert.True(sampleResult.Success, sampleResult.ErrorMessage);
         Assert.Equal("=A1+B1+C1", sampleResult.Formulas[0][0]);
         Assert.Equal(
             6.0,
             Convert.ToDouble(sampleResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
 
         var middleResult = _commands.GetFormulas(batch, sheetName, "D500");
+        Assert.True(middleResult.Success, middleResult.ErrorMessage);
         Assert.Equal("=A500+B500+C500", middleResult.Formulas[0][0]);
         Assert.Equal(
             3000.0,
             Convert.ToDouble(middleResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
 
         var lastResult = _commands.GetFormulas(batch, sheetName, $"D{rowCount}");
+        Assert.True(lastResult.Success, lastResult.ErrorMessage);
         Assert.Equal($"=A{rowCount}+B{rowCount}+C{rowCount}", lastResult.Formulas[0][0]);
         Assert.Equal(
             6000.0,
@@ -416,6 +417,13 @@ public sealed partial class PersistentServiceRangeFormulaTests
 
         Assert.True(bulkResult.Success);
         Assert.Equal(rowCount, bulkResult.Formulas.Count);
+        AssertFormulaMatrix(formulas, bulkResult.Formulas);
+        Assert.Equal(rowCount, bulkResult.Values.Count);
+        for (var row = 0; row < rowCount; row++)
+        {
+            Assert.Equal((row + 1) * 6d, Convert.ToDouble(
+                Assert.Single(bulkResult.Values[row]), System.Globalization.CultureInfo.InvariantCulture));
+        }
         Assert.True(duration.TotalSeconds < 5,
             $"Bulk formula read took too long: {duration.TotalSeconds:F2} seconds (expected < 5s)");
     }
@@ -461,15 +469,11 @@ public sealed partial class PersistentServiceRangeFormulaTests
         Assert.Single(readResult.Formulas); // One row
         Assert.Equal(16, readResult.Formulas[0].Count); // 16 columns
 
-        // Verify first, middle, and last formulas
-        Assert.Equal("=A1*2", readResult.Formulas[0][0]);
-        Assert.Equal("=H1*2", readResult.Formulas[0][7]);
-        Assert.Equal("=P1*2", readResult.Formulas[0][15]);
+        AssertFormulaMatrix(formulas, readResult.Formulas);
 
         // Verify calculated values
-        Assert.Equal(2.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(16.0, Convert.ToDouble(readResult.Values[0][7], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(32.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(Enumerable.Range(1, 16).Select(value => value * 2d),
+            readResult.Values[0].Select(value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Fact]
@@ -483,6 +487,11 @@ public sealed partial class PersistentServiceRangeFormulaTests
             new() { "=1", "=2", "=3", "=4", "=5", "=6", "=7", "=8", "=9", "=10", "=11", "=12", "=13", "=14" },
             new() { "=15", "=16", "=17", "=18", "=19", "=20", "=21", "=22", "=23", "=24", "=25", "=26", "=27" }
         };
+        var original = Enumerable.Range(1, 3)
+            .Select(row => Enumerable.Range(1, 14)
+                .Select(column => $"={row * 100}+{column}").ToList()).ToList();
+        var seeded = _commands.SetFormulas(batch, sheetName, "A1:N3", original);
+        Assert.True(seeded.Success, seeded.ErrorMessage);
 
         var exception = Assert.Throws<ArgumentException>(
             () => _commands.SetFormulas(batch, sheetName, "A1:N2", jaggedFormulas));
@@ -490,6 +499,54 @@ public sealed partial class PersistentServiceRangeFormulaTests
         Assert.Contains("row 2", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("column count (13)", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var retained = _commands.GetFormulas(batch, sheetName, "A1:N3");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        AssertFormulaMatrix(original, retained.Formulas);
+        for (var row = 0; row < 3; row++)
+        {
+            Assert.Equal(Enumerable.Range(1, 14).Select(column => (row + 1) * 100d + column),
+                retained.Values[row].Select(value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)));
+        }
     }
 
+    private static void AssertFormulaMatrix(List<List<string>> expected, List<List<string>> actual)
+    {
+        Assert.Equal(expected.Count, actual.Count);
+        for (var row = 0; row < expected.Count; row++)
+        {
+            Assert.Equal(expected[row], actual[row]);
+        }
+    }
+
+    private string[] ReadNativeTextFormulaValues(string format, double[] values)
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        return _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? cell = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                cell = sheet.Range["A1"];
+                var results = new string[values.Length];
+                for (var index = 0; index < values.Length; index++)
+                {
+                    var number = values[index].ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+                    var quotedFormat = format.Replace("\"", "\"\"", StringComparison.Ordinal);
+                    cell.Formula2 = $"=TEXT({number},\"{quotedFormat}\")";
+                    results[index] = Assert.IsType<string>(cell.Value2);
+                }
+                return results;
+            }
+            finally
+            {
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+    }
 }

@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -15,193 +16,124 @@ public sealed class PersistentServicePowerQueryMixedConnectionTests(
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceWorkbookFixture>
 {
-    private readonly IPowerQueryCommands _queries =
-        fixture.CreateCommands<IPowerQueryCommands>();
+    private const string ModelCode =
+        "let Source = #table(type table [Guard = Int64.Type], {{71}, {89}}) in Source";
+    private const string OriginalCode = "let Source = #table({\"A\"}, {{1}, {3}}) in Source";
+    private const string UpdatedCode = "let Source = #table({\"A\", \"B\"}, {{7, 11}, {23, 31}}) in Source";
+    private readonly IPowerQueryCommands _queries = fixture.CreateCommands<IPowerQueryCommands>();
 
     [Fact]
     public void Update_WithDataModelConnection_DoesNotThrowCOMException()
     {
-        var dataModelQueryName = UniqueName("PQ_DM");
-        var connectionOnlyQueryName = UniqueName("PQ_CO");
-        CreateDataModelQuery(
-            dataModelQueryName,
-            "let Source = #table({\"ID\", \"Value\"}, {{1, 100}, {2, 200}}) in Source");
-        CreateConnectionOnlyQuery(
-            connectionOnlyQueryName,
-            "let Source = #table({\"A\"}, {{1}}) in Source");
-
-        var loadConfig = _queries.GetLoadConfig(
-            _fixture.BatchToken,
-            dataModelQueryName);
-        Assert.True(loadConfig.Success, $"GetLoadConfig failed: {loadConfig.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.LoadToDataModel, loadConfig.LoadMode);
-
-        var updateResult = _queries.Update(
-            _fixture.BatchToken,
-            connectionOnlyQueryName,
-            "let Source = #table({\"A\", \"B\"}, {{1, 2}}) in Source");
-
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
-        var viewResult = _queries.View(_fixture.BatchToken, connectionOnlyQueryName);
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-        Assert.Contains("\"B\"", viewResult.MCode);
+        var guard = CreateModelGuard();
+        var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Update(_fixture.BatchToken, name, UpdatedCode));
+        AssertStored(name, UpdatedCode, PowerQueryLoadMode.ConnectionOnly);
+        var result = RequireSuccess(_queries.Evaluate(_fixture.BatchToken, UpdatedCode));
+        Assert.Equal(["A", "B"], result.Columns);
+        Assert.Equal(2, result.RowCount);
+        Assert.Equal(2, result.ColumnCount);
+        PowerQueryStateAssertions.AssertRows([[7, 11], [23, 31]], result.Rows);
+        AssertModelGuard(guard);
+        AssertStored(name, UpdatedCode, PowerQueryLoadMode.ConnectionOnly);
     }
 
     [Fact]
     public void View_WithDataModelConnection_DoesNotThrowCOMException()
     {
-        var dataModelQueryName = UniqueName("PQ_DM");
-        var connectionOnlyQueryName = UniqueName("PQ_CO");
-        CreateDataModelQuery(
-            dataModelQueryName,
-            "let Source = #table({\"X\"}, {{1}}) in Source");
-        CreateConnectionOnlyQuery(
-            connectionOnlyQueryName,
-            "let Source = #table({\"Y\"}, {{2}}) in Source");
-
-        var viewResult = _queries.View(_fixture.BatchToken, connectionOnlyQueryName);
-
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-        Assert.Contains("\"Y\"", viewResult.MCode);
+        var guard = CreateModelGuard();
+        var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
+        AssertStored(name, OriginalCode, PowerQueryLoadMode.ConnectionOnly);
+        AssertModelGuard(guard);
     }
 
     [Fact]
     public void List_WithDataModelConnection_Succeeds()
     {
-        var dataModelQueryName = UniqueName("PQ_DM");
-        var connectionOnlyQueryName = UniqueName("PQ_CO");
-        CreateDataModelQuery(
-            dataModelQueryName,
-            "let Source = #table({\"X\"}, {{1}}) in Source");
-        CreateConnectionOnlyQuery(
-            connectionOnlyQueryName,
-            "let Source = #table({\"Y\"}, {{2}}) in Source");
-
-        var listResult = _queries.List(_fixture.BatchToken);
-
-        Assert.True(listResult.Success, $"List failed: {listResult.ErrorMessage}");
-        Assert.NotNull(listResult.Queries);
-        var queryNames = listResult.Queries.Select(query => query.Name).ToList();
-        Assert.Contains(dataModelQueryName, queryNames);
-        Assert.Contains(connectionOnlyQueryName, queryNames);
+        var guard = CreateModelGuard();
+        var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
+        var result = RequireSuccess(_queries.List(_fixture.BatchToken));
+        Assert.Equal(new[] { guard, name }.Order(StringComparer.Ordinal),
+            result.Queries.Select(query => query.Name).Order(StringComparer.Ordinal));
+        AssertStored(name, OriginalCode, PowerQueryLoadMode.ConnectionOnly);
+        AssertModelGuard(guard);
     }
 
     [Fact]
     public void Delete_WithDataModelConnection_Succeeds()
     {
-        var dataModelQueryName = UniqueName("PQ_DM");
-        var targetQueryName = UniqueName("PQ_Del");
-        CreateDataModelQuery(
-            dataModelQueryName,
-            "let Source = #table({\"X\"}, {{1}}) in Source");
-        CreateConnectionOnlyQuery(
-            targetQueryName,
-            "let Source = #table({\"Y\"}, {{2}}) in Source");
-
-        var deleteResult = _queries.Delete(_fixture.BatchToken, targetQueryName);
-        _fixture.ForgetPowerQuery(targetQueryName);
-
-        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
-        var listResult = _queries.List(_fixture.BatchToken);
-        Assert.True(listResult.Success);
-        var queryNames = listResult.Queries.Select(query => query.Name).ToList();
-        Assert.DoesNotContain(targetQueryName, queryNames);
-        Assert.Contains(dataModelQueryName, queryNames);
+        var guard = CreateModelGuard();
+        var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Delete(_fixture.BatchToken, name));
+        _fixture.ForgetPowerQuery(name);
+        PowerQueryStateAssertions.AssertRemoved(_fixture, name);
+        AssertModelGuard(guard);
     }
 
     [Fact]
     public void Update_WorksheetQuery_WithDataModelConnection_Succeeds()
     {
-        var dataModelQueryName = UniqueName("PQ_DM");
-        var worksheetQueryName = UniqueName("PQ_WS");
-        CreateDataModelQuery(
-            dataModelQueryName,
-            "let Source = #table({\"X\"}, {{1}}) in Source");
-        _queries.Create(
-            _fixture.BatchToken,
-            worksheetQueryName,
-            "let Source = #table({\"Col1\"}, {{10}}) in Source",
-            PowerQueryLoadMode.LoadToTable);
-        _fixture.RegisterPowerQueryForCleanup(worksheetQueryName);
-        _fixture.RegisterSheetForCleanup(worksheetQueryName);
-
-        var updateResult = _queries.Update(
-            _fixture.BatchToken,
-            worksheetQueryName,
-            "let Source = #table({\"Col1\", \"Col2\"}, {{10, 20}}) in Source");
-
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
-        var viewResult = _queries.View(_fixture.BatchToken, worksheetQueryName);
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-        Assert.Contains("\"Col2\"", viewResult.MCode);
+        var guard = CreateModelGuard();
+        var name = CreateQuery(PowerQueryLoadMode.LoadToTable);
+        RequireSuccess(_queries.Update(_fixture.BatchToken, name, UpdatedCode));
+        AssertStored(name, UpdatedCode, PowerQueryLoadMode.LoadToTable);
+        AssertModelGuard(guard);
     }
 
     [Fact]
     public void DataModelLoad_CreatesNonOledbConnection()
     {
-        var queryName = UniqueName("PQ_Verify");
-        CreateDataModelQuery(
-            queryName,
-            "let Source = #table({\"V\"}, {{1}}) in Source");
-
-        var hasNonOledbConnection = _fixture.ExecuteRawVerification((ctx, ct) =>
+        var guard = CreateModelGuard();
+        _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic? connections = null;
+            Excel.Model? model = null;
+            Excel.WorkbookConnection? connection = null;
             try
             {
-                connections = ctx.Book.Connections;
-                var count = (int)connections.Count;
-                for (var index = 1; index <= count; index++)
-                {
-                    dynamic? connection = null;
-                    try
-                    {
-                        connection = connections[index];
-                        var connectionType = (int)connection.Type;
-                        if (connectionType != 1)
-                        {
-                            return true;
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref connection);
-                    }
-                }
-
-                return false;
+                model = context.Book.Model;
+                connection = model.DataModelConnection;
+                Assert.Equal(Excel.XlConnectionType.xlConnectionTypeMODEL, connection.Type);
+                Assert.NotEmpty(connection.Name);
             }
             finally
             {
-                ComUtilities.Release(ref connections);
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref model);
             }
         });
-
-        Assert.True(
-            hasNonOledbConnection,
-            "Expected at least one non-OLEDB connection (Type != 1) after LoadToDataModel.");
+        AssertModelGuard(guard);
     }
 
-    private void CreateDataModelQuery(string queryName, string mCode)
+    private string CreateModelGuard()
     {
-        _queries.Create(
-            _fixture.BatchToken,
-            queryName,
-            mCode,
-            PowerQueryLoadMode.LoadToDataModel);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
+        var name = UniqueName("Model");
+        RequireSuccess(_queries.Create(_fixture.BatchToken, name, ModelCode,
+            PowerQueryLoadMode.LoadToDataModel));
+        _fixture.RegisterPowerQueryForCleanup(name);
+        AssertModelGuard(name);
+        return name;
     }
 
-    private void CreateConnectionOnlyQuery(string queryName, string mCode)
+    private string CreateQuery(PowerQueryLoadMode mode)
     {
-        _queries.Create(
-            _fixture.BatchToken,
-            queryName,
-            mCode,
-            PowerQueryLoadMode.ConnectionOnly);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
+        var name = UniqueName("Target");
+        RequireSuccess(_queries.Create(_fixture.BatchToken, name, OriginalCode, mode,
+            mode == PowerQueryLoadMode.LoadToTable ? name : null));
+        _fixture.RegisterPowerQueryForCleanup(name);
+        if (mode == PowerQueryLoadMode.LoadToTable) { _fixture.RegisterSheetForCleanup(name); }
+        AssertStored(name, OriginalCode, mode);
+        return name;
     }
 
-    private static string UniqueName(string prefix) =>
-        $"{prefix}_{Guid.NewGuid():N}"[..Math.Min(prefix.Length + 9, 31)];
+    private void AssertStored(string name, string code, PowerQueryLoadMode mode) =>
+        PowerQueryStateAssertions.AssertStored(_fixture, name, code, mode,
+            mode == PowerQueryLoadMode.LoadToTable ? name : null,
+            code == OriginalCode ? ["A"] : ["A", "B"],
+            code == OriginalCode ? [[1], [3]] : [[7, 11], [23, 31]]);
+
+    private void AssertModelGuard(string name) =>
+        PowerQueryStateAssertions.AssertStored(_fixture, name, ModelCode,
+            PowerQueryLoadMode.LoadToDataModel, null, ["Guard"], [[71], [89]]);
+
+    private static string UniqueName(string prefix) => $"PQ_{prefix}_{Guid.NewGuid():N}"[..(prefix.Length + 12)];
 }

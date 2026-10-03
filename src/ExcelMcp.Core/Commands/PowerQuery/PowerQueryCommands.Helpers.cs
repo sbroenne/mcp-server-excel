@@ -175,7 +175,7 @@ public partial class PowerQueryCommands
                     for (int lo = 1; lo <= listObjects.Count; lo++)
                     {
                         dynamic? listObject = null;
-                        dynamic? queryTable = null;
+                        Excel.QueryTable? queryTable = null;
                         try
                         {
                             listObject = listObjects.Item(lo);
@@ -203,6 +203,8 @@ public partial class PowerQueryCommands
                                 connection,
                                 queryName))
                             {
+                                // Also repair bindings in tables loaded by older server versions.
+                                queryTable.PreserveColumnInfo = true;
                                 // Keep synchronous refresh semantics for worksheet queries.
                                 // QueryTable.Refresh(false) is the only reliable path that propagates
                                 // Power Query formula errors for worksheet-loaded queries.

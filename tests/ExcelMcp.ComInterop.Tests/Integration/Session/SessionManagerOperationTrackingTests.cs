@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 
@@ -31,19 +32,22 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         GC.SuppressFinalize(this);
 
+        var failures = new List<Exception>();
         foreach (var file in _testFiles.Where(File.Exists))
         {
-#pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
-            try { File.Delete(file); } catch (Exception) { /* best effort */ }
-#pragma warning restore CA1031
+            try { File.Delete(file); }
+            catch (IOException exception) { failures.Add(exception); }
+            catch (UnauthorizedAccessException exception) { failures.Add(exception); }
         }
 
         if (Directory.Exists(_tempDir))
         {
-#pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
-            try { Directory.Delete(_tempDir, recursive: true); } catch (Exception) { /* best effort */ }
-#pragma warning restore CA1031
+            try { Directory.Delete(_tempDir, recursive: true); }
+            catch (IOException exception) { failures.Add(exception); }
+            catch (UnauthorizedAccessException exception) { failures.Add(exception); }
         }
+        if (failures.Count != 0)
+            throw new AggregateException("Operation-tracking test cleanup failed.", failures);
     }
 
     /// <summary>
@@ -87,8 +91,10 @@ public class SessionManagerOperationTrackingTests : IDisposable
         Assert.Equal(2, manager.GetActiveOperationCount(sessionId));
 
         manager.EndOperation(sessionId);
+        Assert.Equal(1, manager.GetActiveOperationCount(sessionId));
         manager.EndOperation(sessionId);
-        manager.CloseSession(sessionId);
+        Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -108,7 +114,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
         manager.EndOperation(sessionId);
         Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -124,7 +130,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -165,7 +171,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.False(manager.IsExcelVisible(sessionId));
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -177,7 +183,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.True(manager.IsExcelVisible(sessionId));
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -203,7 +209,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.False(manager.IsExcelVisible(sessionId));
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -568,7 +574,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
         Assert.Equal(0, result.ActiveOperationCount);
         Assert.Null(result.BlockingReason);
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -590,8 +596,14 @@ public class SessionManagerOperationTrackingTests : IDisposable
         Assert.Contains("2 operation(s) still running", result.BlockingReason);
 
         manager.EndOperation(sessionId);
+        var remaining = manager.ValidateClose(sessionId);
+        Assert.False(remaining.CanClose);
+        Assert.Equal(1, remaining.ActiveOperationCount);
         manager.EndOperation(sessionId);
-        manager.CloseSession(sessionId);
+        var ready = manager.ValidateClose(sessionId);
+        Assert.True(ready.CanClose);
+        Assert.Null(ready.BlockingReason);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -603,6 +615,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.False(result.SessionExists);
         Assert.False(result.CanClose);
+        Assert.Equal(0, result.ActiveOperationCount);
         Assert.NotNull(result.BlockingReason);
         Assert.Contains("not found", result.BlockingReason);
     }
@@ -615,6 +628,8 @@ public class SessionManagerOperationTrackingTests : IDisposable
         var result = manager.ValidateClose(null!);
 
         Assert.False(result.SessionExists);
+        Assert.False(result.CanClose);
+        Assert.Equal(0, result.ActiveOperationCount);
         Assert.Contains("required", result.BlockingReason);
     }
 
@@ -628,8 +643,12 @@ public class SessionManagerOperationTrackingTests : IDisposable
         var result = manager.ValidateClose(sessionId);
 
         Assert.True(result.IsExcelVisible);
+        Assert.True(result.SessionExists);
+        Assert.True(result.CanClose);
+        Assert.Equal(0, result.ActiveOperationCount);
+        Assert.Null(result.BlockingReason);
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
     }
 
     #endregion
@@ -642,6 +661,9 @@ public class SessionManagerOperationTrackingTests : IDisposable
         var testFile = CreateTestFile(nameof(CloseSession_OperationsRunning_ThrowsInvalidOperationException));
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile);
+        var batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+        WriteGuard(batch, 21);
+        AssertGuard(batch, 21);
 
         manager.BeginOperation(sessionId);
 
@@ -653,10 +675,15 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         // Session should still be open
         Assert.Equal(1, manager.ActiveSessionCount);
+        Assert.Same(batch, manager.GetSession(sessionId));
+        Assert.Equal(1, manager.GetActiveOperationCount(sessionId));
+        Assert.False(manager.ValidateClose(sessionId).CanClose);
+        AssertGuard(batch, 21);
 
         // Clean up
         manager.EndOperation(sessionId);
-        manager.CloseSession(sessionId);
+        Assert.True(manager.ValidateClose(sessionId).CanClose);
+        AssertSessionClosed(manager, sessionId);
     }
 
     [Fact]
@@ -675,6 +702,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.True(closed);
         Assert.Equal(0, manager.ActiveSessionCount);
+        AssertClosedTracking(manager, sessionId);
     }
 
     [Fact]
@@ -692,6 +720,9 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         Assert.True(closed);
         Assert.Equal(0, manager.ActiveSessionCount);
+        AssertClosedTracking(manager, sessionId);
+        manager.EndOperation(sessionId);
+        AssertClosedTracking(manager, sessionId);
     }
 
     #endregion
@@ -709,7 +740,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
         manager.BeginOperation(sessionId);
         manager.EndOperation(sessionId);
 
-        manager.CloseSession(sessionId);
+        AssertSessionClosed(manager, sessionId);
 
         // After close, these should return defaults
         Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
@@ -733,7 +764,149 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         // All tracking should be cleared
         Assert.Equal(0, manager.ActiveSessionCount);
+        Assert.Equal(0, manager.GetActiveOperationCount(session1));
+        Assert.Equal(0, manager.GetActiveOperationCount(session2));
+        Assert.False(manager.IsExcelVisible(session1));
+        Assert.False(manager.IsExcelVisible(session2));
+        Assert.Throws<ObjectDisposedException>(() => manager.TryBeginOperation(session1, out _, out _));
+        Assert.Throws<ObjectDisposedException>(() => manager.GetSession(session2));
     }
+
+    [Theory]
+    [InlineData(null, SessionOperationError.MissingSessionId, "sessionId is required")]
+    [InlineData("", SessionOperationError.MissingSessionId, "sessionId is required")]
+    [InlineData("   ", SessionOperationError.MissingSessionId, "sessionId is required")]
+    [InlineData("missing-session", SessionOperationError.NotFound, "not found")]
+    public void TryBeginOperation_InvalidIdentity_PreservesExistingSession(
+        string? rejectedId, SessionOperationError expectedError, string expectedMessage)
+    {
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(CreateTestFile(nameof(TryBeginOperation_InvalidIdentity_PreservesExistingSession)));
+        var original = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+        WriteGuard(original, 17);
+        manager.BeginOperation(sessionId);
+        try
+        {
+            Assert.False(manager.TryBeginOperation(rejectedId!, out var rejectedBatch, out var message, out var error));
+            Assert.Null(rejectedBatch);
+            Assert.Equal(expectedError, error);
+            Assert.Contains(expectedMessage, message, StringComparison.Ordinal);
+            Assert.Equal(1, manager.ActiveSessionCount);
+            Assert.Equal(1, manager.GetActiveOperationCount(sessionId));
+            Assert.Same(original, manager.GetSession(sessionId));
+            AssertGuard(original, 17);
+        }
+        finally
+        {
+            manager.EndOperation(sessionId);
+        }
+        AssertSessionClosed(manager, sessionId);
+    }
+
+    [Fact]
+    public void TryBeginOperation_FailedOperation_EndReleasesTrackingAndSessionRemainsUsable()
+    {
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSession(CreateTestFile(nameof(TryBeginOperation_FailedOperation_EndReleasesTrackingAndSessionRemainsUsable)));
+        var original = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+        WriteGuard(original, 19);
+        Assert.True(manager.TryBeginOperation(sessionId, out var batch, out var message, out var error), message);
+        Assert.Null(message);
+        Assert.Equal(SessionOperationError.None, error);
+        Assert.Same(original, batch);
+        Assert.Equal(1, manager.GetActiveOperationCount(sessionId));
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() =>
+                batch.Execute((_, _) => throw new InvalidOperationException("synthetic operation failure")));
+            Assert.Contains("synthetic operation failure", exception.Message);
+            Assert.Equal(1, manager.GetActiveOperationCount(sessionId));
+            Assert.False(manager.ValidateClose(sessionId).CanClose);
+        }
+        finally
+        {
+            manager.EndOperation(sessionId);
+        }
+        Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
+        Assert.True(manager.ValidateClose(sessionId).CanClose);
+        AssertGuard(original, 19);
+        WriteGuard(original, 23);
+        AssertGuard(original, 23);
+        AssertSessionClosed(manager, sessionId);
+    }
+
+    private static void AssertSessionClosed(SessionManager manager, string sessionId)
+    {
+        Assert.True(manager.CloseSession(sessionId));
+        AssertClosedTracking(manager, sessionId);
+    }
+
+    private static void AssertClosedTracking(SessionManager manager, string sessionId)
+    {
+        Assert.Null(manager.GetSession(sessionId));
+        Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
+        Assert.False(manager.IsExcelVisible(sessionId));
+        var validation = manager.ValidateClose(sessionId);
+        Assert.False(validation.SessionExists);
+        Assert.False(validation.CanClose);
+        Assert.Equal(0, validation.ActiveOperationCount);
+        Assert.False(manager.TryBeginOperation(sessionId, out var batch, out var message, out var error));
+        Assert.Null(batch);
+        Assert.Equal(SessionOperationError.NotFound, error);
+        Assert.Contains("not found", message, StringComparison.Ordinal);
+    }
+
+    private static void WriteGuard(IExcelBatch batch, int value) =>
+        batch.Execute((ctx, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? input = null;
+            Excel.Range? formula = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[1];
+                input = sheet.Range["A1"];
+                formula = sheet.Range["B1"];
+                input.Value2 = value;
+                formula.Formula = "=A1*2";
+                formula.Calculate();
+            }
+            finally
+            {
+                ComUtilities.Release(ref formula);
+                ComUtilities.Release(ref input);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+    private static void AssertGuard(IExcelBatch batch, int expected) =>
+        batch.Execute((ctx, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? input = null;
+            Excel.Range? formula = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[1];
+                input = sheet.Range["A1"];
+                formula = sheet.Range["B1"];
+                Assert.Equal(expected, Convert.ToInt32(input.Value2, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal("=A1*2", formula.Formula);
+                Assert.Equal(expected * 2, Convert.ToInt32(formula.Value2, System.Globalization.CultureInfo.InvariantCulture));
+            }
+            finally
+            {
+                ComUtilities.Release(ref formula);
+                ComUtilities.Release(ref input);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
 
     #endregion
 }

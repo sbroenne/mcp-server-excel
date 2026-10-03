@@ -89,6 +89,7 @@ public sealed partial class DrawingCommands
         string? lineColor = null,
         bool showMarkers = false)
     {
+        ValidateColors(null, null, lineColor);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -129,6 +130,7 @@ public sealed partial class DrawingCommands
         string? lineColor = null,
         bool? showMarkers = null)
     {
+        ValidateColors(null, null, lineColor);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;

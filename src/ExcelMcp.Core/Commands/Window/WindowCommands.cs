@@ -16,12 +16,17 @@ public partial class WindowCommands : IWindowCommands
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
     // Excel WindowState constants (XlWindowState)
     private const int XlMaximized = -4137;  // xlMaximized
     private const int XlMinimized = -4140;  // xlMinimized
     private const int XlNormal = -4143;     // xlNormal
+    private const int SwRestore = 9;
 
     /// <summary>
     /// Makes the Excel window visible and brings it to the foreground.
@@ -205,6 +210,15 @@ public partial class WindowCommands : IWindowCommands
     /// </summary>
     public OperationResult Arrange(IExcelBatch batch, string preset)
     {
+        var normalizedPreset = preset.ToLowerInvariant();
+        if (normalizedPreset is not ("left-half" or "right-half" or "top-half" or
+            "bottom-half" or "center" or "full-screen"))
+        {
+            throw new ArgumentException(
+                $"Unknown arrange preset: '{preset}'. " +
+                "Valid presets: left-half, right-half, top-half, bottom-half, center, full-screen");
+        }
+
         return batch.Execute((ctx, ct) =>
         {
             // Ensure Excel is visible
@@ -217,7 +231,7 @@ public partial class WindowCommands : IWindowCommands
             WindowBounds workArea = WindowWorkArea.GetBoundsInPoints(hwnd);
 
             // Set to normal state so position/size can be changed
-            if (preset != "full-screen")
+            if (normalizedPreset != "full-screen")
             {
                 if ((int)ctx.App.WindowState != XlNormal)
                 {
@@ -225,7 +239,7 @@ public partial class WindowCommands : IWindowCommands
                 }
             }
 
-            switch (preset.ToLowerInvariant())
+            switch (normalizedPreset)
             {
                 case "left-half":
                     SetWindowBounds(
@@ -273,10 +287,6 @@ public partial class WindowCommands : IWindowCommands
                     ctx.App.WindowState = (Excel.XlWindowState)XlMaximized;
                     break;
 
-                default:
-                    throw new ArgumentException(
-                        $"Unknown arrange preset: '{preset}'. " +
-                        "Valid presets: left-half, right-half, top-half, bottom-half, center, full-screen");
             }
 
             BringWindowToFront(ctx.App);
@@ -338,7 +348,8 @@ public partial class WindowCommands : IWindowCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            ctx.App.StatusBar = false; // false restores default "Ready" text
+            // A Boolean is displayed as "FALSE" by some Excel COM versions.
+            ctx.App.StatusBar = Type.Missing;
 
             return new OperationResult
             {
@@ -352,12 +363,21 @@ public partial class WindowCommands : IWindowCommands
     /// <summary>
     /// Brings the Excel window to the foreground using Win32 SetForegroundWindow.
     /// </summary>
-    private static void BringWindowToFront(dynamic app)
+    private static void BringWindowToFront(Excel.Application app)
     {
-        int hwnd = app.Hwnd;
-        if (hwnd != 0)
+        var hwnd = new IntPtr(app.Hwnd);
+        if (hwnd == IntPtr.Zero)
         {
-            SetForegroundWindow(new IntPtr(hwnd));
+            throw new InvalidOperationException("Excel has no window handle to bring to the foreground.");
+        }
+        if (app.WindowState == Excel.XlWindowState.xlMinimized)
+        {
+            // SW_RESTORE retains the pre-minimize normal or maximized state.
+            ShowWindow(hwnd, SwRestore);
+        }
+        if (!SetForegroundWindow(hwnd) && GetForegroundWindow() != hwnd)
+        {
+            throw new InvalidOperationException("Windows could not bring the Excel window to the foreground.");
         }
     }
 }

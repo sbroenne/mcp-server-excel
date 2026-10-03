@@ -31,16 +31,12 @@ public class PersistentServiceDataModelDaxFormattingTests(
     public void ListMeasures_WithMeasures_ReturnsRawPreviews()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ListMeasures(batch);
-
-        Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
-        Assert.NotEmpty(result.Measures);
-
-        // Check that previews are returned (raw DAX, not formatted)
-        var totalSalesMeasure = result.Measures.FirstOrDefault(m => m.Name == "Total Sales");
-        Assert.NotNull(totalSalesMeasure);
-        Assert.NotEmpty(totalSalesMeasure.FormulaPreview);
-        Assert.Contains("SUM", totalSalesMeasure.FormulaPreview, StringComparison.OrdinalIgnoreCase);
+        var result = RequireSuccess(_dataModelCommands.ListMeasures(batch));
+        var totalSalesMeasure = Assert.Single(result.Measures, m => m.Name == "Total Sales");
+        Assert.Equal("SalesTable", totalSalesMeasure.Table);
+        Assert.Equal("SUM(SalesTable[Amount])", totalSalesMeasure.FormulaPreview);
+        Assert.Equal("Total sales amount", totalSalesMeasure.Description);
+        AssertMeasureValue("Total Sales", 2455);
     }
 
     /// <summary>
@@ -50,16 +46,10 @@ public class PersistentServiceDataModelDaxFormattingTests(
     [Fact]
     public void Read_WithMeasure_ReturnsRawFormula()
     {
-        var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Read(batch, "Total Sales");
-
-        Assert.True(result.Success, $"Read failed: {result.ErrorMessage}");
-        Assert.NotEmpty(result.DaxFormula);
-        Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
-
-        // CharacterCount should reflect the formula length
-        Assert.True(result.CharacterCount > 0);
-        Assert.Equal(result.DaxFormula.Length, result.CharacterCount);
+        var result = AssertStoredFormula("Total Sales", "SUM(SalesTable[Amount])");
+        Assert.Equal("Total sales amount", result.Description);
+        Assert.Equal("Decimal", Assert.IsType<MeasureFormatInfo>(result.FormatInfo).Type);
+        AssertMeasureValue("Total Sales", 2455);
     }
 
     /// <summary>
@@ -70,17 +60,11 @@ public class PersistentServiceDataModelDaxFormattingTests(
     {
         var measureName = $"Test_CreateFormatted_{Guid.NewGuid():N}";
         // Unformatted DAX (single line, no spaces around operators)
-        var unformattedDax = "CALCULATE(SUM(SalesTable[Amount]),FILTER(SalesTable,SalesTable[CustomerID]=1))";
+        var unformattedDax = "CALCULATE(SUM(SalesTable[Amount]),FILTER(SalesTable,SalesTable[CustomerID]=101))";
 
-        var batch = _fixture.BatchToken;
-
-        // Create measure without remote formatting opt-in
-        _ = CreateMeasure("SalesTable", measureName, unformattedDax);
-
-        // Retrieve and verify
-        var viewResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Equal(unformattedDax, viewResult.DaxFormula);
+        RequireSuccess(CreateMeasure("SalesTable", measureName, unformattedDax));
+        AssertStoredFormula(measureName, unformattedDax);
+        AssertMeasureValue(measureName, 525);
     }
 
     /// <summary>
@@ -92,25 +76,21 @@ public class PersistentServiceDataModelDaxFormattingTests(
         var measureName = $"Test_UpdateFormatted_{Guid.NewGuid():N}";
         var originalFormula = "SUM(SalesTable[Amount])";
         // Unformatted DAX for update (single line, no spaces)
-        var unformattedUpdate = "CALCULATE(AVERAGE(SalesTable[Amount]),FILTER(SalesTable,SalesTable[Region]=\"North\"))";
+        var unformattedUpdate = "CALCULATE(AVERAGE(SalesTable[Amount]),FILTER(SalesTable,RELATED(CustomersTable[Region])=\"North\"))";
 
         var batch = _fixture.BatchToken;
 
-        // Create measure
-        _ = CreateMeasure("SalesTable", measureName, originalFormula);
-
-        // Update without remote formatting opt-in
-        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: unformattedUpdate);
-
-        // Retrieve and verify
-        var viewResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Equal(unformattedUpdate, viewResult.DaxFormula);
+        RequireSuccess(CreateMeasure("SalesTable", measureName, originalFormula));
+        AssertStoredFormula(measureName, originalFormula);
+        AssertMeasureValue(measureName, 2455);
+        RequireSuccess(_dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: unformattedUpdate));
+        AssertStoredFormula(measureName, unformattedUpdate);
+        AssertMeasureValue(measureName, 200);
     }
 
     /// <summary>
     /// Tests that formatted DAX still executes correctly in Excel.
-    /// Creates a measure with formatted DAX and verifies it can be used in a PivotTable.
+    /// Creates a measure with formatted DAX and evaluates its numeric result.
     /// </summary>
     [Fact]
     public void CreateMeasure_WithFormattedDax_ExecutesCorrectlyInExcel()
@@ -121,27 +101,17 @@ public class PersistentServiceDataModelDaxFormattingTests(
     SUM(SalesTable[Amount]),
     FILTER(
         SalesTable,
-        SalesTable[CustomerID] = 1
+        SalesTable[CustomerID] = 101
     )
 )";
 
-        var batch = _fixture.BatchToken;
-
-        // Create measure with pre-formatted DAX
-        _ = CreateMeasure("SalesTable", measureName, formattedDax);
-
-        // Retrieve and verify it was saved correctly
-        var viewResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Contains("CALCULATE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-
-        // Verify the measure appears in the list
-        var listResult = _dataModelCommands.ListMeasures(batch);
-        Assert.Contains(listResult.Measures, m => m.Name == measureName);
+        RequireSuccess(CreateMeasure("SalesTable", measureName, formattedDax));
+        AssertStoredFormula(measureName, formattedDax.ReplaceLineEndings("\n"));
+        AssertMeasureValue(measureName, 525);
     }
 
     /// <summary>
-    /// Tests that null or empty DAX is handled gracefully (no formatting attempted).
+    /// Tests that a description-only update preserves the formula, format, and calculation.
     /// </summary>
     [Fact]
     public void UpdateMeasure_WithNullDaxFormula_DoesNotAttemptFormatting()
@@ -152,32 +122,87 @@ public class PersistentServiceDataModelDaxFormattingTests(
 
         var batch = _fixture.BatchToken;
 
-        // Create measure
-        _ = CreateMeasure("SalesTable", measureName, originalFormula);
-
-        // Update only description (null daxFormula should not trigger formatting)
-        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: null, description: newDescription);
-
-        // Verify description updated, formula unchanged
-        var viewResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
+        RequireSuccess(CreateMeasure("SalesTable", measureName, originalFormula, formatType: "Decimal"));
+        var before = AssertStoredFormula(measureName, originalFormula);
+        Assert.Equal("Decimal", Assert.IsType<MeasureFormatInfo>(before.FormatInfo).Type);
+        AssertMeasureValue(measureName, 2455);
+        RequireSuccess(_dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: null, description: newDescription));
+        var viewResult = AssertStoredFormula(measureName, originalFormula);
         Assert.Equal(newDescription, viewResult.Description);
-        Assert.Contains("SUM", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(before.FormatInfo),
+            System.Text.Json.JsonSerializer.Serialize(viewResult.FormatInfo));
+        AssertMeasureValue(measureName, 2455);
+    }
+
+    [Fact]
+    public void UpdateMeasure_InvalidFormat_PreservesFormulaDescriptionFormatAndCalculation()
+    {
+        var measureName = $"Test_RejectedFormat_{Guid.NewGuid():N}";
+        const string formula = "SUM(SalesTable[Amount])";
+        RequireSuccess(CreateMeasure("SalesTable", measureName, formula,
+            formatType: "Decimal", description: "Retained description"));
+        var before = AssertStoredFormula(measureName, formula);
+        AssertMeasureValue(measureName, 2455);
+        var listed = System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_dataModelCommands.ListMeasures(_fixture.BatchToken)).Measures);
+
+        var error = Assert.Throws<ArgumentException>(() => _dataModelCommands.UpdateMeasure(
+            _fixture.BatchToken, measureName, daxFormula: "0",
+            formatType: "NotAFormat", description: "Rejected description"));
+        Assert.Contains("format", error.Message, StringComparison.OrdinalIgnoreCase);
+
+        var after = AssertStoredFormula(measureName, formula);
+        Assert.Equal(before.Description, after.Description);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(before.FormatInfo),
+            System.Text.Json.JsonSerializer.Serialize(after.FormatInfo));
+        Assert.Equal(listed, System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_dataModelCommands.ListMeasures(_fixture.BatchToken)).Measures));
+        AssertMeasureValue(measureName, 2455);
+    }
+
+    private DataModelMeasureViewResult AssertStoredFormula(string measureName, string formula)
+    {
+        var result = RequireSuccess(_dataModelCommands.Read(_fixture.BatchToken, measureName));
+        Assert.Equal(measureName, result.MeasureName);
+        Assert.Equal("SalesTable", result.TableName);
+        Assert.Equal(formula, result.DaxFormula);
+        Assert.Equal(formula.Length, result.CharacterCount);
+        var preview = Assert.Single(
+            RequireSuccess(_dataModelCommands.ListMeasures(_fixture.BatchToken)).Measures,
+            measure => measure.Name == measureName);
+        Assert.Equal("SalesTable", preview.Table);
+        Assert.Equal(formula, preview.FormulaPreview);
+        Assert.Equal(result.Description, preview.Description);
+        return result;
+    }
+
+    private void AssertMeasureValue(string measureName, double expected)
+    {
+        var result = RequireSuccess(_dataModelCommands.Evaluate(
+            _fixture.BatchToken, $"EVALUATE ROW(\"Result\", [{measureName}])"));
+        Assert.Equal(1, result.RowCount);
+        Assert.Equal(1, result.ColumnCount);
+        Assert.Equal("[Result]", Assert.Single(result.Columns));
+        Assert.Equal(expected, Convert.ToDouble(Assert.Single(Assert.Single(result.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private OperationResult CreateMeasure(
         string tableName,
         string measureName,
-        string daxFormula)
+        string daxFormula,
+        string? formatType = null,
+        string? description = null)
     {
         var result = _dataModelCommands.CreateMeasure(
             _fixture.BatchToken,
             tableName,
             measureName,
-            daxFormula);
+            daxFormula,
+            formatType: formatType,
+            description: description);
         _fixture.RegisterDataModelMeasureForCleanup(measureName);
         return result;
     }
 
 }
-

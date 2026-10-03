@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
@@ -42,7 +43,7 @@ public sealed class SavedWorkbookTemplateExcelTests
 
                 using (var batch = ExcelSession.BeginBatch(first))
                 {
-                    batch.Execute((context, _) => context.Book.Worksheets[1].Range["A1"].Value2 = "changed");
+                    batch.Execute((context, _) => AccessMarker(context.Book, write: true));
                     batch.Save();
                 }
 
@@ -51,12 +52,14 @@ public sealed class SavedWorkbookTemplateExcelTests
                 using var firstReopened = ExcelSession.BeginBatch(first);
                 using var secondReopened = ExcelSession.BeginBatch(second);
                 var firstValue = firstReopened.Execute(
-                    (context, _) => (string?)context.Book.Worksheets[1].Range["A1"].Value2);
+                    (context, _) => AccessMarker(context.Book));
                 var secondValue = secondReopened.Execute(
-                    (context, _) => (string?)context.Book.Worksheets[1].Range["A1"].Value2);
+                    (context, _) => AccessMarker(context.Book));
 
                 Assert.Equal("changed", firstValue);
                 Assert.Null(secondValue);
+                Assert.Equal(3, tracked.Count);
+                Assert.Equal(3, tracked.Distinct().Count());
             }
             finally
             {
@@ -66,6 +69,28 @@ public sealed class SavedWorkbookTemplateExcelTests
         finally
         {
             Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static string? AccessMarker(Excel.Workbook workbook, bool write = false)
+    {
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? cell = null;
+        try
+        {
+            sheets = workbook.Worksheets;
+            sheet = (Excel.Worksheet)sheets[1];
+            cell = sheet.Range["A1"];
+            if (write)
+                cell.Value2 = "changed";
+            return (string?)cell.Value2;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref sheets);
         }
     }
 }

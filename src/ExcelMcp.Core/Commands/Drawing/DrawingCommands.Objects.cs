@@ -143,6 +143,7 @@ public sealed partial class DrawingCommands
         double? lineWeight = null)
     {
         ValidateGeometry(width, height);
+        ValidateColors(null, fillColor, lineColor);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -191,6 +192,7 @@ public sealed partial class DrawingCommands
         string? lineColor = null)
     {
         ValidateGeometry(width, height);
+        ValidateColors(fontColor, fillColor, lineColor);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -236,6 +238,7 @@ public sealed partial class DrawingCommands
         string? lineColor = null,
         double? lineWeight = null)
     {
+        ValidateColors(null, null, lineColor);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -283,6 +286,7 @@ public sealed partial class DrawingCommands
         string? inputRange = null)
     {
         ValidateGeometry(width, height);
+        ValidateFormControlBindings(controlType, linkedCell, inputRange);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -371,6 +375,7 @@ public sealed partial class DrawingCommands
             throw new ArgumentOutOfRangeException(nameof(placement), "Placement must be 1, 2, or 3.");
         }
 
+        ValidateColors(fontColor, fillColor, lineColor);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -383,6 +388,15 @@ public sealed partial class DrawingCommands
                 shapes = sheet.Shapes;
                 shape = FindShape(shapes, objectName)
                     ?? throw new InvalidOperationException($"Drawing object '{objectName}' not found on sheet '{sheetName}'.");
+
+                if ((linkedCell != null || inputRange != null) && ReadKind(shape) != DrawingObjectKind.FormControl)
+                {
+                    throw new InvalidOperationException("linkedCell and inputRange apply only to worksheet Forms controls.");
+                }
+                if (linkedCell != null || inputRange != null)
+                {
+                    ValidateFormControlBindings((DrawingFormControlType)shape.FormControlType, linkedCell, inputRange);
+                }
 
                 if (newName != null) shape.Name = newName;
                 if (left.HasValue) shape.Left = Convert.ToSingle(left.Value);
@@ -399,11 +413,6 @@ public sealed partial class DrawingCommands
 
                 if (linkedCell != null || inputRange != null)
                 {
-                    if (ReadKind(shape) != DrawingObjectKind.FormControl)
-                    {
-                        throw new InvalidOperationException("linkedCell and inputRange apply only to worksheet Forms controls.");
-                    }
-
                     controlFormat = shape.ControlFormat;
                     if (linkedCell != null) controlFormat.LinkedCell = linkedCell;
                     if (inputRange != null) controlFormat.ListFillRange = inputRange;
@@ -743,6 +752,19 @@ public sealed partial class DrawingCommands
             DrawingFormControlType.Spinner;
     }
 
+    private static void ValidateFormControlBindings(
+        DrawingFormControlType controlType, string? linkedCell, string? inputRange)
+    {
+        if (linkedCell != null && !SupportsLinkedCell(controlType))
+        {
+            throw new InvalidOperationException($"linkedCell is not supported for {controlType} worksheet Forms controls.");
+        }
+        if (inputRange != null && !SupportsInputRange(controlType))
+        {
+            throw new InvalidOperationException($"inputRange is not supported for {controlType} worksheet Forms controls.");
+        }
+    }
+
     private static bool SupportsInputRange(DrawingFormControlType controlType)
     {
         return controlType is DrawingFormControlType.DropDown or DrawingFormControlType.ListBox;
@@ -914,6 +936,13 @@ public sealed partial class DrawingCommands
         var green = (rgb >> 8) & 0xFF;
         var blue = rgb & 0xFF;
         return red | (green << 8) | (blue << 16);
+    }
+
+    private static void ValidateColors(string? fontColor, string? fillColor, string? lineColor)
+    {
+        if (fontColor != null) _ = ParseColor(fontColor);
+        if (fillColor != null) _ = ParseColor(fillColor);
+        if (lineColor != null) _ = ParseColor(lineColor);
     }
 
     private static string FormatColor(int oleColor)

@@ -1,14 +1,13 @@
+using System.Globalization;
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
-/// <summary>
-/// Integration tests for DAX-backed Table operations (create-from-dax, update-dax, get-dax).
-/// Tests verify that Excel Tables can be created from DAX EVALUATE queries and their queries updated.
-/// Uses DataModelPivotTableFixture which provides Data Model tables for DAX queries.
-/// </summary>
 [Collection("ServiceWorkflow")]
 [Trait("Layer", "Service")]
 [Trait("Category", "Integration")]
@@ -20,361 +19,335 @@ public class PersistentServiceTableDaxTests(
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceDataModelFixture>
 {
-    private readonly ITableCommands _tableCommands =
-        fixture.CreateCommands<ITableCommands>();
+    private readonly ITableCommands _tables = fixture.CreateCommands<ITableCommands>();
+    private readonly IDataModelCommands _model = fixture.CreateCommands<IDataModelCommands>();
+    private readonly IDataModelRelCommands _relationships = fixture.CreateCommands<IDataModelRelCommands>();
+    private readonly Dictionary<string, string> _sheets = new(StringComparer.Ordinal);
+    private const string SalesQuery = "EVALUATE 'SalesTable' ORDER BY 'SalesTable'[SalesID]";
+    private static readonly string[] SalesColumns =
+        ["SalesID", "Date", "CustomerID", "ProductID", "Amount", "Quantity"];
+    private static readonly object[][] SalesRows =
+    [
+        [1, new DateTime(2024, 1, 15).ToOADate(), 101, 1001, 150, 2],
+        [2, new DateTime(2024, 1, 20).ToOADate(), 102, 1002, 250, 3],
+        [3, new DateTime(2024, 2, 10).ToOADate(), 101, 1003, 175, 1],
+        [4, new DateTime(2024, 2, 15).ToOADate(), 103, 1001, 300, 4],
+        [5, new DateTime(2024, 3, 5).ToOADate(), 102, 1002, 125, 2],
+        [6, new DateTime(2024, 3, 10).ToOADate(), 104, 1003, 450, 5],
+        [7, new DateTime(2024, 4, 12).ToOADate(), 101, 1001, 200, 2],
+        [8, new DateTime(2024, 4, 18).ToOADate(), 103, 1002, 350, 4],
+        [9, new DateTime(2024, 5, 8).ToOADate(), 105, 1003, 275, 3],
+        [10, new DateTime(2024, 5, 22).ToOADate(), 102, 1001, 180, 2]
+    ];
 
-    #region CreateFromDax Tests
-
-    /// <summary>
-    /// Tests creating a DAX-backed table with a simple EVALUATE query.
-    /// LLM use case: "create a table from this DAX query"
-    /// </summary>
     [Fact]
     public void CreateFromDax_SimpleEvaluateQuery_CreatesTable()
     {
-        var tableName = $"DaxTable_{Guid.NewGuid():N}";
-
-        var batch = _fixture.BatchToken;
-
-        // Create a DAX-backed table
-        CreateFromDax(
-            "Sheet1", // Use existing sheet or create if needed
-            tableName,
-            "EVALUATE 'SalesTable'",
-            "A1");
-
-        // Verify table was created
-        var listResult = _tableCommands.List(batch);
-        Assert.True(listResult.Success, $"List failed: {listResult.ErrorMessage}");
-        Assert.Contains(listResult.Tables, t => t.Name == tableName);
-
-        // Verify GetDax shows it's a DAX-backed table
-        var daxInfo = _tableCommands.GetDax(batch, tableName);
-        Assert.True(daxInfo.Success, $"GetDax failed: {daxInfo.ErrorMessage}");
-        Assert.True(daxInfo.HasDaxConnection, "Expected table to have DAX connection");
-        Assert.NotNull(daxInfo.DaxQuery);
-        Assert.NotEmpty(daxInfo.DaxQuery!);
+        var name = Create(SalesQuery);
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
     }
 
-    /// <summary>
-    /// Tests creating a DAX-backed table with SUMMARIZE aggregation.
-    /// LLM use case: "create a summary table with totals by customer"
-    /// </summary>
     [Fact]
     public void CreateFromDax_SummarizeQuery_CreatesAggregatedTable()
     {
-        var tableName = $"SummaryTable_{Guid.NewGuid():N}";
-        var daxQuery = "EVALUATE SUMMARIZE('SalesTable', 'SalesTable'[CustomerID], \"TotalAmount\", SUM('SalesTable'[Amount]))";
-
-        var batch = _fixture.BatchToken;
-
-        // Create a DAX-backed table with SUMMARIZE
-        CreateFromDax(
-            "Sheet1",
-            tableName,
-            daxQuery,
-            "A1");
-
-        // Verify table was created
-        var readResult = _tableCommands.Read(batch, tableName);
-        Assert.True(readResult.Success, $"Read failed: {readResult.ErrorMessage}");
-        Assert.NotNull(readResult.Table);
-
-        // GetDax should return the query
-        var daxInfo = _tableCommands.GetDax(batch, tableName);
-        Assert.True(daxInfo.HasDaxConnection);
+        const string query = """
+            EVALUATE SUMMARIZE('SalesTable', 'SalesTable'[CustomerID],
+                "TotalAmount", SUM('SalesTable'[Amount])) ORDER BY 'SalesTable'[CustomerID]
+            """;
+        var name = Create(query);
+        AssertTable(name, query, ["CustomerID", "TotalAmount"],
+            [[101, 525], [102, 555], [103, 650], [104, 450], [105, 275]]);
     }
 
-    /// <summary>
-    /// Tests creating a DAX-backed table with FILTER.
-    /// LLM use case: "create a filtered view of the data"
-    /// </summary>
     [Fact]
     public void CreateFromDax_FilterQuery_CreatesFilteredTable()
     {
-        var tableName = $"FilteredTable_{Guid.NewGuid():N}";
-        var daxQuery = "EVALUATE FILTER('SalesTable', 'SalesTable'[Amount] > 100)";
-
-        var batch = _fixture.BatchToken;
-
-        CreateFromDax(
-            "Sheet1",
-            tableName,
-            daxQuery,
-            "A1");
-
-        var listResult = _tableCommands.List(batch);
-        Assert.Contains(listResult.Tables, t => t.Name == tableName);
+        const string query =
+            "EVALUATE FILTER('SalesTable', 'SalesTable'[Amount] > 250) ORDER BY 'SalesTable'[SalesID]";
+        var name = Create(query);
+        AssertTable(name, query, SalesColumns, [SalesRows[3], SalesRows[5], SalesRows[7], SalesRows[8]]);
     }
 
-    /// <summary>
-    /// Tests creating DAX table with custom target cell.
-    /// </summary>
     [Fact]
     public void CreateFromDax_CustomTargetCell_PlacesTableCorrectly()
     {
-        var tableName = $"OffsetTable_{Guid.NewGuid():N}";
-
-        var batch = _fixture.BatchToken;
-
-        // Create table starting at C5
-        CreateFromDax(
-            "Sheet1",
-            tableName,
-            "EVALUATE 'CustomersTable'",
-            "C5");
-
-        // Verify table exists
-        var listResult = _tableCommands.List(batch);
-        Assert.Contains(listResult.Tables, t => t.Name == tableName);
-
-        // Verify table position (Read should show the range)
-        var readResult = _tableCommands.Read(batch, tableName);
-        Assert.True(readResult.Success);
-        Assert.NotNull(readResult.Table?.Range);
-        // Range should include C5
-        Assert.Contains("C", readResult.Table!.Range, StringComparison.OrdinalIgnoreCase);
+        const string query = "EVALUATE 'CustomersTable' ORDER BY 'CustomersTable'[CustomerID]";
+        var name = Create(query, "C5");
+        AssertTable(name, query, ["CustomerID", "Name", "Region", "Country"],
+            [[101, "Acme Corp", "North", "USA"], [102, "Beta Inc", "South", "USA"],
+             [103, "Gamma LLC", "East", "Canada"], [104, "Delta Co", "West", "Canada"],
+             [105, "Epsilon Ltd", "North", "UK"]], row: 5, column: 3);
+        Assert.All(RequireSuccess(_commands.GetValues(_fixture.BatchToken, _sheets[name], "A1:B10")).Values,
+            cells => Assert.All(cells, Assert.Null));
     }
 
     [Fact]
     public void CreateFromDax_WithLocalizedTableName_CreatesReadableTable()
     {
-        var tableName = $"表{Guid.NewGuid():N}";
-
-        var result = CreateFromDax(
-            "Sheet1",
-            tableName,
-            "EVALUATE 'SalesTable'",
-            "A1");
-        Assert.True(result.Success, result.ErrorMessage);
-
-        var readResult = _tableCommands.Read(_fixture.BatchToken, tableName);
-        Assert.True(readResult.Success, readResult.ErrorMessage);
-        Assert.NotNull(readResult.Table);
-        Assert.Equal(tableName, readResult.Table.Name);
+        var name = Create(SalesQuery, name: $"表{Guid.NewGuid():N}");
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
     }
 
-    #endregion
-
-    #region UpdateDax Tests
-
-    /// <summary>
-    /// Tests updating the DAX query of an existing DAX-backed table.
-    /// LLM use case: "change the filter on this DAX table"
-    /// </summary>
     [Fact]
     public void UpdateDax_ExistingDaxTable_UpdatesQuery()
     {
-        var tableName = $"UpdateDaxTable_{Guid.NewGuid():N}";
-        var originalQuery = "EVALUATE 'SalesTable'";
-        var updatedQuery = "EVALUATE FILTER('SalesTable', 'SalesTable'[CustomerID] = 1)";
-
-        var batch = _fixture.BatchToken;
-
-        // Create initial DAX table
-        CreateFromDax("Sheet1", tableName, originalQuery, "A1");
-
-        // Update the DAX query
-        _tableCommands.UpdateDax(batch, tableName, updatedQuery);
-
-        // Verify the query was updated
-        var daxInfo = _tableCommands.GetDax(batch, tableName);
-        Assert.True(daxInfo.Success);
-        Assert.Contains("FILTER", daxInfo.DaxQuery, StringComparison.OrdinalIgnoreCase);
+        var name = Create(SalesQuery);
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
+        var guard = CaptureModelState();
+        const string updated =
+            "EVALUATE FILTER('SalesTable', 'SalesTable'[CustomerID] = 101) ORDER BY 'SalesTable'[SalesID]";
+        RequireSuccess(_tables.UpdateDax(_fixture.BatchToken, name, updated));
+        AssertTable(name, updated, SalesColumns, [SalesRows[0], SalesRows[2], SalesRows[6]]);
+        Assert.Equal(guard, CaptureModelState());
     }
 
-    /// <summary>
-    /// Tests that UpdateDax fails for non-DAX tables.
-    /// </summary>
     [Fact]
     public void UpdateDax_NonDaxTable_ThrowsError()
     {
-        // SalesTable from fixture is a regular table, not DAX-backed
-        var batch = _fixture.BatchToken;
-
-        // Attempting to update a non-DAX table should throw some kind of exception
-        // (could be InvalidOperationException from our validation or COMException from COM)
-        var ex = Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.UpdateDax(batch, "SalesTable", "EVALUATE 'ProductsTable'"));
-
-        Assert.NotNull(ex);
+        var before = CaptureModelState();
+        var regular = JsonSerializer.Serialize(RequireSuccess(_tables.Read(_fixture.BatchToken, "SalesTable")).Table);
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _tables.UpdateDax(_fixture.BatchToken, "SalesTable", "EVALUATE 'ProductsTable'"));
+        Assert.Contains("Only DAX-backed tables", error.Message, StringComparison.Ordinal);
+        Assert.Equal(regular, JsonSerializer.Serialize(
+            RequireSuccess(_tables.Read(_fixture.BatchToken, "SalesTable")).Table));
+        Assert.Equal(before, CaptureModelState());
     }
 
-    /// <summary>
-    /// Tests UpdateDax with invalid DAX syntax.
-    /// </summary>
     [Fact]
     public void UpdateDax_InvalidDax_ThrowsError()
     {
-        var tableName = $"UpdateErrorTable_{Guid.NewGuid():N}";
-
-        var batch = _fixture.BatchToken;
-
-        // Create initial DAX table
-        CreateFromDax("Sheet1", tableName, "EVALUATE 'SalesTable'", "A1");
-
-        // Try to update with invalid DAX - should throw
-        var ex = Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.UpdateDax(batch, tableName, "EVALUATE INVALID_SYNTAX()"));
-
-        Assert.NotNull(ex);
+        var name = Create(SalesQuery);
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
+        var before = CaptureModelState();
+        const string invalid = "EVALUATE INVALID_SYNTAX()";
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _tables.UpdateDax(_fixture.BatchToken, name, invalid));
+        Assert.Contains("table.update-dax failed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("ComInterop/", error.Message, StringComparison.Ordinal);
+        // The command is stored before execution; failure does not promise command rollback.
+        AssertTable(name, invalid, SalesColumns, SalesRows);
+        Assert.Equal(before, CaptureModelState());
+        RequireSuccess(_tables.UpdateDax(_fixture.BatchToken, name, SalesQuery));
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
+        Assert.Equal(before, CaptureModelState());
     }
 
-    #endregion
-
-    #region GetDax Tests
-
-    /// <summary>
-    /// Tests GetDax on a DAX-backed table returns query info.
-    /// LLM use case: "what DAX query is this table using?"
-    /// </summary>
     [Fact]
     public void GetDax_DaxBackedTable_ReturnsQueryInfo()
     {
-        var tableName = $"GetDaxTable_{Guid.NewGuid():N}";
-        var daxQuery = "EVALUATE TOPN(10, 'SalesTable', 'SalesTable'[Amount], DESC)";
-
-        var batch = _fixture.BatchToken;
-
-        // Create DAX table
-        CreateFromDax("Sheet1", tableName, daxQuery, "A1");
-
-        // Get DAX info
-        var result = _tableCommands.GetDax(batch, tableName);
-
-        Assert.True(result.Success, $"GetDax failed: {result.ErrorMessage}");
-        Assert.Equal(tableName, result.TableName);
-        Assert.True(result.HasDaxConnection);
-        Assert.NotNull(result.DaxQuery);
-        Assert.Contains("TOPN", result.DaxQuery!, StringComparison.OrdinalIgnoreCase);
-        Assert.NotNull(result.ModelConnectionName);
-        Assert.NotEmpty(result.ModelConnectionName!);
+        const string query =
+            "EVALUATE TOPN(3, 'SalesTable', 'SalesTable'[Amount], DESC) ORDER BY 'SalesTable'[Amount] DESC";
+        var name = Create(query);
+        AssertTable(name, query, SalesColumns, [SalesRows[5], SalesRows[7], SalesRows[3]]);
     }
 
-    /// <summary>
-    /// Tests GetDax on a regular (non-DAX) table returns HasDaxConnection = false.
-    /// LLM use case: "check if this table is DAX-backed"
-    /// </summary>
     [Fact]
     public void GetDax_RegularTable_ReturnsNoDaxConnection()
     {
-        // SalesTable from fixture is a regular table loaded to Data Model
-        // but it's not backed by a DAX query
-        var batch = _fixture.BatchToken;
-
-        var result = _tableCommands.GetDax(batch, "SalesTable");
-
-        Assert.True(result.Success);
+        var before = CaptureModelState();
+        var result = RequireSuccess(_tables.GetDax(_fixture.BatchToken, "SalesTable"));
         Assert.Equal("SalesTable", result.TableName);
         Assert.False(result.HasDaxConnection);
-        Assert.True(string.IsNullOrEmpty(result.DaxQuery));
+        Assert.Null(result.DaxQuery);
+        Assert.Null(result.ModelConnectionName);
+        Assert.Equal(before, CaptureModelState());
     }
 
-    /// <summary>
-    /// Tests GetDax on non-existent table throws error.
-    /// </summary>
     [Fact]
     public void GetDax_NonExistentTable_ThrowsError()
     {
-        var batch = _fixture.BatchToken;
-
-        var ex = Assert.ThrowsAny<Exception>(() =>
-            _tableCommands.GetDax(batch, "NonExistentTable_12345"));
-
-        Assert.NotNull(ex);
+        var guard = Create(SalesQuery);
+        AssertTable(guard, SalesQuery, SalesColumns, SalesRows);
+        var before = CaptureModelState();
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _tables.GetDax(_fixture.BatchToken, "NonExistentTable_12345"));
+        Assert.Contains("not found", error.Message, StringComparison.OrdinalIgnoreCase);
+        AssertTable(guard, SalesQuery, SalesColumns, SalesRows);
+        Assert.Equal(before, CaptureModelState());
     }
 
-    #endregion
-
-    #region Parameter Validation Tests
-
-    /// <summary>
-    /// Tests CreateFromDax with null sheetName throws ArgumentException.
-    /// </summary>
     [Fact]
-    public void CreateFromDax_NullSheetName_ThrowsArgumentException()
-    {
-        var batch = _fixture.BatchToken;
+    public void CreateFromDax_NullSheetName_ThrowsArgumentException() =>
+        AssertRejectedCreate(null, "TestTable", SalesQuery, "sheetName");
 
-        var ex = Assert.Throws<ArgumentException>(() =>
-            CreateFromDax(null!, "TestTable", "EVALUATE 'Sales'"));
-
-        Assert.Contains("sheetName", ex.Message);
-    }
-
-    /// <summary>
-    /// Tests CreateFromDax with null tableName throws ArgumentException.
-    /// </summary>
     [Fact]
-    public void CreateFromDax_NullTableName_ThrowsArgumentException()
-    {
-        var batch = _fixture.BatchToken;
+    public void CreateFromDax_NullTableName_ThrowsArgumentException() =>
+        AssertRejectedCreate("Sheet1", null, SalesQuery, "tableName");
 
-        var ex = Assert.Throws<ArgumentException>(() =>
-            CreateFromDax("Sheet1", null!, "EVALUATE 'Sales'"));
-
-        Assert.Contains("tableName", ex.Message);
-    }
-
-    /// <summary>
-    /// Tests CreateFromDax with null daxQuery throws ArgumentException.
-    /// </summary>
     [Fact]
-    public void CreateFromDax_NullDaxQuery_ThrowsArgumentException()
-    {
-        var batch = _fixture.BatchToken;
+    public void CreateFromDax_NullDaxQuery_ThrowsArgumentException() =>
+        AssertRejectedCreate("Sheet1", "TestTable", null, "daxQuery");
 
-        var ex = Assert.Throws<ArgumentException>(() =>
-            CreateFromDax("Sheet1", "TestTable", null!));
-
-        Assert.Contains("daxQuery", ex.Message);
-    }
-
-    /// <summary>
-    /// Tests UpdateDax with null daxQuery throws ArgumentException.
-    /// </summary>
     [Fact]
     public void UpdateDax_NullDaxQuery_ThrowsArgumentException()
     {
-        var tableName = $"UpdateNullTable_{Guid.NewGuid():N}";
-
-        var batch = _fixture.BatchToken;
-
-        // Create table first
-        CreateFromDax("Sheet1", tableName, "EVALUATE 'SalesTable'", "A1");
-
-        var ex = Assert.Throws<ArgumentException>(() =>
-            _tableCommands.UpdateDax(batch, tableName, null!));
-
-        Assert.Contains("daxQuery", ex.Message);
+        var name = Create(SalesQuery);
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
+        var before = CaptureModelState();
+        var error = Assert.Throws<ArgumentException>(() =>
+            _tables.UpdateDax(_fixture.BatchToken, name, null!));
+        Assert.Contains("daxQuery", error.Message, StringComparison.Ordinal);
+        AssertTable(name, SalesQuery, SalesColumns, SalesRows);
+        Assert.Equal(before, CaptureModelState());
     }
 
-    private OperationResult CreateFromDax(
-        string? sheetName,
-        string? tableName,
-        string? daxQuery,
-        string? targetCell = null)
+    private void AssertRejectedCreate(string? sheet, string? name, string? query, string parameter)
     {
-        var actualSheetName = string.Equals(
-            sheetName,
-            "Sheet1",
-            StringComparison.Ordinal)
-            ? _fixture.CreateTestSheet(_fixture.BatchToken)
-            : sheetName;
-        var result = _tableCommands.CreateFromDax(
-            _fixture.BatchToken,
-            actualSheetName!,
-            tableName!,
-            daxQuery!,
-            targetCell);
-        if (tableName is not null)
-        {
-            _fixture.RegisterTableForCleanup(tableName);
-        }
-
-        return result;
+        var guard = Create(SalesQuery);
+        AssertTable(guard, SalesQuery, SalesColumns, SalesRows);
+        var before = CaptureModelState();
+        var tables = JsonSerializer.Serialize(RequireSuccess(_tables.List(_fixture.BatchToken)).Tables);
+        var connections = CaptureConnectionNames();
+        var error = Assert.Throws<ArgumentException>(() =>
+            _tables.CreateFromDax(_fixture.BatchToken, sheet!, name!, query!));
+        Assert.Contains(parameter, error.Message, StringComparison.Ordinal);
+        Assert.Equal(tables, JsonSerializer.Serialize(RequireSuccess(_tables.List(_fixture.BatchToken)).Tables));
+        Assert.Equal(connections, CaptureConnectionNames());
+        AssertTable(guard, SalesQuery, SalesColumns, SalesRows);
+        Assert.Equal(before, CaptureModelState());
     }
 
-    #endregion
+    private string Create(string query, string target = "A1", string? name = null)
+    {
+        name ??= $"DaxTable_{Guid.NewGuid():N}";
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheet, "J1:K2",
+            [["DAX neighbor", "Retained"], [19, 83]]));
+        var result = RequireSuccess(_tables.CreateFromDax(_fixture.BatchToken, sheet, name, query, target));
+        Assert.Equal(_fixture.WorkbookPath, result.FilePath);
+        _fixture.RegisterTableForCleanup(name);
+        _sheets.Add(name, sheet);
+        return name;
+    }
 
+    private void AssertTable(
+        string name, string query, string[] columns, object[][] rows, int row = 1, int column = 1)
+    {
+        var batch = _fixture.BatchToken;
+        var data = RequireSuccess(_tables.GetData(batch, name, visibleOnly: false));
+        Assert.Equal(name, data.TableName);
+        Assert.Equal(columns, data.Headers);
+        Assert.Equal(columns.Length, data.ColumnCount);
+        Assert.Equal(rows.Length, data.RowCount);
+        PowerQueryStateAssertions.AssertRows(rows, data.Data);
+        var info = RequireSuccess(_tables.Read(batch, name)).Table;
+        Assert.NotNull(info);
+        Assert.Equal(name, info.Name);
+        Assert.Equal(_sheets[name], info.SheetName);
+        Assert.Equal(rows.Length, info.RowCount);
+        Assert.Equal(columns.Length, info.ColumnCount);
+        Assert.Equal(columns, info.Columns);
+        Assert.True(info.HasHeaders);
+        Assert.False(info.ShowTotals);
+        var listed = Assert.Single(RequireSuccess(_tables.List(batch)).Tables, table => table.Name == name);
+        Assert.Equal(JsonSerializer.Serialize(info), JsonSerializer.Serialize(listed));
+        var dax = RequireSuccess(_tables.GetDax(batch, name));
+        Assert.True(dax.HasDaxConnection);
+        Assert.Equal(name, dax.TableName);
+        Assert.Equal(query, dax.DaxQuery);
+        Assert.False(string.IsNullOrWhiteSpace(dax.ModelConnectionName));
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.ListObjects? tables = null;
+            Excel.ListObject? table = null;
+            Excel.Range? range = null;
+            Excel.Range? rangeRows = null;
+            Excel.Range? rangeColumns = null;
+            Excel.TableObject? tableObject = null;
+            Excel.WorkbookConnection? connection = null;
+            Excel.ModelConnection? modelConnection = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets.Item[_sheets[name]];
+                tables = sheet.ListObjects;
+                table = tables.Item[name];
+                Assert.Equal(Excel.XlListObjectSourceType.xlSrcModel, table.SourceType);
+                range = table.Range;
+                rangeRows = range.Rows;
+                rangeColumns = range.Columns;
+                Assert.Equal(row, range.Row);
+                Assert.Equal(column, range.Column);
+                Assert.Equal(rows.Length + 1, rangeRows.Count);
+                Assert.Equal(columns.Length, rangeColumns.Count);
+                Assert.Equal(range.Address, info.Range);
+                tableObject = table.TableObject;
+                connection = tableObject.WorkbookConnection;
+                modelConnection = connection.ModelConnection;
+                Assert.Equal(dax.ModelConnectionName, connection.Name);
+                Assert.Equal(Excel.XlCmdType.xlCmdDAX, modelConnection.CommandType);
+                Assert.Equal(query, Convert.ToString(modelConnection.CommandText, CultureInfo.InvariantCulture));
+            }
+            finally
+            {
+                ComUtilities.Release(ref modelConnection);
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref tableObject);
+                ComUtilities.Release(ref rangeColumns);
+                ComUtilities.Release(ref rangeRows);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref tables);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+        PowerQueryStateAssertions.AssertRows([["DAX neighbor", "Retained"], [19, 83]],
+            RequireSuccess(_commands.GetValues(batch, _sheets[name], "J1:K2")).Values);
+    }
+
+    private string CaptureModelState()
+    {
+        var batch = _fixture.BatchToken;
+        var tables = RequireSuccess(_model.ListTables(batch)).Tables;
+        var measures = RequireSuccess(_model.ListMeasures(batch)).Measures;
+        Assert.Equal(5, tables.Count);
+        Assert.Equal(6, measures.Count);
+        PowerQueryStateAssertions.AssertRows(SalesRows,
+            RequireSuccess(_tables.GetData(batch, "SalesTable", visibleOnly: false)).Data);
+        var total = RequireSuccess(_model.Evaluate(batch, "EVALUATE ROW(\"Total\", [Total Sales])"));
+        PowerQueryStateAssertions.AssertRows([[2455]], total.Rows);
+        return JsonSerializer.Serialize(new
+        {
+            Tables = tables,
+            Columns = tables.Select(table => RequireSuccess(_model.ListColumns(batch, table.Name))).ToList(),
+            Measures = measures.Select(measure => RequireSuccess(_model.Read(batch, measure.Name))).ToList(),
+            Relationships = RequireSuccess(_relationships.ListRelationships(batch)).Relationships,
+            Rows = tables.Select(table =>
+            {
+                var result = RequireSuccess(_model.Evaluate(batch, $"EVALUATE '{table.Name}'"));
+                Assert.NotEmpty(result.Rows);
+                Assert.Equal(result.RowCount, result.Rows.Count);
+                Assert.All(result.Rows, values => Assert.Equal(result.ColumnCount, values.Count));
+                return new { table.Name, result.Columns, result.Rows };
+            }).ToList(),
+            Cells = RequireSuccess(_commands.GetValues(batch, "SalesData", "A1:F11")).Values
+        });
+    }
+
+    private string CaptureConnectionNames() =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Connections? connections = null;
+            try
+            {
+                connections = context.Book.Connections;
+                var names = new List<string>();
+                for (var index = 1; index <= connections.Count; index++)
+                {
+                    Excel.WorkbookConnection? connection = null;
+                    try
+                    {
+                        connection = connections.Item(index);
+                        names.Add(connection.Name);
+                    }
+                    finally { ComUtilities.Release(ref connection); }
+                }
+                return JsonSerializer.Serialize(names);
+            }
+            finally { ComUtilities.Release(ref connections); }
+        });
 }

@@ -1893,7 +1893,7 @@ public class DataModelMeasureInfo
 public class MeasureFormatInfo
 {
     /// <summary>
-    /// Format type: General, Currency, Decimal, Percentage, WholeNumber, Scientific, Boolean, Date
+    /// Format type: General, Currency, Decimal, Percentage, WholeNumber
     /// </summary>
     public string Type { get; set; } = "General";
 

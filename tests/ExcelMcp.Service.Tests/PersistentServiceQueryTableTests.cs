@@ -28,28 +28,27 @@ public sealed class PersistentServiceQueryTableTests(
             batch, "CsvImport", sourcePath, sheetName, "B2",
             delimiter: ",", textQualifier: "double-quote", encoding: 65001,
             hasHeaders: true);
-        Assert.True(createResult.Success);
+        RequireSuccess(createResult);
 
-        var listed = Assert.Single(_queryTables.List(batch).QueryTables);
+        var listed = Assert.Single(RequireSuccess(_queryTables.List(batch)).QueryTables);
         Assert.Equal("CsvImport", listed.Name);
         Assert.Equal(sheetName, listed.SheetName);
         Assert.Equal("B2", listed.Destination);
         Assert.Equal("text", listed.SourceType);
 
         var viewResult = _queryTables.View(batch, sheetName, "CsvImport");
-        Assert.True(viewResult.Success);
+        RequireSuccess(viewResult);
         Assert.Equal(",", viewResult.Delimiter);
-        Assert.NotNull(viewResult.Encoding);
-        Assert.Equal(
-            "Café",
-            _commands.GetValues(batch, sheetName, "B3").Values[0][0]);
+        // Native Excel reads back UTF-8 code page 65001 as platform 98.
+        Assert.Equal(98, viewResult.Encoding);
+        AssertImportedRows(sheetName, "B2:C4", "Café", 10, "Beta", 20);
 
         Assert.True(_queryTables.SetProperties(
             batch, sheetName, "CsvImport", backgroundQuery: false,
             refreshOnFileOpen: true, refreshPeriod: 15,
             adjustColumnWidth: false, preserveFormatting: true).Success);
 
-        var configured = _queryTables.View(batch, sheetName, "CsvImport");
+        var configured = RequireSuccess(_queryTables.View(batch, sheetName, "CsvImport"));
         Assert.False(configured.BackgroundQuery);
         Assert.True(configured.RefreshOnFileOpen);
         Assert.Equal(15, configured.RefreshPeriod);
@@ -63,9 +62,13 @@ public sealed class PersistentServiceQueryTableTests(
         var cancelResult = _queryTables.CancelRefresh(batch, sheetName, "CsvImport");
         Assert.True(cancelResult.Success);
         Assert.False(cancelResult.WasRefreshing);
-        Assert.True(_queryTables.Refresh(batch, sheetName, "CsvImport").Success);
-        Assert.True(_queryTables.Delete(batch, sheetName, "CsvImport").Success);
-        Assert.Empty(_queryTables.List(batch).QueryTables);
+        File.WriteAllText(sourcePath, "Name,Value\nGamma,30\nDelta,40\n");
+        RequireSuccess(_queryTables.Refresh(batch, sheetName, "CsvImport"));
+        AssertImportedRows(sheetName, "B2:C4", "Gamma", 30, "Delta", 40);
+        Assert.False(RequireSuccess(_queryTables.GetRefreshStatus(batch, sheetName, "CsvImport")).IsRefreshing);
+        RequireSuccess(_queryTables.Delete(batch, sheetName, "CsvImport"));
+        Assert.Empty(RequireSuccess(_queryTables.List(batch)).QueryTables);
+        AssertImportedRows(sheetName, "B2:C4", "Gamma", 30, "Delta", 40);
     }
 
     [Fact]
@@ -82,17 +85,24 @@ public sealed class PersistentServiceQueryTableTests(
             batch, "HtmlImport", new Uri(htmlPath).AbsoluteUri,
             sheetName, "A1", selectionType: "specified-tables",
             webTables: "1", formatting: "none");
-        Assert.True(createResult.Success);
+        RequireSuccess(createResult);
 
         var viewResult = _queryTables.View(batch, sheetName, "HtmlImport");
-        Assert.True(viewResult.Success);
+        RequireSuccess(viewResult);
         Assert.Equal("web", viewResult.SourceType);
         Assert.Equal("specified-tables", viewResult.WebSelectionType);
         Assert.Equal("1", viewResult.WebTables);
         Assert.Equal("none", viewResult.WebFormatting);
 
-        Assert.True(_queryTables.Delete(batch, sheetName, "HtmlImport").Success);
-        Assert.Empty(_queryTables.List(batch).QueryTables);
+        var rows = RequireSuccess(_commands.GetValues(batch, sheetName, "A1:B2")).Values;
+        Assert.Equal(["Name", "Value"], rows[0]);
+        Assert.Equal("Alpha", rows[1][0]);
+        Assert.Equal(10, Convert.ToDouble(rows[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        RequireSuccess(_queryTables.Delete(batch, sheetName, "HtmlImport"));
+        Assert.Empty(RequireSuccess(_queryTables.List(batch)).QueryTables);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(rows),
+            System.Text.Json.JsonSerializer.Serialize(
+                RequireSuccess(_commands.GetValues(batch, sheetName, "A1:B2")).Values));
     }
 
     [Theory]
@@ -103,6 +113,8 @@ public sealed class PersistentServiceQueryTableTests(
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1:B1", [["retained", 7]]));
+        var before = RequireSuccess(_queryTables.List(batch));
 
         var exception = Assert.Throws<ArgumentException>(() =>
             _queryTables.CreateWeb(
@@ -111,6 +123,22 @@ public sealed class PersistentServiceQueryTableTests(
         Assert.Contains(
             "HTTP, HTTPS, or file URI", exception.Message,
             StringComparison.Ordinal);
-        Assert.Empty(_queryTables.List(batch).QueryTables);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(before.QueryTables),
+            System.Text.Json.JsonSerializer.Serialize(RequireSuccess(_queryTables.List(batch)).QueryTables));
+        Assert.Equal(["retained", 7],
+            Assert.Single(RequireSuccess(_commands.GetValues(batch, sheetName, "A1:B1")).Values));
+    }
+
+    private void AssertImportedRows(string sheetName, string address,
+        string firstName, double firstValue, string secondName, double secondValue)
+    {
+        var rows = RequireSuccess(_commands.GetValues(_fixture.BatchToken, sheetName, address)).Values;
+        Assert.Equal(3, rows.Count);
+        Assert.All(rows, row => Assert.Equal(2, row.Count));
+        Assert.Equal(["Name", "Value"], rows[0]);
+        Assert.Equal(firstName, rows[1][0]);
+        Assert.Equal(firstValue, Convert.ToDouble(rows[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(secondName, rows[2][0]);
+        Assert.Equal(secondValue, Convert.ToDouble(rows[2][1], System.Globalization.CultureInfo.InvariantCulture));
     }
 }

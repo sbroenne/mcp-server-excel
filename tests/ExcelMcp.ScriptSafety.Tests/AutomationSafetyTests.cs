@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("RequiresExcel", "false")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "AutomationSafety")]
-public sealed class AutomationSafetyTests
+public sealed partial class AutomationSafetyTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
 

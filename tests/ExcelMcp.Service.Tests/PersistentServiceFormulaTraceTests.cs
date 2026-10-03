@@ -31,6 +31,8 @@ public sealed class PersistentServiceFormulaTraceTests(
         Assert.Equal(["$A$1", "$B$1", "$C$1", "$D$1"],
             nodes.Select(node => node.GetProperty("address").GetString()).Order(StringComparer.Ordinal));
         Assert.Equal(4, result.RootElement.GetProperty("edges").GetArrayLength());
+        AssertGraph(result, ["$D$1"],
+            [("$D$1", "$B$1"), ("$D$1", "$C$1"), ("$C$1", "$B$1"), ("$B$1", "$A$1")]);
         Assert.Equal("same-worksheet-only",
             result.RootElement.GetProperty("coverage").GetProperty("scope").GetString());
         Assert.Empty(result.RootElement.GetProperty("unresolved").EnumerateArray());
@@ -48,6 +50,7 @@ public sealed class PersistentServiceFormulaTraceTests(
         Assert.True(result.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(3, result.RootElement.GetProperty("nodes").GetArrayLength());
         Assert.Equal(2, result.RootElement.GetProperty("edges").GetArrayLength());
+        AssertGraph(result, ["$A$1"], [("$A$1", "$B$1"), ("$B$1", "$C$1")]);
         Assert.False(result.RootElement.GetProperty("coverage").GetProperty("workbookComplete").GetBoolean());
     }
 
@@ -81,6 +84,7 @@ public sealed class PersistentServiceFormulaTraceTests(
         var response = _fixture.Send("range.trace-precedents", new { sheetName = source, rangeAddress = "B1" });
         using var result = JsonDocument.Parse(response.Result!);
         Assert.Equal(2, result.RootElement.GetProperty("nodes").GetArrayLength());
+        AssertGraph(result, ["$B$1"], [("$B$1", "$A$1")]);
         var edge = Assert.Single(result.RootElement.GetProperty("edges").EnumerateArray());
         Assert.Equal("$B$1", edge.GetProperty("fromAddress").GetString());
         Assert.Equal("$A$1", edge.GetProperty("toAddress").GetString());
@@ -109,6 +113,7 @@ public sealed class PersistentServiceFormulaTraceTests(
         var nodes = result.RootElement.GetProperty("nodes").EnumerateArray().ToArray();
         Assert.Equal(3, nodes.Length);
         Assert.Equal(2, nodes.Count(node => node.GetProperty("isRoot").GetBoolean()));
+        AssertGraph(result, ["$B$1", "$C$1"], [("$B$1", "$A$1"), ("$C$1", "$B$1")]);
         Assert.DoesNotContain(nodes, node => node.GetProperty("address").GetString() == "$D$1");
         Assert.Equal(2, result.RootElement.GetProperty("edges").GetArrayLength());
         var named = _fixture.Send("range.trace-precedents", new { sheetName = "", rangeAddress = name });
@@ -127,7 +132,7 @@ public sealed class PersistentServiceFormulaTraceTests(
         var previous = calculation.GetSettings(_fixture.BatchToken);
         Assert.True(previous.Success);
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        try
+        var failure = Record.Exception(() =>
         {
             Assert.True(calculation.SetSettings(_fixture.BatchToken, CalculationMode.Manual).Success);
             Assert.True(_commands.SetFormulas(_fixture.BatchToken, sheetName, "A1:B1", [["=B1", "=A1"]]).Success);
@@ -135,20 +140,20 @@ public sealed class PersistentServiceFormulaTraceTests(
             using var result = JsonDocument.Parse(response.Result!);
             Assert.Equal(2, result.RootElement.GetProperty("nodes").GetArrayLength());
             Assert.Equal(2, result.RootElement.GetProperty("edges").GetArrayLength());
+            AssertGraph(result, ["$A$1"], [("$A$1", "$B$1"), ("$B$1", "$A$1")]);
             var cycle = Assert.Single(result.RootElement.GetProperty("cycles").EnumerateArray());
             Assert.Equal(["$A$1", "$B$1"], cycle.EnumerateArray().Select(cell => cell.GetString()));
-        }
-        finally
-        {
-            try
-            {
-                Assert.True(_commands.ClearContents(_fixture.BatchToken, sheetName, "A1:B1").Success);
-            }
-            finally
-            {
-                Assert.True(calculation.SetSettings(_fixture.BatchToken, (CalculationMode)previous.ModeValue).Success);
-            }
-        }
+        });
+        var clearFailure = Record.Exception(() =>
+            RequireSuccess(_commands.ClearContents(_fixture.BatchToken, sheetName, "A1:B1")));
+        if (clearFailure is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, clearFailure);
+        var restoreFailure = Record.Exception(() =>
+            RequireSuccess(calculation.SetSettings(_fixture.BatchToken, (CalculationMode)previous.ModeValue)));
+        if (restoreFailure is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, restoreFailure);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Theory]
@@ -181,6 +186,8 @@ public sealed class PersistentServiceFormulaTraceTests(
         var response = _fixture.Send($"range.{action}", new { sheetName = source, rangeAddress });
         using var result = JsonDocument.Parse(response.Result!);
         Assert.Equal(2, result.RootElement.GetProperty("nodes").GetArrayLength());
+        AssertGraph(result, ["$" + rangeAddress[0] + "$1"],
+            action == "trace-precedents" ? [("$B$1", "$A$1")] : [("$A$1", "$B$1")]);
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Worksheet? sheet = null;
@@ -218,6 +225,25 @@ public sealed class PersistentServiceFormulaTraceTests(
         Assert.Contains("$A$2", addresses);
         Assert.Contains("$A$3", addresses);
         Assert.Contains("$C$1", addresses);
+        AssertGraph(result, ["$C$1"], [("$C$1", "$A$2"), ("$C$1", "$A$3")]);
         Assert.Empty(result.RootElement.GetProperty("unresolved").EnumerateArray());
+    }
+
+    private static void AssertGraph(JsonDocument result, string[] expectedRoots,
+        (string From, string To)[] expectedEdges)
+    {
+        var nodes = result.RootElement.GetProperty("nodes").EnumerateArray().ToArray();
+        Assert.Equal(expectedRoots.Order(StringComparer.Ordinal), nodes
+            .Where(node => node.GetProperty("isRoot").GetBoolean())
+            .Select(node => node.GetProperty("address").GetString()).Order(StringComparer.Ordinal));
+        Assert.Equal(expectedEdges.OrderBy(edge => edge.From, StringComparer.Ordinal)
+            .ThenBy(edge => edge.To, StringComparer.Ordinal),
+            result.RootElement.GetProperty("edges").EnumerateArray()
+                .Select(edge => (From: edge.GetProperty("fromAddress").GetString()!,
+                    To: edge.GetProperty("toAddress").GetString()!))
+                .OrderBy(edge => edge.From, StringComparer.Ordinal).ThenBy(edge => edge.To, StringComparer.Ordinal));
+        Assert.Equal(expectedEdges.SelectMany(edge => new[] { edge.From, edge.To })
+            .Concat(expectedRoots).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal),
+            nodes.Select(node => node.GetProperty("address").GetString()).Order(StringComparer.Ordinal));
     }
 }

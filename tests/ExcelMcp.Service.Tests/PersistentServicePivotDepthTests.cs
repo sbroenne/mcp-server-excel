@@ -29,7 +29,7 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
             filterOptions = new { type = "CaptionEquals", text1 = "North" }
         }))
             Assert.Single(added.RootElement.GetProperty("filters").EnumerateArray());
-        AssertValues(name, 100d);
+        AssertValues(name, 100d, ("North", 100d), ("A", 40d), ("B", 60d));
         using (Send("pivottablefield.clear-field-filters", new { pivotTableName = name, fieldName = "Region" })) { }
         using (var added = Send("pivottablefield.add-field-filter", new
         {
@@ -38,7 +38,7 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
             filterOptions = new { type = "ValueIsGreaterThan", number1 = 150d, dataFieldName = "Total Sales" }
         }))
             Assert.Equal("ValueIsGreaterThan", added.RootElement.GetProperty("filters")[0].GetProperty("type").GetString());
-        AssertValues(name, 300d);
+        AssertValues(name, 300d, ("South", 300d), ("A", 120d), ("B", 180d));
     }
 
     [Fact]
@@ -61,6 +61,12 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
     public void ItemExpansion_ChangesOnlyNamedParent()
     {
         var (_, name) = CreatePivot();
+        using var otherBefore = Send("pivottablefield.get-item-expansion", new
+        {
+            pivotTableName = name,
+            fieldName = "Region",
+            itemName = "South"
+        });
         using var collapsed = Send("pivottablefield.set-item-expansion", new
         {
             pivotTableName = name,
@@ -69,6 +75,14 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
             expanded = false
         });
         Assert.False(collapsed.RootElement.GetProperty("expanded").GetBoolean());
+        AssertValues(name, 400d, ("North", 100d), ("South", 300d), ("A", 120d), ("B", 180d));
+        using var otherAfter = Send("pivottablefield.get-item-expansion", new
+        {
+            pivotTableName = name,
+            fieldName = "Region",
+            itemName = "South"
+        });
+        Assert.Equal(otherBefore.RootElement.GetRawText(), otherAfter.RootElement.GetRawText());
         using var expanded = Send("pivottablefield.set-item-expansion", new
         {
             pivotTableName = name,
@@ -77,6 +91,8 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
             expanded = true
         });
         Assert.True(expanded.RootElement.GetProperty("expanded").GetBoolean());
+        AssertValues(name, 400d, ("North", 100d), ("A", 40d), ("B", 60d),
+            ("South", 300d), ("A", 120d), ("B", 180d));
     }
 
     [Fact]
@@ -92,7 +108,7 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
             sourceRangeAddress = "A8:C10"
         });
         Assert.Equal(2, replaced.RootElement.GetProperty("recordCount").GetInt32());
-        AssertValues(name, 250d, 450d);
+        AssertValues(name, 700d, ("North", 250d), ("A", 250d), ("South", 450d), ("B", 450d));
     }
 
     [Fact]
@@ -100,6 +116,7 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
     {
         var (sheet, name) = CreatePivot();
         var other = CreateSharedPivot(sheet, name);
+        using var targetBefore = Send("pivottable.get-cache-options", new { pivotTableName = name });
         using var original = Send("pivottable.get-cache-options", new { pivotTableName = other });
         bool refreshOnFileOpen = original.RootElement.GetProperty("refreshOnFileOpen").GetBoolean();
         var failure = await _fixture.SendForFailureAsync("pivottable.set-cache-options", new
@@ -111,6 +128,9 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
         Assert.Contains("shared", failure.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         using var unchanged = Send("pivottable.get-cache-options", new { pivotTableName = other });
         Assert.Equal(refreshOnFileOpen, unchanged.RootElement.GetProperty("refreshOnFileOpen").GetBoolean());
+        Assert.Equal(original.RootElement.GetRawText(), unchanged.RootElement.GetRawText());
+        using var targetAfter = Send("pivottable.get-cache-options", new { pivotTableName = name });
+        Assert.Equal(targetBefore.RootElement.GetRawText(), targetAfter.RootElement.GetRawText());
     }
 
     [Theory]
@@ -516,16 +536,16 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
         return (sheet, name);
     }
 
-    private void AssertValues(string name, params double[] expected)
+    private void AssertValues(string name, double total, params (string Label, double Amount)[] expected)
     {
         var data = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(data.Success, data.ErrorMessage);
-        var totals = data.Values.Skip(1).Select(row => row.LastOrDefault())
-            .Where(value => value is not null && double.TryParse(value.ToString(),
-                System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
-            .Select(value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
-        Assert.All(expected, value => Assert.Contains(value, totals));
-        Assert.Equal(expected.Sum(), Convert.ToDouble(data.Values[^1][^1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(expected.Length + 2, data.Values.Count);
+        Assert.All(data.Values, row => Assert.Equal(2, row.Count));
+        Assert.Equal(expected, data.Values.Skip(1).SkipLast(1).Select(row =>
+            (Label: Assert.IsType<string>(row[0]),
+                Amount: Convert.ToDouble(row[1], System.Globalization.CultureInfo.InvariantCulture))));
+        Assert.Equal(total, Convert.ToDouble(data.Values[^1][^1], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private JsonDocument Send(string action, object arguments)

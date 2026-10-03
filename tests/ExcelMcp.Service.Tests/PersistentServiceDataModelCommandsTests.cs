@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -12,7 +13,7 @@ public interface IDataModelServiceCommands :
 /// <summary>
 /// Integration tests for Data Model operations focusing on LLM use cases.
 /// Tests cover essential workflows: list tables/measures/relationships, create/update/delete measures, manage relationships.
-/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook (shared via collection fixture).
+/// Uses a saved Data Model template with an isolated workbook for each test.
 /// </summary>
 [Collection("ServiceWorkflow")]
 [Trait("Layer", "Service")]
@@ -47,6 +48,13 @@ public partial class PersistentServiceDataModelCommandsTests(
         Assert.Equal(5, _creationResult.TablesLoadedToModel);
         Assert.Equal(2, _creationResult.RelationshipsCreated);
         Assert.Equal(6, _creationResult.MeasuresCreated);  // Total Sales, Average Sale, Total Customers, TotalRevenue, ACR, Discount
+        Assert.True(File.Exists(_dataModelFile));
+        Assert.Equal(
+            ["CustomersTable", "DisambiguationTable", "ProductsTable", "RegionalSalesTable", "SalesTable"],
+            RequireSuccess(_dataModelCommands.ListTables(_fixture.BatchToken))
+                .Tables.Select(table => table.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
+        Assert.Equal(5d, ReadMeasureValue("Total Customers"));
     }
 
     /// <summary>
@@ -57,15 +65,12 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void ListTables_WithDataModel_ReturnsTables()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ListTables(batch);
+        var result = RequireSuccess(_dataModelCommands.ListTables(batch));
 
-        Assert.True(result.Success, $"ListTables failed: {result.ErrorMessage}");
         Assert.Equal(5, result.Tables.Count);  // Now includes RegionalSalesTable and DisambiguationTable
-        Assert.Contains(result.Tables, t => t.Name == "SalesTable");
-        Assert.Contains(result.Tables, t => t.Name == "CustomersTable");
-        Assert.Contains(result.Tables, t => t.Name == "ProductsTable");
-        Assert.Contains(result.Tables, t => t.Name == "RegionalSalesTable");
-        Assert.Contains(result.Tables, t => t.Name == "DisambiguationTable");
+        Assert.Equal(
+            ["CustomersTable", "DisambiguationTable", "ProductsTable", "RegionalSalesTable", "SalesTable"],
+            result.Tables.Select(table => table.Name).Order(StringComparer.Ordinal));
     }
 
     /// <summary>
@@ -76,14 +81,16 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void GetTable_WithValidTable_ReturnsCompleteInfo()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ReadTable(batch, "SalesTable");
+        var result = RequireSuccess(_dataModelCommands.ReadTable(batch, "SalesTable"));
 
-        Assert.True(result.Success, $"ViewTable failed: {result.ErrorMessage}");
         Assert.Equal("SalesTable", result.TableName);
-        Assert.NotNull(result.SourceName);
-        Assert.True(result.RecordCount >= 10);
-        Assert.NotNull(result.Columns);
-        Assert.True(result.Columns.Count >= 6);
+        Assert.Equal(10, result.RecordCount);
+        Assert.Equal(
+            ["Amount", "CustomerID", "Date", "ProductID", "Quantity", "SalesID"],
+            result.Columns.Select(column => column.Name).Order(StringComparer.Ordinal));
+        Assert.Equal("WORKSHEET", result.SourceConnectionType);
+        Assert.Equal("Excel Table: SalesTable", result.SourceConnectionDescription);
+        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
     }
 
     /// <summary>
@@ -94,15 +101,15 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void GetInfo_WithRealisticDataModel_ReturnsAccurateStatistics()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ReadInfo(batch);
+        var result = RequireSuccess(_dataModelCommands.ReadInfo(batch));
 
-        Assert.True(result.Success, $"GetModelInfo failed: {result.ErrorMessage}");
         Assert.Equal(5, result.TableCount);  // Now includes RegionalSalesTable and DisambiguationTable
         Assert.Equal(6, result.MeasureCount);  // Now includes TotalRevenue, ACR, Discount
         Assert.Equal(2, result.RelationshipCount);
-        Assert.True(result.TotalRows > 0);
-        Assert.NotNull(result.TableNames);
-        Assert.Contains("SalesTable", result.TableNames);
+        Assert.Equal(31, result.TotalRows);
+        Assert.Equal(
+            ["CustomersTable", "DisambiguationTable", "ProductsTable", "RegionalSalesTable", "SalesTable"],
+            result.TableNames.Order(StringComparer.Ordinal));
     }
 
     #endregion
@@ -117,19 +124,16 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void ListMeasures_WithRealisticDataModel_ReturnsMeasuresWithFormulas()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ListMeasures(batch);
+        var result = RequireSuccess(_dataModelCommands.ListMeasures(batch));
 
-        Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Measures);
         Assert.Equal(6, result.Measures.Count);  // Now includes TotalRevenue, ACR, Discount
 
-        var measureNames = result.Measures.Select(m => m.Name).ToList();
-        Assert.Contains("Total Sales", measureNames);
-        Assert.Contains("Average Sale", measureNames);
-        Assert.Contains("Total Customers", measureNames);
-        Assert.Contains("TotalRevenue", measureNames);
-        Assert.Contains("ACR", measureNames);
-        Assert.Contains("Discount", measureNames);
+        Assert.Equal(
+            ["ACR", "Average Sale", "Discount", "Total Customers", "Total Sales", "TotalRevenue"],
+            result.Measures.Select(measure => measure.Name).Order(StringComparer.Ordinal));
+        Assert.Equal("SUM(SalesTable[Amount])",
+            Assert.Single(result.Measures, measure => measure.Name == "Total Sales").FormulaPreview);
+        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
     }
 
     /// <summary>
@@ -140,13 +144,11 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void Get_WithRealisticDataModel_ReturnsValidDAXFormula()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Read(batch, "Total Sales");
+        var result = RequireSuccess(_dataModelCommands.Read(batch, "Total Sales"));
 
-        Assert.True(result.Success, $"ViewMeasure failed: {result.ErrorMessage}");
-        Assert.NotNull(result.DaxFormula);
-        Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Amount", result.DaxFormula);
+        Assert.Equal("SUM(SalesTable[Amount])", result.DaxFormula);
         Assert.Equal("Total Sales", result.MeasureName);
+        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
     }
 
     /// <summary>
@@ -157,16 +159,12 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void Read_WithMeasure_ReturnsStructuredFormatInfo()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Read(batch, "Total Sales");
+        var result = RequireSuccess(_dataModelCommands.Read(batch, "Total Sales"));
 
-        Assert.True(result.Success, $"Read failed: {result.ErrorMessage}");
-
-        // FormatInfo should be populated (not null)
-        Assert.NotNull(result.FormatInfo);
-
-        // Type should be a known format type
-        var validTypes = new HashSet<string> { "General", "Currency", "Decimal", "Percentage", "WholeNumber" };
-        Assert.Contains(result.FormatInfo.Type, validTypes);
+        var format = Assert.IsType<MeasureFormatInfo>(result.FormatInfo);
+        Assert.Equal("Decimal", format.Type);
+        Assert.Equal(0, format.DecimalPlaces);
+        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
     }
 
     /// <summary>
@@ -180,11 +178,12 @@ public partial class PersistentServiceDataModelCommandsTests(
         var daxFormula = "SUM(SalesTable[Amount])";
 
         var batch = _fixture.BatchToken;
-        _ = CreateMeasure("SalesTable", measureName, daxFormula);  // CreateMeasure throws on error
+        RequireSuccess(CreateMeasure("SalesTable", measureName, daxFormula));
 
-        // Verify measure created
-        var listResult = _dataModelCommands.ListMeasures(batch);
+        var listResult = RequireSuccess(_dataModelCommands.ListMeasures(batch));
         Assert.Contains(listResult.Measures, m => m.Name == measureName);
+        Assert.Equal(daxFormula, RequireSuccess(_dataModelCommands.Read(batch, measureName)).DaxFormula);
+        Assert.Equal(2455d, ReadMeasureValue(measureName));
     }
 
     /// <summary>
@@ -201,14 +200,13 @@ public partial class PersistentServiceDataModelCommandsTests(
         var batch = _fixture.BatchToken;
 
         // Create measure
-        _ = CreateMeasure("SalesTable", measureName, originalFormula);  // CreateMeasure throws on error
+        RequireSuccess(CreateMeasure("SalesTable", measureName, originalFormula));
 
-        // Update formula
-        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);  // UpdateMeasure throws on error
+        RequireSuccess(_dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula));
 
-        // Verify update
-        var viewResult = _dataModelCommands.Read(batch, measureName);
-        Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        var viewResult = RequireSuccess(_dataModelCommands.Read(batch, measureName));
+        Assert.Equal(updatedFormula, viewResult.DaxFormula);
+        Assert.Equal(245.5d, ReadMeasureValue(measureName));
     }
 
     /// <summary>
@@ -223,13 +221,11 @@ public partial class PersistentServiceDataModelCommandsTests(
         var batch = _fixture.BatchToken;
 
         // Create measure
-        _ = CreateMeasure("SalesTable", measureName, "SUM(SalesTable[Amount])");  // CreateMeasure throws on error
+        RequireSuccess(CreateMeasure("SalesTable", measureName, "SUM(SalesTable[Amount])"));
 
-        // Delete measure
-        _ = DeleteMeasure(measureName);  // DeleteMeasure throws on error
+        RequireSuccess(DeleteMeasure(measureName));
 
-        // Verify deletion
-        var listResult = _dataModelCommands.ListMeasures(batch);
+        var listResult = RequireSuccess(_dataModelCommands.ListMeasures(batch));
         Assert.DoesNotContain(listResult.Measures, m => m.Name == measureName);
     }
 
@@ -245,10 +241,8 @@ public partial class PersistentServiceDataModelCommandsTests(
     public void ListRelationships_WithRealisticDataModel_ReturnsRelationshipsWithDetails()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ListRelationships(batch);
+        var result = RequireSuccess(_dataModelCommands.ListRelationships(batch));
 
-        Assert.True(result.Success, $"ListRelationships failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Relationships);
         Assert.Equal(2, result.Relationships.Count);
 
         // Verify SalesTable->CustomersTable relationship
@@ -278,23 +272,22 @@ public partial class PersistentServiceDataModelCommandsTests(
         var batch = _fixture.BatchToken;
 
         // Delete existing relationship first to allow recreating it
-        var listResult = _dataModelCommands.ListRelationships(batch);
-        if (listResult.Success && listResult.Relationships?.Any(r =>
+        var listResult = RequireSuccess(_dataModelCommands.ListRelationships(batch));
+        if (listResult.Relationships.Any(r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
-            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID"))
         {
-            _ = _dataModelCommands.DeleteRelationship(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
+            RequireSuccess(_dataModelCommands.DeleteRelationship(
+                batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID"));
         }
 
-        // Create relationship
-        _ = _dataModelCommands.CreateRelationship(
-            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // CreateRelationship throws on error
+        RequireSuccess(_dataModelCommands.CreateRelationship(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID"));
 
-        // Verify creation
-        var verifyResult = _dataModelCommands.ListRelationships(batch);
+        var verifyResult = RequireSuccess(_dataModelCommands.ListRelationships(batch));
         Assert.Contains(verifyResult.Relationships, r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
-            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID" && r.IsActive);
     }
 
     /// <summary>
@@ -307,18 +300,24 @@ public partial class PersistentServiceDataModelCommandsTests(
         var batch = _fixture.BatchToken;
 
         // Delete relationship
-        _ = _dataModelCommands.DeleteRelationship(
-            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
+        var before = RequireSuccess(_dataModelCommands.ListRelationships(batch));
+        Assert.Equal(2, before.Relationships.Count);
+        RequireSuccess(_dataModelCommands.DeleteRelationship(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID"));
 
-        // Verify deletion
-        var verifyResult = _dataModelCommands.ListRelationships(batch);
+        var verifyResult = RequireSuccess(_dataModelCommands.ListRelationships(batch));
+        Assert.Single(verifyResult.Relationships);
         Assert.DoesNotContain(verifyResult.Relationships, r =>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
 
-        // Recreate for other tests (shared file)
-        _ = _dataModelCommands.CreateRelationship(batch,
-            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);  // CreateRelationship throws on error
+        RequireSuccess(_dataModelCommands.CreateRelationship(batch,
+            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true));
+        var recovered = RequireSuccess(_dataModelCommands.ListRelationships(batch));
+        Assert.Equal(2, recovered.Relationships.Count);
+        Assert.Contains(recovered.Relationships, r =>
+            r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
+            r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID" && r.IsActive);
     }
 
     private OperationResult CreateMeasure(
@@ -348,6 +347,16 @@ public partial class PersistentServiceDataModelCommandsTests(
             measureName);
         _fixture.ForgetDataModelMeasure(measureName);
         return result;
+    }
+
+    private double ReadMeasureValue(string measureName)
+    {
+        var result = RequireSuccess(_dataModelCommands.Evaluate(
+            _fixture.BatchToken, $"EVALUATE ROW(\"Value\", [{measureName}])"));
+        Assert.Equal(1, result.RowCount);
+        Assert.Equal(1, result.ColumnCount);
+        Assert.Equal("[Value]", Assert.Single(result.Columns));
+        return Convert.ToDouble(Assert.Single(Assert.Single(result.Rows)), CultureInfo.InvariantCulture);
     }
 
     #endregion

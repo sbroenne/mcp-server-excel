@@ -14,8 +14,7 @@ public sealed partial class PersistentServiceChartFormattingTests
         ChartAxisType primary, ChartAxisType secondary, Excel.XlAxisType axisType)
     {
         var batch = _fixture.BatchToken;
-        var created = _chartCommands.CreateFromRange(batch, _sheetName, "A1:C6", ChartType.Line);
-        Assert.True(created.Success, created.ErrorMessage);
+        var created = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:C6", ChartType.Line));
         WithChart(chart =>
         {
             Excel.SeriesCollection? seriesCollection = null;
@@ -34,10 +33,10 @@ public sealed partial class PersistentServiceChartFormattingTests
             }
         });
 
-        Assert.True(_chartCommands.SetAxisTitle(batch, created.ChartName, primary, "Primary").Success);
-        Assert.True(_chartCommands.SetAxisNumberFormat(batch, created.ChartName, primary, "0.0").Success);
-        Assert.True(_chartCommands.SetAxisTitle(batch, created.ChartName, secondary, "Secondary").Success);
-        Assert.True(_chartCommands.SetAxisNumberFormat(batch, created.ChartName, secondary, "0.00").Success);
+        RequireSuccess(_chartCommands.SetAxisTitle(batch, created.ChartName, primary, "Primary"));
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, created.ChartName, primary, "0.0"));
+        RequireSuccess(_chartCommands.SetAxisTitle(batch, created.ChartName, secondary, "Secondary"));
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, created.ChartName, secondary, "0.00"));
         Assert.Equal("0.0", _chartCommands.GetAxisNumberFormat(batch, created.ChartName, primary));
         Assert.Equal("0.00", _chartCommands.GetAxisNumberFormat(batch, created.ChartName, secondary));
         WithChart(chart =>

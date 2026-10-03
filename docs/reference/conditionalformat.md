@@ -17,10 +17,20 @@ Use the tool schema or native help for rule types and thresholds.
 Supply only the properties for the selected rule type, not a blanket payload
 containing settings for every kind of rule.
 
+Colors used by the selected rule type are validated before creating a rule.
+An invalid color leaves existing rules, their priority and worksheet contents
+unchanged. This applies to ordinary fill/font/border colors, color-scale stop
+colors and data-bar colors through both MCP and `excelcli`; it does not promise
+rollback for unrelated later Excel failures.
+
 Read-back details include color-scale stops, data-bar limits and direction,
 icon criteria, top/bottom rank, average mode, or date period only for the matching
 rule type. Numeric formulas may be normalized (100 becomes `=100`); compare their
 meaning, not just their original spelling.
+
+For rules with font formatting, listing returns `fontBold` and `fontItalic`
+independently of `fontColor`. An unset or unreadable native font color does not
+hide readable bold or italic settings.
 
 ## Change only the selected rule
 

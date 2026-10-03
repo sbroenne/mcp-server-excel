@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -229,19 +230,29 @@ public class RegularChartStrategy : IChartStrategy
     /// <inheritdoc />
     public SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
     {
-        dynamic? seriesCollection = null;
-        dynamic? newSeries = null;
+        Excel.Application? app = null;
+        Excel.Range? valuesSource = null;
+        Excel.Range? categorySource = null;
+        Excel.SeriesCollection? seriesCollection = null;
+        Excel.Series? newSeries = null;
 
         try
         {
-            seriesCollection = chart.SeriesCollection();
-            newSeries = seriesCollection.NewSeries();
-            newSeries.Name = seriesName;
-            newSeries.Values = valuesRange;
-
+            app = (Excel.Application)chart.Application;
+            valuesSource = app.Range[valuesRange];
             if (!string.IsNullOrWhiteSpace(categoryRange))
             {
-                newSeries.XValues = categoryRange;
+                categorySource = app.Range[categoryRange];
+            }
+
+            seriesCollection = (Excel.SeriesCollection)chart.SeriesCollection();
+            newSeries = seriesCollection.NewSeries();
+            newSeries.Name = seriesName;
+            newSeries.Values = valuesSource;
+
+            if (categorySource != null)
+            {
+                newSeries.XValues = categorySource;
             }
 
             return new SeriesInfo
@@ -253,14 +264,11 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (newSeries != null)
-            {
-                ComUtilities.Release(ref newSeries!);
-            }
-            if (seriesCollection != null)
-            {
-                ComUtilities.Release(ref seriesCollection!);
-            }
+            ComUtilities.Release(ref newSeries);
+            ComUtilities.Release(ref seriesCollection);
+            ComUtilities.Release(ref categorySource);
+            ComUtilities.Release(ref valuesSource);
+            ComUtilities.Release(ref app);
         }
     }
 

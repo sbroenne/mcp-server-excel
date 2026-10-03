@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -18,6 +19,8 @@ public sealed partial class PersistentServiceNamedRangeTests
     [InlineData("   ")]
     public void Create_EmptyParameterName_ThrowsHelpfulPublicError(string name)
     {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var before = SeedNamedRangeForPreservation(sheetName);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Create(
                 _fixture.BatchToken,
@@ -28,6 +31,7 @@ public sealed partial class PersistentServiceNamedRangeTests
             "name is required",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, CaptureNamedRangeState(sheetName));
     }
 
     /// <inheritdoc/>
@@ -41,14 +45,19 @@ public sealed partial class PersistentServiceNamedRangeTests
 
         // Act
         var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-        _parameterCommands.Create(batch, paramName, $"'{sheetName}'!A1");
+        var sheetName = _fixture.CreateNamedTestSheet(batch, $"Long name {Guid.NewGuid():N}"[..27]);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [["Boundary value"]]).Success);
+        Assert.True(_parameterCommands.Create(batch, paramName, $"'{sheetName}'!$A$1").Success);
         _fixture.RegisterNamedRangeForCleanup(paramName);
 
         // Assert - Verify the parameter was actually created
         var namedRanges = _parameterCommands.List(batch);
         Assert.True(namedRanges.Success);
-        Assert.Contains(namedRanges.NamedRanges, p => p.Name == paramName);
+        var created = Assert.Single(namedRanges.NamedRanges, p => p.Name == paramName);
+        Assert.Equal($"='{sheetName}'!$A$1", created.RefersTo);
+        Assert.Equal("Boundary value", created.Value);
+        Assert.Equal("String", created.ValueType);
+        Assert.Equal(1, created.CellCount);
     }
     /// <inheritdoc/>
 
@@ -61,11 +70,13 @@ public sealed partial class PersistentServiceNamedRangeTests
         // Act & Assert - 256-character name should throw ArgumentException
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        var before = SeedNamedRangeForPreservation(sheetName);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Create(batch, paramName, "Sheet1!A1"));
 
         Assert.Contains("255-character limit", exception.Message);
         Assert.Contains("256", exception.Message); // Should show actual length
+        Assert.Equal(before, CaptureNamedRangeState(sheetName));
     }
     /// <inheritdoc/>
 
@@ -78,11 +89,34 @@ public sealed partial class PersistentServiceNamedRangeTests
         // Act & Assert - 300-character name should throw ArgumentException
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        var before = SeedNamedRangeForPreservation(sheetName);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Update(batch, longParamName, "Sheet1!B2"));
 
         Assert.Contains("255-character limit", exception.Message);
         Assert.Contains("300", exception.Message);
+        Assert.Equal(before, CaptureNamedRangeState(sheetName));
+    }
+
+    private string SeedNamedRangeForPreservation(string sheetName)
+    {
+        var batch = _fixture.BatchToken;
+        var name = CreateUniqueNamedRangeName();
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:B1", [["Original", "Untouched"]]).Success);
+        Assert.True(_parameterCommands.Create(batch, name, $"'{sheetName}'!$A$1").Success);
+        _fixture.RegisterNamedRangeForCleanup(name);
+        var existing = _parameterCommands.Read(batch, name);
+        Assert.Equal("Original", existing.Value);
+        Assert.Equal("String", existing.ValueType);
+        return CaptureNamedRangeState(sheetName);
+    }
+
+    private string CaptureNamedRangeState(string sheetName)
+    {
+        var names = _parameterCommands.List(_fixture.BatchToken);
+        Assert.True(names.Success, names.ErrorMessage);
+        var values = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B1");
+        Assert.True(values.Success, values.ErrorMessage);
+        return JsonSerializer.Serialize(new { names.NamedRanges, values.Values });
     }
 }
-

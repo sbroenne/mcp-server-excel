@@ -137,6 +137,9 @@ public sealed class SessionLifecycleContractTests : IDisposable
             }
         }
 
+        var originalBytes = createFile ? await File.ReadAllBytesAsync(path) : null;
+        var originalModified = createFile ? File.GetLastWriteTime(path) : DateTime.MinValue;
+
         var (result, json) = await InProcessCliHelper.RunJsonWithServiceAsync(
             ["session", "test", path]);
         using (json)
@@ -152,13 +155,22 @@ public sealed class SessionLifecycleContractTests : IDisposable
             Assert.Equal(expectedVisible, json.RootElement.GetProperty("requiresVisibleSession").GetBoolean());
             Assert.Equal(Path.GetFullPath(path), json.RootElement.GetProperty("filePath").GetString());
             Assert.Equal(Path.GetExtension(path), json.RootElement.GetProperty("extension").GetString());
-            Assert.True(json.RootElement.TryGetProperty("size", out _));
-            Assert.True(json.RootElement.TryGetProperty("lastModified", out _));
+            Assert.Equal(originalBytes?.LongLength ?? 0,
+                json.RootElement.GetProperty("size").GetInt64());
+            Assert.Equal(originalModified,
+                json.RootElement.GetProperty("lastModified").GetDateTime());
             Assert.False(json.RootElement.TryGetProperty("isError", out _),
                 "File preflight is a diagnostic result, not a tool execution failure.");
             if (!expectedCanOpen)
             {
                 Assert.False(string.IsNullOrWhiteSpace(json.RootElement.GetProperty("message").GetString()));
+            }
+
+            Assert.Equal(createFile, File.Exists(path));
+            if (originalBytes is not null)
+            {
+                Assert.Equal(originalBytes, await File.ReadAllBytesAsync(path));
+                Assert.Equal(originalModified, File.GetLastWriteTime(path));
             }
         }
     }
@@ -187,15 +199,6 @@ public sealed class SessionLifecycleContractTests : IDisposable
 
     public void Dispose()
     {
-        try
-        {
-            Directory.Delete(_tempDirectory, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        Directory.Delete(_tempDirectory, recursive: true);
     }
 }

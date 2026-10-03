@@ -18,6 +18,9 @@ public sealed partial class PersistentServiceChartFormattingTests
             "A1:C6",
             ChartType.ColumnClustered,
             chartName: $"ComboChart_{Guid.NewGuid():N}");
+        RequireSuccess(createResult);
+        Assert.Equal(ChartType.ColumnClustered, ReadSeriesChartType(createResult.ChartName, 1));
+        Assert.Equal(ChartType.ColumnClustered, ReadSeriesChartType(createResult.ChartName, 2));
 
         var result = _chartCommands.SetSeriesChartType(
             batch,
@@ -25,10 +28,11 @@ public sealed partial class PersistentServiceChartFormattingTests
             seriesIndex: 2,
             ChartType.LineMarkers);
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         Assert.Equal(
             ChartType.LineMarkers,
             ReadSeriesChartType(createResult.ChartName, 2));
+        Assert.Equal(ChartType.ColumnClustered, ReadSeriesChartType(createResult.ChartName, 1));
     }
 
     [Fact]
@@ -41,6 +45,10 @@ public sealed partial class PersistentServiceChartFormattingTests
             "A1:B6",
             ChartType.ColumnClustered,
             chartName: $"ObjectProperties_{Guid.NewGuid():N}");
+        RequireSuccess(createResult);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 1,
+            printObject: true, locked: true, roundedCorners: false));
+        Assert.Equal((1, true, true, false), ReadChartObjectProperties(createResult.ChartName));
 
         var result = _chartCommands.SetPlacement(
             batch,
@@ -50,7 +58,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             locked: false,
             roundedCorners: true);
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         var properties = ReadChartObjectProperties(createResult.ChartName);
         Assert.Equal(2, properties.Placement);
         Assert.False(properties.PrintObject);
@@ -68,6 +76,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             "A1:B6",
             ChartType.ColumnClustered,
             chartName: $"AreaFormat_{Guid.NewGuid():N}");
+        RequireSuccess(createResult);
 
         var result = _chartCommands.SetAreaFormat(
             batch,
@@ -78,7 +87,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             lineColor: "#0000FF",
             lineWeight: 2.5);
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         var format = ReadChartAreaFormat(createResult.ChartName);
         Assert.Equal(0x0000FF, format.FillColor);
         Assert.Equal(0.25f, format.FillTransparency, precision: 2);
@@ -96,6 +105,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             "A1:B6",
             ChartType.ColumnClustered,
             chartName: $"SeriesMaterial_{Guid.NewGuid():N}");
+        RequireSuccess(createResult);
 
         var result = _chartCommands.SetSeriesFormat(
             batch,
@@ -106,7 +116,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             lineColor: "#FF00FF",
             lineWeight: 3);
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         var format = ReadSeriesFormat(createResult.ChartName, 1);
         Assert.Equal(0x00FF00, format.FillColor);
         Assert.Equal(0.4f, format.FillTransparency, precision: 2);
@@ -115,18 +125,12 @@ public sealed partial class PersistentServiceChartFormattingTests
     }
 
     private ChartType ReadSeriesChartType(string chartName, int seriesIndex) =>
-        _fixture.ExecuteRawVerification((ctx, ct) =>
+        InspectChart(chartName, chart =>
         {
-            Excel.Worksheet? sheet = null;
-            Excel.ChartObject? chartObject = null;
-            Excel.Chart? chart = null;
             Excel.SeriesCollection? seriesCollection = null;
             Excel.Series? series = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[_sheetName];
-                chartObject = (Excel.ChartObject)sheet.ChartObjects(chartName);
-                chart = chartObject.Chart;
                 seriesCollection = (Excel.SeriesCollection)chart.SeriesCollection();
                 series = seriesCollection.Item(seriesIndex);
                 return (ChartType)series.ChartType;
@@ -135,22 +139,17 @@ public sealed partial class PersistentServiceChartFormattingTests
             {
                 ComUtilities.Release(ref series);
                 ComUtilities.Release(ref seriesCollection);
-                ComUtilities.Release(ref chart);
-                ComUtilities.Release(ref chartObject);
-                ComUtilities.Release(ref sheet);
             }
         });
 
     private (int Placement, bool PrintObject, bool Locked, bool RoundedCorners)
         ReadChartObjectProperties(string chartName) =>
-        _fixture.ExecuteRawVerification((ctx, ct) =>
+        InspectChart(chartName, chart =>
         {
-            Excel.Worksheet? sheet = null;
             Excel.ChartObject? chartObject = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[_sheetName];
-                chartObject = (Excel.ChartObject)sheet.ChartObjects(chartName);
+                chartObject = (Excel.ChartObject)chart.Parent;
                 return (
                     Convert.ToInt32(
                         (object)chartObject.Placement,
@@ -162,18 +161,15 @@ public sealed partial class PersistentServiceChartFormattingTests
             finally
             {
                 ComUtilities.Release(ref chartObject);
-                ComUtilities.Release(ref sheet);
             }
         });
 
     private (int FillColor, float FillTransparency, int LineColor, float LineWeight)
         ReadChartAreaFormat(string chartName) =>
-        _fixture.ExecuteRawVerification((ctx, ct) =>
+        InspectChart(chartName, chart =>
         {
-            Excel.Worksheet? sheet = null;
-            Excel.ChartObject? chartObject = null;
-            Excel.Chart? chart = null;
             Excel.ChartArea? chartArea = null;
+            // Office-core formatting objects are deliberately late-bound.
             dynamic? chartFormat = null;
             dynamic? fill = null;
             dynamic? line = null;
@@ -181,9 +177,6 @@ public sealed partial class PersistentServiceChartFormattingTests
             dynamic? lineColor = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[_sheetName];
-                chartObject = (Excel.ChartObject)sheet.ChartObjects(chartName);
-                chart = chartObject.Chart;
                 chartArea = chart.ChartArea;
                 chartFormat = chartArea.Format;
                 fill = chartFormat.Fill;
@@ -191,10 +184,10 @@ public sealed partial class PersistentServiceChartFormattingTests
                 fillColor = fill.ForeColor;
                 lineColor = line.ForeColor;
                 return (
-                    (int)fillColor.RGB,
-                    (float)fill.Transparency,
-                    (int)lineColor.RGB,
-                    (float)line.Weight);
+                    Convert.ToInt32((object)fillColor.RGB, CultureInfo.InvariantCulture),
+                    Convert.ToSingle((object)fill.Transparency, CultureInfo.InvariantCulture),
+                    Convert.ToInt32((object)lineColor.RGB, CultureInfo.InvariantCulture),
+                    Convert.ToSingle((object)line.Weight, CultureInfo.InvariantCulture));
             }
             finally
             {
@@ -204,21 +197,16 @@ public sealed partial class PersistentServiceChartFormattingTests
                 ComUtilities.Release(ref fill);
                 ComUtilities.Release(ref chartFormat);
                 ComUtilities.Release(ref chartArea);
-                ComUtilities.Release(ref chart);
-                ComUtilities.Release(ref chartObject);
-                ComUtilities.Release(ref sheet);
             }
         });
 
     private (int FillColor, float FillTransparency, int LineColor, float LineWeight)
         ReadSeriesFormat(string chartName, int seriesIndex) =>
-        _fixture.ExecuteRawVerification((ctx, ct) =>
+        InspectChart(chartName, chart =>
         {
-            Excel.Worksheet? sheet = null;
-            Excel.ChartObject? chartObject = null;
-            Excel.Chart? chart = null;
             Excel.SeriesCollection? seriesCollection = null;
             Excel.Series? series = null;
+            // Office-core formatting objects are deliberately late-bound.
             dynamic? chartFormat = null;
             dynamic? fill = null;
             dynamic? line = null;
@@ -226,9 +214,6 @@ public sealed partial class PersistentServiceChartFormattingTests
             dynamic? lineColor = null;
             try
             {
-                sheet = (Excel.Worksheet)ctx.Book.Worksheets[_sheetName];
-                chartObject = (Excel.ChartObject)sheet.ChartObjects(chartName);
-                chart = chartObject.Chart;
                 seriesCollection = (Excel.SeriesCollection)chart.SeriesCollection();
                 series = seriesCollection.Item(seriesIndex);
                 chartFormat = series.Format;
@@ -237,10 +222,10 @@ public sealed partial class PersistentServiceChartFormattingTests
                 fillColor = fill.ForeColor;
                 lineColor = line.ForeColor;
                 return (
-                    (int)fillColor.RGB,
-                    (float)fill.Transparency,
-                    (int)lineColor.RGB,
-                    (float)line.Weight);
+                    Convert.ToInt32((object)fillColor.RGB, CultureInfo.InvariantCulture),
+                    Convert.ToSingle((object)fill.Transparency, CultureInfo.InvariantCulture),
+                    Convert.ToInt32((object)lineColor.RGB, CultureInfo.InvariantCulture),
+                    Convert.ToSingle((object)line.Weight, CultureInfo.InvariantCulture));
             }
             finally
             {
@@ -251,9 +236,6 @@ public sealed partial class PersistentServiceChartFormattingTests
                 ComUtilities.Release(ref chartFormat);
                 ComUtilities.Release(ref series);
                 ComUtilities.Release(ref seriesCollection);
-                ComUtilities.Release(ref chart);
-                ComUtilities.Release(ref chartObject);
-                ComUtilities.Release(ref sheet);
             }
         });
 }

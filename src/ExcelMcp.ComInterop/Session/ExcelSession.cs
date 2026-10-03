@@ -86,9 +86,9 @@ public static class ExcelSession
 
             // Security: Validate file extension
             string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+            if (extension is not (".xlsx" or ".xlsm" or ".xlsb" or ".xls"))
             {
-                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xlsb, .xls) are supported.");
             }
 
             fullPaths[i] = fullPath;

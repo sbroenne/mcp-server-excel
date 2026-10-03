@@ -28,7 +28,7 @@ public sealed partial class PersistentServiceChartFormattingTests :
         _tableCommands = ServiceCommandProxy.Create<IPersistentTableCommands>(fixture);
         var batch = _fixture.BatchToken;
         _sheetName = _fixture.CreateTestSheet(batch);
-        _commands.SetValues(
+        var seeded = _commands.SetValues(
             batch,
             _sheetName,
             "A1:C6",
@@ -40,5 +40,6 @@ public sealed partial class PersistentServiceChartFormattingTests :
                 ["D", 25, 35],
                 ["E", 30, 40],
             ]);
+        RequireSuccess(seeded);
     }
 }

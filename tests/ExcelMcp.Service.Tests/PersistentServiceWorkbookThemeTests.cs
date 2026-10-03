@@ -53,6 +53,7 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             }
         });
         var response = _fixture.Send("workbook.get-theme", new { });
+        RequireSuccess(response);
         using var result = JsonDocument.Parse(response.Result!);
         Assert.True(result.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(12, result.RootElement.GetProperty("colors").GetArrayLength());
@@ -108,7 +109,7 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             Path.GetFullPath(Path.Combine(ctx.App.Path, "..", "Document Themes 16", "Archway.thmx")));
         Assert.True(File.Exists(path), "The native Office Archway theme is required for this capability test.");
         var prepared = _fixture.Send("workbook.apply-theme", new { themePath = path });
-        Assert.True(prepared.Success, prepared.ErrorMessage);
+        RequireSuccess(prepared);
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
             dynamic? nativeTheme = null;
@@ -129,13 +130,16 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             }
         });
         var before = _fixture.Send("workbook.get-theme", new { });
+        RequireSuccess(before);
         var response = _fixture.Send("workbook.apply-theme", new { themePath = path });
+        RequireSuccess(response);
         using var result = JsonDocument.Parse(response.Result!);
         using var original = JsonDocument.Parse(before.Result!);
         Assert.True(result.RootElement.GetProperty("success").GetBoolean());
         Assert.NotEqual(original.RootElement.GetProperty("colors").GetRawText(), result.RootElement.GetProperty("colors").GetRawText());
         await _fixture.SaveAndReopenAsync();
         var read = _fixture.Send("workbook.get-theme", new { });
+        RequireSuccess(read);
         using var reopened = JsonDocument.Parse(read.Result!);
         Assert.Equal(result.RootElement.GetProperty("colors").GetRawText(), reopened.RootElement.GetProperty("colors").GetRawText());
         Assert.Equal(result.RootElement.GetProperty("majorFonts").GetRawText(), reopened.RootElement.GetProperty("majorFonts").GetRawText());
@@ -150,6 +154,7 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
     public async Task InvalidTheme_PreservesNativeDefinitions(string kind)
     {
         var before = _fixture.Send("workbook.get-theme", new { });
+        RequireSuccess(before);
         string path = kind switch
         {
             "relative" => "relative.thmx",
@@ -159,7 +164,19 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
         };
         var rejected = await _fixture.SendForFailureAsync("workbook.apply-theme", new { themePath = path });
         Assert.False(rejected.Success);
+        Assert.False(string.IsNullOrWhiteSpace(rejected.ErrorMessage));
+        if (kind != "malformed")
+        {
+            var reason = kind switch
+            {
+                "relative" => "absolute path",
+                "extension" => ".thmx",
+                _ => "does not exist"
+            };
+            Assert.Contains(reason, rejected.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        }
         var after = _fixture.Send("workbook.get-theme", new { });
+        RequireSuccess(after);
         Assert.Equal(before.Result, after.Result);
     }
 
@@ -167,6 +184,10 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
     public void ApplyingTheme_UpdatesThemeSensitiveFillButPreservesFixedRgb()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        string path = _fixture.ExecuteRawVerification((ctx, _) =>
+            Path.GetFullPath(Path.Combine(ctx.App.Path, "..", "Document Themes 16", "Archway.thmx")));
+        Assert.True(File.Exists(path), "The native Office Archway theme is required for this capability test.");
+        RequireSuccess(_fixture.Send("workbook.apply-theme", new { themePath = path }));
         // Seed independently of the formatting writer under test.
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
@@ -176,8 +197,15 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             Excel.Interior? themedFill = null;
             Excel.Range? fixedCell = null;
             Excel.Interior? fixedFill = null;
+            dynamic? nativeTheme = null;
+            dynamic? themeColors = null;
+            dynamic? accent = null;
             try
             {
+                nativeTheme = ((dynamic)ctx.Book).Theme;
+                themeColors = nativeTheme.ThemeColorScheme;
+                accent = themeColors.Colors(5);
+                accent.RGB = Convert.ToInt32(accent.RGB) ^ 0xFFFFFF;
                 sheets = ctx.Book.Worksheets;
                 sheet = (Excel.Worksheet)sheets[sheetName];
                 themed = sheet.Range["A1"];
@@ -195,18 +223,33 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
                 ComUtilities.Release(ref themed);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref sheets);
+                ComUtilities.Release(ref accent);
+                ComUtilities.Release(ref themeColors);
+                ComUtilities.Release(ref nativeTheme);
             }
         });
-        string path = _fixture.ExecuteRawVerification((ctx, _) =>
-            Path.GetFullPath(Path.Combine(ctx.App.Path, "..", "Document Themes 16", "Archway.thmx")));
-        Assert.True(File.Exists(path), "The native Office Archway theme is required for this capability test.");
+        var before = _fixture.Send("rangeformat.get-format", new { sheetName, rangeAddress = "A1:B1" });
+        RequireSuccess(before);
         var applied = _fixture.Send("workbook.apply-theme", new { themePath = path });
+        RequireSuccess(applied);
         using var theme = JsonDocument.Parse(applied.Result!);
         var read = _fixture.Send("rangeformat.get-format", new { sheetName, rangeAddress = "A1:B1" });
+        RequireSuccess(read);
         using var formatting = JsonDocument.Parse(read.Result!);
+        using var original = JsonDocument.Parse(before.Result!);
         var cells = formatting.RootElement.GetProperty("cells");
+        Assert.NotEqual(original.RootElement.GetProperty("cells")[0].GetProperty("stored")
+                .GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString(),
+            cells[0].GetProperty("stored").GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
         Assert.Equal(theme.RootElement.GetProperty("colors")[4].GetProperty("rgb").GetString(),
             cells[0].GetProperty("stored").GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
         Assert.Equal("#123456", cells[1].GetProperty("stored").GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
+    }
+
+    private static void RequireSuccess(ServiceResponse response)
+    {
+        Assert.True(response.Success, response.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(response.ErrorMessage), response.ErrorMessage);
+        Assert.NotNull(response.Result);
     }
 }

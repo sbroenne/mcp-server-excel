@@ -12,26 +12,34 @@ public sealed partial class PersistentServicePivotTableTests
         var destinationSheet = _fixture.CreateTestSheet(batch);
         var createResult = _pivotCommands.CreateFromRange(
             batch, _salesSheetName, "A1:D6", destinationSheet, "A1", "PersistPivot");
-        Assert.True(createResult.Success);
+        RequireSuccess(createResult);
 
         var layoutResult = _pivotCommands.SetLayout(batch, "PersistPivot", 1);
-        Assert.True(layoutResult.Success);
+        RequireSuccess(layoutResult);
 
         var row = _pivotCommands.AddRowField(batch, "PersistPivot", "Region");
-        Assert.True(row.Success);
+        RequireSuccess(row);
 
         var value = _pivotCommands.AddValueField(batch, "PersistPivot", "Sales");
-        Assert.True(value.Success);
+        RequireSuccess(value);
+        AssertNativeLayout(destinationSheet, "PersistPivot", 1);
+        AssertPivotSales(325, 325, "PersistPivot");
 
         await _fixture.SaveAndReopenAsync();
 
         batch = _fixture.BatchToken;
         var listResult = _pivotCommands.List(batch);
-        Assert.True(listResult.Success);
+        RequireSuccess(listResult);
         Assert.Contains(listResult.PivotTables, pt => pt.Name == "PersistPivot");
 
         var fields = _pivotCommands.ListFields(batch, "PersistPivot");
-        Assert.True(fields.Success);
+        RequireSuccess(fields);
         Assert.Contains(fields.Fields, f => f.Name == "Region");
+        RequireSuccess(fields);
+        AssertNativeLayout(destinationSheet, "PersistPivot", 1);
+        AssertNativeField("PersistPivot", "Region", Sbroenne.ExcelMcp.Core.Models.PivotFieldArea.Row, destinationSheet);
+        AssertNativeField("PersistPivot", "Sales", Sbroenne.ExcelMcp.Core.Models.PivotFieldArea.Value,
+            destinationSheet, Sbroenne.ExcelMcp.Core.Models.AggregationFunction.Sum);
+        AssertPivotSales(325, 325, "PersistPivot");
     }
 }

@@ -21,6 +21,8 @@ public class PersistentServiceDataModelDmvTests(
 {
     private readonly IDataModelCommands _dataModelCommands =
         fixture.CreateCommands<IDataModelCommands>();
+    private readonly IDataModelRelCommands _relationships =
+        fixture.CreateCommands<IDataModelRelCommands>();
 
     #region Basic DMV Query Tests
 
@@ -38,15 +40,9 @@ public class PersistentServiceDataModelDmvTests(
         Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
         Assert.NotNull(result.Rows);
-        // Note: Excel's embedded AS may return 0 rows for TMSCHEMA_TABLES
-        // Just verify the query executes without error
-
-        // TMSCHEMA_TABLES should have ID and Name columns if any results
-        if (result.ColumnCount > 0)
-        {
-            Assert.Contains(result.Columns, c => c.Equals("ID", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(result.Columns, c => c.Equals("Name", StringComparison.OrdinalIgnoreCase));
-        }
+        Assert.Contains(result.Columns, c => c.Equals("ID", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Columns, c => c.Equals("Name", StringComparison.OrdinalIgnoreCase));
+        AssertResultShape(result);
     }
 
     /// <summary>
@@ -63,15 +59,9 @@ public class PersistentServiceDataModelDmvTests(
         Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
         Assert.NotNull(result.Rows);
-        // Note: Excel's embedded AS may return 0 rows for TMSCHEMA_COLUMNS
-        // Just verify the query executes without error
-
-        // TMSCHEMA_COLUMNS should have TableID and ExplicitName columns if any results
-        if (result.ColumnCount > 0)
-        {
-            Assert.Contains(result.Columns, c => c.Equals("TableID", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains(result.Columns, c => c.Equals("ExplicitName", StringComparison.OrdinalIgnoreCase));
-        }
+        Assert.Contains(result.Columns, c => c.Equals("TableID", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Columns, c => c.Equals("ExplicitName", StringComparison.OrdinalIgnoreCase));
+        AssertResultShape(result);
     }
 
     /// <summary>
@@ -92,6 +82,7 @@ public class PersistentServiceDataModelDmvTests(
         // TMSCHEMA_MEASURES should have standard columns
         Assert.Contains(result.Columns, c => c.Equals("Name", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Columns, c => c.Equals("Expression", StringComparison.OrdinalIgnoreCase));
+        AssertResultShape(result);
     }
 
     /// <summary>
@@ -112,6 +103,7 @@ public class PersistentServiceDataModelDmvTests(
         // TMSCHEMA_RELATIONSHIPS should have FromTableID and ToTableID columns
         Assert.Contains(result.Columns, c => c.Equals("FromTableID", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Columns, c => c.Equals("ToTableID", StringComparison.OrdinalIgnoreCase));
+        AssertResultShape(result);
     }
 
     #endregion
@@ -136,7 +128,9 @@ public class PersistentServiceDataModelDmvTests(
         Assert.True(result.Success, $"Query failed: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
         Assert.NotNull(result.Rows);
-        // DISCOVER_CALC_DEPENDENCY returns columns about calculation dependencies
+        Assert.Contains(result.Columns, c => c.Equals("OBJECT", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Columns, c => c.Equals("OBJECT_TYPE", StringComparison.OrdinalIgnoreCase));
+        AssertResultShape(result);
     }
 
     /// <summary>
@@ -154,6 +148,7 @@ public class PersistentServiceDataModelDmvTests(
         Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
         Assert.True(result.ColumnCount > 0, "Expected columns from DBSCHEMA_CATALOGS");
+        AssertCatalog(result);
     }
 
     #endregion
@@ -178,6 +173,7 @@ public class PersistentServiceDataModelDmvTests(
         // DISCOVER_CALC_DEPENDENCY should have standard columns
         Assert.Contains(result.Columns, c => c.Equals("OBJECT", StringComparison.OrdinalIgnoreCase) ||
                                              c.Equals("OBJECT_TYPE", StringComparison.OrdinalIgnoreCase));
+        AssertResultShape(result);
     }
 
     /// <summary>
@@ -196,6 +192,7 @@ public class PersistentServiceDataModelDmvTests(
         Assert.True(result.RowCount > 0, "Expected at least one catalog");
 
         Assert.Contains(result.Columns, c => c.Equals("CATALOG_NAME", StringComparison.OrdinalIgnoreCase));
+        AssertCatalog(result);
     }
 
     #endregion
@@ -210,12 +207,15 @@ public class PersistentServiceDataModelDmvTests(
     public void ExecuteDmv_InvalidQuery_ThrowsException()
     {
         var batch = _fixture.BatchToken;
+        var before = CaptureGuardedModelState();
 
         // Invalid DMV - non-existent system view
-        var ex = Assert.ThrowsAny<Exception>(() =>
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             _dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.NONEXISTENT_VIEW"));
 
-        Assert.NotNull(ex);
+        Assert.Contains("ComInterop/", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(before.State, CaptureModelState(before.GuardSheet));
+        AssertCatalog(_dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS"));
     }
 
     /// <summary>
@@ -225,11 +225,14 @@ public class PersistentServiceDataModelDmvTests(
     public void ExecuteDmv_NullQuery_ThrowsArgumentException()
     {
         var batch = _fixture.BatchToken;
+        var before = CaptureGuardedModelState();
 
         var ex = Assert.Throws<ArgumentException>(() =>
             _dataModelCommands.ExecuteDmv(batch, ""));
 
         Assert.Contains("dmvQuery", ex.Message);
+        Assert.Equal(before.State, CaptureModelState(before.GuardSheet));
+        AssertCatalog(_dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS"));
     }
 
     /// <summary>
@@ -239,11 +242,14 @@ public class PersistentServiceDataModelDmvTests(
     public void ExecuteDmv_WhitespaceQuery_ThrowsArgumentException()
     {
         var batch = _fixture.BatchToken;
+        var before = CaptureGuardedModelState();
 
         var ex = Assert.Throws<ArgumentException>(() =>
             _dataModelCommands.ExecuteDmv(batch, "   "));
 
         Assert.Contains("dmvQuery", ex.Message);
+        Assert.Equal(before.State, CaptureModelState(before.GuardSheet));
+        AssertCatalog(_dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS"));
     }
 
     /// <summary>
@@ -253,11 +259,14 @@ public class PersistentServiceDataModelDmvTests(
     public void ExecuteDmv_MalformedSqlQuery_ThrowsException()
     {
         var batch = _fixture.BatchToken;
+        var before = CaptureGuardedModelState();
 
-        var ex = Assert.ThrowsAny<Exception>(() =>
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             _dataModelCommands.ExecuteDmv(batch, "INVALID SQL SYNTAX HERE"));
 
-        Assert.NotNull(ex);
+        Assert.Contains("ComInterop/", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(before.State, CaptureModelState(before.GuardSheet));
+        AssertCatalog(_dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS"));
     }
 
     #endregion
@@ -276,6 +285,7 @@ public class PersistentServiceDataModelDmvTests(
 
         Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
         Assert.Equal(query, result.DmvQuery);
+        AssertResultShape(result);
     }
 
     /// <summary>
@@ -290,10 +300,80 @@ public class PersistentServiceDataModelDmvTests(
         Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
         Assert.Equal(result.Columns.Count, result.ColumnCount);
         Assert.Equal(result.Rows.Count, result.RowCount);
+        AssertResultShape(result);
     }
 
     #endregion
+
+    private (string State, string GuardSheet) CaptureGuardedModelState()
+    {
+        var guardSheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, guardSheet, "A1:B2",
+            [[17, "DMV guard"], [29, "Retained neighbor"]]));
+        return (CaptureModelState(guardSheet), guardSheet);
+    }
+
+    private string CaptureModelState(string guardSheet)
+    {
+        var batch = _fixture.BatchToken;
+        var tables = RequireSuccess(_dataModelCommands.ListTables(batch)).Tables;
+        Assert.Contains(tables, table => table.Name == "SalesTable");
+        var measures = RequireSuccess(_dataModelCommands.ListMeasures(batch)).Measures;
+        Assert.Contains(measures, measure => measure.Name == "Total Sales");
+        var records = RequireSuccess(_dataModelCommands.Evaluate(batch,
+            "EVALUATE SalesTable ORDER BY SalesTable[SalesID]"));
+        Assert.Equal(10, records.RowCount);
+        Assert.Equal(6, records.ColumnCount);
+        Assert.Equal(10, records.Rows.Count);
+        Assert.All(records.Rows, row => Assert.Equal(6, row.Count));
+        var total = RequireSuccess(_dataModelCommands.Evaluate(batch,
+            "EVALUATE ROW(\"Total\", [Total Sales])"));
+        Assert.Equal(2455, Convert.ToDouble(Assert.Single(Assert.Single(total.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
+        var guard = RequireSuccess(_commands.GetValues(batch, guardSheet, "A1:B2"));
+        Assert.Equal("[[17,\"DMV guard\"],[29,\"Retained neighbor\"]]",
+            System.Text.Json.JsonSerializer.Serialize(guard.Values));
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Tables = tables,
+            Columns = tables.Select(table => new
+            {
+                table.Name,
+                Columns = RequireSuccess(_dataModelCommands.ListColumns(batch, table.Name)).Columns
+            }).ToList(),
+            Relationships = RequireSuccess(_relationships.ListRelationships(batch)).Relationships,
+            Measures = measures.Select(measure => RequireSuccess(_dataModelCommands.Read(batch, measure.Name))).ToList(),
+            ModelRecords = tables.Select(table =>
+            {
+                var data = RequireSuccess(_dataModelCommands.Evaluate(batch,
+                    $"EVALUATE '{table.Name.Replace("'", "''", StringComparison.Ordinal)}'"));
+                Assert.NotEmpty(data.Rows);
+                Assert.Equal(data.RowCount, data.Rows.Count);
+                Assert.Equal(data.ColumnCount, data.Columns.Count);
+                Assert.All(data.Rows, row => Assert.Equal(data.ColumnCount, row.Count));
+                return new { table.Name, data.Columns, data.Rows };
+            }).ToList(),
+            SourceCells = RequireSuccess(_commands.GetValues(batch, "SalesData", "A1:F11")).Values,
+            GuardCells = guard.Values
+        });
+    }
+
+    private static void AssertResultShape(Sbroenne.ExcelMcp.Core.Models.DmvQueryResult result)
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.NotEmpty(result.Columns);
+        Assert.Equal(result.Columns.Count, result.ColumnCount);
+        Assert.Equal(result.Rows.Count, result.RowCount);
+        Assert.All(result.Rows, row => Assert.Equal(result.ColumnCount, row.Count));
+    }
+
+    private static void AssertCatalog(Sbroenne.ExcelMcp.Core.Models.DmvQueryResult result)
+    {
+        AssertResultShape(result);
+        var index = result.Columns.FindIndex(column => column.Equals("CATALOG_NAME", StringComparison.OrdinalIgnoreCase));
+        Assert.True(index >= 0);
+        var row = Assert.Single(result.Rows);
+        Assert.False(string.IsNullOrWhiteSpace(row[index]?.ToString()));
+    }
 }
-
-
-
