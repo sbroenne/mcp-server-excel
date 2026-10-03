@@ -463,6 +463,41 @@ def audit_tools_json() -> None:
             f"extra {sorted(str(value) for value in actual_urls - expected_urls)})"
         )
 
+    for category in categories:
+        groups = category.get("featureGroups")
+        if not isinstance(groups, list) or not groups:
+            fail(f"tools.json category {category.get('name')} has no featureGroups")
+            continue
+        group_operations = 0
+        for group in groups:
+            if not isinstance(group, dict):
+                fail("tools.json featureGroups entries must be objects")
+                continue
+            label = f"tools.json feature group {group.get('name')}"
+            operation_count = group.get("operationCount")
+            if type(operation_count) is not int or operation_count <= 0:
+                fail(f"{label} operationCount must be a positive integer")
+            else:
+                group_operations += operation_count
+            if "operations" in group:
+                fail(f"{label} must emit summaries as capabilities, not operations")
+            capabilities = group.get("capabilities")
+            if not isinstance(capabilities, list) or not capabilities:
+                fail(f"{label} must contain a nonempty capabilities collection")
+                continue
+            for capability in capabilities:
+                if not isinstance(capability, dict) or any(
+                    not isinstance(capability.get(key), str)
+                    or not capability[key].strip()
+                    for key in ("name", "description")
+                ):
+                    fail(f"{label} capabilities must have nonempty names and descriptions")
+        if category.get("operationCount") != group_operations:
+            fail(
+                f"tools.json category {category.get('name')} operationCount "
+                f"must equal its feature-group operation totals ({group_operations})"
+            )
+
     parsed_operations = sum(category.get("operationCount", 0) for category in categories)
     if not isinstance(data.get("toolCount"), int) or data["toolCount"] <= 0:
         fail("tools.json toolCount must be a positive integer")
@@ -541,7 +576,7 @@ def audit_breadcrumbs(html_files: list[Path]) -> None:
     sections = {
         "features": ("Features", f"{SITE_URL}features/"),
         "guides": ("Guides", f"{SITE_URL}guides/"),
-        "reference": ("Reference", f"{SITE_URL}reference/"),
+        "reference": ("Workflow guidance", f"{SITE_URL}reference/"),
     }
     flat_sections = {
         "installation-cli/index.html": ("Installation", f"{SITE_URL}installation/"),

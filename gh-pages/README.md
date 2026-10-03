@@ -4,13 +4,15 @@ Source for [excelmcpserver.dev](https://excelmcpserver.dev/), built with MkDocs 
 Most pages under `docs/` are thin wrappers that include canonical content from elsewhere in
 the repo (root `README.md`, `FEATURES.md`, `docs/features/`, package READMEs,
 `CHANGELOG.md`, etc.) so there is a single source of truth for documentation content.
-The canonical feature reference is organized into intent-based pages under `docs/features/`;
-`hooks.py` adapts those pages for the website without copying operation details.
+Capability summaries live in `docs/features/`; workflow decisions and recovery
+guidance live in `docs/reference/`. Current command specifications come from
+CLI help and MCP tool descriptions, not a second hand-maintained reference.
+`hooks.py` adapts the shared pages for the website without duplicating their prose.
 
 The feature overview is authored only in root `FEATURES.md`. Its website
 wrapper, `docs/features.md`, keeps the page metadata, title, and illustration,
 then includes `_generated/features.md`. Edit the root file to change categories,
-tool-selection guidance, task links, or headline counts. The site audit rejects
+capability navigation, task links, or headline counts. The site audit rejects
 duplicate overview prose in the wrapper and checks the published Markdown copy.
 
 ## Publishing canonical documentation
@@ -57,13 +59,17 @@ code, issues, or documents without a site page.
 | `llms.txt` | Navigation-ordered page index and descriptions |
 | `llms-full.txt` | Full Markdown with snippet content resolved |
 | Page `index.md` mirrors | Markdown alternatives to rendered HTML |
-| `tools.json` | Tool/operation catalogue derived from canonical feature references |
+| `tools.json` | Feature-group counts and capability summaries derived from the feature pages |
 | FAQ structured data | Troubleshooting question blocks |
 
 These are generated, not separately maintained. `tools.json` derives its
-catalogue and operation total from the feature groups and operation counts in
+capability summaries and operation total from the feature groups and operation counts in
 `docs/features/`, while its tool total comes from `doc-counts.json` (repo
 root) - the single generated include file every count consumer reads.
+Each `featureGroups` entry contains `capabilities` with names and descriptions,
+not an `operations` command inventory. Its `operationCount` is the number of
+supported operations, not the number of capability summaries. Current command
+specifications come from CLI help and MCP tool descriptions.
 `llms.txt` reads its advertised summary from that same file. Contributors run
 `scripts\check-doc-counts.ps1 -Update` and review `doc-counts.json` and managed
 headline changes in the source PR. CI rejects stale counts before merge;

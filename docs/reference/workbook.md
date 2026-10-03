@@ -1,45 +1,40 @@
 # Workbook Lifecycle
 
-Use workbook operations for metadata, file variants, publishing, and external
-links. Session lifecycle is separate.
+Inspect the intended workbook's saved/read-only state, properties, and external
+dependencies before changing its format or publishing output. Session lifecycle
+is separate; see [session and saving guidance](behavioral-rules.md#sessions-and-failures).
 
-```mcp
-workbook(action: 'get-info', session_id: sessionId)
-workbook(action: 'list-external-links', session_id: sessionId)
-```
-
-```cli
-excelcli -q workbook get-info --session $sessionId
-excelcli -q workbook list-external-links --session $sessionId
-```
+Current commands and supported inputs come from CLI help or MCP tool descriptions.
 
 ## Metadata and document properties
 
-- `get-info` returns the active workbook name, path, Excel file format, saved/read-only state, and password/write-reservation flags.
-- `list-document-properties` can include built-in properties, custom properties, or both.
-- `get-document-property` and `set-document-property` default to custom properties.
-  Use `scope: 'built-in'` (MCP) / `--scope built-in` (CLI) for a built-in property.
-- Built-in properties can be read and updated but not deleted.
-- Missing custom properties are created as string properties by `set-document-property`; `delete-document-property` removes custom properties only.
+Use built-in properties for existing document metadata and custom properties
+for workbook-specific information. Custom properties can be removed; built-in
+ones are maintained by Excel. Avoid putting private paths, credentials, or
+connection strings in published properties.
 
 ## Save and publish
 
-- `save-as` supports `auto`, `xlsx`, `xlsm`, `xlsb`, and `xls`. The file extension must match the selected format, and the active session follows the new path.
-- `save-copy-as` preserves the current format and leaves the active workbook/session unchanged. Its target extension must match the active workbook.
-- `export-fixed-format` publishes PDF or XPS. Keep `open_after_publish: false`
-  (MCP) / `--open-after-publish false` (CLI), the default, for unattended workflows.
-- Output directories must already exist. Replacing an existing output file
-  requires `overwrite: true` (MCP) / `--overwrite true` (CLI) and authorization for that replacement.
+Choose the output according to the task. Saving under a new name changes the
+active workbook's path; saving a same-format copy leaves the active workbook
+unchanged. PDF/XPS output is a published view, not an editable workbook.
 
-Changing formats can remove unsupported workbook features. In particular, saving a macro-enabled workbook as `.xlsx` removes VBA content after Excel's format conversion.
+Replacing an output needs authorization. A format conversion can remove
+features: saving a macro-enabled workbook as `.xlsx` removes its VBA content.
+Inspect the result and active path before continuing work.
+
+For unattended exports, avoid opening viewers or modal previews. Configure
+the [print layout](worksheet.md#styling-and-outlines) before publishing.
 
 ## External Excel links
 
-1. Call `list-external-links` and use the exact returned `source`.
-2. Call `update-external-link` to refresh one source.
-3. Call `break-external-link` only with explicit user intent: it permanently replaces linked formulas with their current values.
+Discover the actual linked sources before refreshing them. A refresh can change
+calculated results; it is not merely inspecting the workbook.
 
-Breaking a link has no tool-level undo. Until saved, an authorized close without
-saving can discard the change, but it also discards earlier unsaved work.
+Breaking a link permanently replaces linked formulas with their current values.
+Do it only when that change is intended, and inspect the resulting values before
+saving. There is no tool-level undo. Closing without saving loses all earlier
+unsaved work too.
 
-Printing and print preview are not exposed. Printing can send output to a physical default printer, and preview is modal and can block unattended Excel sessions.
+Printing and print preview are not exposed: a default printer can produce
+physical output, and modal preview can block unattended sessions.

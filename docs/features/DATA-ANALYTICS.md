@@ -1,253 +1,133 @@
 # Data & Analytics Features
 
-Import, transform, model, and summarize data with Power Query, DAX, Excel Tables, PivotTables, and external data connections.
+Bring data into Excel, transform it, connect related tables, and build summaries
+that use Excel's own query and calculation engines.
 
-[← Back to the complete feature reference](../../FEATURES.md)
+[Back to the feature overview](../../FEATURES.md)
 
----
-
-## 🔄 Power Query & M Code (12 operations)
-
-Import, transform, and refresh data with Power Query. Every operation is a single-call atomic workflow.
-
-**Discovery:**
-- **List:** Return compact query metadata, exact load state, and an M preview of at most 80 characters; full M is never included
-- **View:** View one query's full M code and exact load state
-- **Get Load Config:** Get current load configuration
-
-**Lifecycle:**
-- **Create:** Import + load in one operation (atomic workflow), preserving M code by default
-- **Update:** Update M code, preserving M code by default, with optional auto-refresh
-- **Rename:** Rename a Power Query (trim + case-insensitive uniqueness check)
-- **Unload:** Remove data from all destinations (keeps query definition)
-- **Delete:** Remove Power Query from workbook
-
-**Loading & Refresh:**
-- **Refresh:** Refresh a Power Query with timeout detection
-- **Refresh All:** Batch refresh all queries in workbook
-- **Load To:** Configure load destination and refresh (atomic)
-
-**Advanced:**
-- **Evaluate:** Execute M code directly and return results (without creating a permanent query)
-
-**Notes:**
-- **M-code formatting:** M code is preserved exactly by default. Create and Update can opt in to remote formatting with `formatMCode=true`, which sends M code to powerqueryformatter.com and adds network latency. If remote formatting fails, the original M code is saved unchanged.
-- **Inline or file input:** Required M, DAX, and DMV text accepts exactly one inline value or its matching file alias (`mCodeFile`, `daxFormulaFile`, `daxQueryFile`, or `dmvQueryFile` in batch JSON; snake_case in MCP; kebab-case options in the CLI). Optional `update-measure` DAX input may omit both forms; whenever a value is supplied, inline and file forms remain mutually exclusive. Files must exist and be readable.
-- **Timeout representation:** Public CLI, batch, and MCP timeouts are integer seconds. Power Query refresh/refresh-all accepts 0–2147483; omission or `0` uses the 30-minute data-operation default. Connection, Data Model, PivotTable, and VBA timeouts accept 1–2147483.
-- **Load destinations:** `worksheet`, `data-model`, `both`, and `connection-only` are case-insensitive aliases for the corresponding generated enum values. Unknown values are rejected before any load destination is changed.
-- **Action-specific parameters:** CLI and MCP schemas expose the category-wide parameter union, but each action rejects explicitly supplied parameters it does not use. In particular, `load-to` rejects `timeout` and uses the fixed 30-minute data-operation timeout.
-- **Truthful reads:** List, View, and Get Load Config share exact worksheet/Data Model-aware load detection. List fails explicitly if Excel cannot inspect a query rather than silently omitting it.
-- **Exact query identity:** Load detection, refresh, load-to, unload, and delete compare the parsed mashup `Location` exactly and case-insensitively, so prefix names such as `A` and `AA` cannot affect each other.
-- **Evaluate cleanup:** Temporary queries, worksheets, tables, and generically named workbook connections are removed by exact mashup identity. Cleanup failures return an actionable error and never report success.
+These are capability summaries. Current command details come from CLI help or
+MCP tool descriptions; the linked guides explain practical decisions and workflows.
 
 ---
 
-## 📊 Data Model & DAX (Power Pivot) (20 operations)
+## Power Query & M Code (12 operations)
 
-Build a Power Pivot Data Model — manage tables, DAX measures, and relationships, then query it.
+- **Import and transform:** Create or update reusable M queries and load their results to worksheets, the Data Model, or both.
+- **Manage queries:** Inspect definitions and load destinations, rename queries, or remove their loads while retaining the query.
+- **Refresh data:** Refresh selected queries or attempt a workbook-wide query refresh, with errors reported rather than hidden.
+- **Try M code:** Evaluate code without retaining a permanent query.
 
-**Tables & Columns:**
-- **List Tables:** Discover all tables in the Data Model
-- **Read Table:** Get specific table information
-- **Rename Table:** Rename a Data Model table (best-effort via Power Query; returns clear error if not supported)
-- **Delete Table:** Remove table from Data Model
-- **List Columns:** List columns for a table
+Creating or loading a query can execute its data sources. Evaluation also runs
+code and temporarily changes the workbook, so it is not a read-only audit.
+Failed loads can leave objects behind; inspect what survived before retrying.
+Definition-only staging queries cannot refresh independently, and a batch
+refresh failure does not roll back loads that already finished.
 
-**Measures:**
-- **List Measures:** List all DAX measures with formula previews
-- **Read Measure:** Get one measure's full DAX formula, format, description, and table
-- **Create Measure:** Create new DAX measure, preserving DAX by default
-- **Update Measure:** Modify existing measure, preserving DAX by default
-- **Delete Measure:** Remove measure from model
+M code is preserved unless remote formatting is requested. Remote formatting
+sends code to an external service and needs consent.
 
-**Relationships:**
-- **List Relationships:** View all table relationships
-- **Read Relationship:** Get specific relationship info
-- **Create Relationship:** Create relationship between tables
-- **Update Relationship:** Modify relationship (toggle active/inactive)
-- **Delete Relationship:** Remove relationship
-
-**Model & Queries:**
-- **Read Info:** Get comprehensive model information
-- **Read Connection:** Inspect the embedded model connection, command type, and connected table names
-- **Refresh:** Refresh entire Data Model
-- **Evaluate:** Execute DAX EVALUATE queries and return tabular results (for ad-hoc analysis)
-- **Execute DMV:** Execute SQL-like DMV (Dynamic Management View) queries for metadata discovery
-
-**Notes:**
-- **DAX formatting:** Create and update accept native DAX with comma argument separators and decimal points; this product does not translate separators to Windows regional settings. Remote formatting is separate and off by default. Opt in with MCP `format_dax: true`, CLI `--format-dax true`, or batch JSON `formatDax: true` only with user consent: it sends DAX to daxformatter.com and adds network latency. If remote formatting fails, the original DAX is used with its meaning preserved; Excel-safe spacing still applies on decimal-comma Windows.
-- **Decimal-comma computers:** When Windows uses a comma as the decimal mark, Excel misreads a comma that touches a number in a measure formula (for example `IF(..., 1.5, 0)` or `DATEADD(..., -1, MONTH)`). Create and update add one space on each side of such commas, which keeps the DAX meaning, and the result message reports it. Text, quoted names, column references, and comments are not changed. Measure readback returns the DAX stored in the model, with decimal points, including after the workbook is reopened.
-- **Measure formats:** Create Measure and Update Measure accept General, Currency, Decimal, Percentage, and WholeNumber case-insensitively. Unknown values are rejected before Excel is called. Create defaults to General when the format is omitted or empty; Update keeps the existing format when omitted or empty.
-- **Workbook connections:** Use the existing `connection list` action to list workbook connections and Power Query sources; this is not a Data Model action.
-- **Source metadata:** Read Table returns each table's source connection name, description, type, and model-membership flag.
-- **COM limitations:** Excel exposes calculated columns as read-only entries but provides no reliable PIA formula/mutation or live refresh-status API. Use Power Query for computed columns.
+[Loading and recovery guidance](../reference/powerquery.md) |
+[Refresh walkthrough](../guides/REFRESH-POWER-QUERY.md)
 
 ---
 
-## 📇 Excel Tables (ListObjects) (27 operations)
+## Data Model & DAX (Power Pivot) (20 operations)
 
-Create and manage Excel Tables (ListObjects) — structured ranges with styling, filtering, and sorting.
+- **Inspect the model:** Discover tables, columns, measures, relationships, and the embedded model connection.
+- **Build calculations:** Create and update DAX measures with meaningful formats and descriptions.
+- **Connect tables:** Manage relationships between detail data and unique lookup tables.
+- **Query results:** Evaluate DAX for analytical results or inspect model metadata with supported DMV queries.
+- **Maintain the model:** Refresh data and manage tables and measures.
 
-**Lifecycle:**
-- **List:** List Excel Tables in a worksheet or workbook
-- **Read:** Get table structure (columns, range, style)
-- **Preflight:** Non-destructively check the effective range, merged cells, blank or duplicate headers, excluded contiguous columns, and formulas that may be unsafe to sort. Deterministic problems block creation; uncertain adjacency and formula findings are warnings. Ranges over 100,000 cells return an explicit warning that formula risk analysis was skipped.
-- **Create:** Create a new Excel Table from a range
-- **Rename:** Rename an existing table
-- **Resize:** Resize table range to match new data bounds
-- **Delete:** Remove a table (keeps underlying cell data)
+A worksheet Table is not automatically part of the Data Model. After changing
+a worksheet source, refresh the model before relying on its results; refresh
+dependent PivotTables afterward. Power Query refresh updates its model load.
+DAX queries need the Microsoft Analysis Services OLE DB provider.
 
-**Styling & Formatting:**
-- **Apply Style:** Apply a built-in table style
-- **Toggle Totals Row:** Show/hide the totals row
-- **Set Column Totals:** Configure per-column total function (Sum, Average, Count, etc.)
+Calculated-column editing and DAX calculated-table creation are not exposed
+through Excel's supported automation here. Use Power Query for stored
+transformations and DAX measures for analytical calculations. Remote DAX
+formatting sends code outside the computer and needs consent.
 
-**Data Operations:**
-- **Append Rows:** Add rows to the end of a table
-- **Get Table Data:** Read table data as a 2D array, with optional visible-only filtering
-- **Add to Data Model:** Load a table into the Power Pivot Data Model
-
-**DAX-Backed Tables:**
-- **Create from DAX:** Create an Excel Table populated by a DAX EVALUATE query
-- **Update DAX:** Change the DAX query of an existing DAX-backed table
-- **Get DAX:** Retrieve the DAX query info from a table
-
-**Filter Operations:**
-- **Apply Filter:** Typed comparison/AND/OR, value/date groups, top/bottom, color, icon, and dynamic native criteria
-- **Clear Filters:** Remove all active filters
-- **Get Filter State:** Read every column, native operators, both criterion slots and arrays, with explicit getter failures
-
-**Column Management:**
-- **Add Column:** Insert a new column
-- **Remove Column:** Delete a column
-- **Rename Column:** Rename a column header
-
-**Structured References:**
-- **Get Structured Reference:** Get formula syntax for a table column or range
-
-**Sorting:**
-- **Sort (Single Column):** Sort by one column
-- **Sort (Multi-Column):** Sort by up to 3 columns/levels
-
-**Number Formatting:**
-- **Get Column Number Formats:** Read number formats applied to columns
-- **Set Column Number Formats:** Apply number formats to columns
+[Model and calculation guidance](../reference/datamodel.md) |
+[DAX walkthrough](../guides/QUERY-DATA-MODEL-WITH-DAX.md)
 
 ---
 
-## 📈 PivotTables (45 operations)
+## Excel Tables (ListObjects) (27 operations)
 
-Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
+- **Structure data:** Create, inspect, rename, resize, and append to worksheet Tables; check conversion risks before creating one.
+- **Manage columns:** Add, remove, or rename columns and use structured references in formulas.
+- **Present and summarize:** Apply Table styles, number formats, and column totals.
+- **Filter and sort:** Use Excel's native value, date, comparison, color, and other supported filters, with single- or multi-column sorting.
+- **Connect to analysis:** Add worksheet data to the model or display a DAX query as a worksheet Table.
 
-**Creation:**
-- **Create from Range:** Build a PivotTable from a cell range
-- **Create from Excel Table:** Build a PivotTable from an Excel Table
-- **Create from Data Model:** Build an OLAP PivotTable from the Data Model
+Reuse a suitable existing Table rather than rebuilding it. Creation checks can
+identify unsafe headers, merged cells, and sorting risks, but warnings are not
+a guarantee that conversion suits the workbook's layout. Removing the Table
+keeps cell data but can affect dependent objects. A DAX-backed worksheet Table
+is a displayed query result, not a calculated table inside the model.
 
-**Field Management:**
-- **List Fields:** List all fields and every displayed Values instance, including repeated source fields, aggregation, additional calculation, and applicable base settings without a cap
-- **Add Row Field / Column Field / Value Field / Filter Field:** Add a field to the given area
-- **Remove Field:** Remove a field from the PivotTable
-
-**Field Configuration:**
-- **Set Field Function:** Set aggregation function (Sum, Average, Count, Min, Max, etc.)
-- **Set Field Calculation:** Set native Show Values As for one exact displayed Values name, independently of aggregation; reset with Normal. Base-dependent calculations require an explicit row/column field and, where applicable, a Named/Previous/Next item. OLAP/Data Model native base settings are unavailable.
-- **Set Field Name:** Set a custom display name for a field
-- **Set Field Number Format:** Apply a number format to a value field
-- **Set Field Filter:** Apply filter criteria to a field
-- **Get/Add/Clear Field Filters:** Inspect every native calculated filter or add typed label/value/date/top-bottom criteria on a regular PivotTable. Clearing removes only that field's calculated filters, not manual item visibility.
-- **Get/Set Item Expansion:** Read or expand/collapse one exact parent item in a regular row/column hierarchy; innermost fields and OLAP/provider-dependent expansion are rejected.
-- **Sort Field:** Sort a field ascending/descending
-
-**Grouping:**
-- **Group by Date / Number:** Build automatic date hierarchies or numeric bands
-- **Group Items:** Combine selected visible items into a named manual group
-- **Ungroup Field:** Remove manual grouping and restore the original field
-
-**Calculated Fields (Regular PivotTables):**
-- **List Calculated Fields:** List calculated fields on a regular PivotTable
-- **Create Calculated Field:** Add a calculated field
-- **Delete Calculated Field:** Remove a calculated field
-
-**Calculated Members (OLAP/Data Model PivotTables):**
-- **List Calculated Members:** List calculated members on an OLAP PivotTable
-- **Create Calculated Member:** Add a calculated member
-- **Delete Calculated Member:** Remove a calculated member
-
-**Layout & Formatting:**
-- **Set Layout:** Switch between table and outline layout
-- **Get/Set Layout Options:** Read every row field's native layout/repeated-label setting; update native PivotTable styles, preserve-formatting, headers, banding, and multiple-filter permission. Omitted settings remain unchanged.
-- **Set Subtotals Display:** Show/hide subtotals
-- **Set Grand Totals Display:** Show/hide grand totals
-
-**Data Operations:**
-- **Get PivotTable Data:** Read PivotTable data as a 2D array
-- **Refresh:** Refresh the PivotTable from its source
-- **Drill Through:** Expand a regular PivotTable value cell into its underlying source rows
-
-**PivotCache Configuration:**
-- **Get Cache Options:** Read refresh, retained-item, optimization, and saved-source settings
-- **Set Cache Options:** Configure supported cache options after complete validation; cache-wide changes that affect other shared-cache PivotTables are rejected. Saved-source data is table-specific.
-- **Get Source:** Read the worksheet-backed source, cache index, record count, all shared PivotTables, and connected slicer/timeline caches.
-- **Set Source:** Isolate only the selected regular PivotTable onto a new range/table cache with the same field schema, preserving unrelated cache users. Connected slicers/timelines must first be disconnected; external/OLAP source changes are unsupported.
-
-**Lifecycle:**
-- **List:** List PivotTables in a worksheet or workbook
-- **Read:** Get PivotTable info
-- **Delete:** Remove a PivotTable
+[Table workflow guidance](../reference/table.md)
 
 ---
 
-## 🔌 Data Connections (11 operations)
+## PivotTables (45 operations)
 
-Create and refresh external OLEDB/ODBC data connections.
+- **Build summaries:** Create PivotTables from ranges, worksheet Tables, or the Data Model, then configure rows, columns, values, and filters.
+- **Choose calculations:** Set aggregation and Show Values As independently; use calculated fields for regular PivotTables or supported calculated members for model-backed ones.
+- **Explore data:** Filter, sort, group, expand or collapse supported items, and drill into regular PivotTable source rows.
+- **Control presentation:** Use Compact, Tabular, or Outline layouts, repeated labels, styles, subtotals, and grand totals.
+- **Maintain sources:** Inspect refresh/cache settings and shared users, or change a supported source without rebuilding unrelated PivotTables.
 
-**Operations:**
-- **List:** View all data connections
-- **View:** Get connection details
-- **Create:** Create OLEDB/ODBC connections (requires provider installed)
-- **Test:** Verify connection validity
-- **Refresh:** Refresh connection data
-- **Get Refresh Status:** Report whether a typed OLEDB/ODBC refresh is active
-- **Cancel Refresh:** Cancel an active typed OLEDB/ODBC refresh
-- **Delete:** Remove connection
-- **Load To:** Load connection data to worksheet (when supported)
-- **Get Properties:** Get connection string and metadata
-- **Set Properties:** Update connection string, command text, and settings
+Regular and Data Model PivotTables have different capabilities. Native grouping,
+calculated filters, item expansion, and drill-through described here are
+regular-PivotTable features. Use model columns and measures where those native
+features are unavailable.
 
-**Notes:**
-- **Supported types:** OLEDB (requires Microsoft.ACE.OLEDB.16.0 or similar), ODBC (requires ODBC driver installed), and Power Query connections (atomic redirect to `powerquery`).
-- **Text/web imports:** Use `querytable` for direct local text/CSV or legacy HTML imports; use `powerquery` for transformations and modern connectors.
-- **Safe cleanup:** Connection delete and load-to remove only QueryTables owned by the exact WorkbookConnection; similarly named QueryTables are preserved.
+Creating a PivotTable does not configure its fields. Read the actual results
+after field changes and source refreshes. Shared caches and connected slicers
+also constrain source changes.
+
+[PivotTable workflow guidance](../reference/pivottable.md) |
+[PivotTable walkthrough](../guides/AUTOMATE-PIVOTTABLES.md)
 
 ---
 
-## 🌐 QueryTables (9 operations)
+## Data Connections (11 operations)
 
-Manage local worksheet QueryTables through the typed Excel PIA.
+- **Connect existing sources:** Create, inspect, and maintain supported OLEDB or ODBC workbook connections.
+- **Refresh and troubleshoot:** Test access, refresh data, inspect active refresh state, or cancel a supported refresh.
+- **Manage loads:** Load supported connections to worksheets or remove their associated load objects.
 
-**Operations:**
-- **List / View:** Discover QueryTables and read destination, source type, and refresh configuration
-- **Create Text:** Import text or CSV files with delimiter, qualifier, encoding, and header settings
-- **Create Web:** Import legacy HTML pages or selected tables through Excel's web-query engine
-- **Set Properties:** Configure background refresh, refresh-on-open, refresh period, sizing, and formatting preservation
-- **Refresh / Get Refresh Status / Cancel Refresh:** Control and inspect refresh execution
-- **Delete:** Remove a QueryTable
+The appropriate provider or driver must be installed. Power Query connections
+use Power Query behavior rather than ordinary OLEDB/ODBC connection handling.
+Connection details can contain credentials: do not publish them in reports or
+error summaries. Use direct text/web imports for simple imports and Power Query
+for transformations and modern connectors.
 
-**Boundaries:** QueryTables do not expose Power Query M, modern cloud connectors, sharing, presence, mentions, reactions, or coauthoring state.
+[Choosing an import workflow](../reference/querytable.md) |
+[Safe access and error handling](../reference/behavioral-rules.md)
+
+---
+
+## QueryTables (9 operations)
+
+- **Import files:** Bring local text or CSV data into a worksheet with control over how Excel interprets it.
+- **Import legacy web data:** Load HTML pages or selected tables through Excel's web-query engine.
+- **Maintain imports:** Inspect destinations and refresh settings, refresh or cancel loads, and remove QueryTables.
+
+Legacy web queries are not a general browser or modern cloud connector.
+QueryTables do not expose Power Query M or Microsoft 365 sharing, presence,
+or collaboration state.
+
+[Text and web import guidance](../reference/querytable.md)
 
 ---
 
 ## Related feature areas
 
-- [Cells & workbooks](CELLS-WORKBOOKS.md) — prepare ranges, formulas, worksheets, and files for analysis
-- [Charts & visualization](CHARTS-VISUALS.md) — present analytical results with charts, slicers, and formatting
-- [Automation & advanced](AUTOMATION-ADVANCED.md) — extend workflows with VBA, Python, and What-If Analysis
-- [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
-- [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
-
-## Task guides
-
-- [Refresh Power Query from an AI assistant](../guides/REFRESH-POWER-QUERY.md)
-- [Query the Excel Data Model with DAX](../guides/QUERY-DATA-MODEL-WITH-DAX.md)
-- [Build and update PivotTables with an AI assistant](../guides/AUTOMATE-PIVOTTABLES.md)
+- [Cells & workbooks](CELLS-WORKBOOKS.md) - prepare cells, formulas, sheets, and files
+- [Charts & visualization](CHARTS-VISUALS.md) - present results with charts and interactive filters
+- [Automation & advanced](AUTOMATION-ADVANCED.md) - extend workflows with code and What-If Analysis
+- [Example workflows](../USE-CASES.md)

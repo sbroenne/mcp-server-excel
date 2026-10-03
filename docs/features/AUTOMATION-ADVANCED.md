@@ -1,127 +1,98 @@
 # Automation & Advanced Features
 
-Run VBA and Python, control Excel windows, solve What-If scenarios, and work with XML Maps.
+Extend workbook workflows with code, live window control, What-If Analysis,
+and mapped XML data.
 
-[← Back to the complete feature reference](../../FEATURES.md)
+[Back to the feature overview](../../FEATURES.md)
 
----
-
-## 📝 VBA Macros (6 operations)
-
-View, import, edit, and run VBA code in `.xlsm` workbooks.
-
-**Operations:**
-- **List:** List VBA components and discovered procedures
-- **View:** Display component code without exporting
-- **Import:** Create a new standard module from code or file input
-- **Update:** Replace code in an existing VBA component
-- **Delete:** Remove a VBA component by name
-- **Run:** Execute a procedure with optional string parameters
-
-**Notes:**
-- Procedural/module-focused VBA support for `.xlsm` workbooks.
-- Listing or changing VBA modules requires manual VBA project trust in Excel;
-  running an existing macro does not (there is no trust-configuration command).
-- Import creates standard modules; list/view also cover class, form, and document components.
-
-**CLI example:**
-
-```powershell
-excelcli session create macros.xlsm
-# Use the returned session ID
-excelcli vba import --session <id> --module-name MyModule --vba-code-file code.vba
-excelcli session close --session <id> --save
-```
-
-VBA imports and updates accept either inline code or `--vba-code-file`, never
-both. Batch JSON uses `vbaCodeFile`; MCP uses `vba_code_file`. The file must
-exist and be readable. VBA execution timeouts are integer seconds from 1 through
-2147483.
+Use CLI help or MCP tool descriptions for current actions and inputs. The
+summaries below focus on capabilities and their important requirements.
 
 ---
 
-## 🐍 Python in Excel (2 operations)
+## VBA Macros (6 operations)
 
-Write and read `=PY()` formulas that run in Excel's cloud Python engine.
+- **Inspect code:** Discover VBA components and procedures and read component code.
+- **Maintain modules:** Import standard modules, update existing component code, or remove components.
+- **Run procedures:** Execute existing VBA procedures with supported parameters.
 
-**Operations:**
-- **Set Formula:** Write a `=PY("<code>", returnType)` formula via `Range.Formula2`. `returnType` 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). Must always be passed explicitly. If Excel immediately evaluates the formula as `#NAME?`, the operation reports that Python in Excel is unavailable instead of claiming success.
-- **Get Result:** Read back the computed value, polling until Excel's calculation state and the cell's transient marker show that cloud execution has finished. If the deadline is reached, the operation reports the observed transient state rather than guessing at a stale value. A settled `#NAME?` on a `PY()` formula is reported as Python in Excel being unavailable.
+Listing or editing the VBA project requires Excel's manually configured trust
+setting. Running an existing macro does not require project-inspection trust,
+but Excel's macro security still applies. ExcelMcp does not enable trust or
+bypass security automatically. Retain a macro-enabled file format when saving code.
 
-**Notes:**
-- **Requires:** a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel.
-- **Unavailable vs. transient:** `#NAME?` means this Excel session cannot use Python in Excel. `#BUSY!`, `#CONNECT!`, and `#BLOCKED!` remain transient cloud states and keep their existing retry behavior.
-- **Data binding:** Reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
-
----
-
-## 🪧 Window Management (16 operations)
-
-Show, position, and arrange the Excel window — great for watching the AI work in real time.
-
-**Visibility & Focus:**
-- **Show:** Make Excel visible and bring it to the foreground
-- **Hide:** Hide the Excel window
-- **Bring to Front:** Bring Excel to the foreground without changing visibility
-
-**Window State & Layout:**
-- **Get Info:** Get current window state (visibility, position, size, foreground status)
-- **Set State:** Set window state to normal, minimized, or maximized
-- **Set Position:** Set window position and size in points (left, top, width, height)
-- **Arrange:** Arrange the Excel window using preset layouts
-
-**Workbook View & Panes:**
-- **Get Context:** Read every owned workbook window's active sheet, selection, active cell, and chart without activation, selection, or visibility changes; unavailable and unsupported selections are explicit
-- **Get View:** Read zoom, pane state, and display options, including formula display
-- **Freeze / Unfreeze Panes:** Freeze rows/columns at a worksheet boundary or remove frozen panes
-- **Set Split:** Configure movable horizontal and vertical panes
-- **Set Zoom:** Change worksheet zoom
-- **Set Display Options:** Independently toggle gridlines, headings, outline symbols, and formula display; omitted options stay unchanged
-
-**Status Bar:**
-- **Set Status Bar:** Display custom text in Excel's status bar for real-time feedback
-- **Clear Status Bar:** Restore the default status bar text
-
-**Notes:**
-- **Arrange presets:** Layouts use the work area of the monitor currently containing Excel, including secondary-monitor origins and display scaling. `left-half` / `right-half` support side-by-side use, `top-half` / `bottom-half` provide stacked views, `center` uses 60% of the work area, and `full-screen` maximizes Excel on that monitor.
-- **Use cases:** Interactive "agent mode" where users watch Excel respond to AI commands in real time, side-by-side layouts (Excel on one half, AI assistant on the other), and visibility changes that are reflected in session metadata.
+[VBA walkthrough](../guides/RUN-VBA-MACROS.md)
 
 ---
 
-## 🔬 What-If Analysis (8 operations)
+## Python in Excel (2 operations)
 
-Run Excel's native sensitivity analysis against live workbook formulas and input cells.
+- **Add Python calculations:** Write Python-in-Excel formulas that can reference live worksheet data.
+- **Read results:** Wait for cloud execution and read supported calculated values, distinguishing pending work from unavailable Python support.
 
-- **Goal Seek:** Adjust one changing cell until a formula reaches a numeric goal
-- **List / Create / Update / Show / Delete Scenarios:** Manage named sets of changing-cell values
-- **Create Scenario Summary:** Produce a standard summary worksheet or Scenario PivotTable report
-- **Create Data Table:** Build one- or two-variable Excel data tables
+This is Microsoft's licensed Python in Excel service, not local Python
+execution. It requires a supported Microsoft 365 account and internet access.
+Rich Python objects are not necessarily readable as ordinary values through
+Excel automation; choose worksheet-value output when that is what the task needs.
 
-Solver is intentionally excluded because Microsoft implements it as an optional VBA add-in requiring user enablement and macro-security configuration.
+A successful formula write does not mean the cloud calculation has finished.
+An unavailable service and pending calculation need different recovery choices.
+
+[Cloud calculation and failure guidance](../reference/behavioral-rules.md#python-in-excel)
 
 ---
 
-## 🧩 XML Maps (6 operations)
+## Window Management (16 operations)
 
-Manage workbook XML schemas, XPath mappings, and in-memory XML data exchange.
+- **Watch work live:** Show, hide, position, and arrange the session's Excel window.
+- **Inspect context:** Read its active worksheet, selection, chart, window state, and view.
+- **Improve navigation:** Adjust zoom, display options, frozen panes, and movable splits.
+- **Show progress:** Set and clear Excel status-bar text.
 
-- **List / Add / Delete:** Manage workbook XML maps
-- **Map Range:** Bind a cell or single-column range to an XPath
-- **Import / Export XML:** Exchange mapped XML in memory without dialogs
+Preserve the user's existing visibility preference. Keeping a workbook open
+does not mean showing its window. Window changes affect the selected session,
+not unrelated Excel processes, and visible interaction needs a suitable desktop.
 
-DTDs, external XSD dependencies, and XSI schema-location attributes are rejected before Excel COM can resolve external resources.
+[Window workflow guidance](../reference/window.md)
+
+---
+
+## What-If Analysis (8 operations)
+
+- **Find an input:** Use Goal Seek to adjust one input until a formula reaches a numeric target.
+- **Compare assumptions:** Maintain named scenarios, apply their input values, and produce scenario summaries.
+- **Explore sensitivity:** Build one- or two-variable Excel data tables.
+
+Goal Seek and applying scenarios change live cells; they are not read-only
+inspection. Read the resulting inputs and outputs. Data tables can be
+calculation-intensive and need the worksheet layout prepared first.
+
+Solver is not exposed here. It is an optional VBA add-in that requires separate
+user configuration and macro-security decisions.
+
+[What-If workflow guidance](../reference/analysis.md)
+
+---
+
+## XML Maps (6 operations)
+
+- **Map structured data:** Manage workbook XML schemas and bind worksheet cells or columns to XML paths.
+- **Exchange data:** Import and export mapped XML without dialogs.
+
+Use existing mappings when they describe the intended data. Imports can write
+worksheet cells or create a new mapped Table. Removing a map does not clear
+previously imported cells.
+
+External schema dependencies, DTDs, and schema-location attributes are rejected
+so Excel cannot resolve unexpected external resources.
+
+[XML workflow guidance](../reference/xmlmap.md)
 
 ---
 
 ## Related feature areas
 
-- [Data & analytics](DATA-ANALYTICS.md) — combine VBA and Python with Power Query, DAX, and PivotTables
-- [Cells & workbooks](CELLS-WORKBOOKS.md) — manipulate the ranges, formulas, worksheets, and files used by automation
-- [Charts & visualization](CHARTS-VISUALS.md) — create polished visual output from automated workflows
-- [Example workflows](../USE-CASES.md) — see these capabilities combined in practical requests
-- [Installation](../INSTALLATION.md) — choose and configure the MCP Server or CLI
-
-## Task guides
-
-- [Run VBA macros from an AI agent](../guides/RUN-VBA-MACROS.md)
+- [Data & analytics](DATA-ANALYTICS.md) - combine code with queries and analytical models
+- [Cells & workbooks](CELLS-WORKBOOKS.md) - manage the inputs, formulas, and files used by automation
+- [Charts & visualization](CHARTS-VISUALS.md) - present automated results
 - [Real Excel automation vs. file-parser libraries](../guides/EXCEL-COM-VS-FILE-PARSERS.md)

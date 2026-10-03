@@ -117,7 +117,7 @@ nav:
     - CLI: installation-cli.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
-  - Reference:
+  - Workflow guidance:
     - Overview: reference/index.md
     - Working with agents:
       - Key constraints & sequencing: reference/workflows.md

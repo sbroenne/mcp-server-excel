@@ -26,8 +26,8 @@ Hitting an actual error rather than a question? See
 
 No. You talk to your AI assistant in plain language ("build a PivotTable of
 sales by product and chart it") and it drives Excel for you. The
-[feature reference](features.md) is there when you want to see everything that's
-possible - you don't need to memorize it.
+[feature overview](features.md) helps you explore the capabilities and important
+limitations - you don't need to memorize commands.
 
 ### CLI or MCP Server - which should I install?
 

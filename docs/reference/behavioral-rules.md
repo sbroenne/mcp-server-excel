@@ -60,8 +60,7 @@ See [window management](window.md#visibility-and-placement).
 - Report what actually succeeded, the saved file when relevant, and any remaining
   failure. Do not present an attempted action as a completed result.
 
-Use the file test operation when access or protection is uncertain. It reports
-`canOpen`, `isIrmProtected`, `willOpenReadOnly`, and `requiresVisibleSession`.
+Use the file test operation when access or protection is uncertain.
 Ordinary files are briefly opened read-only for this check. IRM/AIP workbooks
 require interactive Excel authentication; do not work around protection.
 
@@ -108,28 +107,19 @@ calculation. Semi-automatic excludes what-if data tables, not ordinary worksheet
 Tables. Successful writes do not establish completion of asynchronous refreshes
 or Python calculations; check the owning operation's completion state.
 
-Calculation mode and iteration settings affect all workbooks in the session's
-owned Excel application, not other Excel processes. `calculate` with MCP
-`scope: 'application'` or CLI `--scope application` affects all its open workbooks.
-MCP `kind: 'full'` / CLI `--kind full` recalculates every formula; `rebuild`
-also rebuilds dependencies. Both require application scope.
+Calculation settings can affect every workbook in the session's owned Excel
+application, not other Excel processes. Choose calculation scope from the
+dependencies involved; see [calculation guidance](calculation.md).
 
-`set-settings` changes only supplied values. MCP iteration inputs are
-`iteration_enabled`, `maximum_iterations`, `maximum_change`, and
-`calculate_before_save`; CLI flags are `--iteration-enabled`,
-`--maximum-iterations`, `--maximum-change`, and `--calculate-before-save`.
-Do not enable workbook precision-as-displayed to change formatting:
-`set-precision` with MCP `precision_as_displayed: true` or CLI
-`--precision-as-displayed true` permanently rounds stored numbers across the
-workbook and requires MCP `allow_precision_loss: true` or CLI
-`--allow-precision-loss true`. Disabling it does not recover lost digits.
+Do not enable precision-as-displayed merely to change formatting. It permanently
+rounds stored numbers across the workbook, and disabling it does not recover
+lost digits.
 
 ## Inputs and errors
 
-Use only the selected action's parameters. Supply either inline content or a
-readable source file, never both. Timeouts are integer seconds, not duration
-strings. Read the action's actual limits; session timeouts and data refresh
-timeouts are different.
+Discover current actions, inputs, and limits through CLI help or MCP tool
+descriptions. Do not rely on a copied command catalogue. Session waits and
+data-refresh waits serve different purposes.
 
 Read `errorMessage`, `errorCategory`, and `suggestedNextActions` when present.
 Correct input, prerequisites, or access before retrying. Missing Data Model tables
@@ -147,9 +137,13 @@ full connection strings. Generic failures do not prove a missing provider.
 
 ## Python in Excel
 
-`pythoninexcel` runs in Microsoft's cloud, not local Python. It needs licensed
+Python in Excel runs in Microsoft's cloud, not local Python. It needs licensed
 Microsoft 365 Python in Excel and network access. `#NAME?` means unavailable,
-not pending; use `get-result` for pending cloud work. Its `max_wait_seconds`
-(MCP) / `--max-wait-seconds` (CLI) must be shorter than the session operation
-timeout. Cloud startup can take minutes; do not repeatedly retry policy or
-connection failures as though they were transient.
+not pending. A successful formula write does not establish cloud completion;
+inspect the result through the supported waiting operation.
+
+Its wait must fit within the session's operation timeout; use current help for
+the inputs. Cloud startup can take time, but policy or connection failures
+should not be retried indefinitely as if they were merely slow calculations.
+Rich Python objects may not be readable as ordinary worksheet values through
+COM; choose worksheet-value output when that is what the result requires.

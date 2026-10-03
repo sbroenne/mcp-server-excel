@@ -1,129 +1,60 @@
 # Worksheets
 
-Same-workbook lifecycle operations create, list, rename, copy, move, and delete
-sheets. Always use the captured session. Rename requires the old and new names,
-not the source/target parameters used for copying.
+Inspect existing names, contents, and dependencies before creating, moving,
+or removing sheets. Deleting a worksheet removes all its contents and can
+break references. There is no tool-level undo.
 
-```mcp
-worksheet(action: 'rename', session_id: sessionId, old_name: 'Sheet1', new_name: 'Summary')
-```
-
-```cli
-excelcli -q sheet rename --session $sessionId --old-name Sheet1 --new-name Summary
-```
-
-For ordering, specify before **or** after another sheet, not both. Inspect names
-and dependencies before deleting or replacing anything.
-Deleting a sheet removes all of its contents and can break dependent references.
-There is no tool-level undo. Discarding unsaved changes also discards earlier
-unsaved work.
+Use CLI help or MCP tool descriptions for current worksheet controls and inputs.
 
 ## Cross-file operations
 
-Copy-to-file and move-to-file manage opening, saving, and closing files in one
-call without a supplied session. Use the exact user-provided source and target
-paths. Do not apply them to files already open in unrelated sessions.
+Use the user's intended source and destination files. Cross-file transfer owns
+opening, saving, and closing those files; do not apply it to workbooks already
+open in unrelated sessions.
 
-```mcp
-worksheet(action: 'copy-to-file', source_file: sourcePath, source_sheet: 'Summary', target_file: targetPath, target_sheet_name: 'Q1 Summary')
-```
-
-```cli
-excelcli -q sheet copy-to-file --source-file $sourcePath --source-sheet Summary --target-file $targetPath --target-sheet-name 'Q1 Summary'
-```
-
-Cross-file copy can rename the copied sheet. Both transfer operations support
-positioning relative to a target sheet. Same-file copying uses the ordinary copy
-action instead. Do not assume a failure rolls back every file; inspect both
-files before retrying a transfer.
-Move-to-file removes the source sheet and saves both workbooks. There is no
-tool-level undo. Closing another session without saving cannot reverse that
-saved transfer.
+Copying keeps the source sheet. Moving removes it and saves both workbooks.
+Closing another session without saving cannot reverse a saved transfer.
+Failures do not promise rollback across files: inspect both before retrying.
 
 ## Styling and outlines
 
-Worksheet-style operations own tab colors, visibility, protection, page setup,
-legacy notes, and row/column grouping. Legacy notes are not threaded comments;
-use range-link operations for threaded comments.
+Worksheet presentation includes tab colors, visibility, legacy notes, images,
+shapes, page layout, and outlines. Legacy notes are different from modern
+threaded comments.
 
-Page setup never prints or opens a preview. Use `worksheet_style` actions
-`set-page-setup` / `get-page-setup` (CLI `worksheetstyle set-page-setup` /
-`worksheetstyle get-page-setup`). Additional settings use MCP `page_setup_options` or
-CLI `--page-setup-options`; nested keys remain camelCase. Margins are **points**,
-not inches. Omitted/null settings remain unchanged; empty text explicitly clears
-`printArea`, `printTitleRows`, `printTitleColumns`, or header/footer text.
-Print titles select complete rows/columns. Printer support is required for
-paper settings and automatic pagination.
+Page setup prepares output but does not print or open preview. Decide whether
+fixed scaling or fitting to pages serves the report; printer support and
+scaling affect automatic pagination. Manual-break replacement affects the
+whole sheet, including breaks outside the current print area.
 
-`zoomPercent` selects fixed scaling and cannot accompany MCP
-`fit_to_pages_wide` / `fit_to_pages_tall` (CLI `--fit-to-pages-wide` /
-`--fit-to-pages-tall`). Fit counts of zero mean unlimited in that dimension.
-Reads report null `zoomPercent` in fit mode and null fit counts when fixed zoom
-is active; an unlimited fit dimension is also null.
+Inspect the print area, repeated headers, margins, and page breaks before
+[PDF/XPS export](workbook.md#save-and-publish). Native settings can partly change
+before failure, so read back the result rather than assuming rollback.
 
-`set-page-breaks` (CLI `worksheetstyle set-page-breaks`) takes MCP
-`page_break_options` or CLI `--page-break-options`,
-with required `rows` and `columns` lists of positions **before which** to break.
-It replaces **all manual breaks on the worksheet**, including outside the
-current print area; empty lists clear them. `get-page-breaks` reads every break
-Excel exposes in the current print scope, identifies manual/automatic breaks,
-and states that scope limitation. Scaling can override manual breaks in output.
-Use `workbook export-fixed-format` / MCP `workbook` `export-fixed-format` for
-PDF/XPS output that honors these settings by default. Native failures do not
-promise rollback of settings already changed.
-
-Group complete rows such as `2:10` with axis Rows, or columns such as `B:F` with
-axis Columns. Summary rows use above/below and summary columns left/right.
-Read outline information before changing it, use show-outline-levels to
-expand/collapse, ungroup to remove a level, and clear-outline to remove all groups.
+Outline changes affect complete rows or columns. Inspect existing groups and
+summary positions first. Removing one grouping level is different from clearing
+all outlines; expand/collapse when only the visible detail level should change.
 
 ## Protection permissions
 
-`worksheet_style` (MCP) / `worksheetstyle` (CLI) `set-protection` accepts an
-`options` object with native permissions. Supplied options replace the
-configuration; unspecified permissions use Excel's restrictive defaults,
-not the previous permissions. Options are not valid when unprotecting.
-`get-protection` reads protected components, every permission flag, and
-selection restrictions without returning passwords.
+Changing worksheet protection replaces its permission configuration; omitted
+permissions need not preserve the previous choices. Inspect the full current
+state before replacing it.
 
-```mcp
-worksheet_style(action: 'set-protection', session_id: sessionId, sheet_name: 'Summary', is_protected: true, options: {"allowFiltering": true, "allowFormattingRows": true, "userInterfaceOnly": true})
-worksheet_style(action: 'get-protection', session_id: sessionId, sheet_name: 'Summary')
-```
+Filtering permission allows changes to an existing filter, not necessarily
+creating a new one. Sorting and deletion can still require unlocked cells.
+Automation-only protection is runtime-only and is not retained after reopening.
 
-```cli
-excelcli -q worksheetstyle set-protection --session $sessionId --sheet Summary --is-protected true --options '{"allowFiltering":true,"allowFormattingRows":true,"userInterfaceOnly":true}'
-excelcli -q worksheetstyle get-protection --session $sessionId --sheet Summary
-```
-
-Nested option keys keep the spelling shown above in both entry points. Filtering permission
-allows changing an existing filter, not creating/removing it. Sorting/deleting
-still requires unlocked cells. UI-only protection permits automation but is
-runtime-only: it is not retained after reopening. Reapply it only when wanted.
-Sheet protection and formula hiding are not file encryption or a confidentiality
-boundary; native failures do not promise rollback.
+Worksheet protection and hidden formulas control editing or display, not
+encryption or confidentiality. Do not bypass security or promise that a failed
+change restored the previous state.
 
 ## Workbook themes
 
-`workbook` `get-theme` reads all native theme color slots and major/minor
-Latin, East Asian, and complex-script font definitions. Empty font names are
-native unspecified definitions, not fallback fonts. Excel COM does not expose
-the applied theme file/name or scheme names; the result states this limitation.
-`apply-theme` changes theme-sensitive formatting throughout the workbook,
-including theme-bound cell/style/chart colors and fonts. Explicit RGB colors
-remain fixed. Use an existing theme file selected for the requested appearance;
-do not create workbook copies as a prerequisite. Saving remains explicit.
+A theme change can affect colors and fonts throughout the workbook, including
+styles and charts. Fixed RGB colors remain fixed. Choose an existing Office
+theme file for the requested appearance rather than making unrelated changes.
 
-```mcp
-workbook(action: 'get-theme', session_id: sessionId)
-workbook(action: 'apply-theme', session_id: sessionId, theme_path: themePath)
-```
-
-```cli
-excelcli -q workbook get-theme --session $sessionId
-excelcli -q workbook apply-theme --session $sessionId --theme-path $themePath
-```
-
-The input path must be absolute and select an existing Office `.thmx` file.
-Native failures do not promise rollback; read the actual theme definitions
-before retrying.
+Inspect the actual theme definitions. Empty script-font definitions do not mean
+fallback fonts were applied, and Excel cannot expose every theme name or original
+file path. Read back changes before retrying after failure; saving remains explicit.

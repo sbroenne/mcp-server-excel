@@ -77,15 +77,15 @@ hide:
 
     ---
 
-    Build Data Models, create DAX measures and manage table relationships.
-    Full Power Pivot automation.
+    Build Data Models, create DAX measures and manage table relationships
+    through Excel's supported automation.
 
 -   :material-chart-box:{ .lg .middle } __PivotTables &amp; charts__
 
     ---
 
     Create PivotTables from ranges, tables or the Data Model. Build charts and
-    PivotCharts with full formatting control.
+    PivotCharts with supported formatting controls.
 
 -   :material-table:{ .lg .middle } __Tables &amp; ranges__
 
@@ -133,7 +133,7 @@ hide:
 
 </div>
 
-[See all 31 tools and 387 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[Explore capabilities across 31 tools and 387 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## Popular guides
 
