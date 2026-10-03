@@ -1,5 +1,8 @@
 # Power Query: loading and recovery
 
+Use CLI help or MCP tool descriptions for current commands and inputs. This
+guide explains execution, refresh order, and recovery decisions.
+
 ## Execution and destination decisions
 
 For authorized development, prefer `evaluate` for new or materially changed M:
@@ -13,18 +16,18 @@ existing loaded values; follow [permission rules](behavioral-rules.md#intent-and
 
 | Decision | Effect |
 |----------|--------|
-| `create` for an absent query | Stores it **and loads** its destination; `worksheet` by default |
-| `update` for an existing query | Changes M and refreshes by default; `refresh: false` (MCP) / `--refresh false` (CLI) stores without refresh |
-| `load-to` to select a destination | Loads immediately, not just configuration |
-| `refresh` for an existing load | Updates data; definitions alone do not prove loaded values are current |
-| `unload` | Removes **all** worksheet/model destinations, retains the query |
-| `delete` | Removes the query and its associated loads; inspect dependencies first |
+| Create a query | Stores it and can immediately execute its chosen load |
+| Replace an existing query's code | Can refresh its data; choose definition-only editing when execution is not intended |
+| Change a load destination | Loads immediately, not just configuration |
+| Refresh an existing load | Updates data; definitions alone do not prove loaded values are current |
+| Remove loads but keep the query | Removes all worksheet/model destinations |
+| Remove the query | Also removes associated loads; inspect dependencies first |
 
 Use `connection-only` to store without execution. It does not validate M.
 A query loaded only to the model is not connection-only.
 
-When creating/loading onto populated sheets, inspect cells and provide
-`target_cell_address` (MCP) / `--target-cell-address` (CLI). Existing Tables
+When creating/loading onto populated sheets, inspect cells and choose an
+explicit destination that preserves other content. Existing Tables
 refresh in place. Moving a load requires unload/reload, which removes **all**
 current destinations; check model dependencies and authorized scope first.
 
@@ -93,22 +96,16 @@ Check each result and actual loaded values. Repeat for each requested loaded
 query and dependent pivot. Refresh executes the stored M sources; it does not
 discover new reports or replace a frozen data snapshot with current data.
 
-### Inputs and timeouts
+### Reads and execution limits {#inputs-and-timeouts}
 
-- Supply raw `m_code` (MCP) / `--m-code` (CLI), or `m_code_file` (MCP) /
-  `--m-code-file` (CLI), not both. The filename need not match the query name.
-  See [workbook parameters and M identifiers](m-code-syntax.md).
-- `list` returns compact metadata and a bounded preview; use `view` for full
-  stored M and `get-load-config` for destinations. None proves freshness.
-  Rename trims names but does not rewrite M; inspect dependent references.
-- M is preserved by default. Remote formatting needs consent:
-  `format_m_code: true` (MCP) / `--format-m-code true` (CLI) sends code to
-  powerqueryformatter.com; unavailable formatting saves original M.
-- Refresh/refresh-all accepts integer `timeout_seconds` (MCP) / `--timeout`
-  (CLI), with zero/omission using 30 minutes. That wait replaces the session
-  timeout for the refresh, rather than layering another wait over it.
-- `load-to` has a fixed 30-minute wait and no caller timeout input.
-  Create/update/evaluate use the session operation timeout.
-- Category-wide schemas/help contain options for several actions. Irrelevant
-  options are rejected, even if null/default: do not pass M to delete or a
-  refresh timeout to load-to.
+A compact query listing is not the full stored definition, and neither a
+definition nor its load settings proves freshness. Inspect the full code when
+its sources or transformations matter. Renaming does not rewrite dependent
+M references; see [M identifiers and query chaining](m-code-syntax.md).
+
+Remote formatting sends M code to an external service and needs consent.
+It is not a workaround for query-engine errors.
+
+Session and refresh waits serve different purposes. Use current CLI/MCP help
+for the operation's limits, then inspect surviving objects after timeout.
+Extending a wait is not a fix for a query with no refreshable destination.

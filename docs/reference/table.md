@@ -1,77 +1,50 @@
 # Worksheet Tables versus model tables
 
-Create a worksheet Table when requested or required, not for every rectangular
-dataset. Reuse existing Tables: append, resize, or update rather than recreate.
+Create a worksheet Table when requested or needed, not for every rectangular
+dataset. Reuse suitable existing Tables instead of recreating them.
+
+Current Table commands and inputs come from CLI help or MCP tool descriptions.
 
 ## Conversion and preservation
 
-Use `preflight` when conversion boundaries or sorting safety are uncertain.
-Create enforces the same blockers, but warnings remain advisory. A
-`safeToCreate` result does not establish every business/layout consequence.
-For headerless data use `has_headers: false` (MCP) / `--has-headers false` (CLI).
+Check headers, merged cells, effective boundaries, and sorting risks before
+conversion. Creation checks can block deterministic problems, but warnings
+remain advisory. A safe-to-create result does not establish that conversion
+suits every business or layout requirement. Choose header handling deliberately.
 
-`delete` converts a Table to a plain range and keeps cell data; it can still
-break dependent PivotTables/model objects. Shrinking changes membership, not
-permission to clear excluded cells.
+Removing a Table keeps its cell data but can break dependent objects. Shrinking
+changes membership; it is not permission to clear excluded cells. Appending
+must respect existing column order.
 
-`read` is metadata; `get-data` is cell values. Ordinary reads include filtered
-rows. Use `visible_only: true` (MCP) / `--visible-only true` (CLI) for visible
-rows. Append uses existing column order.
+Metadata and data reads answer different questions. Ordinary data reads include
+filtered rows; explicitly inspect visible rows when the result should reflect
+the active filter.
 
 ## Native filtering
 
-MCP `table_column` / CLI `tablecolumn` `apply-filter` uses typed `options` /
-`--options`. The former `apply-filter-values` action is removed, not an alias.
-Other column filters are preserved. `clear-filters` affects the selected Table,
-not every worksheet filter.
+Keep filtering within the intended Table. Clearing its filters does not clear
+every filter on the worksheet. For plain ranges or criteria-based copied output,
+use the [range filtering workflow](range.md#ordinary-range-and-advanced-filtering)
+without converting the data to a Table first.
 
-```mcp
-table_column(action: 'apply-filter', session_id: sessionId, table_name: 'Sales', column_name: 'Amount', options: {filterOperator: 'And', criteria1: '>=100', criteria2: '<=500'})
-table_column(action: 'apply-filter', session_id: sessionId, table_name: 'Sales', column_name: 'Region', options: {filterOperator: 'Values', values: ['North','West','Central']})
-```
-
-```cli
-excelcli -q tablecolumn apply-filter --session $sessionId --table-name Sales --column-name Amount --options '{"filterOperator":"And","criteria1":">=100","criteria2":"<=500"}'
-excelcli -q tablecolumn apply-filter --session $sessionId --table-name Sales --column-name Region --options '{"filterOperator":"Values","values":["North","West","Central"]}'
-```
-
-Nested option keys stay camelCase. Native date groups select a year/month/day,
-not a text-only date comparison. Color, icon, top/bottom, and dynamic operators
-require only their applicable typed fields; unrelated settings fail before writes.
-`get-filters` returns every column, native operators, and both criterion slots.
-Arrays stay arrays. Excel can normalize two selected values into an OR condition;
-reads report native state, not a reconstruction of the original request.
-Criterion getter failures include their HRESULT and `readError`, not invented
-blank criteria. A native empty variant has `emptyVariant: true`.
-
-Use ordinary-range filtering and criteria-range filtering through
-[range operations](range.md), not Table creation as a prerequisite.
+Native date groups, comparisons, value lists, colors, and icons are different
+filter choices. Excel can normalize criteria, so compare their meaning and
+actual visible rows rather than the request's original spelling.
+Unavailable criterion reads are not evidence of an empty filter.
 
 ## Styling
 
-Use `table_style` (MCP) / `--table-style` (CLI) at creation or `set-style`
-later. The Table owns its visual style, not `range_format` (MCP) /
-`rangeformat` (CLI). Column number formats and totals functions are separate.
-For a requested style change on existing `Sales`:
-
-```mcp
-table(action: 'set-style', session_id: sessionId, table_name: 'Sales', table_style: 'TableStyleMedium2')
-```
-
-```cli
-excelcli -q table set-style --session $sessionId --table-name Sales --table-style TableStyleMedium2
-```
+The Table owns its visual style; ordinary range formatting is not its style
+system. Column number formats and totals calculations are separate decisions.
+Preserve an existing template unless a change is requested.
 
 ## Model and worksheet results
 
-A worksheet Table is **not automatically in Power Pivot**.
-`add-to-data-model` adds an existing Table and is idempotent. Power Query can
-load directly with `load_destination: 'data-model'` (MCP) /
-`--load-destination data-model` (CLI).
-See [model prerequisites and refresh](datamodel.md).
+A worksheet Table is not automatically in Power Pivot. Add it to the model,
+or load a query to the model, before relying on model relationships or measures.
+After worksheet-source edits, follow the
+[model refresh sequence](datamodel.md#refresh-is-not-calculation).
 
-`create-from-dax` creates a worksheet Table from a model `EVALUATE` query.
-`get-dax` inspects it; `update-dax` changes it. This is a worksheet result,
-not DAX calculated-table creation in the model. Use model `evaluate` to return
-results without a worksheet object, or a [PivotTable](pivottable.md) for
-interactive filtering.
+A DAX-backed worksheet Table displays a model query result. It is not a DAX
+calculated table inside the model. Use returned query data when no worksheet
+object is needed, or a [PivotTable](pivottable.md) for interactive filtering.

@@ -1,78 +1,50 @@
-# querytable - Local Text and Web Imports
+# Local text and web imports
 
-Use `querytable` for worksheet QueryTables backed by the desktop Excel COM object model.
+Choose the import workflow by the source and required transformation, not
+simply because every option can place data on a worksheet.
+
+Current commands and inputs come from CLI help or MCP tool descriptions.
 
 ## Choose the Right Import Surface
 
-| Need | Tool |
-|------|------|
-| Direct text/CSV import with delimiter and encoding control | `querytable create-text` |
-| Legacy HTML page/table import through Excel's web-query engine | `querytable create-web` |
-| Modern connectors, transformations, APIs, JSON, or reusable M | `powerquery` |
-| Existing OLEDB/ODBC workbook connection | `connection` |
+| Need | Approach |
+|------|----------|
+| Direct text/CSV import with control over interpretation | Worksheet QueryTable |
+| Legacy HTML page or table import | Excel's legacy web-query engine |
+| Modern connectors, transformations, APIs, or reusable M | [Power Query](powerquery.md) |
+| Existing OLEDB/ODBC source | Workbook connection with its installed provider/driver |
 
 ## Text Import
 
-```mcp
-querytable(action: 'create-text', session_id: sessionId,
-    query_table_name: 'OrdersCsv',
-    source_path: 'C:\Data\orders.csv',
-    sheet_name: 'Orders',
-    destination_address: 'A1',
-    delimiter: ',',
-    text_qualifier: 'double-quote',
-    encoding: 65001,
-    has_headers: true)
-```
+Use the intended readable source file and inspect the destination first.
+Choose its delimiter, quoting, encoding, and header interpretation deliberately;
+incorrect choices can alter dates, identifiers, and column boundaries.
 
-```cli
-excelcli -q querytable create-text --session $sessionId --query-table-name OrdersCsv --source-path $sourcePath --sheet Orders --destination-address A1 --delimiter ',' --text-qualifier double-quote --encoding 65001 --has-headers true
-```
-
-Use a known readable source path and an existing destination sheet. The example
-names are illustrative; use the actual target and inspect occupied cells first.
-
-- `delimiter` is exactly one character.
-- `text_qualifier` (MCP) / `--text-qualifier` (CLI) is `double-quote`, `single-quote`, or `none`.
-- `encoding` is a Windows code page; use `65001` for UTF-8.
-- Creation refreshes synchronously so imported data is ready when the call returns.
+Creation loads synchronously, so read the resulting cells before relying on
+the imported data. A completed call does not establish that Excel interpreted
+every field as the business intended.
 
 ## Legacy Web Import
 
-```mcp
-querytable(action: 'create-web', session_id: sessionId,
-    query_table_name: 'RatesHtml',
-    url: 'https://example.com/rates.html',
-    sheet_name: 'Rates',
-    destination_address: 'A1',
-    selection_type: 'specified-tables',
-    web_tables: '1',
-    formatting: 'none')
-```
+Use the user's intended HTML page, not a guessed source. Choose whether the
+task needs the whole page or selected tables.
 
-```cli
-excelcli -q querytable create-web --session $sessionId --query-table-name RatesHtml --url $sourceUrl --sheet Rates --destination-address A1 --selection-type specified-tables --web-tables '1' --formatting none
-```
-
-The source URL must identify the user's intended HTML page, not a guessed site.
-
-- `selection_type` (MCP) / `--selection-type` (CLI) is `entire-page`, `all-tables`, or `specified-tables`.
-- `web_tables` (MCP) / `--web-tables` (CLI) is required with `specified-tables`.
-- `formatting` is `none`, `rich-text`, or `all`.
-- This is Excel's legacy HTML web-query engine, not a general HTTP or browser automation API.
+This is Excel's legacy web-query engine, not a general browser or a modern
+authenticated cloud connector. Use Power Query for modern transformations
+and source-specific connectors.
 
 ## Lifecycle and Refresh
 
-Use `list`, `view`, `set-properties`, `refresh`, `get-refresh-status`, `cancel-refresh`, and `delete` for existing QueryTables.
+Inspect the existing import's destination and refresh behavior before changing
+it. Refresh executes the source again and can replace loaded data; it is not
+merely inspecting a frozen snapshot.
+
+If refresh fails or is cancelled, inspect the resulting state before retrying.
+Do not assume the destination remained unchanged.
 
 ## Hard Exclusions
 
-Local QueryTable COM automation cannot access Microsoft 365 cloud service state or APIs:
-
-- No workbook sharing or permissions
-- No coauthor presence, cursors, conflicts, or live collaboration state
-- No comment @mentions, assignments, reactions, or notification delivery
-- No authenticated Graph, SharePoint, Teams, or OneDrive service operations
-- No Power Query M definition or modern connector configuration
-
-Use the relevant Microsoft 365 service API for cloud workflows and `powerquery` for modern data transformation.
+Local QueryTable automation does not expose Microsoft 365 sharing permissions,
+coauthor presence, comment mentions/reactions, or service notification delivery.
+Use the relevant Microsoft 365 API for those workflows, not worksheet import
+as a service-access workaround.

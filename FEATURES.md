@@ -1,24 +1,26 @@
-# ExcelMcp - Complete Feature Reference
+# ExcelMcp - What You Can Automate
 
 **31 specialized tools with 387 operations for comprehensive Excel automation**
 
-Excel MCP Server automates the real Microsoft Excel application through four focused capability areas. Start with the category that matches your goal, or use the quick reference below to find a tool for a specific task.
+ExcelMcp uses the installed Microsoft Excel application, not a file parser.
+Excel itself calculates formulas, refreshes data, runs macros, and renders
+charts. The MCP Server and CLI provide the same capabilities.
 
 ## Explore by goal
 
-| Goal | Feature area | Included tools |
-|---|---|---|
-| Import, transform, model, and summarize data | [Data & Analytics](docs/features/DATA-ANALYTICS.md) | Power Query, Data Model & DAX, Excel Tables, PivotTables, Data Connections, QueryTables |
-| Read, write, and format cells; manage formulas, sheets, and files | [Cells & Workbooks](docs/features/CELLS-WORKBOOKS.md) | File Operations, Calculation, Ranges, Worksheets, Workbook, Named Ranges |
-| Build charts and interactive visuals; capture workbook screenshots | [Charts & Visualization](docs/features/CHARTS-VISUALS.md) | Charts, Slicers, Conditional Formatting, Screenshots, Drawing Objects, Sparklines |
-| Run VBA or Python, control Excel windows, solve What-If scenarios, and work with XML Maps | [Automation & Advanced](docs/features/AUTOMATION-ADVANCED.md) | VBA, Python in Excel, Window Management, What-If Analysis, XML Maps |
+| What you want to accomplish | Feature area |
+|---|---|
+| Import and transform data, connect tables, and build analytical summaries | [Data & Analytics](docs/features/DATA-ANALYTICS.md) |
+| Update cells and formulas, format reports, and manage sheets and files | [Cells & Workbooks](docs/features/CELLS-WORKBOOKS.md) |
+| Create charts, interactive filters, and other worksheet visuals | [Charts & Visualization](docs/features/CHARTS-VISUALS.md) |
+| Run code, compare assumptions, control Excel windows, and exchange XML data | [Automation & Advanced](docs/features/AUTOMATION-ADVANCED.md) |
 
-> **New to Excel MCP Server?** You do not need to memorize operation names. Describe the result you want in plain language and your AI assistant selects the appropriate tool.
+These pages describe capabilities and important limitations, not command
+syntax. Ask your AI assistant for the result you want in plain language.
+For current actions and inputs, use the MCP tool descriptions or the CLI's
+built-in help: `excelcli --help`, then `excelcli <command> --help`.
 
-## Task guides
-
-Prefer a walkthrough to a reference table? The [task guides](docs/guides/README.md)
-cover the most common jobs end to end:
+## Practical guides
 
 - [Refresh Power Query from an AI assistant](docs/guides/REFRESH-POWER-QUERY.md)
 - [Build and update PivotTables with an AI assistant](docs/guides/AUTOMATE-PIVOTTABLES.md)
@@ -26,18 +28,16 @@ cover the most common jobs end to end:
 - [Run VBA macros from an AI agent](docs/guides/RUN-VBA-MACROS.md)
 - [Real Excel automation vs. file-parser libraries](docs/guides/EXCEL-COM-VS-FILE-PARSERS.md)
 
----
+The [workflow guidance](docs/reference/README.md) explains sequencing, safe
+edits, recovery, and decisions that command help alone cannot teach.
 
-## 🔧 Tool Selection Quick Reference
+## Requirements and boundaries
 
-| Task | Tool | Feature reference |
-|------|------|-------------------|
-| Import or transform data | `powerquery`; `connection` for existing OLEDB/ODBC sources; `querytable` for direct text/web imports | [Data & Analytics](docs/features/DATA-ANALYTICS.md) |
-| Build a Power Pivot model and DAX measures | `datamodel` | [Data Model & DAX](https://excelmcpserver.dev/features/data-analytics/#data-model-dax-power-pivot) |
-| Create or update a PivotTable for aggregation | `pivottable` | [PivotTables](https://excelmcpserver.dev/features/data-analytics/#pivottables) |
-| Find an input for a target result, compare scenarios, or build What-If data tables | `analysis` | [What-If Analysis](https://excelmcpserver.dev/features/automation-advanced/#what-if-analysis) |
-| Visualize data | `chart` | [Charts](https://excelmcpserver.dev/features/charts-visuals/#charts) |
-| Update parameters | `namedrange` (write operation) | [Cells & Workbooks](docs/features/CELLS-WORKBOOKS.md) |
-| Read or write cells and manage formulas | `range` (including `set-formulas`) | [Ranges](https://excelmcpserver.dev/features/cells-workbooks/#ranges) |
-| Format or validate data | `range_format` (`format`, `validate-range`) | [Ranges](https://excelmcpserver.dev/features/cells-workbooks/#ranges) |
-| Run a macro | `vba` | [VBA Macros](https://excelmcpserver.dev/features/automation-advanced/#vba-macros) |
+ExcelMcp requires Windows and installed desktop Excel. Some capabilities also
+depend on the Excel version, account licensing, data providers, or an interactive
+desktop; the category pages call out these requirements.
+
+Edits affect the live workbook. Saving, discarding changes, refreshing external
+sources, and running code have different consequences. See
+[working safely with Excel](docs/reference/behavioral-rules.md) before planning
+an unattended workflow.

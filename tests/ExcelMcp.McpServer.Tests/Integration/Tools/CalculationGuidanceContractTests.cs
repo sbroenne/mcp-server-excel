@@ -39,7 +39,6 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
         var requiredParameterNames = GetRequiredPropertyNames(calculationTool.JsonSchema);
         var repoRoot = FindRepoRoot();
         var sourcePaths = Directory.GetFiles(Path.Combine(repoRoot, "docs", "reference"), "*.md");
-        var verifiedActions = new HashSet<string>(StringComparer.Ordinal);
         var exampleCount = 0;
 
         foreach (var sourcePath in sourcePaths)
@@ -90,7 +89,6 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
 
                 Assert.NotNull(action);
                 Assert.Contains(action, actionNames);
-                verifiedActions.Add(action);
                 foreach (var requiredParameterName in requiredParameterNames)
                 {
                     Assert.Contains(requiredParameterName, parameterNames);
@@ -98,7 +96,6 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
             }
         }
         Assert.True(exampleCount > 0, "No calculation examples were checked.");
-        Assert.Equal(actionNames.Order(StringComparer.Ordinal), verifiedActions.Order(StringComparer.Ordinal));
     }
 
     private static HashSet<string> GetRequiredPropertyNames(JsonElement schema)

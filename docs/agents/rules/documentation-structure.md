@@ -1,6 +1,8 @@
 # Documentation sources
 
-- `FEATURES.md` is navigation; operation references live in `docs/features/`.
+- `FEATURES.md` is navigation; capability summaries live in `docs/features/`.
+  Workflow guidance lives in `docs/reference/`; current command specifications
+  come from CLI help and MCP tool descriptions.
   Permanent guides belong in `docs/`, decisions in `docs/ADR-*.md`, and proposed
   requirements in GitHub issues. Core contracts define operation behavior; do
   not maintain parallel specification copies. Agent guidance sources follow
@@ -11,7 +13,7 @@
   managed headline claims. Feature-section `(N operations)` headings are checked
   separately and are not rewritten by `-Update`; derive affected totals from
   the generated manifest and preserve those headings. Website and release
-  automation use `doc-counts.json`; the website's operation catalogue also uses
+  automation use `doc-counts.json`; the website's capability catalogue also uses
   the canonical feature sections. CI rejects stale counts; no post-merge bot
   rewrites `main`. Internal CLI diagnostics are excluded from advertised counts.
 - Website pages are thin wrappers over canonical repository docs.

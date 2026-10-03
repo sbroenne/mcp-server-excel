@@ -2,7 +2,9 @@
 
 ## When to Use DMV Queries
 
-Use DMV queries (via the `datamodel` tool with `execute-dmv` action) when you need metadata that is NOT accessible through regular datamodel actions:
+Use DMV queries when ordinary model inspection cannot answer a metadata
+question. Use current CLI help or MCP tool descriptions for executing a query;
+the guidance here concerns Excel's embedded provider and query language.
 
 | Use Case | DMV to Use |
 |----------|-----------|
@@ -12,9 +14,9 @@ Use DMV queries (via the `datamodel` tool with `execute-dmv` action) when you ne
 | List all available DMV views on this workbook | `DISCOVER_SCHEMA_ROWSETS` |
 
 **Do NOT use DMV queries for:**
-- Reading regular worksheet data → use `range` tool
-- Listing Power Query queries → use `powerquery list`
-- Reading PivotTable data → use `pivottable` tool
+- Reading regular worksheet data - use worksheet value reads
+- Listing Power Query queries - inspect the workbook's stored queries
+- Reading PivotTable results - inspect the actual summary data
 
 SYNTAX: `SELECT * FROM $SYSTEM.<SchemaRowset>`
 

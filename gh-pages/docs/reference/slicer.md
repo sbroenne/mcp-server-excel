@@ -1,10 +1,9 @@
 ---
 title: Slicers
-description: Excel slicer reference - slicer types, connecting slicers to PivotTables and tables.
+description: Plan slicers and timelines, check shared PivotTable connections, and verify which data and charts an interactive filter actually affects.
 keywords: "Excel slicer automation, PivotTable slicer, timeline slicer"
 ---
 
 # Slicers
 
 --8<-- "_generated/skills-slicer.md"
-
