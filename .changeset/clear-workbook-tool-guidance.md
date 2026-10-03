@@ -9,3 +9,5 @@ Preserve existing validation rules when type, operator, or error-style inputs ar
 Identify the actual measure format during readback instead of misreporting Decimal as Percentage or hiding format-read failures as General.
 
 Advertise only writable chart data-label positions in CLI help and MCP discovery; Excel's read-only Mixed state is not an input option.
+
+Keep mixed-style range inspection working when Excel reports no single style, without changing individual cell styles. Required metadata helpers still reject missing objects with explicit argument errors.

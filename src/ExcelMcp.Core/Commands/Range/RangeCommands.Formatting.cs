@@ -97,7 +97,9 @@ public partial class RangeCommands
                 try
                 {
                     rangeStyle = range.Style;
-                    styleName = ComUtilities.SafeGetString(rangeStyle, "Name");
+                    styleName = rangeStyle is null or DBNull
+                        ? "Normal"
+                        : ComUtilities.SafeGetString(rangeStyle, "Name");
                     if (string.IsNullOrEmpty(styleName))
                     {
                         styleName = "Normal";

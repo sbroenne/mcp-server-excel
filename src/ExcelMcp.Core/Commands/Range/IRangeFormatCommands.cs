@@ -60,6 +60,8 @@ public interface IRangeFormatCommands
     /// <summary>
     /// Gets the current built-in style name applied to a range.
     /// Excel COM: Range.Style.Name property
+    /// When Excel reports no single style for a mixed-style range, returns the
+    /// existing Normal fallback without changing individual cell styles.
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>

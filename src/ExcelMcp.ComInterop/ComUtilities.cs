@@ -342,7 +342,7 @@ public static class ComUtilities
     /// <returns>Property value or empty string</returns>
     public static string SafeGetString(dynamic? obj, string propertyName)
     {
-        ArgumentNullException.ThrowIfNull(obj);
+        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
         if (obj is string name && propertyName == "Name")
         {
             return name;
@@ -368,7 +368,7 @@ public static class ComUtilities
     /// <returns>Property value; zero only when Excel reports zero</returns>
     public static int SafeGetInt(dynamic? obj, string propertyName)
     {
-        ArgumentNullException.ThrowIfNull(obj);
+        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
         var value = propertyName switch
         {
             "RecordCount" => obj.RecordCount,
