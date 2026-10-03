@@ -5,20 +5,9 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
 /// <summary>
-/// Integration tests for File Core operations using Excel COM automation.
-/// Tests Core layer directly (not through CLI wrapper).
+/// Integration tests for read-only workbook validation through the Service.
 /// Each test uses a unique Excel file for complete test isolation.
-///
-/// WHAT LLMs NEED TO KNOW:
-/// 1. TestFile returns metadata (Exists, IsValid, Message) without Success flag
-/// 2. File creation uses SessionManager.CreateSessionForNewFile (create action)
-///
-/// LAYER RESPONSIBILITY:
-/// - ✅ Test Excel COM file operations and Result objects
-/// - ✅ Test business rules (valid extensions, file metadata)
-/// - ❌ DO NOT test CLI argument parsing (CLI's responsibility)
-/// - ❌ DO NOT test JSON serialization (MCP Server's responsibility)
-/// - ❌ DO NOT test infrastructure (paths, directories, OS validation)
+/// The transport response and nested FileValidationInfo have separate success flags.
 /// </summary>
 [Trait("Layer", "Service")]
 [Trait("Category", "Integration")]
@@ -68,11 +57,11 @@ public sealed class ServiceFileTestFixture : IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
-        if (Directory.Exists(_tempDir))
+        PersistentServiceCleanupFailures.Run(_service.Dispose, () =>
         {
-            Directory.Delete(_tempDir, recursive: true);
-        }
+            if (Directory.Exists(_tempDir))
+                Directory.Delete(_tempDir, recursive: true);
+        });
     }
 }
 
@@ -94,7 +83,7 @@ internal sealed class ServiceFileCommands(ExcelMcpService service)
 
     internal ServiceResponse TestRaw(string filePath)
     {
-        return service.ProcessAsync(new ServiceRequest
+        var response = service.ProcessAsync(new ServiceRequest
         {
             Command = "session.test",
             Args = JsonSerializer.Serialize(
@@ -102,5 +91,7 @@ internal sealed class ServiceFileCommands(ExcelMcpService service)
                 ServiceProtocol.JsonOptions),
             Source = "service-file-tests"
         }).GetAwaiter().GetResult();
+        Assert.Equal(0, service.SessionCount);
+        return response;
     }
 }

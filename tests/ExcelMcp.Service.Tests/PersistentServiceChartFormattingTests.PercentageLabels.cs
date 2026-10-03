@@ -13,10 +13,9 @@ public sealed partial class PersistentServiceChartFormattingTests
     public void SetDataLabels_PercentageOnSupportedChart_PreservesActualExcelFlags(ChartType type)
     {
         var batch = _fixture.BatchToken;
-        var created = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", type);
-        Assert.True(created.Success, created.ErrorMessage);
-        Assert.True(_chartCommands.SetDataLabels(
-            batch, created.ChartName, showValue: false, showPercentage: true).Success);
+        var created = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", type));
+        RequireSuccess(_chartCommands.SetDataLabels(
+            batch, created.ChartName, showValue: false, showPercentage: true));
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
             Excel.Sheets? sheets = null;

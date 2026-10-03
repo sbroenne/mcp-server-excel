@@ -33,6 +33,21 @@ Layout rejects protected drawing objects, charts, ActiveX/OLE and unknown types.
 Use the chart tools for chart changes. Duplication also rejects any macro-bound
 object or group member, rather than copying a macro assignment.
 
+## Rejected input
+
+Malformed `font_color`, `fill_color`, or `line_color` values (CLI:
+`--font-color`, `--fill-color`, `--line-color`) are rejected before objects are
+created or changed. Invalid sparkline colors do not change existing sources,
+types, or markers or leave newly created groups behind.
+
+For `update-object`, `linked_cell` and `input_range` (CLI: `--linked-cell` and
+`--input-range`) on a non-Forms object are rejected before changing its name,
+position, text, or formatting. This input validation is not a general rollback
+guarantee for failures while Excel applies valid settings.
+
+Bindings unsupported by a Forms-control subtype are also rejected before
+`add-form-control` creates an object or `update-object` changes it.
+
 ## Safe Forms controls
 
 - `linked_cell` (MCP) / `--linked-cell` (CLI): CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner

@@ -86,17 +86,8 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// </summary>
     public Task DisposeAsync()
     {
-        try
-        {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Cleanup is best-effort
-        }
+        if (Directory.Exists(_tempDir))
+            Directory.Delete(_tempDir, recursive: true);
         return Task.CompletedTask;
     }
 
@@ -218,5 +209,4 @@ public class PowerQueryCreationResult
     /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }
-
 

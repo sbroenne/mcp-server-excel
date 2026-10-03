@@ -20,59 +20,49 @@ public sealed partial class PersistentServiceWorkbookTests(
     public void SetProtection_ProtectsAndUnprotectsWorkbook()
     {
         var batch = _fixture.BatchToken;
-        var original = _workbook.GetProtection(batch);
-        try
+        var original = RequireSuccess(_workbook.GetProtection(batch));
+        RunWithWorkbookCleanup(() =>
         {
-            var protect = _workbook.SetProtection(batch, true);
-            Assert.True(protect.Success, protect.ErrorMessage);
-            var protectedState = _workbook.GetProtection(batch);
-            Assert.True(protectedState.Success);
+            RequireSuccess(_workbook.SetProtection(batch, true));
+            var protectedState = RequireSuccess(_workbook.GetProtection(batch));
             Assert.True(protectedState.IsProtected);
 
-            var unprotect = _workbook.SetProtection(batch, false);
-            Assert.True(unprotect.Success, unprotect.ErrorMessage);
-            var unprotectedState = _workbook.GetProtection(batch);
-            Assert.True(unprotectedState.Success);
+            RequireSuccess(_workbook.SetProtection(batch, false));
+            var unprotectedState = RequireSuccess(_workbook.GetProtection(batch));
             Assert.False(unprotectedState.IsProtected);
-        }
-        finally
-        {
-            _workbook.SetProtection(batch, original.IsProtected);
-        }
+        }, () => RequireSuccess(_workbook.SetProtection(batch, original.IsProtected)));
     }
 
     [Fact]
     public void SetViewOptions_UpdatesGridlinesAndHeadings()
     {
         var batch = _fixture.BatchToken;
-        var original = _workbook.GetViewOptions(batch);
-        try
+        var original = RequireSuccess(_workbook.GetViewOptions(batch));
+        RunWithWorkbookCleanup(() =>
         {
-            var set = _workbook.SetViewOptions(
+            RequireSuccess(_workbook.SetViewOptions(
                 batch,
                 displayGridlines: false,
-                displayHeadings: true);
-            Assert.True(set.Success, set.ErrorMessage);
-            var result = _workbook.GetViewOptions(batch);
-            Assert.True(result.Success, result.ErrorMessage);
+                displayHeadings: true));
+            var result = RequireSuccess(_workbook.GetViewOptions(batch));
             Assert.False(result.DisplayGridlines);
             Assert.True(result.DisplayHeadings);
-        }
-        finally
-        {
-            _workbook.SetViewOptions(
+            RequireSuccess(_workbook.SetViewOptions(batch, displayGridlines: true));
+            var updated = RequireSuccess(_workbook.GetViewOptions(batch));
+            Assert.True(updated.DisplayGridlines);
+            Assert.True(updated.DisplayHeadings);
+        }, () =>
+            RequireSuccess(_workbook.SetViewOptions(
                 batch,
                 original.DisplayGridlines,
-                original.DisplayHeadings);
-        }
+                original.DisplayHeadings)));
     }
 
     [Fact]
     public void GetInfo_ReturnsActiveWorkbookMetadata()
     {
-        var result = _workbook.GetInfo(_fixture.BatchToken);
+        var result = RequireSuccess(_workbook.GetInfo(_fixture.BatchToken));
 
-        Assert.True(result.Success);
         Assert.Equal(
             Path.GetFileName(_fixture.WorkbookPath),
             result.Name);
@@ -89,86 +79,130 @@ public sealed partial class PersistentServiceWorkbookTests(
     {
         var batch = _fixture.BatchToken;
         var propertyName = $"AutomationTag_{Guid.NewGuid():N}";
+        var created = false;
         var deleted = false;
-        try
+        RunWithWorkbookCleanup(() =>
         {
-            var set = _workbook.SetDocumentProperty(
+            RequireSuccess(_workbook.SetDocumentProperty(
                 batch,
                 propertyName,
                 "alpha",
-                DocumentPropertyScope.Custom);
-            var get = _workbook.GetDocumentProperty(
+                DocumentPropertyScope.Custom));
+            created = true;
+            var get = RequireSuccess(_workbook.GetDocumentProperty(
                 batch,
                 propertyName,
-                DocumentPropertyScope.Custom);
-            var list = _workbook.ListDocumentProperties(
+                DocumentPropertyScope.Custom));
+            Assert.Equal("alpha", get.Property.Value);
+            Assert.Equal(propertyName, get.Property.Name);
+            Assert.Equal("custom", get.Property.Scope);
+            var list = RequireSuccess(_workbook.ListDocumentProperties(
                 batch,
                 includeBuiltIn: false,
-                includeCustom: true);
-            var delete = _workbook.DeleteDocumentProperty(
-                batch,
-                propertyName);
-            deleted = true;
+                includeCustom: true));
 
-            Assert.True(set.Success);
-            Assert.True(get.Success);
-            Assert.Equal("alpha", get.Property.Value);
-            Assert.Contains(
+            Assert.Single(
                 list.Properties,
                 property => property.Name == propertyName
                     && property.Value == "alpha"
                     && property.Scope == "custom");
-            Assert.True(delete.Success);
+            RequireSuccess(_workbook.SetDocumentProperty(
+                batch, propertyName, "beta", DocumentPropertyScope.Custom));
+            var updated = RequireSuccess(_workbook.GetDocumentProperty(
+                batch, propertyName, DocumentPropertyScope.Custom));
+            Assert.Equal("beta", updated.Property.Value);
+            RequireSuccess(_workbook.DeleteDocumentProperty(batch, propertyName));
+            deleted = true;
+            Assert.DoesNotContain(
+                RequireSuccess(_workbook.ListDocumentProperties(
+                    batch, includeBuiltIn: false, includeCustom: true)).Properties,
+                property => property.Name == propertyName);
             Assert.Throws<InvalidOperationException>(() =>
                 _workbook.GetDocumentProperty(
                     batch,
                     propertyName,
                     DocumentPropertyScope.Custom));
-        }
-        finally
+        }, () =>
         {
-            if (!deleted)
+            if (created && !deleted)
             {
-                _workbook.DeleteDocumentProperty(batch, propertyName);
+                RequireSuccess(_workbook.DeleteDocumentProperty(batch, propertyName));
             }
-        }
+        });
     }
 
     [Fact]
     public void BuiltInDocumentProperty_SetAndGet_UpdatesTitle()
     {
         var batch = _fixture.BatchToken;
-        var original = _workbook.GetDocumentProperty(
-            batch,
-            "Title",
-            DocumentPropertyScope.BuiltIn);
+        RequireSuccess(_workbook.SetDocumentProperty(
+            batch, "Title", "Quarterly workbook", DocumentPropertyScope.BuiltIn));
+        var get = RequireSuccess(_workbook.GetDocumentProperty(
+            batch, "Title", DocumentPropertyScope.BuiltIn));
+        Assert.Equal("Quarterly workbook", get.Property.Value);
+        Assert.Equal("built-in", get.Property.Scope);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MissingDocumentProperty_PreservesExistingProperty(bool delete)
+    {
+        var batch = _fixture.BatchToken;
+        var name = $"Retained_{Guid.NewGuid():N}";
+        var missing = $"Missing_{Guid.NewGuid():N}";
+        RequireSuccess(_workbook.SetDocumentProperty(batch, name, "retained", DocumentPropertyScope.Custom));
+        RunWithWorkbookCleanup(() =>
+        {
+            var before = System.Text.Json.JsonSerializer.Serialize(
+                RequireSuccess(_workbook.ListDocumentProperties(
+                    batch, includeBuiltIn: false, includeCustom: true)).Properties);
+            var error = Assert.Throws<InvalidOperationException>(() =>
+            {
+                if (delete)
+                {
+                    _workbook.DeleteDocumentProperty(batch, missing);
+                }
+                else
+                {
+                    _workbook.GetDocumentProperty(batch, missing, DocumentPropertyScope.Custom);
+                }
+            });
+            Assert.Contains(missing, error.Message, StringComparison.Ordinal);
+            Assert.Contains("not found", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(
+                RequireSuccess(_workbook.ListDocumentProperties(
+                    batch, includeBuiltIn: false, includeCustom: true)).Properties));
+            Assert.Equal("retained", RequireSuccess(
+                _workbook.GetDocumentProperty(batch, name, DocumentPropertyScope.Custom)).Property.Value);
+        }, () => RequireSuccess(_workbook.DeleteDocumentProperty(batch, name)));
+    }
+
+    private static void RunWithWorkbookCleanup(Action test, Action cleanup)
+    {
+        Exception? failure = null;
         try
         {
-            var set = _workbook.SetDocumentProperty(
-                batch,
-                "Title",
-                "Quarterly workbook",
-                DocumentPropertyScope.BuiltIn);
-            var get = _workbook.GetDocumentProperty(
-                batch,
-                "Title",
-                DocumentPropertyScope.BuiltIn);
-
-            Assert.True(set.Success);
-            Assert.Equal("Quarterly workbook", get.Property.Value);
-            Assert.Equal("built-in", get.Property.Scope);
+            test();
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
         }
         finally
         {
-            var originalTitle = original.Property.Value?.ToString();
-            if (!string.IsNullOrEmpty(originalTitle))
+            try
             {
-                _workbook.SetDocumentProperty(
-                    batch,
-                    "Title",
-                    originalTitle,
-                    DocumentPropertyScope.BuiltIn);
+                cleanup();
             }
+            catch (Exception cleanupFailure)
+            {
+                failure = PersistentServiceCleanupFailures.Combine(failure, cleanupFailure);
+            }
+        }
+        if (failure is not null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failure);
         }
     }
 }

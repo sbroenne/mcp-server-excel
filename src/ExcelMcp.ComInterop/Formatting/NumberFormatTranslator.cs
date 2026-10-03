@@ -4,8 +4,9 @@ using Excel = Microsoft.Office.Interop.Excel;
 namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
 /// <summary>
-/// Translates invariant number and date/time codes for Range.NumberFormatLocal and
-/// TickLabels.NumberFormatLocal. Typed Range.NumberFormat reads do not need translation.
+/// Translates number and date/time codes for localized Range and chart format APIs.
+/// Chart named colors require English keywords with regional numeric separators.
+/// Typed Range.NumberFormat reads do not need translation.
 /// </summary>
 /// <remarks>
 /// <para><b>Why This Is Needed:</b></para>
@@ -190,6 +191,51 @@ public sealed class NumberFormatTranslator
     }
 
     /// <summary>
+    /// Adapts numeric separators for TickLabels.NumberFormat, which uses English
+    /// keywords but regional numeric separators on localized Excel installations.
+    /// </summary>
+    public string TranslateForChart(string invariantFormat) =>
+        string.IsNullOrEmpty(invariantFormat)
+            ? invariantFormat
+            : TranslateFormatString(invariantFormat, invariantKeywords: true);
+
+    /// <summary>Checks for English named-color directives outside literals.</summary>
+    public static bool ContainsNamedColor(string format)
+    {
+        for (var index = 0; index < format.Length; index++)
+        {
+            if (IsTwoCharacterLiteralPrefix(format[index]))
+            {
+                index++;
+                continue;
+            }
+            if (format[index] == '"')
+            {
+                var end = format.IndexOf('"', index + 1);
+                if (end < 0) { return false; }
+                index = end;
+                continue;
+            }
+            if (format[index] != '[') { continue; }
+            var close = format.IndexOf(']', index + 1);
+            if (close < 0) { return false; }
+            var directive = format.AsSpan(index + 1, close - index - 1);
+            foreach (var color in NamedColors)
+            {
+                if (directive.Equals(color, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            index = close;
+        }
+        return false;
+    }
+
+    private static readonly string[] NamedColors =
+        ["Black", "Blue", "Cyan", "Green", "Magenta", "Red", "White", "Yellow"];
+
+    /// <summary>
     /// Checks if the format string already contains locale-specific date codes.
     /// </summary>
     private bool ContainsLocaleSpecificCodes(string format)
@@ -250,7 +296,8 @@ public sealed class NumberFormatTranslator
     /// <summary>
     /// Translates format string character by character, handling context (date vs time vs number).
     /// </summary>
-    private string TranslateFormatString(string format, bool toInvariant = false)
+    private string TranslateFormatString(
+        string format, bool toInvariant = false, bool invariantKeywords = false)
     {
         var result = new StringBuilder(format.Length);
         int i = 0;
@@ -315,7 +362,7 @@ public sealed class NumberFormatTranslator
             if (sourceGeneral.Length > 0 &&
                 format.AsSpan(i).StartsWith(sourceGeneral, StringComparison.OrdinalIgnoreCase))
             {
-                result.Append(toInvariant ? "General" : GeneralFormatName);
+                result.Append(toInvariant || invariantKeywords ? "General" : GeneralFormatName);
                 i += sourceGeneral.Length;
                 continue;
             }
@@ -363,7 +410,7 @@ public sealed class NumberFormatTranslator
             {
                 inTimeContext = true;
                 int count = CountRepeatingChar(format, i, c);
-                if (!IsEnglishDateLocale)
+                if (!IsEnglishDateLocale && !invariantKeywords)
                 {
                     result.Append(toInvariant ? 'h' : HourCode[0], count);
                 }
@@ -379,7 +426,7 @@ public sealed class NumberFormatTranslator
             if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? SecondCode[0] : 's'))
             {
                 int count = CountRepeatingChar(format, i, c);
-                if (!IsEnglishDateLocale)
+                if (!IsEnglishDateLocale && !invariantKeywords)
                 {
                     result.Append(toInvariant ? 's' : SecondCode[0], count);
                 }
@@ -392,7 +439,8 @@ public sealed class NumberFormatTranslator
             }
 
             // Day code - 'd' or 'D'
-            if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? DayCode[0] : 'd') && !IsEnglishDateLocale)
+            if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? DayCode[0] : 'd') &&
+                !IsEnglishDateLocale && !invariantKeywords)
             {
                 int count = CountRepeatingChar(format, i, c);
 
@@ -403,7 +451,8 @@ public sealed class NumberFormatTranslator
 
             // Month/Minute code - 'm' or 'M'
             // This is the tricky one - 'm' means month in date context, minutes in time context
-            if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? (inTimeContext ? MinuteCode[0] : MonthCode[0]) : 'm') && !IsEnglishDateLocale)
+            if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? (inTimeContext ? MinuteCode[0] : MonthCode[0]) : 'm') &&
+                !IsEnglishDateLocale && !invariantKeywords)
             {
                 int count = CountRepeatingChar(format, i, c);
 
@@ -421,7 +470,8 @@ public sealed class NumberFormatTranslator
             }
 
             // Year code - 'y' or 'Y'
-            if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? YearCode[0] : 'y') && !IsEnglishDateLocale)
+            if (char.ToLowerInvariant(c) == char.ToLowerInvariant(toInvariant ? YearCode[0] : 'y') &&
+                !IsEnglishDateLocale && !invariantKeywords)
             {
                 int count = CountRepeatingChar(format, i, c);
                 result.Append(toInvariant ? 'y' : YearCode[0], count);

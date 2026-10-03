@@ -55,6 +55,7 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
             "ExcelMcp.Service",
             "ServiceClient.cs");
         var originalSourceWriteTime = File.GetLastWriteTimeUtc(safetySource);
+        Exception? failure = null;
 
         try
         {
@@ -149,18 +150,35 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
             using var readJson = JsonDocument.Parse(read.Stdout);
             Assert.Equal(marker, readJson.RootElement.GetProperty("values")[0][0].GetString());
 
-            _ = await RunCliAsync(
+            var closed = await RunCliAsync(
                 releaseCli,
                 selectedPipe,
                 ["session", "close", "--session", reopenedSessionId!, "--quiet"],
                 TimeSpan.FromSeconds(45));
+            Assert.True(closed.ExitCode == 0, closed.Stdout + closed.Stderr);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
         }
         finally
         {
-            File.SetLastWriteTimeUtc(safetySource, originalSourceWriteTime);
-            await StopDaemonBestEffortAsync(releaseCli, selectedPipe, selectedDaemon);
-            await StopDaemonBestEffortAsync(controlCli, controlPipe, controlDaemon);
+            var restored = Record.Exception(() => File.SetLastWriteTimeUtc(safetySource, originalSourceWriteTime));
+            if (restored is not null)
+                failure = failure is null ? restored : new AggregateException(failure, restored);
+            foreach (var (cli, pipe, daemon) in new[]
+            {
+                (releaseCli, selectedPipe, selectedDaemon),
+                (controlCli, controlPipe, controlDaemon)
+            })
+            {
+                var cleanup = await Record.ExceptionAsync(() => StopDaemonAsync(cli, pipe, daemon));
+                if (cleanup is not null)
+                    failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
+            }
         }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     private static Process StartDaemonProcess(string cliPath, string pipeName)
@@ -227,23 +245,31 @@ public sealed class PreBuildGracefulSaveAcceptanceTests : IClassFixture<TempDire
             },
             timeout);
 
-    private static async Task StopDaemonBestEffortAsync(
+    private static async Task StopDaemonAsync(
         string cliPath,
         string pipeName,
         Process daemon)
     {
-        _ = await RunCliAsync(
-            cliPath,
-            pipeName,
-            ["service", "stop", "--quiet"],
-            TimeSpan.FromSeconds(20));
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            var stopped = await RunCliAsync(cliPath, pipeName, ["service", "stop", "--quiet"],
+                TimeSpan.FromSeconds(20));
+            Assert.True(stopped.ExitCode == 0, stopped.Stdout + stopped.Stderr);
+            Assert.True(daemon.WaitForExit(15000), $"Owned daemon {daemon.Id} did not stop gracefully.");
+        });
 
         if (!daemon.HasExited)
         {
-            daemon.Kill(entireProcessTree: true);
+            var forced = Record.Exception(() =>
+            {
+                daemon.Kill(entireProcessTree: true);
+                Assert.True(daemon.WaitForExit(5000), $"Owned daemon {daemon.Id} did not exit after forced cleanup.");
+            });
+            if (forced is not null)
+                failure = failure is null ? forced : new AggregateException(failure, forced);
         }
-
-        daemon.WaitForExit(5000);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     private static async Task<ProcessResult> RunProcessAsync(

@@ -21,6 +21,7 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(result.Success, result.ErrorMessage);
 
         var info = _commands.GetInfo(batch);
+        RequireSuccess(info);
         Assert.True(info.IsVisible);
         Assert.Equal("normal", info.WindowState);
 
@@ -29,7 +30,7 @@ public sealed partial class PersistentServiceWindowTests
         AssertClose(expected.Top, info.Top);
         AssertClose(expected.Width, info.Width);
         AssertClose(expected.Height, info.Height);
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
     }
 
     private Bounds GetExcelMonitorWorkArea() =>
@@ -122,6 +123,14 @@ public sealed partial class PersistentServiceWindowTests
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(IntPtr hwnd, int command);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hwnd);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MonitorInfo

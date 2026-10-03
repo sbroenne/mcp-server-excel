@@ -14,11 +14,11 @@ public sealed partial class PersistentServiceRangeValidationTests
     {
         var batch = _fixture.BatchToken;
         var sheet = _fixture.CreateTestSheet(batch);
-        _commands.ValidateRange(
+        RequireSuccess(_commands.ValidateRange(
             batch, sheet, "A1", "whole", "between", "1", "10",
             true, "Original title", "Original message",
             true, "warning", "Original error", "Original error message",
-            false, null);
+            false, null));
         var before = _commands.GetValidation(batch, sheet, "A1");
         Assert.True(before.Success, before.ErrorMessage);
         Assert.True(before.HasValidation);

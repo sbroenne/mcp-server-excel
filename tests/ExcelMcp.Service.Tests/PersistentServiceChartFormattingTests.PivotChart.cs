@@ -1,7 +1,6 @@
-using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -40,47 +39,34 @@ public sealed partial class PersistentServiceChartFormattingTests
             300,
             $"PivotChart_{Guid.NewGuid():N}");
 
+        RequireSuccess(result);
         Assert.True(result.IsPivotChart, "Chart should be marked as PivotChart");
         Assert.Equal(pivotTableName, result.LinkedPivotTable);
         Assert.Equal(dashboardSheetName, result.SheetName);
         Assert.Equal(ChartType.ColumnClustered, result.ChartType);
 
-        var chartInfo = _chartCommands.Read(batch, result.ChartName);
+        var chartInfo = RequireSuccess(_chartCommands.Read(batch, result.ChartName));
         Assert.True(chartInfo.IsPivotChart);
         Assert.Equal(pivotTableName, chartInfo.LinkedPivotTable);
 
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic? pivotSheet = null;
-            dynamic? pivotTable = null;
-            dynamic? secondDataField = null;
-            try
-            {
-                pivotSheet = ctx.Book.Worksheets[pivotSheetName];
-                pivotTable = pivotSheet.PivotTables(pivotTableName);
-                secondDataField = pivotTable.PivotFields("Region");
-                secondDataField.Orientation =
-                    (int)Excel.XlPivotFieldOrientation.xlDataField;
-                secondDataField.Function =
-                    (int)Excel.XlConsolidationFunction.xlCount;
-                pivotTable.RefreshTable();
-            }
-            finally
-            {
-                ComUtilities.Release(ref secondDataField);
-                ComUtilities.Release(ref pivotTable);
-                ComUtilities.Release(ref pivotSheet);
-            }
-        });
+        // A single-value PivotChart uses Excel's localized total caption.
+        AssertSeriesData(result.ChartName, 1, null, ["Gadget", "Widget"], [450, 250], dashboardSheetName);
+        var pivotCommands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        var added = pivotCommands.AddValueField(batch, pivotTableName, "Region", AggregationFunction.Count, "Verified Count");
+        RequireSuccess(added);
+        var refreshed = pivotCommands.Refresh(batch, pivotTableName);
+        RequireSuccess(refreshed);
 
         var charts = _chartCommands.List(batch);
-        Assert.True(charts.Success);
+        RequireSuccess(charts);
         var linkedChart = Assert.Single(
             charts.Charts,
             chart => chart.Name == result.ChartName);
         Assert.True(linkedChart.IsPivotChart);
         Assert.Equal(pivotTableName, linkedChart.LinkedPivotTable);
         Assert.Equal(2, linkedChart.SeriesCount);
+        AssertSeriesData(result.ChartName, 1, "Verified Sales", ["Gadget", "Widget"], [450, 250], dashboardSheetName);
+        AssertSeriesData(result.ChartName, 2, "Verified Count", ["Gadget", "Widget"], [2, 2], dashboardSheetName);
     }
 
     [Fact]
@@ -102,8 +88,12 @@ public sealed partial class PersistentServiceChartFormattingTests
             },
             "X",
             "Y");
-        var chartCountBefore = _chartCommands.List(batch).Charts.Count(
+        var before = RequireSuccess(_chartCommands.List(batch));
+        var chartCountBefore = before.Charts.Count(
             chart => chart.SheetName == pivotSheetName);
+        var pivotCommands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        var originalData = pivotCommands.GetData(batch, pivotTableName);
+        RequireSuccess(originalData);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _chartCommands.CreateFromPivotTable(
@@ -121,9 +111,18 @@ public sealed partial class PersistentServiceChartFormattingTests
             "linked PivotChart",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
-        var chartCountAfter = _chartCommands.List(batch).Charts.Count(
+        var after = RequireSuccess(_chartCommands.List(batch));
+        var chartCountAfter = after.Charts.Count(
             chart => chart.SheetName == pivotSheetName);
         Assert.Equal(chartCountBefore, chartCountAfter);
+        Assert.Equal(before.Charts.Select(chart => chart.Name), after.Charts.Select(chart => chart.Name));
+        var data = pivotCommands.GetData(batch, pivotTableName);
+        RequireSuccess(data);
+        Assert.Equal(originalData.Values.Count, data.Values.Count);
+        for (var index = 0; index < originalData.Values.Count; index++)
+        {
+            Assert.Equal(originalData.Values[index], data.Values[index]);
+        }
     }
 
     [Fact]
@@ -158,6 +157,11 @@ public sealed partial class PersistentServiceChartFormattingTests
 
         Assert.Equal(ChartType.Pie, result.ChartType);
         Assert.True(result.IsPivotChart);
+        RequireSuccess(result);
+        var read = RequireSuccess(_chartCommands.Read(batch, result.ChartName));
+        Assert.Equal(ChartType.Pie, read.ChartType);
+        Assert.Equal(pivotTableName, read.LinkedPivotTable);
+        AssertSeriesData(result.ChartName, 1, null, ["A", "B", "C"], [10, 20, 30], pivotSheetName);
     }
 
     private void CreateRangePivot(
@@ -166,50 +170,22 @@ public sealed partial class PersistentServiceChartFormattingTests
         string sourceAddress,
         object[,] values,
         string rowFieldName,
-        string dataFieldName) =>
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic? sourceSheet = null;
-            dynamic? sourceRange = null;
-            dynamic? pivotCaches = null;
-            dynamic? pivotCache = null;
-            dynamic? pivotSheet = null;
-            dynamic? pivotDestination = null;
-            dynamic? pivotTable = null;
-            dynamic? rowField = null;
-            dynamic? dataField = null;
-            try
-            {
-                sourceSheet = ctx.Book.Worksheets[_sheetName];
-                sourceRange = sourceSheet.Range[sourceAddress];
-                sourceRange.Value2 = values;
-                pivotCaches = ctx.Book.PivotCaches();
-                pivotCache = pivotCaches.Create(
-                    Excel.XlPivotTableSourceType.xlDatabase,
-                    sourceRange);
-                pivotSheet = ctx.Book.Worksheets[pivotSheetName];
-                pivotDestination = pivotSheet.Range["A1"];
-                pivotTable = pivotCache.CreatePivotTable(
-                    pivotDestination,
-                    pivotTableName);
-                rowField = pivotTable.PivotFields(rowFieldName);
-                rowField.Orientation =
-                    (int)Excel.XlPivotFieldOrientation.xlRowField;
-                dataField = pivotTable.PivotFields(dataFieldName);
-                dataField.Orientation =
-                    (int)Excel.XlPivotFieldOrientation.xlDataField;
-            }
-            finally
-            {
-                ComUtilities.Release(ref dataField);
-                ComUtilities.Release(ref rowField);
-                ComUtilities.Release(ref pivotTable);
-                ComUtilities.Release(ref pivotDestination);
-                ComUtilities.Release(ref pivotSheet);
-                ComUtilities.Release(ref pivotCache);
-                ComUtilities.Release(ref pivotCaches);
-                ComUtilities.Release(ref sourceRange);
-                ComUtilities.Release(ref sourceSheet);
-            }
-        });
+        string dataFieldName)
+    {
+        var rows = Enumerable.Range(0, values.GetLength(0))
+            .Select(row => Enumerable.Range(0, values.GetLength(1))
+                .Select(column => (object?)values[row, column]).ToList()).ToList();
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.SetValues(batch, _sheetName, sourceAddress, rows));
+        var pivotCommands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        var created = pivotCommands.CreateFromRange(batch, _sheetName, sourceAddress,
+            pivotSheetName, "A1", pivotTableName);
+        RequireSuccess(created);
+        var row = pivotCommands.AddRowField(batch, pivotTableName, rowFieldName, null);
+        RequireSuccess(row);
+        var value = pivotCommands.AddValueField(batch, pivotTableName, dataFieldName, AggregationFunction.Sum, "Verified Sales");
+        RequireSuccess(value);
+        var refreshed = pivotCommands.Refresh(batch, pivotTableName);
+        RequireSuccess(refreshed);
+    }
 }

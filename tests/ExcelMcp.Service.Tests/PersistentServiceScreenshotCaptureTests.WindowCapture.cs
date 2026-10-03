@@ -6,6 +6,7 @@ using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -29,11 +30,15 @@ public sealed partial class IsolatedServiceScreenshotTests
         var result = _screenshotCommands.CaptureRange(batch, sheetName: "Sheet1", rangeAddress: "A1:AZ80", quality: ScreenshotQuality.High);
 
         Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");
+        AssertColoredBlockPreserved("Sheet1", "A1:E10", Blue);
+        AssertColoredBlockPreserved("Sheet1", "AV70:AZ80", Red);
         Assert.Contains("tiles", result.Message, StringComparison.OrdinalIgnoreCase);
 
         byte[] imageBytes = Convert.FromBase64String(result.ImageBase64!);
         using var stream = new MemoryStream(imageBytes);
         using var bitmap = new Bitmap(stream);
+        Assert.Equal(result.Width, bitmap.Width);
+        Assert.Equal(result.Height, bitmap.Height);
 
         Color topLeft = SampleDominantColor(bitmap, 0, 0);
         Color bottomRight = SampleDominantColor(bitmap, bitmap.Width - 1, bitmap.Height - 1);
@@ -58,6 +63,8 @@ public sealed partial class IsolatedServiceScreenshotTests
         var result = _screenshotCommands.CaptureRange(batch, sheetName: "Sheet1", rangeAddress: "A100:H120");
 
         Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");
+        AssertImageContainsMarker(result, Color.Yellow);
+        AssertColoredBlockPreserved("Sheet1", "A100:H120", 65535);
 
         (int zoom, int scrollRow, int scrollColumn) = GetViewState();
 
@@ -76,6 +83,8 @@ public sealed partial class IsolatedServiceScreenshotTests
         var result = _screenshotCommands.CaptureRange(batch, sheetName: "Sheet1", rangeAddress: "A1:D8");
 
         Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");
+        AssertImageContainsMarker(result, Color.Red);
+        AssertColoredBlockPreserved("Sheet1", "A1:D8", 255);
 
         (int chartObjects, int shapes, bool cutCopyMode) = GetSheetObjectCounts("Sheet1");
 
@@ -118,7 +127,7 @@ public sealed partial class IsolatedServiceScreenshotTests
     {
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? window = null;
+            Excel.Window? window = null;
             try
             {
                 window = ctx.App.ActiveWindow;
@@ -137,7 +146,7 @@ public sealed partial class IsolatedServiceScreenshotTests
     {
         return _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? window = null;
+            Excel.Window? window = null;
             try
             {
                 window = ctx.App.ActiveWindow;
@@ -158,13 +167,15 @@ public sealed partial class IsolatedServiceScreenshotTests
     {
         return _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? charts = null;
-            dynamic? shapes = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.ChartObjects? charts = null;
+            Excel.Shapes? shapes = null;
             try
             {
-                sheet = ctx.Book.Worksheets[sheetName];
-                charts = sheet.ChartObjects();
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                charts = (Excel.ChartObjects)sheet.ChartObjects();
                 shapes = sheet.Shapes;
 
                 int chartCount = Convert.ToInt32((object)charts.Count, CultureInfo.InvariantCulture);
@@ -178,6 +189,7 @@ public sealed partial class IsolatedServiceScreenshotTests
                 ComUtilities.Release(ref shapes);
                 ComUtilities.Release(ref charts);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
     }

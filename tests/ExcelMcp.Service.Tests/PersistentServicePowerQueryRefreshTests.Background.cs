@@ -6,69 +6,45 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServicePowerQueryRefreshTests
 {
     [Fact]
-    public void Refresh_DataModelQuery_CompletesWithoutCpuSpin()
+    public void Refresh_DataModelQuery_LoadsChangedDataWithoutWorksheetDestination()
     {
         var queryName = UniqueName("DM_BGQ");
-        const string mCode = """
-            let
-                Source = #table(
-                    {"ID", "Name", "Value"},
-                    {
-                        {1, "Alpha", 100},
-                        {2, "Beta", 200},
-                        {3, "Gamma", 300}
-                    })
-            in
-                Source
-            """;
-        _queries.Create(
+        var created = RequireSuccess(_queries.Create(
             _fixture.BatchToken,
             queryName,
-            mCode,
-            PowerQueryLoadMode.LoadToDataModel);
+            ValidMCode,
+            PowerQueryLoadMode.LoadToDataModel));
+        Assert.True(created.Success, created.ErrorMessage);
         _fixture.RegisterPowerQueryForCleanup(queryName);
+        _storedSources.Add(queryName, ValidMCode);
+        AssertModelValue(queryName, 1);
+        StageSource(queryName, "let Source = #table({\"X\"}, {{87}}) in Source");
+        AssertModelValue(queryName, 1);
 
-        var result = _queries.Refresh(
+        var result = RequireSuccess(_queries.Refresh(
             _fixture.BatchToken,
             queryName,
-            TimeSpan.FromMinutes(2));
+            TimeSpan.FromMinutes(2)));
 
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
-        Assert.Equal(queryName, result.QueryName);
-        Assert.True(
-            result.IsConnectionOnly || string.IsNullOrEmpty(result.LoadedToSheet),
-            "Data Model query should not be loaded to a worksheet.");
+        AssertRefreshMetadata(result, queryName, null);
+        AssertModelValue(queryName, 87);
     }
 
     [Fact]
     public void Refresh_WorksheetQuery_CompletesSuccessfully()
     {
-        var queryName = UniqueName("WS_BGQ");
-        const string mCode = """
-            let
-                Source = #table(
-                    {"ID", "Name"},
-                    {{1, "Alpha"}, {2, "Beta"}})
-            in
-                Source
-            """;
-        _queries.Create(
-            _fixture.BatchToken,
-            queryName,
-            mCode,
-            PowerQueryLoadMode.LoadToTable,
-            queryName);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
-        _fixture.RegisterSheetForCleanup(queryName);
+        var queryName = CreateWorksheetQuery("WS_BGQ");
+        StageWorksheetUpdate(queryName, 93);
 
-        var result = _queries.Refresh(
+        var result = RequireSuccess(_queries.Refresh(
             _fixture.BatchToken,
             queryName,
-            TimeSpan.FromMinutes(2));
+            TimeSpan.FromMinutes(2)));
 
         Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
-        Assert.False(
-            string.IsNullOrEmpty(result.LoadedToSheet),
-            "Worksheet query should have a loaded sheet.");
+        Assert.Equal(queryName, result.LoadedToSheet);
+        AssertRefreshMetadata(result, queryName, queryName);
+        AssertWorksheetValue(queryName, 93);
     }
 }

@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
@@ -16,14 +18,18 @@ public sealed class ComDiagnosticsTests
     [Fact]
     public void Collect_OnMachineWithExcel_ReturnsValidReport()
     {
+        var before = DateTime.UtcNow;
         var report = ComDiagnostics.Collect();
 
         Assert.True(report.ProgIdResolved, "Excel.Application ProgID should resolve on a machine with Excel");
-        Assert.NotNull(report.ResolvedClsid);
-        Assert.NotNull(report.PiaInterfaceGuid);
-        Assert.NotNull(report.ProcessArchitecture);
-        Assert.NotNull(report.OsArchitecture);
-        Assert.NotNull(report.RuntimeVersion);
+        using var clsid = Registry.ClassesRoot.OpenSubKey(@"Excel.Application\CLSID");
+        var expectedClsid = Assert.IsType<string>(clsid?.GetValue(null));
+        Assert.Equal(Guid.Parse(expectedClsid), Guid.Parse(report.ResolvedClsid!));
+        Assert.Equal("{000208d5-0000-0000-c000-000000000046}", report.PiaInterfaceGuid);
+        Assert.Equal(RuntimeInformation.ProcessArchitecture.ToString(), report.ProcessArchitecture);
+        Assert.Equal(RuntimeInformation.OSArchitecture.ToString(), report.OsArchitecture);
+        Assert.Equal(RuntimeInformation.FrameworkDescription, report.RuntimeVersion);
+        Assert.InRange(report.CollectedAtUtc, before, DateTime.UtcNow);
     }
 
     [Fact]
@@ -31,12 +37,16 @@ public sealed class ComDiagnosticsTests
     {
         var report = ComDiagnostics.Collect();
 
-        // On CI/dev machines with Click-to-Run Office, this should be populated
-        // On MSI installs it may be null — that's OK, just verify the field exists
-        if (report.OfficeRegistration != null)
+        using var native = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Office\ClickToRun\Configuration");
+        using var redirected = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Microsoft\Office\ClickToRun\Configuration");
+        var registration = native?.GetValue("VersionToReport") is not null ? native : redirected;
+        if (registration?.GetValue("VersionToReport") is string version)
         {
-            Assert.Contains("Click-to-Run", report.OfficeRegistration);
+            var platform = registration.GetValue("Platform")?.ToString() ?? "unknown";
+            Assert.Contains($"Click-to-Run {version} ({platform} arch)", report.OfficeRegistration);
         }
+        else
+            Assert.Null(report.OfficeRegistration);
     }
 
     [Fact]
@@ -46,11 +56,11 @@ public sealed class ComDiagnosticsTests
         var formatted = ComDiagnostics.FormatForErrorMessage(report);
 
         Assert.Contains("COM Diagnostics:", formatted);
-        Assert.Contains("ProgID resolved:", formatted);
-        Assert.Contains("CLSID:", formatted);
-        Assert.Contains("PIA interface:", formatted);
-        Assert.Contains("PIA assembly:", formatted);
-        Assert.Contains("Process arch:", formatted);
+        Assert.Contains($"ProgID resolved: {(report.ProgIdResolved ? "yes" : "NO")}", formatted);
+        Assert.Contains($"CLSID: {report.ResolvedClsid}", formatted);
+        Assert.Contains($"PIA interface: {report.PiaInterfaceGuid}", formatted);
+        Assert.Contains($"PIA assembly: {report.PiaAssemblyName} {report.PiaAssemblyVersion}", formatted);
+        Assert.Contains($"Process arch: {report.ProcessArchitecture}, OS arch: {report.OsArchitecture}", formatted);
     }
 
     [Fact]
@@ -58,9 +68,10 @@ public sealed class ComDiagnosticsTests
     {
         var report = ComDiagnostics.Collect();
 
-        Assert.NotNull(report.PiaAssemblyName);
-        Assert.NotNull(report.PiaAssemblyVersion);
-        Assert.Contains("Interop", report.PiaAssemblyName);
+        // Excel interfaces are embedded into the production assembly, not loaded from a runtime PIA.
+        var embeddedAssembly = typeof(ComDiagnostics).Assembly.GetName();
+        Assert.Equal(embeddedAssembly.Name, report.PiaAssemblyName);
+        Assert.Equal(embeddedAssembly.Version?.ToString(), report.PiaAssemblyVersion);
     }
 
     [Fact]
@@ -68,15 +79,15 @@ public sealed class ComDiagnosticsTests
     {
         var report = ComDiagnostics.Collect();
 
-        if (string.IsNullOrWhiteSpace(report.ExcelTypeLibPrimaryInteropAssemblyName))
-        {
-            return;
-        }
-
-        var registeredPia = new System.Reflection.AssemblyName(report.ExcelTypeLibPrimaryInteropAssemblyName);
-
-        Assert.Equal("Microsoft.Office.Interop.Excel", registeredPia.Name);
-        Assert.NotNull(registeredPia.Version);
-        Assert.True(registeredPia.Version.Major >= 15);
+        using var interfaceKey = Registry.ClassesRoot.OpenSubKey(
+            @"Interface\{000208D5-0000-0000-C000-000000000046}\TypeLib");
+        var id = interfaceKey?.GetValue(null)?.ToString();
+        var version = interfaceKey?.GetValue("Version")?.ToString();
+        Assert.Equal(id, report.ExcelTypeLibId);
+        Assert.Equal(version, report.ExcelTypeLibVersion);
+        using var library = id is not null && version is not null
+            ? Registry.ClassesRoot.OpenSubKey($@"TypeLib\{id}\{version}") : null;
+        Assert.Equal(library?.GetValue("PrimaryInteropAssemblyName")?.ToString(),
+            report.ExcelTypeLibPrimaryInteropAssemblyName);
     }
 }

@@ -137,8 +137,8 @@ tests/
 **During Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
-dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=DataModel&RunType!=OnDemand"
+& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=DataModel&RunType!=OnDemand'
 ```
 
 **Before Commit:** Rerun the affected tests and applicable repository checks.
@@ -161,11 +161,10 @@ in [ADR-001](ADR-001-NO-UNIT-TESTS.md) is superseded by the
 
 **Integration Tests (`Category=Integration`)**
 - ✅ Test business logic with real Excel COM interaction
-- ✅ Medium speed (10-20 minutes for full suite)
+- ✅ Run time depends on the selected cases and local Excel installation
 - ✅ Requires Excel installation
 - ✅ Mocks do not establish Excel COM behavior
 - ✅ Run specific features during development
-- ✅ Slow execution (3-10 minutes each)
 - ✅ Verifies actual Excel state changes
 - ✅ Comprehensive scenario coverage
 
@@ -193,7 +192,7 @@ Before creating a PR, ensure:
 
 ```powershell
 # Example: select the project and feature affected by the change
-dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
+& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
 
 # Code builds without warnings
 dotnet build -c Release
@@ -430,11 +429,11 @@ cd ExcelMcp
 # Install dependencies
 dotnet restore
 
-# Run all tests
-dotnet test
-
 # Build release version
 dotnet build -c Release
+
+# Ordered local acceptance with discovery and saved results (requires Excel).
+& .\scripts\Test-ExcelBehavior.ps1 -Full
 
 # Test the built executable
 .\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version

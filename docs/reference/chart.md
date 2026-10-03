@@ -4,6 +4,22 @@ Chart lifecycle operations create, list, read, move, fit, and delete charts.
 Chart-configuration operations manage series, titles, axes, labels, styles, and
 trendlines. Reuse the returned chart name rather than assuming Excel's default.
 
+For `chart_config` / `chartconfig` `set-data-labels`, line and scatter series
+do not support `InsideEnd`, `InsideBase`, or `OutsideEnd`. Those requests are
+rejected before any targeted series changes, including combination charts.
+Use `Above`, `Below`, `Left`, `Right`, or `Center` for line and scatter series.
+
+For `chart_config` / `chartconfig` `add-series`, `values_range` / `--values-range`
+and an optional `category_range` / `--category-range` must resolve to existing
+Excel ranges. A missing sheet or invalid range is rejected before a series is
+added, preserving the existing chart. The added series retains live references
+to those ranges; changes to their cells update the plotted values.
+
+Axis number formats use US codes, including named colors such as `[Red]`.
+Excel's chart format properties have different regional rules from worksheet
+cells; the server handles that difference without changing regional settings.
+Reads return canonical codes and may add literal-dollar escapes.
+
 ## Choose the source before creating
 
 Use the existing data directly when it already has useful categories and the

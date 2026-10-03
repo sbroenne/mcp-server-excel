@@ -50,6 +50,7 @@ public sealed class ChartDepthPersistenceTests
             {
                 Assert.Equal("#FF0000", state.RootElement.GetProperty("fillColor").GetString());
                 Assert.Equal("#0000FF", state.RootElement.GetProperty("lineColor").GetString());
+                Assert.Equal(2d, state.RootElement.GetProperty("lineWeight").GetDouble(), 2);
             }
             using (var state = await Send(service, session, "chartconfig.get-point-format", new { chartName = "SavedChart", seriesIndex = 2, pointIndex = 1 }))
             {

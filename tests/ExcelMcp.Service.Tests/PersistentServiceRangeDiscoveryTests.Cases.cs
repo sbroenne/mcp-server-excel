@@ -12,12 +12,21 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
     [Fact]
     public async Task GetUsedRange_MissingSheet_ReturnsCategorizedNotFound()
     {
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheet, "B2", [["Keep"]]));
         var response = await _fixture.SendForFailureAsync(
             "range.get-used-range",
             new { sheetName = "MissingSheet" });
 
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("NotFound", response.ErrorCategory);
+        var retained = _commands.GetValues(_fixture.BatchToken, sheet, "B2");
+        RequireSuccess(retained);
+        Assert.Equal("Keep", Assert.Single(Assert.Single(retained.Values)));
+        var recovered = _commands.GetUsedRange(_fixture.BatchToken, sheet);
+        RequireSuccess(recovered);
+        Assert.Equal("$B$2", recovered.RangeAddress);
+        Assert.Equal("Keep", Assert.Single(Assert.Single(recovered.Values)));
     }
 
     [Fact]
@@ -27,17 +36,33 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1", [["Start"]]);
-        _commands.SetValues(batch, sheetName, "D10", [["End"]]);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [["Start"]]).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "D10", [["End"]]).Success);
 
         // Act
         var result = _commands.GetUsedRange(batch, sheetName);
 
         // Assert
         Assert.True(result.Success);
-        Assert.True(result.RowCount >= 10);
-        Assert.True(result.ColumnCount >= 4);
-        Assert.Equal("Start", result.Values[0][0]);
+        Assert.Equal(sheetName, result.SheetName);
+        Assert.Equal("$A$1:$D$10", result.RangeAddress);
+        Assert.Equal(10, result.RowCount);
+        Assert.Equal(4, result.ColumnCount);
+        Assert.Equal(10, result.Values.Count);
+        for (var row = 0; row < 10; row++)
+        {
+            Assert.Equal(4, result.Values[row].Count);
+            for (var column = 0; column < 4; column++)
+            {
+                object? expected = (row, column) switch
+                {
+                    (0, 0) => "Start",
+                    (9, 3) => "End",
+                    _ => null
+                };
+                Assert.Equal(expected, result.Values[row][column]);
+            }
+        }
     }
 
     [Fact]
@@ -47,26 +72,33 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1:C3",
+        Assert.True(_commands.SetValues(batch, sheetName, "D5:F7",
         [
             [1, 2, 3],
             [4, 5, 6],
             [7, 8, 9]
-        ]);
+        ]).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [["Other region"]]).Success);
 
         // Act - Get region from middle cell
-        var result = _commands.GetCurrentRegion(batch, sheetName, "B2");
+        var result = _commands.GetCurrentRegion(batch, sheetName, "E6");
 
         // Assert
         Assert.True(result.Success);
         Assert.Equal(3, result.RowCount);
         Assert.Equal(3, result.ColumnCount);
-        Assert.Equal(
-            1.0,
-            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(
-            9.0,
-            Convert.ToDouble(result.Values[2][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("$D$5:$F$7", result.RangeAddress);
+        Assert.Equal(sheetName, result.SheetName);
+        Assert.Equal(3, result.Values.Count);
+        for (var row = 0; row < 3; row++)
+        {
+            Assert.Equal(3, result.Values[row].Count);
+            for (var column = 0; column < 3; column++)
+            {
+                Assert.Equal(row * 3 + column + 1,
+                    Convert.ToDouble(result.Values[row][column], System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
     }
 
     [Fact]
@@ -76,10 +108,10 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1:D1",
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:D1",
         [
             [1, 2, 3, 4]
-        ]);
+        ]).Success);
 
         // Act
         var result = _commands.GetInfo(batch, sheetName, "A1:D10");
@@ -88,7 +120,8 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         Assert.True(result.Success);
         Assert.Equal(10, result.RowCount);
         Assert.Equal(4, result.ColumnCount);
-        Assert.Contains("$A$1:$D$10", result.Address); // Absolute address
+        Assert.Equal("$A$1:$D$10", result.Address);
+        Assert.Equal(sheetName, result.SheetName);
     }
 
     [Fact]
@@ -99,20 +132,16 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Act - Get info for a range that has known geometry
-        var result = _commands.GetInfo(batch, sheetName, "A1:C5");
+        var expected = PersistentServiceRangeVerification.ReadGeometry(_fixture, sheetName, "B2:D6");
+        var result = _commands.GetInfo(batch, sheetName, "B2:D6");
 
         // Assert - Geometry should be populated (values vary by default column width/row height)
         Assert.True(result.Success);
-        Assert.NotNull(result.Left);
-        Assert.NotNull(result.Top);
-        Assert.NotNull(result.Width);
-        Assert.NotNull(result.Height);
-
-        // All geometry values should be positive (in points)
-        Assert.True(result.Left >= 0, "Left should be >= 0 points");
-        Assert.True(result.Top >= 0, "Top should be >= 0 points");
-        Assert.True(result.Width > 0, "Width should be > 0 points");
-        Assert.True(result.Height > 0, "Height should be > 0 points");
+        Assert.Equal("$B$2:$D$6", result.Address);
+        Assert.Equal(expected.Left, result.Left);
+        Assert.Equal(expected.Top, result.Top);
+        Assert.Equal(expected.Width, result.Width);
+        Assert.Equal(expected.Height, result.Height);
     }
 
     [Fact]
@@ -135,6 +164,16 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
 
         // B2 should have greater Top (offset by row 1 height)
         Assert.True(rangeB2.Top > rangeA1.Top, "B2 should be below A1");
+        var expectedA1 = PersistentServiceRangeVerification.ReadGeometry(_fixture, sheetName, "A1");
+        var expectedB2 = PersistentServiceRangeVerification.ReadGeometry(_fixture, sheetName, "B2");
+        Assert.Equal(expectedA1.Left, rangeA1.Left);
+        Assert.Equal(expectedA1.Top, rangeA1.Top);
+        Assert.Equal(expectedB2.Left, rangeB2.Left);
+        Assert.Equal(expectedB2.Top, rangeB2.Top);
+        Assert.Equal(expectedA1.Width, rangeA1.Width);
+        Assert.Equal(expectedA1.Height, rangeA1.Height);
+        Assert.Equal(expectedB2.Width, rangeB2.Width);
+        Assert.Equal(expectedB2.Height, rangeB2.Height);
     }
 
     [Fact]
@@ -155,7 +194,14 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
         // Multi-cell range should be larger
         Assert.True(multiCell.Width > singleCell.Width, "A1:C5 should be wider than A1");
         Assert.True(multiCell.Height > singleCell.Height, "A1:C5 should be taller than A1");
+        var expectedSingle = PersistentServiceRangeVerification.ReadGeometry(_fixture, sheetName, "A1");
+        var expectedMulti = PersistentServiceRangeVerification.ReadGeometry(_fixture, sheetName, "A1:C5");
+        Assert.Equal(expectedSingle.Width, singleCell.Width);
+        Assert.Equal(expectedSingle.Height, singleCell.Height);
+        Assert.Equal(expectedMulti.Width, multiCell.Width);
+        Assert.Equal(expectedMulti.Height, multiCell.Height);
+        Assert.Equal(expectedMulti.Left, multiCell.Left);
+        Assert.Equal(expectedMulti.Top, multiCell.Top);
     }
 
 }
-

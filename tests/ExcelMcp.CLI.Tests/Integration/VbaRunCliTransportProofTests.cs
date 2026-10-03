@@ -44,6 +44,7 @@ public sealed class VbaRunCliTransportProofTests : IDisposable
 
         string? sessionId = await CreateSessionAsync(_macroWorkbook, "cli-vba-create-session");
         var saveOnClose = false;
+        Exception? failure = null;
 
         try
         {
@@ -62,13 +63,22 @@ public sealed class VbaRunCliTransportProofTests : IDisposable
 
             saveOnClose = true;
         }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
         finally
         {
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
-                await CloseSessionAsync(sessionId, saveOnClose, "cli-vba-close-created-session");
+                var cleanup = await Record.ExceptionAsync(() =>
+                    CloseSessionAsync(sessionId, saveOnClose, "cli-vba-close-created-session"));
+                if (cleanup is not null)
+                    failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
             }
         }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
 
         var reopenedSessionId = await OpenSessionAsync(_macroWorkbook, "cli-vba-reopen-session");
         try
@@ -76,10 +86,19 @@ public sealed class VbaRunCliTransportProofTests : IDisposable
             var persistedValue = await ReadCellValueAsync(reopenedSessionId, "cli-vba-read-after-reopen");
             Assert.Equal(MarkerValue, persistedValue);
         }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
         finally
         {
-            await CloseSessionAsync(reopenedSessionId, save: false, "cli-vba-close-reopened-session");
+            var cleanup = await Record.ExceptionAsync(() =>
+                CloseSessionAsync(reopenedSessionId, save: false, "cli-vba-close-reopened-session"));
+            if (cleanup is not null)
+                failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
         }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     private async Task<string> CreateSessionAsync(string workbookPath, string diagnosticLabel)
@@ -166,13 +185,7 @@ public sealed class VbaRunCliTransportProofTests : IDisposable
     {
         if (Directory.Exists(_tempDir))
         {
-            try
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-            catch
-            {
-            }
+            Directory.Delete(_tempDir, recursive: true);
         }
 
         GC.SuppressFinalize(this);

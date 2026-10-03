@@ -6,8 +6,8 @@ using Excel = Microsoft.Office.Interop.Excel;
 namespace Sbroenne.ExcelMcp.ComInterop;
 
 /// <summary>
-/// Provides automatic COM safety for Excel operations by suppressing events, screen updating,
-/// and automatic calculation during the guard's lifetime. Restores original state on disposal.
+/// Suppresses screen updating during Excel operations and restores it on disposal.
+/// Events and calculation are unchanged; individual commands own any suppression.
 ///
 /// This guard is integrated into <see cref="Session.ExcelBatch.Execute{T}"/> so ALL operations
 /// get protection automatically — no manual suppression needed in command implementations.
@@ -31,7 +31,7 @@ public sealed class ExcelWriteGuard : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Creates a new write guard that suppresses Excel events, screen updating, and calculation.
+    /// Creates a new write guard that suppresses screen updating.
     /// Only the outermost guard in a nested chain captures and restores state.
     /// </summary>
     /// <param name="app">Excel Application COM object</param>
@@ -82,7 +82,7 @@ public sealed class ExcelWriteGuard : IDisposable
     }
 
     /// <summary>
-    /// Restores original Excel state (events, screen updating, calculation).
+    /// Restores the original screen-updating state.
     /// Only the outermost guard restores — inner guards are no-ops.
     /// </summary>
     public void Dispose()

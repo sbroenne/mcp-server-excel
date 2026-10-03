@@ -72,9 +72,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     {
         if (_testFileCopy != null && File.Exists(_testFileCopy))
         {
-#pragma warning disable CA1031 // Intentional: best-effort test cleanup
-            try { File.Delete(_testFileCopy); } catch (Exception) { /* file may still be locked */ }
-#pragma warning restore CA1031
+            File.Delete(_testFileCopy);
         }
         return Task.CompletedTask;
     }
@@ -97,11 +95,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
         // Perform one operation to ensure everything is fully initialized
-        batch.Execute((ctx, ct) =>
-        {
-            _ = ctx.Book.Worksheets[1];
-            return 0;
-        });
+        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
 
         // Capture the Excel process ID for measurement
         int? excelPid = batch.ExcelProcessId;
@@ -111,7 +105,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         Thread.Sleep(500);
 
         // Act — measure CPU over a 3-second idle window
-        var currentProcess = Process.GetCurrentProcess();
+        using var currentProcess = Process.GetCurrentProcess();
         var cpuBefore = currentProcess.TotalProcessorTime;
         var wallBefore = Stopwatch.GetTimestamp();
 
@@ -176,11 +170,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
         // Warmup — ensure first-call JIT overhead is gone
-        batch.Execute((ctx, ct) =>
-        {
-            _ = ctx.Book.Worksheets[1];
-            return 0;
-        });
+        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
 
         // Let the pump return to idle state
         Thread.Sleep(200);
@@ -194,12 +184,13 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
             Thread.Sleep(50);
 
             var sw = Stopwatch.StartNew();
-            batch.Execute((ctx, ct) =>
+            var result = batch.Execute((ctx, ct) =>
             {
                 // Trivial operation — no COM call, just return
                 return 42;
             });
             sw.Stop();
+            Assert.Equal(42, result);
             latencies.Add(sw.Elapsed.TotalMilliseconds);
         }
 
@@ -244,18 +235,15 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     public void Dispose_WithPendingWork_DrainsBeforeExiting()
     {
         // Arrange
-        var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
         // Initialize
-        batch.Execute((ctx, ct) =>
-        {
-            _ = ctx.Book.Worksheets[1];
-            return 0;
-        });
+        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
 
         // Post an operation from another thread, then immediately Dispose.
         // The operation should complete (via drain) rather than timing out.
-        var completed = new ManualResetEventSlim(false);
+        using var completed = new ManualResetEventSlim(false);
+        using var queued = new ManualResetEventSlim(false);
         Exception? executionError = null;
         int result = -1;
 
@@ -271,10 +259,6 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
                     return 42;
                 });
             }
-            catch (ObjectDisposedException)
-            {
-                // This is acceptable — Dispose beat us to the channel
-            }
             catch (Exception ex)
             {
                 executionError = ex;
@@ -285,16 +269,22 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
             }
         });
 
-        // Act
-        executeThread.Start();
-
-        // Give the execute thread a tiny head start to post work
-        Thread.Sleep(10);
-
-        // Dispose while execute may be in flight
-        var disposeSw = Stopwatch.StartNew();
-        batch.Dispose();
-        disposeSw.Stop();
+        var disposeSw = new Stopwatch();
+        try
+        {
+            ExcelBatch.WorkItemQueuedHookForTests = queued.Set;
+            executeThread.Start();
+            Assert.True(queued.Wait(TimeSpan.FromSeconds(10)), "The caller never queued its operation.");
+            disposeSw.Start();
+            batch.Dispose();
+            disposeSw.Stop();
+        }
+        finally
+        {
+            ExcelBatch.WorkItemQueuedHookForTests = null;
+            batch.Dispose();
+            Assert.True(executeThread.Join(TimeSpan.FromSeconds(30)));
+        }
 
         // Wait for the execute thread to finish — should be quick
         var waitResult = completed.Wait(TimeSpan.FromSeconds(30));
@@ -311,22 +301,14 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
             "did not drain pending work items. Without drain, callers wait for the " +
             "operation timeout.");
 
-        // If it completed successfully, verify the result
-        if (result == 42)
+        if (executionError is null)
         {
-            _output.WriteLine("✓ Work item was executed during shutdown drain");
+            Assert.Equal(42, result);
         }
         else
         {
-            _output.WriteLine("✓ Dispose won the race — ObjectDisposedException (acceptable)");
-        }
-
-        // Should not have unexpected exceptions (TimeoutException = drain failure)
-        if (executionError != null)
-        {
-            Assert.False(executionError is TimeoutException,
-                $"REGRESSION: Execute got TimeoutException during Dispose! " +
-                $"This means the work item was orphaned in the channel. Error: {executionError.Message}");
+            Assert.IsType<ObjectDisposedException>(executionError);
+            Assert.Equal(-1, result);
         }
     }
 
@@ -341,13 +323,9 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     public void Execute_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange — create and immediately dispose
-        var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
-        batch.Execute((ctx, ct) =>
-        {
-            _ = ctx.Book.Worksheets[1];
-            return 0;
-        });
+        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
 
         batch.Dispose();
 
@@ -355,10 +333,12 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         Thread.Sleep(500);
 
         // Act & Assert — Execute after Dispose should throw ObjectDisposedException
+        var callbackRan = false;
         var ex = Assert.Throws<ObjectDisposedException>(() =>
         {
-            batch.Execute((ctx, ct) => 0);
+            batch.Execute((ctx, ct) => { callbackRan = true; return 0; });
         });
+        Assert.False(callbackRan);
 
         _output.WriteLine($"✓ Got expected ObjectDisposedException: {ex.Message}");
     }
@@ -367,10 +347,8 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     /// RACE CONDITION TEST: Concurrent Dispose during Execute gives a clean error.
     ///
     /// Simulates the race where Dispose() is called on one thread while Execute() is
-    /// actively waiting for its result. The Execute caller should get either:
-    /// - Their result (if work completed before disposal)
-    /// - ObjectDisposedException (if disposal won the race)
-    /// - TimeoutException (if Excel cleanup took too long — unlikely but acceptable)
+    /// actively waiting for its result. A proven-running callback is allowed
+    /// to finish while disposal waits; it must return its actual result.
     ///
     /// It must NOT get a ChannelClosedException or hang indefinitely.
     /// </summary>
@@ -378,17 +356,14 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     public void Dispose_DuringActiveExecute_GivesCleanError()
     {
         // Arrange
-        var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
         // Initialize
-        batch.Execute((ctx, ct) =>
-        {
-            _ = ctx.Book.Worksheets[1];
-            return 0;
-        });
+        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
 
         // Start a long-running operation on another thread
-        var operationStarted = new ManualResetEventSlim(false);
+        using var operationStarted = new ManualResetEventSlim(false);
+        using var releaseOperation = new ManualResetEventSlim(false);
         Exception? executeError = null;
         int executeResult = -1;
 
@@ -401,7 +376,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
                     // Signal that we're inside the operation
                     operationStarted.Set();
                     // Simulate work — long enough for Dispose to race
-                    Thread.Sleep(2000);
+                    Assert.True(releaseOperation.Wait(TimeSpan.FromSeconds(30)));
                     return 99;
                 });
             }
@@ -415,41 +390,39 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         executeThread.Start();
 
         // Wait for the operation to actually start on the STA thread
-        operationStarted.Wait(TimeSpan.FromSeconds(10));
+        Assert.True(operationStarted.Wait(TimeSpan.FromSeconds(10)));
         _output.WriteLine("Operation started on STA thread, now calling Dispose...");
 
         // Call Dispose while the operation is mid-flight
+        var releaseThread = new Thread(() =>
+        {
+            if (SpinWait.SpinUntil(() => !batch.IsExcelProcessAlive(), TimeSpan.FromSeconds(10)))
+                releaseOperation.Set();
+        });
         var sw = Stopwatch.StartNew();
-        batch.Dispose();
+        try
+        {
+            releaseThread.Start();
+            batch.Dispose();
+        }
+        finally
+        {
+            releaseOperation.Set();
+            batch.Dispose();
+            Assert.True(releaseThread.Join(TimeSpan.FromSeconds(15)));
+            Assert.True(executeThread.Join(TimeSpan.FromSeconds(30)));
+        }
         sw.Stop();
 
         // Wait for the execute thread to finish
-        executeThread.Join(TimeSpan.FromSeconds(30));
+        Assert.True(executeThread.Join(TimeSpan.FromSeconds(30)));
 
         _output.WriteLine($"Dispose took: {sw.Elapsed.TotalMilliseconds:F0}ms");
         _output.WriteLine($"Execute result: {executeResult}");
         _output.WriteLine($"Execute error: {executeError?.GetType().Name}: {executeError?.Message}");
 
-        // Assert — the result must be clean, not a ChannelClosedException
-        if (executeError != null)
-        {
-            // Acceptable exception types during concurrent dispose
-            Assert.True(
-                executeError is ObjectDisposedException ||
-                executeError is TimeoutException ||
-                executeError is OperationCanceledException ||
-                executeError is InvalidOperationException,
-                $"REGRESSION: Got unexpected exception type during concurrent Dispose: " +
-                $"{executeError.GetType().Name}: {executeError.Message}. " +
-                "Expected ObjectDisposedException, TimeoutException, OperationCanceledException, " +
-                "or InvalidOperationException — NOT ChannelClosedException.");
-
-            _output.WriteLine($"✓ Got clean exception during concurrent Dispose: {executeError.GetType().Name}");
-        }
-        else
-        {
-            Assert.Equal(99, executeResult);
-            _output.WriteLine("✓ Operation completed successfully before Dispose took effect");
-        }
+        Assert.Null(executeError);
+        Assert.Equal(99, executeResult);
+        Assert.True(releaseOperation.IsSet);
     }
 }

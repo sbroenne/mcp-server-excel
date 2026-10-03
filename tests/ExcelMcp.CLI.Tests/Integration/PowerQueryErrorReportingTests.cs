@@ -9,10 +9,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "PowerQuery")]
 [Trait("Layer", "CLI")]
 [Trait("RequiresExcel", "true")]
-public sealed class PowerQueryErrorReportingTests : IDisposable
+public sealed class PowerQueryErrorReportingTests : IAsyncLifetime
 {
-    private readonly string _testFile = Path.Combine(Path.GetTempPath(), $"PqErrorReporting_{Guid.NewGuid():N}.xlsx");
-    private string? _sessionId;
+    private readonly CliWorkbookSessionFixture _workbook = new();
+
+    public Task InitializeAsync() => _workbook.InitializeAsync();
+    public Task DisposeAsync() => _workbook.DisposeAsync();
 
     [Fact]
     public async Task Refresh_SyntheticFirewallError_ReturnsStructuredPrivacyCategory()
@@ -34,84 +36,77 @@ public sealed class PowerQueryErrorReportingTests : IDisposable
                 Root
             """;
 
-        var (sessionResult, sessionJson) = await CliProcessHelper.RunJsonAsync(
-            ["session", "create", _testFile],
-            timeoutMs: 60000,
-            diagnosticLabel: "pq-error-reporting-session-create");
+        var (createResult, createJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "create", "--session", _workbook.SessionId, "--query-name", queryName, "--m-code", validMCode],
+            timeoutMs: 120000,
+            diagnosticLabel: "pq-error-reporting-create");
 
-        Assert.Equal(0, sessionResult.ExitCode);
-        _sessionId = sessionJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(_sessionId));
+        Assert.Equal(0, createResult.ExitCode);
+        Assert.True(createJson.RootElement.GetProperty("success").GetBoolean());
+        await AssertLoadedValueAsync(queryName, 1);
 
-        try
+        var (updateResult, updateJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "update", "--session", _workbook.SessionId, "--query-name", queryName, "--m-code", firewallMCode, "--refresh", "false"],
+            timeoutMs: 120000,
+            diagnosticLabel: "pq-error-reporting-update");
+
+        Assert.Equal(0, updateResult.ExitCode);
+        Assert.True(updateJson.RootElement.GetProperty("success").GetBoolean());
+        await AssertLoadedValueAsync(queryName, 1);
+
+        var (refreshResult, refreshJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "refresh", "--session", _workbook.SessionId, "--query-name", queryName, "--timeout", "60"],
+            timeoutMs: 120000,
+            diagnosticLabel: "pq-error-reporting-refresh");
+
+        Assert.NotEqual(0, refreshResult.ExitCode);
+        Assert.False(refreshJson.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(refreshJson.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Equal("Privacy", refreshJson.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal("PowerQueryCommandException", refreshJson.RootElement.GetProperty("exceptionType").GetString());
+        Assert.Equal(
+            refreshJson.RootElement.GetProperty("error").GetString(),
+            refreshJson.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("0x800A03EC", refreshJson.RootElement.GetProperty("hresult").GetString());
+        AssertOptionalNonEmptyStringProperty(refreshJson.RootElement, "innerError");
+        Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+        await AssertLoadedValueAsync(queryName, 1);
+        var (viewResult, viewJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "view", "--session", _workbook.SessionId, "--query-name", queryName]);
+        using (viewJson)
         {
-            var (createResult, createJson) = await CliProcessHelper.RunJsonAsync(
-                ["powerquery", "create", "--session", _sessionId!, "--query-name", queryName, "--m-code", validMCode],
-                timeoutMs: 120000,
-                diagnosticLabel: "pq-error-reporting-create");
-
-            Assert.Equal(0, createResult.ExitCode);
-            Assert.True(createJson.RootElement.GetProperty("success").GetBoolean());
-
-            var (updateResult, updateJson) = await CliProcessHelper.RunJsonAsync(
-                ["powerquery", "update", "--session", _sessionId!, "--query-name", queryName, "--m-code", firewallMCode, "--refresh", "false"],
-                timeoutMs: 120000,
-                diagnosticLabel: "pq-error-reporting-update");
-
-            Assert.Equal(0, updateResult.ExitCode);
-            Assert.True(updateJson.RootElement.GetProperty("success").GetBoolean());
-
-            var (refreshResult, refreshJson) = await CliProcessHelper.RunJsonAsync(
-                ["powerquery", "refresh", "--session", _sessionId!, "--query-name", queryName, "--timeout", "60"],
-                timeoutMs: 120000,
-                diagnosticLabel: "pq-error-reporting-refresh");
-
-            Assert.NotEqual(0, refreshResult.ExitCode);
-            Assert.False(refreshJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.True(refreshJson.RootElement.GetProperty("isError").GetBoolean());
-            Assert.Equal("Privacy", refreshJson.RootElement.GetProperty("errorCategory").GetString());
-            Assert.Equal("PowerQueryCommandException", refreshJson.RootElement.GetProperty("exceptionType").GetString());
-            Assert.Equal(
-                refreshJson.RootElement.GetProperty("error").GetString(),
-                refreshJson.RootElement.GetProperty("errorMessage").GetString());
-            Assert.Equal("0x800A03EC", refreshJson.RootElement.GetProperty("hresult").GetString());
-            AssertOptionalNonEmptyStringProperty(refreshJson.RootElement, "innerError");
-            Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, viewResult.ExitCode);
+            Assert.True(viewJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(firewallMCode, viewJson.RootElement.GetProperty("mCode").GetString());
         }
-        finally
+
+        var (recoveryResult, recoveryJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "update", "--session", _workbook.SessionId, "--query-name", queryName,
+                    "--m-code", "#table({\"X\"}, {{2}})"],
+            timeoutMs: 120000,
+            diagnosticLabel: "pq-error-reporting-recovery");
+        using (recoveryJson)
         {
-            if (!string.IsNullOrWhiteSpace(_sessionId))
-            {
-#pragma warning disable CA1031
-                try
-                {
-                    await CliProcessHelper.RunAsync(
-                        ["session", "close", "--session", _sessionId!, "--save", "false"],
-                        timeoutMs: 60000,
-                        diagnosticLabel: "pq-error-reporting-close");
-                }
-                catch
-                {
-                }
-#pragma warning restore CA1031
-            }
+            Assert.Equal(0, recoveryResult.ExitCode);
+            Assert.True(recoveryJson.RootElement.GetProperty("success").GetBoolean());
         }
+        await AssertLoadedValueAsync(queryName, 2);
     }
 
-    public void Dispose()
+    private async Task AssertLoadedValueAsync(string sheetName, int expected)
     {
-        if (File.Exists(_testFile))
+        var (result, json) = await CliProcessHelper.RunJsonAsync(
+            ["range", "get-values", "--session", _workbook.SessionId, "--sheet-name", sheetName,
+                "--range-address", "A1:A2"]);
+        using (json)
         {
-            try
-            {
-                File.Delete(_testFile);
-            }
-            catch
-            {
-            }
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+            var rows = json.RootElement.GetProperty("values");
+            Assert.Equal(2, rows.GetArrayLength());
+            Assert.Equal("X", Assert.Single(rows[0].EnumerateArray()).GetString());
+            Assert.Equal(expected, Assert.Single(rows[1].EnumerateArray()).GetInt32());
         }
-
-        GC.SuppressFinalize(this);
     }
 
     private static void AssertOptionalNonEmptyStringProperty(JsonElement root, string propertyName)

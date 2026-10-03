@@ -82,8 +82,18 @@ in that case. Read back both settings and displayed data before relying on resul
   Power Query refresh updates its model load; refresh the PivotTable afterward.
 - After field changes, refresh once all fields are configured, especially for
   model-backed PivotTables.
+- `sort-field` orders the selected field's labels in ascending or descending
+  order, including Data Model fields identified by their exact CubeField name.
 - Layout values are 0 Compact, 1 Tabular, 2 Outline. Tabular is useful for exports.
 - Use field number formats, not plain-range visual formatting on PivotTable cells.
+- `set-field-name` updates the displayed value-field caption when the selected
+  source field is in Values; it does not rename the source worksheet column.
+  Use MCP `field_name` / `custom_name` or CLI `--field-name` / `--custom-name`.
+- `set-field-format` accepts invariant Excel number formats. A bare dollar sign
+  remains a literal dollar sign, not the machine's regional currency. Escaped or
+  quoted literals and bracketed currency/locale codes remain intact. Excel may
+  return a normalized format with an escaped dollar sign. Use MCP `number_format`
+  or CLI `--number-format`.
 - Manual grouping needs a regular PivotTable field in Rows or Columns. Grouped
   field names come from the result; use that returned name to ungroup.
 - Date/numeric grouping and calculated fields are not model-backed operations;

@@ -171,7 +171,22 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public async Task PageSetup_InvalidOptionsDoNotMutateOrientation(string options)
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new { sheetName, orientation = "portrait" });
+        _fixture.Send("sheet.set-page-setup", new
+        {
+            sheetName,
+            orientation = "portrait",
+            pageSetupOptions = new
+            {
+                printArea = "A1:C20",
+                printTitleRows = "1:2",
+                printTitleColumns = "A:B",
+                leftMargin = 36d,
+                centerHeader = "Keep",
+                printGridlines = true,
+                zoomPercent = 90
+            }
+        });
+        var before = _fixture.Send("sheet.get-page-setup", new { sheetName });
         using var document = JsonDocument.Parse(options);
         var response = await _fixture.SendForFailureAsync("sheet.set-page-setup", new
         {
@@ -183,12 +198,20 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         var read = _fixture.Send("sheet.get-page-setup", new { sheetName });
         using var state = JsonDocument.Parse(read.Result!);
         Assert.Equal("portrait", state.RootElement.GetProperty("orientation").GetString());
+        Assert.Equal(before.Result, read.Result);
     }
 
     [Fact]
     public async Task PageSetup_ConflictingScalingIsRejectedBeforeWriting()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        _fixture.Send("sheet.set-page-setup", new
+        {
+            sheetName,
+            orientation = "portrait",
+            pageSetupOptions = new { zoomPercent = 85, printArea = "A1:C20", centerHeader = "Keep" }
+        });
+        var before = _fixture.Send("sheet.get-page-setup", new { sheetName });
         var response = await _fixture.SendForFailureAsync("sheet.set-page-setup", new
         {
             sheetName,
@@ -197,6 +220,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         });
         Assert.False(response.Success);
         Assert.Contains("conflicting", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before.Result, _fixture.Send("sheet.get-page-setup", new { sheetName }).Result);
     }
 
     [Theory]
@@ -270,6 +294,8 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         var read = _fixture.Send("sheet.get-page-breaks", new { sheetName });
         using var state = JsonDocument.Parse(read.Result!);
         Assert.Equal(ManualRows, state.RootElement.GetProperty("horizontal").EnumerateArray()
+            .Where(item => item.GetProperty("isManual").GetBoolean()).Select(item => item.GetProperty("position").GetInt32()));
+        Assert.Equal(ManualColumns, state.RootElement.GetProperty("vertical").EnumerateArray()
             .Where(item => item.GetProperty("isManual").GetBoolean()).Select(item => item.GetProperty("position").GetInt32()));
     }
 

@@ -25,7 +25,7 @@ public sealed partial class PersistentServiceSheetTests
 
         // Verify by reading visibility
         var getResult = _sheetCommands.GetVisibility(batch, sheetName);
-        Assert.True(getResult.Success);
+        RequireSuccess(getResult);
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
         Assert.Equal("Hidden", getResult.VisibilityName);
     }
@@ -45,7 +45,7 @@ public sealed partial class PersistentServiceSheetTests
         // Assert - reaching here means set succeeded
 
         var getResult = _sheetCommands.GetVisibility(batch, sheetName);
-        Assert.True(getResult.Success);
+        RequireSuccess(getResult);
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
         Assert.Equal("VeryHidden", getResult.VisibilityName);
     }
@@ -62,6 +62,7 @@ public sealed partial class PersistentServiceSheetTests
 
         // Verify it's hidden
         var hiddenCheck = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(hiddenCheck);
         Assert.Equal(SheetVisibility.Hidden, hiddenCheck.Visibility);
 
         // Act - Show the sheet
@@ -70,6 +71,7 @@ public sealed partial class PersistentServiceSheetTests
         // Assert - reaching here means show succeeded
 
         var visibleCheck = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(visibleCheck);
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
     }
     /// <inheritdoc/>
@@ -85,6 +87,7 @@ public sealed partial class PersistentServiceSheetTests
 
         // Verify it's very hidden
         var veryHiddenCheck = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(veryHiddenCheck);
         Assert.Equal(SheetVisibility.VeryHidden, veryHiddenCheck.Visibility);
 
         // Act - Show the sheet
@@ -93,6 +96,7 @@ public sealed partial class PersistentServiceSheetTests
         // Assert - reaching here means show succeeded
 
         var visibleCheck = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(visibleCheck);
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
     }
     /// <inheritdoc/>
@@ -111,6 +115,7 @@ public sealed partial class PersistentServiceSheetTests
         // Assert - reaching here means hide succeeded
 
         var getResult = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(getResult);
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
     }
     /// <inheritdoc/>
@@ -129,6 +134,7 @@ public sealed partial class PersistentServiceSheetTests
         // Assert - reaching here means veryhide succeeded
 
         var getResult = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(getResult);
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
     }
     /// <inheritdoc/>
@@ -145,7 +151,7 @@ public sealed partial class PersistentServiceSheetTests
         var result = _sheetCommands.GetVisibility(batch, sheetName);
 
         // Assert
-        Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.Equal(SheetVisibility.Visible, result.Visibility);
         Assert.Equal("Visible", result.VisibilityName);
     }
@@ -156,11 +162,20 @@ public sealed partial class PersistentServiceSheetTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        _sheetCommands.VeryHide(batch, sheetName);
+        var before = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(before);
+        Assert.Equal(SheetVisibility.VeryHidden, before.Visibility);
 
         // Act & Assert - Should throw InvalidOperationException when sheet not found
         var exception = Assert.Throws<InvalidOperationException>(
             () => _sheetCommands.SetVisibility(batch, $"NonExist_{Guid.NewGuid():N}", SheetVisibility.Hidden));
         Assert.Contains("not found", exception.Message);
+        var after = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(after);
+        Assert.Equal(before.Visibility, after.Visibility);
+        Assert.Equal(before.VisibilityName, after.VisibilityName);
     }
     /// <inheritdoc/>
 
@@ -176,25 +191,28 @@ public sealed partial class PersistentServiceSheetTests
 
         // Start visible
         var check1 = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(check1);
         Assert.Equal(SheetVisibility.Visible, check1.Visibility);
 
         // Hide it
         _sheetCommands.Hide(batch, sheetName);
         var check2 = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(check2);
         Assert.Equal(SheetVisibility.Hidden, check2.Visibility);
 
         // Very hide it
         _sheetCommands.VeryHide(batch, sheetName);
         var check3 = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(check3);
         Assert.Equal(SheetVisibility.VeryHidden, check3.Visibility);
 
         // Show it again
         _sheetCommands.Show(batch, sheetName);
         var check4 = _sheetCommands.GetVisibility(batch, sheetName);
+        RequireSuccess(check4);
         Assert.Equal(SheetVisibility.Visible, check4.Visibility);
     }
 }
-
 
 
 

@@ -61,6 +61,7 @@ public sealed class PersistentServiceRangeFormatReadTests(
         Assert.Equal("#123456", first.GetProperty("font").GetProperty("color").GetProperty("rgb").GetString());
         Assert.Equal("#ABCDEF", first.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
         Assert.Equal("0.00%", first.GetProperty("numberFormat").GetString());
+        Assert.Equal((int)Excel.XlHAlign.xlHAlignRight, first.GetProperty("horizontalAlignment").GetInt32());
         Assert.True(first.GetProperty("wrapText").GetBoolean());
         Assert.Equal(8, first.GetProperty("borders").GetArrayLength());
     }
@@ -104,17 +105,35 @@ public sealed class PersistentServiceRangeFormatReadTests(
 
         using var complete = ReadFormat(sheetName, "A1:A32", "stored");
         Assert.Equal(32, complete.RootElement.GetProperty("cells").GetArrayLength());
+        Assert.Equal(Enumerable.Range(1, 32).Select(row => $"$A${row}"),
+            complete.RootElement.GetProperty("cells").EnumerateArray()
+                .Select(cell => cell.GetProperty("address").GetString()));
         using var single = ReadFormat(sheetName, "A1", "stored");
         Assert.Equal(1, single.RootElement.GetProperty("cells").GetArrayLength());
+        Assert.Equal("$A$1", single.RootElement.GetProperty("cells")[0].GetProperty("address").GetString());
     }
 
     [Fact]
     public async Task GetFormat_InvalidViewIsNotAStoredRead()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [["keep"]]));
+        _fixture.Send("rangeformat.format", new
+        {
+            sheetName,
+            rangeAddresses = (string[])["A1"],
+            formatOptions = new { bold = true, fillColor = "#123456" }
+        });
+        using var before = ReadFormat(sheetName, "A1", "stored");
         var response = await _fixture.SendForFailureAsync("rangeformat.get-format",
             new { sheetName, rangeAddress = "A1", view = "unknown" });
+        Assert.Equal("InvalidInput", response.ErrorCategory);
         Assert.Contains("view", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        using var after = ReadFormat(sheetName, "A1", "stored");
+        Assert.Equal(before.RootElement.GetRawText(), after.RootElement.GetRawText());
+        var values = _commands.GetValues(_fixture.BatchToken, sheetName, "A1");
+        RequireSuccess(values);
+        Assert.Equal("keep", values.Values[0][0]);
     }
 
     [Fact]

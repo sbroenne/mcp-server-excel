@@ -18,7 +18,10 @@ public sealed partial class PersistentServiceWindowTests
         var batch = _fixture.BatchToken;
 
         // Start hidden
-        _commands.Hide(batch);
+        Assert.True(_commands.Hide(batch).Success);
+        var before = _commands.GetInfo(batch);
+        Assert.True(before.Success, before.ErrorMessage);
+        Assert.False(before.IsVisible);
 
         // Act
         var result = _commands.Show(batch);
@@ -29,10 +32,12 @@ public sealed partial class PersistentServiceWindowTests
 
         // Verify via GetInfo
         var info = _commands.GetInfo(batch);
+        Assert.True(info.Success, info.ErrorMessage);
         Assert.True(info.IsVisible);
+        Assert.True(info.IsForeground);
 
         // Cleanup: hide again so tests don't leave visible Excel windows
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
     }
 
     [Fact]
@@ -42,7 +47,10 @@ public sealed partial class PersistentServiceWindowTests
         var batch = _fixture.BatchToken;
 
         // Ensure visible first
-        _commands.Show(batch);
+        Assert.True(_commands.Show(batch).Success);
+        var before = _commands.GetInfo(batch);
+        Assert.True(before.Success, before.ErrorMessage);
+        Assert.True(before.IsVisible);
 
         // Act
         var result = _commands.Hide(batch);
@@ -53,28 +61,8 @@ public sealed partial class PersistentServiceWindowTests
 
         // Verify via GetInfo
         var info = _commands.GetInfo(batch);
+        Assert.True(info.Success, info.ErrorMessage);
         Assert.False(info.IsVisible);
-    }
-
-    [Fact]
-    public void Show_Then_Hide_Roundtrip()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act & Assert - Show
-        var showResult = _commands.Show(batch);
-        Assert.True(showResult.Success);
-
-        var infoAfterShow = _commands.GetInfo(batch);
-        Assert.True(infoAfterShow.IsVisible);
-
-        // Act & Assert - Hide
-        var hideResult = _commands.Hide(batch);
-        Assert.True(hideResult.Success);
-
-        var infoAfterHide = _commands.GetInfo(batch);
-        Assert.False(infoAfterHide.IsVisible);
     }
 
     [Fact]
@@ -82,7 +70,7 @@ public sealed partial class PersistentServiceWindowTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
-        _commands.Hide(batch);
+        Assert.True(_commands.Hide(batch).Success);
 
         // Act
         var result = _commands.BringToFront(batch);
@@ -91,14 +79,26 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(result.Success);
         Assert.Equal("bring-to-front", result.Action);
         Assert.Contains("show", result.Message, StringComparison.OrdinalIgnoreCase);
+        var after = _commands.GetInfo(batch);
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.False(after.IsVisible);
+        Assert.False(after.IsForeground);
     }
 
-    [Fact]
-    public void BringToFront_WhenVisible_Succeeds()
+    [Theory]
+    [InlineData("normal")]
+    [InlineData("maximized")]
+    public void BringToFront_WhenVisible_Succeeds(string originalState)
     {
         // Arrange
         var batch = _fixture.BatchToken;
-        _commands.Show(batch);
+        RequireSuccess(_commands.Show(batch));
+        RequireSuccess(_commands.SetState(batch, originalState));
+        RequireSuccess(_commands.SetState(batch, "minimized"));
+        var before = RequireSuccess(_commands.GetInfo(batch));
+        Assert.True(before.IsVisible);
+        Assert.Equal("minimized", before.WindowState);
+        Assert.False(before.IsForeground);
 
         // Act
         var result = _commands.BringToFront(batch);
@@ -107,8 +107,56 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(result.Success);
         Assert.Equal("bring-to-front", result.Action);
         Assert.Contains("foreground", result.Message, StringComparison.OrdinalIgnoreCase);
+        var after = RequireSuccess(_commands.GetInfo(batch));
+        Assert.True(after.IsVisible);
+        Assert.True(after.IsForeground);
+        Assert.Equal(originalState, after.WindowState);
 
         // Cleanup
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
+    }
+
+    [Theory]
+    [InlineData("normal")]
+    [InlineData("maximized")]
+    public void Show_WhenHiddenAndMinimized_RestoresWindowAndForeground(string originalState)
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.SetState(batch, originalState));
+        RequireSuccess(_commands.SetState(batch, "minimized"));
+        RequireSuccess(_commands.Hide(batch));
+        Assert.False(RequireSuccess(_commands.GetInfo(batch)).IsVisible);
+
+        RequireSuccess(_commands.Show(batch));
+
+        var after = RequireSuccess(_commands.GetInfo(batch));
+        Assert.True(after.IsVisible);
+        Assert.True(after.IsForeground);
+        Assert.Equal(originalState, after.WindowState);
+    }
+
+    [Theory]
+    [InlineData("normal")]
+    [InlineData("maximized")]
+    public void RestoreMinimizedWindow_NativeControl_PreservesOriginalState(string originalState)
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.SetState(batch, originalState));
+        RequireSuccess(_commands.SetState(batch, "minimized"));
+        var before = RequireSuccess(_commands.GetInfo(batch));
+        Assert.Equal("minimized", before.WindowState);
+        Assert.False(before.IsForeground);
+
+        _fixture.ExecuteRawVerification((context, cancellationToken) =>
+        {
+            var hwnd = new IntPtr(context.App.Hwnd);
+            _ = ShowWindow(hwnd, 9);
+            _ = SetForegroundWindow(hwnd);
+        });
+
+        var after = RequireSuccess(_commands.GetInfo(batch));
+        Assert.True(after.IsVisible);
+        Assert.True(after.IsForeground);
+        Assert.Equal(originalState, after.WindowState);
     }
 }

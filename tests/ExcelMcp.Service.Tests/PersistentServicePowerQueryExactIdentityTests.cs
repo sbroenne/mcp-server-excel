@@ -1,5 +1,5 @@
+using System.Data.Common;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -21,6 +21,8 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
 {
     private const string PrefixQueryMCode =
         "let Source = #table({\"Value\"}, {{1}}) in Source";
+    private const string NeighborQueryMCode =
+        "let Source = #table({\"Value\"}, {{23}, {47}}) in Source";
 
     private readonly IPowerQueryCommands _queries =
         fixture.CreateCommands<IPowerQueryCommands>();
@@ -34,6 +36,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     [Fact]
     public async Task Refresh_MissingQuery_ReturnsCategorizedNotFound()
     {
+        CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
         var response = await _fixture.SendForFailureAsync(
             "powerquery.refresh",
             new { queryName = "MissingQuery", timeout = 30 });
@@ -41,21 +44,51 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("NotFound", response.ErrorCategory);
         Assert.Contains("Query 'MissingQuery' not found.", response.ErrorMessage);
+        AssertPrefixStored();
+        AssertWorksheetLoadPreserved("AA");
     }
+
+    private void AssertGenericConnection() =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
+            Excel.ODBCConnection? odbc = null;
+            try
+            {
+                connections = context.Book.Connections;
+                connection = connections.Item("Connection");
+                Assert.Equal("Connection", connection.Name);
+                Assert.Equal(Excel.XlConnectionType.xlConnectionTypeODBC, connection.Type);
+                odbc = connection.ODBCConnection;
+                string text = Convert.ToString(odbc.Connection, CultureInfo.InvariantCulture) ?? "";
+                if (text.StartsWith("ODBC;", StringComparison.OrdinalIgnoreCase)) { text = text[5..]; }
+                var properties = new DbConnectionStringBuilder { ConnectionString = text };
+                Assert.Equal("PreservedGenericConnection", properties["DSN"]);
+                Assert.False(odbc.Refreshing);
+            }
+            finally
+            {
+                ComUtilities.Release(ref odbc);
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref connections);
+            }
+        });
 
     [Fact]
     public async Task ExactIdentity_ReadAndRefreshPaths_DoNotTreatAAAsA()
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
 
-        var listResult = _queries.List(_fixture.BatchToken);
+        var listResult = RequireSuccess(_queries.List(_fixture.BatchToken));
         Assert.True(listResult.Queries.Single(query => query.Name == "A").IsConnectionOnly);
         Assert.False(listResult.Queries.Single(query => query.Name == "AA").IsConnectionOnly);
 
-        var viewResult = _queries.View(_fixture.BatchToken, "a");
+        var viewResult = RequireSuccess(_queries.View(_fixture.BatchToken, "a"));
+        Assert.Equal(PrefixQueryMCode, viewResult.MCode);
         Assert.True(viewResult.IsConnectionOnly);
 
-        var loadConfig = _queries.GetLoadConfig(_fixture.BatchToken, "a");
+        var loadConfig = RequireSuccess(_queries.GetLoadConfig(_fixture.BatchToken, "a"));
         Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
 
         var response = await _fixture.SendForFailureAsync(
@@ -67,6 +100,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
             "Could not find connection or table for query 'a'",
             response.ErrorMessage);
 
+        AssertPrefixStored();
         AssertWorksheetLoadPreserved("AA");
     }
 
@@ -75,18 +109,20 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
 
-        var result = _queries.LoadTo(
+        var result = RequireSuccess(_queries.LoadTo(
             _fixture.BatchToken,
             "A",
             PowerQueryLoadMode.LoadToTable,
             "AData",
-            "A1");
+            "A1"));
         _fixture.RegisterSheetForCleanup("AData");
 
         Assert.True(result.Success);
         Assert.Equal(
             PowerQueryLoadMode.LoadToTable,
-            _queries.GetLoadConfig(_fixture.BatchToken, "A").LoadMode);
+            RequireSuccess(_queries.GetLoadConfig(_fixture.BatchToken, "A")).LoadMode);
+        PowerQueryStateAssertions.AssertStored(_fixture, "A", PrefixQueryMCode,
+            PowerQueryLoadMode.LoadToTable, "AData", ["Value"], [[1]]);
         AssertWorksheetLoadPreserved("AA");
     }
 
@@ -95,9 +131,10 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
 
-        var result = _queries.Unload(_fixture.BatchToken, "A");
+        var result = RequireSuccess(_queries.Unload(_fixture.BatchToken, "A"));
 
         Assert.True(result.Success);
+        AssertPrefixStored();
         AssertWorksheetLoadPreserved("AA");
     }
 
@@ -106,12 +143,12 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
 
-        var result = _queries.Delete(_fixture.BatchToken, "a");
+        var result = RequireSuccess(_queries.Delete(_fixture.BatchToken, "a"));
         _fixture.ForgetPowerQuery("A");
 
         Assert.True(result.Success);
         Assert.DoesNotContain(
-            _queries.List(_fixture.BatchToken).Queries,
+            RequireSuccess(_queries.List(_fixture.BatchToken)).Queries,
             query => query.Name == "A");
         AssertWorksheetLoadPreserved("AA");
     }
@@ -121,61 +158,76 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     {
         CreatePrefixQueries(PowerQueryLoadMode.LoadToDataModel);
 
-        var result = _queries.Unload(_fixture.BatchToken, "A");
+        var result = RequireSuccess(_queries.Unload(_fixture.BatchToken, "A"));
 
         Assert.True(result.Success);
-        var tables = _dataModel.ListTables(_fixture.BatchToken);
+        var tables = RequireSuccess(_dataModel.ListTables(_fixture.BatchToken));
         Assert.Contains(tables.Tables, table => table.Name == "AA");
         Assert.Equal(
             PowerQueryLoadMode.LoadToDataModel,
-            _queries.GetLoadConfig(_fixture.BatchToken, "AA").LoadMode);
+            RequireSuccess(_queries.GetLoadConfig(_fixture.BatchToken, "AA")).LoadMode);
+        AssertPrefixStored();
+        PowerQueryStateAssertions.AssertStored(_fixture, "AA", NeighborQueryMCode,
+            PowerQueryLoadMode.LoadToDataModel, null, ["Value"], [[23], [47]]);
     }
 
     [Fact]
     public void ConnectionOnlyQuery_DoesNotClaimUnrelatedSameNamedDataModelTable()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             _fixture.BatchToken,
             sheetName,
             "A1:A2",
-            [["Value"], [1]]);
-        _tables.Create(_fixture.BatchToken, sheetName, "A", "A1:A2");
-        _tables.AddToDataModel(_fixture.BatchToken, "A");
+            [["Value"], [71]]));
+        RequireSuccess(_tables.Create(_fixture.BatchToken, sheetName, "A", "A1:A2"));
+        RequireSuccess(_tables.AddToDataModel(_fixture.BatchToken, "A"));
         _fixture.RegisterDataModelTableForCleanup("A");
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             _fixture.BatchToken,
             "A",
             PrefixQueryMCode,
-            PowerQueryLoadMode.ConnectionOnly);
+            PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup("A");
 
-        var query = _queries.List(_fixture.BatchToken).Queries.Single(item => item.Name == "A");
+        var query = RequireSuccess(_queries.List(_fixture.BatchToken)).Queries.Single(item => item.Name == "A");
         Assert.True(query.IsConnectionOnly);
         Assert.Equal(
             PowerQueryLoadMode.ConnectionOnly,
-            _queries.GetLoadConfig(_fixture.BatchToken, "A").LoadMode);
-        Assert.Throws<InvalidOperationException>(
+            RequireSuccess(_queries.GetLoadConfig(_fixture.BatchToken, "A")).LoadMode);
+        var error = Assert.Throws<InvalidOperationException>(
             () => _queries.Refresh(
                 _fixture.BatchToken,
                 "A",
                 TimeSpan.FromSeconds(30)));
+        Assert.Contains("Could not find connection or table", error.Message);
         Assert.Contains(
-            _dataModel.ListTables(_fixture.BatchToken).Tables,
+            RequireSuccess(_dataModel.ListTables(_fixture.BatchToken)).Tables,
             table => table.Name == "A");
+        Assert.Equal(PrefixQueryMCode, RequireSuccess(_queries.View(_fixture.BatchToken, "A")).MCode);
+        PowerQueryStateAssertions.AssertRows([[71]],
+            RequireSuccess(_dataModel.Evaluate(_fixture.BatchToken, "EVALUATE 'A'")).Rows);
+        PowerQueryStateAssertions.AssertRows([[71]], RequireSuccess(_commands.GetValues(
+            _fixture.BatchToken, sheetName, "A2")).Values);
     }
 
     [Fact]
     public async Task Evaluate_Success_SaveAndReopen_PersistsNoTemporaryArtifacts()
     {
-        _connections.Create(
+        CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
+        RequireSuccess(_connections.Create(
             _fixture.BatchToken,
             "Connection",
-            "ODBC;DSN=PreservedGenericConnection");
+            "ODBC;DSN=PreservedGenericConnection"));
         _fixture.RegisterConnectionForCleanup("Connection");
 
-        var result = _queries.Evaluate(_fixture.BatchToken, PrefixQueryMCode);
-        Assert.True(result.Success);
+        var result = RequireSuccess(_queries.Evaluate(_fixture.BatchToken, PrefixQueryMCode));
+        Assert.Equal(PrefixQueryMCode, result.MCode);
+        Assert.Equal(["Value"], result.Columns);
+        Assert.Equal(1, result.RowCount);
+        Assert.Equal(1, result.ColumnCount);
+        PowerQueryStateAssertions.AssertRows([[1]], result.Rows);
+        AssertNoEvaluateArtifactsAfterReopen();
 
         await _fixture.SaveAndReopenAsync();
 
@@ -186,14 +238,17 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     public async Task Evaluate_Failure_SaveAndReopen_PersistsNoTemporaryArtifacts()
     {
         const string invalidMCode = "let Source = UndefinedFunction() in Source";
-        _connections.Create(
+        CreatePrefixQueries(PowerQueryLoadMode.LoadToTable);
+        RequireSuccess(_connections.Create(
             _fixture.BatchToken,
             "Connection",
-            "ODBC;DSN=PreservedGenericConnection");
+            "ODBC;DSN=PreservedGenericConnection"));
         _fixture.RegisterConnectionForCleanup("Connection");
 
-        Assert.ThrowsAny<Exception>(
+        var error = Assert.Throws<InvalidOperationException>(
             () => _queries.Evaluate(_fixture.BatchToken, invalidMCode));
+        Assert.Contains("UndefinedFunction", error.Message);
+        AssertNoEvaluateArtifactsAfterReopen();
 
         await _fixture.SaveAndReopenAsync();
 
@@ -203,65 +258,74 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
     [Fact]
     public void Evaluate_PreservesQueryConnectionAliasedByTemporaryDisplayName()
     {
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             _fixture.BatchToken,
             "Connection",
-            PrefixQueryMCode,
+            NeighborQueryMCode,
             PowerQueryLoadMode.LoadToTable,
-            "QueryData");
+            "QueryData"));
         _fixture.RegisterPowerQueryForCleanup("Connection");
         _fixture.RegisterSheetForCleanup("QueryData");
 
-        var result = _queries.Evaluate(_fixture.BatchToken, PrefixQueryMCode);
+        var result = RequireSuccess(_queries.Evaluate(_fixture.BatchToken, PrefixQueryMCode));
 
         Assert.True(result.Success);
         Assert.Equal(
             PowerQueryLoadMode.LoadToTable,
-            _queries.GetLoadConfig(_fixture.BatchToken, "Connection").LoadMode);
+            RequireSuccess(_queries.GetLoadConfig(_fixture.BatchToken, "Connection")).LoadMode);
         Assert.Equal(
             "QueryData",
-            _queries.GetLoadConfig(_fixture.BatchToken, "Connection").TargetSheet);
+            RequireSuccess(_queries.GetLoadConfig(_fixture.BatchToken, "Connection")).TargetSheet);
+        PowerQueryStateAssertions.AssertRows([[1]], result.Rows);
+        Assert.Empty(FindEvaluateArtifacts());
+        PowerQueryStateAssertions.AssertStored(_fixture, "Connection", NeighborQueryMCode,
+            PowerQueryLoadMode.LoadToTable, "QueryData", ["Value"], [[23], [47]]);
     }
 
     private void CreatePrefixQueries(PowerQueryLoadMode aaLoadMode)
     {
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             _fixture.BatchToken,
             "A",
             PrefixQueryMCode,
-            PowerQueryLoadMode.ConnectionOnly);
+            PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup("A");
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             _fixture.BatchToken,
             "AA",
-            PrefixQueryMCode,
+            NeighborQueryMCode,
             aaLoadMode,
             aaLoadMode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth
                 ? "AAData"
-                : null);
+                : null));
         _fixture.RegisterPowerQueryForCleanup("AA");
         if (aaLoadMode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth)
         {
             _fixture.RegisterSheetForCleanup("AAData");
         }
+        AssertPrefixStored();
+        PowerQueryStateAssertions.AssertStored(_fixture, "AA", NeighborQueryMCode,
+            aaLoadMode, aaLoadMode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth
+                ? "AAData" : null, ["Value"], [[23], [47]]);
     }
 
-    private void AssertWorksheetLoadPreserved(string queryName)
-    {
-        var config = _queries.GetLoadConfig(_fixture.BatchToken, queryName);
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, config.LoadMode);
-        Assert.Equal("AAData", config.TargetSheet);
+    private void AssertPrefixStored() =>
+        PowerQueryStateAssertions.AssertStored(_fixture, "A", PrefixQueryMCode,
+            PowerQueryLoadMode.ConnectionOnly, null, ["Value"], [[1]]);
 
-        var view = _queries.View(_fixture.BatchToken, queryName);
-        Assert.False(view.IsConnectionOnly);
-    }
+    private void AssertWorksheetLoadPreserved(string queryName) =>
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName, NeighborQueryMCode,
+            PowerQueryLoadMode.LoadToTable, "AAData", ["Value"], [[23], [47]]);
 
     private void AssertNoEvaluateArtifactsAfterReopen()
     {
         Assert.Empty(FindEvaluateArtifacts());
         Assert.Contains(
-            _connections.List(_fixture.BatchToken).Connections,
+            RequireSuccess(_connections.List(_fixture.BatchToken)).Connections,
             connection => connection.Name == "Connection");
+        AssertPrefixStored();
+        AssertWorksheetLoadPreserved("AA");
+        AssertGenericConnection();
     }
 
     private List<string> FindEvaluateArtifacts() =>
@@ -322,9 +386,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
                     try
                     {
                         connection = connections.Item(index);
-                        if (Convert.ToInt32(
-                                connection.Type,
-                                CultureInfo.InvariantCulture) != 1)
+                        if (connection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB)
                         {
                             continue;
                         }
@@ -339,9 +401,6 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
                         {
                             artifacts.Add($"connection:{connection.Name}");
                         }
-                    }
-                    catch (COMException)
-                    {
                     }
                     finally
                     {

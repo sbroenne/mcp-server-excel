@@ -65,6 +65,8 @@ public sealed class PageLayoutPersistenceTests
                 Assert.Equal(36d, state.RootElement.GetProperty("leftMargin").GetDouble(), 2);
                 Assert.Equal("Saved report", state.RootElement.GetProperty("centerHeader").GetString());
                 Assert.Equal("&P", state.RootElement.GetProperty("rightFooter").GetString());
+                Assert.Equal("xlPaperA4", state.RootElement.GetProperty("paperSize").GetString());
+                Assert.Equal(100, state.RootElement.GetProperty("zoomPercent").GetInt32());
             }
             using (var breaks = await Send(service, session, "sheet.get-page-breaks", new { sheetName = "Sheet1" }))
                 Assert.Contains(breaks.RootElement.GetProperty("horizontal").EnumerateArray(),

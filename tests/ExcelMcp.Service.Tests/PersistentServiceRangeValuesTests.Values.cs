@@ -12,12 +12,17 @@ public sealed partial class PersistentServiceRangeValuesTests
     [Fact]
     public async Task GetValues_MissingSheet_ReturnsCategorizedNotFound()
     {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [["Retained"]]).Success);
         var response = await _fixture.SendForFailureAsync(
             "range.get-values",
             new { sheetName = "MissingSheet", rangeAddress = "A1" });
 
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("NotFound", response.ErrorCategory);
+        var retained = _commands.GetValues(_fixture.BatchToken, sheetName, "A1");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal("Retained", Assert.Single(Assert.Single(retained.Values)));
     }
 
     [Theory]
@@ -31,6 +36,7 @@ public sealed partial class PersistentServiceRangeValuesTests
         string rangeAddress)
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:B1", [["Retained", 123]]).Success);
 
         var response = await _fixture.SendForFailureAsync(
             "range.get-values",
@@ -38,6 +44,12 @@ public sealed partial class PersistentServiceRangeValuesTests
 
         Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Equal("InvalidInput", response.ErrorCategory);
+        var retained = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B1");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        var cells = Assert.Single(retained.Values);
+        Assert.Equal(2, cells.Count);
+        Assert.Equal("Retained", cells[0]);
+        Assert.Equal(123d, Convert.ToDouble(cells[1], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]
@@ -48,7 +60,7 @@ public sealed partial class PersistentServiceRangeValuesTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set a value first
-        _commands.SetValues(batch, sheetName, "A1", [[100]]);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [[100]]).Success);
 
         // Act
         var result = _commands.GetValues(batch, sheetName, "A1");
@@ -78,7 +90,7 @@ public sealed partial class PersistentServiceRangeValuesTests
             new() { 7, 8, 9 }
         };
 
-        _commands.SetValues(batch, sheetName, "A1:C3", testData);
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:C3", testData).Success);
 
         // Act
         var result = _commands.GetValues(batch, sheetName, "A1:C3");
@@ -88,12 +100,15 @@ public sealed partial class PersistentServiceRangeValuesTests
         Assert.Equal(3, result.RowCount);
         Assert.Equal(3, result.ColumnCount);
         Assert.Equal(3, result.Values.Count);
-        Assert.Equal(
-            1.0,
-            Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(
-            9.0,
-            Convert.ToDouble(result.Values[2][2], System.Globalization.CultureInfo.InvariantCulture));
+        for (var row = 0; row < testData.Count; row++)
+        {
+            Assert.Equal(testData[row].Count, result.Values[row].Count);
+            for (var column = 0; column < testData[row].Count; column++)
+            {
+                Assert.Equal(Convert.ToDouble(testData[row][column], System.Globalization.CultureInfo.InvariantCulture),
+                    Convert.ToDouble(result.Values[row][column], System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
     }
 
     [Fact]
@@ -117,10 +132,14 @@ public sealed partial class PersistentServiceRangeValuesTests
 
         // Verify by reading back
         var readResult = _commands.GetValues(batch, sheetName, "A1:B3");
-        Assert.Equal("Name", readResult.Values[0][0]);
-        Assert.Equal(
-            30.0,
-            Convert.ToDouble(readResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.Equal(3, readResult.RowCount);
+        Assert.Equal(2, readResult.ColumnCount);
+        Assert.Equal(["Name", "Age"], readResult.Values[0].Select(value => value?.ToString()));
+        Assert.Equal("Alice", readResult.Values[1][0]);
+        Assert.Equal(30d, Convert.ToDouble(readResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("Bob", readResult.Values[2][0]);
+        Assert.Equal(25d, Convert.ToDouble(readResult.Values[2][1], System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]
@@ -132,7 +151,7 @@ public sealed partial class PersistentServiceRangeValuesTests
 
         // Simulate MCP JSON: [["Azure Region Code", "Azure Region Name", "Geography", "Country"]]
         string json = """[["Azure Region Code", "Azure Region Name", "Geography", "Country"]]""";
-        var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
+        using var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
         var jsonArray = jsonDoc.RootElement;
 
         // Convert to List<List<object?>> containing JsonElement objects (like MCP does)
@@ -154,6 +173,10 @@ public sealed partial class PersistentServiceRangeValuesTests
 
         // Verify by reading back
         var readResult = _commands.GetValues(batch, sheetName, "A1:D1");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.Equal(1, readResult.RowCount);
+        Assert.Equal(4, readResult.ColumnCount);
+        Assert.Equal(4, Assert.Single(readResult.Values).Count);
         Assert.Equal("Azure Region Code", readResult.Values[0][0]);
         Assert.Equal("Azure Region Name", readResult.Values[0][1]);
         Assert.Equal("Geography", readResult.Values[0][2]);
@@ -169,7 +192,7 @@ public sealed partial class PersistentServiceRangeValuesTests
 
         // Simulate MCP JSON: [["Text", 123, true, null]]
         string json = """[["Text", 123, true, null]]""";
-        var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
+        using var jsonDoc = System.Text.Json.JsonDocument.Parse(json);
         var jsonArray = jsonDoc.RootElement;
 
         // Convert to List<List<object?>> containing JsonElement objects
@@ -191,6 +214,10 @@ public sealed partial class PersistentServiceRangeValuesTests
 
         // Verify by reading back
         var readResult = _commands.GetValues(batch, sheetName, "A1:D1");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.Equal(1, readResult.RowCount);
+        Assert.Equal(4, readResult.ColumnCount);
+        Assert.Equal(4, Assert.Single(readResult.Values).Count);
         Assert.Equal("Text", readResult.Values[0][0]);
         Assert.Equal(
             123.0,
@@ -206,31 +233,33 @@ public sealed partial class PersistentServiceRangeValuesTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(
+        Assert.True(_commands.SetValues(
             batch,
             sheetName,
             "A1:A2",
-            [["Date"], ["2025-01-15"]]);
-        _commands.SetNumberFormat(
+            [["Date"], ["2025-01-15"]]).Success);
+        Assert.True(_commands.SetNumberFormat(
             batch,
             sheetName,
             "A2",
-            "m/d/yyyy");
+            "m/d/yyyy").Success);
 
         var readResult = _commands.GetValues(batch, sheetName, "A2");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
         var serial = Convert.ToDouble(
             readResult.Values[0][0],
             System.Globalization.CultureInfo.InvariantCulture);
 
         Assert.Equal(new DateTime(2025, 1, 15), DateTime.FromOADate(serial));
 
-        _commands.SetValues(
+        Assert.True(_commands.SetValues(
             batch,
             sheetName,
             "B1:B2",
-            [["Text"], ["'2025-01-15"]]);
+            [["Text"], ["'2025-01-15"]]).Success);
 
         var textResult = _commands.GetValues(batch, sheetName, "B2");
+        Assert.True(textResult.Success, textResult.ErrorMessage);
         Assert.Equal("2025-01-15", textResult.Values[0][0]);
     }
 
@@ -262,10 +291,8 @@ public sealed partial class PersistentServiceRangeValuesTests
         Assert.Single(readResult.Values); // One row
         Assert.Equal(16, readResult.Values[0].Count); // 16 columns
 
-        // Verify first, middle, and last values
-        Assert.Equal(1.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(8.0, Convert.ToDouble(readResult.Values[0][7], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.Equal(16.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(Enumerable.Range(1, 16).Select(value => (double)value),
+            readResult.Values[0].Select(value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Fact]
@@ -324,6 +351,11 @@ public sealed partial class PersistentServiceRangeValuesTests
             new object?[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }.ToList(),
             new object?[] { 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27 }.ToList()
         };
+        var original = Enumerable.Range(1, 3)
+            .Select(row => Enumerable.Range(1, 14)
+                .Select(column => (object?)$"original-{row}-{column}").ToList()).ToList();
+        var seeded = _commands.SetValues(batch, sheetName, "A1:N3", original);
+        Assert.True(seeded.Success, seeded.ErrorMessage);
 
         var exception = Assert.Throws<ArgumentException>(
             () => _commands.SetValues(batch, sheetName, "A1:N2", jaggedValues));
@@ -331,6 +363,13 @@ public sealed partial class PersistentServiceRangeValuesTests
         Assert.Contains("row 2", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("column count (13)", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var retained = _commands.GetValues(batch, sheetName, "A1:N3");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal(original.Count, retained.Values.Count);
+        for (var row = 0; row < original.Count; row++)
+        {
+            Assert.Equal(original[row], retained.Values[row]);
+        }
     }
 
     [Fact]
@@ -339,8 +378,8 @@ public sealed partial class PersistentServiceRangeValuesTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1", [["Original"]]);
-        _commands.MergeCells(batch, sheetName, "A1:B1");
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [["Original"]]).Success);
+        Assert.True(_commands.MergeCells(batch, sheetName, "A1:B1").Success);
 
         var exception = Assert.Throws<InvalidOperationException>(
             () => _commands.SetValues(batch, sheetName, "B1", [["Updated"]]));
@@ -350,6 +389,7 @@ public sealed partial class PersistentServiceRangeValuesTests
         Assert.Contains("unmerge", exception.Message, StringComparison.OrdinalIgnoreCase);
 
         var readResult = _commands.GetValues(batch, sheetName, "A1");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
         Assert.Equal("Original", readResult.Values[0][0]);
     }
 
@@ -359,12 +399,13 @@ public sealed partial class PersistentServiceRangeValuesTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.MergeCells(batch, sheetName, "A1:B1");
+        Assert.True(_commands.MergeCells(batch, sheetName, "A1:B1").Success);
 
         var result = _commands.SetValues(batch, sheetName, "A1", [["Updated"]]);
 
         Assert.True(result.Success, result.ErrorMessage);
         var readResult = _commands.GetValues(batch, sheetName, "A1");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
         Assert.Equal("Updated", readResult.Values[0][0]);
     }
 
@@ -374,9 +415,9 @@ public sealed partial class PersistentServiceRangeValuesTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1", [["Anchor"]]);
-        _commands.SetValues(batch, sheetName, "C1", [["Outside"]]);
-        _commands.MergeCells(batch, sheetName, "A1:B1");
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [["Anchor"]]).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "C1", [["Outside"]]).Success);
+        Assert.True(_commands.MergeCells(batch, sheetName, "A1:B1").Success);
 
         var exception = Assert.Throws<InvalidOperationException>(
             () => _commands.SetValues(
@@ -386,8 +427,11 @@ public sealed partial class PersistentServiceRangeValuesTests
                 [["New anchor", "Discarded", "New outside"]]));
 
         Assert.Contains("$A$1:$B$1", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("Anchor", _commands.GetValues(batch, sheetName, "A1").Values[0][0]);
-        Assert.Equal("Outside", _commands.GetValues(batch, sheetName, "C1").Values[0][0]);
+        var retained = _commands.GetValues(batch, sheetName, "A1:C1");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal("Anchor", retained.Values[0][0]);
+        Assert.Null(retained.Values[0][1]);
+        Assert.Equal("Outside", retained.Values[0][2]);
     }
 
     [Fact]
@@ -396,12 +440,17 @@ public sealed partial class PersistentServiceRangeValuesTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.MergeCells(batch, sheetName, "A1:B1");
+        Assert.True(_commands.SetValues(batch, sheetName, "A1", [["Original formula anchor"]]).Success);
+        Assert.True(_commands.MergeCells(batch, sheetName, "A1:B1").Success);
 
         var exception = Assert.Throws<InvalidOperationException>(
             () => _commands.SetValues(batch, sheetName, "B1", [["=1+1"]]));
 
         Assert.Contains("$A$1:$B$1", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var retained = _commands.GetValues(batch, sheetName, "A1:B1");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal("Original formula anchor", retained.Values[0][0]);
+        Assert.Null(retained.Values[0][1]);
     }
 
     [Fact]

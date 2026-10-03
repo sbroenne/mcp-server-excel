@@ -12,6 +12,18 @@ worksheet(action: 'rename', session_id: sessionId, old_name: 'Sheet1', new_name:
 excelcli -q sheet rename --session $sessionId --old-name Sheet1 --new-name Summary
 ```
 
+The server checks Microsoft's documented naming rules before creating, copying,
+or renaming a worksheet: names cannot be blank, exceed 31 characters, contain
+`/ \ ? * : [ ]`, begin or end with an apostrophe, or be `History`.
+Non-English names and apostrophes inside a name are allowed. See Microsoft's
+[worksheet naming guidance](https://support.microsoft.com/en-us/excel/rename-a-worksheet).
+Names are not trimmed: leading or trailing spaces may be part of a name, but a
+name made entirely of whitespace is rejected as blank.
+The server checks these documented constraints before changing the workbook;
+Excel also validates the name when it is assigned. If Excel rejects a name
+after a create or copy has added the sheet, the error identifies that sheet.
+It remains in the workbook for the caller to inspect and remove if appropriate.
+
 For ordering, specify before **or** after another sheet, not both. Inspect names
 and dependencies before deleting or replacing anything.
 Deleting a sheet removes all of its contents and can break dependent references.

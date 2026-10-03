@@ -1,4 +1,7 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Excel = Microsoft.Office.Interop.Excel;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -8,10 +11,11 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// Integration tests for ExcelWriteGuard — the structural COM safety mechanism
 /// integrated into ExcelBatch.Execute().
 ///
-/// Verifies that Execute() automatically suppresses EnableEvents, ScreenUpdating,
-/// and Calculation during operations, and restores them after completion.
+/// Verifies ScreenUpdating suppression and restoration without changing events
+/// or calculation. Direct guard controls run on their own STA so verification
+/// occurs after disposal, outside any Execute guard.
 ///
-/// REGRESSION TESTS for the deadlock caused by missing event/calculation suppression:
+/// Regression controls for message-pump deadlocks:
 /// - Range writes triggering Calculate callbacks → WAITNOPROCESS deadlock
 /// - Conditional formatting operations with dependent formulas
 /// - Bulk writes without ScreenUpdating suppression
@@ -56,7 +60,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
     {
         if (_testFileCopy != null && File.Exists(_testFileCopy))
         {
-            try { File.Delete(_testFileCopy); } catch { /* best effort */ }
+            File.Delete(_testFileCopy);
         }
         return Task.CompletedTask;
     }
@@ -134,42 +138,34 @@ public class ExcelWriteGuardTests : IAsyncLifetime
     /// Verifies that the guard restores state even when the operation throws.
     /// This is critical — exceptions must not leave Excel in a suppressed state.
     /// </summary>
-    [Fact]
-    public void Execute_RestoresState_EvenOnException()
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public void Guard_RestoresState_AfterDisposal(bool originalScreenUpdating, bool throwInside)
     {
-        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
-
-        // First: force an exception inside Execute
-        Assert.Throws<InvalidOperationException>(() =>
+        RunStandaloneGuardControl(app =>
         {
-            batch.Execute((ctx, ct) =>
+            app.ScreenUpdating = originalScreenUpdating;
+            app.EnableEvents = false;
+            app.Calculation = Excel.XlCalculation.xlCalculationManual;
+            var error = Record.Exception(() =>
             {
-                throw new InvalidOperationException("Intentional test exception");
-#pragma warning disable CS0162 // Unreachable code
-                return 0;
-#pragma warning restore CS0162
+                using var guard = new ExcelWriteGuard(app);
+                Assert.False(app.ScreenUpdating);
+                Assert.False(app.EnableEvents);
+                Assert.Equal(Excel.XlCalculation.xlCalculationManual, app.Calculation);
+                if (throwInside) throw new InvalidOperationException("guard-control");
             });
+            if (throwInside)
+                Assert.Equal("guard-control", Assert.IsType<InvalidOperationException>(error).Message);
+            else
+                Assert.Null(error);
+            Assert.Equal(originalScreenUpdating, app.ScreenUpdating);
+            Assert.False(app.EnableEvents);
+            Assert.Equal(Excel.XlCalculation.xlCalculationManual, app.Calculation);
         });
-
-        // Second: verify the guard still works (state was restored despite exception)
-        bool eventsAfterException = true;
-        bool screenUpdatingAfterException = true;
-        int calculationAfterException = 0;
-
-        batch.Execute((ctx, ct) =>
-        {
-            eventsAfterException = ctx.App.EnableEvents;
-            screenUpdatingAfterException = ctx.App.ScreenUpdating;
-            calculationAfterException = (int)ctx.App.Calculation;
-            return 0;
-        });
-
-        // Inside Execute, guard suppresses ScreenUpdating only
-        // Events and Calculation are NOT suppressed (Data Model ops need them)
-        Assert.True(eventsAfterException, "EnableEvents must NOT be suppressed by guard");
-        Assert.False(screenUpdatingAfterException, "ScreenUpdating must be suppressed after exception recovery");
-        Assert.Equal(-4105, calculationAfterException);
-        _output.WriteLine("✓ Guard correctly restored state after exception");
     }
 
     /// <summary>
@@ -188,9 +184,12 @@ public class ExcelWriteGuardTests : IAsyncLifetime
             // ExcelWriteGuard uses thread-static ref counting.
             // Creating a second guard inside Execute (simulating nested usage)
             // should be a no-op — the outer guard owns state restoration.
-            using var innerGuard = new ExcelWriteGuard(ctx.App);
-
-            innerScreenUpdating = ctx.App.ScreenUpdating;
+            using (var innerGuard = new ExcelWriteGuard(ctx.App))
+            {
+                innerScreenUpdating = ctx.App.ScreenUpdating;
+                Assert.False(innerScreenUpdating);
+            }
+            Assert.False(ctx.App.ScreenUpdating);
             _output.WriteLine($"ScreenUpdating inside nested guard: {innerScreenUpdating}");
 
             return 0;
@@ -213,14 +212,16 @@ public class ExcelWriteGuardTests : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? formatConditions = null;
-            dynamic? formatCondition = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.FormatConditions? formatConditions = null;
+            Excel.FormatCondition? formatCondition = null;
 
             try
             {
-                sheet = ctx.Book.Worksheets[1];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[1];
 
                 // Set up: write initial values
                 SetCellValue(sheet, "A1", 100);
@@ -229,10 +230,9 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // Add conditional formatting rule on A1:A2
                 range = sheet.Range["A1:A2"];
                 formatConditions = range.FormatConditions;
-                formatCondition = formatConditions.Add(
-                    Type: 1, // xlCellValue
-                    Operator: 3, // xlGreater
-                    Formula1: "=150");
+                formatCondition = (Excel.FormatCondition)formatConditions.Add(
+                    Excel.XlFormatConditionType.xlCellValue,
+                    Excel.XlFormatConditionOperator.xlGreater, "=150");
 
                 // Now write NEW values — this triggers conditional formatting re-evaluation.
                 // Before the fix, this would deadlock because:
@@ -242,6 +242,12 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // 4. Excel waits for callback → our thread waits for Excel → DEADLOCK
                 SetCellValue(sheet, "A1", 300);
                 SetCellValue(sheet, "A2", 50);
+                var values = Assert.IsType<object[,]>(range.Value2);
+                Assert.Equal(300d, values[1, 1]);
+                Assert.Equal(50d, values[2, 1]);
+                Assert.Equal(1, formatConditions.Count);
+                Assert.Equal((int)Excel.XlFormatConditionOperator.xlGreater, formatCondition.Operator);
+                Assert.Equal("=150", formatCondition.Formula1);
 
                 _output.WriteLine("✓ Value writes with conditional formatting completed without deadlock");
             }
@@ -251,6 +257,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 ComUtilities.Release(ref formatConditions);
                 ComUtilities.Release(ref range);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
 
             return 0;
@@ -269,10 +276,13 @@ public class ExcelWriteGuardTests : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? formulas = null;
             try
             {
-                sheet = ctx.Book.Worksheets[1];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[1];
 
                 // Write values that formulas will depend on
                 SetCellValue(sheet, "B1", 10);
@@ -287,12 +297,20 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // Now change the source values — triggers formula recalculation
                 SetCellValue(sheet, "B1", 100);
                 SetCellValue(sheet, "B2", 200);
+                ctx.App.Calculate();
+                formulas = sheet.Range["C1:C3"];
+                var values = Assert.IsType<object[,]>(formulas.Value2);
+                Assert.Equal(200d, values[1, 1]);
+                Assert.Equal(230d, values[2, 1]);
+                Assert.Equal(330d, values[3, 1]);
 
                 _output.WriteLine("✓ Formula writes with dependencies completed without deadlock");
             }
             finally
             {
+                ComUtilities.Release(ref formulas);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
 
             return 0;
@@ -300,9 +318,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Verifies that bulk value writes with the guard are significantly faster
-    /// than they would be without ScreenUpdating suppression.
-    /// This is a basic sanity check — exact timing varies by machine.
+    /// Verifies complete bulk-write results within a bounded operation time.
     /// </summary>
     [Fact]
     public void BulkWrites_WithGuard_CompletesInReasonableTime()
@@ -313,20 +329,29 @@ public class ExcelWriteGuardTests : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? written = null;
             try
             {
-                sheet = ctx.Book.Worksheets[1];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[1];
 
                 // Write 100 cells — with ScreenUpdating=false this should be fast
                 for (int i = 1; i <= 100; i++)
                 {
                     SetCellValue(sheet, $"D{i}", i * 1.5);
                 }
+                written = sheet.Range["D1:D100"];
+                var values = Assert.IsType<object[,]>(written.Value2);
+                for (int row = 1; row <= 100; row++)
+                    Assert.Equal(row * 1.5, values[row, 1]);
             }
             finally
             {
+                ComUtilities.Release(ref written);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
 
             return 0;
@@ -340,9 +365,9 @@ public class ExcelWriteGuardTests : IAsyncLifetime
             $"Bulk writes took {stopwatch.ElapsedMilliseconds}ms — ScreenUpdating may not be suppressed");
     }
 
-    private static void SetCellValue(dynamic sheet, string address, object value)
+    private static void SetCellValue(Excel.Worksheet sheet, string address, object value)
     {
-        dynamic? cell = null;
+        Excel.Range? cell = null;
         try
         {
             cell = sheet.Range[address];
@@ -354,9 +379,9 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         }
     }
 
-    private static void SetCellFormula(dynamic sheet, string address, string formula)
+    private static void SetCellFormula(Excel.Worksheet sheet, string address, string formula)
     {
-        dynamic? cell = null;
+        Excel.Range? cell = null;
         try
         {
             cell = sheet.Range[address];
@@ -366,5 +391,68 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         {
             ComUtilities.Release(ref cell);
         }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+
+    private static void RunStandaloneGuardControl(Action<Excel.Application> assertion)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            Excel.Application? app = null;
+            Excel.Workbooks? books = null;
+            Excel.Workbook? book = null;
+            ExcelProcessIdentity? identity = null;
+            var failures = new List<Exception>();
+            try
+            {
+                OleMessageFilter.Register();
+                app = new Excel.Application { DisplayAlerts = false };
+                Assert.NotEqual(0u, GetWindowThreadProcessId(new IntPtr(app.Hwnd), out var pid));
+                Assert.NotEqual(0u, pid);
+                using var process = Process.GetProcessById(checked((int)pid));
+                identity = new ExcelProcessIdentity(process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc());
+                SessionManager.TrackExcelProcess(identity.Value);
+                books = app.Workbooks;
+                book = books.Add();
+                assertion(app);
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            finally
+            {
+                CaptureCleanup(() => ComUtilities.Release(ref books));
+                CaptureCleanup(() => ExcelShutdownService.CloseAndQuit(book, app, save: false));
+                CaptureCleanup(OleMessageFilter.Revoke);
+                if (identity is { } owned)
+                {
+                    CaptureCleanup(() =>
+                    {
+                        var exited = SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(owned),
+                            TimeSpan.FromSeconds(15));
+                        if (!exited)
+                            OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _);
+                        Assert.True(exited, "The guard control's owned Excel process survived cleanup.");
+                        SessionManager.UntrackExcelProcess(owned);
+                    });
+                }
+            }
+            if (failures.Count == 0) completion.SetResult();
+            else completion.SetException(new AggregateException("Guard control or cleanup failed.", failures));
+
+            void CaptureCleanup(Action cleanup)
+            {
+                try { cleanup(); }
+                catch (Exception ex) { failures.Add(ex); }
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        completion.Task.WaitAsync(TimeSpan.FromSeconds(90)).GetAwaiter().GetResult();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(5)));
     }
 }

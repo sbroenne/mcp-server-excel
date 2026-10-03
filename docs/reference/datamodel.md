@@ -46,6 +46,11 @@ spaces were added. Do not change regional settings or enable remote formatting
 as a workaround. Measure readback (`read`, `list-measures`) returns the DAX that
 the model stores, with decimal points, including after the workbook is reopened.
 
+No machine or Excel regional settings are changed.
+Measure writes store a definition; Excel may defer validation of an unknown
+function until evaluation. A successful write is not proof of a successful
+calculation. Evaluate the measure in the intended context and inspect its value.
+
 ## Refresh is not calculation
 
 After worksheet Table edits or appends, refresh the model before querying it.
@@ -87,6 +92,9 @@ SQL-like schema-rowset queries. Both require the Microsoft Analysis Services
 OLE DB provider (MSOLAP). If it is missing, report the prerequisite; see
 [Microsoft's client libraries](https://learn.microsoft.com/analysis-services/client-libraries).
 Do not diagnose every Excel error as missing MSOLAP.
+Date columns returned by `evaluate` may appear as Excel date-serial numbers,
+not formatted date strings. Check the returned values and types before using
+them as display-ready dates.
 
 Use [DMV guidance](dmv-reference.md) for supported rowsets and Excel limitations.
 Some rowsets return no rows even when a model exists.

@@ -101,6 +101,14 @@ public sealed partial class PersistentServiceDrawingTests
         Assert.Equal(3, updated.DrawingObject.LineWeight!.Value, precision: 1);
         Assert.Equal(5, updated.DrawingObject.Rotation, precision: 1);
         Assert.Equal(2, updated.DrawingObject.Placement);
+        var actual = _drawingCommands.GetObject(batch, _sheetName, "StatusCard");
+        Assert.True(actual.Success, actual.ErrorMessage);
+        Assert.Equal("Complete", actual.DrawingObject.Text);
+        Assert.Equal("#70AD47", actual.DrawingObject.FillColor);
+        Assert.Equal("#385723", actual.DrawingObject.LineColor);
+        Assert.Equal(3, actual.DrawingObject.LineWeight!.Value, precision: 1);
+        Assert.Equal(5, actual.DrawingObject.Rotation, precision: 1);
+        Assert.Equal(2, actual.DrawingObject.Placement);
     }
 
     [Fact]
@@ -191,7 +199,9 @@ public sealed partial class PersistentServiceDrawingTests
             Assert.Null(control.DrawingObject.InputRange);
         });
 
-        var listed = _drawingCommands.ListObjects(batch, _sheetName).DrawingObjects
+        var read = _drawingCommands.ListObjects(batch, _sheetName);
+        Assert.True(read.Success, read.ErrorMessage);
+        var listed = read.DrawingObjects
             .Where(item => controls.Any(control => control.DrawingObject.Name == item.Name))
             .ToList();
         Assert.Equal(controls.Length, listed.Count);
@@ -223,7 +233,9 @@ public sealed partial class PersistentServiceDrawingTests
             Assert.Null(control.DrawingObject.InputRange);
         });
 
-        var listed = _drawingCommands.ListObjects(batch, _sheetName).DrawingObjects
+        var read = _drawingCommands.ListObjects(batch, _sheetName);
+        Assert.True(read.Success, read.ErrorMessage);
+        var listed = read.DrawingObjects
             .Where(item => controls.Any(control => control.DrawingObject.Name == item.Name))
             .ToList();
         Assert.Equal(controls.Length, listed.Count);
@@ -231,7 +243,8 @@ public sealed partial class PersistentServiceDrawingTests
             listed,
             control =>
             {
-                Assert.NotNull(control.LinkedCell);
+                var index = Array.FindIndex(controls, original => original.DrawingObject.Name == control.Name);
+                Assert.Equal($"{_sheetName}!$J${index + 2}", control.LinkedCell);
                 Assert.Null(control.InputRange);
             });
     }
@@ -265,7 +278,9 @@ public sealed partial class PersistentServiceDrawingTests
             Assert.NotNull(control.DrawingObject.InputRange);
         });
 
-        var listed = _drawingCommands.ListObjects(batch, _sheetName).DrawingObjects
+        var read = _drawingCommands.ListObjects(batch, _sheetName);
+        Assert.True(read.Success, read.ErrorMessage);
+        var listed = read.DrawingObjects
             .Where(item => controls.Any(control => control.DrawingObject.Name == item.Name))
             .ToList();
         Assert.Equal(controls.Length, listed.Count);
@@ -273,9 +288,45 @@ public sealed partial class PersistentServiceDrawingTests
             listed,
             control =>
             {
-                Assert.NotNull(control.LinkedCell);
-                Assert.NotNull(control.InputRange);
+                var index = Array.FindIndex(controls, original => original.DrawingObject.Name == control.Name);
+                Assert.Equal($"{_sheetName}!$J${index + 2}", control.LinkedCell);
+                Assert.Equal($"{_sheetName}!$L$1:$L$3", control.InputRange);
             });
+    }
+
+    [Theory]
+    [InlineData(DrawingFormControlType.CheckBox)]
+    [InlineData(DrawingFormControlType.OptionButton)]
+    [InlineData(DrawingFormControlType.ScrollBar)]
+    [InlineData(DrawingFormControlType.Spinner)]
+    [InlineData(DrawingFormControlType.DropDown)]
+    [InlineData(DrawingFormControlType.ListBox)]
+    public void UpdateObject_SupportedFormBindings_ChangesActualBindings(DrawingFormControlType controlType)
+    {
+        var batch = _fixture.BatchToken;
+        var supportsInputRange = controlType is DrawingFormControlType.DropDown or DrawingFormControlType.ListBox;
+        Assert.True(_rangeCommands.SetValues(batch, _sheetName, "L1:L6",
+            [["First"], ["Second"], ["Third"], ["Fourth"], ["Fifth"], ["Sixth"]]).Success);
+        var created = AddFormControl(batch, controlType, "BoundControl", 20,
+            linkedCell: $"{_sheetName}!$J$2",
+            inputRange: supportsInputRange ? $"{_sheetName}!$L$1:$L$3" : null);
+        Assert.True(created.Success, created.ErrorMessage);
+        var before = _drawingCommands.GetObject(batch, _sheetName, "BoundControl");
+        Assert.True(before.Success, before.ErrorMessage);
+        Assert.Equal($"{_sheetName}!$J$2", before.DrawingObject.LinkedCell);
+        Assert.Equal(supportsInputRange ? $"{_sheetName}!$L$1:$L$3" : null, before.DrawingObject.InputRange);
+
+        var updated = _drawingCommands.UpdateObject(batch, _sheetName, "BoundControl",
+            linkedCell: $"{_sheetName}!$J$9",
+            inputRange: supportsInputRange ? $"{_sheetName}!$L$4:$L$6" : null);
+        Assert.True(updated.Success, updated.ErrorMessage);
+        var after = _drawingCommands.GetObject(batch, _sheetName, "BoundControl");
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.Equal($"{_sheetName}!$J$9", after.DrawingObject.LinkedCell);
+        Assert.Equal(supportsInputRange ? $"{_sheetName}!$L$4:$L$6" : null, after.DrawingObject.InputRange);
+        Assert.Equal(before.DrawingObject.Name, after.DrawingObject.Name);
+        Assert.Equal(before.DrawingObject.Left, after.DrawingObject.Left);
+        Assert.Equal(before.DrawingObject.Top, after.DrawingObject.Top);
     }
 
     [Fact]
@@ -319,6 +370,12 @@ public sealed partial class PersistentServiceDrawingTests
         Assert.Equal(DrawingSparklineType.Column, updated.Sparkline.SparklineType);
         Assert.Equal("#ED7D31", updated.Sparkline.LineColor);
         Assert.False(updated.Sparkline.ShowMarkers);
+        var actual = _drawingCommands.GetSparkline(batch, _sheetName, "F2");
+        Assert.True(actual.Success, actual.ErrorMessage);
+        Assert.Equal("B3:E3", actual.Sparkline.SourceRange);
+        Assert.Equal(DrawingSparklineType.Column, actual.Sparkline.SparklineType);
+        Assert.Equal("#ED7D31", actual.Sparkline.LineColor);
+        Assert.False(actual.Sparkline.ShowMarkers);
 
         var listed = _drawingCommands.ListSparklines(batch, _sheetName);
         Assert.Contains(listed.Sparklines, item => item.LocationRange == "F2");
@@ -326,6 +383,199 @@ public sealed partial class PersistentServiceDrawingTests
         var deleted = _drawingCommands.DeleteSparkline(batch, _sheetName, "F2");
         Assert.True(deleted.Success);
         Assert.Empty(_drawingCommands.ListSparklines(batch, _sheetName).Sparklines);
+    }
+
+    [Theory]
+    [InlineData("font")]
+    [InlineData("fill")]
+    [InlineData("line")]
+    public void UpdateObject_InvalidColor_PreservesNameGeometryAndText(string target)
+    {
+        var batch = _fixture.BatchToken;
+        var created = _drawingCommands.AddShape(batch, _sheetName, DrawingShapeType.Rectangle,
+            "RetainedShape", left: 10, top: 20, text: "Before", fillColor: "#4472C4");
+        Assert.True(created.Success, created.ErrorMessage);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _drawingCommands.UpdateObject(batch, _sheetName, "RetainedShape",
+                newName: "RejectedRename", left: 99, text: "After",
+                fontColor: target == "font" ? "invalid" : null,
+                fillColor: target == "fill" ? "invalid" : null,
+                lineColor: target == "line" ? "invalid" : null));
+
+        Assert.Contains("Invalid color", exception.Message, StringComparison.Ordinal);
+        AssertRetainedShape(batch);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void UpdateObject_BindingsOnNonControl_PreservesObject(bool linkedCell)
+    {
+        var batch = _fixture.BatchToken;
+        var created = _drawingCommands.AddShape(batch, _sheetName, DrawingShapeType.Rectangle,
+            "RetainedShape", left: 10, top: 20, text: "Before", fillColor: "#4472C4");
+        Assert.True(created.Success, created.ErrorMessage);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _drawingCommands.UpdateObject(batch, _sheetName, "RetainedShape",
+                newName: "RejectedRename", left: 99, text: "After",
+                linkedCell: linkedCell ? $"{_sheetName}!$A$1" : null,
+                inputRange: linkedCell ? null : $"{_sheetName}!$A$1:$A$3"));
+
+        Assert.Contains("apply only to worksheet Forms controls", exception.Message, StringComparison.Ordinal);
+        AssertRetainedShape(batch);
+    }
+
+    private void AssertRetainedShape(IExcelBatch batch)
+    {
+        var listed = _drawingCommands.ListObjects(batch, _sheetName);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal("RetainedShape", Assert.Single(listed.DrawingObjects).Name);
+        var actual = _drawingCommands.GetObject(batch, _sheetName, "RetainedShape");
+        Assert.True(actual.Success, actual.ErrorMessage);
+        Assert.Equal(10, actual.DrawingObject.Left, precision: 1);
+        Assert.Equal(20, actual.DrawingObject.Top, precision: 1);
+        Assert.Equal("Before", actual.DrawingObject.Text);
+        Assert.Equal("#4472C4", actual.DrawingObject.FillColor);
+    }
+
+    [Theory]
+    [InlineData(DrawingFormControlType.Button, true, false)]
+    [InlineData(DrawingFormControlType.GroupBox, true, false)]
+    [InlineData(DrawingFormControlType.Label, true, false)]
+    [InlineData(DrawingFormControlType.Button, false, false)]
+    [InlineData(DrawingFormControlType.GroupBox, false, false)]
+    [InlineData(DrawingFormControlType.Label, false, false)]
+    [InlineData(DrawingFormControlType.CheckBox, false, false)]
+    [InlineData(DrawingFormControlType.OptionButton, false, false)]
+    [InlineData(DrawingFormControlType.ScrollBar, false, false)]
+    [InlineData(DrawingFormControlType.Spinner, false, false)]
+    [InlineData(DrawingFormControlType.Button, true, true)]
+    [InlineData(DrawingFormControlType.GroupBox, true, true)]
+    [InlineData(DrawingFormControlType.Label, true, true)]
+    [InlineData(DrawingFormControlType.Button, false, true)]
+    [InlineData(DrawingFormControlType.GroupBox, false, true)]
+    [InlineData(DrawingFormControlType.Label, false, true)]
+    [InlineData(DrawingFormControlType.CheckBox, false, true)]
+    [InlineData(DrawingFormControlType.OptionButton, false, true)]
+    [InlineData(DrawingFormControlType.ScrollBar, false, true)]
+    [InlineData(DrawingFormControlType.Spinner, false, true)]
+    public void FormControl_UnsupportedBinding_PreservesObjectsAndCells(
+        DrawingFormControlType controlType, bool linkedCell, bool update)
+    {
+        var batch = _fixture.BatchToken;
+        Assert.True(_rangeCommands.SetValues(batch, _sheetName, "A1:A3",
+            [["First"], ["Second"], ["Third"]]).Success);
+        DrawingObjectInfo? original = null;
+        if (update)
+        {
+            var created = AddFormControl(batch, controlType, "RetainedControl", 20);
+            Assert.True(created.Success, created.ErrorMessage);
+            original = created.DrawingObject;
+        }
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+        {
+            if (update)
+                _drawingCommands.UpdateObject(batch, _sheetName, "RetainedControl",
+                    newName: "RejectedRename", left: 99, top: 88,
+                    linkedCell: linkedCell ? $"{_sheetName}!$A$1" : null,
+                    inputRange: linkedCell ? null : $"{_sheetName}!$A$1:$A$3");
+            else
+                _drawingCommands.AddFormControl(batch, _sheetName, controlType, "RejectedControl",
+                    linkedCell: linkedCell ? $"{_sheetName}!$A$1" : null,
+                    inputRange: linkedCell ? null : $"{_sheetName}!$A$1:$A$3");
+        });
+
+        var listed = _drawingCommands.ListObjects(batch, _sheetName);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        if (update)
+        {
+            var retained = Assert.Single(listed.DrawingObjects);
+            Assert.NotNull(original);
+            Assert.Equal(original.Name, retained.Name);
+            Assert.Equal(original.Left, retained.Left);
+            Assert.Equal(original.Top, retained.Top);
+            Assert.Equal(original.Width, retained.Width);
+            Assert.Equal(original.Height, retained.Height);
+            Assert.Equal(original.Text, retained.Text);
+            Assert.Equal(original.LinkedCell, retained.LinkedCell);
+            Assert.Equal(original.InputRange, retained.InputRange);
+        }
+        else
+        {
+            Assert.Empty(listed.DrawingObjects);
+        }
+        var cells = _rangeCommands.GetValues(batch, _sheetName, "A1:A3");
+        Assert.True(cells.Success, cells.ErrorMessage);
+        Assert.Equal(["First", "Second", "Third"], cells.Values.Select(row => row[0]?.ToString()));
+        Assert.Contains("not supported", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(linkedCell ? "linkedCell" : "inputRange", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("shape-fill")]
+    [InlineData("shape-line")]
+    [InlineData("text-font")]
+    [InlineData("text-fill")]
+    [InlineData("text-line")]
+    [InlineData("connector")]
+    public void AddObject_InvalidColor_DoesNotLeaveAnObject(string target)
+    {
+        var batch = _fixture.BatchToken;
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+        {
+            if (target.StartsWith("shape", StringComparison.Ordinal))
+                _drawingCommands.AddShape(batch, _sheetName, name: "Rejected",
+                    fillColor: target == "shape-fill" ? "invalid" : null,
+                    lineColor: target == "shape-line" ? "invalid" : null);
+            else if (target.StartsWith("text", StringComparison.Ordinal))
+                _drawingCommands.AddTextBox(batch, _sheetName, "Rejected", name: "Rejected",
+                    fontColor: target == "text-font" ? "invalid" : null,
+                    fillColor: target == "text-fill" ? "invalid" : null,
+                    lineColor: target == "text-line" ? "invalid" : null);
+            else
+                _drawingCommands.AddConnector(batch, _sheetName, name: "Rejected", lineColor: "invalid");
+        });
+
+        Assert.Contains("Invalid color", exception.Message, StringComparison.Ordinal);
+        var listed = _drawingCommands.ListObjects(batch, _sheetName);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Empty(listed.DrawingObjects);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Sparkline_InvalidColor_PreservesExistingGroups(bool update)
+    {
+        var batch = _fixture.BatchToken;
+        WriteSparklineData(batch);
+        var created = _drawingCommands.AddSparkline(batch, _sheetName, "B2:E2", "F2",
+            lineColor: "#4472C4", showMarkers: true);
+        Assert.True(created.Success, created.ErrorMessage);
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+        {
+            if (update)
+                _drawingCommands.UpdateSparkline(batch, _sheetName, "F2",
+                    sourceRange: "B3:E3", sparklineType: DrawingSparklineType.Column,
+                    lineColor: "invalid", showMarkers: false);
+            else
+                _drawingCommands.AddSparkline(batch, _sheetName, "B3:E3", "F3", lineColor: "invalid");
+        });
+
+        Assert.Contains("Invalid color", exception.Message, StringComparison.Ordinal);
+        var listed = _drawingCommands.ListSparklines(batch, _sheetName);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        var retained = Assert.Single(listed.Sparklines);
+        Assert.Equal("F2", retained.LocationRange);
+        Assert.Equal("B2:E2", retained.SourceRange);
+        Assert.Equal(DrawingSparklineType.Line, retained.SparklineType);
+        Assert.Equal("#4472C4", retained.LineColor);
+        Assert.True(retained.ShowMarkers);
     }
 
     private string CreateTestPng()
@@ -345,7 +595,7 @@ public sealed partial class PersistentServiceDrawingTests
         string? linkedCell = null,
         string? inputRange = null)
     {
-        return _drawingCommands.AddFormControl(
+        var result = _drawingCommands.AddFormControl(
             batch,
             _sheetName,
             controlType,
@@ -357,6 +607,8 @@ public sealed partial class PersistentServiceDrawingTests
             text: SupportsText(controlType) ? name : null,
             linkedCell: linkedCell,
             inputRange: inputRange);
+        Assert.True(result.Success, result.ErrorMessage);
+        return result;
     }
 
     private static bool SupportsText(DrawingFormControlType controlType)

@@ -48,6 +48,14 @@ Arrange presets are left-half, right-half, top-half,
 bottom-half, center, and full-screen; they use Excel's current monitor work area.
 Arranging makes Excel visible. Normal/maximized states also make it visible.
 Positioning uses points and restores a normal window state first.
+`show` and `bring-to-front` restore a minimized window to its previous normal
+or maximized state before bringing it forward. `bring-to-front` leaves a hidden
+session hidden and returns guidance to use `show` first. If Windows refuses
+foreground activation, the operation reports an error; any visibility or
+window restoration already applied remains in effect.
+An unsupported arrange `preset` (MCP) / `--preset` (CLI) is rejected before
+changing visibility, window state, or bounds. This does not promise rollback
+if Excel itself fails while applying a supported preset.
 
 Use get-info to inspect visibility, bounds, state, and foreground status. Session
 listings reflect show/hide changes.

@@ -467,6 +467,19 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
 
 internal static class PersistentServiceCleanupFailures
 {
+    internal static void Run(Action test, params Action[] cleanup)
+    {
+        Exception? failure = Record.Exception(test);
+        foreach (var action in cleanup)
+        {
+            var cleanupFailure = Record.Exception(action);
+            if (cleanupFailure is not null)
+                failure = Combine(failure, cleanupFailure);
+        }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
     internal static Exception Combine(
         Exception? existing,
         Exception next)
@@ -775,6 +788,21 @@ public sealed class PersistentServiceWorkbookTestScope(
             }
         }
 
+        for (var index = _dataModelMeasures.Count - 1; index >= 0; index--)
+        {
+            try
+            {
+                await fixture.SendAsync(
+                    "datamodel.delete-measure",
+                    new { measureName = _dataModelMeasures[index] });
+            }
+            catch (Exception ex)
+            {
+                failures ??= [];
+                failures.Add(ex);
+            }
+        }
+
         for (var index = _powerQueries.Count - 1; index >= 0; index--)
         {
             try
@@ -797,21 +825,6 @@ public sealed class PersistentServiceWorkbookTestScope(
                 await fixture.SendAsync(
                     "connection.delete",
                     new { connectionName = _connections[index] });
-            }
-            catch (Exception ex)
-            {
-                failures ??= [];
-                failures.Add(ex);
-            }
-        }
-
-        for (var index = _dataModelMeasures.Count - 1; index >= 0; index--)
-        {
-            try
-            {
-                await fixture.SendAsync(
-                    "datamodel.delete-measure",
-                    new { measureName = _dataModelMeasures[index] });
             }
             catch (Exception ex)
             {

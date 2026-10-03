@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -24,18 +23,24 @@ public sealed partial class PersistentServicePivotTableTests
             destinationSheet,
             "A1",
             pivotName);
-        Assert.True(createResult.Success, createResult.ErrorMessage);
+        RequireSuccess(createResult);
+        RequireSuccess(_pivotCommands.AddRowField(batch, pivotName, "Product"));
+        RequireSuccess(_pivotCommands.AddColumnField(batch, pivotName, "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, pivotName, "Sales"));
+        RequireSuccess(_pivotCommands.SetGrandTotals(batch, pivotName, !showRowGrandTotals, !showColumnGrandTotals));
+        Assert.Equal((!showRowGrandTotals, !showColumnGrandTotals), ReadGrandTotals(destinationSheet, pivotName));
 
         var setResult = _pivotCommands.SetGrandTotals(
             batch,
             pivotName,
             showRowGrandTotals,
             showColumnGrandTotals);
-        Assert.True(setResult.Success, setResult.ErrorMessage);
+        RequireSuccess(setResult);
 
         Assert.Equal(
             (showRowGrandTotals, showColumnGrandTotals),
             ReadGrandTotals(destinationSheet, pivotName));
+        AssertGrandTotalCells(pivotName, showRowGrandTotals, showColumnGrandTotals);
     }
 
     [Fact]
@@ -50,48 +55,61 @@ public sealed partial class PersistentServicePivotTableTests
             destinationSheet,
             "A1",
             "TestPivot");
-        Assert.True(createResult.Success, createResult.ErrorMessage);
-        Assert.True(_pivotCommands.AddRowField(batch, "TestPivot", "Product").Success);
-        Assert.True(_pivotCommands.AddColumnField(batch, "TestPivot", "Region").Success);
-        Assert.True(_pivotCommands.AddValueField(batch, "TestPivot", "Sales").Success);
+        RequireSuccess(createResult);
+        RequireSuccess(_pivotCommands.AddRowField(batch, "TestPivot", "Product"));
+        RequireSuccess(_pivotCommands.AddColumnField(batch, "TestPivot", "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "TestPivot", "Sales"));
 
         var setResult = _pivotCommands.SetGrandTotals(
                 batch,
                 "TestPivot",
                 true,
                 false);
-        Assert.True(
-            setResult.Success,
-            $"SetGrandTotals failed: {setResult.ErrorMessage}");
+        RequireSuccess(setResult);
 
         await _fixture.SaveAndReopenAsync();
 
         var readResult = _pivotCommands.Read(_fixture.BatchToken, "TestPivot");
-        Assert.True(
-            readResult.Success,
-            $"Read failed: {readResult.ErrorMessage}");
+        RequireSuccess(readResult);
         Assert.Equal(
             (true, false),
             ReadGrandTotals(destinationSheet, "TestPivot"));
+        RequireSuccess(readResult);
+        AssertGrandTotalCells("TestPivot", true, false);
     }
 
     private (bool Row, bool Column) ReadGrandTotals(
         string sheetName,
         string pivotName) =>
-        _fixture.ExecuteRawVerification((context, _) =>
+        ReadNativePivot(sheetName, pivotName, pivot => (pivot.RowGrand, pivot.ColumnGrand));
+
+    private void AssertGrandTotalCells(string pivotName, bool rowGrand, bool columnGrand)
+    {
+        var values = RequireSuccess(_pivotCommands.GetData(_fixture.BatchToken, pivotName)).Values;
+        Assert.Equal(columnGrand ? 5 : 4, values.Count);
+        Assert.All(values, row => Assert.Equal(rowGrand ? 4 : 3, row.Count));
+        Assert.Equal("North", values[1][1]);
+        Assert.Equal("South", values[1][2]);
+        Assert.Equal("Gadget", values[2][0]);
+        Assert.Equal("Widget", values[3][0]);
+        Assert.Equal(75d, Convert.ToDouble(values[2][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(200d, Convert.ToDouble(values[2][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(250d, Convert.ToDouble(values[3][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(125d, Convert.ToDouble(values[3][2], System.Globalization.CultureInfo.InvariantCulture));
+        if (rowGrand)
         {
-            dynamic? sheet = null;
-            dynamic? pivot = null;
-            try
+            Assert.Equal(275d, Convert.ToDouble(values[2][3], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(375d, Convert.ToDouble(values[3][3], System.Globalization.CultureInfo.InvariantCulture));
+        }
+        if (columnGrand)
+        {
+            Assert.Equal(325d, Convert.ToDouble(values[4][1], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(325d, Convert.ToDouble(values[4][2], System.Globalization.CultureInfo.InvariantCulture));
+            if (rowGrand)
             {
-                sheet = context.Book.Worksheets.Item[sheetName];
-                pivot = sheet.PivotTables(pivotName);
-                return ((bool)pivot.RowGrand, (bool)pivot.ColumnGrand);
+                Assert.Equal(650d, Convert.ToDouble(values[4][3], System.Globalization.CultureInfo.InvariantCulture));
             }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-                ComUtilities.Release(ref sheet);
-            }
-        });
+        }
+        AssertOriginalSales();
+    }
 }

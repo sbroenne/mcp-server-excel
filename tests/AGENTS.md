@@ -5,8 +5,11 @@ instructions; review tasks use the shared review checklist.
 
 ## Commands
 
-Select one project and feature/name filter, not the full Excel suite. Set a hard
-execution timeout; returning control while a test keeps running is not a timeout.
+Use `scripts\Test-ExcelBehavior.ps1 -Project <name> -Filter <filter>` for required
+affected Excel behavior validation and retain its results. Use `-Full` for
+ordered, reconciled acceptance, not during every commit. Commit-hook scope is
+unchanged. The runner sets hard execution deadlines; returning control while a
+test keeps running is not a timeout.
 Session/batch infrastructure changes also require relevant ComInterop OnDemand
 tests. Core OnDemand tests are optional diagnostics, not mandatory CI gates.
 VBA needs Trust Center access; run screenshots separately because they use
@@ -35,6 +38,16 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
 - Positive tests assert successful prerequisites and verification responses,
   then concrete workbook state and returned fields. Setup failure or an
   expected error is not a successful positive test.
+- Verify inside the test after the operation and before cleanup. No exception,
+  success alone, object existence, or a loose count is not an outcome check.
+  Replacements prove old/new state; refresh changes the source first;
+  persistence checks exact reopened contents.
+- Negative tests check the intended error and preserved state, rollback, or
+  unusable-session/recovery behavior promised by that operation. Ask whether
+  the test would fail for a no-op, wrong target, or partial change before error.
+- Do not assume failed operations automatically roll back or clean up workbook
+  changes. Assert the actual partial state and error; leave cleanup decisions
+  to the caller unless rollback is an explicit operation contract.
 - Cleanup may terminate only exact owned identities using PID plus start time
   and retained handles. Never kill unrelated Excel processes. Fixture COM
   access follows [COM safety](../docs/agents/rules/excel-com-interop.md).

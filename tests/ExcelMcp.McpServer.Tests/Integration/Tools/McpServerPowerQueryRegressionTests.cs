@@ -18,6 +18,7 @@ public sealed class McpServerPowerQueryRegressionTests(
     IClassFixture<McpProgramTransportFixture>
 {
     private static readonly TimeSpan ToolTimeout = TimeSpan.FromSeconds(90);
+    private static readonly string[] ExpectedColumns = ["CsvData[Product]", "CsvData[Quantity]"];
     private readonly McpProgramTransportFixture _fixture = fixture;
 
     [Fact]
@@ -70,7 +71,33 @@ public sealed class McpServerPowerQueryRegressionTests(
             AssertSuccess(
                 listTablesResult,
                 "datamodel.list-tables after powerquery.load-to");
-            Assert.Contains("CsvData", listTablesResult);
+            using (var tables = JsonDocument.Parse(listTablesResult))
+            {
+                var table = Assert.Single(tables.RootElement.GetProperty("tables").EnumerateArray(),
+                    item => item.GetProperty("name").GetString() == "CsvData");
+                Assert.Equal(2, table.GetProperty("recordCount").GetInt32());
+            }
+
+            var evaluated = await _fixture.CallToolAsync("datamodel", new Dictionary<string, object?>
+            {
+                ["action"] = "evaluate",
+                ["session_id"] = sessionId,
+                ["dax_query"] = "EVALUATE CsvData ORDER BY CsvData[Product]"
+            }, ToolTimeout);
+            AssertSuccess(evaluated, "datamodel.evaluate loaded CSV");
+            using (var data = JsonDocument.Parse(evaluated))
+            {
+                Assert.Equal(2, data.RootElement.GetProperty("rowCount").GetInt32());
+                Assert.Equal(2, data.RootElement.GetProperty("columnCount").GetInt32());
+                Assert.Equal(ExpectedColumns,
+                    data.RootElement.GetProperty("columns").EnumerateArray().Select(column => column.GetString()));
+                var rows = data.RootElement.GetProperty("rows");
+                Assert.Equal(2, rows.GetArrayLength());
+                Assert.Equal("Gadget", rows[0][0].GetString());
+                Assert.Equal(20, rows[0][1].GetInt32());
+                Assert.Equal("Widget", rows[1][0].GetString());
+                Assert.Equal(10, rows[1][1].GetInt32());
+            }
 
             var listSessionsResult = await _fixture.CallToolAsync(
                 "file",
@@ -87,21 +114,19 @@ public sealed class McpServerPowerQueryRegressionTests(
     }
 
     private static string BuildCsvMCode(string csvPath) =>
-        $"""
+        $$$"""
         let
-            Source = Csv.Document(File.Contents("{csvPath.Replace("\\", "\\\\")}"), [Delimiter = ",", Columns = 2, Encoding = 1252, QuoteStyle = QuoteStyle.None]),
-            PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true])
+            Source = Csv.Document(File.Contents("{{{csvPath.Replace("\"", "\"\"")}}}"), [Delimiter = ",", Columns = 2, Encoding = 1252, QuoteStyle = QuoteStyle.None]),
+            PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+            TypedColumns = Table.TransformColumnTypes(PromotedHeaders, {{"Product", type text}, {"Quantity", Int64.Type}})
         in
-            PromotedHeaders
+            TypedColumns
         """;
 
     private static void AssertSuccess(
         string jsonResult,
         string operationName)
     {
-        using var json = JsonDocument.Parse(jsonResult);
-        Assert.True(
-            json.RootElement.GetProperty("success").GetBoolean(),
-            $"{operationName} failed: {jsonResult}");
+        McpResponseAssertions.AssertSuccess(jsonResult, operationName);
     }
 }

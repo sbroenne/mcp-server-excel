@@ -41,10 +41,12 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
         using var values = JsonDocument.Parse(data.Result!);
         var rows = values.RootElement.GetProperty("values");
         Assert.Equal(20d, rows[rows.GetArrayLength() - 1][1].GetDouble());
+        AssertRegionRecords(pivot, ("South", 20d));
         _fixture.Send("slicer.clear-timeline-selection", new { slicerName = name });
         var cleared = _fixture.Send("slicer.get-slicer", new { slicerName = name });
         using var clear = JsonDocument.Parse(cleared.Result!);
         Assert.True(clear.RootElement.GetProperty("slicer").GetProperty("filterCleared").GetBoolean());
+        AssertRegionRecords(pivot, ("North", 40d), ("South", 20d));
     }
 
     [Fact]
@@ -158,6 +160,7 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
         Assert.False(timeline.GetProperty("showSelectionLabel").GetBoolean());
         Assert.False(timeline.GetProperty("showTimeLevel").GetBoolean());
         Assert.False(timeline.GetProperty("showHorizontalScrollbar").GetBoolean());
+        Assert.Equal(350d, state.RootElement.GetProperty("slicer").GetProperty("width").GetDouble(), 2);
     }
 
     [Theory]
@@ -219,6 +222,7 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
             using var values = JsonDocument.Parse(filtered.Result!);
             var rows = values.RootElement.GetProperty("values");
             Assert.Equal(timeline ? 20d : 40d, rows[rows.GetArrayLength() - 1][1].GetDouble());
+            AssertRegionRecords(selectedPivot, timeline ? ("South", 20d) : ("North", 40d));
         }
         var read = _fixture.Send("slicer.get-slicer", new { slicerName = name });
         using (var state = JsonDocument.Parse(read.Result!))
@@ -273,16 +277,26 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
             destinationSheet = sheet,
             position = "J2"
         });
+        _fixture.Send("slicer.update-slicer", new
+        {
+            slicerName = name,
+            slicerOptions = new { caption = "Keep", width = 210d, height = 190d, columnCount = 2 }
+        });
+        var before = _fixture.Send("slicer.get-slicer", new { slicerName = name });
         using var document = JsonDocument.Parse(options);
+        var invalid = document.RootElement.EnumerateObject().ToDictionary(property => property.Name,
+            property => (object?)property.Value);
+        invalid["caption"] = "Changed";
         var rejected = await _fixture.SendForFailureAsync("slicer.update-slicer", new
         {
             slicerName = name,
-            slicerOptions = document.RootElement
+            slicerOptions = invalid
         });
         Assert.False(rejected.Success);
         var read = _fixture.Send("slicer.get-slicer", new { slicerName = name });
         using var state = JsonDocument.Parse(read.Result!);
-        Assert.Equal(name, state.RootElement.GetProperty("slicer").GetProperty("caption").GetString());
+        Assert.Equal("Keep", state.RootElement.GetProperty("slicer").GetProperty("caption").GetString());
+        Assert.Equal(before.Result, read.Result);
     }
 
     [Fact]
@@ -297,6 +311,12 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
             destinationSheet = sheet,
             position = "J2"
         });
+        _fixture.Send("slicer.set-timeline-selection", new
+        {
+            slicerName = name,
+            timelineSelection = new { startDate = new DateTime(2024, 2, 1), endDate = new DateTime(2024, 2, 29) }
+        });
+        var before = _fixture.Send("slicer.get-slicer", new { slicerName = name });
         var wrongOperation = await _fixture.SendForFailureAsync("slicer.set-slicer-selection", new
         {
             slicerName = name,
@@ -304,12 +324,17 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
         });
         Assert.False(wrongOperation.Success);
         Assert.Contains("set-timeline-selection", wrongOperation.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(before.Result, _fixture.Send("slicer.get-slicer", new { slicerName = name }).Result);
+        AssertRegionRecords(pivot, ("South", 20d));
         var invalidRange = await _fixture.SendForFailureAsync("slicer.set-timeline-selection", new
         {
             slicerName = name,
             timelineSelection = new { startDate = new DateTime(2024, 3, 1), endDate = new DateTime(2024, 1, 1) }
         });
         Assert.False(invalidRange.Success);
+        Assert.Contains("date", invalidRange.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before.Result, _fixture.Send("slicer.get-slicer", new { slicerName = name }).Result);
+        AssertRegionRecords(pivot, ("South", 20d));
     }
 
     [Theory]
@@ -373,12 +398,24 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
             destinationSheet = sheet,
             position = "J2"
         });
+        var other = name + "_Other";
+        _fixture.Send("slicer.create-slicer", new
+        {
+            pivotTableName = pivot,
+            fieldName = "Region",
+            slicerName = other,
+            destinationSheet = sheet,
+            position = "J12"
+        });
+        var before = _fixture.Send("slicer.get-slicer", new { slicerName = other });
         _fixture.Send("slicer.delete-slicer", new { slicerName = name });
         var missing = await _fixture.SendForFailureAsync("slicer.get-slicer", new { slicerName = name });
         Assert.False(missing.Success);
         var list = _fixture.Send("slicer.list-slicers", new { pivotTableName = pivot });
         using var state = JsonDocument.Parse(list.Result!);
-        Assert.Equal(0, state.RootElement.GetProperty("slicers").GetArrayLength());
+        Assert.Equal(other, Assert.Single(state.RootElement.GetProperty("slicers").EnumerateArray()).GetProperty("name").GetString());
+        Assert.Equal(before.Result, _fixture.Send("slicer.get-slicer", new { slicerName = other }).Result);
+        AssertRegionRecords(pivot, ("North", 40d), ("South", 20d));
     }
 
     [Fact]
@@ -405,6 +442,16 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
         Assert.Equal(2, details.GetProperty("columnCount").GetInt32());
         var rejected = await _fixture.SendForFailureAsync("slicer.connect-pivottable", new { slicerName = name, pivotTableName = pivot });
         Assert.False(rejected.Success);
+    }
+
+    private void AssertRegionRecords(string pivot, params (string Label, double Amount)[] expected)
+    {
+        using var result = JsonDocument.Parse(_fixture.Send("pivottablecalc.get-data", new { pivotTableName = pivot }).Result!);
+        var rows = result.RootElement.GetProperty("values").EnumerateArray().ToArray();
+        Assert.Equal(expected.Length + 2, rows.Length);
+        Assert.All(rows, row => Assert.Equal(2, row.GetArrayLength()));
+        Assert.Equal(expected, rows.Skip(1).SkipLast(1).Select(row => (Assert.IsType<string>(row[0].GetString()), row[1].GetDouble())));
+        Assert.Equal(expected.Sum(row => row.Amount), rows[^1][1].GetDouble());
     }
 
     private (string Sheet, string Pivot, string Slicer) CreateSource()

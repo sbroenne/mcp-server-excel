@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -21,6 +22,19 @@ public class PersistentServiceDataModelEvaluateTests(
 {
     private readonly IDataModelCommands _dataModelCommands =
         fixture.CreateCommands<IDataModelCommands>();
+    private static readonly (int Id, double Date, int Customer, int Product, decimal Amount, int Quantity)[] ExpectedSales =
+    [
+        (1, 45306, 101, 1001, 150, 2),
+        (2, 45311, 102, 1002, 250, 3),
+        (3, 45332, 101, 1003, 175, 1),
+        (4, 45337, 103, 1001, 300, 4),
+        (5, 45356, 102, 1002, 125, 2),
+        (6, 45361, 104, 1003, 450, 5),
+        (7, 45394, 101, 1001, 200, 2),
+        (8, 45400, 103, 1002, 350, 4),
+        (9, 45420, 105, 1003, 275, 3),
+        (10, 45434, 102, 1001, 180, 2)
+    ];
 
     #region Basic EVALUATE Tests
 
@@ -32,7 +46,8 @@ public class PersistentServiceDataModelEvaluateTests(
     public void Evaluate_SimpleTableQuery_ReturnsRows()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.Evaluate(batch, "EVALUATE 'SalesTable'");
+        var result = _dataModelCommands.Evaluate(batch,
+            "EVALUATE 'SalesTable' ORDER BY 'SalesTable'[SalesID]");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
@@ -45,6 +60,7 @@ public class PersistentServiceDataModelEvaluateTests(
             $"Expected a column containing 'CustomerID', got: {string.Join(", ", result.Columns)}");
         Assert.True(result.Columns.Any(c => c.Contains("Amount", StringComparison.OrdinalIgnoreCase)),
             $"Expected a column containing 'Amount', got: {string.Join(", ", result.Columns)}");
+        AssertSalesRows(result, ExpectedSales);
     }
 
     /// <summary>
@@ -56,7 +72,7 @@ public class PersistentServiceDataModelEvaluateTests(
     {
         var batch = _fixture.BatchToken;
         var result = _dataModelCommands.Evaluate(batch,
-            "EVALUATE SUMMARIZE('SalesTable', 'SalesTable'[CustomerID], \"TotalAmount\", SUM('SalesTable'[Amount]))");
+            "EVALUATE SUMMARIZE('SalesTable', 'SalesTable'[CustomerID], \"TotalAmount\", SUM('SalesTable'[Amount])) ORDER BY 'SalesTable'[CustomerID]");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Columns);
@@ -69,6 +85,17 @@ public class PersistentServiceDataModelEvaluateTests(
         Assert.True(result.Columns.Any(c => c.Contains("Amount", StringComparison.OrdinalIgnoreCase) ||
                                            c.Contains("TotalAmount", StringComparison.OrdinalIgnoreCase)),
             $"Expected a column containing 'Amount' or 'TotalAmount', got: {string.Join(", ", result.Columns)}");
+        Assert.Equal(2, result.ColumnCount);
+        var expected = ExpectedSales.GroupBy(row => row.Customer).OrderBy(group => group.Key).ToArray();
+        Assert.Equal(expected.Length, result.RowCount);
+        Assert.Equal(expected.Length, result.Rows.Count);
+        for (var index = 0; index < expected.Length; index++)
+        {
+            Assert.Equal(expected[index].Key, Convert.ToInt32(result.Rows[index][0],
+                System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Sum(row => row.Amount), Convert.ToDecimal(result.Rows[index][1],
+                System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 
     /// <summary>
@@ -80,27 +107,12 @@ public class PersistentServiceDataModelEvaluateTests(
     {
         var batch = _fixture.BatchToken;
         var result = _dataModelCommands.Evaluate(batch,
-            "EVALUATE FILTER('SalesTable', 'SalesTable'[Amount] > 100)");
+            "EVALUATE FILTER('SalesTable', 'SalesTable'[Amount] > 200) ORDER BY 'SalesTable'[SalesID]");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Rows);
 
-        // All returned rows should have Amount > 100
-        var amountColumnIndex = result.Columns.FindIndex(c =>
-            c.Equals("Amount", StringComparison.OrdinalIgnoreCase) ||
-            c.EndsWith("[Amount]", StringComparison.OrdinalIgnoreCase));
-
-        if (amountColumnIndex >= 0 && result.Rows.Count > 0)
-        {
-            foreach (var row in result.Rows)
-            {
-                if (row[amountColumnIndex] != null)
-                {
-                    var amount = Convert.ToDecimal(row[amountColumnIndex], System.Globalization.CultureInfo.InvariantCulture);
-                    Assert.True(amount > 100, $"Expected Amount > 100, got {amount}");
-                }
-            }
-        }
+        AssertSalesRows(result, ExpectedSales.Where(row => row.Amount > 200).ToArray());
     }
 
     /// <summary>
@@ -141,6 +153,10 @@ public class PersistentServiceDataModelEvaluateTests(
             _dataModelCommands.Evaluate(batch, ""));
 
         Assert.Contains("daxQuery", ex.Message);
+        AssertSalesRows(
+            RequireSuccess(_dataModelCommands.Evaluate(
+                batch, "EVALUATE 'SalesTable' ORDER BY 'SalesTable'[SalesID]")),
+            ExpectedSales);
     }
 
     /// <summary>
@@ -152,13 +168,12 @@ public class PersistentServiceDataModelEvaluateTests(
     {
         var batch = _fixture.BatchToken;
 
-        // DEFINE without EVALUATE doesn't return data
-        // This might throw or return empty depending on implementation
-        var ex = Assert.ThrowsAny<Exception>(() =>
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             _dataModelCommands.Evaluate(batch, "DEFINE VAR x = 1"));
 
-        // Should indicate an error occurred
-        Assert.NotNull(ex);
+        Assert.Contains("ComInterop/", ex.Message, StringComparison.Ordinal);
+        AssertSalesRows(_dataModelCommands.Evaluate(batch,
+            "EVALUATE 'SalesTable' ORDER BY 'SalesTable'[SalesID]"), ExpectedSales);
     }
 
     #endregion
@@ -174,27 +189,12 @@ public class PersistentServiceDataModelEvaluateTests(
     {
         var batch = _fixture.BatchToken;
         var result = _dataModelCommands.Evaluate(batch,
-            "EVALUATE CALCULATETABLE('SalesTable', 'SalesTable'[CustomerID] = 1)");
+            "EVALUATE CALCULATETABLE('SalesTable', 'SalesTable'[CustomerID] = 101) ORDER BY 'SalesTable'[SalesID]");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Rows);
 
-        // All rows should have CustomerID = 1
-        var customerIdIndex = result.Columns.FindIndex(c =>
-            c.Equals("CustomerID", StringComparison.OrdinalIgnoreCase) ||
-            c.EndsWith("[CustomerID]", StringComparison.OrdinalIgnoreCase));
-
-        if (customerIdIndex >= 0 && result.Rows.Count > 0)
-        {
-            foreach (var row in result.Rows)
-            {
-                if (row[customerIdIndex] != null)
-                {
-                    var customerId = Convert.ToInt32(row[customerIdIndex], System.Globalization.CultureInfo.InvariantCulture);
-                    Assert.Equal(1, customerId);
-                }
-            }
-        }
+        AssertSalesRows(result, ExpectedSales.Where(row => row.Customer == 101).ToArray());
     }
 
     /// <summary>
@@ -206,11 +206,11 @@ public class PersistentServiceDataModelEvaluateTests(
     {
         var batch = _fixture.BatchToken;
         var result = _dataModelCommands.Evaluate(batch,
-            "EVALUATE TOPN(3, 'SalesTable', 'SalesTable'[Amount], DESC)");
+            "EVALUATE TOPN(3, 'SalesTable', 'SalesTable'[Amount], DESC) ORDER BY 'SalesTable'[Amount] DESC");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Rows);
-        Assert.True(result.RowCount <= 3, $"Expected at most 3 rows, got {result.RowCount}");
+        AssertSalesRows(result, ExpectedSales.OrderByDescending(row => row.Amount).Take(3).ToArray());
     }
 
     /// <summary>
@@ -222,7 +222,7 @@ public class PersistentServiceDataModelEvaluateTests(
     {
         var batch = _fixture.BatchToken;
         var result = _dataModelCommands.Evaluate(batch,
-            "EVALUATE DISTINCT('SalesTable'[CustomerID])");
+            "EVALUATE DISTINCT('SalesTable'[CustomerID]) ORDER BY 'SalesTable'[CustomerID]");
 
         Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
         Assert.NotNull(result.Rows);
@@ -232,7 +232,60 @@ public class PersistentServiceDataModelEvaluateTests(
         var values = result.Rows.Select(r => r[0]).ToList();
         var uniqueValues = values.Distinct().ToList();
         Assert.Equal(values.Count, uniqueValues.Count);
+        Assert.Equal(ExpectedSales.Select(row => row.Customer).Distinct().Order(),
+            result.Rows.Select(row => Convert.ToInt32(Assert.Single(row),
+                System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal(5, result.RowCount);
     }
 
     #endregion
+
+    private static void AssertSalesRows(
+        DaxEvaluateResult result,
+        (int Id, double Date, int Customer, int Product, decimal Amount, int Quantity)[] expected)
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
+        Assert.Equal(expected.Length, result.RowCount);
+        Assert.Equal(expected.Length, result.Rows.Count);
+        Assert.Equal(6, result.ColumnCount);
+        Assert.Equal(result.ColumnCount, result.Columns.Count);
+        Assert.Equal(
+            ["SalesTable[Amount]", "SalesTable[CustomerID]", "SalesTable[Date]",
+                "SalesTable[ProductID]", "SalesTable[Quantity]", "SalesTable[SalesID]"],
+            result.Columns.Order(StringComparer.Ordinal));
+        var id = RequiredColumn("SalesID");
+        var date = RequiredColumn("Date");
+        var customer = RequiredColumn("CustomerID");
+        var product = RequiredColumn("ProductID");
+        var amount = RequiredColumn("Amount");
+        var quantity = RequiredColumn("Quantity");
+        for (var index = 0; index < expected.Length; index++)
+        {
+            var row = result.Rows[index];
+            Assert.Equal(6, row.Count);
+            Assert.NotNull(row[id]);
+            Assert.NotNull(row[date]);
+            Assert.NotNull(row[customer]);
+            Assert.NotNull(row[product]);
+            Assert.NotNull(row[amount]);
+            Assert.NotNull(row[quantity]);
+            Assert.Equal(expected[index].Id, Convert.ToInt32(row[id], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Date, Convert.ToDouble(
+                row[date], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Customer, Convert.ToInt32(row[customer], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Product, Convert.ToInt32(row[product], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Amount, Convert.ToDecimal(row[amount], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Quantity, Convert.ToInt32(row[quantity], System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        int RequiredColumn(string name)
+        {
+            var index = result.Columns.FindIndex(column =>
+                column.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                column.EndsWith($"[{name}]", StringComparison.OrdinalIgnoreCase));
+            Assert.InRange(index, 0, result.ColumnCount - 1);
+            return index;
+        }
+    }
 }

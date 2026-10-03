@@ -314,7 +314,8 @@ public partial class PowerQueryCommands
             queryTable.PreserveFormatting = true;
             queryTable.BackgroundQuery = false; // Synchronous
             queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-            queryTable.PreserveColumnInfo = false; // Allow schema changes on refresh
+            // Excel needs column bindings to remove fields when the source schema shrinks.
+            ((Excel.QueryTable)queryTable).PreserveColumnInfo = true;
 
             // Refresh to materialize the table.
             // Do NOT use EnterLongOperation here: synchronous QueryTable refresh depends on inbound

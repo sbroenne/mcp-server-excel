@@ -27,6 +27,9 @@ workflow selection changes.
 Do not require unnecessary formatting, Tables, questions, or presentation menus.
 Discover existing state where useful; ask rather than guess when the intended
 workbook, destructive change, or requested result is unclear.
+When an operation fails after changing a workbook, do not assume it rolled back
+or automatically undo/clean up the change. Use the reported partial-state
+details to inspect the affected workbook, then decide whether cleanup is needed.
 
 Keep tool descriptions, parameter/action guidance, server instructions, both
 skill entries, documentation references, and returned recovery messages consistent.

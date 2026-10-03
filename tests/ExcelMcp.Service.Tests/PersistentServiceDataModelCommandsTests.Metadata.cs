@@ -13,18 +13,17 @@ public partial class PersistentServiceDataModelCommandsTests
     {
         var batch = _fixture.BatchToken;
 
-        var result = _dataModelCommands.ReadConnection(batch);
+        var result = RequireSuccess(_dataModelCommands.ReadConnection(batch));
 
-        Assert.True(result.Success, $"ReadConnection failed: {result.ErrorMessage}");
         Assert.Equal("ThisWorkbookDataModel", result.ConnectionName);
         Assert.Equal("MODEL", result.ConnectionType);
         Assert.Equal(7, result.ConnectionTypeValue);
         Assert.True(result.InModel);
         Assert.Equal("CUBE", result.CommandType);
         Assert.Equal(1, result.CommandTypeValue);
-        Assert.Equal(5, result.TableNames.Count);
-        Assert.Contains("SalesTable", result.TableNames);
-        Assert.Contains("ProductsTable", result.TableNames);
+        Assert.Equal(
+            ["CustomersTable", "DisambiguationTable", "ProductsTable", "RegionalSalesTable", "SalesTable"],
+            result.TableNames.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -32,12 +31,10 @@ public partial class PersistentServiceDataModelCommandsTests
     {
         var batch = _fixture.BatchToken;
 
-        var refreshResult = _dataModelCommands.Refresh(batch, "SalesTable");
-        var result = _dataModelCommands.ReadTable(batch, "SalesTable");
+        RequireSuccess(_dataModelCommands.Refresh(batch, "SalesTable"));
+        var result = RequireSuccess(_dataModelCommands.ReadTable(batch, "SalesTable"));
         var workbookName = Path.GetFileName(_dataModelFile);
 
-        Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
-        Assert.True(result.Success, $"ReadTable failed: {result.ErrorMessage}");
         Assert.Equal($"WorkbookConnection_{workbookName}!SalesTable", result.SourceConnectionName);
         Assert.Equal("Excel Table: SalesTable", result.SourceConnectionDescription);
         Assert.Equal("WORKSHEET", result.SourceConnectionType);
@@ -50,10 +47,12 @@ public partial class PersistentServiceDataModelCommandsTests
     {
         var batch = _fixture.BatchToken;
 
-        var result = _dataModelCommands.ListColumns(batch, "SalesTable");
-        var salesId = Assert.Single(result.Columns, column => column.Name == "SalesID");
+        var result = RequireSuccess(_dataModelCommands.ListColumns(batch, "SalesTable"));
 
-        Assert.True(result.Success, $"ListColumns failed: {result.ErrorMessage}");
+        Assert.Equal(
+            ["Amount", "CustomerID", "Date", "ProductID", "Quantity", "SalesID"],
+            result.Columns.Select(column => column.Name).Order(StringComparer.Ordinal));
+        var salesId = Assert.Single(result.Columns, column => column.Name == "SalesID");
         Assert.NotEqual(0, salesId.DataTypeValue);
         Assert.Equal(salesId.DataTypeValue.ToString(CultureInfo.InvariantCulture), salesId.DataType);
         Assert.All(result.Columns, column =>

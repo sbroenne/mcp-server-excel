@@ -184,6 +184,19 @@ public sealed class PersistentServiceCellStyleTests(PersistentServiceWorkbookFix
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         string styleName = $"Flags_{Guid.NewGuid():N}";
+        _fixture.Send("rangeformat.format", new
+        {
+            sheetName,
+            rangeAddresses = (string[])["C1"],
+            formatOptions = new
+            {
+                bold = false,
+                fillColor = "#ABCDEF",
+                numberFormat = "0.000",
+                horizontalAlignment = "right",
+                borders = new[] { new { position = "Left", lineStyle = "dot", color = "#ABCDEF" } }
+            }
+        });
         Assert.True(_fixture.Send("workbook.create-cell-style", new
         {
             styleName,
@@ -200,18 +213,37 @@ public sealed class PersistentServiceCellStyleTests(PersistentServiceWorkbookFix
             styleName,
             styleOptions = new
             {
+                locked = false,
+                formulaHidden = true,
                 formatOptions = new
                 {
                     bold = true,
                     fillColor = "#123456",
                     numberFormat = "0.00",
-                    horizontalAlignment = "left"
+                    horizontalAlignment = "left",
+                    borders = new[] { new { position = "Left", lineStyle = "dash", color = "#123456" } }
                 }
             }
         });
         Assert.True(changed.Success, changed.ErrorMessage);
         using var read = JsonDocument.Parse(changed.Result!);
         Assert.False(read.RootElement.GetProperty("style").GetProperty(flag).GetBoolean());
+        _fixture.Send("rangeformat.set-style", new { sheetName, rangeAddress = "C1", styleName });
+        using var consumer = ReadFormat(sheetName, "C1");
+        var cell = consumer.RootElement;
+        Assert.Equal(flag != "includeFont", cell.GetProperty("font").GetProperty("bold").GetBoolean());
+        Assert.Equal(flag == "includeNumber" ? "0.000" : "0.00", cell.GetProperty("numberFormat").GetString());
+        Assert.Equal(flag == "includeAlignment" ? -4152 : -4131, cell.GetProperty("horizontalAlignment").GetInt32());
+        Assert.Equal(flag == "includePatterns" ? "#ABCDEF" : "#123456",
+            cell.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
+        var border = Assert.Single(cell.GetProperty("borders").EnumerateArray(),
+            item => item.GetProperty("edge").GetString() == "xlEdgeLeft");
+        Assert.Equal(flag == "includeBorder" ? -4118 : -4115, border.GetProperty("lineStyle").GetInt32());
+        using var protection = JsonDocument.Parse(_fixture.Send("rangelink.get-cell-protection",
+            new { sheetName, rangeAddress = "C1" }).Result!);
+        var protectedCell = Assert.Single(protection.RootElement.GetProperty("cells").EnumerateArray());
+        Assert.Equal(flag == "includeProtection", protectedCell.GetProperty("locked").GetBoolean());
+        Assert.Equal(flag != "includeProtection", protectedCell.GetProperty("formulaHidden").GetBoolean());
     }
 
     [Fact]
@@ -338,6 +370,14 @@ public sealed class PersistentServiceCellStyleTests(PersistentServiceWorkbookFix
         Assert.True(captured.Success, captured.ErrorMessage);
         using var result = JsonDocument.Parse(captured.Result!);
         Assert.Equal(6, result.RootElement.GetProperty("style").GetProperty("format").GetProperty("fill").GetProperty("color").GetProperty("themeColor").GetInt32());
+        var format = result.RootElement.GetProperty("style").GetProperty("format");
+        Assert.Equal(5, format.GetProperty("font").GetProperty("color").GetProperty("themeColor").GetInt32());
+        Assert.Equal(2, format.GetProperty("indentLevel").GetInt32());
+        Assert.Equal(-4131, format.GetProperty("horizontalAlignment").GetInt32());
+        var diagonal = Assert.Single(format.GetProperty("borders").EnumerateArray(),
+            item => item.GetProperty("edge").GetString() == "xlDiagonalUp");
+        Assert.Equal(-4115, diagonal.GetProperty("lineStyle").GetInt32());
+        Assert.Equal("#123456", diagonal.GetProperty("color").GetProperty("rgb").GetString());
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
             Excel.Worksheet? sheet = null;

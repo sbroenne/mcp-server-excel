@@ -25,6 +25,7 @@ excelcli -q workbook list-external-links --session $sessionId
 ## Save and publish
 
 - `save-as` supports `auto`, `xlsx`, `xlsm`, `xlsb`, and `xls`. The file extension must match the selected format, and the active session follows the new path.
+- Saved `.xlsx`, `.xlsm`, `.xlsb`, and `.xls` workbooks can be reopened with `file(action: 'open', path: ...)` (MCP) or `excelcli file open --path ...` (CLI).
 - `save-copy-as` preserves the current format and leaves the active workbook/session unchanged. Its target extension must match the active workbook.
 - `export-fixed-format` publishes PDF or XPS. Keep `open_after_publish: false`
   (MCP) / `--open-after-publish false` (CLI), the default, for unattended workflows.

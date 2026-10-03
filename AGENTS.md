@@ -58,6 +58,9 @@ client does not automatically discover nested `AGENTS.md` files.
   metadata; it must not parse workbook content.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
+- Do not automatically clean up or roll back workbook changes when an
+  operation fails. Report the exact partial state and error so the agent can
+  inspect the workbook and decide whether cleanup is appropriate.
 - `Success == true` requires an empty or null `ErrorMessage`.
 - MCP Server and `excelcli` are the only supported product entry points. Do not
   preserve or add public Core/ComInterop compatibility APIs for hypothetical

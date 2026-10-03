@@ -70,6 +70,16 @@ public partial class TableCommands
 
                 listColumns = table.ListColumns;
                 int columnCount = listColumns.Count;
+                for (int rowIndex = 0; rowIndex < resolvedRows.Count; rowIndex++)
+                {
+                    var row = resolvedRows[rowIndex];
+                    if (row is null || row.Count != columnCount)
+                    {
+                        throw new ArgumentException(
+                            $"Append row {rowIndex + 1} must have {columnCount} columns to match table '{tableName}'.",
+                            nameof(rows));
+                    }
+                }
                 tableRange = table.Range;
                 int tableRow = tableRange.Row;
                 int tableColumn = tableRange.Column;
@@ -88,7 +98,7 @@ public partial class TableCommands
                 for (int i = 0; i < resolvedRows.Count; i++)
                 {
                     var rowValues = resolvedRows[i];
-                    for (int j = 0; j < Math.Min(rowValues.Count, columnCount); j++)
+                    for (int j = 0; j < columnCount; j++)
                     {
                         dynamic? cell = null;
                         try
@@ -319,4 +329,3 @@ public partial class TableCommands
         }
     }
 }
-

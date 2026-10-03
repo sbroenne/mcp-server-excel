@@ -19,6 +19,7 @@ public sealed class DataModelEvaluateComErrorTests(
     public void Evaluate_CancelledBeforeExecution_StopsBeforeQuery()
     {
         using var innerBatch = ExcelSession.BeginBatch(fixture.TestFilePath);
+        AssertModelRows(innerBatch);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         using var batch = new InjectedCancellationBatch(
@@ -28,12 +29,14 @@ public sealed class DataModelEvaluateComErrorTests(
 
         Assert.ThrowsAny<OperationCanceledException>(() =>
             commands.Evaluate(batch, "EVALUATE ROW(\"Probe\", 42)"));
+        AssertModelRows(innerBatch);
     }
 
     [Fact]
     public void Evaluate_CancelledDuringLargeResult_StopsExtraction()
     {
         using var innerBatch = ExcelSession.BeginBatch(fixture.TestFilePath);
+        AssertModelRows(innerBatch);
         using var cancellation = new CancellationTokenSource();
         using var batch = new InjectedCancellationBatch(
             innerBatch,
@@ -66,6 +69,7 @@ public sealed class DataModelEvaluateComErrorTests(
             "EVALUATE ROW(\"Probe\", 42)");
         Assert.True(followUp.Success, followUp.ErrorMessage);
         Assert.Equal(42m, Assert.Single(Assert.Single(followUp.Rows)));
+        AssertModelRows(innerBatch);
     }
 
     [Fact]
@@ -73,6 +77,7 @@ public sealed class DataModelEvaluateComErrorTests(
     {
         using var batch = ExcelSession.BeginBatch(fixture.TestFilePath);
         var commands = new DataModelCommands();
+        AssertModelRows(batch);
 
         var exception = Assert.ThrowsAny<Exception>(() =>
             commands.Evaluate(batch, "EVALUATE INVALID_FUNCTION()"));
@@ -95,5 +100,29 @@ public sealed class DataModelEvaluateComErrorTests(
             cause.Message,
             exception.Message,
             StringComparison.Ordinal);
+        AssertModelRows(batch);
+    }
+
+    private static void AssertModelRows(IExcelBatch batch)
+    {
+        var result = new DataModelCommands().Evaluate(batch,
+            """
+            EVALUATE SELECTCOLUMNS('SalesTable',
+                "SalesID", 'SalesTable'[SalesID], "Amount", 'SalesTable'[Amount])
+            ORDER BY [SalesID]
+            """);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(["[SalesID]", "[Amount]"], result.Columns);
+        Assert.Equal(10, result.RowCount);
+        Assert.Equal(2, result.ColumnCount);
+        decimal[] amounts = [150, 250, 175, 300, 125, 450, 200, 350, 275, 180];
+        for (var row = 0; row < amounts.Length; row++)
+        {
+            Assert.Equal(row + 1, Convert.ToDecimal(result.Rows[row][0],
+                System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(amounts[row], Convert.ToDecimal(result.Rows[row][1],
+                System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 }

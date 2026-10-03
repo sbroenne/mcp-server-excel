@@ -16,7 +16,12 @@ permission to clear excluded cells.
 
 `read` is metadata; `get-data` is cell values. Ordinary reads include filtered
 rows. Use `visible_only: true` (MCP) / `--visible-only true` (CLI) for visible
-rows. Append uses existing column order.
+rows. Append uses existing column order. Every row in `rows` or `rows_file`
+(MCP) / `--rows` or `--rows-file` (CLI) must have exactly the Table's column
+count; include `null` for an intentionally blank cell. All row widths are checked
+before writing cells or changing calculation mode. A mismatched row is rejected
+without truncating values, inserting incomplete records, or expanding the Table.
+This validation does not promise rollback for unrelated later Excel failures.
 
 ## Native filtering
 
@@ -75,3 +80,9 @@ See [model prerequisites and refresh](datamodel.md).
 not DAX calculated-table creation in the model. Use model `evaluate` to return
 results without a worksheet object, or a [PivotTable](pivottable.md) for
 interactive filtering.
+
+`update-dax` stores the new connection command before executing it. If the
+query fails, do not assume the original command was restored: `get-dax` reports
+the stored command, while worksheet rows can still contain the last successful
+result. Correct the query and call `update-dax` again to establish a successful
+refresh.

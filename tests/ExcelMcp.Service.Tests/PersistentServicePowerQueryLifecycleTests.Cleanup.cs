@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
@@ -5,139 +6,62 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServicePowerQueryLifecycleTests
 {
-    [Fact]
-    public void Unload_DataModelOnly_RemovesDataModelConnection()
-    {
-        var queryName = UniqueCleanupName("PQ_UnloadDM");
-        CreateCleanupQuery(queryName, PowerQueryLoadMode.LoadToDataModel);
-
-        var tablesBefore = _dataModel.ListTables(_fixture.BatchToken);
-        Assert.True(tablesBefore.Success);
-        Assert.Contains(tablesBefore.Tables, table => table.Name == queryName);
-        var connectionsBefore = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsBefore.Success);
-        Assert.Contains(
-            connectionsBefore.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-
-        var unloadResult = _queries.Unload(_fixture.BatchToken, queryName);
-
-        Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");
-        var connectionsAfter = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsAfter.Success);
-        Assert.DoesNotContain(
-            connectionsAfter.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-        var queries = _queries.List(_fixture.BatchToken);
-        Assert.True(queries.Success);
-        Assert.Contains(queries.Queries, query => query.Name == queryName);
-        var loadConfig = _queries.GetLoadConfig(_fixture.BatchToken, queryName);
-        Assert.True(loadConfig.Success);
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
-    }
+    private const string CleanupMCode =
+        "let Source = #table({\"Val\"}, {{31}, {83}}) in Source";
 
     [Fact]
-    public void Unload_LoadToBoth_RemovesBothWorksheetAndDataModelConnection()
-    {
-        var queryName = UniqueCleanupName("PQ_UnloadBoth");
-        var sheetName = UniqueCleanupName("BothSheet");
-        CreateCleanupQuery(queryName, PowerQueryLoadMode.LoadToBoth, sheetName);
-
-        var tablesBefore = _dataModel.ListTables(_fixture.BatchToken);
-        Assert.True(tablesBefore.Success);
-        Assert.Contains(tablesBefore.Tables, table => table.Name == queryName);
-        var connectionsBefore = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsBefore.Success);
-        Assert.Contains(
-            connectionsBefore.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-
-        var unloadResult = _queries.Unload(_fixture.BatchToken, queryName);
-
-        Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");
-        var connectionsAfter = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsAfter.Success);
-        Assert.DoesNotContain(
-            connectionsAfter.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-        var loadConfig = _queries.GetLoadConfig(_fixture.BatchToken, queryName);
-        Assert.True(loadConfig.Success);
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
-    }
+    public void Unload_DataModelOnly_RemovesDataModelConnection() =>
+        AssertCleanup(PowerQueryLoadMode.LoadToDataModel, delete: false);
 
     [Fact]
-    public void Delete_DataModelOnly_RemovesDataModelConnection()
-    {
-        var queryName = UniqueCleanupName("PQ_DeleteDM");
-        CreateCleanupQuery(queryName, PowerQueryLoadMode.LoadToDataModel);
-
-        var tablesBefore = _dataModel.ListTables(_fixture.BatchToken);
-        Assert.True(tablesBefore.Success);
-        Assert.Contains(tablesBefore.Tables, table => table.Name == queryName);
-        var connectionsBefore = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsBefore.Success);
-        Assert.Contains(
-            connectionsBefore.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-
-        _queries.Delete(_fixture.BatchToken, queryName);
-        _fixture.ForgetPowerQuery(queryName);
-
-        var queries = _queries.List(_fixture.BatchToken);
-        Assert.True(queries.Success);
-        Assert.DoesNotContain(queries.Queries, query => query.Name == queryName);
-        var connectionsAfter = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsAfter.Success);
-        Assert.DoesNotContain(
-            connectionsAfter.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-    }
+    public void Unload_LoadToBoth_RemovesBothWorksheetAndDataModelConnection() =>
+        AssertCleanup(PowerQueryLoadMode.LoadToBoth, delete: false);
 
     [Fact]
-    public void Delete_LoadToBoth_RemovesBothWorksheetAndDataModelConnection()
+    public void Delete_DataModelOnly_RemovesDataModelConnection() =>
+        AssertCleanup(PowerQueryLoadMode.LoadToDataModel, delete: true);
+
+    [Fact]
+    public void Delete_LoadToBoth_RemovesBothWorksheetAndDataModelConnection() =>
+        AssertCleanup(PowerQueryLoadMode.LoadToBoth, delete: true);
+
+    private void AssertCleanup(PowerQueryLoadMode mode, bool delete)
     {
-        var queryName = UniqueCleanupName("PQ_DeleteBoth");
-        var sheetName = UniqueCleanupName("DeleteBothSheet");
-        CreateCleanupQuery(queryName, PowerQueryLoadMode.LoadToBoth, sheetName);
-
-        var tablesBefore = _dataModel.ListTables(_fixture.BatchToken);
-        Assert.True(tablesBefore.Success);
-        Assert.Contains(tablesBefore.Tables, table => table.Name == queryName);
-        var connectionsBefore = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsBefore.Success);
-        Assert.Contains(
-            connectionsBefore.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-
-        _queries.Delete(_fixture.BatchToken, queryName);
-        _fixture.ForgetPowerQuery(queryName);
-
-        var queries = _queries.List(_fixture.BatchToken);
-        Assert.True(queries.Success);
-        Assert.DoesNotContain(queries.Queries, query => query.Name == queryName);
-        var connectionsAfter = _connections.List(_fixture.BatchToken);
-        Assert.True(connectionsAfter.Success);
-        Assert.DoesNotContain(
-            connectionsAfter.Connections,
-            connection => connection.Name.Contains($"Query - {queryName}"));
-    }
-
-    private void CreateCleanupQuery(
-        string queryName,
-        PowerQueryLoadMode loadMode,
-        string? sheetName = null)
-    {
-        _queries.Create(
-            _fixture.BatchToken,
-            queryName,
-            "let Source = #table({\"Val\"}, {{1}}) in Source",
-            loadMode,
-            sheetName);
+        var guardName = CreateLoadedGuard();
+        var queryName = UniqueCleanupName("PQ_Cleanup");
+        var sheetName = mode == PowerQueryLoadMode.LoadToBoth
+            ? UniqueCleanupName("CleanupSheet") : null;
+        RequireSuccess(_queries.Create(_fixture.BatchToken, queryName, CleanupMCode, mode, sheetName));
         _fixture.RegisterPowerQueryForCleanup(queryName);
+        if (sheetName is not null) { _fixture.RegisterSheetForCleanup(sheetName); }
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName, CleanupMCode,
+            mode, sheetName, ["Val"], [[31], [83]]);
+
+        if (delete)
+        {
+            RequireSuccess(_queries.Delete(_fixture.BatchToken, queryName));
+            _fixture.ForgetPowerQuery(queryName);
+            PowerQueryStateAssertions.AssertRemoved(_fixture, queryName);
+        }
+        else
+        {
+            RequireSuccess(_queries.Unload(_fixture.BatchToken, queryName));
+            PowerQueryStateAssertions.AssertStored(_fixture, queryName, CleanupMCode,
+                PowerQueryLoadMode.ConnectionOnly, null, ["Val"], [[31], [83]]);
+        }
+
+        Assert.DoesNotContain(RequireSuccess(_dataModel.ListTables(_fixture.BatchToken)).Tables,
+            table => table.Name == queryName);
+        var tables = _fixture.CreateCommands<ITableCommands>();
+        Assert.DoesNotContain(RequireSuccess(tables.List(_fixture.BatchToken)).Tables,
+            table => table.Name == queryName);
         if (sheetName is not null)
         {
-            _fixture.RegisterSheetForCleanup(sheetName);
+            Assert.All(RequireSuccess(_commands.GetValues(
+                _fixture.BatchToken, sheetName, "A1:A3")).Values,
+                row => Assert.All(row, Assert.Null));
         }
+        AssertInitialTable(guardName);
     }
 
     private static string UniqueCleanupName(string prefix) =>

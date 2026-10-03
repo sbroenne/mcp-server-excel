@@ -311,6 +311,7 @@ public partial class PivotTableCommands
     public PivotFieldResult SetFieldFormat(IExcelBatch batch, string pivotTableName,
         string fieldName, string numberFormat)
     {
+        var invariantFormat = NumberFormatLiterals.PreserveCurrencyLiterals(numberFormat);
         return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
@@ -321,7 +322,7 @@ public partial class PivotTableCommands
             {
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetFieldFormat(pivot, fieldName, numberFormat, batch.WorkbookPath);
+                return strategy.SetFieldFormat(pivot, fieldName, invariantFormat, batch.WorkbookPath);
             }
             finally
             {
@@ -330,4 +331,3 @@ public partial class PivotTableCommands
         });
     }
 }
-

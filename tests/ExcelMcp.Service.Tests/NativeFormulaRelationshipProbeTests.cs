@@ -17,6 +17,9 @@ public sealed class NativeFormulaRelationshipProbeTests(
     IClassFixture<PersistentServiceWorkbookFixture>
 {
     private static readonly string[] ProbeAddresses = ["A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1"];
+    private static readonly string?[] DirectPrecedents = [null, "$A$1,$A$3", "$B$1", null, "$A$1", null, "$A$1", null];
+    private static readonly string?[] DirectDependents = ["$B$1,$E$1,$G$1", "$C$1", null, null, null, null, null, null];
+    private static readonly string?[] AllPrecedents = [null, "$A$1,$A$3", "$A$1:$B$1,$A$3", null, "$A$1", null, "$A$1", null];
 
     [Fact]
     public void NativeGetterBoundary_RecordsLocalRemoteDynamicAndLeafBehavior()
@@ -47,18 +50,22 @@ public sealed class NativeFormulaRelationshipProbeTests(
                 Assert.NotNull(source);
                 Assert.NotNull(other);
                 source.Activate();
-                foreach (var address in ProbeAddresses)
+                for (var index = 0; index < ProbeAddresses.Length; index++)
                 {
+                    var address = ProbeAddresses[index];
                     ct.ThrowIfCancellationRequested();
                     Excel.Range? cell = null;
                     try
                     {
                         cell = source.Range[address];
-                        output.WriteLine($"active {address}: direct-precedents={Read(() => cell.DirectPrecedents)}; " +
-                            $"direct-dependents={Read(() => cell.DirectDependents)}; " +
-                            $"precedents={Read(() => cell.Precedents)}");
-                        if (address == "C1")
-                            Assert.Equal("$B$1", Read(() => cell.DirectPrecedents));
+                        var directPrecedents = Read(() => cell.DirectPrecedents);
+                        var directDependents = Read(() => cell.DirectDependents);
+                        var precedents = Read(() => cell.Precedents);
+                        AssertRelation(DirectPrecedents[index], directPrecedents);
+                        AssertRelation(DirectDependents[index], directDependents);
+                        AssertRelation(AllPrecedents[index], precedents);
+                        output.WriteLine($"active {address}: direct-precedents={directPrecedents}; " +
+                            $"direct-dependents={directDependents}; precedents={precedents}");
                     }
                     finally
                     {
@@ -70,7 +77,9 @@ public sealed class NativeFormulaRelationshipProbeTests(
                 try
                 {
                     inactive = source.Range["C1"];
-                    output.WriteLine($"inactive C1: direct-precedents={Read(() => inactive.DirectPrecedents)}");
+                    var relation = Read(() => inactive.DirectPrecedents);
+                    AssertRelation("$B$1", relation);
+                    output.WriteLine($"inactive C1: direct-precedents={relation}");
                 }
                 finally
                 {
@@ -95,17 +104,32 @@ public sealed class NativeFormulaRelationshipProbeTests(
         });
     }
 
-    private static string Read(Func<Excel.Range> getter)
+    private static void AssertRelation(string? expected, (string? Address, int? ErrorCode, string? Error) actual)
+    {
+        Assert.Equal(expected, actual.Address);
+        if (expected is null)
+        {
+            Assert.Equal(unchecked((int)0x800A03EC), actual.ErrorCode);
+            Assert.Contains("No cells were found", actual.Error, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.Null(actual.ErrorCode);
+            Assert.Null(actual.Error);
+        }
+    }
+
+    private static (string? Address, int? ErrorCode, string? Error) Read(Func<Excel.Range> getter)
     {
         Excel.Range? related = null;
         try
         {
             related = getter();
-            return related.Address;
+            return (related.Address, null, null);
         }
         catch (COMException exception) when (exception.HResult == unchecked((int)0x800A03EC))
         {
-            return $"unresolved 0x{exception.HResult:X8}: {exception.Message}";
+            return (null, exception.HResult, exception.Message);
         }
         finally
         {

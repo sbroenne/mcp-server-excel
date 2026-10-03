@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -15,6 +16,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        SeedFormattingCells(sheetName);
         var untouchedBefore = new[]
         {
             ReadCellFormattingState(sheetName, "B1"),
@@ -30,12 +32,14 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             horizontalAlignment: "center");
 
         Assert.True(result.Success, $"FormatRanges failed: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.Equal(new CellFormattingState(true, YellowFillColor, CenterAlignment), ReadCellFormattingState(sheetName, "A1"));
         Assert.Equal(new CellFormattingState(true, YellowFillColor, CenterAlignment), ReadCellFormattingState(sheetName, "A2"));
         Assert.Equal(new CellFormattingState(true, YellowFillColor, CenterAlignment), ReadCellFormattingState(sheetName, "C1"));
         Assert.Equal(new CellFormattingState(true, YellowFillColor, CenterAlignment), ReadCellFormattingState(sheetName, "C2"));
         Assert.Equal(untouchedBefore[0], ReadCellFormattingState(sheetName, "B1"));
         Assert.Equal(untouchedBefore[1], ReadCellFormattingState(sheetName, "B2"));
+        AssertFormattingCells(sheetName);
     }
 
     [Fact]
@@ -43,6 +47,8 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        SeedFormattingCells(sheetName);
+        var before = new[] { ReadCellNumberFormat(sheetName, "B1"), ReadCellNumberFormat(sheetName, "B2") };
 
         var result = FormatRanges(
             batch,
@@ -51,11 +57,14 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             numberFormat: "0.00%");
 
         Assert.True(result.Success, $"FormatRanges failed: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.Equal("0.00%", ReadCellNumberFormat(sheetName, "A1"));
         Assert.Equal("0.00%", ReadCellNumberFormat(sheetName, "A2"));
         Assert.Equal("0.00%", ReadCellNumberFormat(sheetName, "C1"));
         Assert.Equal("0.00%", ReadCellNumberFormat(sheetName, "C2"));
-        Assert.NotEqual("0.00%", ReadCellNumberFormat(sheetName, "B1"));
+        Assert.Equal(before[0], ReadCellNumberFormat(sheetName, "B1"));
+        Assert.Equal(before[1], ReadCellNumberFormat(sheetName, "B2"));
+        AssertFormattingCells(sheetName);
     }
 
     [Fact]
@@ -63,7 +72,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        _commands.SetValues(batch, sheetName, "A1", [[12.5]]);
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [[12.5]]));
 
         var result = FormatRanges(
             batch,
@@ -72,6 +81,9 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             numberFormat: "0.00 \"Total\"");
 
         Assert.True(result.Success, $"FormatRanges failed: {result.ErrorMessage}");
+        RequireSuccess(result);
+        Assert.Equal(12.5, Assert.Single(Assert.Single(
+            RequireSuccess(_commands.GetValues(batch, sheetName, "A1")).Values)));
         Assert.Equal("0.00 \"Total\"", ReadCellNumberFormat(sheetName, "A1"));
         Assert.Equal(
             $"12{ReadDecimalSeparator()}50 Total",
@@ -83,6 +95,8 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        SeedFormattingCells(sheetName);
+        var before = ReadCellFormattingState(sheetName, "A1");
 
         var exception = Assert.Throws<ArgumentException>(() =>
             FormatRanges(
@@ -92,6 +106,9 @@ public sealed partial class PersistentServiceRangeSpecializedTests
                 bold: true));
 
         Assert.Contains("1", exception.Message);
+        Assert.Equal(before, ReadCellFormattingState(sheetName, "A1"));
+        Assert.Equal(before, ReadCellFormattingState(sheetName, "A2"));
+        AssertFormattingCells(sheetName);
     }
 
     [Fact]
@@ -99,6 +116,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        SeedFormattingCells(sheetName);
         var a1Before = ReadCellFormattingState(sheetName, "A1");
         var a2Before = ReadCellFormattingState(sheetName, "A2");
 
@@ -114,12 +132,15 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         Assert.Contains("range", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(a1Before, ReadCellFormattingState(sheetName, "A1"));
         Assert.Equal(a2Before, ReadCellFormattingState(sheetName, "A2"));
+        AssertFormattingCells(sheetName);
     }
 
     [Fact]
     public async Task FormatRange_Issue585Payload_AppliesAndPersistsAfterReopen()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        SeedFormattingRow(sheetName);
+        var untouched = ReadIssue585FormattingState(sheetName, "K1");
 
         var response = _fixture.Send(
             "rangeformat.format",
@@ -136,27 +157,21 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             });
 
         Assert.True(response.Success, response.ErrorMessage);
-        Assert.Equal(
-            new Issue585FormattingState(true, Issue585FillColor, WhiteFontColor),
-            ReadIssue585FormattingState(sheetName, "A1"));
-        Assert.Equal(
-            new Issue585FormattingState(true, Issue585FillColor, WhiteFontColor),
-            ReadIssue585FormattingState(sheetName, "J1"));
+        AssertIssue585Row(sheetName, untouched);
 
         await _fixture.SaveAndReopenAsync();
 
-        Assert.Equal(
-            new Issue585FormattingState(true, Issue585FillColor, WhiteFontColor),
-            ReadIssue585FormattingState(sheetName, "A1"));
-        Assert.Equal(
-            new Issue585FormattingState(true, Issue585FillColor, WhiteFontColor),
-            ReadIssue585FormattingState(sheetName, "J1"));
+        AssertIssue585Row(sheetName, untouched);
     }
 
     [Fact]
     public async Task FormatRange_InvalidColor_ReturnsInvalidInputFailure()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        SeedFormattingRow(sheetName);
+        RequireSuccess(_commands.Format(_fixture.BatchToken, sheetName, ["A1:J1"],
+            new() { Bold = true, FillColor = "#1F4E79", FontColor = "#FFFFFF" }));
+        var untouched = ReadIssue585FormattingState(sheetName, "K1");
 
         var response = await _fixture.SendForFailureAsync(
             "rangeformat.format",
@@ -176,11 +191,17 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             "Invalid color format: not-a-color",
             response.ErrorMessage,
             StringComparison.Ordinal);
+        AssertIssue585Row(sheetName, untouched);
     }
 
     [Fact]
     public async Task FormatRange_MissingSheet_ReturnsNotFoundFailure()
     {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        SeedFormattingRow(sheetName);
+        RequireSuccess(_commands.Format(_fixture.BatchToken, sheetName, ["A1:J1"],
+            new() { Bold = true, FillColor = "#1F4E79", FontColor = "#FFFFFF" }));
+        var untouched = ReadIssue585FormattingState(sheetName, "K1");
         var response = await _fixture.SendForFailureAsync(
             "rangeformat.format",
             new
@@ -201,6 +222,35 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             "not found",
             response.ErrorMessage,
             StringComparison.OrdinalIgnoreCase);
+        AssertIssue585Row(sheetName, untouched);
+    }
+
+    private void SeedFormattingCells(string sheetName) =>
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:C2",
+            [["First", "Neighbor", "Third"], [0.25, 0.5, 0.75]]));
+
+    private void AssertFormattingCells(string sheetName)
+    {
+        var values = RequireSuccess(_commands.GetValues(_fixture.BatchToken, sheetName, "A1:C2")).Values;
+        Assert.Equal(2, values.Count);
+        Assert.Equal(new object?[] { "First", "Neighbor", "Third" }, values[0]);
+        Assert.Equal(new object?[] { 0.25, 0.5, 0.75 }, values[1]);
+    }
+
+    private void SeedFormattingRow(string sheetName) =>
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:K1",
+            [Enumerable.Range(1, 11).Select(index => (object?)$"Header {index}").ToList()]));
+
+    private void AssertIssue585Row(string sheetName, Issue585FormattingState untouched)
+    {
+        foreach (var column in "ABCDEFGHIJ")
+        {
+            Assert.Equal(new Issue585FormattingState(true, Issue585FillColor, WhiteFontColor),
+                ReadIssue585FormattingState(sheetName, $"{column}1"));
+        }
+        Assert.Equal(untouched, ReadIssue585FormattingState(sheetName, "K1"));
+        Assert.Equal(Enumerable.Range(1, 11).Select(index => (object?)$"Header {index}"),
+            Assert.Single(RequireSuccess(_commands.GetValues(_fixture.BatchToken, sheetName, "A1:K1")).Values));
     }
 
     private Sbroenne.ExcelMcp.Core.Models.OperationResult FormatRanges(
@@ -257,13 +307,13 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         string cellAddress) =>
         _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? font = null;
-            dynamic? interior = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Font? font = null;
+            Excel.Interior? interior = null;
             try
             {
-                sheet = context.Book.Worksheets[sheetName];
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
                 range = sheet.Range[cellAddress];
                 font = range.Font;
                 interior = range.Interior;
@@ -284,11 +334,11 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     private string ReadCellNumberFormat(string sheetName, string cellAddress) =>
         _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             try
             {
-                sheet = context.Book.Worksheets[sheetName];
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
                 range = sheet.Range[cellAddress];
                 return (string)(((Microsoft.Office.Interop.Excel.Range)range).NumberFormat ?? "General");
             }
@@ -302,13 +352,11 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     private string ReadCellText(string sheetName, string cellAddress) =>
         _fixture.ExecuteRawVerification((context, _) =>
         {
-            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
-            dynamic? sheet = null;
-            dynamic? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             try
             {
-                sheets = context.Book.Worksheets;
-                sheet = sheets[sheetName];
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
                 range = sheet.Range[cellAddress];
                 return Convert.ToString(range.Text, System.Globalization.CultureInfo.InvariantCulture)
                     ?? string.Empty;
@@ -317,7 +365,6 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             {
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
-                ComUtilities.Release(ref sheets);
             }
         });
 
@@ -330,13 +377,13 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         string cellAddress) =>
         _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? font = null;
-            dynamic? interior = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Font? font = null;
+            Excel.Interior? interior = null;
             try
             {
-                sheet = context.Book.Worksheets[sheetName];
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
                 range = sheet.Range[cellAddress];
                 font = range.Font;
                 interior = range.Interior;

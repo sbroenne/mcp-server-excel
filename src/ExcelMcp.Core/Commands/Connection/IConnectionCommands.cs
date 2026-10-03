@@ -124,7 +124,7 @@ public interface IConnectionCommands
     /// <param name="backgroundQuery">Run query in background (null to keep current)</param>
     /// <param name="refreshOnFileOpen">Refresh when file opens (null to keep current)</param>
     /// <param name="savePassword">Save password in connection (null to keep current)</param>
-    /// <param name="refreshPeriod">Auto-refresh interval in minutes (null to keep current)</param>
+    /// <param name="refreshPeriod">Nonnegative auto-refresh interval in minutes; 0 disables automatic refresh (null to keep current)</param>
     [ServiceAction("set-properties")]
     OperationResult SetProperties(
         IExcelBatch batch,

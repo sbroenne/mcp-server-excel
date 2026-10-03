@@ -14,6 +14,7 @@ public sealed partial class ServiceFileCommandsTests
         // Arrange - Create a valid file
         var testFile = _fixture.CreateTestFile();
         var lastWriteTime = File.GetLastWriteTimeUtc(testFile);
+        var bytes = File.ReadAllBytes(testFile);
 
         // Act
         var info = _fileCommands.Test(testFile);
@@ -29,6 +30,7 @@ public sealed partial class ServiceFileCommandsTests
         Assert.True(info.Size > 0);
         Assert.Null(info.Message);
         Assert.Equal(lastWriteTime, File.GetLastWriteTimeUtc(testFile));
+        Assert.Equal(bytes, File.ReadAllBytes(testFile));
         Assert.Equal(0, _fixture.SessionCount);
     }
     [Fact]
@@ -48,6 +50,7 @@ public sealed partial class ServiceFileCommandsTests
         Assert.Null(info.IsError);
         Assert.NotNull(info.Message);
         Assert.Contains("not found", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(testFile));
     }
 
     [Fact]
@@ -55,6 +58,7 @@ public sealed partial class ServiceFileCommandsTests
     {
         var testFile = Path.Join(_fixture.TempDir, $"Corrupt_{Guid.NewGuid():N}.xlsx");
         System.IO.File.WriteAllText(testFile, "not an Excel workbook");
+        var bytes = File.ReadAllBytes(testFile);
 
         var info = _fileCommands.Test(testFile);
 
@@ -65,6 +69,7 @@ public sealed partial class ServiceFileCommandsTests
         Assert.NotNull(info.Message);
         Assert.Contains("valid Excel workbook", info.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("already open", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(bytes, File.ReadAllBytes(testFile));
     }
 
     [Theory]
@@ -75,6 +80,8 @@ public sealed partial class ServiceFileCommandsTests
         string expectedExceptionType)
     {
         var testFile = _fixture.CreateTestFile();
+        var bytes = File.ReadAllBytes(testFile);
+        var originalHook = ExcelBatch.BeforeWorkbookOpenHook;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) => throw failure switch
         {
             "timeout" => new TimeoutException("Validation timed out."),
@@ -82,7 +89,7 @@ public sealed partial class ServiceFileCommandsTests
             _ => throw new InvalidOperationException($"Unknown failure type: {failure}")
         };
 
-        try
+        PersistentServiceCleanupFailures.Run(() =>
         {
             var response = _fileCommands.TestRaw(testFile);
 
@@ -90,31 +97,37 @@ public sealed partial class ServiceFileCommandsTests
             Assert.NotNull(response.ErrorMessage);
             Assert.True(string.IsNullOrEmpty(response.Result));
             Assert.Equal(expectedExceptionType, response.ExceptionType);
-        }
-        finally
-        {
-            ExcelBatch.BeforeWorkbookOpenHook = null;
-        }
+            Assert.Equal(bytes, File.ReadAllBytes(testFile));
+        }, () => ExcelBatch.BeforeWorkbookOpenHook = originalHook);
+        var recovered = _fileCommands.Test(testFile);
+        Assert.True(recovered.Success);
+        Assert.True(recovered.IsValid);
+        Assert.True(recovered.CanOpen);
+        Assert.Equal(bytes, File.ReadAllBytes(testFile));
     }
 
     [Fact]
     public void Test_LockedSupportedFile_ReportsNotOpenable()
     {
         var testFile = _fixture.CreateTestFile();
-        using var lockStream = new FileStream(
+        var bytes = File.ReadAllBytes(testFile);
+        using (var lockStream = new FileStream(
             testFile,
             FileMode.Open,
             FileAccess.ReadWrite,
-            FileShare.None);
+            FileShare.None))
+        {
+            var info = _fileCommands.Test(testFile);
 
-        var info = _fileCommands.Test(testFile);
-
-        Assert.True(info.Exists);
-        Assert.False(info.IsValid);
-        Assert.False(info.Success);
-        Assert.False(info.CanOpen);
-        Assert.NotNull(info.Message);
-        Assert.Contains("already open", info.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(info.Exists);
+            Assert.False(info.IsValid);
+            Assert.False(info.Success);
+            Assert.False(info.CanOpen);
+            Assert.NotNull(info.Message);
+            Assert.Contains("already open", info.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        Assert.Equal(bytes, File.ReadAllBytes(testFile));
+        Assert.True(_fileCommands.Test(testFile).CanOpen);
     }
 
     [Theory]
@@ -140,5 +153,6 @@ public sealed partial class ServiceFileCommandsTests
         Assert.Equal(expectedExt, info.Extension);
         Assert.NotNull(info.Message);
         Assert.Contains("Invalid file extension", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("test content", File.ReadAllText(testFile));
     }
 }
